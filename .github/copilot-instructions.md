@@ -98,8 +98,9 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 ## Testing and Building
 
 - No automated testing infrastructure exists yet
-- Build system integration is planned (Makefile to be added)
-- The framework is designed to be integrated into existing build systems
+- The framework is designed to be integrated into a larger project's build system
+- The parent project (DOOM-ED) contains the Makefile that builds this UI framework
+- This repository contains the extracted UI framework code without the full build infrastructure
 
 ## When Adding Features
 
