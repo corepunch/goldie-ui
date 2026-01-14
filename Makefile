@@ -54,7 +54,8 @@ EXAMPLE_BINS = $(patsubst examples/%.c,$(BIN_DIR)/%,$(EXAMPLE_SRCS))
 
 # Test sources
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
-TEST_BINS = $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/test_%,$(TEST_SRCS))
+TEST_BINS = $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/test_%,$(filter-out $(TEST_DIR)/test_env.c,$(TEST_SRCS)))
+TEST_ENV_OBJ = $(OBJ_DIR)/test_env.o
 
 # Default target
 .PHONY: all
@@ -103,6 +104,22 @@ test: $(TEST_BINS)
 	done
 	@echo "All tests passed!"
 
+# Build test environment object file
+$(TEST_ENV_OBJ): $(TEST_DIR)/test_env.c | $(OBJ_DIR)
+	@echo "Compiling test environment: $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Build basic tests (without test_env)
+$(BIN_DIR)/test_basic_test: $(TEST_DIR)/basic_test.c $(STATIC_LIB) | $(BIN_DIR)
+	@echo "Building test: $@"
+	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+
+# Build tests that need test_env
+$(BIN_DIR)/test_window_msg_test: $(TEST_DIR)/window_msg_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+	@echo "Building test with environment: $@"
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+
+# Generic test build rule (fallback)
 $(BIN_DIR)/test_%: $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)

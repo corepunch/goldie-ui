@@ -7,7 +7,9 @@ This directory contains the test suite for the Goldie UI framework. The tests ar
 ### Test Files
 
 - **test_framework.h** - Simple test framework providing macros for assertions and test reporting
+- **test_env.h / test_env.c** - Test environment for creating windows and tracking events using hooks
 - **basic_test.c** - Basic functionality tests (macros, constants, structures)
+- **window_msg_test.c** - Window and message tracking tests using the test environment
 
 ## Running Tests
 
@@ -26,7 +28,68 @@ This will:
 
 ```bash
 ./build/bin/test_basic
+./build/bin/test_window_msg
 ```
+
+## Test Environment
+
+The test environment (`test_env.h` and `test_env.c`) provides utilities for testing UI windows and messages:
+
+### Features
+
+- **Window Creation**: Helper functions to create test windows
+- **Message Tracking**: Uses the UI framework's hook system to track all messages sent to windows
+- **Event History**: Maintains a history of all tracked events with details (window, message, parameters, call count)
+- **Query Interface**: Functions to check if messages were sent, count message occurrences, and retrieve event details
+
+### Usage Example
+
+```c
+#include "test_env.h"
+
+// Initialize test environment
+test_env_init();
+test_env_enable_tracking(true);
+
+// Create a window
+window_t *win = test_env_create_window("Test", 10, 10, 100, 100, my_proc, NULL);
+
+// Send messages
+test_env_send_message(win, WM_PAINT, 0, NULL);
+test_env_send_message(win, WM_COMMAND, 42, NULL);
+
+// Verify messages were sent
+assert(test_env_was_message_sent(WM_PAINT));
+assert(test_env_count_message(WM_COMMAND) == 1);
+
+// Get event details
+test_event_t *event = test_env_find_event(WM_COMMAND);
+assert(event->wparam == 42);
+
+// Cleanup
+destroy_window(win);
+test_env_shutdown();
+```
+
+### API Reference
+
+**Initialization:**
+- `test_env_init()` - Initialize test environment
+- `test_env_shutdown()` - Shutdown and cleanup
+- `test_env_enable_tracking(bool)` - Enable/disable event tracking
+
+**Event Tracking:**
+- `test_env_clear_events()` - Clear all tracked events
+- `test_env_get_event_count()` - Get number of tracked events
+- `test_env_get_event(int index)` - Get event by index
+- `test_env_find_event(uint32_t msg)` - Find first event with given message type
+- `test_env_was_message_sent(uint32_t msg)` - Check if message was sent
+- `test_env_count_message(uint32_t msg)` - Count occurrences of message
+
+**Window Helpers:**
+- `test_env_create_window()` - Create a window with simplified parameters
+- `test_env_send_message()` - Send a message (wrapper around send_message)
+- `test_env_post_message()` - Post a message (wrapper around post_message)
 
 ## Test Philosophy
 
@@ -47,6 +110,30 @@ The test suite follows the Windows 1.0 testing philosophy:
 - Control message constants (BM_SETCHECK, CB_ADDSTRING, etc.)
 - Notification constants (BN_CLICKED, EN_UPDATE, etc.)
 - Window flags (WINDOW_NOTITLE, WINDOW_TRANSPARENT, etc.)
+
+### Window and Message Tracking
+- Window creation with automatic WM_CREATE tracking
+- Message sending and receiving with event tracking
+- Multiple message handling
+- Event tracking enable/disable
+- Event detail retrieval (window, message, parameters)
+- Event history and querying
+- Clear event tracking
+
+## Hook System
+
+The test environment leverages the UI framework's built-in hook system to track window messages. Hooks are registered for common window messages:
+
+- WM_CREATE - Window creation
+- WM_DESTROY - Window destruction  
+- WM_PAINT - Window paint requests
+- WM_COMMAND - Command messages
+- WM_LBUTTONDOWN/UP - Mouse button events
+- WM_KEYDOWN/UP - Keyboard events
+- WM_MOUSEMOVE - Mouse movement
+- WM_SETFOCUS/KILLFOCUS - Focus changes
+
+Hooks are called before the window procedure, allowing tests to observe all message traffic without modifying window implementations.
 
 ## Test Framework
 
