@@ -43,10 +43,11 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 
 ### Drawing and Rendering
 - Use OpenGL for all rendering (hardware accelerated)
-- Text rendering uses either small bitmap font (6x8) or DOOM/Hexen game fonts
-- Drawing functions include: `draw_text_small()`, `draw_text_gl3()`, `draw_rect()`, `draw_icon()`
+- Text rendering uses small bitmap font (6x8 pixels)
+- Drawing functions include: `draw_text_small()`, `draw_rect()`, `fill_rect()`, `draw_icon8()`, `draw_icon16()`
 - Always call `init_text_rendering()` at startup and `shutdown_text_rendering()` at cleanup
 - Colors are specified as RGBA uint32_t values
+- Use `ui_begin_frame()` and `ui_end_frame()` to manage rendering context
 
 ### Memory Management
 - Use malloc/free for dynamic allocations
@@ -71,8 +72,8 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 
 ### Working with Text Rendering
 - For small fixed-width text: use `draw_text_small()` with `strwidth()` for measurements
-- For game-style text: use `draw_text_gl3()` with `get_text_width()` and call `load_console_font()` first
 - Font rendering is OpenGL-based using texture atlases for efficiency
+- Always initialize the text system with `init_text_rendering()` before use
 
 ## Dependencies
 
@@ -97,9 +98,8 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 ## Testing and Building
 
 - No automated testing infrastructure exists yet
-- Build system uses Makefiles
-- Example build command: `make ui-helloworld`
-- Run examples from repository root: `./ui-helloworld`
+- Build system integration is planned (Makefile to be added)
+- The framework is designed to be integrated into existing build systems
 
 ## When Adding Features
 
