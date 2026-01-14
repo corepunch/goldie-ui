@@ -5,11 +5,14 @@
 #include "test_framework.h"
 #include "../ui.h"
 
+// Test constants
+#define TEST_DWORD_VALUE 0x12345678
+
 // Test LOWORD and HIWORD macros
 void test_word_macros(void) {
     TEST("LOWORD/HIWORD macros");
     
-    uint32_t value = 0x12345678;
+    uint32_t value = TEST_DWORD_VALUE;
     
     ASSERT_EQUAL(LOWORD(value), 0x5678);
     ASSERT_EQUAL(HIWORD(value), 0x1234);
@@ -26,7 +29,7 @@ void test_makedword_macro(void) {
     
     uint32_t result = MAKEDWORD(low, high);
     
-    ASSERT_EQUAL(result, 0x12345678);
+    ASSERT_EQUAL(result, TEST_DWORD_VALUE);
     ASSERT_EQUAL(LOWORD(result), low);
     ASSERT_EQUAL(HIWORD(result), high);
     
