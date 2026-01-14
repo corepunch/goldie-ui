@@ -1,0 +1,82 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop, 'copilot/**' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Build on Linux
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libgl1-mesa-dev libcglm-dev
+        
+    - name: Build library
+      run: make library
+      
+    - name: Build examples
+      run: make examples
+      
+    - name: Build and run tests
+      run: |
+        if [ -d "tests" ] && [ "$(ls -A tests/*.c 2>/dev/null)" ]; then
+          make test
+        else
+          echo "No tests found, skipping test build"
+        fi
+      
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: goldie-ui-linux
+        path: |
+          build/lib/libgoldieui.a
+          build/lib/libgoldieui.so
+          build/bin/*
+        retention-days: 30
+  
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        brew install sdl2 cglm
+        
+    - name: Build library
+      run: make library
+      
+    - name: Build examples
+      run: make examples
+      
+    - name: Build and run tests
+      run: |
+        if [ -d "tests" ] && [ "$(ls -A tests/*.c 2>/dev/null)" ]; then
+          make test
+        else
+          echo "No tests found, skipping test build"
+        fi
+      
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: goldie-ui-macos
+        path: |
+          build/lib/libgoldieui.a
+          build/lib/libgoldieui.dylib
+          build/bin/*
+        retention-days: 30

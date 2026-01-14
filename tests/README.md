@@ -1,0 +1,215 @@
+# Goldie UI Test Suite
+
+This directory contains the test suite for the Goldie UI framework. The tests are inspired by the testing approach used for Windows 1.0, focusing on core functionality: window management, event handling, and common controls.
+
+## Test Organization
+
+### Test Files
+
+- **test_framework.h** - Simple test framework providing macros for assertions and test reporting
+- **test_env.h / test_env.c** - Test environment for creating windows and tracking events using hooks
+- **basic_test.c** - Basic functionality tests (macros, constants, structures)
+- **window_msg_test.c** - Window and message tracking tests using the test environment
+
+## Running Tests
+
+### Build and Run All Tests
+
+```bash
+make test
+```
+
+This will:
+1. Build all test executables
+2. Run each test in sequence
+3. Report results
+
+### Run Individual Tests
+
+```bash
+./build/bin/test_basic
+./build/bin/test_window_msg
+```
+
+## Test Environment
+
+The test environment (`test_env.h` and `test_env.c`) provides utilities for testing UI windows and messages:
+
+### Features
+
+- **Window Creation**: Helper functions to create test windows
+- **Message Tracking**: Uses the UI framework's hook system to track all messages sent to windows
+- **Event History**: Maintains a history of all tracked events with details (window, message, parameters, call count)
+- **Query Interface**: Functions to check if messages were sent, count message occurrences, and retrieve event details
+
+### Usage Example
+
+```c
+#include "test_env.h"
+
+// Initialize test environment
+test_env_init();
+test_env_enable_tracking(true);
+
+// Create a window
+window_t *win = test_env_create_window("Test", 10, 10, 100, 100, my_proc, NULL);
+
+// Send messages
+test_env_send_message(win, WM_PAINT, 0, NULL);
+test_env_send_message(win, WM_COMMAND, 42, NULL);
+
+// Verify messages were sent
+assert(test_env_was_message_sent(WM_PAINT));
+assert(test_env_count_message(WM_COMMAND) == 1);
+
+// Get event details
+test_event_t *event = test_env_find_event(WM_COMMAND);
+assert(event->wparam == 42);
+
+// Cleanup
+destroy_window(win);
+test_env_shutdown();
+```
+
+### API Reference
+
+**Initialization:**
+- `test_env_init()` - Initialize test environment
+- `test_env_shutdown()` - Shutdown and cleanup
+- `test_env_enable_tracking(bool)` - Enable/disable event tracking
+
+**Event Tracking:**
+- `test_env_clear_events()` - Clear all tracked events
+- `test_env_get_event_count()` - Get number of tracked events
+- `test_env_get_event(int index)` - Get event by index
+- `test_env_find_event(uint32_t msg)` - Find first event with given message type
+- `test_env_was_message_sent(uint32_t msg)` - Check if message was sent
+- `test_env_count_message(uint32_t msg)` - Count occurrences of message
+
+**Window Helpers:**
+- `test_env_create_window()` - Create a window with simplified parameters
+- `test_env_send_message()` - Send a message (wrapper around send_message)
+- `test_env_post_message()` - Post a message (wrapper around post_message)
+
+## Test Philosophy
+
+The test suite follows the Windows 1.0 testing philosophy:
+
+1. **Simple and Direct** - Tests are straightforward and easy to understand
+2. **No Dependencies** - Each test is self-contained
+3. **Fast Execution** - Tests run quickly without UI rendering
+4. **Core Functionality** - Focus on essential features that must work
+
+## What We Test
+
+### Basic Functionality
+- LOWORD/HIWORD/MAKEDWORD macros
+- MIN/MAX macros
+- Rectangle structures
+- Window message constants (WM_CREATE, WM_DESTROY, WM_PAINT, etc.)
+- Control message constants (BM_SETCHECK, CB_ADDSTRING, etc.)
+- Notification constants (BN_CLICKED, EN_UPDATE, etc.)
+- Window flags (WINDOW_NOTITLE, WINDOW_TRANSPARENT, etc.)
+
+### Window and Message Tracking
+- Window creation with automatic WM_CREATE tracking
+- Message sending and receiving with event tracking
+- Multiple message handling
+- Event tracking enable/disable
+- Event detail retrieval (window, message, parameters)
+- Event history and querying
+- Clear event tracking
+
+## Hook System
+
+The test environment leverages the UI framework's built-in hook system to track window messages. Hooks are registered for common window messages:
+
+- WM_CREATE - Window creation
+- WM_DESTROY - Window destruction  
+- WM_PAINT - Window paint requests
+- WM_COMMAND - Command messages
+- WM_LBUTTONDOWN/UP - Mouse button events
+- WM_KEYDOWN/UP - Keyboard events
+- WM_MOUSEMOVE - Mouse movement
+- WM_SETFOCUS/KILLFOCUS - Focus changes
+
+Hooks are called before the window procedure, allowing tests to observe all message traffic without modifying window implementations.
+
+## Test Framework
+
+The custom test framework (`test_framework.h`) provides:
+
+### Macros
+- `TEST_START(name)` - Begin a test suite
+- `TEST_END()` - End suite and report results
+- `TEST(name)` - Begin individual test
+- `PASS()` - Mark test as passed
+- `FAIL(msg)` - Mark test as failed with message
+
+### Assertions
+- `ASSERT_TRUE(condition)` - Verify condition is true
+- `ASSERT_FALSE(condition)` - Verify condition is false
+- `ASSERT_NULL(ptr)` - Verify pointer is NULL
+- `ASSERT_NOT_NULL(ptr)` - Verify pointer is not NULL
+- `ASSERT_EQUAL(a, b)` - Verify values are equal
+- `ASSERT_NOT_EQUAL(a, b)` - Verify values are not equal
+- `ASSERT_STR_EQUAL(a, b)` - Verify strings are equal
+
+### Output
+Tests produce colored output:
+- Blue: Test suite headers
+- Green: Passed tests
+- Red: Failed tests
+- Summary statistics at end
+
+## Adding New Tests
+
+To add a new test file:
+
+1. Create `tests/yourtest.c`
+2. Include `test_framework.h` and `../ui.h`
+3. Write test functions
+4. Create `main()` function with `TEST_START()` and `TEST_END()`
+5. Run `make test` - the Makefile will automatically pick it up
+
+Example:
+
+```c
+#include "test_framework.h"
+#include "../ui.h"
+
+void test_something(void) {
+    TEST("Your test name");
+    
+    // Test code here
+    ASSERT_TRUE(1 == 1);
+    
+    PASS();
+}
+
+int main(void) {
+    TEST_START("Your Test Suite");
+    
+    test_something();
+    
+    TEST_END();
+}
+```
+
+## CI/CD Integration
+
+Tests are automatically run in GitHub Actions for:
+- Linux (Ubuntu)
+- macOS
+
+Failed tests will cause the build to fail, preventing broken code from being merged.
+
+## Future Tests
+
+Planned additions:
+- Window creation and management tests
+- Message queue and event handling tests
+- Common controls tests (button, checkbox, edit, label, list, combobox)
+- Focus and keyboard navigation tests
+- Mouse event simulation tests
+- Text rendering tests
