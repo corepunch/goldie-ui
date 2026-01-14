@@ -1,0 +1,98 @@
+#include <SDL2/SDL.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../user/user.h"
+#include "../user/messages.h"
+#include "../user/draw.h"
+
+#define BUFFER_SIZE 64
+#define PADDING 3
+
+// Helper function (will be moved to ui/user/window.c later)
+extern window_t *get_root_window(window_t *window);
+extern window_t *_focused;
+
+// Text edit control window procedure
+result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  switch (msg) {
+    case WM_CREATE:
+      win->frame.w = MAX(win->frame.w, strwidth(win->title)+PADDING*2);
+      win->frame.h = MAX(win->frame.h, 13);
+      return true;
+    case WM_PAINT:
+      fill_rect(_focused == win?COLOR_FOCUSED:COLOR_PANEL_BG, win->frame.x-2, win->frame.y-2, win->frame.w+4, win->frame.h+4);
+      draw_button(win->frame.x, win->frame.y, win->frame.w, win->frame.h, true);
+      draw_text_small(win->title, win->frame.x+PADDING, win->frame.y+PADDING, COLOR_TEXT_NORMAL);
+      if (_focused == win && win->editing) {
+        fill_rect(COLOR_TEXT_NORMAL,
+                  win->frame.x+PADDING+strnwidth(win->title, win->cursor_pos),
+                  win->frame.y+PADDING,
+                  2, 8);
+      }
+      return true;
+    case WM_LBUTTONUP:
+      if (_focused == win) {
+        invalidate_window(win);
+        win->editing = true;
+        win->cursor_pos = 0;
+        for (int i = 0; i <= strlen(win->title); i++) {
+          int x1 = win->frame.x+PADDING+strnwidth(win->title, i);
+          int x2 = win->frame.x+PADDING+strnwidth(win->title, win->cursor_pos);
+          if (abs((int)LOWORD(wparam) - x1) < abs((int)LOWORD(wparam) - x2)) {
+            win->cursor_pos = i;
+          }
+        }
+      }
+      return true;
+    case WM_TEXTINPUT:
+      if (strlen(win->title) + strlen(lparam) < BUFFER_SIZE - 1) {
+        memmove(win->title + win->cursor_pos + 1,
+                win->title + win->cursor_pos,
+                strlen(win->title + win->cursor_pos) + 1);
+        win->title[win->cursor_pos] = *(char *)lparam; // Only handle 1-byte characters
+        win->cursor_pos++;
+      }
+      invalidate_window(win);
+      return true;
+    case WM_KEYDOWN:
+      switch (wparam) {
+        case SDL_SCANCODE_RETURN:
+          if (!win->editing) {
+            win->cursor_pos = (int)strlen(win->title);
+            win->editing = true;
+          } else {
+            send_message(get_root_window(win), WM_COMMAND, MAKEDWORD(win->id, EN_UPDATE), win);
+            win->editing = false;
+          }
+          break;
+        case SDL_SCANCODE_ESCAPE:
+          win->editing = false;
+          break;
+        case SDL_SCANCODE_BACKSPACE:
+          if (win->cursor_pos > 0 && win->editing) {
+            memmove(win->title + win->cursor_pos - 1,
+                    win->title + win->cursor_pos,
+                    strlen(win->title + win->cursor_pos) + 1);
+            win->cursor_pos--;
+          }
+          break;
+        case SDL_SCANCODE_LEFT:
+          if (win->cursor_pos > 0 && win->editing) {
+            win->cursor_pos--;
+          }
+          break;
+        case SDL_SCANCODE_RIGHT:
+          if (win->cursor_pos < strlen(win->title) && win->editing) {
+            win->cursor_pos++;
+          }
+          break;
+        default:
+          return win->editing;
+      }
+      invalidate_window(win);
+      return true;
+  }
+  return false;
+}

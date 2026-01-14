@@ -1,0 +1,133 @@
+#ifndef __UI_USER_H__
+#define __UI_USER_H__
+
+#include <stdint.h>
+#include <stdbool.h>
+
+#define SCREEN_WIDTH 1440
+#define SCREEN_HEIGHT 960
+
+#define LOWORD(l) ((uint16_t)(l & 0xFFFF))
+#define HIWORD(l) ((uint16_t)((l >> 16) & 0xFFFF))
+#define MAKEDWORD(low, high) ((uint32_t)(((uint16_t)(low)) | ((uint32_t)((uint16_t)(high))) << 16))
+
+// Forward declarations
+typedef struct window_s window_t;
+typedef struct rect_s rect_t;
+typedef uint32_t flags_t;
+typedef uint32_t result_t;
+
+// Helper macros
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+// Window procedure callback type
+typedef result_t (*winproc_t)(window_t *, uint32_t, uint32_t, void *);
+
+// Window hook callback type
+typedef void (*winhook_func_t)(window_t *win, uint32_t msg, uint32_t wparam, void *lparam, void *userdata);
+
+// Rectangle structure
+struct rect_s {
+  int x, y, w, h;
+};
+
+// Toolbar button structure
+typedef struct toolbar_button_s {
+  int icon;
+  int ident;
+  bool active;
+} toolbar_button_t;
+
+// Window definition structure (for declarative window creation)
+typedef struct {
+  winproc_t proc;
+  const char *text;
+  uint32_t id;
+  int w, h;
+  flags_t flags;
+} windef_t;
+
+// Window structure
+struct window_s {
+  rect_t frame;
+  uint32_t id;
+  uint16_t scroll[2];
+  uint32_t flags;
+  winproc_t proc;
+  uint32_t child_id;
+  bool hovered;
+  bool editing;
+  bool notabstop;
+  bool pressed;
+  bool value;
+  bool visible;
+  bool disabled;
+  char title[64];
+  int cursor_pos;
+  int num_toolbar_buttons;
+  toolbar_button_t *toolbar_buttons;
+  void *userdata;
+  void *userdata2;
+  struct window_s *next;
+  struct window_s *children;
+  struct window_s *parent;
+};
+
+// Window management functions
+window_t *create_window(char const *title, flags_t flags, const rect_t* frame, 
+                        window_t *parent, winproc_t proc, void *param);
+window_t *create_window2(windef_t const *def, rect_t const *r, window_t *parent);
+void show_window(window_t *win, bool visible);
+void destroy_window(window_t *win);
+void clear_window_children(window_t *win);
+void move_window(window_t *win, int x, int y);
+void resize_window(window_t *win, int new_w, int new_h);
+
+// Window message functions
+int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void invalidate_window(window_t *win);
+
+// Window query functions
+window_t *get_window_item(window_t const *win, uint32_t id);
+bool is_window(window_t *win);
+int window_title_bar_y(window_t const *win);
+window_t *get_root_window(window_t *window);
+window_t *find_window(int x, int y);
+
+// Global window focus/tracking state
+extern window_t *_focused;
+extern window_t *_tracked;
+extern window_t *_captured;
+
+// Window utility functions
+void set_window_item_text(window_t *win, uint32_t id, const char *fmt, ...);
+void load_window_children(window_t *win, windef_t const *def);
+void enable_window(window_t *win, bool enable);
+void set_focus(window_t* win);
+void set_capture(window_t *win);
+void track_mouse(window_t *win);
+void move_to_top(window_t* win);
+
+// Window hook registration
+void register_window_hook(uint32_t msg, winhook_func_t func, void *userdata);
+
+// Dialog functions
+void end_dialog(window_t *win, uint32_t code);
+uint32_t show_dialog(char const *title, const rect_t* frame, window_t *parent, 
+                     winproc_t proc, void *param);
+
+// Drawing functions
+void draw_windows(bool rich);
+void draw_button(int x, int y, int w, int h, bool pressed);
+
+// Global window list
+extern window_t *windows;
+extern window_t *g_inspector;
+
+#endif
