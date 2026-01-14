@@ -1,0 +1,110 @@
+# GitHub Copilot Instructions for goldie-ui
+
+## Project Overview
+
+This is a UI framework library extracted from DOOM-ED, organized in a Windows-like architecture with three main layers:
+- **user/** - Window management and user interface (USER.DLL equivalent)
+- **kernel/** - Event loop and SDL integration (KERNEL.DLL equivalent)  
+- **commctl/** - Common controls (COMCTL32.DLL equivalent)
+
+The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ for rendering.
+
+## Code Architecture and Conventions
+
+### Directory Structure
+- `user/` contains window management, message queue, drawing primitives, and text rendering
+- `kernel/` contains SDL event loop, initialization, and joystick/gamepad support
+- `commctl/` contains reusable UI controls (buttons, checkboxes, edit boxes, labels, lists, comboboxes, console)
+- `examples/` contains example programs demonstrating framework usage
+- `ui.h` is the main header that includes all UI subsystems
+
+### Naming Conventions
+- Use snake_case for function names (e.g., `create_window`, `draw_text_small`)
+- Use snake_case with _t suffix for type names (e.g., `window_t`, `rect_t`, `winproc_t`)
+- Use SCREAMING_SNAKE_CASE for constants and macros (e.g., `WM_CREATE`, `SCREEN_WIDTH`)
+- Window message constants start with `WM_` (e.g., `WM_PAINT`, `WM_LBUTTONDOWN`)
+- Button messages start with `BN_` (e.g., `BN_CLICKED`)
+- Combobox messages start with `CB_` or `CBN_` (e.g., `CB_ADDSTRING`, `CBN_SELCHANGE`)
+- Edit box messages start with `EN_` (e.g., `EN_UPDATE`)
+
+### Code Style
+- Use K&R-style bracing with opening brace on same line
+- Use 2-space indentation
+- Functions should have minimal comments unless explaining complex logic
+- Header files use include guards with pattern `#ifndef __UI_SUBSYSTEM_H__`
+- Prefer standard C types (int, bool, etc.) with stdint.h types when size matters (uint32_t, uint16_t)
+- Use forward declarations to minimize header dependencies
+
+### Message-Based Architecture
+- All UI interaction uses a Windows-style message system
+- Window procedures follow the signature: `result_t (*winproc_t)(window_t *, uint32_t msg, uint32_t wparam, void *lparam)`
+- Common messages include WM_CREATE, WM_DESTROY, WM_PAINT, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_COMMAND
+- Return true from window proc if message was handled, false otherwise
+
+### Drawing and Rendering
+- Use OpenGL for all rendering (hardware accelerated)
+- Text rendering uses either small bitmap font (6x8) or DOOM/Hexen game fonts
+- Drawing functions include: `draw_text_small()`, `draw_text_gl3()`, `draw_rect()`, `draw_icon()`
+- Always call `init_text_rendering()` at startup and `shutdown_text_rendering()` at cleanup
+- Colors are specified as RGBA uint32_t values
+
+### Memory Management
+- Use malloc/free for dynamic allocations
+- Window structures are managed by the framework - don't manually free them
+- Always pair init functions with corresponding shutdown functions
+
+## Common Tasks
+
+### Adding a New Control
+1. Create implementation file in `commctl/` directory (e.g., `newcontrol.c`)
+2. Add window procedure function following pattern `win_newcontrol()`
+3. Declare the window procedure in `commctl/commctl.h`
+4. Handle at minimum: WM_CREATE, WM_PAINT, WM_DESTROY, and any control-specific messages
+5. Add usage example to README.md if it's a major control
+
+### Creating Example Programs
+1. Place examples in `examples/` directory
+2. Include `../ui.h` for all UI functionality
+3. Follow the pattern in `examples/helloworld.c`
+4. Document build and run instructions in `examples/README.md`
+5. Always initialize with `ui_init_graphics()` and cleanup with `ui_shutdown_graphics()`
+
+### Working with Text Rendering
+- For small fixed-width text: use `draw_text_small()` with `strwidth()` for measurements
+- For game-style text: use `draw_text_gl3()` with `get_text_width()` and call `load_console_font()` first
+- Font rendering is OpenGL-based using texture atlases for efficiency
+
+## Dependencies
+
+- SDL2 (libsdl2-dev on Ubuntu/Debian)
+- OpenGL 3.2 or later (mesa-libGL-devel on Fedora/RHEL)
+- Standard C library
+
+## Current Status
+
+✅ Completed:
+- Header files defining API structure
+- Common controls (button, checkbox, edit, label, list, combobox, console)
+- Text rendering module (bitmap and game fonts)
+- Console module for message display
+- Example hello world program
+
+⏳ In Progress:
+- Extracting core window management from mapview
+- Extracting drawing primitives from mapview
+- Additional example programs
+
+## Testing and Building
+
+- No automated testing infrastructure exists yet
+- Build system uses Makefiles
+- Example build command: `make ui-helloworld`
+- Run examples from repository root: `./ui-helloworld`
+
+## When Adding Features
+
+- Maintain compatibility with existing message-based architecture
+- Follow Windows API patterns where applicable (familiar to many developers)
+- Keep the layered architecture clean (user/kernel/commctl separation)
+- Add documentation to README.md for new public APIs
+- Consider adding examples for non-trivial new functionality
