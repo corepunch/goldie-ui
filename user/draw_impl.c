@@ -159,7 +159,7 @@ void repaint_stencil(void) {
     window_t **win_array = malloc(sizeof(window_t*) * count);
     if (!win_array) {
       // Memory allocation failed - fall back to forward iteration
-      // (better to have incorrect z-order than crash)
+      // (better to have incorrect Z-order than crash)
       for (window_t *w = windows; w; w = w->next) {
         if (!w->visible)
           continue;
