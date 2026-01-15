@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "../user/gl_compat.h"
+#include "../user/user.h"
 #include "../commctl/console.h"
 #include "kernel.h"
 
@@ -92,6 +93,16 @@ static bool ui_init_window(const char *title, int width, int height) {
   return true;
 }
 
+static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  extern void fill_rect(int color, int x, int y, int w, int h);
+  switch (msg) {
+    case WM_PAINT:
+      fill_rect(0xff6B3529, 0, 0, screen_width, screen_height);
+      return true;
+  }
+  return false;
+}
+
 // Initialize graphics context (SDL + OpenGL)
 // This is a convenience function that initializes SDL and creates window/context
 bool ui_init_graphics(int flags, const char *title, int width, int height) {
@@ -114,6 +125,13 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   init_ui_white_texture();
 
   init_console();
+  
+  if (flags & UI_INIT_DESKTOP) {
+    uint32_t flags = WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON;
+    show_window(create_window("Desktop",
+                              flags, MAKERECT(0, 0, screen_width, screen_height),
+                              NULL, win_desktop, NULL), true);
+  }
   
   running = true;
 

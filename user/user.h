@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "messages.h"
+
 #define SCREEN_WIDTH 1440
 #define SCREEN_HEIGHT 960
 

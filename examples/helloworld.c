@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
   printf("UI Framework Hello World Example\n");
 
   // Initialize graphics system (SDL + OpenGL abstracted)
-  if (!ui_init_graphics(0, "UI Framework - Hello World", 640, 480)) {
+  if (!ui_init_graphics(UI_INIT_DESKTOP, "Hello World", 640, 480)) {
     printf("Failed to initialize graphics!\n");
     return 1;
   }

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
+#define UI_INIT_DESKTOP 0x01000000u
+
 // Event type abstraction
 typedef SDL_Event ui_event_t;
 
