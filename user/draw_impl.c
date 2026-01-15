@@ -157,20 +157,30 @@ void repaint_stencil(void) {
   // Build array of window pointers for reverse iteration
   if (count > 0) {
     window_t **win_array = malloc(sizeof(window_t*) * count);
-    int i = 0;
-    for (window_t *w = windows; w; w = w->next) {
-      win_array[i++] = w;
+    if (!win_array) {
+      // Memory allocation failed - fall back to forward iteration
+      // (better to have incorrect z-order than crash)
+      for (window_t *w = windows; w; w = w->next) {
+        if (!w->visible)
+          continue;
+        send_message(w, WM_PAINTSTENCIL, 0, NULL);
+      }
+    } else {
+      int i = 0;
+      for (window_t *w = windows; w; w = w->next) {
+        win_array[i++] = w;
+      }
+      
+      // Iterate in reverse order (back to front)
+      for (i = count - 1; i >= 0; i--) {
+        window_t *w = win_array[i];
+        if (!w->visible)
+          continue;
+        send_message(w, WM_PAINTSTENCIL, 0, NULL);
+      }
+      
+      free(win_array);
     }
-    
-    // Iterate in reverse order (back to front)
-    for (i = count - 1; i >= 0; i--) {
-      window_t *w = win_array[i];
-      if (!w->visible)
-        continue;
-      send_message(w, WM_PAINTSTENCIL, 0, NULL);
-    }
-    
-    free(win_array);
   }
   
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
