@@ -262,11 +262,15 @@ void repost_messages(void) {
     msg_t *m = &queue.messages[queue.read++];
     if (m->target == NULL) continue;
     if (m->msg == WM_REFRESHSTENCIL) {
-      repaint_stencil();
+      if (running) {
+        repaint_stencil();
+      }
       continue;
     }
     send_message(m->target, m->msg, m->wparam, m->lparam);
   }
-  glFlush();
-  // SDL_GL_SwapWindow(window);
+  if (running) {
+    glFlush();
+    // SDL_GL_SwapWindow(window);
+  }
 }
