@@ -6,9 +6,6 @@
 
 #include "messages.h"
 
-#define SCREEN_WIDTH 1440
-#define SCREEN_HEIGHT 960
-
 #define LOWORD(l) ((uint16_t)(l & 0xFFFF))
 #define HIWORD(l) ((uint16_t)((l >> 16) & 0xFFFF))
 #define MAKEDWORD(low, high) ((uint32_t)(((uint16_t)(low)) | ((uint32_t)((uint16_t)(high))) << 16))

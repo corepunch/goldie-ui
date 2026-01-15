@@ -41,8 +41,7 @@ extern window_t *windows;
 extern window_t *_focused;
 
 // Screen dimensions (defined here for compatibility)
-int screen_width = SCREEN_WIDTH;
-int screen_height = SCREEN_HEIGHT;
+extern int screen_width, screen_height;
 
 // Forward declarations
 extern void draw_panel(window_t const *win);

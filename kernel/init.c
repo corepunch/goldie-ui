@@ -103,6 +103,8 @@ static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *
   return false;
 }
 
+result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
 // Initialize graphics context (SDL + OpenGL)
 // This is a convenience function that initializes SDL and creates window/context
 bool ui_init_graphics(int flags, const char *title, int width, int height) {
@@ -112,7 +114,7 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
     return false;
   }
   // Use ui_init_window to create window and context
-  if (!ui_init_window(title, width, height)) {
+  if (!ui_init_window(title, width * UI_WINDOW_SCALE, height * UI_WINDOW_SCALE)) {
     SDL_Quit();
     return false;
   }
@@ -127,12 +129,19 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   init_console();
   
   if (flags & UI_INIT_DESKTOP) {
-    uint32_t flags = WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON;
     show_window(create_window("Desktop",
-                              flags, MAKERECT(0, 0, screen_width, screen_height),
+                              WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON,
+                              MAKERECT(0, 0, screen_width, screen_height),
                               NULL, win_desktop, NULL), true);
   }
   
+  if (flags & UI_INIT_TRAY) {
+    show_window(create_window("Tray",
+                              WINDOW_NOTITLE|WINDOW_NOTRAYBUTTON,
+                              MAKERECT(0, 0, 0, 0),
+                              NULL, win_tray, NULL), true);
+  }
+
   running = true;
 
   return true;

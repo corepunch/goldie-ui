@@ -6,6 +6,8 @@
 
 #define OFFSET_OF(type, field) (void*)((size_t)&(((type *)0)->field))
 
+int screen_width, screen_height;
+
 // Vertex structure for our buffer (xyzuv)
 typedef struct {
   int16_t x, y, z;    // Position
@@ -132,8 +134,8 @@ bool ui_init_prog(void) {
   //  float offset_x = (width - render_width) / (2.0f * scale);
   //  black_bars = offset_x;
   //  glm_ortho(-offset_x, DOOM_WIDTH+offset_x, DOOM_HEIGHT, 0, -1, 1, g_ref.projection);
-  screen_width = width/2;
-  screen_height = height/2;
+  screen_width = width / UI_WINDOW_SCALE;
+  screen_height = height / UI_WINDOW_SCALE;
   glm_ortho(0, screen_width, screen_height, 0, -1, 1, g_ref.projection);
     
   glDeleteShader(vertex_shader);

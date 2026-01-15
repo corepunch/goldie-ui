@@ -50,8 +50,8 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
 int main(int argc, char* argv[]) {
   printf("UI Framework Hello World Example\n");
 
-  // Initialize graphics system (SDL + OpenGL abstracted)
-  if (!ui_init_graphics(UI_INIT_DESKTOP, "Hello World", 640, 480)) {
+  // Initialize graphics system
+  if (!ui_init_graphics(UI_INIT_DESKTOP|UI_INIT_TRAY, "Hello World", 320, 240)) {
     printf("Failed to initialize graphics!\n");
     return 1;
   }

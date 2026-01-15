@@ -5,6 +5,9 @@
 #include <SDL2/SDL.h>
 
 #define UI_INIT_DESKTOP 0x01000000u
+#define UI_INIT_TRAY 0x02000000u
+
+#define UI_WINDOW_SCALE 2
 
 // Event type abstraction
 typedef SDL_Event ui_event_t;
