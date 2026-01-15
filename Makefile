@@ -6,7 +6,17 @@ CC = gcc
 AR = ar
 CFLAGS = -Wall -Wextra -std=c11 -I.
 LDFLAGS = 
-LIBS = -lSDL2 -lm
+LIBS = -lm
+
+# Use pkg-config for SDL2 if available
+SDL2_CONFIG := $(shell command -v pkg-config 2>/dev/null && pkg-config --exists sdl2 && echo pkg-config)
+ifeq ($(SDL2_CONFIG),pkg-config)
+    CFLAGS += $(shell pkg-config --cflags sdl2)
+    LIBS += $(shell pkg-config --libs sdl2)
+else
+    # Fallback to manual SDL2 flags
+    LIBS += -lSDL2
+endif
 
 # Platform detection
 UNAME_S := $(shell uname -s)
