@@ -33,10 +33,7 @@ void init_ui_white_texture(void) {
 }
 
 void shutdown_white_texture(void) {
-  if (ui_white_texture != 0) {
-    glDeleteTextures(1, &ui_white_texture);
-    ui_white_texture = 0;
-  }
+  SAFE_DELETE_N(ui_white_texture, glDeleteTextures);
 }
 
 // Initialize window and OpenGL context

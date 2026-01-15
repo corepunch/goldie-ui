@@ -144,18 +144,9 @@ bool ui_init_prog(void) {
 
 void ui_shutdown_prog(void) {
   // Delete shader program and buffers
-  if (g_ref.program) {
-    glDeleteProgram(g_ref.program);
-    g_ref.program = 0;
-  }
-  if (g_ref.vao) {
-    glDeleteVertexArrays(1, &g_ref.vao);
-    g_ref.vao = 0;
-  }
-  if (g_ref.vbo) {
-    glDeleteBuffers(1, &g_ref.vbo);
-    g_ref.vbo = 0;
-  }
+  SAFE_DELETE(g_ref.program, glDeleteProgram);
+  SAFE_DELETE_N(g_ref.vao, glDeleteVertexArrays);
+  SAFE_DELETE_N(g_ref.vbo, glDeleteBuffers);
 }
 
 void push_sprite_args(int tex, int x, int y, int w, int h, float alpha) {
