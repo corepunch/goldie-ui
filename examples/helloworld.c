@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
 // Include UI framework headers
 #include "../ui.h"
@@ -11,23 +12,37 @@
 // bool running = true;
 extern bool running;
 
+// Button ID constant
+#define ID_BUTTON_CLICKME 101
+
+// Click counter
+static int click_count = 0;
+
 // Simple window procedure for our hello world window
 result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_CREATE:
+    case WM_CREATE: {
       // Create a label
       create_window("UI Framework Demo:", WINDOW_NOTITLE, MAKERECT(20, 20, 200, 20), win, win_label, NULL);
-      // Create a button
-      create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 50, 100, 0), win, win_button, NULL);
+      // Create a button and assign it an ID
+      window_t *button = create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 50, 100, 0), win, win_button, NULL);
+      button->id = ID_BUTTON_CLICKME;
       // Create first checkbox
       create_window("Enable Feature A", WINDOW_NOTITLE, MAKERECT(20, 90, 150, 20), win, win_checkbox, NULL);      
       // Create second checkbox
       create_window("Enable Feature B", WINDOW_NOTITLE, MAKERECT(20, 120, 150, 20), win, win_checkbox, NULL);
       return true;
+    }
       
      case WM_PAINT: {
-       // Draw hello world text
-       const char *text = "Hello World!";
+       // Draw click counter text or hello world
+       char text[64];
+       if (click_count == 0) {
+         strcpy(text, "Hello World!");
+       } else {
+         snprintf(text, sizeof(text), "Clicked %d time(s)", click_count);
+       }
+       
        int text_x = (win->frame.w - strwidth(text)) / 2;
        int text_y = (win->frame.h - 16) / 2;
       
@@ -36,6 +51,15 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
        draw_text_small(text, text_x, text_y, COLOR_TEXT_NORMAL);
        return false;
      }
+    
+     case WM_COMMAND:
+       // Handle button click
+       if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == ID_BUTTON_CLICKME) {
+         click_count++;
+         invalidate_window(win);  // Request repaint to show new count
+         return true;
+       }
+       return false;
     
     case WM_DESTROY:
       running = false;
