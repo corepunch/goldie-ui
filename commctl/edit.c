@@ -23,7 +23,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return true;
     case WM_PAINT:
       fill_rect(_focused == win?COLOR_FOCUSED:COLOR_PANEL_BG, win->frame.x-2, win->frame.y-2, win->frame.w+4, win->frame.h+4);
-      draw_button(win->frame.x, win->frame.y, win->frame.w, win->frame.h, true);
+      draw_button(&win->frame, 1, 1, true);
       draw_text_small(win->title, win->frame.x+PADDING, win->frame.y+PADDING, COLOR_TEXT_NORMAL);
       if (_focused == win && win->editing) {
         fill_rect(COLOR_TEXT_NORMAL,

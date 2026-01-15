@@ -261,16 +261,10 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
 // Clean up text rendering resources
 void shutdown_text_rendering(void) {
   // Delete small font resources
-  if (text_state.small_font.texture != 0) {
-    glDeleteTextures(1, &text_state.small_font.texture);
-    text_state.small_font.texture = 0;
-  }
-  if (text_state.small_font.vao != 0) {
-    glDeleteVertexArrays(1, &text_state.small_font.vao);
-    text_state.small_font.vao = 0;
-  }
-  if (text_state.small_font.vbo != 0) {
-    glDeleteBuffers(1, &text_state.small_font.vbo);
-    text_state.small_font.vbo = 0;
-  }
+  SAFE_DELETE_N(text_state.small_font.texture, glDeleteTextures);
+  SAFE_DELETE_N(text_state.small_font.vao, glDeleteVertexArrays);
+  SAFE_DELETE_N(text_state.small_font.vbo, glDeleteBuffers);
+  
+  // Clear the entire state
+  memset(&text_state, 0, sizeof(text_state));
 }

@@ -33,7 +33,7 @@ void init_ui_white_texture(void) {
 }
 
 void shutdown_white_texture(void) {
-  glDeleteTextures(1, &ui_white_texture);
+  SAFE_DELETE_N(ui_white_texture, glDeleteTextures);
 }
 
 // Initialize window and OpenGL context
@@ -147,8 +147,30 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   return true;
 }
 
+// Cleanup all windows
+static void cleanup_all_windows(void) {
+  extern window_t *windows;
+  
+  // Destroy all remaining top-level windows
+  while (windows) {
+    destroy_window(windows);
+  }
+}
+
 // Shutdown graphics context
 void ui_shutdown_graphics(void) {
+  // Clean up all windows before shutting down subsystems
+  cleanup_all_windows();
+  
+  // Clean up any remaining hooks
+  extern void cleanup_all_hooks(void);
+  cleanup_all_hooks();
+  
+  // Shutdown joystick if it was initialized
+  if (ui_joystick_available()) {
+    ui_joystick_shutdown();
+  }
+  
   ui_shutdown_prog();
   
   shutdown_white_texture();

@@ -19,7 +19,7 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return true;
     case WM_PAINT:
       fill_rect(_focused == win?COLOR_FOCUSED:COLOR_PANEL_BG, win->frame.x-2, win->frame.y-2, 14, 14);
-      draw_button(win->frame.x, win->frame.y, 10, 10, win->pressed);
+      draw_button(MAKERECT(win->frame.x, win->frame.y, 10, 10), 1, 1, win->pressed);
       draw_text_small(win->title, win->frame.x + 17, win->frame.y + 3, COLOR_DARK_EDGE);
       draw_text_small(win->title, win->frame.x + 16, win->frame.y + 2, COLOR_TEXT_NORMAL);
       if (win->value) {

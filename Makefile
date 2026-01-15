@@ -61,11 +61,11 @@ TEST_ENV_OBJ = $(OBJ_DIR)/test_env.o
 
 # Default target
 .PHONY: all
-all: lib examples
+all: library examples
 
 # Library targets
-.PHONY: lib
-lib: $(STATIC_LIB) $(SHARED_LIB)
+.PHONY: library
+library: $(STATIC_LIB) $(SHARED_LIB)
 
 $(STATIC_LIB): $(LIB_OBJS) | $(LIB_DIR)
 	@echo "Creating static library: $@"
@@ -158,7 +158,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all       - Build library and examples (default)"
-	@echo "  lib       - Build static and shared libraries"
+	@echo "  library   - Build static and shared libraries"
 	@echo "  examples  - Build example applications"
 	@echo "  test      - Build and run tests"
 	@echo "  clean     - Remove all build artifacts"

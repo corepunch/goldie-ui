@@ -39,6 +39,7 @@ static winhook_t *g_hooks = NULL;
 // External references
 extern window_t *windows;
 extern window_t *_focused;
+extern bool running;  // Set to true when graphics are initialized
 
 // Screen dimensions (defined here for compatibility)
 extern int screen_width, screen_height;
@@ -78,6 +79,16 @@ void remove_from_global_hooks(window_t *win) {
   }
 }
 
+// Clean up all hooks (called on shutdown)
+void cleanup_all_hooks(void) {
+  while (g_hooks) {
+    winhook_t *next = g_hooks->next;
+    free(g_hooks);
+    g_hooks = next;
+  }
+  g_hooks = NULL;  // Ensure it's NULL for idempotency
+}
+
 // Remove window from message queue
 void remove_from_global_queue(window_t *win) {
   for (uint8_t w = queue.write, r = queue.read; r != w; r++) {
@@ -103,36 +114,42 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     // Handle special messages
     switch (msg) {
       case WM_NCPAINT:
-        ui_set_stencil_for_window(win->id);
-        set_viewport(&(window_t){0, 0, screen_width, screen_height});
-        set_projection(0, 0, screen_width, screen_height);
-        if (!(win->flags&WINDOW_TRANSPARENT)) {
-          draw_panel(win);
-        }
-        if (!(win->flags&WINDOW_NOTITLE)) {
-          draw_window_controls(win);
-          draw_text_small(win->title, frame->x+2, window_title_bar_y(win), -1);
-        }
-        if (win->flags&WINDOW_TOOLBAR) {
-          int t = TOOLBAR_HEIGHT;
-          rect_t rect = {win->frame.x+1, win->frame.y-t+1, win->frame.w-2, t-2};
-          draw_bevel(&rect);
-          fill_rect(COLOR_PANEL_BG, rect.x, rect.y, rect.w, rect.h);
-          for (int i = 0; i < win->num_toolbar_buttons; i++) {
-            toolbar_button_t const *but = &win->toolbar_buttons[i];
-            uint32_t col = but->active ? COLOR_TEXT_SUCCESS : COLOR_TEXT_NORMAL;
-            draw_icon16(but->icon, rect.x + i * TB_SPACING + 2, rect.y + 2, COLOR_DARK_EDGE);
-            draw_icon16(but->icon, rect.x + i * TB_SPACING + 1, rect.y + 1, col);
+        // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
+        if (running) {
+          ui_set_stencil_for_window(win->id);
+          set_viewport(&(window_t){0, 0, screen_width, screen_height});
+          set_projection(0, 0, screen_width, screen_height);
+          if (!(win->flags&WINDOW_TRANSPARENT)) {
+            draw_panel(win);
+          }
+          if (!(win->flags&WINDOW_NOTITLE)) {
+            draw_window_controls(win);
+            draw_text_small(win->title, frame->x+2, window_title_bar_y(win), -1);
+          }
+          if (win->flags&WINDOW_TOOLBAR) {
+            int t = TOOLBAR_HEIGHT;
+            rect_t rect = {win->frame.x+1, win->frame.y-t+1, win->frame.w-2, t-2};
+            draw_bevel(&rect);
+            fill_rect(COLOR_PANEL_BG, rect.x, rect.y, rect.w, rect.h);
+            for (int i = 0; i < win->num_toolbar_buttons; i++) {
+              toolbar_button_t const *but = &win->toolbar_buttons[i];
+              uint32_t col = but->active ? COLOR_TEXT_SUCCESS : COLOR_TEXT_NORMAL;
+              draw_icon16(but->icon, rect.x + i * TB_SPACING + 2, rect.y + 2, COLOR_DARK_EDGE);
+              draw_icon16(but->icon, rect.x + i * TB_SPACING + 1, rect.y + 1, col);
+            }
           }
         }
         break;
       case WM_PAINT:
-        ui_set_stencil_for_root_window(get_root_window(win)->id);
-        set_viewport(root);
-        set_projection(root->scroll[0],
-                       root->scroll[1],
-                       root->frame.w + root->scroll[0],
-                       root->frame.h + root->scroll[1]);
+        // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
+        if (running) {
+          ui_set_stencil_for_root_window(get_root_window(win)->id);
+          set_viewport(root);
+          set_projection(root->scroll[0],
+                         root->scroll[1],
+                         root->frame.w + root->scroll[0],
+                         root->frame.h + root->scroll[1]);
+        }
         break;
       case TB_ADDBUTTONS:
         win->num_toolbar_buttons = wparam;
