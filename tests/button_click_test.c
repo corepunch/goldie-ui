@@ -6,6 +6,9 @@
 #include "test_env.h"
 #include "../ui.h"
 
+// Forward declaration for message queue processing
+extern void repost_messages(void);
+
 // Test state tracking
 static int test_bn_clicked_count = 0;
 static uint32_t test_last_button_id = 0;
@@ -62,12 +65,14 @@ void test_button_click_with_scaling(void) {
     
     test_env_clear_events();
     
-    // Simulate mouse down at button center
+    // Simulate mouse click at button center in local window coordinates
     // Button is at local coordinates (10, 10) with size (80, 20)
-    // Center would be at (10 + 80/2, 10 + 20/2) = (50, 20) in window coordinates
-    // With scale factor of 2, we need to multiply by 2 for the "raw" event position
-    // So the emulated SDL event position would be (50*2, 20*2) = (100, 40)
-    // When scaled back down: SCALE_POINT(100) = 100/2 = 50, SCALE_POINT(40) = 40/2 = 20
+    // Center is at (10 + 80/2, 10 + 20/2) = (50, 20) in local window coordinates
+    // 
+    // Note: The actual SDL event loop uses a scale factor of 2 (defined in kernel/event.c),
+    // but for testing purposes, we work directly with local window coordinates.
+    // The SCALE_POINT macro in the event loop would convert SDL coordinates to window coordinates,
+    // but since we're posting messages directly to the button, we skip that layer.
     
     int button_center_x = button_frame.x + button_frame.w / 2;  // 10 + 40 = 50
     int button_center_y = button_frame.y + button_frame.h / 2;  // 10 + 10 = 20
@@ -77,10 +82,7 @@ void test_button_click_with_scaling(void) {
     test_env_post_message(button, WM_LBUTTONDOWN, MAKEDWORD(button_center_x, button_center_y), NULL);
     
     // Process the message queue (simulate message pump)
-    // In real code, repost_messages() would be called, but we need to trigger message processing
-    // For testing, we call send_message directly after posting to simulate the queue processing
-    // This is needed because the test environment doesn't have a running event loop
-    extern void repost_messages(void);
+    // repost_messages() processes all queued messages asynchronously
     repost_messages();
     
     // Verify LBUTTONDOWN was tracked
@@ -132,7 +134,6 @@ void test_multiple_button_clicks(void) {
     // Click button 3 times
     for (int i = 0; i < 3; i++) {
         test_env_post_message(button, WM_LBUTTONDOWN, MAKEDWORD(button_center_x, button_center_y), NULL);
-        extern void repost_messages(void);
         repost_messages();
         
         test_env_post_message(button, WM_LBUTTONUP, MAKEDWORD(button_center_x, button_center_y), NULL);
@@ -175,7 +176,6 @@ void test_button_click_positions(void) {
     int y = button_frame.y + 2;
     
     test_env_post_message(button, WM_LBUTTONDOWN, MAKEDWORD(x, y), NULL);
-    extern void repost_messages(void);
     repost_messages();
     
     test_env_post_message(button, WM_LBUTTONUP, MAKEDWORD(x, y), NULL);
@@ -235,7 +235,6 @@ void test_post_message_async_behavior(void) {
     ASSERT_EQUAL(test_bn_clicked_count, 0);
     
     // Now process the message queue
-    extern void repost_messages(void);
     repost_messages();
     
     // After processing, the click should be registered
