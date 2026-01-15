@@ -38,6 +38,9 @@ static void on_win_destroyed(window_t *win, uint32_t msg, uint32_t wparam, void 
   if (!win->parent) {
     window_t *tray = userdata;
     window_t *button = 0;
+    if (!tray->children) {
+      return;
+    }    
     if (win == tray->children->userdata) {
       button = tray->children;
       tray->children = button->next;
@@ -80,6 +83,10 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         window_t *button = lparam;
         show_window(button->userdata, !((window_t *)button->userdata)->visible);
       }
+      return true;
+    case WM_DESTROY:
+      deregister_window_hook(WM_CREATE, on_win_created, win);
+      deregister_window_hook(WM_DESTROY, on_win_destroyed, win);
       return true;
     default:
       break;
