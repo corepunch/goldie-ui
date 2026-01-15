@@ -61,11 +61,11 @@ TEST_ENV_OBJ = $(OBJ_DIR)/test_env.o
 
 # Default target
 .PHONY: all
-all: lib examples
+all: library examples
 
 # Library targets
-.PHONY: lib
-lib: $(STATIC_LIB) $(SHARED_LIB)
+.PHONY: library
+library: $(STATIC_LIB) $(SHARED_LIB)
 
 $(STATIC_LIB): $(LIB_OBJS) | $(LIB_DIR)
 	@echo "Creating static library: $@"
