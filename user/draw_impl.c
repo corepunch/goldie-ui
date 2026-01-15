@@ -26,6 +26,11 @@ extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 extern void set_projection(int x, int y, int w, int h);
 
 rect_t get_opengl_rect(rect_t const *r) {
+  // Avoid division by zero when graphics aren't initialized (e.g., in tests)
+  if (screen_width == 0 || screen_height == 0) {
+    return *r;  // Return the rectangle as-is
+  }
+  
   float scale_x = (float)screen_width / screen_width;
   float scale_y = (float)screen_height / screen_height;
   
@@ -165,7 +170,11 @@ void ui_set_stencil_for_root_window(uint32_t window_id) {
 
 // Fill a rectangle with a solid color
 void fill_rect(int color, int x, int y, int w, int h) {
+  extern bool running;
   extern GLuint ui_white_texture;
+  
+  // Skip drawing if graphics aren't initialized (e.g., in tests)
+  if (!running) return;
   
   // Update the white texture with the desired color
   glBindTexture(GL_TEXTURE_2D, ui_white_texture);
