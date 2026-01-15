@@ -25,6 +25,18 @@ extern void draw_icon16(int icon, int x, int y, uint32_t col);
 extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void set_projection(int x, int y, int w, int h);
 
+rect_t get_opengl_rect(rect_t const *r) {
+  float scale_x = (float)screen_width / screen_width;
+  float scale_y = (float)screen_height / screen_height;
+  
+  return (rect_t){
+    (int)(r->x * scale_x),
+    (int)((screen_height - r->y - r->h) * scale_y), // flip Y
+    (int)(r->w * scale_x),
+    (int)(r->h * scale_y)
+  };
+}
+
 // Get titlebar height
 int titlebar_height(window_t const *win) {
   int t = 0;
@@ -107,17 +119,11 @@ void set_viewport(window_t const *win) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
   
-  float scale_x = (float)w / screen_width;
-  float scale_y = (float)h / screen_height;
-  
-  int vp_x = (int)(win->frame.x * scale_x);
-  int vp_y = (int)((screen_height - win->frame.y - win->frame.h) * scale_y); // flip Y
-  int vp_w = (int)(win->frame.w * scale_x);
-  int vp_h = (int)(win->frame.h * scale_y);
+  rect_t ogl_rect = get_opengl_rect(&win->frame);
   
   glEnable(GL_SCISSOR_TEST);
-  glViewport(vp_x, vp_y, vp_w, vp_h);
-  glScissor(vp_x, vp_y, vp_w, vp_h);
+  glViewport(ogl_rect.x, ogl_rect.y, ogl_rect.w, ogl_rect.h);
+  glScissor(ogl_rect.x, ogl_rect.y, ogl_rect.w, ogl_rect.h);
 }
 
 // Paint window to stencil buffer
