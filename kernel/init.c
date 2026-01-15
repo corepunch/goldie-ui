@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "../user/gl_compat.h"
+#include "../commctl/console.h"
 #include "kernel.h"
 
 // Global SDL objects
@@ -14,6 +15,25 @@ SDL_GLContext ctx;
 
 bool ui_init_prog(void);
 void ui_shutdown_prog(void);
+
+// Internal white texture for drawing solid colors
+GLuint ui_white_texture = 0;
+
+// Initialize the internal white texture
+void init_ui_white_texture(void) {
+  if (ui_white_texture == 0) {
+    glGenTextures(1, &ui_white_texture);
+    glBindTexture(GL_TEXTURE_2D, ui_white_texture);
+    uint32_t white_pixel = 0xFFFFFFFF;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white_pixel);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  }
+}
+
+void shutdown_white_texture(void) {
+  glDeleteTextures(1, &ui_white_texture);
+}
 
 // Initialize window and OpenGL context
 static bool ui_init_window(const char *title, int width, int height) {
@@ -91,6 +111,10 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   
   ui_init_prog();
   
+  init_ui_white_texture();
+
+  init_console();
+  
   running = true;
 
   return true;
@@ -100,6 +124,10 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
 void ui_shutdown_graphics(void) {
   ui_shutdown_prog();
   
+  shutdown_white_texture();
+
+  shutdown_console();
+
   if (ctx) {
     SDL_GL_DeleteContext(ctx);
     ctx = NULL;

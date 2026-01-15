@@ -25,21 +25,6 @@ extern void draw_icon16(int icon, int x, int y, uint32_t col);
 extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void set_projection(int x, int y, int w, int h);
 
-// Internal white texture for drawing solid colors
-static GLuint ui_white_texture = 0;
-
-// Initialize the internal white texture
-static void init_ui_white_texture(void) {
-  if (ui_white_texture == 0) {
-    glGenTextures(1, &ui_white_texture);
-    glBindTexture(GL_TEXTURE_2D, ui_white_texture);
-    uint32_t white_pixel = 0xFFFFFFFF;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white_pixel);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  }
-}
-
 // Get titlebar height
 int titlebar_height(window_t const *win) {
   int t = 0;
@@ -162,17 +147,6 @@ void repaint_stencil(void) {
   glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 }
 
-// Draw all windows
-void draw_windows(bool rich) {
-  repaint_stencil();
-  for (window_t *win = windows; win; win = win->next) {
-    if (!win->visible)
-      continue;
-    send_message(win, WM_NCPAINT, 0, NULL);
-    send_message(win, WM_PAINT, 0, NULL);
-  }
-}
-
 // Set stencil test to render for specific window
 void ui_set_stencil_for_window(uint32_t window_id) {
   glStencilFunc(GL_EQUAL, window_id, 0xFF);
@@ -183,34 +157,9 @@ void ui_set_stencil_for_root_window(uint32_t window_id) {
   glStencilFunc(GL_EQUAL, window_id, 0xFF);
 }
 
-// Begin frame rendering
-void ui_begin_frame(void) {
-  // Nothing to do here for now - left for future expansion
-}
-
-// End frame rendering  
-void ui_end_frame(void) {
-  // Nothing to do here for now - left for future expansion
-}
-
-// Clear screen with color
-void ui_clear_screen(float r, float g, float b) {
-  glClearColor(r, g, b, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-}
-
-// Swap display buffers
-void ui_swap_buffers(void) {
-  extern SDL_Window *window;
-  SDL_GL_SwapWindow(window);
-}
-
 // Fill a rectangle with a solid color
 void fill_rect(int color, int x, int y, int w, int h) {
-  // Ensure the white texture is initialized
-  if (ui_white_texture == 0) {
-    init_ui_white_texture();
-  }
+  extern GLuint ui_white_texture;
   
   // Update the white texture with the desired color
   glBindTexture(GL_TEXTURE_2D, ui_white_texture);

@@ -122,8 +122,8 @@ void resize_window(window_t *win, int new_w, int new_h) {
 static void remove_from_global_list(window_t *win) {
   if (win == windows) {
     windows = win->next;
-  } else {
-    for (window_t *w=windows->next,*p=windows;w;w=w->next,p=p->next) {
+  } else if (windows) {
+    for (window_t *w=windows,*p=windows;w;w=w->next,p=p->next) {
       if (w == win) {
         p->next = w->next;
         break;
