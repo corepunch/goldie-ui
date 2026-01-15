@@ -145,8 +145,7 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
 static void cleanup_all_windows(void) {
   extern window_t *windows;
   
-  // Destroy all top-level windows
-  // destroy_window() calls remove_from_global_list() which updates the windows list
+  // Destroy all remaining top-level windows
   while (windows) {
     destroy_window(windows);
   }
