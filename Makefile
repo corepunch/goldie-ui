@@ -17,8 +17,7 @@ ifeq ($(UNAME_S),Darwin)
     CFLAGS += -I/opt/homebrew/include -I/usr/local/include
     LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
     LIBS += -framework OpenGL
-#     LIB_EXT = .dylib
-		LIB_EXT = .so
+    LIB_EXT = .dylib
     LIB_FLAGS = -dynamiclib
 else ifeq ($(UNAME_S),Linux)
     # Linux specific flags
