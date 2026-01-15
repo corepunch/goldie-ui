@@ -18,7 +18,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
       // Create a label
       create_window("UI Framework Demo:", WINDOW_NOTITLE, MAKERECT(20, 20, 200, 20), win, win_label, NULL);
       // Create a button
-      create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 50, 100, 30), win, win_button, NULL);
+      create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 50, 100, 0), win, win_button, NULL);
       // Create first checkbox
       create_window("Enable Feature A", WINDOW_NOTITLE, MAKERECT(20, 90, 150, 20), win, win_checkbox, NULL);      
       // Create second checkbox
@@ -28,8 +28,8 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
      case WM_PAINT: {
        // Draw hello world text
        const char *text = "Hello World!";
-       int text_x = win->frame.w / 2 - 40;  // Center approximately
-       int text_y = win->frame.h / 2 - 10;
+       int text_x = (win->frame.w - strwidth(text)) / 2;
+       int text_y = (win->frame.h - 16) / 2;
       
        // Draw text with shadow effect
        draw_text_small(text, text_x + 1, text_y + 1, COLOR_DARK_EDGE);
