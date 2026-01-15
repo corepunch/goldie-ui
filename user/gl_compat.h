@@ -10,8 +10,12 @@
   #include <GL/gl.h>
 #endif
 
-// Safe deletion macros for OpenGL resources
+// Safe deletion macros for OpenGL resources and similar cleanup patterns
+// NOTE: These macros are designed for scalar resource handles (GLuint, pointers, etc.)
+
 // SAFE_DELETE: for single-parameter delete functions (e.g., glDeleteProgram, free)
+// Usage: SAFE_DELETE(my_program, glDeleteProgram)
+//        SAFE_DELETE(my_pointer, free)
 #define SAFE_DELETE(resource, delete_func) \
   do { \
     if (resource) { \
@@ -21,6 +25,9 @@
   } while(0)
 
 // SAFE_DELETE_N: for count+pointer delete functions (e.g., glDeleteTextures, glDeleteBuffers)
+// Usage: SAFE_DELETE_N(my_texture, glDeleteTextures)
+// NOTE: This macro takes the address of the resource (&resource), so it requires
+//       scalar resource handles (GLuint), not pointer variables
 #define SAFE_DELETE_N(resource, delete_func) \
   do { \
     if (resource) { \
