@@ -55,14 +55,14 @@ void draw_bevel(rect_t const *r) {
 }
 
 // Draw button
-void draw_button(int x, int y, int w, int h, bool pressed) {
-  fill_rect(pressed?COLOR_DARK_EDGE:COLOR_LIGHT_EDGE, x-1, y-1, w+2, h+2);
-  fill_rect(pressed?COLOR_LIGHT_EDGE:COLOR_DARK_EDGE, x, y, w+1, h+1);
-  fill_rect(pressed?COLOR_PANEL_DARK_BG:COLOR_PANEL_BG, x, y, w, h);
+void draw_button(rect_t const *r, int dx, int dy, bool pressed) {
+  fill_rect(pressed?COLOR_DARK_EDGE:COLOR_LIGHT_EDGE, r->x-dx, r->y-dy, r->w+dx+dy, r->h+dx+dy);
+  fill_rect(pressed?COLOR_LIGHT_EDGE:COLOR_DARK_EDGE, r->x, r->y, r->w+dx, r->h+dy);
+  fill_rect(pressed?COLOR_PANEL_DARK_BG:COLOR_PANEL_BG, r->x, r->y, r->w, r->h);
   if (pressed) {
-    fill_rect(COLOR_FLARE, x+w, y+h, 1, 1);
+    fill_rect(COLOR_FLARE, r->x+r->w, r->y+r->h, dx, dy);
   } else {
-    fill_rect(COLOR_FLARE, x-1, y-1, 1, 1);
+    fill_rect(COLOR_FLARE, r->x-dx, r->y-dy, dx, dy);
   }
 }
 

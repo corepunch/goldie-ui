@@ -126,7 +126,7 @@ uint32_t show_dialog(char const *title, const rect_t* frame, window_t *parent,
                      winproc_t proc, void *param);
 
 // Drawing functions
-void draw_button(int x, int y, int w, int h, bool pressed);
+void draw_button(rect_t const *r, int dx, int dy, bool pressed);
 
 // Global window list
 extern window_t *windows;
