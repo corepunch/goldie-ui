@@ -37,7 +37,7 @@ static void on_win_created(window_t *win, uint32_t msg, uint32_t wparam, void *l
 static void on_win_destroyed(window_t *win, uint32_t msg, uint32_t wparam, void *lparam, void *userdata) {
   if (!win->parent) {
     window_t *tray = userdata;
-    window_t *button = NULL;
+    window_t *button = 0;
     if (win == tray->children->userdata) {
       button = tray->children;
       tray->children = button->next;
