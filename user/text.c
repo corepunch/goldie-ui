@@ -273,4 +273,7 @@ void shutdown_text_rendering(void) {
     glDeleteBuffers(1, &text_state.small_font.vbo);
     text_state.small_font.vbo = 0;
   }
+  
+  // Clear the entire state
+  memset(&text_state, 0, sizeof(text_state));
 }

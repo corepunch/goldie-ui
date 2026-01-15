@@ -111,6 +111,9 @@ void draw_console(void) {
 
 // Clean up console resources
 void shutdown_console(void) {
+  // Clear console state
+  memset(&console, 0, sizeof(console));
+  
   // Delegate cleanup to text rendering module
   shutdown_text_rendering();
 }

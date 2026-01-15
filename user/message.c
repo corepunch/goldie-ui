@@ -79,6 +79,15 @@ void remove_from_global_hooks(window_t *win) {
   }
 }
 
+// Clean up all hooks (called on shutdown)
+void cleanup_all_hooks(void) {
+  while (g_hooks) {
+    winhook_t *next = g_hooks->next;
+    free(g_hooks);
+    g_hooks = next;
+  }
+}
+
 // Remove window from message queue
 void remove_from_global_queue(window_t *win) {
   for (uint8_t w = queue.write, r = queue.read; r != w; r++) {
