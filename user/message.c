@@ -62,6 +62,23 @@ void register_window_hook(uint32_t msg, winhook_func_t func, void *userdata) {
   g_hooks = hook;
 }
 
+// De-register a window hook
+void deregister_window_hook(uint32_t msg, winhook_func_t func, void *userdata) {
+  if (!g_hooks) return;
+  while (g_hooks && msg == g_hooks->msg && func == g_hooks->func && userdata == g_hooks->userdata) {
+    winhook_t *h = g_hooks;
+    g_hooks = g_hooks->next;
+    free(h);
+  }
+  for (winhook_t *w=g_hooks?g_hooks->next:NULL,*p=g_hooks;w;w=w->next,p=p->next) {
+    if (msg == w->msg && func == w->func && userdata == w->userdata) {
+      winhook_t *h = w;
+      p->next = w->next;
+      free(h);
+    }
+  }
+}
+
 // Remove window from hooks
 void remove_from_global_hooks(window_t *win) {
   if (!g_hooks) return;

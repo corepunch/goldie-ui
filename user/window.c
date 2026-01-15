@@ -123,7 +123,7 @@ static void remove_from_global_list(window_t *win) {
   if (win == windows) {
     windows = win->next;
   } else if (windows) {
-    for (window_t *w=windows,*p=windows;w;w=w->next,p=p->next) {
+    for (window_t *w=windows->next,*p=windows;w;p=w,w=w->next) {
       if (w == win) {
         p->next = w->next;
         break;

@@ -115,6 +115,8 @@ void move_to_top(window_t* win);
 
 // Window hook registration
 void register_window_hook(uint32_t msg, winhook_func_t func, void *userdata);
+void deregister_window_hook(uint32_t msg, winhook_func_t func, void *userdata);
+void remove_from_global_hooks(window_t *win);
 void cleanup_all_hooks(void);
 
 // Dialog functions

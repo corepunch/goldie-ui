@@ -26,13 +26,11 @@ extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 extern void set_projection(int x, int y, int w, int h);
 
 rect_t get_opengl_rect(rect_t const *r) {
-  // Avoid division by zero when graphics aren't initialized (e.g., in tests)
-  if (screen_width == 0 || screen_height == 0) {
-    return *r;  // Return the rectangle as-is
-  }
-  
-  float scale_x = (float)screen_width / screen_width;
-  float scale_y = (float)screen_height / screen_height;
+  int w, h;
+  SDL_GL_GetDrawableSize(window, &w, &h);
+
+  float scale_x = (float)w / MAX(1,screen_width);
+  float scale_y = (float)h / MAX(1,screen_height);
   
   return (rect_t){
     (int)(r->x * scale_x),
