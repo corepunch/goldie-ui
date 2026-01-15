@@ -86,6 +86,7 @@ void cleanup_all_hooks(void) {
     free(g_hooks);
     g_hooks = next;
   }
+  g_hooks = NULL;  // Ensure it's NULL for idempotency
 }
 
 // Remove window from message queue

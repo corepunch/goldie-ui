@@ -146,10 +146,9 @@ static void cleanup_all_windows(void) {
   extern window_t *windows;
   
   // Destroy all top-level windows
+  // destroy_window() calls remove_from_global_list() which updates the windows list
   while (windows) {
-    window_t *next = windows->next;
     destroy_window(windows);
-    windows = next;
   }
 }
 

@@ -6,16 +6,17 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+// External cleanup functions
+extern void cleanup_all_hooks(void);
+extern void shutdown_text_rendering(void);
+
 // Test that shutdown functions can be called safely
 void test_shutdown_functions_safe(void) {
   TEST("Shutdown functions are safe to call");
   
   // These should be safe to call even without init
   // (they check for NULL/zero before freeing)
-  extern void cleanup_all_hooks(void);
   cleanup_all_hooks();  // Should be safe even if no hooks registered
-  
-  extern void shutdown_text_rendering(void);
   shutdown_text_rendering();  // Should be safe even if not initialized
   
   PASS();
@@ -26,11 +27,9 @@ void test_cleanup_idempotent(void) {
   TEST("Cleanup functions are idempotent");
   
   // Should be safe to call multiple times
-  extern void cleanup_all_hooks(void);
   cleanup_all_hooks();
   cleanup_all_hooks();
   
-  extern void shutdown_text_rendering(void);
   shutdown_text_rendering();
   shutdown_text_rendering();
   
