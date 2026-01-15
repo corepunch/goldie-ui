@@ -4,7 +4,9 @@
 # Compiler and flags
 CC = gcc
 AR = ar
-CFLAGS = -Wall -Wextra -std=c11 -I.
+CFLAGS = -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION
+# silence unused parameter warnings
+CFLAGS += -Wno-unused-parameter
 LDFLAGS = 
 LIBS = -lSDL2 -lm
 
@@ -12,10 +14,11 @@ LIBS = -lSDL2 -lm
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
     # macOS specific flags
-    CFLAGS += -I/usr/local/include -I/opt/homebrew/include
-    LDFLAGS += -L/usr/local/lib -L/opt/homebrew/lib
+    CFLAGS += -I/opt/homebrew/include -I/usr/local/include
+    LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
     LIBS += -framework OpenGL
-    LIB_EXT = .dylib
+#     LIB_EXT = .dylib
+		LIB_EXT = .so
     LIB_FLAGS = -dynamiclib
 else ifeq ($(UNAME_S),Linux)
     # Linux specific flags
@@ -59,11 +62,11 @@ TEST_ENV_OBJ = $(OBJ_DIR)/test_env.o
 
 # Default target
 .PHONY: all
-all: library examples
+all: lib examples
 
 # Library targets
-.PHONY: library
-library: $(STATIC_LIB) $(SHARED_LIB)
+.PHONY: lib
+lib: $(STATIC_LIB) $(SHARED_LIB)
 
 $(STATIC_LIB): $(LIB_OBJS) | $(LIB_DIR)
 	@echo "Creating static library: $@"
@@ -156,7 +159,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all       - Build library and examples (default)"
-	@echo "  library   - Build static and shared libraries"
+	@echo "  lib       - Build static and shared libraries"
 	@echo "  examples  - Build example applications"
 	@echo "  test      - Build and run tests"
 	@echo "  clean     - Remove all build artifacts"
