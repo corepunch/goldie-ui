@@ -158,7 +158,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all       - Build library and examples (default)"
-	@echo "  lib       - Build static and shared libraries"
+	@echo "  library   - Build static and shared libraries"
 	@echo "  examples  - Build example applications"
 	@echo "  test      - Build and run tests"
 	@echo "  clean     - Remove all build artifacts"
