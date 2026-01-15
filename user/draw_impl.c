@@ -147,11 +147,32 @@ void repaint_stencil(void) {
   glClearStencil(0);
   glClear(GL_STENCIL_BUFFER_BIT);
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  
+  // Count windows to build reverse iteration array
+  int count = 0;
   for (window_t *w = windows; w; w = w->next) {
-    if (!w->visible)
-      continue;
-    send_message(w, WM_PAINTSTENCIL, 0, NULL);
+    count++;
   }
+  
+  // Build array of window pointers for reverse iteration
+  if (count > 0) {
+    window_t **win_array = malloc(sizeof(window_t*) * count);
+    int i = 0;
+    for (window_t *w = windows; w; w = w->next) {
+      win_array[i++] = w;
+    }
+    
+    // Iterate in reverse order (back to front)
+    for (i = count - 1; i >= 0; i--) {
+      window_t *w = win_array[i];
+      if (!w->visible)
+        continue;
+      send_message(w, WM_PAINTSTENCIL, 0, NULL);
+    }
+    
+    free(win_array);
+  }
+  
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 }
