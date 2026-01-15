@@ -10,6 +10,7 @@ This directory contains the test suite for the Goldie UI framework. The tests ar
 - **test_env.h / test_env.c** - Test environment for creating windows and tracking events using hooks
 - **basic_test.c** - Basic functionality tests (macros, constants, structures)
 - **window_msg_test.c** - Window and message tracking tests using the test environment
+- **button_click_test.c** - Button click simulation tests with proper in-window scaling using post_message
 
 ## Running Tests
 
@@ -120,6 +121,16 @@ The test suite follows the Windows 1.0 testing philosophy:
 - Event history and querying
 - Clear event tracking
 
+### Button Click Simulation
+- Button window creation as child of parent window
+- Mouse event simulation with proper in-window scaling (scale factor = 2)
+- Asynchronous message posting using `post_message` instead of `send_message`
+- Message queue processing with `repost_messages()`
+- BN_CLICKED notification verification sent to parent window
+- Multiple button clicks handling
+- Button clicks at different positions within button bounds
+- Verification of async behavior (messages queued before processing)
+
 ## Hook System
 
 The test environment leverages the UI framework's built-in hook system to track window messages. Hooks are registered for common window messages:
@@ -209,7 +220,6 @@ Failed tests will cause the build to fail, preventing broken code from being mer
 Planned additions:
 - Window creation and management tests
 - Message queue and event handling tests
-- Common controls tests (button, checkbox, edit, label, list, combobox)
+- Common controls tests (checkbox, edit, label, list, combobox)
 - Focus and keyboard navigation tests
-- Mouse event simulation tests
 - Text rendering tests

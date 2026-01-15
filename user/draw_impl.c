@@ -29,8 +29,8 @@ rect_t get_opengl_rect(rect_t const *r) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
 
-  float scale_x = (float)w / screen_width;
-  float scale_y = (float)h / screen_height;
+  float scale_x = (float)w / MAX(1,screen_width);
+  float scale_y = (float)h / MAX(1,screen_height);
   
   return (rect_t){
     (int)(r->x * scale_x),
@@ -168,7 +168,11 @@ void ui_set_stencil_for_root_window(uint32_t window_id) {
 
 // Fill a rectangle with a solid color
 void fill_rect(int color, int x, int y, int w, int h) {
+  extern bool running;
   extern GLuint ui_white_texture;
+  
+  // Skip drawing if graphics aren't initialized (e.g., in tests)
+  if (!running) return;
   
   // Update the white texture with the desired color
   glBindTexture(GL_TEXTURE_2D, ui_white_texture);

@@ -163,7 +163,12 @@ int strwidth(const char* text) {
 
 // Draw text using small bitmap font
 void draw_text_small(const char* text, int x, int y, uint32_t col) {
+  extern bool running;
+  
   if (!text || !*text) return; // Early return for empty strings
+  
+  // Skip drawing if graphics aren't initialized (e.g., in tests)
+  if (!running) return;
   
   int text_length = (int)strlen(text);
   if (text_length > MAX_TEXT_LENGTH) text_length = MAX_TEXT_LENGTH;
