@@ -8,7 +8,8 @@
 #include "../ui.h"
 
 // Running flag
-bool running = true;
+// bool running = true;
+extern bool running;
 
 // Simple window procedure for our hello world window
 result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
