@@ -39,8 +39,10 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
        char text[64];
        if (click_count == 0) {
          strcpy(text, "Hello World!");
+       } else if (click_count == 1) {
+         strcpy(text, "Clicked 1 time");
        } else {
-         snprintf(text, sizeof(text), "Clicked %d time(s)", click_count);
+         snprintf(text, sizeof(text), "Clicked %d times", click_count);
        }
        
        int text_x = (win->frame.w - strwidth(text)) / 2;

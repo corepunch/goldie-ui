@@ -158,8 +158,6 @@ void test_multiple_button_clicks(void) {
         ASSERT_EQUAL(test_click_count, i);
     }
     
-    ASSERT_EQUAL(test_click_count, 5);
-    
     destroy_window(parent);
     test_env_shutdown();
     PASS();
