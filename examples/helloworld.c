@@ -7,10 +7,6 @@
 // Include UI framework headers
 #include "../ui.h"
 
-// Screen dimensions
-int screen_width = 800;
-int screen_height = 600;
-
 // Running flag
 bool running = true;
 
