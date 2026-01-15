@@ -14,9 +14,8 @@ extern void repost_messages(void);
 #define ID_BUTTON_CLICKME 101
 
 // Test state tracking
-static int test_bn_clicked_count = 0;
+static int test_click_count = 0;
 static uint32_t test_last_button_id = 0;
-static int click_count = 0;
 
 // Window procedure that mimics the hello world example
 result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -36,8 +35,7 @@ result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
     case WM_COMMAND:
       // Handle button click
       if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == ID_BUTTON_CLICKME) {
-        click_count++;
-        test_bn_clicked_count++;
+        test_click_count++;
         test_last_button_id = LOWORD(wparam);
         invalidate_window(win);  // Request repaint to show new count
         return true;
@@ -54,9 +52,14 @@ result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
 
 // Reset test counters
 void reset_hello_test_counters(void) {
-    test_bn_clicked_count = 0;
+    test_click_count = 0;
     test_last_button_id = 0;
-    click_count = 0;
+}
+
+// Helper function to calculate button center
+void get_button_center(window_t *button, int *x, int *y) {
+    *x = button->frame.x + button->frame.w / 2;
+    *y = button->frame.y + button->frame.h / 2;
 }
 
 // Test that button has correct ID
@@ -101,9 +104,9 @@ void test_button_click_increments_counter(void) {
     
     test_env_clear_events();
     
-    // Simulate button click
-    int button_center_x = button->frame.x + button->frame.w / 2;
-    int button_center_y = button->frame.y + button->frame.h / 2;
+    // Simulate button click using helper
+    int button_center_x, button_center_y;
+    get_button_center(button, &button_center_x, &button_center_y);
     
     test_env_post_message(button, WM_LBUTTONDOWN, MAKEDWORD(button_center_x, button_center_y), NULL);
     repost_messages();
@@ -112,8 +115,7 @@ void test_button_click_increments_counter(void) {
     repost_messages();
     
     // Verify click was registered
-    ASSERT_EQUAL(test_bn_clicked_count, 1);
-    ASSERT_EQUAL(click_count, 1);
+    ASSERT_EQUAL(test_click_count, 1);
     ASSERT_EQUAL(test_last_button_id, ID_BUTTON_CLICKME);
     
     destroy_window(parent);
@@ -141,8 +143,8 @@ void test_multiple_button_clicks(void) {
     
     test_env_clear_events();
     
-    int button_center_x = button->frame.x + button->frame.w / 2;
-    int button_center_y = button->frame.y + button->frame.h / 2;
+    int button_center_x, button_center_y;
+    get_button_center(button, &button_center_x, &button_center_y);
     
     // Click button 5 times
     for (int i = 1; i <= 5; i++) {
@@ -153,10 +155,10 @@ void test_multiple_button_clicks(void) {
         repost_messages();
         
         // Verify counter incremented correctly
-        ASSERT_EQUAL(click_count, i);
+        ASSERT_EQUAL(test_click_count, i);
     }
     
-    ASSERT_EQUAL(test_bn_clicked_count, 5);
+    ASSERT_EQUAL(test_click_count, 5);
     
     destroy_window(parent);
     test_env_shutdown();
