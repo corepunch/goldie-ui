@@ -2,6 +2,9 @@
 
 This directory contains the extracted UI framework for DOOM-ED, organized in a Windows-like architecture.
 
+![Screenshot 2026-01-16 at 15 21 17](https://github.com/user-attachments/assets/1474fcfa-17eb-4731-8af5-06a83ace958f)
+![Screenshot 2026-01-16 at 15 20 19](https://github.com/user-attachments/assets/57ef5b20-56ff-4d4c-8057-d7f2e699a08e)
+
 ## Directory Structure
 
 ```
