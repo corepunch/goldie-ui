@@ -1,1 +1,1 @@
-print('Hello World from foobar.lua!')
+print('Hello World\nfrom foobar.lua!')
