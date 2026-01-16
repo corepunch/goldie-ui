@@ -44,9 +44,11 @@ extern bool running;  // Set to true when graphics are initialized
 // Forward declarations
 extern void draw_panel(window_t const *win);
 extern void draw_window_controls(window_t *win);
+extern void draw_statusbar(window_t *win, const char *text);
 extern void draw_bevel(rect_t const *r);
 extern void paint_window_stencil(window_t const *w);
 extern void repaint_stencil(void);
+extern void set_fullscreen(void);
 extern window_t *get_root_window(window_t *window);
 
 // Register a window hook
@@ -131,8 +133,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
         if (running) {
           ui_set_stencil_for_window(win->id);
-          set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-          set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+          set_fullscreen();
           if (!(win->flags&WINDOW_TRANSPARENT)) {
             draw_panel(win);
           }
@@ -152,6 +153,9 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
               draw_icon16(but->icon, rect.x + i * TB_SPACING + 1, rect.y + 1, col);
             }
           }
+          if (win->flags&WINDOW_STATUSBAR) {
+            draw_statusbar(win, win->statusbar_text);
+          }
         }
         break;
       case WM_PAINT:
@@ -169,6 +173,13 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         win->num_toolbar_buttons = wparam;
         win->toolbar_buttons = malloc(sizeof(toolbar_button_t)*wparam);
         memcpy(win->toolbar_buttons, lparam, sizeof(toolbar_button_t)*wparam);
+        break;
+      case WM_STATUSBAR:
+        if (lparam) {
+          strncpy(win->statusbar_text, (const char*)lparam, sizeof(win->statusbar_text) - 1);
+          win->statusbar_text[sizeof(win->statusbar_text) - 1] = '\0';
+          invalidate_window(win);
+        }
         break;
     }
     // Call window procedure

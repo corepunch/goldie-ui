@@ -24,6 +24,13 @@ extern void draw_icon16(int icon, int x, int y, uint32_t col);
 extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void set_projection(int x, int y, int w, int h);
 
+void set_fullscreen(void) {
+  int w = ui_get_system_metrics(SM_CXSCREEN);
+  int h = ui_get_system_metrics(SM_CYSCREEN);
+  set_viewport(&(rect_t){0, 0, w, h});
+  set_projection(0, 0, w, h);
+}
+
 rect_t get_opengl_rect(rect_t const *r) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
@@ -49,6 +56,15 @@ int titlebar_height(window_t const *win) {
     t += TOOLBAR_HEIGHT;
   }
   return t;
+}
+
+// Get statusbar height
+int statusbar_height(window_t const *win) {
+  int s = 0;
+  if (win->flags&WINDOW_STATUSBAR) {
+    s += STATUSBAR_HEIGHT;
+  }
+  return s;
 }
 
 // Draw focused border
@@ -83,8 +99,9 @@ void draw_button(rect_t const *r, int dx, int dy, bool pressed) {
 // Draw window panel
 void draw_panel(window_t const *win) {
   int t = titlebar_height(win);
+  int s = statusbar_height(win);
   int x = win->frame.x, y = win->frame.y-t;
-  int w = win->frame.w, h = win->frame.h+t;
+  int w = win->frame.w, h = win->frame.h+t+s;
   bool active = _focused == win;
   if (active) {
     draw_focused(MAKERECT(x, y, w, h));
@@ -106,13 +123,28 @@ void draw_window_controls(window_t *win) {
   rect_t r = win->frame;
   int t = titlebar_height(win);
   fill_rect(COLOR_PANEL_DARK_BG, r.x, r.y-t, r.w, t);
-  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+  set_fullscreen();
   
   for (int i = 0; i < 1; i++) {
     int x = win->frame.x + win->frame.w - (i+1)*CONTROL_BUTTON_WIDTH - CONTROL_BUTTON_PADDING;
     int y = window_title_bar_y(win);
     draw_icon8(icon8_minus + i, x, y, COLOR_TEXT_NORMAL);
+  }
+}
+
+// Draw status bar
+void draw_statusbar(window_t *win, const char *text) {
+  if (!(win->flags&WINDOW_STATUSBAR)) return;
+  
+  rect_t r = win->frame;
+  int s = statusbar_height(win);
+  int y = r.y + r.h;
+  
+  fill_rect(COLOR_STATUSBAR_BG, r.x, y, r.w, s);
+  set_fullscreen();
+  
+  if (text) {
+    draw_text_small(text, r.x + 2, y + 2, COLOR_TEXT_NORMAL);
   }
 }
 
@@ -132,15 +164,15 @@ void set_viewport(rect_t const *frame) {
 void paint_window_stencil(window_t const *w) {
   int p = 1;
   int t = titlebar_height(w);
+  int s = statusbar_height(w);
   glStencilFunc(GL_ALWAYS, w->id, 0xFF);            // Always pass
   glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE); // Replace stencil with window ID
-  draw_rect(1, w->frame.x-p, w->frame.y-t-p, w->frame.w+p*2, w->frame.h+t+p*2);
+  draw_rect(1, w->frame.x-p, w->frame.y-t-p, w->frame.w+p*2, w->frame.h+t+s+p*2);
 }
 
 // Repaint window stencil buffer
 void repaint_stencil(void) {
-  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+  set_fullscreen();
   
   glEnable(GL_STENCIL_TEST);
   glClearStencil(0);

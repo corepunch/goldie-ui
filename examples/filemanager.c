@@ -89,7 +89,7 @@ static void load_directory(filemanager_data_t *data) {
   data->selected = -1;
 }
 
-static void navigate_to(filemanager_data_t *data, const char *name) {
+static void navigate_to(window_t *win, filemanager_data_t *data, const char *name) {
   if (strcmp(name, "..") == 0) {
     char *last_slash = strrchr(data->path, '/');
     if (last_slash && last_slash != data->path) {
@@ -108,6 +108,7 @@ static void navigate_to(filemanager_data_t *data, const char *name) {
     data->path[sizeof(data->path) - 1] = '\0';
   }
   load_directory(data);
+  send_message(win, WM_STATUSBAR, 0, data->path);
 }
 
 result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -121,6 +122,7 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       data->last_click_time = 0;
       data->last_click_index = -1;
       load_directory(data);
+      send_message(win, WM_STATUSBAR, 0, data->path);
       return true;
     }
     
@@ -147,7 +149,6 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
         if (col == 0) col1_y++; else col2_y++;
       }
       
-      draw_text_small(data->path, 5, win->frame.h - 15, COLOR_TEXT_DISABLED);
       return false;
     }
     
@@ -162,7 +163,7 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
         uint32_t now = SDL_GetTicks();
         if (data->last_click_index == index && (now - data->last_click_time) < 500) {
           if (data->entries[index].is_dir) {
-            navigate_to(data, data->entries[index].name);
+            navigate_to(win, data, data->entries[index].name);
             invalidate_window(win);
           }
           data->last_click_time = 0;
@@ -195,7 +196,7 @@ int main(int argc, char* argv[]) {
   
   window_t *main_window = create_window(
     "File Manager",
-    0,
+    WINDOW_STATUSBAR,
     MAKERECT(20, 20, 340, 400),
     NULL,
     filemanager_window_proc,
