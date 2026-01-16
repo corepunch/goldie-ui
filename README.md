@@ -124,7 +124,8 @@ show_window(cv, true);
 
 // Add items to the columnview
 columnview_item_t item;
-strcpy(item.text, "Item 1");
+strncpy(item.text, "Item 1", sizeof(item.text) - 1);
+item.text[sizeof(item.text) - 1] = '\0';
 item.icon = ICON_FOLDER;  // 8x8 icon index
 item.color = COLOR_TEXT_NORMAL;  // RGBA color
 item.userdata = my_data_ptr;  // Optional user data pointer
