@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION
 # silence unused parameter warnings
 CFLAGS += -Wno-unused-parameter
 LDFLAGS = 
-LIBS = -lSDL2 -lm
+LIBS = -lSDL2 -lm -llua
 
 # Platform detection
 UNAME_S := $(shell uname -s)
