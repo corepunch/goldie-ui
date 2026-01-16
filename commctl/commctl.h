@@ -3,6 +3,7 @@
 
 #include "../user/user.h"
 #include "console.h"
+#include "columnview.h"
 
 // Common control window procedures
 result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -13,5 +14,6 @@ result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #endif
