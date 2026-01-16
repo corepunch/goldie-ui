@@ -24,6 +24,13 @@ extern void draw_icon16(int icon, int x, int y, uint32_t col);
 extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void set_projection(int x, int y, int w, int h);
 
+void set_fullscreen(void) {
+  int w = ui_get_system_metrics(SM_CXSCREEN);
+  int h = ui_get_system_metrics(SM_CYSCREEN);
+  set_viewport(&(rect_t){0, 0, w, h});
+  set_projection(0, 0, w, h);
+}
+
 rect_t get_opengl_rect(rect_t const *r) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
@@ -116,8 +123,7 @@ void draw_window_controls(window_t *win) {
   rect_t r = win->frame;
   int t = titlebar_height(win);
   fill_rect(COLOR_PANEL_DARK_BG, r.x, r.y-t, r.w, t);
-  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+  set_fullscreen();
   
   for (int i = 0; i < 1; i++) {
     int x = win->frame.x + win->frame.w - (i+1)*CONTROL_BUTTON_WIDTH - CONTROL_BUTTON_PADDING;
@@ -135,8 +141,7 @@ void draw_statusbar(window_t *win, const char *text) {
   int y = r.y + r.h;
   
   fill_rect(COLOR_STATUSBAR_BG, r.x, y, r.w, s);
-  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+  set_fullscreen();
   
   if (text) {
     draw_text_small(text, r.x + 2, y + 2, COLOR_TEXT_NORMAL);
@@ -167,8 +172,7 @@ void paint_window_stencil(window_t const *w) {
 
 // Repaint window stencil buffer
 void repaint_stencil(void) {
-  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+  set_fullscreen();
   
   glEnable(GL_STENCIL_TEST);
   glClearStencil(0);

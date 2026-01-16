@@ -48,6 +48,7 @@ extern void draw_statusbar(window_t *win, const char *text);
 extern void draw_bevel(rect_t const *r);
 extern void paint_window_stencil(window_t const *w);
 extern void repaint_stencil(void);
+extern void set_fullscreen(void);
 extern window_t *get_root_window(window_t *window);
 
 // Register a window hook
@@ -132,8 +133,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
         if (running) {
           ui_set_stencil_for_window(win->id);
-          set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-          set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+          set_fullscreen();
           if (!(win->flags&WINDOW_TRANSPARENT)) {
             draw_panel(win);
           }
