@@ -18,15 +18,13 @@ extern bool running;
 #define COLOR_FOLDER 0xffa0d000
 #define COLOR_SCRIPT 0xff00a0d0
 
-#ifdef SUPPORT_LUA
-#include <lua/lua.h>
-#include <lua/lauxlib.h>
-#include <lua/lualib.h>
-#endif
-
 typedef struct {
   char path[512];
 } filemanager_data_t;
+
+#ifdef SUPPORT_LUA
+#include "process.h"
+#endif
 
 static int get_file_color(struct dirent *ent, struct stat *st) {
   if (ent->d_name[0] == '.') {
@@ -86,80 +84,6 @@ static void load_directory(window_t *win, filemanager_data_t *data) {
   closedir(dir);
   send_message(win, WM_STATUSBAR, 0, data->path);
 }
-
-#ifdef SUPPORT_LUA
-
-#define DEFAULT_TEXT_BUFFER_SIZE 4096
-#define TEXTBUF(L) ((text_buffer_t**)lua_getextraspace(L))
-
-typedef struct text_buffer_s {
-  size_t size;
-  size_t capacity;
-  char data[];
-} text_buffer_t;
-
-void init_text_buffer(text_buffer_t **buf) {
-  *buf = malloc(sizeof(text_buffer_t) + DEFAULT_TEXT_BUFFER_SIZE);
-  (*buf)->size = 0;
-  (*buf)->capacity = DEFAULT_TEXT_BUFFER_SIZE;
-  (*buf)->data[0] = '\0';
-}
-
-void free_text_buffer(text_buffer_t **buf) {
-  free(*buf);
-  *buf = NULL;
-}
-
-void f_strcat(text_buffer_t **b, const char *s) {
-  size_t l = strlen(s);
-  if ((*b)->size + l + 1 > (*b)->capacity) {
-    size_t c = (*b)->capacity;
-    while (c < (*b)->size + l + 1) c <<= 1;
-    *b = realloc(*b, sizeof(text_buffer_t) + c);
-    (*b)->capacity = c;
-  }
-  strcpy((*b)->data + (*b)->size, s);
-  (*b)->size += l;
-}
-
-int f_print(lua_State *L) {
-  window_t *win = (window_t *)lua_touserdata(L, lua_upvalueindex(1));
-  const char *msg = lua_tostring(L, -1);
-  if (msg) {
-    f_strcat(TEXTBUF(L), msg);
-  }
-  return 0;
-}
-
-result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  switch (msg) {
-    case WM_CREATE:
-      win->userdata = luaL_newstate();
-      init_text_buffer(TEXTBUF(win->userdata));
-      f_strcat(TEXTBUF(win->userdata), "Terminal initialized\n");
-      luaL_openlibs(win->userdata);
-      // Set up custom print function that writes to the window
-      lua_pushlightuserdata(win->userdata, win);
-      lua_pushcclosure(win->userdata, f_print, 1);
-      lua_setglobal(win->userdata, "print");
-      if (luaL_dofile(win->userdata, lparam) != LUA_OK) {
-        printf("Lua Error: %s\n", lua_tostring(win->userdata, -1));
-      }
-      return true;
-    case WM_DESTROY:
-      free_text_buffer(TEXTBUF(win->userdata));
-      lua_close(win->userdata);
-      return true;
-    case WM_PAINT:
-      draw_text_small((*TEXTBUF(win->userdata))->data, 
-        WINDOW_PADDING, WINDOW_PADDING, COLOR_TEXT_NORMAL);
-      // Draw terminal contents here
-      return true;
-    default:
-      return false;
-  }
-}
-#endif
 
 static void navigate_to(window_t *win, filemanager_data_t *data, columnview_item_t *item) {
   char newpath[512];
