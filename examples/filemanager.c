@@ -13,6 +13,14 @@ extern bool running;
 #define MAX_ENTRIES 256
 #define ENTRY_HEIGHT 13
 #define COLUMN_WIDTH 160
+#define ICON_OFFSET 12
+#define ICON_DODGE 1
+
+#define ICON_FOLDER 5
+#define ICON_FILE 6
+#define ICON_UP 7
+
+#define COLOR_FOLDER 0xffa0d000
 
 typedef struct {
   char name[256];
@@ -124,26 +132,18 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
         int col = (i < (data->count + 1) / 2) ? 0 : 1;
         int x = col * COLUMN_WIDTH + 5;
         int y = (col == 0 ? col1_y : col2_y) * ENTRY_HEIGHT + 5;
-        
+        int icon = data->entries[i].is_dir ? ICON_FOLDER : ICON_FILE;
+        int color = data->entries[i].is_dir ? COLOR_FOLDER : COLOR_TEXT_NORMAL;
+        if (!strcmp(data->entries[i].name, "..")) icon = ICON_UP;
+        else if (!strncmp(data->entries[i].name, ".", 1)) color = COLOR_TEXT_DISABLED;
         if (i == data->selected) {
-          fill_rect(COLOR_TEXT_NORMAL, x - 2, y - 1, COLUMN_WIDTH - 6, ENTRY_HEIGHT);
-          char display[280];
-          if (data->entries[i].is_dir) {
-            snprintf(display, sizeof(display), "%s/", data->entries[i].name);
-          } else {
-            snprintf(display, sizeof(display), "%s", data->entries[i].name);
-          }
-          draw_text_small(display, x, y, COLOR_PANEL_BG);
+          fill_rect(COLOR_TEXT_NORMAL, x - 2, y - 2, COLUMN_WIDTH - 6, ENTRY_HEIGHT-2);
+          draw_icon8(icon, x, y-ICON_DODGE, COLOR_PANEL_BG);
+          draw_text_small(data->entries[i].name, x+ICON_OFFSET, y, COLOR_PANEL_BG);
         } else {
-          char display[280];
-          if (data->entries[i].is_dir) {
-            snprintf(display, sizeof(display), "%s/", data->entries[i].name);
-          } else {
-            snprintf(display, sizeof(display), "%s", data->entries[i].name);
-          }
-          draw_text_small(display, x, y, COLOR_TEXT_NORMAL);
+          draw_icon8(icon, x, y-ICON_DODGE, color);
+          draw_text_small(data->entries[i].name, x+ICON_OFFSET, y, color);
         }
-        
         if (col == 0) col1_y++; else col2_y++;
       }
       
