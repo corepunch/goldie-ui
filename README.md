@@ -30,7 +30,9 @@ ui/
     ├── list.c        # List control implementation
     ├── combobox.c    # Combobox (dropdown) control implementation
     ├── console.h     # Console control header (NEW)
-    └── console.c     # Console control implementation (NEW)
+    ├── console.c     # Console control implementation (NEW)
+    ├── columnview.h  # ColumnView control header (NEW)
+    └── columnview.c  # Multi-column item view implementation (NEW)
 ```
 
 ## Architecture
@@ -66,6 +68,7 @@ Implements standard UI controls that can be used to build interfaces.
 - **List**: Scrollable list of items
 - **Combobox**: Dropdown selection control
 - **Console**: Message display console with automatic fading and scrolling
+- **ColumnView**: Multi-column item view with icons, colors, and double-click support
 
 ## Usage
 
@@ -104,6 +107,58 @@ window_t *edit = create_window("Enter text", 0, &edit_frame, parent, win_textedi
 
 // Create a console window
 window_t *console = create_window("Console", 0, &console_frame, parent, win_console, NULL);
+
+// Create a columnview
+window_t *columnview = create_window("", WINDOW_NOTITLE | WINDOW_TRANSPARENT, &cv_frame, parent, win_columnview, NULL);
+```
+
+### Using the ColumnView
+
+```c
+#include "ui/commctl/columnview.h"
+
+// Create a columnview control
+rect_t cv_rect = {0, 0, 400, 300};
+window_t *cv = create_window("", WINDOW_NOTITLE | WINDOW_TRANSPARENT, &cv_rect, parent, win_columnview, NULL);
+show_window(cv, true);
+
+// Add items to the columnview
+columnview_item_t item;
+strcpy(item.text, "Item 1");
+item.icon = ICON_FOLDER;  // 8x8 icon index
+item.color = COLOR_TEXT_NORMAL;  // RGBA color
+item.userdata = my_data_ptr;  // Optional user data pointer
+send_message(cv, CVM_ADDITEM, 0, &item);
+
+// Set column width (optional, default is 160)
+send_message(cv, CVM_SETCOLUMNWIDTH, 180, NULL);
+
+// Handle notifications in parent window procedure
+case WM_COMMAND: {
+  uint16_t id = LOWORD(wparam);
+  uint16_t code = HIWORD(wparam);
+  
+  if (id == cv->id) {
+    if (code == CVN_SELCHANGE) {
+      int index = (int)(intptr_t)lparam;
+      // Selection changed to index
+    } else if (code == CVN_DBLCLK) {
+      int index = (int)(intptr_t)lparam;
+      // Item at index was double-clicked
+    }
+  }
+  break;
+}
+
+// Clear all items
+send_message(cv, CVM_CLEAR, 0, NULL);
+
+// Get item count
+int count = send_message(cv, CVM_GETITEMCOUNT, 0, NULL);
+
+// Get/set selection
+int sel = send_message(cv, CVM_GETSELECTION, 0, NULL);
+send_message(cv, CVM_SETSELECTION, new_index, NULL);
 ```
 
 ### Using the Console
@@ -159,6 +214,20 @@ The framework uses a message-based architecture. Common messages include:
 
 ### Edit Box Messages
 - `EN_UPDATE` - Text was modified
+
+### ColumnView Messages
+- `CVM_ADDITEM` - Add item with icon, color, text, and userdata
+- `CVM_DELETEITEM` - Remove item by index
+- `CVM_GETITEMCOUNT` - Get total item count
+- `CVM_GETSELECTION` - Get current selection index
+- `CVM_SETSELECTION` - Set selection by index
+- `CVM_CLEAR` - Clear all items
+- `CVM_SETCOLUMNWIDTH` - Set column width (default 160)
+- `CVM_GETCOLUMNWIDTH` - Get current column width
+- `CVM_GETITEMDATA` - Get item data by index
+- `CVM_SETITEMDATA` - Update item data
+- `CVN_SELCHANGE` - Selection changed notification
+- `CVN_DBLCLK` - Item double-clicked notification
 
 ## Text Rendering API
 
