@@ -25,8 +25,17 @@ typedef struct {
   int last_click_index;
 } columnview_data_t;
 
-// Helper function (will be moved to ui/user/window.c later)
+// Helper function
 extern window_t *get_root_window(window_t *window);
+
+// Calculate number of columns that fit in window
+static inline int get_column_count(int window_width, int column_width) {
+  if (window_width <= 0 || column_width <= 0) {
+    return 1;
+  }
+  int ncol = window_width / column_width;
+  return (ncol > 0) ? ncol : 1;
+}
 
 // ColumnView control window procedure
 result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -46,9 +55,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     }
     
     case WM_PAINT: {
-      const int ncol = (win->frame.w > 0 && data->column_width > 0) 
-                       ? win->frame.w / data->column_width 
-                       : 1;
+      const int ncol = get_column_count(win->frame.w, data->column_width);
       
       for (int i = 0; i < data->count; i++) {
         int col = i % ncol;
@@ -73,9 +80,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     case WM_LBUTTONDOWN: {
       int mx = LOWORD(wparam);
       int my = HIWORD(wparam);
-      const int ncol = (win->frame.w > 0 && data->column_width > 0) 
-                       ? win->frame.w / data->column_width 
-                       : 1;
+      const int ncol = get_column_count(win->frame.w, data->column_width);
       int col = mx / data->column_width;
       int row = (my - WIN_PADDING) / ENTRY_HEIGHT;
       int index = row * ncol + col;

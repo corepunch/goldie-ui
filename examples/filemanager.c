@@ -44,7 +44,8 @@ static void load_directory(filemanager_data_t *data) {
   
   // Add parent directory entry
   columnview_item_t item;
-  strcpy(item.text, "..");
+  strncpy(item.text, "..", sizeof(item.text) - 1);
+  item.text[sizeof(item.text) - 1] = '\0';
   item.icon = ICON_UP;
   item.color = COLOR_FOLDER;
   item.userdata = &data->entries[0];
@@ -69,7 +70,8 @@ static void load_directory(filemanager_data_t *data) {
       data->entries[data->count].is_dir = true;
       
       // Add to columnview
-      strcpy(item.text, data->entries[data->count].name);
+      strncpy(item.text, data->entries[data->count].name, sizeof(item.text) - 1);
+      item.text[sizeof(item.text) - 1] = '\0';
       item.icon = ICON_FOLDER;
       item.color = (data->entries[data->count].name[0] == '.') ? COLOR_TEXT_DISABLED : COLOR_FOLDER;
       item.userdata = &data->entries[data->count];
@@ -98,7 +100,8 @@ static void load_directory(filemanager_data_t *data) {
       data->entries[data->count].is_dir = false;
       
       // Add to columnview
-      strcpy(item.text, data->entries[data->count].name);
+      strncpy(item.text, data->entries[data->count].name, sizeof(item.text) - 1);
+      item.text[sizeof(item.text) - 1] = '\0';
       item.icon = ICON_FILE;
       item.color = (data->entries[data->count].name[0] == '.') ? COLOR_TEXT_DISABLED : COLOR_TEXT_NORMAL;
       item.userdata = &data->entries[data->count];
