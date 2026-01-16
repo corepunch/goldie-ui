@@ -160,6 +160,14 @@ void set_viewport(rect_t const *frame) {
   glScissor(ogl_rect.x, ogl_rect.y, ogl_rect.w, ogl_rect.h);
 }
 
+void set_clip_rect(window_t const *win, rect_t const *r) {
+  rect_t ogl_rect = get_opengl_rect(win?&(rect_t){
+    win->frame.x + r->x, win->frame.y + r->y, r->w, r->h
+  }:r);
+  glEnable(GL_SCISSOR_TEST);
+  glScissor(ogl_rect.x, ogl_rect.y, ogl_rect.w, ogl_rect.h);
+}
+
 // Paint window to stencil buffer
 void paint_window_stencil(window_t const *w) {
   int p = 1;
