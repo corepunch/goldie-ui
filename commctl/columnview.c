@@ -25,9 +25,6 @@ typedef struct {
   int last_click_index;
 } columnview_data_t;
 
-// Helper function
-extern window_t *get_root_window(window_t *window);
-
 // Calculate number of columns that fit in window
 static inline int get_column_count(int window_width, int column_width) {
   if (window_width <= 0 || column_width <= 0) {

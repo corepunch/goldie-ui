@@ -38,7 +38,8 @@ static void load_directory(filemanager_data_t *data) {
   send_message(data->columnview, CVM_CLEAR, 0, NULL);
   
   data->count = 0;
-  strcpy(data->entries[data->count].name, "..");
+  strncpy(data->entries[data->count].name, "..", sizeof(data->entries[data->count].name) - 1);
+  data->entries[data->count].name[sizeof(data->entries[data->count].name) - 1] = '\0';
   data->entries[data->count].is_dir = true;
   data->count++;
   
@@ -120,7 +121,8 @@ static void navigate_to(window_t *win, filemanager_data_t *data, const char *nam
     if (last_slash && last_slash != data->path) {
       *last_slash = '\0';
     } else if (strcmp(data->path, "/") != 0) {
-      strcpy(data->path, "/");
+      strncpy(data->path, "/", sizeof(data->path) - 1);
+      data->path[sizeof(data->path) - 1] = '\0';
     }
   } else {
     char newpath[512];
