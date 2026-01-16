@@ -41,6 +41,33 @@ The example creates a simple window with "Hello World!" text displayed in the ce
 
 The example currently links against some mapview files (sprites.c, font.c, icons.c) for drawing functions. This is temporary until these functions are fully extracted into the UI framework.
 
+## File Manager Example
+
+**File:** `filemanager.c`
+
+A Norton Commander-style file manager that demonstrates:
+- Two-column directory listing
+- Directory navigation with mouse clicks
+- Double-click to navigate into folders or go up with ".."
+- Visual selection feedback
+- Separating folders from files (folders first)
+
+### Building
+
+```bash
+make examples
+```
+
+### Running
+
+```bash
+./build/bin/filemanager
+```
+
+### What it does
+
+The example creates a file manager window showing the current directory contents in two columns. Folders are listed first with a "/" suffix. Click to select an entry, double-click on a folder to navigate into it, or double-click on ".." to go up one level.
+
 ## Future Examples
 
 Additional examples to be added:
