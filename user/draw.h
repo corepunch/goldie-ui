@@ -15,7 +15,7 @@ void draw_icon8(int icon, int x, int y, uint32_t col);
 void draw_icon16(int icon, int x, int y, uint32_t col);
 
 // Viewport and projection
-void set_viewport(window_t const *win);
+void set_viewport(rect_t const *frame);
 void set_projection(int x, int y, int w, int h);
 
 // Stencil management (internal use)

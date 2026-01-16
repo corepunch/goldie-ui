@@ -46,7 +46,11 @@ extern bool running;
 extern bool mode;
 extern unsigned frame;
 
-// Screen dimensions
-extern int screen_width, screen_height;
+typedef enum {
+	SM_CXSCREEN,
+	SM_CYSCREEN,
+} ui_system_metrics_t;
+
+int ui_get_system_metrics(ui_system_metrics_t);
 
 #endif

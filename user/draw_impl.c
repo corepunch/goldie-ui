@@ -15,7 +15,6 @@
 // External references
 extern window_t *windows;
 extern window_t *_focused;
-extern int screen_width, screen_height;
 extern SDL_Window *window;
 
 // Forward declarations
@@ -29,12 +28,12 @@ rect_t get_opengl_rect(rect_t const *r) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
 
-  float scale_x = (float)w / MAX(1,screen_width);
-  float scale_y = (float)h / MAX(1,screen_height);
+  float scale_x = (float)w / MAX(1,ui_get_system_metrics(SM_CXSCREEN));
+  float scale_y = (float)h / MAX(1,ui_get_system_metrics(SM_CYSCREEN));
   
   return (rect_t){
     (int)(r->x * scale_x),
-    (int)((screen_height - r->y - r->h) * scale_y), // flip Y
+    (int)((ui_get_system_metrics(SM_CYSCREEN) - r->y - r->h) * scale_y), // flip Y
     (int)(r->w * scale_x),
     (int)(r->h * scale_y)
   };
@@ -107,8 +106,8 @@ void draw_window_controls(window_t *win) {
   rect_t r = win->frame;
   int t = titlebar_height(win);
   fill_rect(COLOR_PANEL_DARK_BG, r.x, r.y-t, r.w, t);
-  set_viewport(&(window_t){0, 0, screen_width, screen_height});
-  set_projection(0, 0, screen_width, screen_height);
+  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
+  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
   
   for (int i = 0; i < 1; i++) {
     int x = win->frame.x + win->frame.w - (i+1)*CONTROL_BUTTON_WIDTH - CONTROL_BUTTON_PADDING;
@@ -118,11 +117,11 @@ void draw_window_controls(window_t *win) {
 }
 
 // Set OpenGL viewport for window
-void set_viewport(window_t const *win) {
+void set_viewport(rect_t const *frame) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
   
-  rect_t ogl_rect = get_opengl_rect(&win->frame);
+  rect_t ogl_rect = get_opengl_rect(frame);
   
   glEnable(GL_SCISSOR_TEST);
   glViewport(ogl_rect.x, ogl_rect.y, ogl_rect.w, ogl_rect.h);
@@ -140,8 +139,8 @@ void paint_window_stencil(window_t const *w) {
 
 // Repaint window stencil buffer
 void repaint_stencil(void) {
-  set_viewport(&(window_t){0, 0, screen_width, screen_height});
-  set_projection(0, 0, screen_width, screen_height);
+  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
+  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
   
   glEnable(GL_STENCIL_TEST);
   glClearStencil(0);

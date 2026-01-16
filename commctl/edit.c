@@ -37,7 +37,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         invalidate_window(win);
         win->editing = true;
         win->cursor_pos = 0;
-        for (int i = 0; i <= strlen(win->title); i++) {
+        for (int i = 0; i <= (int)strlen(win->title); i++) {
           int x1 = win->frame.x+PADDING+strnwidth(win->title, i);
           int x2 = win->frame.x+PADDING+strnwidth(win->title, win->cursor_pos);
           if (abs((int)LOWORD(wparam) - x1) < abs((int)LOWORD(wparam) - x2)) {
@@ -84,7 +84,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           }
           break;
         case SDL_SCANCODE_RIGHT:
-          if (win->cursor_pos < strlen(win->title) && win->editing) {
+          if (win->cursor_pos < (int)strlen(win->title) && win->editing) {
             win->cursor_pos++;
           }
           break;

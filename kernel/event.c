@@ -16,7 +16,6 @@ extern window_t *windows;
 extern window_t *_focused;
 extern window_t *_tracked;
 extern window_t *_captured;
-extern int screen_width, screen_height;
 
 // Macros for coordinate conversion
 #define SCALE_POINT(x) ((x)/2)

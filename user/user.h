@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "messages.h"
+#include "../kernel/kernel.h" 
 
 #define LOWORD(l) ((uint16_t)(l & 0xFFFF))
 #define HIWORD(l) ((uint16_t)((l >> 16) & 0xFFFF))

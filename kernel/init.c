@@ -97,7 +97,7 @@ static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *
   extern void fill_rect(int color, int x, int y, int w, int h);
   switch (msg) {
     case WM_PAINT:
-      fill_rect(0xff6B3529, 0, 0, screen_width, screen_height);
+      fill_rect(0xff6B3529, 0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
       return true;
   }
   return false;
@@ -131,7 +131,7 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   if (flags & UI_INIT_DESKTOP) {
     show_window(create_window("Desktop",
                               WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON,
-                              MAKERECT(0, 0, screen_width, screen_height),
+                              MAKERECT(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)),
                               NULL, win_desktop, NULL), true);
   }
   

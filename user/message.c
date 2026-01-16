@@ -41,9 +41,6 @@ extern window_t *windows;
 extern window_t *_focused;
 extern bool running;  // Set to true when graphics are initialized
 
-// Screen dimensions (defined here for compatibility)
-extern int screen_width, screen_height;
-
 // Forward declarations
 extern void draw_panel(window_t const *win);
 extern void draw_window_controls(window_t *win);
@@ -134,8 +131,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
         if (running) {
           ui_set_stencil_for_window(win->id);
-          set_viewport(&(window_t){0, 0, screen_width, screen_height});
-          set_projection(0, 0, screen_width, screen_height);
+          set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
+          set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
           if (!(win->flags&WINDOW_TRANSPARENT)) {
             draw_panel(win);
           }
@@ -161,7 +158,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
         if (running) {
           ui_set_stencil_for_root_window(get_root_window(win)->id);
-          set_viewport(root);
+          set_viewport(&root->frame);
           set_projection(root->scroll[0],
                          root->scroll[1],
                          root->frame.w + root->scroll[0],
@@ -230,8 +227,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     // Draw disabled overlay
     if (win->disabled && msg == WM_PAINT) {
       uint32_t col = (COLOR_PANEL_BG & 0x00FFFFFF) | 0x80000000;
-      set_viewport(&(window_t){0, 0, screen_width, screen_height});
-      set_projection(0, 0, screen_width, screen_height);
+      set_viewport(&(rect_t){ 0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
+      set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
       fill_rect(col, win->frame.x, win->frame.y, win->frame.w, win->frame.h);
     }
   }

@@ -16,7 +16,6 @@ typedef enum {
   icon16_count,
 } ed_icon16_t;
 
-extern int screen_width, screen_height;
 extern window_t *windows;
 
 result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -70,7 +69,7 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case WM_CREATE:
       win->cursor_pos = 22;
-      win->frame = (rect_t){0,screen_height-TRAY_HEIGHT,screen_width,TRAY_HEIGHT};
+      win->frame = (rect_t){0,ui_get_system_metrics(SM_CYSCREEN)-TRAY_HEIGHT,ui_get_system_metrics(SM_CXSCREEN),TRAY_HEIGHT};
       register_window_hook(WM_CREATE, on_win_created, win);
       register_window_hook(WM_DESTROY, on_win_destroyed, win);
       return true;

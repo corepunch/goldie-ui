@@ -6,7 +6,7 @@
 
 #define OFFSET_OF(type, field) (void*)((size_t)&(((type *)0)->field))
 
-int screen_width, screen_height;
+static int screen_width, screen_height;
 
 // Vertex structure for our buffer (xyzuv)
 typedef struct {
@@ -136,7 +136,7 @@ bool ui_init_prog(void) {
   //  glm_ortho(-offset_x, DOOM_WIDTH+offset_x, DOOM_HEIGHT, 0, -1, 1, g_ref.projection);
   screen_width = width / UI_WINDOW_SCALE;
   screen_height = height / UI_WINDOW_SCALE;
-  glm_ortho(0, screen_width, screen_height, 0, -1, 1, g_ref.projection);
+  glm_ortho(0, screen_width, ui_get_system_metrics(SM_CYSCREEN), 0, -1, 1, g_ref.projection);
     
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
@@ -201,3 +201,13 @@ void draw_rect(int tex, int x, int y, int w, int h) {
   draw_rect_ex(tex, x, y, w, h, false, 1);
 }
 
+int ui_get_system_metrics(ui_system_metrics_t metric) {
+  switch (metric) {
+    case SM_CXSCREEN:
+      return screen_width;
+    case SM_CYSCREEN:
+      return screen_height;
+    default:
+      return 0;
+  }
+}
