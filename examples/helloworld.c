@@ -25,12 +25,12 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
       // Create a label
       create_window("UI Framework Demo:", WINDOW_NOTITLE, MAKERECT(20, 20, 200, 20), win, win_label, NULL);
       // Create a button and assign it an ID
-      window_t *button = create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 50, 100, 0), win, win_button, NULL);
+      window_t *button = create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 40, 100, 0), win, win_button, NULL);
       button->id = ID_BUTTON_CLICKME;
       // Create first checkbox
-      create_window("Enable Feature A", WINDOW_NOTITLE, MAKERECT(20, 90, 150, 20), win, win_checkbox, NULL);      
+      create_window("Enable Feature A", WINDOW_NOTITLE, MAKERECT(20, 60, 150, 20), win, win_checkbox, NULL);      
       // Create second checkbox
-      create_window("Enable Feature B", WINDOW_NOTITLE, MAKERECT(20, 120, 150, 20), win, win_checkbox, NULL);
+      create_window("Enable Feature B", WINDOW_NOTITLE, MAKERECT(20, 80, 150, 20), win, win_checkbox, NULL);
       return true;
     }
       
@@ -46,7 +46,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
        }
        
        int text_x = (win->frame.w - strwidth(text)) / 2;
-       int text_y = (win->frame.h - 16) / 2;
+       int text_y = 8;
       
        // Draw text with shadow effect
        draw_text_small(text, text_x + 1, text_y + 1, COLOR_DARK_EDGE);

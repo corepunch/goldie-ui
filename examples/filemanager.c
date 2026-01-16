@@ -10,85 +10,68 @@
 
 extern bool running;
 
-#define MAX_ENTRIES 256
-#define ENTRY_HEIGHT 13
-#define COLUMN_WIDTH 160
-#define ICON_OFFSET 12
-#define ICON_DODGE 1
-
 #define ICON_FOLDER 5
 #define ICON_FILE 6
 #define ICON_UP 7
-
 #define COLOR_FOLDER 0xffa0d000
-
-#define WIN_PADDING 4
-
-typedef struct {
-  char name[256];
-  bool is_dir;
-} entry_t;
 
 typedef struct {
   char path[512];
-  entry_t entries[MAX_ENTRIES];
-  int count;
-  int selected;
-  uint32_t last_click_time;
-  int last_click_index;
 } filemanager_data_t;
 
-static void load_directory(filemanager_data_t *data) {
+static int get_file_color(struct dirent *ent, struct stat *st) {
+  if (ent->d_name[0] == '.') {
+    return COLOR_TEXT_DISABLED;
+  } else if (S_ISDIR(st->st_mode)) {
+    return COLOR_FOLDER;
+  } else {
+    return COLOR_TEXT_NORMAL;
+  }
+}
+
+static int get_file_icon(struct dirent *ent, struct stat *st) {
+  if (S_ISDIR(st->st_mode)) {
+    return ICON_FOLDER;
+  } else {
+    return ICON_FILE;
+  }
+}
+
+static void add_entries(DIR *dir, window_t *win, filemanager_data_t *data, bool dirs_only) {
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != NULL) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+    char fullpath[768];
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
+    struct stat st;
+    if (stat(fullpath, &st) || S_ISDIR(st.st_mode) != dirs_only) continue;
+    send_message(win, CVM_ADDITEM, 0, &(columnview_item_t) {
+      .text = ent->d_name,
+      .icon = get_file_icon(ent, &st),
+      .color = get_file_color(ent, &st),
+      .userdata = S_ISDIR(st.st_mode),
+    });
+  }
+}
+
+static void load_directory(window_t *win, filemanager_data_t *data) {
   DIR *dir = opendir(data->path);
   if (!dir) return;
   
-  data->count = 0;
-  strcpy(data->entries[data->count].name, "..");
-  data->entries[data->count].is_dir = true;
-  data->count++;
-  
-  struct dirent *ent;
-  while ((ent = readdir(dir)) != NULL && data->count < MAX_ENTRIES) {
-    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-    
-    char fullpath[768];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
-    struct stat st;
-    bool is_dir = false;
-    if (stat(fullpath, &st) == 0) {
-      is_dir = S_ISDIR(st.st_mode);
-    }
-    
-    if (is_dir) {
-      strncpy(data->entries[data->count].name, ent->d_name, sizeof(data->entries[data->count].name) - 1);
-      data->entries[data->count].name[sizeof(data->entries[data->count].name) - 1] = '\0';
-      data->entries[data->count].is_dir = true;
-      data->count++;
-    }
-  }
-  
+  send_message(win, CVM_CLEAR, 0, NULL);
+  // Add parent directory
+  send_message(win, CVM_ADDITEM, 0, &(columnview_item_t) {"..", ICON_UP, COLOR_FOLDER, 0});
+
+  // Add directories
   rewinddir(dir);
-  while ((ent = readdir(dir)) != NULL && data->count < MAX_ENTRIES) {
-    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-    
-    char fullpath[768];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
-    struct stat st;
-    bool is_dir = false;
-    if (stat(fullpath, &st) == 0) {
-      is_dir = S_ISDIR(st.st_mode);
-    }
-    
-    if (!is_dir) {
-      strncpy(data->entries[data->count].name, ent->d_name, sizeof(data->entries[data->count].name) - 1);
-      data->entries[data->count].name[sizeof(data->entries[data->count].name) - 1] = '\0';
-      data->entries[data->count].is_dir = false;
-      data->count++;
-    }
-  }
-  
+  add_entries(dir, win, data, true);
+
+  // Add files
+  rewinddir(dir);
+  add_entries(dir, win, data, false);
+
   closedir(dir);
-  data->selected = -1;
+  send_message(win, WM_STATUSBAR, 0, data->path);
 }
 
 static void navigate_to(window_t *win, filemanager_data_t *data, const char *name) {
@@ -101,89 +84,46 @@ static void navigate_to(window_t *win, filemanager_data_t *data, const char *nam
     }
   } else {
     char newpath[512];
-    if (strcmp(data->path, "/") == 0) {
-      snprintf(newpath, sizeof(newpath), "/%s", name);
-    } else {
-      snprintf(newpath, sizeof(newpath), "%s/%s", data->path, name);
-    }
-    strncpy(data->path, newpath, sizeof(data->path) - 1);
-    data->path[sizeof(data->path) - 1] = '\0';
+    snprintf(newpath, sizeof(newpath), "%s%s%s", data->path, strcmp(data->path, "/") == 0 ? "" : "/", name);
+    strcpy(data->path, newpath);
   }
-  load_directory(data);
-  send_message(win, WM_STATUSBAR, 0, data->path);
+  load_directory(win, data);
 }
 
 result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   filemanager_data_t *data = (filemanager_data_t *)win->userdata;
-  const int ncol = win->frame.w / COLUMN_WIDTH;
+  
   switch (msg) {
-    case WM_CREATE: {
+    case WM_CREATE:
+      // First call columnview's WM_CREATE
+      win_columnview(win, msg, wparam, lparam);
+      // Then set up filemanager data
       data = malloc(sizeof(filemanager_data_t));
       win->userdata = data;
       getcwd(data->path, sizeof(data->path));
-      data->last_click_time = 0;
-      data->last_click_index = -1;
-      load_directory(data);
-      send_message(win, WM_STATUSBAR, 0, data->path);
+      load_directory(win, data);
       return true;
-    }
     
-    case WM_PAINT: {
-      for (int i = 0; i < data->count; i++) {
-        int col = i % ncol; // (i < (data->count + 1) / 2) ? 0 : 1;
-        int x = col * COLUMN_WIDTH + WIN_PADDING;
-        int y = (i / ncol) * ENTRY_HEIGHT + WIN_PADDING;
-        int icon = data->entries[i].is_dir ? ICON_FOLDER : ICON_FILE;
-        int color = data->entries[i].is_dir ? COLOR_FOLDER : COLOR_TEXT_NORMAL;
-        if (!strcmp(data->entries[i].name, "..")) icon = ICON_UP;
-        else if (!strncmp(data->entries[i].name, ".", 1)) color = COLOR_TEXT_DISABLED;
-        set_clip_rect(win, &(rect_t){x - 2, y - 2, COLUMN_WIDTH - 6, ENTRY_HEIGHT-2});
-        if (i == data->selected) {
-          fill_rect(COLOR_TEXT_NORMAL, x - 2, y - 2, COLUMN_WIDTH - 6, ENTRY_HEIGHT-2);
-          draw_icon8(icon, x, y-ICON_DODGE, COLOR_PANEL_BG);
-          draw_text_small(data->entries[i].name, x+ICON_OFFSET, y, COLOR_PANEL_BG);
-        } else {
-          draw_icon8(icon, x, y-ICON_DODGE, color);
-          draw_text_small(data->entries[i].name, x+ICON_OFFSET, y, color);
-        }
-      }
-      
-      return false;
-    }
-    
-    case WM_LBUTTONDOWN: {
-      int mx = LOWORD(wparam);
-      int my = HIWORD(wparam);
-      int col = mx / COLUMN_WIDTH;
-      int row = (my - WIN_PADDING) / ENTRY_HEIGHT;
-      int index = row * ncol + col;
-      
-      if (index >= 0 && index < data->count) {
-        uint32_t now = SDL_GetTicks();
-        if (data->last_click_index == index && (now - data->last_click_time) < 500) {
-          if (data->entries[index].is_dir) {
-            navigate_to(win, data, data->entries[index].name);
-            invalidate_window(win);
+    case WM_COMMAND:
+      if (HIWORD(wparam) == CVN_DBLCLK) {
+        int index = (int)(intptr_t)lparam;
+        columnview_item_t item;
+        if (send_message(win, CVM_GETITEMDATA, index, &item)) {
+          if (item.userdata || index == 0) { // Directory or parent dir
+            navigate_to(win, data, item.text);
           }
-          data->last_click_time = 0;
-          data->last_click_index = -1;
-        } else {
-          data->selected = index;
-          data->last_click_time = now;
-          data->last_click_index = index;
-          invalidate_window(win);
         }
       }
-      return true;
-    }
+      return false;
     
     case WM_DESTROY:
       if (data) free(data);
+      win_columnview(win, msg, wparam, lparam);
       running = false;
       return true;
-      
+    
     default:
-      return false;
+      return win_columnview(win, msg, wparam, lparam);
   }
 }
 
