@@ -50,7 +50,8 @@ static void load_directory(filemanager_data_t *data) {
     }
     
     if (is_dir) {
-      strcpy(data->entries[data->count].name, ent->d_name);
+      strncpy(data->entries[data->count].name, ent->d_name, sizeof(data->entries[data->count].name) - 1);
+      data->entries[data->count].name[sizeof(data->entries[data->count].name) - 1] = '\0';
       data->entries[data->count].is_dir = true;
       data->count++;
     }
@@ -69,7 +70,8 @@ static void load_directory(filemanager_data_t *data) {
     }
     
     if (!is_dir) {
-      strcpy(data->entries[data->count].name, ent->d_name);
+      strncpy(data->entries[data->count].name, ent->d_name, sizeof(data->entries[data->count].name) - 1);
+      data->entries[data->count].name[sizeof(data->entries[data->count].name) - 1] = '\0';
       data->entries[data->count].is_dir = false;
       data->count++;
     }
