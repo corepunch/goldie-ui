@@ -135,8 +135,8 @@ void draw_statusbar(window_t *win, const char *text) {
   int y = r.y + r.h;
   
   fill_rect(COLOR_STATUSBAR_BG, r.x, y, r.w, s);
-  set_viewport(&(window_t){0, 0, screen_width, screen_height});
-  set_projection(0, 0, screen_width, screen_height);
+  set_viewport(&(rect_t){0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
+  set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
   
   if (text) {
     draw_text_small(text, r.x + 2, y + 2, COLOR_TEXT_NORMAL);
