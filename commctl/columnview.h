@@ -26,10 +26,10 @@ enum {
 
 // ColumnView item structure
 typedef struct {
-  char text[256];
+  const char *text;
   int icon;
   uint32_t color;
-  void *userdata;
+  uint32_t userdata;
 } columnview_item_t;
 
 #endif // __UI_COLUMNVIEW_H__

@@ -19,48 +19,57 @@ typedef struct {
   char path[512];
 } filemanager_data_t;
 
+static int get_file_color(struct dirent *ent, struct stat *st) {
+  if (ent->d_name[0] == '.') {
+    return COLOR_TEXT_DISABLED;
+  } else if (S_ISDIR(st->st_mode)) {
+    return COLOR_FOLDER;
+  } else {
+    return COLOR_TEXT_NORMAL;
+  }
+}
+
+static int get_file_icon(struct dirent *ent, struct stat *st) {
+  if (S_ISDIR(st->st_mode)) {
+    return ICON_FOLDER;
+  } else {
+    return ICON_FILE;
+  }
+}
+
+static void add_entries(DIR *dir, window_t *win, filemanager_data_t *data, bool dirs_only) {
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != NULL) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+    char fullpath[768];
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
+    struct stat st;
+    if (stat(fullpath, &st) || S_ISDIR(st.st_mode) != dirs_only) continue;
+    send_message(win, CVM_ADDITEM, 0, &(columnview_item_t) {
+      .text = ent->d_name,
+      .icon = get_file_icon(ent, &st),
+      .color = get_file_color(ent, &st),
+      .userdata = S_ISDIR(st.st_mode),
+    });
+  }
+}
+
 static void load_directory(window_t *win, filemanager_data_t *data) {
   DIR *dir = opendir(data->path);
   if (!dir) return;
   
   send_message(win, CVM_CLEAR, 0, NULL);
-  
   // Add parent directory
-  columnview_item_t item = {"..", ICON_UP, COLOR_FOLDER, NULL};
-  send_message(win, CVM_ADDITEM, 0, &item);
-  
-  struct dirent *ent;
-  // First pass: directories
-  while ((ent = readdir(dir)) != NULL) {
-    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-    char fullpath[768];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
-    struct stat st;
-    if (stat(fullpath, &st) == 0 && S_ISDIR(st.st_mode)) {
-      strcpy(item.text, ent->d_name);
-      item.icon = ICON_FOLDER;
-      item.color = (ent->d_name[0] == '.') ? COLOR_TEXT_DISABLED : COLOR_FOLDER;
-      item.userdata = (void*)1; // Mark as directory
-      send_message(win, CVM_ADDITEM, 0, &item);
-    }
-  }
-  
-  // Second pass: files
+  send_message(win, CVM_ADDITEM, 0, &(columnview_item_t) {"..", ICON_UP, COLOR_FOLDER, 0});
+
+  // Add directories
   rewinddir(dir);
-  while ((ent = readdir(dir)) != NULL) {
-    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-    char fullpath[768];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
-    struct stat st;
-    if (stat(fullpath, &st) == 0 && !S_ISDIR(st.st_mode)) {
-      strcpy(item.text, ent->d_name);
-      item.icon = ICON_FILE;
-      item.color = (ent->d_name[0] == '.') ? COLOR_TEXT_DISABLED : COLOR_TEXT_NORMAL;
-      item.userdata = NULL; // Mark as file
-      send_message(win, CVM_ADDITEM, 0, &item);
-    }
-  }
-  
+  add_entries(dir, win, data, true);
+
+  // Add files
+  rewinddir(dir);
+  add_entries(dir, win, data, false);
+
   closedir(dir);
   send_message(win, WM_STATUSBAR, 0, data->path);
 }
@@ -82,7 +91,7 @@ static void navigate_to(window_t *win, filemanager_data_t *data, const char *nam
 }
 
 result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  filemanager_data_t *data = (filemanager_data_t *)win->userdata2;
+  filemanager_data_t *data = (filemanager_data_t *)win->userdata;
   
   switch (msg) {
     case WM_CREATE:
@@ -90,7 +99,7 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       win_columnview(win, msg, wparam, lparam);
       // Then set up filemanager data
       data = malloc(sizeof(filemanager_data_t));
-      win->userdata2 = data;
+      win->userdata = data;
       getcwd(data->path, sizeof(data->path));
       load_directory(win, data);
       return true;
