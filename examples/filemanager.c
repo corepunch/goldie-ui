@@ -138,6 +138,7 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
         int color = data->entries[i].is_dir ? COLOR_FOLDER : COLOR_TEXT_NORMAL;
         if (!strcmp(data->entries[i].name, "..")) icon = ICON_UP;
         else if (!strncmp(data->entries[i].name, ".", 1)) color = COLOR_TEXT_DISABLED;
+        set_clip_rect(win, &(rect_t){x - 2, y - 2, COLUMN_WIDTH - 6, ENTRY_HEIGHT-2});
         if (i == data->selected) {
           fill_rect(COLOR_TEXT_NORMAL, x - 2, y - 2, COLUMN_WIDTH - 6, ENTRY_HEIGHT-2);
           draw_icon8(icon, x, y-ICON_DODGE, COLOR_PANEL_BG);
