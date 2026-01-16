@@ -1,0 +1,49 @@
+STATUS BAR FEATURE DEMONSTRATION
+=================================
+
+BEFORE (without status bar):
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ File Manager                    ╳  ┃ ← Title bar only
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ 📁 Documents                       ┃
+┃ 📁 Downloads                       ┃
+┃ 📁 Pictures                        ┃
+┃ 📄 readme.txt                      ┃
+┃ 📄 notes.md                        ┃
+┃                                    ┃
+┃ /home/user/workspace               ┃ ← Path drawn in content area
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+AFTER (with status bar):
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ File Manager                    ╳  ┃ ← Title bar
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ 📁 Documents                       ┃
+┃ 📁 Downloads                       ┃
+┃ 📁 Pictures                        ┃
+┃ 📄 readme.txt                      ┃
+┃ 📄 notes.md                        ┃
+┃                                    ┃ ← Clean content area
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ /home/user/workspace               ┃ ← Status bar with path
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+KEY IMPROVEMENTS:
+✓ Cleaner separation of concerns
+✓ Path doesn't overlap with file list
+✓ Consistent with standard UI patterns
+✓ Easy to update via WM_STATUSBAR message
+✓ Reusable across different windows
+
+CODE EXAMPLE:
+-------------
+// Enable status bar when creating window
+window_t *win = create_window("File Manager", 
+    WINDOW_STATUSBAR,  // Add this flag
+    MAKERECT(20, 20, 340, 400), 
+    NULL, window_proc, NULL);
+
+// Update status bar text
+send_message(win, WM_STATUSBAR, 0, "/home/user/workspace");
+
