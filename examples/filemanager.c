@@ -98,8 +98,7 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       // First call columnview's WM_CREATE
       win_columnview(win, msg, wparam, lparam);
       // Then set up filemanager data
-      data = malloc(sizeof(filemanager_data_t));
-      win->userdata = data;
+      data = allocate_window_data(win, sizeof(filemanager_data_t));
       getcwd(data->path, sizeof(data->path));
       load_directory(win, data);
       return true;

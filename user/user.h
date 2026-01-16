@@ -83,6 +83,7 @@ struct window_s {
 window_t *create_window(char const *title, flags_t flags, const rect_t* frame, 
                         window_t *parent, winproc_t proc, void *param);
 window_t *create_window2(windef_t const *def, rect_t const *r, window_t *parent);
+void *allocate_window_data(window_t *win, size_t size);
 void show_window(window_t *win, bool visible);
 void destroy_window(window_t *win);
 void clear_window_children(window_t *win);

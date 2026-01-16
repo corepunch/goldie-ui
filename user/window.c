@@ -76,6 +76,16 @@ window_t* create_window(char const *title,
   return win;
 }
 
+void *allocate_window_data(window_t *win, size_t size) {
+  void *data = malloc(size);
+  memset(data, 0, size);
+  if (win->userdata) {
+    free(win->userdata);
+  }
+  win->userdata = data;
+  return data;
+}
+
 // Check if two windows overlap
 bool do_windows_overlap(const window_t *a, const window_t *b) {
   if (!a->visible || !b->visible)
