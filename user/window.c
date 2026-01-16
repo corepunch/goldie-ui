@@ -170,13 +170,15 @@ void destroy_window(window_t *win) {
 ((x1) <= (x) && (y1) <= (y) && (x1) + (w1) > (x) && (y1) + (h1) > (y))
 
 extern int titlebar_height(window_t const *win);
+extern int statusbar_height(window_t const *win);
 
 window_t *find_window(int x, int y) {
   window_t *last = NULL;
   for (window_t *win = windows; win; win = win->next) {
     if (!win->visible) continue;
     int t = titlebar_height(win);
-    if (CONTAINS(x, y, win->frame.x, win->frame.y-t, win->frame.w, win->frame.h+t)) {
+    int s = statusbar_height(win);
+    if (CONTAINS(x, y, win->frame.x, win->frame.y-t, win->frame.w, win->frame.h+t+s)) {
       last = win;
       if (!win->disabled) {
         send_message(win, WM_HITTEST, MAKEDWORD(x - win->frame.x, y - win->frame.y), &last);

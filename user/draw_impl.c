@@ -51,6 +51,15 @@ int titlebar_height(window_t const *win) {
   return t;
 }
 
+// Get statusbar height
+int statusbar_height(window_t const *win) {
+  int s = 0;
+  if (win->flags&WINDOW_STATUSBAR) {
+    s += STATUSBAR_HEIGHT;
+  }
+  return s;
+}
+
 // Draw focused border
 void draw_focused(rect_t const *r) {
   fill_rect(COLOR_FOCUSED, r->x-1, r->y-1, r->w+2, 1);
@@ -83,8 +92,9 @@ void draw_button(rect_t const *r, int dx, int dy, bool pressed) {
 // Draw window panel
 void draw_panel(window_t const *win) {
   int t = titlebar_height(win);
+  int s = statusbar_height(win);
   int x = win->frame.x, y = win->frame.y-t;
-  int w = win->frame.w, h = win->frame.h+t;
+  int w = win->frame.w, h = win->frame.h+t+s;
   bool active = _focused == win;
   if (active) {
     draw_focused(MAKERECT(x, y, w, h));
@@ -116,6 +126,23 @@ void draw_window_controls(window_t *win) {
   }
 }
 
+// Draw status bar
+void draw_statusbar(window_t *win, const char *text) {
+  if (!(win->flags&WINDOW_STATUSBAR)) return;
+  
+  rect_t r = win->frame;
+  int s = statusbar_height(win);
+  int y = r.y + r.h;
+  
+  fill_rect(COLOR_STATUSBAR_BG, r.x, y, r.w, s);
+  set_viewport(&(window_t){0, 0, screen_width, screen_height});
+  set_projection(0, 0, screen_width, screen_height);
+  
+  if (text) {
+    draw_text_small(text, r.x + 2, y + 2, COLOR_TEXT_NORMAL);
+  }
+}
+
 // Set OpenGL viewport for window
 void set_viewport(rect_t const *frame) {
   int w, h;
@@ -132,9 +159,10 @@ void set_viewport(rect_t const *frame) {
 void paint_window_stencil(window_t const *w) {
   int p = 1;
   int t = titlebar_height(w);
+  int s = statusbar_height(w);
   glStencilFunc(GL_ALWAYS, w->id, 0xFF);            // Always pass
   glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE); // Replace stencil with window ID
-  draw_rect(1, w->frame.x-p, w->frame.y-t-p, w->frame.w+p*2, w->frame.h+t+p*2);
+  draw_rect(1, w->frame.x-p, w->frame.y-t-p, w->frame.w+p*2, w->frame.h+t+s+p*2);
 }
 
 // Repaint window stencil buffer

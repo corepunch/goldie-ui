@@ -29,6 +29,7 @@ enum {
   WM_JOYBUTTONDOWN,
   WM_JOYBUTTONUP,
   WM_JOYAXISMOTION,
+  WM_STATUSBAR,
   WM_USER = 1000
 };
 
@@ -74,10 +75,12 @@ enum {
 #define WINDOW_NOTRAYBUTTON (1 << 9)
 #define WINDOW_DIALOG       (1 << 10)
 #define WINDOW_TOOLBAR      (1 << 11)
+#define WINDOW_STATUSBAR    (1 << 12)
 
 // Titlebar and toolbar dimensions
 #define TITLEBAR_HEIGHT   12
 #define TOOLBAR_HEIGHT    20
+#define STATUSBAR_HEIGHT  12
 #define RESIZE_HANDLE     8
 #define BUTTON_HEIGHT     13
 #define WINDOW_PADDING 4
@@ -106,6 +109,7 @@ typedef enum {
 // Base UI Colors
 #define COLOR_PANEL_BG       0xff3c3c3c  // main panel or window background
 #define COLOR_PANEL_DARK_BG  0xff2c2c2c  // main panel or window background
+#define COLOR_STATUSBAR_BG   0xff2c2c2c  // status bar background
 #define COLOR_LIGHT_EDGE     0xff7f7f7f  // top-left edge for beveled elements
 #define COLOR_DARK_EDGE      0xff1a1a1a  // bottom-right edge for bevel
 #define COLOR_FLARE          0xffcfcfcf  // top-left edge for beveled elements

@@ -68,6 +68,7 @@ struct window_s {
   bool visible;
   bool disabled;
   char title[64];
+  char statusbar_text[64];
   int cursor_pos;
   int num_toolbar_buttons;
   toolbar_button_t *toolbar_buttons;
