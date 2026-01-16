@@ -22,6 +22,8 @@ extern bool running;
 
 #define COLOR_FOLDER 0xffa0d000
 
+#define WIN_PADDING 4
+
 typedef struct {
   char name[256];
   bool is_dir;
@@ -113,7 +115,7 @@ static void navigate_to(window_t *win, filemanager_data_t *data, const char *nam
 
 result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   filemanager_data_t *data = (filemanager_data_t *)win->userdata;
-  
+  const int ncol = win->frame.w / COLUMN_WIDTH;
   switch (msg) {
     case WM_CREATE: {
       data = malloc(sizeof(filemanager_data_t));
@@ -127,13 +129,10 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
     }
     
     case WM_PAINT: {
-      int col1_y = 0;
-      int col2_y = 0;
-      
       for (int i = 0; i < data->count; i++) {
-        int col = (i < (data->count + 1) / 2) ? 0 : 1;
-        int x = col * COLUMN_WIDTH + 5;
-        int y = (col == 0 ? col1_y : col2_y) * ENTRY_HEIGHT + 5;
+        int col = i % ncol; // (i < (data->count + 1) / 2) ? 0 : 1;
+        int x = col * COLUMN_WIDTH + WIN_PADDING;
+        int y = (i / ncol) * ENTRY_HEIGHT + WIN_PADDING;
         int icon = data->entries[i].is_dir ? ICON_FOLDER : ICON_FILE;
         int color = data->entries[i].is_dir ? COLOR_FOLDER : COLOR_TEXT_NORMAL;
         if (!strcmp(data->entries[i].name, "..")) icon = ICON_UP;
@@ -147,7 +146,6 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
           draw_icon8(icon, x, y-ICON_DODGE, color);
           draw_text_small(data->entries[i].name, x+ICON_OFFSET, y, color);
         }
-        if (col == 0) col1_y++; else col2_y++;
       }
       
       return false;
@@ -156,9 +154,9 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
     case WM_LBUTTONDOWN: {
       int mx = LOWORD(wparam);
       int my = HIWORD(wparam);
-      int col = mx < COLUMN_WIDTH ? 0 : 1;
-      int row = (my - 5) / ENTRY_HEIGHT;
-      int index = row + (col == 0 ? 0 : (data->count + 1) / 2);
+      int col = mx / COLUMN_WIDTH;
+      int row = (my - WIN_PADDING) / ENTRY_HEIGHT;
+      int index = row * ncol + col;
       
       if (index >= 0 && index < data->count) {
         uint32_t now = SDL_GetTicks();
