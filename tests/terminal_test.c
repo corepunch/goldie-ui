@@ -198,8 +198,8 @@ void test_terminal_lua_simple_script(void) {
   
   test_env_init();
   
-  // Create terminal with Lua script path
-  const char *script_path = "/home/runner/work/goldie-ui/goldie-ui/tests/test_simple.lua";
+  // Create terminal with Lua script path (relative to where tests are run)
+  const char *script_path = "tests/test_simple.lua";
   rect_t frame = {10, 10, 300, 200};
   window_t *terminal = create_window("Terminal Lua", 0, &frame, NULL, win_terminal, (void*)script_path);
   ASSERT_NOT_NULL(terminal);
@@ -224,8 +224,8 @@ void test_terminal_lua_interactive_script(void) {
   
   test_env_init();
   
-  // Create terminal with interactive Lua script
-  const char *script_path = "/home/runner/work/goldie-ui/goldie-ui/tests/test_interactive.lua";
+  // Create terminal with interactive Lua script (relative to where tests are run)
+  const char *script_path = "tests/test_interactive.lua";
   rect_t frame = {10, 10, 300, 200};
   window_t *terminal = create_window("Terminal Interactive", 0, &frame, NULL, win_terminal, (void*)script_path);
   ASSERT_NOT_NULL(terminal);
@@ -272,8 +272,8 @@ void test_terminal_lua_error_handling(void) {
   
   test_env_init();
   
-  // Try to load non-existent script
-  const char *script_path = "/home/runner/work/goldie-ui/goldie-ui/tests/nonexistent.lua";
+  // Try to load non-existent script (relative path)
+  const char *script_path = "tests/nonexistent.lua";
   rect_t frame = {10, 10, 300, 200};
   window_t *terminal = create_window("Terminal Error", 0, &frame, NULL, win_terminal, (void*)script_path);
   ASSERT_NOT_NULL(terminal);
@@ -353,7 +353,8 @@ void test_terminal_buffer_exact_match(void) {
   
   test_env_init();
   
-  const char *script_path = "/home/runner/work/goldie-ui/goldie-ui/tests/test_simple.lua";
+  // Use relative path for portability
+  const char *script_path = "tests/test_simple.lua";
   rect_t frame = {10, 10, 300, 200};
   window_t *terminal = create_window("Terminal", 0, &frame, NULL, win_terminal, (void*)script_path);
   ASSERT_NOT_NULL(terminal);
