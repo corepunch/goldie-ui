@@ -7,12 +7,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <lua/lua.h>
-#include <lua/lauxlib.h>
-#include <lua/lualib.h>
+#include <lua5.4/lua.h>
+#include <lua5.4/lauxlib.h>
+#include <lua5.4/lualib.h>
 
 #define DEFAULT_TEXT_BUFFER_SIZE 4096
 #define TEXTBUF(L) ((text_buffer_t**)lua_getextraspace(L))
+
+#define ICON_CURSOR 8
 
 typedef struct text_buffer_s {
   size_t size;
@@ -56,6 +58,7 @@ int f_print(lua_State *L) {
   const char *msg = lua_tostring(L, -1);
   if (msg) {
     f_strcat(TEXTBUF(L), msg);
+    f_strcat(TEXTBUF(L), "\n");
   }
   return 0;
 }
@@ -87,8 +90,8 @@ lua_State *create_lua_state(text_buffer_t **textbuf) {
   return L;
 }
 
-void continue_coroutine(terminal_state_t *state) {
-  int nres, status = lua_resume(state->co, NULL, 0, &nres);
+void continue_coroutine(terminal_state_t *state, int nargs) {
+  int nres, status = lua_resume(state->co, NULL, nargs, &nres);
   
   if (status == LUA_OK) {
     f_strcat(&state->textbuf, "\nProcess finished\n");
@@ -124,7 +127,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       
       // Start executing the coroutine
-      continue_coroutine(state);
+      continue_coroutine(state, 0);
       
       return true;
     }
@@ -139,8 +142,8 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         // Push the input as return value for io.read
         lua_pushstring(state->co, state->input_buffer);
         
-        // Resume the coroutine
-        continue_coroutine(state);
+        // Resume the coroutine with 1 argument (the input string)
+        continue_coroutine(state, 1);
         
         // Clear input buffer
         state->input_buffer[0] = '\0';
@@ -184,11 +187,12 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       // Draw terminal contents
       draw_text_small(state->textbuf->data, WINDOW_PADDING, WINDOW_PADDING, COLOR_TEXT_NORMAL);
       
-      // Draw input buffer at the bottom of the window
-      // if (state->waiting_for_input && state->input_buffer[0]) {
-      int y = win->frame.h - WINDOW_PADDING - 12; // Position near bottom
-      draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
-      // }
+      if (state->waiting_for_input) {
+        // Draw input buffer at the bottom of the window
+        int y = win->frame.h - WINDOW_PADDING - CHAR_HEIGHT; // Position near bottom
+        draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
+        draw_icon8(ICON_CURSOR, WINDOW_PADDING + strwidth(state->input_buffer), y, COLOR_TEXT_NORMAL);
+      }
       
       return true;
     }

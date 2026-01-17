@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION
 # silence unused parameter warnings
 CFLAGS += -Wno-unused-parameter
 LDFLAGS = 
-LIBS = -lSDL2 -lm -llua
+LIBS = -lSDL2 -lm
 
 # Platform detection
 UNAME_S := $(shell uname -s)
@@ -26,6 +26,9 @@ else ifeq ($(UNAME_S),Linux)
     LIB_FLAGS = -shared -fPIC
     CFLAGS += -fPIC
 endif
+
+# Use lua5.4 on all platforms
+LIBS += -llua5.4
 
 # Build directories
 BUILD_DIR = build

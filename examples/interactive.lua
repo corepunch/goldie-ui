@@ -9,4 +9,3 @@ local age = io.read()
 
 print("Nice to meet you, " .. name .. "!")
 print("You are " .. age .. " years old.")
-print("\nScript finished!")
