@@ -7,7 +7,7 @@
 
 #include "../user/gl_compat.h"
 #include "../user/user.h"
-#include "../commctl/console.h"
+#include "../commctl/commctl.h"
 #include "kernel.h"
 
 // Global SDL objects

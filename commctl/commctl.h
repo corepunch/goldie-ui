@@ -2,7 +2,6 @@
 #define __UI_COMMCTL_H__
 
 #include "../user/user.h"
-#include "console.h"
 #include "columnview.h"
 
 // Common control window procedures
@@ -15,5 +14,13 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
+// Console API functions
+void init_console(void);
+void conprintf(const char* format, ...);
+void draw_console(void);
+void shutdown_console(void);
+void toggle_console(void);
 
 #endif
