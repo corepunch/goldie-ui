@@ -215,9 +215,16 @@ static void process_command(terminal_state_t *state, const char *cmd) {
   }
 }
 
-// Public API for testing: Get terminal buffer content
+// Public API: Get terminal buffer content
+// This function allows external code (including tests) to retrieve the current
+// terminal output buffer. It safely handles null pointers and invalid window types.
 const char* terminal_get_buffer(window_t *win) {
   if (!win || !win->userdata) {
+    return "";
+  }
+  
+  // Verify this is a terminal window by checking the window procedure
+  if (win->proc != win_terminal) {
     return "";
   }
   
