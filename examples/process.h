@@ -56,6 +56,7 @@ int f_print(lua_State *L) {
   const char *msg = lua_tostring(L, -1);
   if (msg) {
     f_strcat(TEXTBUF(L), msg);
+    f_strcat(TEXTBUF(L), "\n");
   }
   return 0;
 }
