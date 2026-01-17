@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <lua/lua.h>
-#include <lua/lauxlib.h>
-#include <lua/lualib.h>
+#include <lua5.4/lua.h>
+#include <lua5.4/lauxlib.h>
+#include <lua5.4/lualib.h>
 
 #define DEFAULT_TEXT_BUFFER_SIZE 4096
 #define TEXTBUF(L) ((text_buffer_t**)lua_getextraspace(L))
