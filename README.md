@@ -32,12 +32,11 @@ ui/
     ├── label.c       # Label (static text) control implementation
     ├── list.c        # List control implementation
     ├── combobox.c    # Combobox (dropdown) control implementation
-    ├── console.h     # Console control header (NEW)
     ├── console.c     # Console control implementation (NEW)
     ├── columnview.h  # ColumnView control header (NEW)
     ├── columnview.c  # Multi-column item view implementation (NEW)
-    ├── terminal.h    # Terminal control header (NEW)
-    └── terminal.c    # Lua script terminal implementation (NEW)
+    ├── terminal.c    # Lua script terminal implementation (NEW)
+    └── commctl.h     # Common control window procedures and API
 ```
 
 ## Architecture
@@ -193,9 +192,10 @@ shutdown_console();
 
 ### Using the Terminal
 
-```c
-#include "ui/commctl/terminal.h"
+The terminal control supports two modes:
 
+#### Lua Script Mode
+```c
 // Create a terminal window that runs a Lua script
 // The script path is passed as lparam in WM_CREATE
 window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, "/path/to/script.lua");
@@ -211,7 +211,20 @@ show_window(terminal, true);
 // print("What is your name?")
 // local name = io.read()
 // print("Hello, " .. name .. "!")
-// print("Process finished")
+```
+
+#### Command Mode
+```c
+// Create an interactive command terminal (pass NULL as lparam)
+window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, NULL);
+show_window(terminal, true);
+
+// Built-in commands:
+// - "help"  - Lists available commands
+// - "clear" - Clears the terminal screen
+// - "exit"  - Closes the terminal window
+
+// New commands can be added by editing the terminal_commands[] array in commctl/terminal.c
 ```
 
 ## Window Messages
