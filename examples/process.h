@@ -14,6 +14,8 @@
 #define DEFAULT_TEXT_BUFFER_SIZE 4096
 #define TEXTBUF(L) ((text_buffer_t**)lua_getextraspace(L))
 
+#define ICON_CURSOR 8
+
 typedef struct text_buffer_s {
   size_t size;
   size_t capacity;
@@ -185,11 +187,12 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       // Draw terminal contents
       draw_text_small(state->textbuf->data, WINDOW_PADDING, WINDOW_PADDING, COLOR_TEXT_NORMAL);
       
-      // Draw input buffer at the bottom of the window
-      // if (state->waiting_for_input && state->input_buffer[0]) {
-      int y = win->frame.h - WINDOW_PADDING - 12; // Position near bottom
-      draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
-      // }
+      if (state->waiting_for_input) {
+        // Draw input buffer at the bottom of the window
+        int y = win->frame.h - WINDOW_PADDING - CHAR_HEIGHT; // Position near bottom
+        draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
+        draw_icon8(ICON_CURSOR, WINDOW_PADDING + strwidth(state->input_buffer), y, COLOR_TEXT_NORMAL);
+      }
       
       return true;
     }

@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define CHAR_HEIGHT 8
+
 // Initialize the text rendering system
 void init_text_rendering(void);
 
