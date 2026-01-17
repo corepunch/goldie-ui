@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "terminal.h"
+#include "commctl.h"
 #include "../user/text.h"
 #include "../user/user.h"
 #include "../user/messages.h"
@@ -25,17 +25,32 @@ typedef struct text_buffer_s {
   char data[];
 } text_buffer_t;
 
+// Forward declarations
+typedef struct terminal_state_s terminal_state_t;
+typedef void (*terminal_cmd_func_t)(terminal_state_t *);
+
+// Terminal command structure
 typedef struct {
-  lua_State *L;          // Main Lua state
-  lua_State *co;         // Coroutine for script execution
+  const char *name;
+  const char *help;
+  terminal_cmd_func_t callback;
+} terminal_cmd_t;
+
+typedef struct terminal_state_s {
+  lua_State *L;          // Main Lua state (NULL if in command mode)
+  lua_State *co;         // Coroutine for script execution (NULL if in command mode)
   text_buffer_t *textbuf;
   char input_buffer[256];
   bool waiting_for_input;
   bool process_finished;
+  bool command_mode;     // True if running in command mode (no Lua script)
 } terminal_state_t;
 
 static void init_text_buffer(text_buffer_t **buf) {
   *buf = malloc(sizeof(text_buffer_t) + DEFAULT_TEXT_BUFFER_SIZE);
+  if (!*buf) {
+    return;  // Allocation failed
+  }
   (*buf)->size = 0;
   (*buf)->capacity = DEFAULT_TEXT_BUFFER_SIZE;
   (*buf)->data[0] = '\0';
@@ -47,11 +62,17 @@ static void free_text_buffer(text_buffer_t **buf) {
 }
 
 static void f_strcat(text_buffer_t **b, const char *s) {
+  if (!*b || !s) return;  // Safety check
+  
   size_t l = strlen(s);
   if ((*b)->size + l + 1 > (*b)->capacity) {
     size_t c = (*b)->capacity;
     while (c < (*b)->size + l + 1) c <<= 1;
-    *b = realloc(*b, sizeof(text_buffer_t) + c);
+    text_buffer_t *new_buf = realloc(*b, sizeof(text_buffer_t) + c);
+    if (!new_buf) {
+      return;  // Realloc failed, keep old buffer
+    }
+    *b = new_buf;
     (*b)->capacity = c;
   }
   strcpy((*b)->data + (*b)->size, s);
@@ -75,9 +96,17 @@ static int f_io_read(lua_State *L) {
 
 static lua_State *create_lua_state(text_buffer_t **textbuf) {
   lua_State *L = luaL_newstate();
+  if (!L) {
+    return NULL;  // Lua state creation failed
+  }
   luaL_openlibs(L);
   
   init_text_buffer(textbuf);
+  if (!*textbuf) {
+    lua_close(L);
+    return NULL;  // Text buffer allocation failed
+  }
+  
   // Store text buffer pointer in extra space
   *(text_buffer_t **)lua_getextraspace(L) = *textbuf;
   
@@ -113,6 +142,75 @@ static void continue_coroutine(terminal_state_t *state, int nargs) {
   }
 }
 
+// Command mode functions
+static void cmd_exit(terminal_state_t *state) {
+  f_strcat(&state->textbuf, "Exiting terminal...\n");
+  state->process_finished = true;
+  state->waiting_for_input = false;
+}
+
+// Forward declaration
+static const terminal_cmd_t terminal_commands[];
+
+static void cmd_help(terminal_state_t *state) {
+  f_strcat(&state->textbuf, "Available commands:\n");
+  for (int i = 0; terminal_commands[i].name != NULL; i++) {
+    f_strcat(&state->textbuf, "  ");
+    f_strcat(&state->textbuf, terminal_commands[i].name);
+    f_strcat(&state->textbuf, " - ");
+    f_strcat(&state->textbuf, terminal_commands[i].help);
+    f_strcat(&state->textbuf, "\n");
+  }
+}
+
+static void cmd_clear(terminal_state_t *state) {
+  // Clear the text buffer
+  if (state->textbuf) {
+    state->textbuf->size = 0;
+    state->textbuf->data[0] = '\0';
+  }
+  f_strcat(&state->textbuf, "Terminal> ");
+}
+
+// Static array of available commands
+static const terminal_cmd_t terminal_commands[] = {
+  {"exit", "Closes current terminal instance", cmd_exit},
+  {"help", "Lists available commands", cmd_help},
+  {"clear", "Clears the terminal screen", cmd_clear},
+  {NULL, NULL, NULL}  // Sentinel
+};
+
+static void process_command(terminal_state_t *state, const char *cmd) {
+  // Trim leading/trailing whitespace
+  while (*cmd == ' ' || *cmd == '\t') cmd++;
+  
+  if (strlen(cmd) == 0) {
+    f_strcat(&state->textbuf, "Terminal> ");
+    return;
+  }
+  
+  // Find and execute command
+  bool found = false;
+  for (int i = 0; terminal_commands[i].name != NULL; i++) {
+    if (strcmp(cmd, terminal_commands[i].name) == 0) {
+      terminal_commands[i].callback(state);
+      found = true;
+      break;
+    }
+  }
+  
+  if (!found) {
+    f_strcat(&state->textbuf, "Unknown command: ");
+    f_strcat(&state->textbuf, cmd);
+    f_strcat(&state->textbuf, "\nType 'help' for a list of commands.\n");
+  }
+  
+  // Show prompt again if not finished
+  if (!state->process_finished) {
+    f_strcat(&state->textbuf, "Terminal> ");
+  }
+}
+
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   terminal_state_t *state = (terminal_state_t *)win->userdata;
   
@@ -122,23 +220,52 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (!state) {
         return false;
       }
-      state->L = create_lua_state(&state->textbuf);
-      state->co = lua_newthread(state->L); // Create coroutine for script execution
-      state->waiting_for_input = false;
-      state->process_finished = false;
-      state->input_buffer[0] = '\0';
       
-      // Load the file into the coroutine
-      if (luaL_loadfile(state->co, lparam) != LUA_OK) {
-        f_strcat(&state->textbuf, "Error loading file: ");
-        f_strcat(&state->textbuf, lua_tostring(state->co, -1));
-        f_strcat(&state->textbuf, "\n");
-        state->process_finished = true;
-        return true;
+      // Check if lparam is NULL - if so, enter command mode
+      if (lparam == NULL) {
+        // Command mode - no Lua script
+        state->L = NULL;
+        state->co = NULL;
+        state->command_mode = true;
+        state->waiting_for_input = true;
+        state->process_finished = false;
+        state->input_buffer[0] = '\0';
+        
+        // Initialize text buffer manually for command mode
+        init_text_buffer(&state->textbuf);
+        if (!state->textbuf) {
+          return false;
+        }
+        
+        // Display welcome message
+        f_strcat(&state->textbuf, "Terminal - Command Mode\n");
+        f_strcat(&state->textbuf, "Type 'help' for available commands\n");
+        f_strcat(&state->textbuf, "Terminal> ");
+      } else {
+        // Lua script mode
+        state->command_mode = false;
+        state->L = create_lua_state(&state->textbuf);
+        if (!state->L) {
+          // Lua state creation failed
+          return false;
+        }
+        state->co = lua_newthread(state->L); // Create coroutine for script execution
+        state->waiting_for_input = false;
+        state->process_finished = false;
+        state->input_buffer[0] = '\0';
+        
+        // Load the file into the coroutine
+        if (luaL_loadfile(state->co, lparam) != LUA_OK) {
+          f_strcat(&state->textbuf, "Error loading file: ");
+          f_strcat(&state->textbuf, lua_tostring(state->co, -1));
+          f_strcat(&state->textbuf, "\n");
+          state->process_finished = true;
+          return true;
+        }
+        
+        // Start executing the coroutine
+        continue_coroutine(state, 0);
       }
-      
-      // Start executing the coroutine
-      continue_coroutine(state, 0);
       
       return true;
     }
@@ -147,15 +274,19 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (state->process_finished || !state->waiting_for_input) {
         return false;
       } else if (wparam == SDL_SCANCODE_RETURN) {
-        // User pressed Enter - resume coroutine with input
+        // User pressed Enter
         f_strcat(&state->textbuf, state->input_buffer);
         f_strcat(&state->textbuf, "\n");
         
-        // Push the input as return value for io.read
-        lua_pushstring(state->co, state->input_buffer);
-        
-        // Resume the coroutine with 1 argument (the input string)
-        continue_coroutine(state, 1);
+        if (state->command_mode) {
+          // Command mode - process command
+          process_command(state, state->input_buffer);
+        } else {
+          // Lua mode - push the input as return value for io.read
+          lua_pushstring(state->co, state->input_buffer);
+          // Resume the coroutine with 1 argument (the input string)
+          continue_coroutine(state, 1);
+        }
         
         // Clear input buffer
         state->input_buffer[0] = '\0';
@@ -195,8 +326,11 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case WM_DESTROY:
       if (state) {
         free_text_buffer(&state->textbuf);
-        lua_close(state->L);
+        if (state->L) {
+          lua_close(state->L);
+        }
         free(state);
+        win->userdata = NULL;  // Prevent use-after-free
       }
       return true;
       

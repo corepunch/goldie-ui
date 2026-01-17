@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "console.h"
+#include "commctl.h"
 #include "../user/text.h"
 #include "../user/user.h"
 #include "../user/messages.h"
