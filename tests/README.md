@@ -212,6 +212,7 @@ int main(void) {
 Tests are automatically run in GitHub Actions for:
 - Linux (Ubuntu)
 - macOS
+- Windows (MSYS2/MinGW64)
 
 Failed tests will cause the build to fail, preventing broken code from being merged.
 
