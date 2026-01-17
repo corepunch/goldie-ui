@@ -25,39 +25,6 @@ static void send_enter_key(window_t *win) {
   send_message(win, WM_KEYDOWN, SDL_SCANCODE_RETURN, NULL);
 }
 
-// Helper: Get terminal text buffer content
-// NOTE: This is white-box testing - we replicate the internal structure definitions
-// from terminal.c to access the text buffer for verification. This is intentional
-// as we want to test the actual buffer content without exposing internal APIs.
-// If the terminal_state_t or text_buffer_t structures change in terminal.c,
-// these definitions must be updated accordingly.
-static const char* get_terminal_buffer(window_t *win) {
-  // Terminal state structure - we need to access the text buffer
-  typedef struct {
-    void *L;
-    void *co;
-    void *textbuf_ptr;
-    char input_buffer[256];
-    bool waiting_for_input;
-    bool process_finished;
-    bool command_mode;
-  } terminal_state_test_t;
-  
-  typedef struct {
-    size_t size;
-    size_t capacity;
-    char data[];
-  } text_buffer_test_t;
-  
-  terminal_state_test_t *state = (terminal_state_test_t *)win->userdata;
-  if (!state || !state->textbuf_ptr) {
-    return "";
-  }
-  
-  text_buffer_test_t *buf = (text_buffer_test_t *)state->textbuf_ptr;
-  return buf->data;
-}
-
 // Test: Create terminal in command mode
 void test_terminal_command_mode_creation(void) {
   TEST("Terminal creation in command mode");
@@ -71,7 +38,7 @@ void test_terminal_command_mode_creation(void) {
   ASSERT_NOT_NULL(terminal);
   
   // Get buffer content
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Verify welcome message is displayed
   ASSERT_TRUE(buffer_contains(buffer, "Terminal - Command Mode"));
@@ -97,7 +64,7 @@ void test_terminal_help_command(void) {
   send_enter_key(terminal);
   
   // Get buffer content
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Verify help output
   ASSERT_TRUE(buffer_contains(buffer, "help"));
@@ -125,7 +92,7 @@ void test_terminal_clear_command(void) {
   send_enter_key(terminal);
   
   // Get buffer - should have help text
-  const char *buffer1 = get_terminal_buffer(terminal);
+  const char *buffer1 = terminal_get_buffer(terminal);
   ASSERT_TRUE(buffer_contains(buffer1, "Available commands:"));
   
   // Send clear command
@@ -133,7 +100,7 @@ void test_terminal_clear_command(void) {
   send_enter_key(terminal);
   
   // Get buffer after clear
-  const char *buffer2 = get_terminal_buffer(terminal);
+  const char *buffer2 = terminal_get_buffer(terminal);
   
   // Buffer should not contain old help text (cleared)
   // But should still have the prompt
@@ -159,7 +126,7 @@ void test_terminal_exit_command(void) {
   send_enter_key(terminal);
   
   // Get buffer content
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Verify exit message
   ASSERT_TRUE(buffer_contains(buffer, "exit"));
@@ -185,7 +152,7 @@ void test_terminal_unknown_command(void) {
   send_enter_key(terminal);
   
   // Get buffer content
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Verify error message
   ASSERT_TRUE(buffer_contains(buffer, "Unknown command"));
@@ -209,7 +176,7 @@ void test_terminal_lua_simple_script(void) {
   ASSERT_NOT_NULL(terminal);
   
   // Get buffer content
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Verify Lua script output
   ASSERT_TRUE(buffer_contains(buffer, "Hello from test_simple.lua"));
@@ -235,7 +202,7 @@ void test_terminal_lua_interactive_script(void) {
   ASSERT_NOT_NULL(terminal);
   
   // Get initial buffer content
-  const char *buffer1 = get_terminal_buffer(terminal);
+  const char *buffer1 = terminal_get_buffer(terminal);
   
   // Verify first prompt
   ASSERT_TRUE(buffer_contains(buffer1, "Enter your name:"));
@@ -246,7 +213,7 @@ void test_terminal_lua_interactive_script(void) {
   send_enter_key(terminal);
   
   // Get buffer after first input
-  const char *buffer2 = get_terminal_buffer(terminal);
+  const char *buffer2 = terminal_get_buffer(terminal);
   
   // Verify greeting and second prompt
   ASSERT_TRUE(buffer_contains(buffer2, "Alice"));
@@ -258,7 +225,7 @@ void test_terminal_lua_interactive_script(void) {
   send_enter_key(terminal);
   
   // Get final buffer
-  const char *buffer3 = get_terminal_buffer(terminal);
+  const char *buffer3 = terminal_get_buffer(terminal);
   
   // Verify final output
   ASSERT_TRUE(buffer_contains(buffer3, "25"));
@@ -283,7 +250,7 @@ void test_terminal_lua_error_handling(void) {
   ASSERT_NOT_NULL(terminal);
   
   // Get buffer content
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Verify error message is shown
   ASSERT_TRUE(buffer_contains(buffer, "Error"));
@@ -307,14 +274,14 @@ void test_terminal_multiple_commands(void) {
   send_text_input(terminal, "help");
   send_enter_key(terminal);
   
-  const char *buffer1 = get_terminal_buffer(terminal);
+  const char *buffer1 = terminal_get_buffer(terminal);
   ASSERT_TRUE(buffer_contains(buffer1, "Available commands:"));
   
   // Send clear command
   send_text_input(terminal, "clear");
   send_enter_key(terminal);
   
-  const char *buffer2 = get_terminal_buffer(terminal);
+  const char *buffer2 = terminal_get_buffer(terminal);
   // After clear, old help text should be gone
   ASSERT_TRUE(buffer_contains(buffer2, "Terminal> "));
   
@@ -340,7 +307,7 @@ void test_terminal_backspace(void) {
   send_text_input(terminal, "p");
   send_enter_key(terminal);
   
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Should have processed "help" command
   ASSERT_TRUE(buffer_contains(buffer, "help"));
@@ -363,7 +330,7 @@ void test_terminal_buffer_exact_match(void) {
   window_t *terminal = create_window("Terminal", 0, &frame, NULL, win_terminal, (void*)script_path);
   ASSERT_NOT_NULL(terminal);
   
-  const char *buffer = get_terminal_buffer(terminal);
+  const char *buffer = terminal_get_buffer(terminal);
   
   // Test exact substring matching
   ASSERT_TRUE(buffer_contains(buffer, "Hello from test_simple.lua"));

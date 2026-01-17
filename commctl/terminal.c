@@ -215,6 +215,20 @@ static void process_command(terminal_state_t *state, const char *cmd) {
   }
 }
 
+// Public API for testing: Get terminal buffer content
+const char* terminal_get_buffer(window_t *win) {
+  if (!win || !win->userdata) {
+    return "";
+  }
+  
+  terminal_state_t *state = (terminal_state_t *)win->userdata;
+  if (!state->textbuf) {
+    return "";
+  }
+  
+  return state->textbuf->data;
+}
+
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   terminal_state_t *state = (terminal_state_t *)win->userdata;
   
