@@ -19,7 +19,8 @@ ifneq ($(LUA_PKGCONFIG),none)
 else
     # Fallback: try to link with specific Lua versions (prefer 5.4, then 5.3)
     # On most Linux distributions, the library is named liblua5.4.so or liblua5.3.so
-    LUA_LIB := $(shell ldconfig -p 2>/dev/null | grep -oP 'liblua5\.\d+\.so' | head -n1 | sed 's/lib\(.*\)\.so/-l\1/' || echo -llua5.4)
+    # Note: Uses GNU grep -P for regex. If this fails, install lua5.4-dev or lua5.3-dev
+    LUA_LIB := $(shell ldconfig -p 2>/dev/null | grep -oE 'liblua5\.[0-9]+\.so' | head -n1 | sed 's/lib\(.*\)\.so/-l\1/' || echo -llua5.4)
     LIBS += $(LUA_LIB)
 endif
 
