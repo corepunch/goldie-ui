@@ -119,6 +119,9 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
   switch (msg) {
     case WM_CREATE: {
       state = allocate_window_data(win, sizeof(terminal_state_t));
+      if (!state) {
+        return false;
+      }
       state->L = create_lua_state(&state->textbuf);
       state->co = lua_newthread(state->L); // Create coroutine for script execution
       state->waiting_for_input = false;
@@ -174,9 +177,15 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (state->process_finished || !state->waiting_for_input) {
         return false;
       } else {
+        // Validate that lparam contains a valid printable character
+        char c = *(char*)lparam;
+        if (c < 32 || c > 126) {
+          // Not a printable ASCII character, ignore
+          return false;
+        }
         size_t len = strlen(state->input_buffer);
         if (len < sizeof(state->input_buffer) - 1) {
-          state->input_buffer[len] = *(char*)lparam;
+          state->input_buffer[len] = c;
           state->input_buffer[len + 1] = '\0';
         }
         invalidate_window(win);
