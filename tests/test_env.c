@@ -26,17 +26,17 @@ void test_env_enable_tracking(bool enable) {
     test_env.tracking_enabled = enable;
     if (enable) {
         // Register hooks for all common messages
-        register_window_hook(WM_CREATE, test_env_hook_callback, NULL);
-        register_window_hook(WM_DESTROY, test_env_hook_callback, NULL);
-        register_window_hook(WM_PAINT, test_env_hook_callback, NULL);
-        register_window_hook(WM_COMMAND, test_env_hook_callback, NULL);
-        register_window_hook(WM_LBUTTONDOWN, test_env_hook_callback, NULL);
-        register_window_hook(WM_LBUTTONUP, test_env_hook_callback, NULL);
-        register_window_hook(WM_KEYDOWN, test_env_hook_callback, NULL);
-        register_window_hook(WM_KEYUP, test_env_hook_callback, NULL);
-        register_window_hook(WM_MOUSEMOVE, test_env_hook_callback, NULL);
-        register_window_hook(WM_SETFOCUS, test_env_hook_callback, NULL);
-        register_window_hook(WM_KILLFOCUS, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageCreate, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageDestroy, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessagePaint, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageCommand, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageLeftButtonDown, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageLeftButtonUp, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageKeyDown, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageKeyUp, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageMouseMove, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageSetFocus, test_env_hook_callback, NULL);
+        register_window_hook(kWindowMessageKillFocus, test_env_hook_callback, NULL);
     }
 }
 

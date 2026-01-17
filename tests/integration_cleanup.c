@@ -11,19 +11,19 @@ extern bool running;
 // Simple window procedure
 result_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_CREATE:
+    case kWindowMessageCreate:
       // Create some child windows to test cleanup
       create_window("Test Button", WINDOW_NOTITLE, MAKERECT(10, 10, 100, 30), win, win_button, NULL);
       create_window("Test Checkbox", WINDOW_NOTITLE, MAKERECT(10, 50, 100, 20), win, win_checkbox, NULL);
       
       // Create a combobox which allocates userdata
       window_t *combo = create_window("Test Combo", WINDOW_NOTITLE, MAKERECT(10, 80, 100, 30), win, win_combobox, NULL);
-      send_message(combo, CB_ADDSTRING, 0, "Item 1");
-      send_message(combo, CB_ADDSTRING, 0, "Item 2");
+      send_message(combo, kComboBoxMessageAddString, 0, "Item 1");
+      send_message(combo, kComboBoxMessageAddString, 0, "Item 2");
       
       return true;
       
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       running = false;
       return true;
       

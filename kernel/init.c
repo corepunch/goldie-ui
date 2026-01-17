@@ -96,7 +96,7 @@ static bool ui_init_window(const char *title, int width, int height) {
 static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   extern void fill_rect(int color, int x, int y, int w, int h);
   switch (msg) {
-    case WM_PAINT:
+    case kWindowMessagePaint:
       fill_rect(0xff6B3529, 0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
       return true;
   }

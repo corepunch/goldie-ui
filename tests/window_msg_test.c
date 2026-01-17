@@ -17,17 +17,17 @@ static result_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
     (void)lparam;
     
     switch (msg) {
-        case WM_CREATE:
+        case kWindowMessageCreate:
             test_wm_create_called++;
             return 1;
-        case WM_PAINT:
+        case kWindowMessagePaint:
             test_wm_paint_called++;
             return 1;
-        case WM_COMMAND:
+        case kWindowMessageCommand:
             test_wm_command_called++;
             test_last_wparam = wparam;
             return 1;
-        case WM_DESTROY:
+        case kWindowMessageDestroy:
             return 1;
         default:
             return 0;
@@ -51,19 +51,19 @@ void test_window_creation_tracked(void) {
     test_env_clear_events();
     reset_test_counters();
     
-    // Create window - should trigger WM_CREATE
+    // Create window - should trigger kWindowMessageCreate
     window_t *win = test_env_create_window("Test Window", 100, 100, 200, 150,
                                             test_window_proc, NULL);
     
     ASSERT_NOT_NULL(win);
     ASSERT_STR_EQUAL(win->title, "Test Window");
     
-    // Verify WM_CREATE was called
+    // Verify kWindowMessageCreate was called
     ASSERT_EQUAL(test_wm_create_called, 1);
     
     // Verify event was tracked
-    ASSERT_TRUE(test_env_was_message_sent(WM_CREATE));
-    ASSERT_EQUAL(test_env_count_message(WM_CREATE), 1);
+    ASSERT_TRUE(test_env_was_message_sent(kWindowMessageCreate));
+    ASSERT_EQUAL(test_env_count_message(kWindowMessageCreate), 1);
     
     destroy_window(win);
     test_env_shutdown();
@@ -83,10 +83,10 @@ void test_send_message_tracked(void) {
                                             test_window_proc, NULL);
     ASSERT_NOT_NULL(win);
     
-    test_env_clear_events(); // Clear WM_CREATE event
+    test_env_clear_events(); // Clear kWindowMessageCreate event
     
-    // Send WM_COMMAND message
-    int result = test_env_send_message(win, WM_COMMAND, 42, NULL);
+    // Send kWindowMessageCommand message
+    int result = test_env_send_message(win, kWindowMessageCommand, 42, NULL);
     
     // Verify message was processed
     ASSERT_EQUAL(result, 1);
@@ -94,10 +94,10 @@ void test_send_message_tracked(void) {
     ASSERT_EQUAL(test_last_wparam, 42);
     
     // Verify event was tracked
-    ASSERT_TRUE(test_env_was_message_sent(WM_COMMAND));
-    test_event_t *event = test_env_find_event(WM_COMMAND);
+    ASSERT_TRUE(test_env_was_message_sent(kWindowMessageCommand));
+    test_event_t *event = test_env_find_event(kWindowMessageCommand);
     ASSERT_NOT_NULL(event);
-    ASSERT_EQUAL(event->msg, WM_COMMAND);
+    ASSERT_EQUAL(event->msg, kWindowMessageCommand);
     ASSERT_EQUAL(event->wparam, 42);
     ASSERT_EQUAL(event->window, win);
     
@@ -119,22 +119,22 @@ void test_multiple_messages_tracked(void) {
                                             test_window_proc, NULL);
     ASSERT_NOT_NULL(win);
     
-    test_env_clear_events(); // Clear WM_CREATE
+    test_env_clear_events(); // Clear kWindowMessageCreate
     
     // Send multiple messages
-    test_env_send_message(win, WM_PAINT, 0, NULL);
-    test_env_send_message(win, WM_COMMAND, 100, NULL);
-    test_env_send_message(win, WM_COMMAND, 200, NULL);
+    test_env_send_message(win, kWindowMessagePaint, 0, NULL);
+    test_env_send_message(win, kWindowMessageCommand, 100, NULL);
+    test_env_send_message(win, kWindowMessageCommand, 200, NULL);
     
     // Verify all messages were processed
     ASSERT_EQUAL(test_wm_paint_called, 1);
     ASSERT_EQUAL(test_wm_command_called, 2);
     
     // Verify events were tracked
-    ASSERT_TRUE(test_env_was_message_sent(WM_PAINT));
-    ASSERT_TRUE(test_env_was_message_sent(WM_COMMAND));
-    ASSERT_EQUAL(test_env_count_message(WM_PAINT), 1);
-    ASSERT_EQUAL(test_env_count_message(WM_COMMAND), 2);
+    ASSERT_TRUE(test_env_was_message_sent(kWindowMessagePaint));
+    ASSERT_TRUE(test_env_was_message_sent(kWindowMessageCommand));
+    ASSERT_EQUAL(test_env_count_message(kWindowMessagePaint), 1);
+    ASSERT_EQUAL(test_env_count_message(kWindowMessageCommand), 2);
     
     destroy_window(win);
     test_env_shutdown();
@@ -155,15 +155,15 @@ void test_tracking_toggle(void) {
     // Tracking disabled - events should not be tracked
     test_env_enable_tracking(false);
     test_env_clear_events();
-    test_env_send_message(win, WM_COMMAND, 1, NULL);
-    ASSERT_FALSE(test_env_was_message_sent(WM_COMMAND));
+    test_env_send_message(win, kWindowMessageCommand, 1, NULL);
+    ASSERT_FALSE(test_env_was_message_sent(kWindowMessageCommand));
     ASSERT_EQUAL(test_env_get_event_count(), 0);
     
     // Enable tracking
     test_env_enable_tracking(true);
     test_env_clear_events();
-    test_env_send_message(win, WM_COMMAND, 2, NULL);
-    ASSERT_TRUE(test_env_was_message_sent(WM_COMMAND));
+    test_env_send_message(win, kWindowMessageCommand, 2, NULL);
+    ASSERT_TRUE(test_env_was_message_sent(kWindowMessageCommand));
     ASSERT_EQUAL(test_env_get_event_count(), 1);
     
     destroy_window(win);
@@ -188,7 +188,7 @@ void test_event_details(void) {
     
     // Send a message with specific parameters
     int test_data = 42;
-    test_env_send_message(win, WM_COMMAND, 12345, &test_data);
+    test_env_send_message(win, kWindowMessageCommand, 12345, &test_data);
     
     // Debug: print event count
     int count = test_env_get_event_count();
@@ -202,7 +202,7 @@ void test_event_details(void) {
     // Get the event
     test_event_t *event = test_env_get_event(0);
     ASSERT_NOT_NULL(event);
-    ASSERT_EQUAL(event->msg, WM_COMMAND);
+    ASSERT_EQUAL(event->msg, kWindowMessageCommand);
     ASSERT_EQUAL(event->wparam, 12345);
     // Skip lparam check for now - it may not be captured correctly by hooks
     ASSERT_EQUAL(event->window, win);
@@ -229,11 +229,11 @@ void test_parent_child_messages(void) {
     test_env_clear_events();
     
     // Send message to parent
-    test_env_send_message(parent, WM_COMMAND, 999, NULL);
+    test_env_send_message(parent, kWindowMessageCommand, 999, NULL);
     
     // Verify message was tracked for parent
-    ASSERT_TRUE(test_env_was_message_sent(WM_COMMAND));
-    test_event_t *event = test_env_find_event(WM_COMMAND);
+    ASSERT_TRUE(test_env_was_message_sent(kWindowMessageCommand));
+    test_event_t *event = test_env_find_event(kWindowMessageCommand);
     ASSERT_NOT_NULL(event);
     ASSERT_EQUAL(event->window, parent);
     
@@ -255,8 +255,8 @@ void test_clear_events(void) {
     ASSERT_NOT_NULL(win);
     
     // Send some messages
-    test_env_send_message(win, WM_PAINT, 0, NULL);
-    test_env_send_message(win, WM_COMMAND, 1, NULL);
+    test_env_send_message(win, kWindowMessagePaint, 0, NULL);
+    test_env_send_message(win, kWindowMessageCommand, 1, NULL);
     
     // Verify events were tracked
     ASSERT_TRUE(test_env_get_event_count() > 0);
@@ -264,8 +264,8 @@ void test_clear_events(void) {
     // Clear events
     test_env_clear_events();
     ASSERT_EQUAL(test_env_get_event_count(), 0);
-    ASSERT_FALSE(test_env_was_message_sent(WM_PAINT));
-    ASSERT_FALSE(test_env_was_message_sent(WM_COMMAND));
+    ASSERT_FALSE(test_env_was_message_sent(kWindowMessagePaint));
+    ASSERT_FALSE(test_env_was_message_sent(kWindowMessageCommand));
     
     destroy_window(win);
     test_env_shutdown();

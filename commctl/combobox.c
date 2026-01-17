@@ -21,19 +21,19 @@ extern window_t *get_root_window(window_t *window);
 result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   combobox_string_t *texts = win->userdata;
   switch (msg) {
-    case WM_CREATE:
+    case kWindowMessageCreate:
       win_button(win, msg, wparam, lparam);
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+16);
       win->userdata = malloc(sizeof(combobox_string_t) * MAX_COMBOBOX_STRINGS);
       return true;
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       free(win->userdata);
       return true;
-    case WM_PAINT:
+    case kWindowMessagePaint:
       win_button(win, msg, wparam, lparam);
       draw_icon8(icon8_maximize, win->frame.x+win->frame.w-10, win->frame.y+3, COLOR_TEXT_NORMAL);
       return true;
-    case WM_LBUTTONUP: {
+    case kWindowMessageLeftButtonUp: {
       win_button(win, msg, wparam, lparam);
       rect_t rect = {
         get_root_window(win)->frame.x + win->frame.x,
@@ -46,7 +46,7 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       set_capture(list);
       return true;
     }
-    case CB_ADDSTRING:
+    case kComboBoxMessageAddString:
       if (win->cursor_pos < MAX_COMBOBOX_STRINGS) {
         strncpy(texts[win->cursor_pos++], lparam, sizeof(combobox_string_t));
         strncpy(win->title, lparam, sizeof(win->title));
@@ -54,26 +54,26 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       } else {
         return false;
       }
-    case CB_GETLBTEXT:
+    case kComboBoxMessageGetListBoxText:
       if (wparam < win->cursor_pos) {
         strcpy(lparam, texts[wparam]);
         return true;
       } else {
         return false;
       }
-    case CB_SETCURSEL:
+    case kComboBoxMessageSetCurrentSelection:
       if (wparam < win->cursor_pos) {
         strncpy(win->title, texts[wparam], sizeof(win->title));
         return true;
       } else {
         return false;
       }
-    case CB_GETCURSEL:
+    case kComboBoxMessageGetCurrentSelection:
       for (uint32_t i = 0; i < win->cursor_pos; i++) {
         if (!strncmp(texts[i], win->title, sizeof(win->title)))
           return i;
       }
-      return CB_ERR;
+      return kComboBoxError;
     default:
       return win_button(win, msg, wparam, lparam);
   }

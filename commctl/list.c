@@ -22,10 +22,10 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   window_t *cb = win->userdata;
   combobox_string_t const *texts = cb?cb->userdata:NULL;
   switch (msg) {
-    case WM_CREATE:
+    case kWindowMessageCreate:
       win->userdata = lparam;
       return true;
-    case WM_PAINT:
+    case kWindowMessagePaint:
       for (uint32_t i = 0; i < cb->cursor_pos; i++) {
         if (i == win->cursor_pos) {
           fill_rect(COLOR_TEXT_NORMAL, 0, i*LIST_HEIGHT, win->frame.h, LIST_HEIGHT);
@@ -35,15 +35,15 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         }
       }
       return true;
-    case WM_LBUTTONDOWN:
-      win->cursor_pos = HIWORD(wparam)/LIST_HEIGHT;
+    case kWindowMessageLeftButtonDown:
+      win->cursor_pos = kHighWord(wparam)/LIST_HEIGHT;
       if (win->cursor_pos < cb->cursor_pos) {
         strncpy(cb->title, texts[win->cursor_pos], sizeof(cb->title));
       }
       invalidate_window(win);
       return true;
-    case WM_LBUTTONUP:
-      send_message(get_root_window(cb), WM_COMMAND, MAKEDWORD(cb->id, CBN_SELCHANGE), cb);
+    case kWindowMessageLeftButtonUp:
+      send_message(get_root_window(cb), kWindowMessageCommand, kMakeDWord(cb->id, kComboBoxNotificationSelectionChange), cb);
       destroy_window(win);
       return true;
     case LIST_SELITEM:

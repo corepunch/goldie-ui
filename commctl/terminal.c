@@ -219,7 +219,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
   terminal_state_t *state = (terminal_state_t *)win->userdata;
   
   switch (msg) {
-    case WM_CREATE: {
+    case kWindowMessageCreate: {
       state = allocate_window_data(win, sizeof(terminal_state_t));
       if (!state) {
         return false;
@@ -273,7 +273,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       
       return true;
     }
-    case WM_KEYDOWN:
+    case kWindowMessageKeyDown:
       // Don't accept input if process is finished
       if (state->process_finished || !state->waiting_for_input) {
         return false;
@@ -307,7 +307,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       } else {
         return false;
       }
-    case WM_TEXTINPUT:
+    case kWindowMessageTextInput:
       // Don't accept input if process is finished
       if (state->process_finished || !state->waiting_for_input) {
         return false;
@@ -327,7 +327,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return true;
       }
     
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       if (state) {
         free_text_buffer(&state->textbuf);
         if (state->L) {
@@ -338,7 +338,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return true;
       
-    case WM_PAINT: {
+    case kWindowMessagePaint: {
       if (!state) return false;
       
       // Draw terminal contents

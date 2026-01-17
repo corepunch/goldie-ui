@@ -189,7 +189,7 @@ void repaint_stencil(void) {
   for (window_t *w = windows; w; w = w->next) {
     if (!w->visible)
       continue;
-    send_message(w, WM_PAINTSTENCIL, 0, NULL);
+    send_message(w, kWindowMessagePaintStencil, 0, NULL);
   }
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
