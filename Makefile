@@ -19,27 +19,16 @@ ifeq ($(UNAME_S),Darwin)
     LIBS += -framework OpenGL
     LIB_EXT = .dylib
     LIB_FLAGS = -dynamiclib
-    # Force use of lua5.4 on macOS
-    LIBS += -llua5.4
 else ifeq ($(UNAME_S),Linux)
     # Linux specific flags
     LIBS += -lGL
     LIB_EXT = .so
     LIB_FLAGS = -shared -fPIC
     CFLAGS += -fPIC
-    # Lua version detection for Linux - try pkg-config first, then fallback to specific versions
-    LUA_PKGCONFIG := $(shell pkg-config --exists lua && echo lua || pkg-config --exists lua5.4 && echo lua5.4 || pkg-config --exists lua5.3 && echo lua5.3 || echo none)
-    ifneq ($(LUA_PKGCONFIG),none)
-        # Use pkg-config for Lua
-        CFLAGS += $(shell pkg-config --cflags $(LUA_PKGCONFIG))
-        LIBS += $(shell pkg-config --libs $(LUA_PKGCONFIG))
-    else
-        # Fallback: try to link with specific Lua versions (prefer 5.4, then 5.3)
-        # On most Linux distributions, the library is named liblua5.4.so or liblua5.3.so
-        LUA_LIB := $(shell ldconfig -p 2>/dev/null | grep -oE 'liblua5\.[0-9]+\.so' | head -n1 | sed 's/lib\(.*\)\.so/-l\1/' || echo -llua5.4)
-        LIBS += $(LUA_LIB)
-    endif
 endif
+
+# Use lua5.4 on all platforms
+LIBS += -llua5.4
 
 # Build directories
 BUILD_DIR = build
