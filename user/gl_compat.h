@@ -6,6 +6,7 @@
   #include <OpenGL/gl3.h>
 #elif defined(_WIN32) || defined(_WIN64)
   /* Windows platform */
+  #define WIN32_LEAN_AND_MEAN
   #include <windows.h>
   #include <GL/gl.h>
   #include <GL/glext.h>

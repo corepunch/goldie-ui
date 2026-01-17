@@ -15,11 +15,11 @@ LIBS = -lSDL2 -lm
 ifeq ($(OS),Windows_NT)
     # Windows specific flags (MinGW/MSYS2)
     LIBS += -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
-    LIBS := $(filter-out -lm,$(LIBS))  # Remove -lm as it's not needed on Windows
+    LIBS := $(filter-out -lm,$(LIBS))  # Math library is linked automatically on Windows/MinGW
     LIB_EXT = .dll
     LIB_FLAGS = -shared
     EXE_EXT = .exe
-    # Use lua on Windows (package name may vary)
+    # Lua library (install mingw-w64-x86_64-lua or equivalent)
     LIBS += -llua
 else
     UNAME_S := $(shell uname -s)
