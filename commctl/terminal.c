@@ -229,7 +229,7 @@ const char* terminal_get_buffer(window_t *win) {
   }
   
   terminal_state_t *state = (terminal_state_t *)win->userdata;
-  if (!state->textbuf) {
+  if (!state || !state->textbuf) {
     return "";
   }
   
