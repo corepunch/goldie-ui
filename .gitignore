@@ -55,3 +55,4 @@ dkms.conf
 
 # Build directory
 build/
+_codeql_detected_source_root
