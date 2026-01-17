@@ -1,5 +1,5 @@
 # Goldie UI Framework Makefile
-# Builds UI library, examples, and tests for Linux and macOS
+# Builds UI library, examples, and tests for Linux, macOS, and Windows
 
 # Compiler and flags
 CC = gcc
@@ -11,24 +11,37 @@ LDFLAGS =
 LIBS = -lSDL2 -lm
 
 # Platform detection
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-    # macOS specific flags
-    CFLAGS += -I/opt/homebrew/include -I/usr/local/include
-    LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
-    LIBS += -framework OpenGL
-    LIB_EXT = .dylib
-    LIB_FLAGS = -dynamiclib
-else ifeq ($(UNAME_S),Linux)
-    # Linux specific flags
-    LIBS += -lGL
-    LIB_EXT = .so
-    LIB_FLAGS = -shared -fPIC
-    CFLAGS += -fPIC
+# Detect Windows first (uname may not exist or may return different values on Windows)
+ifeq ($(OS),Windows_NT)
+    # Windows specific flags (MinGW/MSYS2)
+    LIBS += -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
+    # Lua library (MSYS2 provides -llua, not -llua5.4 like Unix platforms)
+    LIBS += -llua
+    # Math library is linked automatically on Windows/MinGW
+    LIBS := $(filter-out -lm,$(LIBS))
+    LIB_EXT = .dll
+    LIB_FLAGS = -shared
+    EXE_EXT = .exe
+else
+    UNAME_S := $(shell uname -s)
+    EXE_EXT =
+    ifeq ($(UNAME_S),Darwin)
+        # macOS specific flags
+        CFLAGS += -I/opt/homebrew/include -I/usr/local/include
+        LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
+        LIBS += -framework OpenGL
+        LIB_EXT = .dylib
+        LIB_FLAGS = -dynamiclib
+    else ifeq ($(UNAME_S),Linux)
+        # Linux specific flags
+        LIBS += -lGL
+        LIB_EXT = .so
+        LIB_FLAGS = -shared -fPIC
+        CFLAGS += -fPIC
+    endif
+    # Use lua5.4 on Unix-like platforms
+    LIBS += -llua5.4
 endif
-
-# Use lua5.4 on all platforms
-LIBS += -llua5.4
 
 # Build directories
 BUILD_DIR = build
@@ -55,11 +68,11 @@ SHARED_LIB = $(LIB_DIR)/libgoldieui$(LIB_EXT)
 
 # Example sources
 EXAMPLE_SRCS = $(wildcard examples/*.c)
-EXAMPLE_BINS = $(patsubst examples/%.c,$(BIN_DIR)/%,$(EXAMPLE_SRCS))
+EXAMPLE_BINS = $(patsubst examples/%.c,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLE_SRCS))
 
 # Test sources
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
-TEST_BINS = $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/test_%,$(filter-out $(TEST_DIR)/test_env.c,$(TEST_SRCS)))
+TEST_BINS = $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/test_%$(EXE_EXT),$(filter-out $(TEST_DIR)/test_env.c,$(TEST_SRCS)))
 TEST_ENV_OBJ = $(OBJ_DIR)/test_env.o
 
 # Default target
@@ -95,7 +108,7 @@ $(OBJ_DIR)/commctl/%.o: commctl/%.c | $(OBJ_DIR)/commctl
 .PHONY: examples
 examples: $(EXAMPLE_BINS)
 
-$(BIN_DIR)/%: examples/%.c $(STATIC_LIB) | $(BIN_DIR)
+$(BIN_DIR)/%$(EXE_EXT): examples/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building example: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
@@ -115,20 +128,20 @@ $(TEST_ENV_OBJ): $(TEST_DIR)/test_env.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Build basic tests (without test_env)
-$(BIN_DIR)/test_basic_test: $(TEST_DIR)/basic_test.c $(STATIC_LIB) | $(BIN_DIR)
+$(BIN_DIR)/test_basic_test$(EXE_EXT): $(TEST_DIR)/basic_test.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
 # Build tests that need test_env
-$(BIN_DIR)/test_window_msg_test: $(TEST_DIR)/window_msg_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+$(BIN_DIR)/test_window_msg_test$(EXE_EXT): $(TEST_DIR)/window_msg_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
-$(BIN_DIR)/test_button_click_test: $(TEST_DIR)/button_click_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+$(BIN_DIR)/test_button_click_test$(EXE_EXT): $(TEST_DIR)/button_click_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
-$(BIN_DIR)/test_helloworld_test: $(TEST_DIR)/helloworld_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+$(BIN_DIR)/test_helloworld_test$(EXE_EXT): $(TEST_DIR)/helloworld_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
@@ -137,7 +150,7 @@ $(BIN_DIR)/test_terminal_test: $(TEST_DIR)/terminal_test.c $(TEST_ENV_OBJ) $(STA
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
 # Generic test build rule (fallback)
-$(BIN_DIR)/test_%: $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
+$(BIN_DIR)/test_%$(EXE_EXT): $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 

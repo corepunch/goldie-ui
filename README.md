@@ -75,6 +75,50 @@ Implements standard UI controls that can be used to build interfaces.
 - **ColumnView**: Multi-column item view with icons, colors, and double-click support
 - **Terminal**: Interactive Lua script terminal with input/output (process finishes like Windows CMD)
 
+## Building
+
+The framework supports Linux, macOS, and Windows platforms.
+
+### Dependencies
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get install liblua5.4-dev libsdl2-dev libgl1-mesa-dev libcglm-dev
+```
+
+**macOS:**
+```bash
+brew install sdl2 cglm lua
+```
+
+**Windows (MSYS2/MinGW64):**
+```bash
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-SDL2 mingw-w64-x86_64-lua mingw-w64-x86_64-cglm make
+```
+
+### Build Commands
+
+```bash
+# Build library (static and shared)
+make library
+
+# Build examples
+make examples
+
+# Build and run tests
+make test
+
+# Clean build artifacts
+make clean
+```
+
+### Build Output
+
+- **Linux**: `build/lib/libgoldieui.a`, `build/lib/libgoldieui.so`
+- **macOS**: `build/lib/libgoldieui.a`, `build/lib/libgoldieui.dylib`
+- **Windows**: `build/lib/libgoldieui.a`, `build/lib/libgoldieui.dll`
+- **Examples/Tests**: `build/bin/`
+
 ## Usage
 
 Include the main header in your code:
