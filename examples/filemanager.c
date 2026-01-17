@@ -22,10 +22,6 @@ typedef struct {
   char path[512];
 } filemanager_data_t;
 
-#ifdef SUPPORT_LUA
-#include "process.h"
-#endif
-
 static int get_file_color(struct dirent *ent, struct stat *st) {
   if (ent->d_name[0] == '.') {
     return COLOR_TEXT_DISABLED;
