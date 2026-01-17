@@ -87,8 +87,8 @@ lua_State *create_lua_state(text_buffer_t **textbuf) {
   return L;
 }
 
-void continue_coroutine(terminal_state_t *state) {
-  int nres, status = lua_resume(state->co, NULL, 0, &nres);
+void continue_coroutine(terminal_state_t *state, int nargs) {
+  int nres, status = lua_resume(state->co, NULL, nargs, &nres);
   
   if (status == LUA_OK) {
     f_strcat(&state->textbuf, "\nProcess finished\n");
@@ -124,7 +124,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       
       // Start executing the coroutine
-      continue_coroutine(state);
+      continue_coroutine(state, 0);
       
       return true;
     }
@@ -139,8 +139,8 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         // Push the input as return value for io.read
         lua_pushstring(state->co, state->input_buffer);
         
-        // Resume the coroutine
-        continue_coroutine(state);
+        // Resume the coroutine with 1 argument (the input string)
+        continue_coroutine(state, 1);
         
         // Clear input buffer
         state->input_buffer[0] = '\0';
