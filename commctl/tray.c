@@ -69,7 +69,7 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case kWindowMessageCreate:
       win->cursor_pos = 22;
-      win->frame = (rect_t){0,ui_get_system_metrics(SM_CYSCREEN)-TRAY_HEIGHT,ui_get_system_metrics(SM_CXSCREEN),TRAY_HEIGHT};
+      win->frame = (rect_t){0,ui_get_system_metrics(kSystemMetricScreenHeight)-TRAY_HEIGHT,ui_get_system_metrics(kSystemMetricScreenWidth),TRAY_HEIGHT};
       register_window_hook(kWindowMessageCreate, on_win_created, win);
       register_window_hook(kWindowMessageDestroy, on_win_destroyed, win);
       return true;

@@ -25,8 +25,8 @@ extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 extern void set_projection(int x, int y, int w, int h);
 
 void set_fullscreen(void) {
-  int w = ui_get_system_metrics(SM_CXSCREEN);
-  int h = ui_get_system_metrics(SM_CYSCREEN);
+  int w = ui_get_system_metrics(kSystemMetricScreenWidth);
+  int h = ui_get_system_metrics(kSystemMetricScreenHeight);
   set_viewport(&(rect_t){0, 0, w, h});
   set_projection(0, 0, w, h);
 }
@@ -35,12 +35,12 @@ rect_t get_opengl_rect(rect_t const *r) {
   int w, h;
   SDL_GL_GetDrawableSize(window, &w, &h);
 
-  float scale_x = (float)w / MAX(1,ui_get_system_metrics(SM_CXSCREEN));
-  float scale_y = (float)h / MAX(1,ui_get_system_metrics(SM_CYSCREEN));
+  float scale_x = (float)w / MAX(1,ui_get_system_metrics(kSystemMetricScreenWidth));
+  float scale_y = (float)h / MAX(1,ui_get_system_metrics(kSystemMetricScreenHeight));
   
   return (rect_t){
     (int)(r->x * scale_x),
-    (int)((ui_get_system_metrics(SM_CYSCREEN) - r->y - r->h) * scale_y), // flip Y
+    (int)((ui_get_system_metrics(kSystemMetricScreenHeight) - r->y - r->h) * scale_y), // flip Y
     (int)(r->w * scale_x),
     (int)(r->h * scale_y)
   };

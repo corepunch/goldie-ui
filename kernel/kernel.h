@@ -47,8 +47,8 @@ extern bool mode;
 extern unsigned frame;
 
 typedef enum {
-	SM_CXSCREEN,
-	SM_CYSCREEN,
+	kSystemMetricScreenWidth,
+	kSystemMetricScreenHeight,
 } ui_system_metrics_t;
 
 int ui_get_system_metrics(ui_system_metrics_t);

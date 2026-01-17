@@ -237,7 +237,7 @@ void dispatch_message(SDL_Event *evt) {
         } else {
           switch (evt->button.button) {
             case 1: send_message(_dragging, kWindowMessageNonClientLeftButtonUp, kMakeDWord(x, y), NULL); break;
-              // case 3: send_message(win, WM_NCRBUTTONDOWN, kMakeDWord(x, y), NULL); break;
+              // case 3: send_message(win, kWindowMessageNonClientRightButtonDown, kMakeDWord(x, y), NULL); break;
           }
           set_focus(_dragging);
           _dragging = NULL;
@@ -267,7 +267,7 @@ void dispatch_message(SDL_Event *evt) {
           int y = SCALE_POINT(evt->button.y);
           switch (evt->button.button) {
             case 1: send_message(win, kWindowMessageNonClientLeftButtonUp, kMakeDWord(x, y), NULL); break;
-              //              case 3: send_message(win, WM_NCRBUTTONDOWN, kMakeDWord(x, y), NULL); break;
+              //              case 3: send_message(win, kWindowMessageNonClientRightButtonDown, kMakeDWord(x, y), NULL); break;
           }
         }
       }
