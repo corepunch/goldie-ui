@@ -35,7 +35,9 @@ ui/
     ├── console.h     # Console control header (NEW)
     ├── console.c     # Console control implementation (NEW)
     ├── columnview.h  # ColumnView control header (NEW)
-    └── columnview.c  # Multi-column item view implementation (NEW)
+    ├── columnview.c  # Multi-column item view implementation (NEW)
+    ├── terminal.h    # Terminal control header (NEW)
+    └── terminal.c    # Lua script terminal implementation (NEW)
 ```
 
 ## Architecture
@@ -72,6 +74,7 @@ Implements standard UI controls that can be used to build interfaces.
 - **Combobox**: Dropdown selection control
 - **Console**: Message display console with automatic fading and scrolling
 - **ColumnView**: Multi-column item view with icons, colors, and double-click support
+- **Terminal**: Interactive Lua script terminal with input/output (process finishes like Windows CMD)
 
 ## Usage
 
@@ -186,6 +189,29 @@ toggle_console();
 
 // Clean up (call at shutdown)
 shutdown_console();
+```
+
+### Using the Terminal
+
+```c
+#include "ui/commctl/terminal.h"
+
+// Create a terminal window that runs a Lua script
+// The script path is passed as lparam in WM_CREATE
+window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, "/path/to/script.lua");
+show_window(terminal, true);
+
+// The terminal automatically handles:
+// - Running Lua scripts with custom print() and io.read() functions
+// - Interactive input when script calls io.read()
+// - Displaying "Process finished" message when script completes
+// - Preventing further input after process finishes (like Windows CMD)
+
+// Example Lua script (interactive.lua):
+// print("What is your name?")
+// local name = io.read()
+// print("Hello, " .. name .. "!")
+// print("Process finished")
 ```
 
 ## Window Messages
