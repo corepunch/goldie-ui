@@ -11,6 +11,9 @@ This directory contains the test suite for the Goldie UI framework. The tests ar
 - **basic_test.c** - Basic functionality tests (macros, constants, structures)
 - **window_msg_test.c** - Window and message tracking tests using the test environment
 - **button_click_test.c** - Button click simulation tests with proper in-window scaling using post_message
+- **terminal_test.c** - Terminal control and Lua integration tests with input handling and buffer verification
+- **test_simple.lua** - Simple Lua script for terminal testing (print output only)
+- **test_interactive.lua** - Interactive Lua script for terminal testing (with io.read prompts)
 
 ## Running Tests
 
@@ -214,6 +217,19 @@ Tests are automatically run in GitHub Actions for:
 - macOS
 
 Failed tests will cause the build to fail, preventing broken code from being merged.
+
+### Terminal and Lua Integration
+- Terminal creation in command mode (NULL lparam)
+- Command execution (help, clear, exit)
+- Unknown command handling
+- Multiple commands in sequence
+- Backspace handling during input
+- Lua script loading via lparam
+- Simple Lua scripts with print() output
+- Interactive Lua scripts with io.read() prompts
+- Simulated text input via WM_TEXTINPUT and WM_KEYDOWN messages
+- Buffer content verification and comparison
+- Lua error handling (non-existent files)
 
 ## Future Tests
 
