@@ -143,7 +143,7 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
 }
 
 int main(int argc, char* argv[]) {
-  if (!ui_init_graphics(UI_INIT_DESKTOP|UI_INIT_TRAY, "File Manager", 640, 480)) {
+  if (!ui_init_graphics(UI_INIT_DESKTOP|UI_INIT_TRAY, "File Manager", 480, 320)) {
     printf("Failed to initialize graphics!\n");
     return 1;
   }
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
   window_t *main_window = create_window(
     "File Manager",
     WINDOW_STATUSBAR,
-    MAKERECT(20, 20, 340, 400),
+    MAKERECT(20, 20, 320, 240),
     NULL,
     filemanager_window_proc,
     NULL
