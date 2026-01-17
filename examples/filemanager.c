@@ -103,7 +103,7 @@ static void navigate_to(window_t *win, filemanager_data_t *data, columnview_item
   } else if (item->color == COLOR_SCRIPT) {
     // Execute script
     printf("Executing script: %s\n", newpath);
-    show_window(create_window("Terminal", 0, MAKERECT(10, 10, 200, 100), NULL, win_terminal, newpath), true);
+    show_window(create_window("Terminal", 0, MAKERECT(16, 16, 240, 120), NULL, win_terminal, newpath), true);
 #endif 
     // Here you would add your script execution logic
   }

@@ -66,36 +66,52 @@ int f_io_read(lua_State *L) {
   return lua_yield(L, 0);
 }
 
+lua_State *create_lua_state(text_buffer_t **textbuf) {
+  lua_State *L = luaL_newstate();
+  luaL_openlibs(L);
+  
+  init_text_buffer(textbuf);
+  // Store text buffer pointer in extra space
+  *(text_buffer_t **)lua_getextraspace(L) = *textbuf;
+  
+  // Override print function
+  lua_pushcfunction(L, f_print);
+  lua_setglobal(L, "print");
+  
+  // Override io.read function
+  lua_getglobal(L, "io");
+  lua_pushcfunction(L, f_io_read);
+  lua_setfield(L, -2, "read");
+  lua_pop(L, 1); // pop io table
+  
+  return L;
+}
+
+void continue_coroutine(terminal_state_t *state) {
+  int nres, status = lua_resume(state->co, NULL, 0, &nres);
+  
+  if (status == LUA_OK) {
+    f_strcat(&state->textbuf, "\nProcess finished\n");
+    state->waiting_for_input = false;
+  } else if (status == LUA_YIELD) {
+    state->waiting_for_input = true;
+    f_strcat(&state->textbuf, "\n> ");
+  } else {
+    f_strcat(&state->textbuf, "Error: ");
+    f_strcat(&state->textbuf, lua_tostring(state->co, -1));
+    f_strcat(&state->textbuf, "\n");
+    state->waiting_for_input = false;
+  }
+}
+
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   terminal_state_t *state = (terminal_state_t *)win->userdata;
   
   switch (msg) {
     case WM_CREATE: {
-      state = malloc(sizeof(terminal_state_t));
-      win->userdata = state;
-      
-      // Create main Lua state
-      state->L = luaL_newstate();
-      init_text_buffer(&state->textbuf);
-      *TEXTBUF(state->L) = state->textbuf;
-      
-      f_strcat(&state->textbuf, "Terminal initialized\n");
-      luaL_openlibs(state->L);
-      
-      // Set up custom print function
-      lua_pushlightuserdata(state->L, win);
-      lua_pushcclosure(state->L, f_print, 1);
-      lua_setglobal(state->L, "print");
-      
-      // Override io.read with our coroutine-yielding version
-      lua_getglobal(state->L, "io");
-      lua_pushlightuserdata(state->L, win);
-      lua_pushcclosure(state->L, f_io_read, 1);
-      lua_setfield(state->L, -2, "read");
-      lua_pop(state->L, 1);
-      
-      // Create coroutine for script execution
-      state->co = lua_newthread(state->L);
+      state = allocate_window_data(win, sizeof(terminal_state_t));
+      state->L = create_lua_state(&state->textbuf);
+      state->co = lua_newthread(state->L); // Create coroutine for script execution
       state->waiting_for_input = false;
       state->input_buffer[0] = '\0';
       
@@ -108,28 +124,14 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       
       // Start executing the coroutine
-      int nres;
-      int status = lua_resume(state->co, NULL, 0, &nres);
-      
-      if (status == LUA_OK) {
-        f_strcat(&state->textbuf, "\nProcess finished\n");
-      } else if (status == LUA_YIELD) {
-        state->waiting_for_input = true;
-        f_strcat(&state->textbuf, "\n> ");
-      } else {
-        f_strcat(&state->textbuf, "Error: ");
-        f_strcat(&state->textbuf, lua_tostring(state->co, -1));
-        f_strcat(&state->textbuf, "\n");
-      }
+      continue_coroutine(state);
       
       return true;
     }
-    
-    case WM_KEYDOWN: {
-      if (!state->waiting_for_input) return false;
-      
-      char c = (char)wparam;
-      if (c == '\r' || c == '\n') {
+    case WM_KEYDOWN:
+      if (!state->waiting_for_input) {
+        return false;
+      } else if (wparam == SDL_SCANCODE_RETURN) {
         // User pressed Enter - resume coroutine with input
         f_strcat(&state->textbuf, state->input_buffer);
         f_strcat(&state->textbuf, "\n");
@@ -138,43 +140,35 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         lua_pushstring(state->co, state->input_buffer);
         
         // Resume the coroutine
-        int nres;
-        int status = lua_resume(state->co, NULL, 1, &nres);
-        
-        if (status == LUA_OK) {
-          f_strcat(&state->textbuf, "\nProcess finished\n");
-          state->waiting_for_input = false;
-        } else if (status == LUA_YIELD) {
-          // Still waiting for more input
-          f_strcat(&state->textbuf, "> ");
-        } else {
-          f_strcat(&state->textbuf, "Error: ");
-          f_strcat(&state->textbuf, lua_tostring(state->co, -1));
-          f_strcat(&state->textbuf, "\n");
-          state->waiting_for_input = false;
-        }
+        continue_coroutine(state);
         
         // Clear input buffer
         state->input_buffer[0] = '\0';
+        invalidate_window(win);
         return true;
-      } else if (c == '\b' || c == 127) {
-        // Backspace
+      } else if (wparam == SDL_SCANCODE_BACKSPACE) {
+        // Handle backspace
         size_t len = strlen(state->input_buffer);
         if (len > 0) {
           state->input_buffer[len - 1] = '\0';
+          invalidate_window(win);
         }
         return true;
-      } else if (c >= 32 && c < 127) {
-        // Printable character
+      } else {
+        return false;
+      }
+    case WM_TEXTINPUT:
+      if (!state->waiting_for_input) {
+        return false;
+      } else {
         size_t len = strlen(state->input_buffer);
         if (len < sizeof(state->input_buffer) - 1) {
-          state->input_buffer[len] = c;
+          state->input_buffer[len] = *(char*)lparam;
           state->input_buffer[len + 1] = '\0';
         }
+        invalidate_window(win);
         return true;
       }
-      return false;
-    }
     
     case WM_DESTROY:
       if (state) {
@@ -188,12 +182,14 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (!state) return false;
       
       // Draw terminal contents
-      char display[8192];
-      snprintf(display, sizeof(display), "%s%s", 
-        state->textbuf->data,
-        state->waiting_for_input ? state->input_buffer : "");
+      draw_text_small(state->textbuf->data, WINDOW_PADDING, WINDOW_PADDING, COLOR_TEXT_NORMAL);
       
-      draw_text_small(display, WINDOW_PADDING, WINDOW_PADDING, COLOR_TEXT_NORMAL);
+      // Draw input buffer at the bottom of the window
+      // if (state->waiting_for_input && state->input_buffer[0]) {
+      int y = win->frame.h - WINDOW_PADDING - 12; // Position near bottom
+      draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
+      // }
+      
       return true;
     }
     
