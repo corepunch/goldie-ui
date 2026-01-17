@@ -181,6 +181,8 @@ static const terminal_cmd_t terminal_commands[] = {
 };
 
 static void process_command(terminal_state_t *state, const char *cmd) {
+  if (!cmd || !state) return;  // Safety check
+  
   // Trim leading/trailing whitespace
   while (*cmd == ' ' || *cmd == '\t') cmd++;
   
@@ -281,7 +283,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         if (state->command_mode) {
           // Command mode - process command
           process_command(state, state->input_buffer);
-        } else {
+        } else if (state->co) {
           // Lua mode - push the input as return value for io.read
           lua_pushstring(state->co, state->input_buffer);
           // Resume the coroutine with 1 argument (the input string)
