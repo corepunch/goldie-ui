@@ -1,5 +1,5 @@
 # Goldie UI Framework Makefile
-# Builds UI library, examples, and tests for Linux and macOS
+# Builds UI library, examples, and tests for Linux, macOS, and Windows
 
 # Compiler and flags
 CC = gcc
@@ -11,24 +11,36 @@ LDFLAGS =
 LIBS = -lSDL2 -lm
 
 # Platform detection
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-    # macOS specific flags
-    CFLAGS += -I/opt/homebrew/include -I/usr/local/include
-    LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
-    LIBS += -framework OpenGL
-    LIB_EXT = .dylib
-    LIB_FLAGS = -dynamiclib
-else ifeq ($(UNAME_S),Linux)
-    # Linux specific flags
-    LIBS += -lGL
-    LIB_EXT = .so
-    LIB_FLAGS = -shared -fPIC
-    CFLAGS += -fPIC
+# Detect Windows first (uname may not exist or may return different values on Windows)
+ifeq ($(OS),Windows_NT)
+    # Windows specific flags (MinGW/MSYS2)
+    LIBS += -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
+    LIBS := $(filter-out -lm,$(LIBS))  # Remove -lm as it's not needed on Windows
+    LIB_EXT = .dll
+    LIB_FLAGS = -shared
+    EXE_EXT = .exe
+    # Use lua on Windows (package name may vary)
+    LIBS += -llua
+else
+    UNAME_S := $(shell uname -s)
+    EXE_EXT =
+    ifeq ($(UNAME_S),Darwin)
+        # macOS specific flags
+        CFLAGS += -I/opt/homebrew/include -I/usr/local/include
+        LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
+        LIBS += -framework OpenGL
+        LIB_EXT = .dylib
+        LIB_FLAGS = -dynamiclib
+    else ifeq ($(UNAME_S),Linux)
+        # Linux specific flags
+        LIBS += -lGL
+        LIB_EXT = .so
+        LIB_FLAGS = -shared -fPIC
+        CFLAGS += -fPIC
+    endif
+    # Use lua5.4 on Unix-like platforms
+    LIBS += -llua5.4
 endif
-
-# Use lua5.4 on all platforms
-LIBS += -llua5.4
 
 # Build directories
 BUILD_DIR = build

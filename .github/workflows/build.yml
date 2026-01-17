@@ -80,3 +80,51 @@ jobs:
           build/lib/libgoldieui.dylib
           build/bin/*
         retention-days: 30
+
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-make
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-lua
+          mingw-w64-x86_64-cglm
+          make
+        
+    - name: Build library
+      run: make library
+      
+    - name: Build examples
+      run: make examples
+      
+    - name: Build and run tests
+      run: |
+        if [ -d "tests" ] && [ "$(ls -A tests/*.c 2>/dev/null)" ]; then
+          make test
+        else
+          echo "No tests found, skipping test build"
+        fi
+      
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: goldie-ui-windows
+        path: |
+          build/lib/libgoldieui.a
+          build/lib/libgoldieui.dll
+          build/bin/*
+        retention-days: 30
