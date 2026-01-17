@@ -26,9 +26,13 @@ static void send_enter_key(window_t *win) {
 }
 
 // Helper: Get terminal text buffer content
+// NOTE: This is white-box testing - we replicate the internal structure definitions
+// from terminal.c to access the text buffer for verification. This is intentional
+// as we want to test the actual buffer content without exposing internal APIs.
+// If the terminal_state_t or text_buffer_t structures change in terminal.c,
+// these definitions must be updated accordingly.
 static const char* get_terminal_buffer(window_t *win) {
   // Terminal state structure - we need to access the text buffer
-  // This is a bit hacky but necessary for testing
   typedef struct {
     void *L;
     void *co;
