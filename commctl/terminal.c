@@ -46,6 +46,8 @@ typedef struct terminal_state_s {
   bool command_mode;     // True if running in command mode (no Lua script)
 } terminal_state_t;
 
+extern void draw_icon8(int icon, int x, int y, uint32_t col);
+
 static void init_text_buffer(text_buffer_t **buf) {
   *buf = malloc(sizeof(text_buffer_t) + DEFAULT_TEXT_BUFFER_SIZE);
   if (!*buf) {
