@@ -26,7 +26,7 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       win->userdata = lparam;
       return true;
     case WM_PAINT:
-      for (int i = 0; i < cb->cursor_pos; i++) {
+      for (uint32_t i = 0; i < cb->cursor_pos; i++) {
         if (i == win->cursor_pos) {
           fill_rect(COLOR_TEXT_NORMAL, 0, i*LIST_HEIGHT, win->frame.h, LIST_HEIGHT);
           draw_text_small(texts[i], LIST_X, i*LIST_HEIGHT+LIST_Y, COLOR_PANEL_BG);

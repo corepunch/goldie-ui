@@ -69,8 +69,8 @@ struct window_s {
   bool disabled;
   char title[64];
   char statusbar_text[64];
-  int cursor_pos;
-  int num_toolbar_buttons;
+  uint32_t cursor_pos;
+  uint32_t num_toolbar_buttons;
   toolbar_button_t *toolbar_buttons;
   void *userdata;
   void *userdata2;

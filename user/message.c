@@ -16,8 +16,8 @@
 // Message queue structure
 typedef struct {
   window_t *target;
-  int32_t msg;
-  int32_t wparam;
+  uint32_t msg;
+  uint32_t wparam;
   void *lparam;
 } msg_t;
 
@@ -146,7 +146,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
             rect_t rect = {win->frame.x+1, win->frame.y-t+1, win->frame.w-2, t-2};
             draw_bevel(&rect);
             fill_rect(COLOR_PANEL_BG, rect.x, rect.y, rect.w, rect.h);
-            for (int i = 0; i < win->num_toolbar_buttons; i++) {
+            for (uint32_t i = 0; i < win->num_toolbar_buttons; i++) {
               toolbar_button_t const *but = &win->toolbar_buttons[i];
               uint32_t col = but->active ? COLOR_TEXT_SUCCESS : COLOR_TEXT_NORMAL;
               draw_icon16(but->icon, rect.x + i * TB_SPACING + 2, rect.y + 2, COLOR_DARK_EDGE);
@@ -224,7 +224,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
             int _y = win->frame.y - TOOLBAR_HEIGHT + 2;
             #define CONTAINS(x, y, x1, y1, w1, h1) \
             ((x1) <= (x) && (y1) <= (y) && (x1) + (w1) > (x) && (y1) + (h1) > (y))
-            for (int i = 0; i < win->num_toolbar_buttons; i++) {
+            for (uint32_t i = 0; i < win->num_toolbar_buttons; i++) {
               toolbar_button_t *but = &win->toolbar_buttons[i];
               if (CONTAINS(x, y, _x + i * TB_SPACING, _y, 16, 16)) {
                 send_message(win, TB_BUTTONCLICK, but->ident, but);

@@ -148,9 +148,8 @@ int strnwidth(const char* text, int text_length) {
       cursor_x += 3;
       continue;
     }
-    uint8_t w = text_state.small_font.char_to[c] - text_state.small_font.char_from[c];
     // Advance cursor position
-    cursor_x += w;
+    cursor_x += text_state.small_font.char_to[c] - text_state.small_font.char_from[c];
   }
   return cursor_x;
 }

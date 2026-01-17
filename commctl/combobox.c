@@ -69,7 +69,7 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return false;
       }
     case CB_GETCURSEL:
-      for (int i = 0; i < win->cursor_pos; i++) {
+      for (uint32_t i = 0; i < win->cursor_pos; i++) {
         if (!strncmp(texts[i], win->title, sizeof(win->title)))
           return i;
       }

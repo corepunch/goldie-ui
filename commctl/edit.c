@@ -84,7 +84,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           }
           break;
         case SDL_SCANCODE_RIGHT:
-          if (win->cursor_pos < (int)strlen(win->title) && win->editing) {
+          if (win->cursor_pos < strlen(win->title) && win->editing) {
             win->cursor_pos++;
           }
           break;
