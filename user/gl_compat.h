@@ -32,6 +32,7 @@
   extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
   extern PFNGLDELETESHADERPROC glDeleteShader;
   extern PFNGLCREATEPROGRAMPROC glCreateProgram;
+  extern PFNGLDELETEPROGRAMPROC glDeleteProgram;
   extern PFNGLATTACHSHADERPROC glAttachShader;
   extern PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
   extern PFNGLLINKPROGRAMPROC glLinkProgram;

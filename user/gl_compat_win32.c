@@ -24,6 +24,7 @@ PFNGLGETSHADERIVPROC glGetShaderiv = NULL;
 PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = NULL;
 PFNGLDELETESHADERPROC glDeleteShader = NULL;
 PFNGLCREATEPROGRAMPROC glCreateProgram = NULL;
+PFNGLDELETEPROGRAMPROC glDeleteProgram = NULL;
 PFNGLATTACHSHADERPROC glAttachShader = NULL;
 PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation = NULL;
 PFNGLLINKPROGRAMPROC glLinkProgram = NULL;
@@ -56,6 +57,7 @@ void load_gl_extensions_win32(void) {
   glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)wglGetProcAddress("glGetShaderInfoLog");
   glDeleteShader = (PFNGLDELETESHADERPROC)wglGetProcAddress("glDeleteShader");
   glCreateProgram = (PFNGLCREATEPROGRAMPROC)wglGetProcAddress("glCreateProgram");
+  glDeleteProgram = (PFNGLDELETEPROGRAMPROC)wglGetProcAddress("glDeleteProgram");
   glAttachShader = (PFNGLATTACHSHADERPROC)wglGetProcAddress("glAttachShader");
   glBindAttribLocation = (PFNGLBINDATTRIBLOCATIONPROC)wglGetProcAddress("glBindAttribLocation");
   glLinkProgram = (PFNGLLINKPROGRAMPROC)wglGetProcAddress("glLinkProgram");
@@ -72,9 +74,10 @@ void load_gl_extensions_win32(void) {
       !glGenBuffers || !glBindBuffer || !glDeleteBuffers || !glBufferData ||
       !glEnableVertexAttribArray || !glDisableVertexAttribArray || !glVertexAttribPointer ||
       !glCreateShader || !glShaderSource || !glCompileShader || !glGetShaderiv ||
-      !glGetShaderInfoLog || !glDeleteShader || !glCreateProgram || !glAttachShader ||
-      !glBindAttribLocation || !glLinkProgram || !glUseProgram || !glGetUniformLocation ||
-      !glUniform1i || !glUniform1f || !glUniform2f || !glUniformMatrix4fv || !glActiveTexture) {
+      !glGetShaderInfoLog || !glDeleteShader || !glCreateProgram || !glDeleteProgram ||
+      !glAttachShader || !glBindAttribLocation || !glLinkProgram || !glUseProgram ||
+      !glGetUniformLocation || !glUniform1i || !glUniform1f || !glUniform2f ||
+      !glUniformMatrix4fv || !glActiveTexture) {
     fprintf(stderr, "Warning: Failed to load some OpenGL extensions on Windows\n");
   }
 }
