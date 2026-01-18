@@ -59,15 +59,15 @@ test_env_enable_tracking(true);
 window_t *win = test_env_create_window("Test", 10, 10, 100, 100, my_proc, NULL);
 
 // Send messages
-test_env_send_message(win, WM_PAINT, 0, NULL);
-test_env_send_message(win, WM_COMMAND, 42, NULL);
+test_env_send_message(win, kWindowMessagePaint, 0, NULL);
+test_env_send_message(win, kWindowMessageCommand, 42, NULL);
 
 // Verify messages were sent
-assert(test_env_was_message_sent(WM_PAINT));
-assert(test_env_count_message(WM_COMMAND) == 1);
+assert(test_env_was_message_sent(kWindowMessagePaint));
+assert(test_env_count_message(kWindowMessageCommand) == 1);
 
 // Get event details
-test_event_t *event = test_env_find_event(WM_COMMAND);
+test_event_t *event = test_env_find_event(kWindowMessageCommand);
 assert(event->wparam == 42);
 
 // Cleanup
@@ -107,16 +107,16 @@ The test suite follows the Windows 1.0 testing philosophy:
 ## What We Test
 
 ### Basic Functionality
-- LOWORD/HIWORD/MAKEDWORD macros
+- kLowWord/kHighWord/kMakeDWord macros
 - MIN/MAX macros
 - Rectangle structures
-- Window message constants (WM_CREATE, WM_DESTROY, WM_PAINT, etc.)
-- Control message constants (BM_SETCHECK, CB_ADDSTRING, etc.)
-- Notification constants (BN_CLICKED, EN_UPDATE, etc.)
+- Window message constants (kWindowMessageCreate, kWindowMessageDestroy, kWindowMessagePaint, etc.)
+- Control message constants (kButtonMessageSetCheck, kComboBoxMessageAddString, etc.)
+- Notification constants (kButtonNotificationClicked, kEditNotificationUpdate, etc.)
 - Window flags (WINDOW_NOTITLE, WINDOW_TRANSPARENT, etc.)
 
 ### Window and Message Tracking
-- Window creation with automatic WM_CREATE tracking
+- Window creation with automatic kWindowMessageCreate tracking
 - Message sending and receiving with event tracking
 - Multiple message handling
 - Event tracking enable/disable
@@ -129,7 +129,7 @@ The test suite follows the Windows 1.0 testing philosophy:
 - Mouse event simulation with proper in-window scaling (scale factor = 2)
 - Asynchronous message posting using `post_message` instead of `send_message`
 - Message queue processing with `repost_messages()`
-- BN_CLICKED notification verification sent to parent window
+- kButtonNotificationClicked notification verification sent to parent window
 - Multiple button clicks handling
 - Button clicks at different positions within button bounds
 - Verification of async behavior (messages queued before processing)
@@ -138,14 +138,14 @@ The test suite follows the Windows 1.0 testing philosophy:
 
 The test environment leverages the UI framework's built-in hook system to track window messages. Hooks are registered for common window messages:
 
-- WM_CREATE - Window creation
-- WM_DESTROY - Window destruction  
-- WM_PAINT - Window paint requests
-- WM_COMMAND - Command messages
-- WM_LBUTTONDOWN/UP - Mouse button events
-- WM_KEYDOWN/UP - Keyboard events
-- WM_MOUSEMOVE - Mouse movement
-- WM_SETFOCUS/KILLFOCUS - Focus changes
+- kWindowMessageCreate - Window creation
+- kWindowMessageDestroy - Window destruction  
+- kWindowMessagePaint - Window paint requests
+- kWindowMessageCommand - Command messages
+- kWindowMessageLeftButtonDown/Up - Mouse button events
+- kWindowMessageKeyDown/Up - Keyboard events
+- kWindowMessageMouseMove - Mouse movement
+- kWindowMessageSetFocus/KillFocus - Focus changes
 
 Hooks are called before the window procedure, allowing tests to observe all message traffic without modifying window implementations.
 
@@ -228,7 +228,7 @@ Failed tests will cause the build to fail, preventing broken code from being mer
 - Lua script loading via lparam
 - Simple Lua scripts with print() output
 - Interactive Lua scripts with io.read() prompts
-- Simulated text input via WM_TEXTINPUT and WM_KEYDOWN messages
+- Simulated text input via kWindowMessageTextInput and kWindowMessageKeyDown messages
 - Buffer content verification and comparison
 - Lua error handling (non-existent files)
 
