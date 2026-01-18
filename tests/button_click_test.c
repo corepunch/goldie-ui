@@ -10,7 +10,7 @@
 extern void repost_messages(void);
 
 // Test state tracking
-static int test_bn_clicked_count = 0;
+static int test_kButtonNotificationClicked_count = 0;
 static uint32_t test_last_button_id = 0;
 static window_t *test_last_button_sender = NULL;
 
@@ -24,7 +24,7 @@ static result_t test_parent_proc(window_t *win, uint32_t msg, uint32_t wparam, v
         case kWindowMessageCommand:
             // Extract notification code and control ID
             if (HIWORD(wparam) == kButtonNotificationClicked) {
-                test_bn_clicked_count++;
+                test_kButtonNotificationClicked_count++;
                 test_last_button_id = LOWORD(wparam);
                 test_last_button_sender = (window_t *)lparam;
             }
@@ -38,7 +38,7 @@ static result_t test_parent_proc(window_t *win, uint32_t msg, uint32_t wparam, v
 
 // Reset test counters
 void reset_button_test_counters(void) {
-    test_bn_clicked_count = 0;
+    test_kButtonNotificationClicked_count = 0;
     test_last_button_id = 0;
     test_last_button_sender = NULL;
 }
@@ -97,7 +97,7 @@ void test_button_click_with_scaling(void) {
     
     // Verify kWindowMessageCommand with kButtonNotificationClicked was sent to parent
     ASSERT_TRUE(test_env_was_message_sent(kWindowMessageCommand));
-    ASSERT_EQUAL(test_bn_clicked_count, 1);
+    ASSERT_EQUAL(test_kButtonNotificationClicked_count, 1);
     ASSERT_EQUAL(test_last_button_id, 101);
     ASSERT_EQUAL(test_last_button_sender, button);
     
@@ -141,7 +141,7 @@ void test_multiple_button_clicks(void) {
     }
     
     // Verify 3 clicks were registered
-    ASSERT_EQUAL(test_bn_clicked_count, 3);
+    ASSERT_EQUAL(test_kButtonNotificationClicked_count, 3);
     ASSERT_EQUAL(test_last_button_id, 102);
     
     destroy_window(parent);
@@ -181,7 +181,7 @@ void test_button_click_positions(void) {
     test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(x, y), NULL);
     repost_messages();
     
-    ASSERT_EQUAL(test_bn_clicked_count, 1);
+    ASSERT_EQUAL(test_kButtonNotificationClicked_count, 1);
     ASSERT_EQUAL(test_last_button_id, 103);
     
     // Test clicking at bottom-right corner (with small offset to be inside)
@@ -194,7 +194,7 @@ void test_button_click_positions(void) {
     test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(x, y), NULL);
     repost_messages();
     
-    ASSERT_EQUAL(test_bn_clicked_count, 2);
+    ASSERT_EQUAL(test_kButtonNotificationClicked_count, 2);
     
     destroy_window(parent);
     test_env_shutdown();
@@ -232,13 +232,13 @@ void test_post_message_async_behavior(void) {
     
     // Before calling repost_messages, the button click should not have been processed yet
     // (this verifies we're using post_message which is async, not send_message which is sync)
-    ASSERT_EQUAL(test_bn_clicked_count, 0);
+    ASSERT_EQUAL(test_kButtonNotificationClicked_count, 0);
     
     // Now process the message queue
     repost_messages();
     
     // After processing, the click should be registered
-    ASSERT_EQUAL(test_bn_clicked_count, 1);
+    ASSERT_EQUAL(test_kButtonNotificationClicked_count, 1);
     ASSERT_EQUAL(test_last_button_id, 104);
     
     destroy_window(parent);

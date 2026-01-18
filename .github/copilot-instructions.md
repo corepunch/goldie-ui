@@ -23,9 +23,9 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - Use snake_case with _t suffix for type names (e.g., `window_t`, `rect_t`, `winproc_t`)
 - Use SCREAMING_SNAKE_CASE for constants and macros (e.g., `WM_CREATE`, `SCREEN_WIDTH`)
 - Window message constants start with `WM_` (e.g., `WM_PAINT`, `WM_LBUTTONDOWN`)
-- Button messages start with `BN_` (e.g., `BN_CLICKED`)
+- Button messages start with `BN_` (e.g., `kButtonNotificationClicked`)
 - Combobox messages start with `CB_` or `CBN_` (e.g., `CB_ADDSTRING`, `CBN_SELCHANGE`)
-- Edit box messages start with `EN_` (e.g., `EN_UPDATE`)
+- Edit box messages start with `EN_` (e.g., `kEditNotificationUpdate`)
 
 ### Code Style
 - Use K&R-style bracing with opening brace on same line
