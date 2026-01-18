@@ -51,7 +51,7 @@ Handles window creation, destruction, message passing, and basic rendering primi
 - Window creation and lifecycle management
 - Message queue and dispatch
 - Drawing primitives (rectangles, text, icons)
-- Window messages (WM_CREATE, WM_PAINT, WM_LBUTTONUP, etc.)
+- Window messages (kWindowMessageCreate, kWindowMessagePaint, kWindowMessageLeftButtonUp, etc.)
 
 ### ui/kernel/ - Event Management Layer
 Manages the SDL event loop and translates SDL events into window messages.
@@ -184,9 +184,9 @@ send_message(cv, CVM_ADDITEM, 0, &item);
 send_message(cv, CVM_SETCOLUMNWIDTH, 180, NULL);
 
 // Handle notifications in parent window procedure
-case WM_COMMAND: {
-  uint16_t id = LOWORD(wparam);
-  uint16_t code = HIWORD(wparam);
+case kWindowMessageCommand: {
+  uint16_t id = kLowWord(wparam);
+  uint16_t code = kHighWord(wparam);
   
   if (id == cv->id) {
     if (code == CVN_SELCHANGE) {
@@ -225,7 +225,7 @@ conprintf("Player health: %d", player_health);
 
 // Messages automatically fade after 5 seconds
 // Draw the console overlay (called from your render loop or window procedure)
-// draw_console() is called automatically by win_console in WM_PAINT
+// draw_console() is called automatically by win_console in kWindowMessagePaint
 
 // Toggle console visibility
 toggle_console();
@@ -241,7 +241,7 @@ The terminal control supports two modes:
 #### Lua Script Mode
 ```c
 // Create a terminal window that runs a Lua script
-// The script path is passed as lparam in WM_CREATE
+// The script path is passed as lparam in kWindowMessageCreate
 window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, "/path/to/script.lua");
 show_window(terminal, true);
 
@@ -275,32 +275,32 @@ show_window(terminal, true);
 
 The framework uses a message-based architecture. Common messages include:
 
-- `WM_CREATE` - Window is being created
-- `WM_DESTROY` - Window is being destroyed
-- `WM_PAINT` - Window needs to be redrawn
-- `WM_LBUTTONDOWN` - Left mouse button pressed
-- `WM_LBUTTONUP` - Left mouse button released
-- `WM_KEYDOWN` - Key pressed
-- `WM_KEYUP` - Key released
-- `WM_COMMAND` - Control notification
+- `kWindowMessageCreate` - Window is being created
+- `kWindowMessageDestroy` - Window is being destroyed
+- `kWindowMessagePaint` - Window needs to be redrawn
+- `kWindowMessageLeftButtonDown` - Left mouse button pressed
+- `kWindowMessageLeftButtonUp` - Left mouse button released
+- `kWindowMessageKeyDown` - Key pressed
+- `kWindowMessageKeyUp` - Key released
+- `kWindowMessageCommand` - Control notification
 
 ## Control-Specific Messages
 
 ### Button Messages
-- `BN_CLICKED` - Button was clicked
+- `kButtonNotificationClicked` - Button was clicked
 
 ### Checkbox Messages
-- `BM_SETCHECK` - Set checkbox state
-- `BM_GETCHECK` - Get checkbox state
+- `kButtonMessageSetCheck` - Set checkbox state
+- `kButtonMessageGetCheck` - Get checkbox state
 
 ### Combobox Messages
-- `CB_ADDSTRING` - Add item to combobox
-- `CB_GETCURSEL` - Get currently selected item
-- `CB_SETCURSEL` - Set currently selected item
-- `CBN_SELCHANGE` - Selection changed notification
+- `kComboBoxMessageAddString` - Add item to combobox
+- `kComboBoxMessageGetCurrentSelection` - Get currently selected item
+- `kComboBoxMessageSetCurrentSelection` - Set currently selected item
+- `kComboBoxNotificationSelectionChange` - Selection changed notification
 
 ### Edit Box Messages
-- `EN_UPDATE` - Text was modified
+- `kEditNotificationUpdate` - Text was modified
 
 ### ColumnView Messages
 - `CVM_ADDITEM` - Add item with icon, color, text, and userdata
