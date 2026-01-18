@@ -14,11 +14,13 @@ LIBS = -lSDL2 -lm
 # Detect Windows first (uname may not exist or may return different values on Windows)
 ifeq ($(OS),Windows_NT)
     # Windows specific flags (MinGW/MSYS2)
+    # SDL2 on Windows requires specific library order: -lmingw32 -lSDL2main -lSDL2
+    LIBS = -lmingw32 -lSDL2main -lSDL2
     LIBS += -lopengl32 -lglew32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
     # Lua library (MSYS2 provides -llua, not -llua5.4 like Unix platforms)
     LIBS += -llua
-    # Math library is linked automatically on Windows/MinGW
-    LIBS := $(filter-out -lm,$(LIBS))
+    # Add -mwindows to create Windows GUI application (no console)
+    LDFLAGS += -mwindows
     LIB_EXT = .dll
     LIB_FLAGS = -shared
     EXE_EXT = .exe
