@@ -7,9 +7,9 @@
 #include "messages.h"
 #include "../kernel/kernel.h" 
 
-#define LOWORD(l) ((uint16_t)(l & 0xFFFF))
-#define HIWORD(l) ((uint16_t)((l >> 16) & 0xFFFF))
-#define MAKEDWORD(low, high) ((uint32_t)(((uint16_t)(low)) | ((uint32_t)((uint16_t)(high))) << 16))
+#define kLowWord(l) ((uint16_t)(l & 0xFFFF))
+#define kHighWord(l) ((uint16_t)((l >> 16) & 0xFFFF))
+#define kMakeDWord(low, high) ((uint32_t)(((uint16_t)(low)) | ((uint32_t)((uint16_t)(high))) << 16))
 
 // Forward declarations
 typedef struct window_s window_t;

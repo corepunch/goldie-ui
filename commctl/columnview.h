@@ -6,7 +6,7 @@
 
 // ColumnView messages
 enum {
-  CVM_ADDITEM = WM_USER + 100,
+  CVM_ADDITEM = kWindowMessageUser + 100,
   CVM_DELETEITEM,
   CVM_GETITEMCOUNT,
   CVM_GETSELECTION,

@@ -3,64 +3,64 @@
 
 // Window messages
 enum {
-  WM_CREATE,
-  WM_DESTROY,
-  WM_SHOWWINDOW,
-  WM_NCPAINT,
-  WM_NCLBUTTONUP,
-  WM_PAINT,
-  WM_REFRESHSTENCIL,
-  WM_PAINTSTENCIL,
-  WM_SETFOCUS,
-  WM_KILLFOCUS,
-  WM_HITTEST,
-  WM_COMMAND,
-  WM_TEXTINPUT,
-  WM_WHEEL,
-  WM_MOUSEMOVE,
-  WM_MOUSELEAVE,
-  WM_LBUTTONDOWN,
-  WM_LBUTTONUP,
-  WM_RBUTTONDOWN,
-  WM_RBUTTONUP,
-  WM_RESIZE,
-  WM_KEYDOWN,
-  WM_KEYUP,
-  WM_JOYBUTTONDOWN,
-  WM_JOYBUTTONUP,
-  WM_JOYAXISMOTION,
-  WM_STATUSBAR,
-  WM_USER = 1000
+  kWindowMessageCreate,
+  kWindowMessageDestroy,
+  kWindowMessageShowWindow,
+  kWindowMessageNonClientPaint,
+  kWindowMessageNonClientLeftButtonUp,
+  kWindowMessagePaint,
+  kWindowMessageRefreshStencil,
+  kWindowMessagePaintStencil,
+  kWindowMessageSetFocus,
+  kWindowMessageKillFocus,
+  kWindowMessageHitTest,
+  kWindowMessageCommand,
+  kWindowMessageTextInput,
+  kWindowMessageWheel,
+  kWindowMessageMouseMove,
+  kWindowMessageMouseLeave,
+  kWindowMessageLeftButtonDown,
+  kWindowMessageLeftButtonUp,
+  kWindowMessageRightButtonDown,
+  kWindowMessageRightButtonUp,
+  kWindowMessageResize,
+  kWindowMessageKeyDown,
+  kWindowMessageKeyUp,
+  kWindowMessageJoyButtonDown,
+  kWindowMessageJoyButtonUp,
+  kWindowMessageJoyAxisMotion,
+  kWindowMessageStatusBar,
+  kWindowMessageUser = 1000
 };
 
 // Control messages
 enum {
-  BM_SETCHECK = WM_USER,
-  BM_GETCHECK,
-  CB_ADDSTRING,
-  CB_GETCURSEL,
-  CB_SETCURSEL,
-  CB_GETLBTEXT,
-  ST_ADDWINDOW,
-  TB_ADDBUTTONS,
-  TB_BUTTONCLICK,
+  kButtonMessageSetCheck = kWindowMessageUser,
+  kButtonMessageGetCheck,
+  kComboBoxMessageAddString,
+  kComboBoxMessageGetCurrentSelection,
+  kComboBoxMessageSetCurrentSelection,
+  kComboBoxMessageGetListBoxText,
+  kStatusBarMessageAddWindow,
+  kToolBarMessageAddButtons,
+  kToolBarMessageButtonClick,
 };
 
 // Control notification messages
 enum {
-  EN_UPDATE = 100,
-  BN_CLICKED,
-  CBN_SELCHANGE,
+  kEditNotificationUpdate = 100,
+  kButtonNotificationClicked,
+  kComboBoxNotificationSelectionChange,
 };
 
 // Button state
 enum {
-  BST_UNCHECKED,
-  BST_CHECKED
+  kButtonStateUnchecked,
+  kButtonStateChecked
 };
 
 // Error codes
-#define CB_ERR -1
+#define kComboBoxError -1
 
 // Window flags
 #define WINDOW_NOTITLE      (1 << 0)
@@ -130,8 +130,8 @@ typedef enum {
 #define MAKERECT(X, Y, W, H) (&(rect_t){X, Y, W, H})
 
 // Macros for extracting DWORD parts
-#define LOWORD(l) ((uint16_t)(l & 0xFFFF))
-#define HIWORD(l) ((uint16_t)((l >> 16) & 0xFFFF))
-#define MAKEDWORD(low, high) ((uint32_t)(((uint16_t)(low)) | ((uint32_t)((uint16_t)(high))) << 16))
+#define kLowWord(l) ((uint16_t)(l & 0xFFFF))
+#define kHighWord(l) ((uint16_t)((l >> 16) & 0xFFFF))
+#define kMakeDWord(low, high) ((uint32_t)(((uint16_t)(low)) | ((uint32_t)((uint16_t)(high))) << 16))
 
 #endif

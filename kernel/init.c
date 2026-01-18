@@ -87,6 +87,18 @@ static bool ui_init_window(const char *title, int width, int height) {
     return false;
   }
   
+#if defined(_WIN32) || defined(_WIN64)
+  // Initialize GLEW for OpenGL extension loading on Windows
+  GLenum err = glewInit();
+  if (err != GLEW_OK) {
+    printf("GLEW initialization failed! Error: %s\n", glewGetErrorString(err));
+    SDL_GL_DeleteContext(ctx);
+    SDL_DestroyWindow(window);
+    window = NULL;
+    return false;
+  }
+#endif
+  
   printf("GL_VERSION  : %s\n", glGetString(GL_VERSION));
   printf("GLSL_VERSION: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
   
@@ -96,8 +108,8 @@ static bool ui_init_window(const char *title, int width, int height) {
 static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   extern void fill_rect(int color, int x, int y, int w, int h);
   switch (msg) {
-    case WM_PAINT:
-      fill_rect(0xff6B3529, 0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+    case kWindowMessagePaint:
+      fill_rect(0xff6B3529, 0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight));
       return true;
   }
   return false;
@@ -131,7 +143,7 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   if (flags & UI_INIT_DESKTOP) {
     show_window(create_window("Desktop",
                               WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON,
-                              MAKERECT(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)),
+                              MAKERECT(0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight)),
                               NULL, win_desktop, NULL), true);
   }
   

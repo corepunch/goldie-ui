@@ -13,11 +13,11 @@ extern window_t *_focused;
 // Checkbox control window procedure
 result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_CREATE:
+    case kWindowMessageCreate:
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+16);
       win->frame.h = MAX(win->frame.h, BUTTON_HEIGHT);
       return true;
-    case WM_PAINT:
+    case kWindowMessagePaint:
       fill_rect(_focused == win?COLOR_FOCUSED:COLOR_PANEL_BG, win->frame.x-2, win->frame.y-2, 14, 14);
       draw_button(MAKERECT(win->frame.x, win->frame.y, 10, 10), 1, 1, win->pressed);
       draw_text_small(win->title, win->frame.x + 17, win->frame.y + 3, COLOR_DARK_EDGE);
@@ -26,33 +26,33 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         draw_icon8(icon8_checkbox, win->frame.x+1, win->frame.y+1, COLOR_TEXT_NORMAL);
       }
       return true;
-    case WM_LBUTTONDOWN:
+    case kWindowMessageLeftButtonDown:
       win->pressed = true;
       invalidate_window(win);
       return true;
-    case WM_LBUTTONUP:
+    case kWindowMessageLeftButtonUp:
       win->pressed = false;
-      send_message(win, BM_SETCHECK, !send_message(win, BM_GETCHECK, 0, NULL), NULL);
-      send_message(get_root_window(win), WM_COMMAND, MAKEDWORD(win->id, BN_CLICKED), win);
+      send_message(win, kButtonMessageSetCheck, !send_message(win, kButtonMessageGetCheck, 0, NULL), NULL);
+      send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
       invalidate_window(win);
       return true;
-    case BM_SETCHECK:
-      win->value = (wparam != BST_UNCHECKED);
+    case kButtonMessageSetCheck:
+      win->value = (wparam != kButtonStateUnchecked);
       return true;
-    case BM_GETCHECK:
-      return win->value ? BST_CHECKED : BST_UNCHECKED;
-    case WM_KEYDOWN:
+    case kButtonMessageGetCheck:
+      return win->value ? kButtonStateChecked : kButtonStateUnchecked;
+    case kWindowMessageKeyDown:
       if (wparam == SDL_SCANCODE_RETURN || wparam == SDL_SCANCODE_SPACE) {
         win->pressed = true;
         invalidate_window(win);
         return true;
       }
       return false;
-    case WM_KEYUP:
+    case kWindowMessageKeyUp:
       if (wparam == SDL_SCANCODE_RETURN || wparam == SDL_SCANCODE_SPACE) {
         win->pressed = false;
-        send_message(win, BM_SETCHECK, !send_message(win, BM_GETCHECK, 0, NULL), NULL);
-        send_message(get_root_window(win), WM_COMMAND, MAKEDWORD(win->id, BN_CLICKED), win);
+        send_message(win, kButtonMessageSetCheck, !send_message(win, kButtonMessageGetCheck, 0, NULL), NULL);
+        send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
         invalidate_window(win);
         return true;
       } else {

@@ -69,7 +69,7 @@ window_t* create_window(char const *title,
   strncpy(win->title, title, sizeof(win->title));
   _focused = win;
   push_window(win, parent ? &parent->children : &windows);
-  send_message(win, WM_CREATE, 0, lparam);
+  send_message(win, kWindowMessageCreate, 0, lparam);
   if (parent) {
     invalidate_window(win);
   }
@@ -106,8 +106,8 @@ static void invalidate_overlaps(window_t *win) {
 
 // Move window to new position
 void move_window(window_t *win, int x, int y) {
-  post_message(win, WM_RESIZE, 0, NULL);
-  post_message(win, WM_REFRESHSTENCIL, 0, NULL);
+  post_message(win, kWindowMessageResize, 0, NULL);
+  post_message(win, kWindowMessageRefreshStencil, 0, NULL);
 
   invalidate_overlaps(win);
   invalidate_window(win);
@@ -118,8 +118,8 @@ void move_window(window_t *win, int x, int y) {
 
 // Resize window
 void resize_window(window_t *win, int new_w, int new_h) {
-  post_message(win, WM_RESIZE, 0, NULL);
-  post_message(win, WM_REFRESHSTENCIL, 0, NULL);
+  post_message(win, kWindowMessageResize, 0, NULL);
+  post_message(win, kWindowMessageRefreshStencil, 0, NULL);
 
   invalidate_overlaps(win);
   invalidate_window(win);
@@ -159,9 +159,9 @@ void clear_window_children(window_t *win) {
 
 // Destroy a window
 void destroy_window(window_t *win) {
-  post_message((window_t*)1, WM_REFRESHSTENCIL, 0, NULL);
+  post_message((window_t*)1, kWindowMessageRefreshStencil, 0, NULL);
   invalidate_overlaps(win);
-  send_message(win, WM_DESTROY, 0, NULL);
+  send_message(win, kWindowMessageDestroy, 0, NULL);
   if (_focused == win) set_focus(NULL);
   if (_captured == win) set_capture(NULL);
   if (_tracked == win) track_mouse(NULL);
@@ -191,7 +191,7 @@ window_t *find_window(int x, int y) {
     if (CONTAINS(x, y, win->frame.x, win->frame.y-t, win->frame.w, win->frame.h+t+s)) {
       last = win;
       if (!win->disabled) {
-        send_message(win, WM_HITTEST, MAKEDWORD(x - win->frame.x, y - win->frame.y), &last);
+        send_message(win, kWindowMessageHitTest, kMakeDWord(x - win->frame.x, y - win->frame.y), &last);
       }
     }
   }
@@ -208,7 +208,7 @@ void track_mouse(window_t *win) {
   if (_tracked == win)
     return;
   if (_tracked) {
-    send_message(_tracked, WM_MOUSELEAVE, 0, win);
+    send_message(_tracked, kWindowMessageMouseLeave, 0, win);
     invalidate_window(_tracked);
   }
   _tracked = win;
@@ -225,11 +225,11 @@ void set_focus(window_t* win) {
     return;
   if (_focused) {
     _focused->editing = false;
-    post_message(_focused, WM_KILLFOCUS, 0, win);
+    post_message(_focused, kWindowMessageKillFocus, 0, win);
     invalidate_window(_focused);
   }
   if (win) {
-    post_message(win, WM_SETFOCUS, 0, _focused);
+    post_message(win, kWindowMessageSetFocus, 0, _focused);
     invalidate_window(win);
   }
   _focused = win;
@@ -238,9 +238,9 @@ void set_focus(window_t* win) {
 // Invalidate window (request repaint)
 void invalidate_window(window_t *win) {
   if (!win->parent) {
-    post_message(win, WM_NCPAINT, 0, NULL);
+    post_message(win, kWindowMessageNonClientPaint, 0, NULL);
   }
-  post_message(win, WM_PAINT, 0, NULL);
+  post_message(win, kWindowMessagePaint, 0, NULL);
 }
 
 // Get titlebar Y position
@@ -311,7 +311,7 @@ void load_window_children(window_t *win, windef_t const *def) {
 
 // Show or hide window
 void show_window(window_t *win, bool visible) {
-  post_message(win, WM_REFRESHSTENCIL, 0, NULL);
+  post_message(win, kWindowMessageRefreshStencil, 0, NULL);
   if (!visible) {
     invalidate_overlaps(win);
     if (_focused == win) set_focus(NULL);
@@ -322,7 +322,7 @@ void show_window(window_t *win, bool visible) {
     set_focus(win);
   }
   win->visible = visible;
-  post_message(win, WM_SHOWWINDOW, visible, NULL);
+  post_message(win, kWindowMessageShowWindow, visible, NULL);
 }
 
 // Check if pointer is a valid window

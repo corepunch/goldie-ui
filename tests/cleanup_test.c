@@ -55,7 +55,9 @@ void test_joystick_cleanup(void) {
   PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
   TEST_START("Cleanup and Memory Leak Tests");
   
   test_basic_init_shutdown();

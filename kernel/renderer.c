@@ -136,7 +136,7 @@ bool ui_init_prog(void) {
   //  glm_ortho(-offset_x, DOOM_WIDTH+offset_x, DOOM_HEIGHT, 0, -1, 1, g_ref.projection);
   screen_width = width / UI_WINDOW_SCALE;
   screen_height = height / UI_WINDOW_SCALE;
-  glm_ortho(0, screen_width, ui_get_system_metrics(SM_CYSCREEN), 0, -1, 1, g_ref.projection);
+  glm_ortho(0, screen_width, ui_get_system_metrics(kSystemMetricScreenHeight), 0, -1, 1, g_ref.projection);
     
   glDeleteShader(vertex_shader);
   glDeleteShader(fragment_shader);
@@ -203,9 +203,9 @@ void draw_rect(int tex, int x, int y, int w, int h) {
 
 int ui_get_system_metrics(ui_system_metrics_t metric) {
   switch (metric) {
-    case SM_CXSCREEN:
+    case kSystemMetricScreenWidth:
       return screen_width;
-    case SM_CYSCREEN:
+    case kSystemMetricScreenHeight:
       return screen_height;
     default:
       return 0;

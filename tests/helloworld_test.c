@@ -20,29 +20,29 @@ static uint32_t test_last_button_id = 0;
 // Window procedure that mimics the hello world example
 result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_CREATE: {
+    case kWindowMessageCreate: {
       // Create a button and assign it an ID
       window_t *button = create_window("Click Me!", WINDOW_NOTITLE, MAKERECT(20, 50, 100, 0), win, win_button, NULL);
       button->id = ID_BUTTON_CLICKME;
       return true;
     }
       
-    case WM_PAINT: {
+    case kWindowMessagePaint: {
       // We won't actually render but we can test the logic
       return false;
     }
     
-    case WM_COMMAND:
+    case kWindowMessageCommand:
       // Handle button click
-      if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == ID_BUTTON_CLICKME) {
+      if (kHighWord(wparam) == kButtonNotificationClicked && kLowWord(wparam) == ID_BUTTON_CLICKME) {
         test_click_count++;
-        test_last_button_id = LOWORD(wparam);
+        test_last_button_id = kLowWord(wparam);
         invalidate_window(win);  // Request repaint to show new count
         return true;
       }
       return false;
     
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       return true;
       
     default:
@@ -108,10 +108,10 @@ void test_button_click_increments_counter(void) {
     int button_center_x, button_center_y;
     get_button_center(button, &button_center_x, &button_center_y);
     
-    test_env_post_message(button, WM_LBUTTONDOWN, MAKEDWORD(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
     repost_messages();
     
-    test_env_post_message(button, WM_LBUTTONUP, MAKEDWORD(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
     repost_messages();
     
     // Verify click was registered
@@ -148,10 +148,10 @@ void test_multiple_button_clicks(void) {
     
     // Click button 5 times
     for (int i = 1; i <= 5; i++) {
-        test_env_post_message(button, WM_LBUTTONDOWN, MAKEDWORD(button_center_x, button_center_y), NULL);
+        test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
         repost_messages();
         
-        test_env_post_message(button, WM_LBUTTONUP, MAKEDWORD(button_center_x, button_center_y), NULL);
+        test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
         repost_messages();
         
         // Verify counter incremented correctly
@@ -163,7 +163,9 @@ void test_multiple_button_clicks(void) {
     PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     TEST_START("Hello World Button Click Tests");
     
     test_button_has_id();

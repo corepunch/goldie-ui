@@ -54,7 +54,9 @@ void test_window_destruction_cleanup(void) {
   PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
   TEST_START("Memory Leak Tests");
   
   test_shutdown_functions_safe();

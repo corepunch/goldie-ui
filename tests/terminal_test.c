@@ -16,13 +16,13 @@ static bool buffer_contains(const char *buffer, const char *expected) {
 static void send_text_input(window_t *win, const char *text) {
   for (const char *p = text; *p != '\0'; p++) {
     char c = *p;
-    send_message(win, WM_TEXTINPUT, 0, &c);
+    send_message(win, kWindowMessageTextInput, 0, &c);
   }
 }
 
 // Helper: Send Enter key
 static void send_enter_key(window_t *win) {
-  send_message(win, WM_KEYDOWN, SDL_SCANCODE_RETURN, NULL);
+  send_message(win, kWindowMessageKeyDown, SDL_SCANCODE_RETURN, NULL);
 }
 
 // Test: Create terminal in command mode
@@ -302,8 +302,8 @@ void test_terminal_backspace(void) {
   
   // Type "helXX" then backspace twice to get "hel"
   send_text_input(terminal, "helXX");
-  send_message(terminal, WM_KEYDOWN, SDL_SCANCODE_BACKSPACE, NULL);
-  send_message(terminal, WM_KEYDOWN, SDL_SCANCODE_BACKSPACE, NULL);
+  send_message(terminal, kWindowMessageKeyDown, SDL_SCANCODE_BACKSPACE, NULL);
+  send_message(terminal, kWindowMessageKeyDown, SDL_SCANCODE_BACKSPACE, NULL);
   send_text_input(terminal, "p");
   send_enter_key(terminal);
   
@@ -346,7 +346,9 @@ void test_terminal_buffer_exact_match(void) {
   PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
   TEST_START("Terminal and Lua Integration");
   
   // Command mode tests

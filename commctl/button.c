@@ -12,11 +12,11 @@ extern window_t *get_root_window(window_t *window);
 // Button control window procedure
 result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_CREATE:
+    case kWindowMessageCreate:
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+6);
       win->frame.h = MAX(win->frame.h, BUTTON_HEIGHT);
       return true;
-    case WM_PAINT:
+    case kWindowMessagePaint:
       fill_rect(_focused == win?COLOR_FOCUSED:COLOR_PANEL_BG, win->frame.x-2, win->frame.y-2, win->frame.w+4, win->frame.h+4);
       draw_button(&win->frame, 1, 1, win->pressed);
       if (!win->pressed) {
@@ -24,26 +24,26 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       }
       draw_text_small(win->title, win->frame.x+((win->pressed)?4:3), win->frame.y+((win->pressed)?4:3), COLOR_TEXT_NORMAL);
       return true;
-    case WM_LBUTTONDOWN:
+    case kWindowMessageLeftButtonDown:
       win->pressed = true;
       invalidate_window(win);
       return true;
-    case WM_LBUTTONUP:
+    case kWindowMessageLeftButtonUp:
       win->pressed = false;
-      send_message(get_root_window(win), WM_COMMAND, MAKEDWORD(win->id, BN_CLICKED), win);
+      send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
       invalidate_window(win);
       return true;
-    case WM_KEYDOWN:
+    case kWindowMessageKeyDown:
       if (wparam == SDL_SCANCODE_RETURN || wparam == SDL_SCANCODE_SPACE) {
         win->pressed = true;
         invalidate_window(win);
         return true;
       }
       return false;
-    case WM_KEYUP:
+    case kWindowMessageKeyUp:
       if (wparam == SDL_SCANCODE_RETURN || wparam == SDL_SCANCODE_SPACE) {
         win->pressed = false;
-        send_message(get_root_window(win), WM_COMMAND, MAKEDWORD(win->id, BN_CLICKED), win);
+        send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
         invalidate_window(win);
         return true;
       } else {

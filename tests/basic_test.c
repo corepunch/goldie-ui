@@ -8,30 +8,30 @@
 // Test constants
 #define TEST_DWORD_VALUE 0x12345678
 
-// Test LOWORD and HIWORD macros
+// Test kLowWord and kHighWord macros
 void test_word_macros(void) {
-    TEST("LOWORD/HIWORD macros");
+    TEST("kLowWord/kHighWord macros");
     
     uint32_t value = TEST_DWORD_VALUE;
     
-    ASSERT_EQUAL(LOWORD(value), 0x5678);
-    ASSERT_EQUAL(HIWORD(value), 0x1234);
+    ASSERT_EQUAL(kLowWord(value), 0x5678);
+    ASSERT_EQUAL(kHighWord(value), 0x1234);
     
     PASS();
 }
 
-// Test MAKEDWORD macro
+// Test kMakeDWord macro
 void test_makedword_macro(void) {
-    TEST("MAKEDWORD macro");
+    TEST("kMakeDWord macro");
     
     uint16_t low = 0x5678;
     uint16_t high = 0x1234;
     
-    uint32_t result = MAKEDWORD(low, high);
+    uint32_t result = kMakeDWord(low, high);
     
     ASSERT_EQUAL(result, TEST_DWORD_VALUE);
-    ASSERT_EQUAL(LOWORD(result), low);
-    ASSERT_EQUAL(HIWORD(result), high);
+    ASSERT_EQUAL(kLowWord(result), low);
+    ASSERT_EQUAL(kHighWord(result), high);
     
     PASS();
 }
@@ -70,11 +70,11 @@ void test_message_constants(void) {
     TEST("Window message constants");
     
     // Verify message constants are defined
-    ASSERT_TRUE(WM_CREATE >= 0);
-    ASSERT_TRUE(WM_DESTROY > WM_CREATE);
-    ASSERT_TRUE(WM_PAINT > 0);
-    ASSERT_TRUE(WM_COMMAND > 0);
-    ASSERT_TRUE(WM_USER == 1000);
+    ASSERT_TRUE(kWindowMessageCreate >= 0);
+    ASSERT_TRUE(kWindowMessageDestroy > kWindowMessageCreate);
+    ASSERT_TRUE(kWindowMessagePaint > 0);
+    ASSERT_TRUE(kWindowMessageCommand > 0);
+    ASSERT_TRUE(kWindowMessageUser == 1000);
     
     PASS();
 }
@@ -84,11 +84,11 @@ void test_control_message_constants(void) {
     TEST("Control message constants");
     
     // Verify control message constants
-    ASSERT_TRUE(BM_SETCHECK >= WM_USER);
-    ASSERT_TRUE(BM_GETCHECK > BM_SETCHECK);
-    ASSERT_TRUE(CB_ADDSTRING > 0);
-    ASSERT_TRUE(CB_GETCURSEL > 0);
-    ASSERT_TRUE(CB_SETCURSEL > 0);
+    ASSERT_TRUE(kButtonMessageSetCheck >= kWindowMessageUser);
+    ASSERT_TRUE(kButtonMessageGetCheck > kButtonMessageSetCheck);
+    ASSERT_TRUE(kComboBoxMessageAddString > 0);
+    ASSERT_TRUE(kComboBoxMessageGetCurrentSelection > 0);
+    ASSERT_TRUE(kComboBoxMessageSetCurrentSelection > 0);
     
     PASS();
 }
@@ -98,9 +98,9 @@ void test_notification_constants(void) {
     TEST("Notification message constants");
     
     // Verify notification constants
-    ASSERT_TRUE(EN_UPDATE == 100);
-    ASSERT_TRUE(BN_CLICKED > EN_UPDATE);
-    ASSERT_TRUE(CBN_SELCHANGE > BN_CLICKED);
+    ASSERT_TRUE(kEditNotificationUpdate == 100);
+    ASSERT_TRUE(kButtonNotificationClicked > kEditNotificationUpdate);
+    ASSERT_TRUE(kComboBoxNotificationSelectionChange > kButtonNotificationClicked);
     
     PASS();
 }
@@ -142,7 +142,9 @@ void test_negative_coords(void) {
     PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     TEST_START("Basic Functionality");
     
     test_word_macros();

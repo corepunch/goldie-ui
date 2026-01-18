@@ -21,7 +21,7 @@ static int click_count = 0;
 // Simple window procedure for our hello world window
 result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_CREATE: {
+    case kWindowMessageCreate: {
       // Create a label
       create_window("UI Framework Demo:", WINDOW_NOTITLE, MAKERECT(20, 20, 200, 20), win, win_label, NULL);
       // Create a button and assign it an ID
@@ -34,7 +34,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
       return true;
     }
       
-     case WM_PAINT: {
+     case kWindowMessagePaint: {
        // Draw click counter text or hello world
        char text[64];
        if (click_count == 0) {
@@ -54,16 +54,16 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
        return false;
      }
     
-     case WM_COMMAND:
+     case kWindowMessageCommand:
        // Handle button click
-       if (HIWORD(wparam) == BN_CLICKED && LOWORD(wparam) == ID_BUTTON_CLICKME) {
+       if (kHighWord(wparam) == kButtonNotificationClicked && kLowWord(wparam) == ID_BUTTON_CLICKME) {
          click_count++;
          invalidate_window(win);  // Request repaint to show new count
          return true;
        }
        return false;
     
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       running = false;
       return true;
       

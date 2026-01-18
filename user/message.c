@@ -129,7 +129,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     }
     // Handle special messages
     switch (msg) {
-      case WM_NCPAINT:
+      case kWindowMessageNonClientPaint:
         // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
         if (running) {
           ui_set_stencil_for_window(win->id);
@@ -158,7 +158,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           }
         }
         break;
-      case WM_PAINT:
+      case kWindowMessagePaint:
         // Skip OpenGL calls if graphics aren't initialized (e.g., in tests)
         if (running) {
           ui_set_stencil_for_root_window(get_root_window(win)->id);
@@ -169,12 +169,12 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
                          root->frame.h + root->scroll[1]);
         }
         break;
-      case TB_ADDBUTTONS:
+      case kToolBarMessageAddButtons:
         win->num_toolbar_buttons = wparam;
         win->toolbar_buttons = malloc(sizeof(toolbar_button_t)*wparam);
         memcpy(win->toolbar_buttons, lparam, sizeof(toolbar_button_t)*wparam);
         break;
-      case WM_STATUSBAR:
+      case kWindowMessageStatusBar:
         if (lparam) {
           strncpy(win->statusbar_text, (const char*)lparam, sizeof(win->statusbar_text) - 1);
           win->statusbar_text[sizeof(win->statusbar_text) - 1] = '\0';
@@ -185,29 +185,29 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     // Call window procedure
     if (!(value = win->proc(win, msg, wparam, lparam))) {
       switch (msg) {
-        case WM_PAINT:
+        case kWindowMessagePaint:
           for (window_t *sub = win->children; sub; sub = sub->next) {
-            sub->proc(sub, WM_PAINT, wparam, lparam);
+            sub->proc(sub, kWindowMessagePaint, wparam, lparam);
           }
           break;
-        case WM_WHEEL:
+        case kWindowMessageWheel:
           if (win->flags & WINDOW_HSCROLL) {
-            win->scroll[0] = MIN(0, (int)win->scroll[0]+(int16_t)LOWORD(wparam));
+            win->scroll[0] = MIN(0, (int)win->scroll[0]+(int16_t)kLowWord(wparam));
           }
           if (win->flags & WINDOW_VSCROLL) {
-            win->scroll[1] = MAX(0, (int)win->scroll[1]-(int16_t)HIWORD(wparam));
+            win->scroll[1] = MAX(0, (int)win->scroll[1]-(int16_t)kHighWord(wparam));
           }
           if (win->flags & (WINDOW_VSCROLL|WINDOW_HSCROLL)) {
             invalidate_window(win);
           }
           break;
-        case WM_PAINTSTENCIL:
+        case kWindowMessagePaintStencil:
           paint_window_stencil(win);
           break;
-        case WM_HITTEST:
+        case kWindowMessageHitTest:
           for (window_t *item = win->children; item; item = item->next) {
             rect_t r = item->frame;
-            uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
+            uint16_t x = kLowWord(wparam), y = kHighWord(wparam);
             #define CONTAINS(x, y, x1, y1, w1, h1) \
             ((x1) <= (x) && (y1) <= (y) && (x1) + (w1) > (x) && (y1) + (h1) > (y))
             if (!item->notabstop && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
@@ -216,10 +216,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
             #undef CONTAINS
           }
           break;
-        case WM_NCLBUTTONUP:
+        case kWindowMessageNonClientLeftButtonUp:
           if (win->flags&WINDOW_TOOLBAR) {
-            uint16_t x = LOWORD(wparam);
-            uint16_t y = HIWORD(wparam);
+            uint16_t x = kLowWord(wparam);
+            uint16_t y = kHighWord(wparam);
             int _x = win->frame.x + 2;
             int _y = win->frame.y - TOOLBAR_HEIGHT + 2;
             #define CONTAINS(x, y, x1, y1, w1, h1) \
@@ -227,7 +227,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
             for (uint32_t i = 0; i < win->num_toolbar_buttons; i++) {
               toolbar_button_t *but = &win->toolbar_buttons[i];
               if (CONTAINS(x, y, _x + i * TB_SPACING, _y, 16, 16)) {
-                send_message(win, TB_BUTTONCLICK, but->ident, but);
+                send_message(win, kToolBarMessageButtonClick, but->ident, but);
               }
             }
             #undef CONTAINS
@@ -236,10 +236,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
     }
     // Draw disabled overlay
-    if (win->disabled && msg == WM_PAINT) {
+    if (win->disabled && msg == kWindowMessagePaint) {
       uint32_t col = (COLOR_PANEL_BG & 0x00FFFFFF) | 0x80000000;
-      set_viewport(&(rect_t){ 0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN)});
-      set_projection(0, 0, ui_get_system_metrics(SM_CXSCREEN), ui_get_system_metrics(SM_CYSCREEN));
+      set_viewport(&(rect_t){ 0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight)});
+      set_projection(0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight));
       fill_rect(col, win->frame.x, win->frame.y, win->frame.w, win->frame.h);
     }
   }
@@ -269,7 +269,7 @@ void repost_messages(void) {
   for (uint8_t write = queue.write; queue.read != write;) {
     msg_t *m = &queue.messages[queue.read++];
     if (m->target == NULL) continue;
-    if (m->msg == WM_REFRESHSTENCIL) {
+    if (m->msg == kWindowMessageRefreshStencil) {
       if (running) {
         repaint_stencil();
       }

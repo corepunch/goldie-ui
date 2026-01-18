@@ -10,9 +10,16 @@
 #include "../user/user.h"
 #include "../user/messages.h"
 
-#include <lua5.4/lua.h>
-#include <lua5.4/lauxlib.h>
-#include <lua5.4/lualib.h>
+/* Lua headers - different paths on Windows vs Unix */
+#if defined(_WIN32) || defined(_WIN64)
+  #include <lua.h>
+  #include <lauxlib.h>
+  #include <lualib.h>
+#else
+  #include <lua5.4/lua.h>
+  #include <lua5.4/lauxlib.h>
+  #include <lua5.4/lualib.h>
+#endif
 
 #define DEFAULT_TEXT_BUFFER_SIZE 4096
 #define TEXTBUF(L) ((text_buffer_t**)lua_getextraspace(L))
@@ -240,7 +247,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
   terminal_state_t *state = (terminal_state_t *)win->userdata;
   
   switch (msg) {
-    case WM_CREATE: {
+    case kWindowMessageCreate: {
       state = allocate_window_data(win, sizeof(terminal_state_t));
       if (!state) {
         return false;
@@ -294,7 +301,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       
       return true;
     }
-    case WM_KEYDOWN:
+    case kWindowMessageKeyDown:
       // Don't accept input if process is finished
       if (state->process_finished || !state->waiting_for_input) {
         return false;
@@ -328,7 +335,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       } else {
         return false;
       }
-    case WM_TEXTINPUT:
+    case kWindowMessageTextInput:
       // Don't accept input if process is finished
       if (state->process_finished || !state->waiting_for_input) {
         return false;
@@ -348,7 +355,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return true;
       }
     
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       if (state) {
         free_text_buffer(&state->textbuf);
         if (state->L) {
@@ -359,7 +366,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return true;
       
-    case WM_PAINT: {
+    case kWindowMessagePaint: {
       if (!state) return false;
       
       // Draw terminal contents

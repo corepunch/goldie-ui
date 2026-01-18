@@ -78,7 +78,7 @@ static void load_directory(window_t *win, filemanager_data_t *data) {
   add_entries(dir, win, data, false);
 
   closedir(dir);
-  send_message(win, WM_STATUSBAR, 0, data->path);
+  send_message(win, kWindowMessageStatusBar, 0, data->path);
 }
 
 static void navigate_to(window_t *win, filemanager_data_t *data, columnview_item_t *item) {
@@ -109,8 +109,8 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
   filemanager_data_t *data = (filemanager_data_t *)win->userdata;
   
   switch (msg) {
-    case WM_CREATE:
-      // First call columnview's WM_CREATE
+    case kWindowMessageCreate:
+      // First call columnview's kWindowMessageCreate
       win_columnview(win, msg, wparam, lparam);
       // Then set up filemanager data
       data = allocate_window_data(win, sizeof(filemanager_data_t));
@@ -118,16 +118,16 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       load_directory(win, data);
       return true;
     
-    case WM_COMMAND:
-      if (HIWORD(wparam) == CVN_DBLCLK) {
+    case kWindowMessageCommand:
+      if (kHighWord(wparam) == CVN_DBLCLK) {
         // Can use CVM_GETITEMDATA to get item data, but lparam already has it
         // columnview_item_t tmp;
-        // send_message(win, CVM_GETITEMDATA, LOWORD(wparam), &tmp);
+        // send_message(win, CVM_GETITEMDATA, kLowWord(wparam), &tmp);
         navigate_to(win, data, lparam);
       }
       return false;
     
-    case WM_DESTROY:
+    case kWindowMessageDestroy:
       if (data) free(data);
       win_columnview(win, msg, wparam, lparam);
       running = false;

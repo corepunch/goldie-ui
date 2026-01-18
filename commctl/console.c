@@ -125,7 +125,7 @@ void toggle_console(void) {
 
 result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case WM_PAINT:
+    case kWindowMessagePaint:
       draw_console();
       break;
     default:
