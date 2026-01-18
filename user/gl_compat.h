@@ -24,6 +24,25 @@
   extern PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
   extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
   
+  /* Shader-related functions */
+  extern PFNGLCREATESHADERPROC glCreateShader;
+  extern PFNGLSHADERSOURCEPROC glShaderSource;
+  extern PFNGLCOMPILESHADERPROC glCompileShader;
+  extern PFNGLGETSHADERIVPROC glGetShaderiv;
+  extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+  extern PFNGLDELETESHADERPROC glDeleteShader;
+  extern PFNGLCREATEPROGRAMPROC glCreateProgram;
+  extern PFNGLATTACHSHADERPROC glAttachShader;
+  extern PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
+  extern PFNGLLINKPROGRAMPROC glLinkProgram;
+  extern PFNGLUSEPROGRAMPROC glUseProgram;
+  extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+  extern PFNGLUNIFORM1IPROC glUniform1i;
+  extern PFNGLUNIFORM1FPROC glUniform1f;
+  extern PFNGLUNIFORM2FPROC glUniform2f;
+  extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
+  extern PFNGLACTIVETEXTUREPROC glActiveTexture;
+  
   /* Function to load OpenGL extensions on Windows */
   void load_gl_extensions_win32(void);
 #else

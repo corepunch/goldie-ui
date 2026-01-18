@@ -16,6 +16,25 @@ PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray = NULL;
 PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray = NULL;
 PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer = NULL;
 
+/* Shader-related function pointers */
+PFNGLCREATESHADERPROC glCreateShader = NULL;
+PFNGLSHADERSOURCEPROC glShaderSource = NULL;
+PFNGLCOMPILESHADERPROC glCompileShader = NULL;
+PFNGLGETSHADERIVPROC glGetShaderiv = NULL;
+PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = NULL;
+PFNGLDELETESHADERPROC glDeleteShader = NULL;
+PFNGLCREATEPROGRAMPROC glCreateProgram = NULL;
+PFNGLATTACHSHADERPROC glAttachShader = NULL;
+PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation = NULL;
+PFNGLLINKPROGRAMPROC glLinkProgram = NULL;
+PFNGLUSEPROGRAMPROC glUseProgram = NULL;
+PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = NULL;
+PFNGLUNIFORM1IPROC glUniform1i = NULL;
+PFNGLUNIFORM1FPROC glUniform1f = NULL;
+PFNGLUNIFORM2FPROC glUniform2f = NULL;
+PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = NULL;
+PFNGLACTIVETEXTUREPROC glActiveTexture = NULL;
+
 /* Load OpenGL extensions using wglGetProcAddress */
 void load_gl_extensions_win32(void) {
   glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)wglGetProcAddress("glGenVertexArrays");
@@ -29,10 +48,33 @@ void load_gl_extensions_win32(void) {
   glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYPROC)wglGetProcAddress("glDisableVertexAttribArray");
   glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)wglGetProcAddress("glVertexAttribPointer");
   
+  /* Load shader-related functions */
+  glCreateShader = (PFNGLCREATESHADERPROC)wglGetProcAddress("glCreateShader");
+  glShaderSource = (PFNGLSHADERSOURCEPROC)wglGetProcAddress("glShaderSource");
+  glCompileShader = (PFNGLCOMPILESHADERPROC)wglGetProcAddress("glCompileShader");
+  glGetShaderiv = (PFNGLGETSHADERIVPROC)wglGetProcAddress("glGetShaderiv");
+  glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)wglGetProcAddress("glGetShaderInfoLog");
+  glDeleteShader = (PFNGLDELETESHADERPROC)wglGetProcAddress("glDeleteShader");
+  glCreateProgram = (PFNGLCREATEPROGRAMPROC)wglGetProcAddress("glCreateProgram");
+  glAttachShader = (PFNGLATTACHSHADERPROC)wglGetProcAddress("glAttachShader");
+  glBindAttribLocation = (PFNGLBINDATTRIBLOCATIONPROC)wglGetProcAddress("glBindAttribLocation");
+  glLinkProgram = (PFNGLLINKPROGRAMPROC)wglGetProcAddress("glLinkProgram");
+  glUseProgram = (PFNGLUSEPROGRAMPROC)wglGetProcAddress("glUseProgram");
+  glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)wglGetProcAddress("glGetUniformLocation");
+  glUniform1i = (PFNGLUNIFORM1IPROC)wglGetProcAddress("glUniform1i");
+  glUniform1f = (PFNGLUNIFORM1FPROC)wglGetProcAddress("glUniform1f");
+  glUniform2f = (PFNGLUNIFORM2FPROC)wglGetProcAddress("glUniform2f");
+  glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)wglGetProcAddress("glUniformMatrix4fv");
+  glActiveTexture = (PFNGLACTIVETEXTUREPROC)wglGetProcAddress("glActiveTexture");
+  
   /* Verify that all functions were loaded successfully */
   if (!glGenVertexArrays || !glBindVertexArray || !glDeleteVertexArrays ||
       !glGenBuffers || !glBindBuffer || !glDeleteBuffers || !glBufferData ||
-      !glEnableVertexAttribArray || !glDisableVertexAttribArray || !glVertexAttribPointer) {
+      !glEnableVertexAttribArray || !glDisableVertexAttribArray || !glVertexAttribPointer ||
+      !glCreateShader || !glShaderSource || !glCompileShader || !glGetShaderiv ||
+      !glGetShaderInfoLog || !glDeleteShader || !glCreateProgram || !glAttachShader ||
+      !glBindAttribLocation || !glLinkProgram || !glUseProgram || !glGetUniformLocation ||
+      !glUniform1i || !glUniform1f || !glUniform2f || !glUniformMatrix4fv || !glActiveTexture) {
     fprintf(stderr, "Warning: Failed to load some OpenGL extensions on Windows\n");
   }
 }
