@@ -10,6 +10,22 @@
   #include <windows.h>
   #include <GL/gl.h>
   #include <GL/glext.h>
+  
+  /* Declare OpenGL 3.x+ function pointers for Windows */
+  /* These functions are not available in opengl32.dll by default and must be loaded at runtime */
+  extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+  extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+  extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
+  extern PFNGLGENBUFFERSPROC glGenBuffers;
+  extern PFNGLBINDBUFFERPROC glBindBuffer;
+  extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+  extern PFNGLBUFFERDATAPROC glBufferData;
+  extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+  extern PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
+  extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+  
+  /* Function to load OpenGL extensions on Windows */
+  void load_gl_extensions_win32(void);
 #else
   /* Linux and other platforms */
   #include <GL/glcorearb.h>

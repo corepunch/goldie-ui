@@ -87,6 +87,11 @@ static bool ui_init_window(const char *title, int width, int height) {
     return false;
   }
   
+#if defined(_WIN32) || defined(_WIN64)
+  // Load OpenGL extensions on Windows
+  load_gl_extensions_win32();
+#endif
+  
   printf("GL_VERSION  : %s\n", glGetString(GL_VERSION));
   printf("GLSL_VERSION: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
   

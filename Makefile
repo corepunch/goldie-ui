@@ -145,6 +145,10 @@ $(BIN_DIR)/test_helloworld_test$(EXE_EXT): $(TEST_DIR)/helloworld_test.c $(TEST_
 	@echo "Building test with environment: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
 
+$(BIN_DIR)/test_terminal_test$(EXE_EXT): $(TEST_DIR)/terminal_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+	@echo "Building test with environment: $@"
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+
 # Generic test build rule (fallback)
 $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
