@@ -16,6 +16,9 @@ result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
+// Terminal API functions
+const char* terminal_get_buffer(window_t *win);
+
 // Console API functions
 void init_console(void);
 void conprintf(const char* format, ...);
