@@ -19,14 +19,19 @@ ifeq ($(OS),Windows_NT)
     LIBS += -lopengl32 -lglew32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
     # Lua library (MSYS2 provides -llua, not -llua5.4 like Unix platforms)
     LIBS += -llua
-    # Add -mwindows to create Windows GUI application (no console)
-    LDFLAGS += -mwindows
+    # For examples: use -mwindows to create Windows GUI application (no console)
+    # For tests: use -mconsole to create console application (allows printf output and standard main())
+    LDFLAGS_EXAMPLE = -mwindows
+    LDFLAGS_TEST = -mconsole
     LIB_EXT = .dll
     LIB_FLAGS = -shared
     EXE_EXT = .exe
 else
     UNAME_S := $(shell uname -s)
     EXE_EXT =
+    # On Unix-like platforms, no special flags needed for examples vs tests
+    LDFLAGS_EXAMPLE =
+    LDFLAGS_TEST =
     ifeq ($(UNAME_S),Darwin)
         # macOS specific flags
         CFLAGS += -I/opt/homebrew/include -I/usr/local/include
@@ -112,7 +117,7 @@ examples: $(EXAMPLE_BINS)
 
 $(BIN_DIR)/%$(EXE_EXT): examples/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building example: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_EXAMPLE) $(LIBS)
 
 # Tests
 .PHONY: test
@@ -132,33 +137,33 @@ $(TEST_ENV_OBJ): $(TEST_DIR)/test_env.c | $(OBJ_DIR)
 # Build basic tests (without test_env)
 $(BIN_DIR)/test_basic_test$(EXE_EXT): $(TEST_DIR)/basic_test.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 # Build tests that need test_env
 $(BIN_DIR)/test_window_msg_test$(EXE_EXT): $(TEST_DIR)/window_msg_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 $(BIN_DIR)/test_button_click_test$(EXE_EXT): $(TEST_DIR)/button_click_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 $(BIN_DIR)/test_helloworld_test$(EXE_EXT): $(TEST_DIR)/helloworld_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 $(BIN_DIR)/test_terminal_test$(EXE_EXT): $(TEST_DIR)/terminal_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 $(BIN_DIR)/test_terminal_test: $(TEST_DIR)/terminal_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test with environment: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 # Generic test build rule (fallback)
 $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
-	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
 # Directory creation
 $(BUILD_DIR):
