@@ -88,8 +88,15 @@ static bool ui_init_window(const char *title, int width, int height) {
   }
   
 #if defined(_WIN32) || defined(_WIN64)
-  // Load OpenGL extensions on Windows
-  load_gl_extensions_win32();
+  // Initialize GLEW for OpenGL extension loading on Windows
+  GLenum err = glewInit();
+  if (err != GLEW_OK) {
+    printf("GLEW initialization failed! Error: %s\n", glewGetErrorString(err));
+    SDL_GL_DeleteContext(ctx);
+    SDL_DestroyWindow(window);
+    window = NULL;
+    return false;
+  }
 #endif
   
   printf("GL_VERSION  : %s\n", glGetString(GL_VERSION));

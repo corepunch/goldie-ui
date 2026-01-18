@@ -14,7 +14,7 @@ LIBS = -lSDL2 -lm
 # Detect Windows first (uname may not exist or may return different values on Windows)
 ifeq ($(OS),Windows_NT)
     # Windows specific flags (MinGW/MSYS2)
-    LIBS += -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
+    LIBS += -lopengl32 -lglew32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
     # Lua library (MSYS2 provides -llua, not -llua5.4 like Unix platforms)
     LIBS += -llua
     # Math library is linked automatically on Windows/MinGW

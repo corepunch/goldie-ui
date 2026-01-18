@@ -5,47 +5,11 @@
 #ifdef __APPLE__
   #include <OpenGL/gl3.h>
 #elif defined(_WIN32) || defined(_WIN64)
-  /* Windows platform */
+  /* Windows platform - use GLEW for OpenGL extension loading */
   #define WIN32_LEAN_AND_MEAN
   #include <windows.h>
+  #include <GL/glew.h>
   #include <GL/gl.h>
-  #include <GL/glext.h>
-  
-  /* Declare OpenGL 3.x+ function pointers for Windows */
-  /* These functions are not available in opengl32.dll by default and must be loaded at runtime */
-  extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
-  extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
-  extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
-  extern PFNGLGENBUFFERSPROC glGenBuffers;
-  extern PFNGLBINDBUFFERPROC glBindBuffer;
-  extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-  extern PFNGLBUFFERDATAPROC glBufferData;
-  extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-  extern PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
-  extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-  
-  /* Shader-related functions */
-  extern PFNGLCREATESHADERPROC glCreateShader;
-  extern PFNGLSHADERSOURCEPROC glShaderSource;
-  extern PFNGLCOMPILESHADERPROC glCompileShader;
-  extern PFNGLGETSHADERIVPROC glGetShaderiv;
-  extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
-  extern PFNGLDELETESHADERPROC glDeleteShader;
-  extern PFNGLCREATEPROGRAMPROC glCreateProgram;
-  extern PFNGLDELETEPROGRAMPROC glDeleteProgram;
-  extern PFNGLATTACHSHADERPROC glAttachShader;
-  extern PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
-  extern PFNGLLINKPROGRAMPROC glLinkProgram;
-  extern PFNGLUSEPROGRAMPROC glUseProgram;
-  extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-  extern PFNGLUNIFORM1IPROC glUniform1i;
-  extern PFNGLUNIFORM1FPROC glUniform1f;
-  extern PFNGLUNIFORM2FPROC glUniform2f;
-  extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-  extern PFNGLACTIVETEXTUREPROC glActiveTexture;
-  
-  /* Function to load OpenGL extensions on Windows */
-  void load_gl_extensions_win32(void);
 #else
   /* Linux and other platforms */
   #include <GL/glcorearb.h>
