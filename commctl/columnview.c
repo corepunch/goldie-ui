@@ -95,7 +95,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           data->last_click_index = -1;
         } else {
           // Single click - update selection
-          u_int32_t old_selection = data->selected;
+          uint32_t old_selection = data->selected;
           data->selected = index;
           data->last_click_time = now;
           data->last_click_index = index;
