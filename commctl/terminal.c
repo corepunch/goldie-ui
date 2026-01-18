@@ -243,6 +243,39 @@ const char* terminal_get_buffer(window_t *win) {
   return state->textbuf->data;
 }
 
+const char *luaX_getpackagepath(lua_State *L) {
+  lua_getglobal(L, "package");
+  lua_getfield(L, -1, "path");
+  const char *path = lua_tostring(L, -1);
+  lua_pop(L, 2); // pop path and package
+  return path ? path : "";
+}
+
+void luaX_addcurrentfolder(lua_State *L, const char *filepath) {
+  // Extract directory from filepath
+  char dir[512];
+  strncpy(dir, filepath, sizeof(dir));
+  char *last_slash = strrchr(dir, '/');
+#ifdef _WIN32
+  char *last_backslash = strrchr(dir, '\\');
+  if (last_backslash && (!last_slash || last_backslash > last_slash)) {
+    last_slash = last_backslash;
+  }
+#endif
+  if (last_slash) {
+    *last_slash = '\0';
+  } else {
+    strcpy(dir, "."); // Current directory
+  }
+  // Append ";./?.lua" to package.path
+  char new_path[4096];
+  snprintf(new_path, sizeof(new_path), "%s;%s/?.lua", luaX_getpackagepath(L), dir);
+  lua_getglobal(L, "package");
+  lua_pushstring(L, new_path);
+  lua_setfield(L, -2, "path");
+  lua_pop(L, 1); // pop package table
+}
+
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   terminal_state_t *state = (terminal_state_t *)win->userdata;
   
@@ -285,6 +318,8 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         state->waiting_for_input = false;
         state->process_finished = false;
         state->input_buffer[0] = '\0';
+
+        luaX_addcurrentfolder(state->co, lparam);
         
         // Load the file into the coroutine
         if (luaL_loadfile(state->co, lparam) != LUA_OK) {

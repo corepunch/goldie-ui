@@ -1,5 +1,8 @@
 -- Interactive Lua script demonstrating io.read with coroutines
 
+local foobar = require "foobar"
+print(foobar.greet())
+
 print("What is your name?")
 local name = io.read()
 
