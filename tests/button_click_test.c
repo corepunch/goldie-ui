@@ -246,7 +246,9 @@ void test_post_message_async_behavior(void) {
     PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     TEST_START("Button Click Simulation with Scaling");
     
     test_button_click_with_scaling();

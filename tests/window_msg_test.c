@@ -272,7 +272,9 @@ void test_clear_events(void) {
     PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     TEST_START("Window and Message Tracking");
     
     test_window_creation_tracked();

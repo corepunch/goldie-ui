@@ -27,7 +27,9 @@ result_t statusbar_test_proc(window_t *win, uint32_t msg, uint32_t wparam, void 
     }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     printf("Status Bar Feature Tests\n");
     printf("=========================\n\n");
     

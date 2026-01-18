@@ -346,7 +346,9 @@ void test_terminal_buffer_exact_match(void) {
   PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
   TEST_START("Terminal and Lua Integration");
   
   // Command mode tests

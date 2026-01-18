@@ -163,7 +163,9 @@ void test_multiple_button_clicks(void) {
     PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     TEST_START("Hello World Button Click Tests");
     
     test_button_has_id();

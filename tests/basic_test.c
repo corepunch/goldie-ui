@@ -142,7 +142,9 @@ void test_negative_coords(void) {
     PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     TEST_START("Basic Functionality");
     
     test_word_macros();
