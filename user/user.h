@@ -13,14 +13,6 @@ typedef struct rect_s rect_t;
 typedef uint32_t flags_t;
 typedef uint32_t result_t;
 
-// Helper macros
-#ifndef MAX
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#endif
-#ifndef MIN
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
 // Window procedure callback type
 typedef result_t (*winproc_t)(window_t *, uint32_t, uint32_t, void *);
 
