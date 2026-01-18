@@ -15,6 +15,7 @@
 #define MAX_TEXT_LENGTH 256
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
+#define SMALL_LINE_HEIGHT 12
 
 typedef struct {
   int16_t x, y;
@@ -187,7 +188,7 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
     }
     if (c == '\n') {
       cursor_x = x;
-      y += SMALL_FONT_HEIGHT;
+      y += SMALL_LINE_HEIGHT;
       continue;
     }
     
