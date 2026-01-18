@@ -191,7 +191,7 @@ window_t *find_window(int x, int y) {
     if (CONTAINS(x, y, win->frame.x, win->frame.y-t, win->frame.w, win->frame.h+t+s)) {
       last = win;
       if (!win->disabled) {
-        send_message(win, kWindowMessageHitTest, kMakeDWord(x - win->frame.x, y - win->frame.y), &last);
+        send_message(win, kWindowMessageHitTest, MAKEDWORD(x - win->frame.x, y - win->frame.y), &last);
       }
     }
   }

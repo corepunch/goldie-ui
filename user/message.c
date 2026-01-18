@@ -192,10 +192,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           break;
         case kWindowMessageWheel:
           if (win->flags & WINDOW_HSCROLL) {
-            win->scroll[0] = MIN(0, (int)win->scroll[0]+(int16_t)kLowWord(wparam));
+            win->scroll[0] = MIN(0, (int)win->scroll[0]+(int16_t)LOWORD(wparam));
           }
           if (win->flags & WINDOW_VSCROLL) {
-            win->scroll[1] = MAX(0, (int)win->scroll[1]-(int16_t)kHighWord(wparam));
+            win->scroll[1] = MAX(0, (int)win->scroll[1]-(int16_t)HIWORD(wparam));
           }
           if (win->flags & (WINDOW_VSCROLL|WINDOW_HSCROLL)) {
             invalidate_window(win);
@@ -207,7 +207,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         case kWindowMessageHitTest:
           for (window_t *item = win->children; item; item = item->next) {
             rect_t r = item->frame;
-            uint16_t x = kLowWord(wparam), y = kHighWord(wparam);
+            uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
             #define CONTAINS(x, y, x1, y1, w1, h1) \
             ((x1) <= (x) && (y1) <= (y) && (x1) + (w1) > (x) && (y1) + (h1) > (y))
             if (!item->notabstop && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
@@ -218,8 +218,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           break;
         case kWindowMessageNonClientLeftButtonUp:
           if (win->flags&WINDOW_TOOLBAR) {
-            uint16_t x = kLowWord(wparam);
-            uint16_t y = kHighWord(wparam);
+            uint16_t x = LOWORD(wparam);
+            uint16_t y = HIWORD(wparam);
             int _x = win->frame.x + 2;
             int _y = win->frame.y - TOOLBAR_HEIGHT + 2;
             #define CONTAINS(x, y, x1, y1, w1, h1) \

@@ -78,7 +78,7 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       draw_icon16(icon16_appicon, 3, 0, COLOR_TEXT_NORMAL);
       return false;
     case kWindowMessageCommand:
-      if (kHighWord(wparam) == kButtonNotificationClicked) {
+      if (HIWORD(wparam) == kButtonNotificationClicked) {
         window_t *button = lparam;
         show_window(button->userdata, !((window_t *)button->userdata)->visible);
       }

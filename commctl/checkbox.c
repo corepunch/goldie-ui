@@ -33,7 +33,7 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case kWindowMessageLeftButtonUp:
       win->pressed = false;
       send_message(win, kButtonMessageSetCheck, !send_message(win, kButtonMessageGetCheck, 0, NULL), NULL);
-      send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
+      send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(win->id, kButtonNotificationClicked), win);
       invalidate_window(win);
       return true;
     case kButtonMessageSetCheck:
@@ -52,7 +52,7 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (wparam == SDL_SCANCODE_RETURN || wparam == SDL_SCANCODE_SPACE) {
         win->pressed = false;
         send_message(win, kButtonMessageSetCheck, !send_message(win, kButtonMessageGetCheck, 0, NULL), NULL);
-        send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
+        send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(win->id, kButtonNotificationClicked), win);
         invalidate_window(win);
         return true;
       } else {

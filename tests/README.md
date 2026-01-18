@@ -107,7 +107,7 @@ The test suite follows the Windows 1.0 testing philosophy:
 ## What We Test
 
 ### Basic Functionality
-- kLowWord/kHighWord/kMakeDWord macros
+- LOWORD/HIWORD/MAKEDWORD macros
 - MIN/MAX macros
 - Rectangle structures
 - Window message constants (kWindowMessageCreate, kWindowMessageDestroy, kWindowMessagePaint, etc.)

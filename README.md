@@ -185,8 +185,8 @@ send_message(cv, CVM_SETCOLUMNWIDTH, 180, NULL);
 
 // Handle notifications in parent window procedure
 case kWindowMessageCommand: {
-  uint16_t id = kLowWord(wparam);
-  uint16_t code = kHighWord(wparam);
+  uint16_t id = LOWORD(wparam);
+  uint16_t code = HIWORD(wparam);
   
   if (id == cv->id) {
     if (code == CVN_SELCHANGE) {

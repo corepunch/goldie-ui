@@ -40,7 +40,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         for (int i = 0; i <= (int)strlen(win->title); i++) {
           int x1 = win->frame.x+PADDING+strnwidth(win->title, i);
           int x2 = win->frame.x+PADDING+strnwidth(win->title, win->cursor_pos);
-          if (abs((int)kLowWord(wparam) - x1) < abs((int)kLowWord(wparam) - x2)) {
+          if (abs((int)LOWORD(wparam) - x1) < abs((int)LOWORD(wparam) - x2)) {
             win->cursor_pos = i;
           }
         }
@@ -63,7 +63,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
             win->cursor_pos = (int)strlen(win->title);
             win->editing = true;
           } else {
-            send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kEditNotificationUpdate), win);
+            send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(win->id, kEditNotificationUpdate), win);
             win->editing = false;
           }
           break;

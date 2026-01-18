@@ -34,9 +34,9 @@ result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
     
     case kWindowMessageCommand:
       // Handle button click
-      if (kHighWord(wparam) == kButtonNotificationClicked && kLowWord(wparam) == ID_BUTTON_CLICKME) {
+      if (HIWORD(wparam) == kButtonNotificationClicked && LOWORD(wparam) == ID_BUTTON_CLICKME) {
         test_click_count++;
-        test_last_button_id = kLowWord(wparam);
+        test_last_button_id = LOWORD(wparam);
         invalidate_window(win);  // Request repaint to show new count
         return true;
       }
@@ -108,10 +108,10 @@ void test_button_click_increments_counter(void) {
     int button_center_x, button_center_y;
     get_button_center(button, &button_center_x, &button_center_y);
     
-    test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(button_center_x, button_center_y), NULL);
     repost_messages();
     
-    test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(button_center_x, button_center_y), NULL);
     repost_messages();
     
     // Verify click was registered
@@ -148,10 +148,10 @@ void test_multiple_button_clicks(void) {
     
     // Click button 5 times
     for (int i = 1; i <= 5; i++) {
-        test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
+        test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(button_center_x, button_center_y), NULL);
         repost_messages();
         
-        test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
+        test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(button_center_x, button_center_y), NULL);
         repost_messages();
         
         // Verify counter incremented correctly

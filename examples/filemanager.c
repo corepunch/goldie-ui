@@ -119,10 +119,10 @@ result_t filemanager_window_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       return true;
     
     case kWindowMessageCommand:
-      if (kHighWord(wparam) == CVN_DBLCLK) {
+      if (HIWORD(wparam) == CVN_DBLCLK) {
         // Can use CVM_GETITEMDATA to get item data, but lparam already has it
         // columnview_item_t tmp;
-        // send_message(win, CVM_GETITEMDATA, kLowWord(wparam), &tmp);
+        // send_message(win, CVM_GETITEMDATA, LOWORD(wparam), &tmp);
         navigate_to(win, data, lparam);
       }
       return false;

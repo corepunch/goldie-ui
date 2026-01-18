@@ -77,8 +77,8 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     }
     
     case kWindowMessageLeftButtonDown: {
-      int mx = kLowWord(wparam);
-      int my = kHighWord(wparam);
+      int mx = LOWORD(wparam);
+      int my = HIWORD(wparam);
       const int ncol = get_column_count(win->frame.w, data->column_width);
       int col = mx / data->column_width;
       int row = (my - WIN_PADDING) / ENTRY_HEIGHT;
@@ -90,7 +90,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         // Check for double-click
         if (data->last_click_index == index && (now - data->last_click_time) < 500) {
           // Send double-click notification
-          send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(index, CVN_DBLCLK), &data->items[index]);
+          send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(index, CVN_DBLCLK), &data->items[index]);
           data->last_click_time = 0;
           data->last_click_index = -1;
         } else {
@@ -102,7 +102,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           
           // Send selection change notification if changed
           if (old_selection != data->selected) {
-            send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(index, CVN_SELCHANGE), &data->items[index]);
+            send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(index, CVN_SELCHANGE), &data->items[index]);
           }
           
           invalidate_window(win);

@@ -36,14 +36,14 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
       return true;
     case kWindowMessageLeftButtonDown:
-      win->cursor_pos = kHighWord(wparam)/LIST_HEIGHT;
+      win->cursor_pos = HIWORD(wparam)/LIST_HEIGHT;
       if (win->cursor_pos < cb->cursor_pos) {
         strncpy(cb->title, texts[win->cursor_pos], sizeof(cb->title));
       }
       invalidate_window(win);
       return true;
     case kWindowMessageLeftButtonUp:
-      send_message(get_root_window(cb), kWindowMessageCommand, kMakeDWord(cb->id, kComboBoxNotificationSelectionChange), cb);
+      send_message(get_root_window(cb), kWindowMessageCommand, MAKEDWORD(cb->id, kComboBoxNotificationSelectionChange), cb);
       destroy_window(win);
       return true;
     case LIST_SELITEM:

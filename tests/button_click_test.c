@@ -23,9 +23,9 @@ static result_t test_parent_proc(window_t *win, uint32_t msg, uint32_t wparam, v
             return 1;
         case kWindowMessageCommand:
             // Extract notification code and control ID
-            if (kHighWord(wparam) == kButtonNotificationClicked) {
+            if (HIWORD(wparam) == kButtonNotificationClicked) {
                 test_bn_clicked_count++;
-                test_last_button_id = kLowWord(wparam);
+                test_last_button_id = LOWORD(wparam);
                 test_last_button_sender = (window_t *)lparam;
             }
             return 1;
@@ -78,8 +78,8 @@ void test_button_click_with_scaling(void) {
     int button_center_y = button_frame.y + button_frame.h / 2;  // 10 + 10 = 20
     
     // Post kWindowMessageLeftButtonDown message to button
-    // wparam contains kMakeDWord(x, y) in local window coordinates
-    test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
+    // wparam contains MAKEDWORD(x, y) in local window coordinates
+    test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(button_center_x, button_center_y), NULL);
     
     // Process the message queue (simulate message pump)
     // repost_messages() processes all queued messages asynchronously
@@ -89,7 +89,7 @@ void test_button_click_with_scaling(void) {
     ASSERT_TRUE(test_env_was_message_sent(kWindowMessageLeftButtonDown));
     
     // Now post kWindowMessageLeftButtonUp to trigger the button click
-    test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(button_center_x, button_center_y), NULL);
     repost_messages();
     
     // Verify LBUTTONUP was tracked
@@ -133,10 +133,10 @@ void test_multiple_button_clicks(void) {
     
     // Click button 3 times
     for (int i = 0; i < 3; i++) {
-        test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
+        test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(button_center_x, button_center_y), NULL);
         repost_messages();
         
-        test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
+        test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(button_center_x, button_center_y), NULL);
         repost_messages();
     }
     
@@ -175,10 +175,10 @@ void test_button_click_positions(void) {
     int x = button_frame.x + 2;
     int y = button_frame.y + 2;
     
-    test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(x, y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(x, y), NULL);
     repost_messages();
     
-    test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(x, y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(x, y), NULL);
     repost_messages();
     
     ASSERT_EQUAL(test_bn_clicked_count, 1);
@@ -188,10 +188,10 @@ void test_button_click_positions(void) {
     x = button_frame.x + button_frame.w - 2;
     y = button_frame.y + button_frame.h - 2;
     
-    test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(x, y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(x, y), NULL);
     repost_messages();
     
-    test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(x, y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(x, y), NULL);
     repost_messages();
     
     ASSERT_EQUAL(test_bn_clicked_count, 2);
@@ -227,8 +227,8 @@ void test_post_message_async_behavior(void) {
     int button_center_y = button_frame.y + button_frame.h / 2;
     
     // Post multiple messages
-    test_env_post_message(button, kWindowMessageLeftButtonDown, kMakeDWord(button_center_x, button_center_y), NULL);
-    test_env_post_message(button, kWindowMessageLeftButtonUp, kMakeDWord(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonDown, MAKEDWORD(button_center_x, button_center_y), NULL);
+    test_env_post_message(button, kWindowMessageLeftButtonUp, MAKEDWORD(button_center_x, button_center_y), NULL);
     
     // Before calling repost_messages, the button click should not have been processed yet
     // (this verifies we're using post_message which is async, not send_message which is sync)

@@ -30,7 +30,7 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       return true;
     case kWindowMessageLeftButtonUp:
       win->pressed = false;
-      send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
+      send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(win->id, kButtonNotificationClicked), win);
       invalidate_window(win);
       return true;
     case kWindowMessageKeyDown:
@@ -43,7 +43,7 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
     case kWindowMessageKeyUp:
       if (wparam == SDL_SCANCODE_RETURN || wparam == SDL_SCANCODE_SPACE) {
         win->pressed = false;
-        send_message(get_root_window(win), kWindowMessageCommand, kMakeDWord(win->id, kButtonNotificationClicked), win);
+        send_message(get_root_window(win), kWindowMessageCommand, MAKEDWORD(win->id, kButtonNotificationClicked), win);
         invalidate_window(win);
         return true;
       } else {

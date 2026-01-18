@@ -43,7 +43,7 @@ static int drag_anchor[2];
 static int handle_mouse(int msg, window_t *win, int x, int y) {
   for (window_t *c = win->children; c; c = c->next) {
     if (CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h) &&
-        c->proc(c, msg, kMakeDWord(x, y), NULL))
+        c->proc(c, msg, MAKEDWORD(x, y), NULL))
     {
       return true;
     }
@@ -141,7 +141,7 @@ void dispatch_message(SDL_Event *evt) {
       send_message(_focused, kWindowMessageKeyUp, evt->key.keysym.scancode, NULL);
       break;
     case SDL_JOYAXISMOTION:
-      send_message(_focused, kWindowMessageJoyAxisMotion, kMakeDWord(evt->jaxis.axis, evt->jaxis.value), NULL);
+      send_message(_focused, kWindowMessageJoyAxisMotion, MAKEDWORD(evt->jaxis.axis, evt->jaxis.value), NULL);
       break;
     case SDL_JOYBUTTONDOWN:
       send_message(_focused, kWindowMessageJoyButtonDown, evt->jbutton.button, NULL);
@@ -165,7 +165,7 @@ void dispatch_message(SDL_Event *evt) {
         int16_t dx = evt->motion.xrel;
         int16_t dy = evt->motion.yrel;
         if (y >= 0 && (win == _captured || win == _focused)) {
-          send_message(win, kWindowMessageMouseMove, kMakeDWord(x, y), (void*)(intptr_t)kMakeDWord(dx, dy));
+          send_message(win, kWindowMessageMouseMove, MAKEDWORD(x, y), (void*)(intptr_t)MAKEDWORD(dx, dy));
         }
       }
       if (_tracked && !CONTAINS(SCALE_POINT(evt->motion.x),
@@ -182,7 +182,7 @@ void dispatch_message(SDL_Event *evt) {
                              SCALE_POINT(evt->wheel.mouseY))))
       {
         if (win->disabled) return;
-        send_message(win, kWindowMessageWheel, kMakeDWord(-evt->wheel.x * SCROLL_SENSITIVITY, evt->wheel.y * SCROLL_SENSITIVITY), NULL);
+        send_message(win, kWindowMessageWheel, MAKEDWORD(-evt->wheel.x * SCROLL_SENSITIVITY, evt->wheel.y * SCROLL_SENSITIVITY), NULL);
       }
       break;
     case SDL_MOUSEBUTTONDOWN:
@@ -216,7 +216,7 @@ void dispatch_message(SDL_Event *evt) {
             case 3: msg = kWindowMessageRightButtonDown; break;
           }
           if (!handle_mouse(msg, win, x, y)) {
-            send_message(win, msg, kMakeDWord(x, y), NULL);
+            send_message(win, msg, MAKEDWORD(x, y), NULL);
           }
         }
       }
@@ -236,8 +236,8 @@ void dispatch_message(SDL_Event *evt) {
           _dragging = NULL;
         } else {
           switch (evt->button.button) {
-            case 1: send_message(_dragging, kWindowMessageNonClientLeftButtonUp, kMakeDWord(x, y), NULL); break;
-              // case 3: send_message(win, kWindowMessageNonClientRightButtonDown, kMakeDWord(x, y), NULL); break;
+            case 1: send_message(_dragging, kWindowMessageNonClientLeftButtonUp, MAKEDWORD(x, y), NULL); break;
+              // case 3: send_message(win, kWindowMessageNonClientRightButtonDown, MAKEDWORD(x, y), NULL); break;
           }
           set_focus(_dragging);
           _dragging = NULL;
@@ -260,14 +260,14 @@ void dispatch_message(SDL_Event *evt) {
             case 3: msg = kWindowMessageRightButtonUp; break;
           }
           if (!handle_mouse(msg, win, x, y)) {
-            send_message(win, msg, kMakeDWord(x, y), NULL);
+            send_message(win, msg, MAKEDWORD(x, y), NULL);
           }
         } else {
           int x = SCALE_POINT(evt->button.x);
           int y = SCALE_POINT(evt->button.y);
           switch (evt->button.button) {
-            case 1: send_message(win, kWindowMessageNonClientLeftButtonUp, kMakeDWord(x, y), NULL); break;
-              //              case 3: send_message(win, kWindowMessageNonClientRightButtonDown, kMakeDWord(x, y), NULL); break;
+            case 1: send_message(win, kWindowMessageNonClientLeftButtonUp, MAKEDWORD(x, y), NULL); break;
+              //              case 3: send_message(win, kWindowMessageNonClientRightButtonDown, MAKEDWORD(x, y), NULL); break;
           }
         }
       }

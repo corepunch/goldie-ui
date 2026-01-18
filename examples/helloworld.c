@@ -56,7 +56,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
     
      case kWindowMessageCommand:
        // Handle button click
-       if (kHighWord(wparam) == kButtonNotificationClicked && kLowWord(wparam) == ID_BUTTON_CLICKME) {
+       if (HIWORD(wparam) == kButtonNotificationClicked && LOWORD(wparam) == ID_BUTTON_CLICKME) {
          click_count++;
          invalidate_window(win);  // Request repaint to show new count
          return true;

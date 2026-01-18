@@ -8,30 +8,30 @@
 // Test constants
 #define TEST_DWORD_VALUE 0x12345678
 
-// Test kLowWord and kHighWord macros
+// Test LOWORD and HIWORD macros
 void test_word_macros(void) {
-    TEST("kLowWord/kHighWord macros");
+    TEST("LOWORD/HIWORD macros");
     
     uint32_t value = TEST_DWORD_VALUE;
     
-    ASSERT_EQUAL(kLowWord(value), 0x5678);
-    ASSERT_EQUAL(kHighWord(value), 0x1234);
+    ASSERT_EQUAL(LOWORD(value), 0x5678);
+    ASSERT_EQUAL(HIWORD(value), 0x1234);
     
     PASS();
 }
 
-// Test kMakeDWord macro
+// Test MAKEDWORD macro
 void test_makedword_macro(void) {
-    TEST("kMakeDWord macro");
+    TEST("MAKEDWORD macro");
     
     uint16_t low = 0x5678;
     uint16_t high = 0x1234;
     
-    uint32_t result = kMakeDWord(low, high);
+    uint32_t result = MAKEDWORD(low, high);
     
     ASSERT_EQUAL(result, TEST_DWORD_VALUE);
-    ASSERT_EQUAL(kLowWord(result), low);
-    ASSERT_EQUAL(kHighWord(result), high);
+    ASSERT_EQUAL(LOWORD(result), low);
+    ASSERT_EQUAL(HIWORD(result), high);
     
     PASS();
 }
