@@ -10,9 +10,16 @@
 #include "../user/user.h"
 #include "../user/messages.h"
 
-#include <lua5.4/lua.h>
-#include <lua5.4/lauxlib.h>
-#include <lua5.4/lualib.h>
+/* Lua headers - different paths on Windows vs Unix */
+#if defined(_WIN32) || defined(_WIN64)
+  #include <lua.h>
+  #include <lauxlib.h>
+  #include <lualib.h>
+#else
+  #include <lua5.4/lua.h>
+  #include <lua5.4/lauxlib.h>
+  #include <lua5.4/lualib.h>
+#endif
 
 #define DEFAULT_TEXT_BUFFER_SIZE 4096
 #define TEXTBUF(L) ((text_buffer_t**)lua_getextraspace(L))
