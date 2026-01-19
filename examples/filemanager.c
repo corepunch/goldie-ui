@@ -8,7 +8,8 @@
 
 #include "../ui.h"
 
-#define SUPPORT_LUA
+#define USE_LUA
+#define USE_SORTING
 
 extern bool running;
 
@@ -27,7 +28,7 @@ static int get_file_color(struct dirent *ent, struct stat *st) {
     return COLOR_TEXT_DISABLED;
   } else if (S_ISDIR(st->st_mode)) {
     return COLOR_FOLDER;
-#ifdef SUPPORT_LUA
+#ifdef USE_LUA
   } else if (strstr(ent->d_name, ".lua")) {
     return COLOR_SCRIPT;
 #endif
@@ -44,7 +45,69 @@ static int get_file_icon(struct dirent *ent, struct stat *st) {
   }
 }
 
+#ifdef USE_SORTING
+typedef struct {
+  char name[256];
+  struct stat st;
+  bool is_dir;
+} file_entry_t;
+
+static int compare_entries(const void *a, const void *b) {
+  const file_entry_t *ea = (const file_entry_t *)a;
+  const file_entry_t *eb = (const file_entry_t *)b;
+  return strcasecmp(ea->name, eb->name);
+}
+#endif
+
 static void add_entries(DIR *dir, window_t *win, filemanager_data_t *data, bool dirs_only) {
+#ifdef USE_SORTING
+  // Collect all entries
+  file_entry_t *entries = NULL;
+  int count = 0;
+  int capacity = 0;
+  
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != NULL) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+    char fullpath[768];
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", data->path, ent->d_name);
+    struct stat st;
+    if (stat(fullpath, &st) || S_ISDIR(st.st_mode) != dirs_only) continue;
+    
+    // Grow array if needed
+    if (count >= capacity) {
+      capacity = capacity == 0 ? 16 : capacity * 2;
+      entries = realloc(entries, capacity * sizeof(file_entry_t));
+    }
+    
+    // Store entry with stat info
+    strncpy(entries[count].name, ent->d_name, sizeof(entries[count].name) - 1);
+    entries[count].name[sizeof(entries[count].name) - 1] = '\0';
+    entries[count].st = st;
+    entries[count].is_dir = S_ISDIR(st.st_mode);
+    count++;
+  }
+  
+  // Sort entries by name
+  if (count > 0) {
+    qsort(entries, count, sizeof(file_entry_t), compare_entries);
+    
+    // Add sorted entries to column view with proper colors/icons
+    for (int i = 0; i < count; i++) {
+      struct dirent fake_ent;
+      strncpy(fake_ent.d_name, entries[i].name, sizeof(fake_ent.d_name));
+      
+      send_message(win, CVM_ADDITEM, 0, &(columnview_item_t) {
+        .text = entries[i].name,
+        .icon = get_file_icon(&fake_ent, &entries[i].st),
+        .color = get_file_color(&fake_ent, &entries[i].st),
+        .userdata = entries[i].is_dir,
+      });
+    }
+    
+    free(entries);
+  }
+#else
   struct dirent *ent;
   while ((ent = readdir(dir)) != NULL) {
     if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
@@ -59,6 +122,7 @@ static void add_entries(DIR *dir, window_t *win, filemanager_data_t *data, bool 
       .userdata = S_ISDIR(st.st_mode),
     });
   }
+#endif
 }
 
 static void load_directory(window_t *win, filemanager_data_t *data) {
@@ -66,6 +130,8 @@ static void load_directory(window_t *win, filemanager_data_t *data) {
   if (!dir) return;
   
   send_message(win, CVM_CLEAR, 0, NULL);
+  win->scroll[0] = 0;
+  win->scroll[1] = 0;
   // Add parent directory
   send_message(win, CVM_ADDITEM, 0, &(columnview_item_t) {"..", ICON_UP, COLOR_FOLDER, 0});
 
@@ -95,7 +161,7 @@ static void navigate_to(window_t *win, filemanager_data_t *data, columnview_item
   } else if (item->userdata) {
     strcpy(data->path, newpath);
     load_directory(win, data);
-#ifdef SUPPORT_LUA
+#ifdef USE_LUA
   } else if (item->color == COLOR_SCRIPT) {
     // Execute script
     printf("Executing script: %s\n", newpath);

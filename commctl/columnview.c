@@ -45,6 +45,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data = malloc(sizeof(columnview_data_t));
       if (!data) return false;
       win->userdata2 = data;
+      win->flags |= WINDOW_VSCROLL;
       data->count = 0;
       data->selected = -1;
       data->column_width = DEFAULT_COLUMN_WIDTH;
@@ -61,7 +62,7 @@ result_t win_columnview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         int x = col * data->column_width + WIN_PADDING;
         int y = (i / ncol) * ENTRY_HEIGHT + WIN_PADDING;
         
-        set_clip_rect(win, &(rect_t){x - 2, y - 2, data->column_width - 6, ENTRY_HEIGHT - 2});
+        // set_clip_rect(win, &(rect_t){x - 2, y - 2, data->column_width - 6, ENTRY_HEIGHT - 2});
         
         if (i == data->selected) {
           fill_rect(COLOR_TEXT_NORMAL, x - 2, y - 2, data->column_width - 6, ENTRY_HEIGHT - 2);
