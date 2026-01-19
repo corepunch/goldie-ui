@@ -13,7 +13,7 @@
 #include "user.h"
 
 #define FONT_TEX_SIZE 128
-#define MAX_TEXT_LENGTH 256
+#define MAX_TEXT_LENGTH 4096  // Increased for terminal output
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
 #define SMALL_LINE_HEIGHT 8

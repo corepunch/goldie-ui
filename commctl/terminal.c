@@ -116,7 +116,8 @@ static int f_io_read(lua_State *L) {
 static int f_io_write(lua_State *L) {
   // Get all arguments and write them to the text buffer
   for (int i = 1, n = lua_gettop(L); i <= n; i++) {
-    f_strcat(TEXTBUF(L), lua_tostring(L, i));
+    f_strcat(TEXTBUF(L), luaL_checkstring(L, i));
+    fprintf(stdout, "%s", luaL_checkstring(L, i));  // Also print to real stdout
   }
   return 0;
 }
@@ -129,7 +130,8 @@ static int f_stdout_write(lua_State *L) {
   // First argument is the file object (self), skip it
   // Write all remaining arguments to the text buffer
   for (int i = 2, n = lua_gettop(L); i <= n; i++) {
-    f_strcat(TEXTBUF(L), lua_tostring(L, i));
+    f_strcat(TEXTBUF(L), luaL_checkstring(L, i));
+    fprintf(stdout, "%s", luaL_checkstring(L, i));  // Also print to real stdout
   }
   // Return self to support method chaining
   lua_pushvalue(L, 1);
