@@ -97,11 +97,12 @@ static void f_strcat(text_buffer_t **b, const char *s) {
 }
 
 static int f_print(lua_State *L) {
-  const char *msg = lua_tostring(L, -1);
-  if (msg) {
-    f_strcat(TEXTBUF(L), msg);
-    f_strcat(TEXTBUF(L), "\n");
+  // iterate over all arguments
+  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
+    f_strcat(TEXTBUF(L), lua_tostring(L, i));
+    if (i < lua_gettop(L)) f_strcat(TEXTBUF(L), "\t");
   }
+  f_strcat(TEXTBUF(L), "\n");
   return 0;
 }
 
