@@ -164,6 +164,14 @@ $(BIN_DIR)/test_terminal_scrolling_test$(EXE_EXT): $(TEST_DIR)/terminal_scrollin
 	@echo "Building test with environment: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
+$(BIN_DIR)/test_stdout_test$(EXE_EXT): $(TEST_DIR)/stdout_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+	@echo "Building test with environment: $@"
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
+
+$(BIN_DIR)/test_comprehensive_stdout_test$(EXE_EXT): $(TEST_DIR)/comprehensive_stdout_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+	@echo "Building test with environment: $@"
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
+
 # Generic test build rule (fallback)
 $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"
@@ -178,6 +186,9 @@ $(LIB_DIR): | $(BUILD_DIR)
 
 $(BIN_DIR): | $(BUILD_DIR)
 	mkdir -p $(BIN_DIR)
+
+$(OBJ_DIR): | $(BUILD_DIR)
+	mkdir -p $(OBJ_DIR)
 
 $(OBJ_DIR)/user: | $(BUILD_DIR)
 	mkdir -p $(OBJ_DIR)/user
