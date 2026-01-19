@@ -160,6 +160,10 @@ $(BIN_DIR)/test_terminal_test: $(TEST_DIR)/terminal_test.c $(TEST_ENV_OBJ) $(STA
 	@echo "Building test with environment: $@"
 	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
 
+$(BIN_DIR)/test_terminal_scrolling_test$(EXE_EXT): $(TEST_DIR)/terminal_scrolling_test.c $(TEST_ENV_OBJ) $(STATIC_LIB) | $(BIN_DIR)
+	@echo "Building test with environment: $@"
+	$(CC) $(CFLAGS) -o $@ $< $(TEST_ENV_OBJ) $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_TEST) $(LIBS)
+
 # Generic test build rule (fallback)
 $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_DIR)/%.c $(STATIC_LIB) | $(BIN_DIR)
 	@echo "Building test: $@"

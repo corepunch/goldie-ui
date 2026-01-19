@@ -16,6 +16,7 @@
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
 #define SMALL_LINE_HEIGHT 12
+#define VERTICES_PER_CHAR 6  // 2 triangles = 6 vertices
 
 typedef struct {
   int16_t x, y;
@@ -38,6 +39,11 @@ typedef struct {
 static struct {
   font_atlas_t small_font;   // Small 6x8 font atlas
 } text_state = {0};
+
+// Helper to get character width
+static inline int get_char_width(unsigned char c) {
+  return text_state.small_font.char_to[c] - text_state.small_font.char_from[c];
+}
 
 // Forward declarations for external functions
 extern void push_sprite_args(int tex, int x, int y, int w, int h, float alpha);
@@ -173,7 +179,7 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
   int text_length = (int)strlen(text);
   if (text_length > MAX_TEXT_LENGTH) text_length = MAX_TEXT_LENGTH;
   
-  static text_vertex_t buffer[MAX_TEXT_LENGTH * 6]; // 6 vertices per character (2 triangles)
+  static text_vertex_t buffer[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
   int vertex_count = 0;
   
   int cursor_x = x;
@@ -278,8 +284,8 @@ int calc_text_height(const char* text, int width) {
     } else if (*p == ' ') {
       x += 3;
     } else {
-      int cw = text_state.small_font.char_to[(unsigned char)*p] - text_state.small_font.char_from[(unsigned char)*p];
-      if (x + cw > width && x > 0) {
+      int cw = get_char_width((unsigned char)*p);
+      if (x + cw > width) {
         lines++;
         x = cw;
       } else {
@@ -298,10 +304,10 @@ void draw_text_wrapped(const char* text, int x, int y, int width, int height, in
   // Check if text_state is initialized
   if (text_state.small_font.char_height == 0) return;
   
-  static text_vertex_t buffer[MAX_TEXT_LENGTH * 6];
+  static text_vertex_t buffer[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
   int vertex_count = 0, cx = x, cy = y - scroll_y;
   
-  for (const char* p = text; *p && vertex_count < MAX_TEXT_LENGTH * 6 - 6; p++) {
+  for (const char* p = text; *p && vertex_count < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR; p++) {
     unsigned char c = *p;
     if (c == '\n') {
       cx = x;
@@ -313,8 +319,8 @@ void draw_text_wrapped(const char* text, int x, int y, int width, int height, in
       continue;
     }
     
-    int cw = text_state.small_font.char_to[c] - text_state.small_font.char_from[c];
-    if (cx + cw > x + width && cx > x) {
+    int cw = get_char_width(c);
+    if (cx + cw > x + width) {
       cx = x;
       cy += SMALL_LINE_HEIGHT;
     }
