@@ -66,4 +66,7 @@ void R_SetVertexAttribs(const R_VertexAttrib* attribs, size_t count, size_t vert
 // Disable vertex attributes
 void R_ClearVertexAttribs(size_t count);
 
+// Allocate a font texture with given dimensions and format
+GLuint R_AllocateFontTexture(R_Texture* texture, void *data);
+
 #endif /* __UI_RENDERER_H__ */

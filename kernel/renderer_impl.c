@@ -112,3 +112,24 @@ void R_ClearVertexAttribs(size_t count) {
     glDisableVertexAttribArray(i);
   }
 }
+
+// Allocate a font texture with given dimensions and format
+GLuint R_AllocateFontTexture(R_Texture* tex, void *data) {
+  glGenTextures(1, &tex->id);
+  glBindTexture(GL_TEXTURE_2D, tex->id);
+  
+  // Set texture parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  
+  // Use texture swizzling for proper rendering (R channel becomes alpha)
+  GLint swizzleMask[] = {GL_ONE, GL_ONE, GL_ONE, GL_RED};
+  glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+  
+  // Upload texture data
+  glTexImage2D(GL_TEXTURE_2D, 0, tex->format, tex->width, tex->height, 0, tex->format, GL_UNSIGNED_BYTE, data);
+
+  return tex->id;
+}

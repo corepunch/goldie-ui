@@ -228,6 +228,6 @@ void draw_icon8(int icon, int x, int y, uint32_t col) {
 
 void draw_icon16(int icon, int x, int y, uint32_t col) {
   icon*=2;
-  char str[6] = { icon+128, icon+129, '\n', icon+144, icon+145, 0 };
-  draw_text_small(str, x, y, col);
+  draw_text_small((char[]) { icon+128, icon+129, 0 }, x, y, col);
+  draw_text_small((char[]) { icon+144, icon+145, 0 }, x, y+8, col);
 }

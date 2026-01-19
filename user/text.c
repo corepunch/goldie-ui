@@ -16,8 +16,8 @@
 #define MAX_TEXT_LENGTH 4096  // Increased for terminal output
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
-#define SMALL_LINE_HEIGHT 8
-#define SPACE_WIDTH 3 
+#define SMALL_LINE_HEIGHT 12
+#define SPACE_WIDTH 3
 #define VERTICES_PER_CHAR 6  // 2 triangles = 6 vertices
 
 typedef struct {
@@ -98,32 +98,16 @@ static bool create_font_atlas(void) {
     text_state.small_font.char_from[i] = 0;
   }
   
-  // Create OpenGL texture for the atlas
-  GLuint texture;
-  glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  
-  // Set texture parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  
-  // Use texture swizzling for proper rendering (R channel becomes alpha)
-  GLint swizzleMask[] = {GL_ONE, GL_ONE, GL_ONE, GL_RED};
-  glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
-  
-  // Upload texture data
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, FONT_TEX_SIZE, FONT_TEX_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, atlas_data);
-  
   // Store atlas information
-  text_state.small_font.texture.id = texture;
   text_state.small_font.texture.width = FONT_TEX_SIZE;
   text_state.small_font.texture.height = FONT_TEX_SIZE;
   text_state.small_font.texture.format = GL_RED;
   text_state.small_font.char_height = char_height;
   text_state.small_font.chars_per_row = chars_per_row;
   text_state.small_font.total_chars = chars_per_row * rows;
+
+  // Create OpenGL texture for the atlas
+  R_AllocateFontTexture(&text_state.small_font.texture, atlas_data);  
   
   // Free temporary buffer
   free(atlas_data);
