@@ -16,6 +16,7 @@
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
 #define SMALL_LINE_HEIGHT 12
+#define SPACE_WIDTH 3 
 #define VERTICES_PER_CHAR 6  // 2 triangles = 6 vertices
 
 typedef struct {
@@ -152,7 +153,7 @@ int strnwidth(const char* text, int text_length) {
   for (int i = 0; i < text_length; i++) {
     char c = text[i];
     if (c == ' ') {
-      cursor_x += 3;
+      cursor_x += SPACE_WIDTH;
       continue;
     }
     // Advance cursor position
@@ -189,7 +190,7 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
     unsigned char c = text[i];
     
     if (c == ' ') {
-      cursor_x += 3;
+      cursor_x += SPACE_WIDTH;
       continue;
     }
     if (c == '\n') {
@@ -282,7 +283,7 @@ int calc_text_height(const char* text, int width) {
       lines++;
       x = 0;
     } else if (*p == ' ') {
-      x += 3;
+      x += SPACE_WIDTH;
     } else {
       int cw = get_char_width((unsigned char)*p);
       if (x + cw > width) {
@@ -315,7 +316,7 @@ void draw_text_wrapped(const char* text, int x, int y, int width, int height, in
       continue;
     }
     if (c == ' ') {
-      cx += 3;
+      cx += SPACE_WIDTH;
       continue;
     }
     
