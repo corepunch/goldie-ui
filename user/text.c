@@ -267,6 +267,9 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
 int calc_text_height(const char* text, int width) {
   if (!text || !*text || width <= 0) return 0;
   
+  // Check if text_state is initialized
+  if (text_state.small_font.char_height == 0) return 0;
+  
   int lines = 1, x = 0;
   for (const char* p = text; *p; p++) {
     if (*p == '\n') {
@@ -291,6 +294,9 @@ int calc_text_height(const char* text, int width) {
 void draw_text_wrapped(const char* text, int x, int y, int width, int height, int scroll_y, uint32_t col) {
   extern bool running;
   if (!text || !*text || !running) return;
+  
+  // Check if text_state is initialized
+  if (text_state.small_font.char_height == 0) return;
   
   static text_vertex_t buffer[MAX_TEXT_LENGTH * 6];
   int vertex_count = 0, cx = x, cy = y - scroll_y;
