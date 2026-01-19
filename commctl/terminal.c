@@ -237,15 +237,15 @@ static void cmd_exit(terminal_state_t *s) {
 }
 
 // Forward declaration
-static const terminal_cmd_t terminal_commands[];
+static const terminal_cmd_t terminal_cmds[];
 
 static void cmd_help(terminal_state_t *s) {
   f_strcat(&s->textbuf, "Available commands:\n");
-  for (int i = 0; terminal_commands[i].name != NULL; i++) {
+  for (int i = 0; terminal_cmds[i].name != NULL; i++) {
     f_strcat(&s->textbuf, "  ");
-    f_strcat(&s->textbuf, terminal_commands[i].name);
+    f_strcat(&s->textbuf, terminal_cmds[i].name);
     f_strcat(&s->textbuf, " - ");
-    f_strcat(&s->textbuf, terminal_commands[i].help);
+    f_strcat(&s->textbuf, terminal_cmds[i].help);
     f_strcat(&s->textbuf, "\n");
   }
 }
@@ -259,7 +259,7 @@ static void cmd_clear(terminal_state_t *s) {
 }
 
 // Static array of available commands
-static const terminal_cmd_t terminal_commands[] = {
+static const terminal_cmd_t terminal_cmds[] = {
   {"exit", "Closes current terminal instance", cmd_exit},
   {"help", "Lists available commands", cmd_help},
   {"clear", "Clears the terminal screen", cmd_clear},
@@ -277,9 +277,9 @@ static void process_command(terminal_state_t *s, const char *cmd) {
   }
   
   bool found = false;
-  for (int i = 0; terminal_commands[i].name != NULL; i++) {
-    if (strcmp(cmd, terminal_commands[i].name) == 0) {
-      terminal_commands[i].callback(s);
+  for (int i = 0; terminal_cmds[i].name != NULL; i++) {
+    if (strcmp(cmd, terminal_cmds[i].name) == 0) {
+      terminal_cmds[i].callback(s);
       found = true;
       break;
     }
@@ -319,7 +319,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       
       win->flags |= WINDOW_VSCROLL;
       
-      if (lparam == NULL) {
+      if (lparam == NULL) { // Command mode
         s->L = NULL;
         s->co = NULL;
         s->command_mode = true;
@@ -333,7 +333,7 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         f_strcat(&s->textbuf, "Terminal - Command Mode\n");
         f_strcat(&s->textbuf, "Type 'help' for available commands\n");
         f_strcat(&s->textbuf, "Terminal> ");
-      } else {
+      } else { // Script mode
         s->command_mode = false;
         s->L = create_lua_state(&s->textbuf);
         if (!s->L) return false;
@@ -376,9 +376,8 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         invalidate_window(win);
         return true;
       } else if (wparam == SDL_SCANCODE_BACKSPACE) {
-        size_t len = strlen(s->input_buffer);
-        if (len > 0) {
-          s->input_buffer[len - 1] = '\0';
+        if (strlen(s->input_buffer)) {
+          s->input_buffer[strlen(s->input_buffer) - 1] = '\0';
           invalidate_window(win);
         }
         return true;
@@ -388,16 +387,14 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case kWindowMessageTextInput:
       if (s->process_finished || !s->waiting_for_input) {
         return false;
-      } else {
-        char c = *(char*)lparam;
-        if (c < 32 || c > 126) return false;
-        size_t len = strlen(s->input_buffer);
-        if (len < sizeof(s->input_buffer) - 1) {
-          s->input_buffer[len] = c;
-          s->input_buffer[len + 1] = '\0';
+      } else if (isprint(*(char*)lparam)) {
+        if (strlen(s->input_buffer) < sizeof(s->input_buffer) - 1) {
+          strcat(s->input_buffer, (char[]){*(char*)lparam,0});
         }
         invalidate_window(win);
         return true;
+      } else {
+        return false;
       }
     
     case kWindowMessageDestroy:
