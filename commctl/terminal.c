@@ -10,6 +10,14 @@
 #include "../user/user.h"
 #include "../user/messages.h"
 
+/* Platform-specific includes */
+#if defined(_WIN32) || defined(_WIN64)
+  #include <direct.h>  // for _chdir
+  #define chdir _chdir
+#else
+  #include <unistd.h>  // for chdir
+#endif
+
 /* Lua headers - different paths on Windows vs Unix */
 #if defined(_WIN32) || defined(_WIN64)
   #include <lua.h>
@@ -267,6 +275,10 @@ void luaX_addcurrentfolder(lua_State *L, const char *filepath) {
   } else {
     strcpy(dir, "."); // Current directory
   }
+  
+  // Change working directory to script's directory
+  chdir(dir);
+  
   // Append ";./?.lua" to package.path
   char new_path[4096];
   snprintf(new_path, sizeof(new_path), "%s;%s/?.lua", luaX_getpackagepath(L), dir);
