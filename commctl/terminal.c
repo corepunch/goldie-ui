@@ -112,6 +112,44 @@ static int f_io_read(lua_State *L) {
   return lua_yield(L, 0);
 }
 
+// Custom io.write function that intercepts stdout
+static int f_io_write(lua_State *L) {
+  // Get all arguments and write them to the text buffer
+  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
+    f_strcat(TEXTBUF(L), lua_tostring(L, i));
+  }
+  return 0;
+}
+
+// Custom stdout file object metatable
+static const char *STDOUT_METATABLE = "terminal.stdout";
+
+// Custom write method for stdout file object
+static int f_stdout_write(lua_State *L) {
+  // First argument is the file object (self), skip it
+  // Write all remaining arguments to the text buffer
+  for (int i = 2, n = lua_gettop(L); i <= n; i++) {
+    f_strcat(TEXTBUF(L), lua_tostring(L, i));
+  }
+  // Return self to support method chaining
+  lua_pushvalue(L, 1);
+  return 1;
+}
+
+// Custom flush method for stdout file object (no-op)
+static int f_stdout_flush(lua_State *L) {
+  // Return self to support method chaining
+  lua_pushvalue(L, 1);
+  return 1;
+}
+
+// Custom setvbuf method for stdout file object (no-op)
+static int f_stdout_setvbuf(lua_State *L) {
+  // Return self to support method chaining
+  lua_pushvalue(L, 1);
+  return 1;
+}
+
 static lua_State *create_lua_state(text_buffer_t **textbuf) {
   lua_State *L = luaL_newstate();
   if (!L) {
@@ -132,11 +170,49 @@ static lua_State *create_lua_state(text_buffer_t **textbuf) {
   lua_pushcfunction(L, f_print);
   lua_setglobal(L, "print");
   
-  // Override io.read function
+  // Create metatable for custom stdout object
+  luaL_newmetatable(L, STDOUT_METATABLE);
+  
+  // Set __index to itself so methods can be accessed
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  
+  // Add write method
+  lua_pushcfunction(L, f_stdout_write);
+  lua_setfield(L, -2, "write");
+  
+  // Add flush method (no-op)
+  lua_pushcfunction(L, f_stdout_flush);
+  lua_setfield(L, -2, "flush");
+  
+  // Add setvbuf method (no-op)
+  lua_pushcfunction(L, f_stdout_setvbuf);
+  lua_setfield(L, -2, "setvbuf");
+  
+  lua_pop(L, 1); // pop metatable
+  
+  // Create custom stdout userdata
+  lua_newuserdata(L, sizeof(void*));
+  luaL_setmetatable(L, STDOUT_METATABLE);
+  
+  // Get io table
   lua_getglobal(L, "io");
+  
+  // Replace io.stdout with our custom stdout object
+  lua_pushvalue(L, -2); // push custom stdout again
+  lua_setfield(L, -2, "output"); // io.output = custom_stdout
+  lua_pushvalue(L, -2); // push custom stdout again
+  lua_setfield(L, -2, "stdout"); // io.stdout = custom_stdout
+  
+  // Override io.write function
+  lua_pushcfunction(L, f_io_write);
+  lua_setfield(L, -2, "write");
+  
+  // Override io.read function
   lua_pushcfunction(L, f_io_read);
   lua_setfield(L, -2, "read");
-  lua_pop(L, 1); // pop io table
+  
+  lua_pop(L, 2); // pop io table and custom stdout
   
   return L;
 }
@@ -260,7 +336,7 @@ const char *luaX_getpackagepath(lua_State *L) {
   return path ? path : "";
 }
 
-void luaX_addcurrentfolder(lua_State *L, const char *filepath) {
+const char *luaX_addcurrentfolder(lua_State *L, const char *filepath, char *filename_buf, size_t buf_size) {
   // Extract directory from filepath
   char dir[512];
   strncpy(dir, filepath, sizeof(dir));
@@ -271,11 +347,19 @@ void luaX_addcurrentfolder(lua_State *L, const char *filepath) {
     last_slash = last_backslash;
   }
 #endif
+  
+  const char *filename;
   if (last_slash) {
     *last_slash = '\0';
+    filename = last_slash + 1;
   } else {
     strcpy(dir, "."); // Current directory
+    filename = filepath;
   }
+  
+  // Copy filename to output buffer
+  strncpy(filename_buf, filename, buf_size - 1);
+  filename_buf[buf_size - 1] = '\0';
   
   // Change working directory to script's directory
   chdir(dir);
@@ -287,6 +371,8 @@ void luaX_addcurrentfolder(lua_State *L, const char *filepath) {
   lua_pushstring(L, new_path);
   lua_setfield(L, -2, "path");
   lua_pop(L, 1); // pop package table
+  
+  return filename_buf;
 }
 
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -335,10 +421,12 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         state->process_finished = false;
         state->input_buffer[0] = '\0';
 
-        luaX_addcurrentfolder(state->co, lparam);
+        // Extract filename and change to script directory
+        char filename[256];
+        const char *script_file = luaX_addcurrentfolder(state->co, lparam, filename, sizeof(filename));
         
         // Load the file into the coroutine
-        if (luaL_loadfile(state->co, lparam) != LUA_OK) {
+        if (luaL_loadfile(state->co, script_file) != LUA_OK) {
           f_strcat(&state->textbuf, "Error loading file: ");
           f_strcat(&state->textbuf, lua_tostring(state->co, -1));
           f_strcat(&state->textbuf, "\n");
