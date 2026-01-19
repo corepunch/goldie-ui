@@ -325,7 +325,8 @@ void draw_text_wrapped(const char* text, int x, int y, int width, int height, in
       cy += SMALL_LINE_HEIGHT;
     }
     
-    if (cy + SMALL_FONT_HEIGHT >= y && cy < y + height) {
+    // Show character if any part of it is visible in viewport
+    if (cy + SMALL_FONT_HEIGHT > y && cy < y + height) {
       int ax = (c % text_state.small_font.chars_per_row) * SMALL_FONT_WIDTH;
       int ay = (c / text_state.small_font.chars_per_row) * SMALL_FONT_HEIGHT;
       float u1 = (ax + text_state.small_font.char_from[c]) / (float)FONT_TEX_SIZE;
