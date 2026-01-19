@@ -56,3 +56,7 @@ dkms.conf
 # Build directory
 build/
 _codeql_detected_source_root
+
+# Test output files
+tests/*.txt
+tests/test_*.txt
