@@ -63,11 +63,89 @@ typedef struct terminal_state_s {
 
 extern void draw_icon8(int icon, int x, int y, uint32_t col);
 
+// Forward declaration of utility function
+static void f_strcat(text_buffer_t **b, const char *s);
+
+// Lua C API functions - kept minimal and grouped at the top
+static int f_print(lua_State *L) {
+  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
+    f_strcat(TEXTBUF(L), lua_tostring(L, i));
+    if (i < n) f_strcat(TEXTBUF(L), "\t");
+  }
+  f_strcat(TEXTBUF(L), "\n");
+  return 0;
+}
+
+static int f_io_read(lua_State *L) { return lua_yield(L, 0); }
+
+static int f_io_write(lua_State *L) {
+  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
+    const char *s = luaL_checkstring(L, i);
+    f_strcat(TEXTBUF(L), s);
+    fprintf(stdout, "%s", s);
+  }
+  return 0;
+}
+
+static int f_stdout_write(lua_State *L) {
+  for (int i = 2, n = lua_gettop(L); i <= n; i++) {
+    const char *s = luaL_checkstring(L, i);
+    f_strcat(TEXTBUF(L), s);
+    fprintf(stdout, "%s", s);
+  }
+  lua_pushvalue(L, 1);
+  return 1;
+}
+
+static int f_stdout_flush(lua_State *L) { lua_pushvalue(L, 1); return 1; }
+static int f_stdout_setvbuf(lua_State *L) { lua_pushvalue(L, 1); return 1; }
+
+// Lua helper functions
+static const char *STDOUT_METATABLE = "terminal.stdout";
+
+const char *luaX_getpackagepath(lua_State *L) {
+  lua_getglobal(L, "package");
+  lua_getfield(L, -1, "path");
+  const char *path = lua_tostring(L, -1);
+  lua_pop(L, 2);
+  return path ? path : "";
+}
+
+const char *luaX_addcurrentfolder(lua_State *L, const char *filepath, char *filename_buf, size_t buf_size) {
+  char dir[512];
+  strncpy(dir, filepath, sizeof(dir));
+  char *last_slash = strrchr(dir, '/');
+#ifdef _WIN32
+  char *last_backslash = strrchr(dir, '\\');
+  if (last_backslash && (!last_slash || last_backslash > last_slash)) last_slash = last_backslash;
+#endif
+  
+  const char *filename;
+  if (last_slash) {
+    *last_slash = '\0';
+    filename = last_slash + 1;
+  } else {
+    strcpy(dir, ".");
+    filename = filepath;
+  }
+  
+  snprintf(filename_buf, buf_size, "%s", filename);
+  chdir(dir);
+  
+  char new_path[4096];
+  snprintf(new_path, sizeof(new_path), "%s;%s/?.lua", luaX_getpackagepath(L), dir);
+  lua_getglobal(L, "package");
+  lua_pushstring(L, new_path);
+  lua_setfield(L, -2, "path");
+  lua_pop(L, 1);
+  
+  return filename_buf;
+}
+
+// Text buffer utility functions
 static void init_text_buffer(text_buffer_t **buf) {
   *buf = malloc(sizeof(text_buffer_t) + DEFAULT_TEXT_BUFFER_SIZE);
-  if (!*buf) {
-    return;  // Allocation failed
-  }
+  if (!*buf) return;
   (*buf)->size = 0;
   (*buf)->capacity = DEFAULT_TEXT_BUFFER_SIZE;
   (*buf)->data[0] = '\0';
@@ -79,16 +157,14 @@ static void free_text_buffer(text_buffer_t **buf) {
 }
 
 static void f_strcat(text_buffer_t **b, const char *s) {
-  if (!*b || !s) return;  // Safety check
+  if (!*b || !s) return;
   
   size_t l = strlen(s);
   if ((*b)->size + l + 1 > (*b)->capacity) {
     size_t c = (*b)->capacity;
     while (c < (*b)->size + l + 1) c <<= 1;
     text_buffer_t *new_buf = realloc(*b, sizeof(text_buffer_t) + c);
-    if (!new_buf) {
-      return;  // Realloc failed, keep old buffer
-    }
+    if (!new_buf) return;
     *b = new_buf;
     (*b)->capacity = c;
   }
@@ -96,136 +172,59 @@ static void f_strcat(text_buffer_t **b, const char *s) {
   (*b)->size += l;
 }
 
-static int f_print(lua_State *L) {
-  // iterate over all arguments
-  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
-    f_strcat(TEXTBUF(L), lua_tostring(L, i));
-    if (i < lua_gettop(L)) f_strcat(TEXTBUF(L), "\t");
-  }
-  f_strcat(TEXTBUF(L), "\n");
-  return 0;
-}
-
-static int f_io_read(lua_State *L) {
-  // This function yields the coroutine, giving control back to the event loop
-  // The user can then type input, which will be provided when the coroutine resumes
-  return lua_yield(L, 0);
-}
-
-// Custom io.write function that intercepts stdout
-static int f_io_write(lua_State *L) {
-  // Get all arguments and write them to the text buffer
-  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
-    f_strcat(TEXTBUF(L), luaL_checkstring(L, i));
-    fprintf(stdout, "%s", luaL_checkstring(L, i));  // Also print to real stdout
-  }
-  return 0;
-}
-
-// Custom stdout file object metatable
-static const char *STDOUT_METATABLE = "terminal.stdout";
-
-// Custom write method for stdout file object
-static int f_stdout_write(lua_State *L) {
-  // First argument is the file object (self), skip it
-  // Write all remaining arguments to the text buffer
-  for (int i = 2, n = lua_gettop(L); i <= n; i++) {
-    f_strcat(TEXTBUF(L), luaL_checkstring(L, i));
-    fprintf(stdout, "%s", luaL_checkstring(L, i));  // Also print to real stdout
-  }
-  // Return self to support method chaining
-  lua_pushvalue(L, 1);
-  return 1;
-}
-
-// Custom flush method for stdout file object (no-op)
-static int f_stdout_flush(lua_State *L) {
-  // Return self to support method chaining
-  lua_pushvalue(L, 1);
-  return 1;
-}
-
-// Custom setvbuf method for stdout file object (no-op)
-static int f_stdout_setvbuf(lua_State *L) {
-  // Return self to support method chaining
-  lua_pushvalue(L, 1);
-  return 1;
-}
-
+// Lua state initialization
 static lua_State *create_lua_state(text_buffer_t **textbuf) {
   lua_State *L = luaL_newstate();
-  if (!L) {
-    return NULL;  // Lua state creation failed
-  }
+  if (!L) return NULL;
   luaL_openlibs(L);
   
   init_text_buffer(textbuf);
   if (!*textbuf) {
     lua_close(L);
-    return NULL;  // Text buffer allocation failed
+    return NULL;
   }
   
-  // Store text buffer pointer in extra space
   *(text_buffer_t **)lua_getextraspace(L) = *textbuf;
   
-  // Override print function
   lua_pushcfunction(L, f_print);
   lua_setglobal(L, "print");
   
-  // Create metatable for custom stdout object
   luaL_newmetatable(L, STDOUT_METATABLE);
-  
-  // Set __index to itself so methods can be accessed
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
-  
-  // Add write method
   lua_pushcfunction(L, f_stdout_write);
   lua_setfield(L, -2, "write");
-  
-  // Add flush method (no-op)
   lua_pushcfunction(L, f_stdout_flush);
   lua_setfield(L, -2, "flush");
-  
-  // Add setvbuf method (no-op)
   lua_pushcfunction(L, f_stdout_setvbuf);
   lua_setfield(L, -2, "setvbuf");
+  lua_pop(L, 1);
   
-  lua_pop(L, 1); // pop metatable
-  
-  // Create custom stdout userdata
   lua_newuserdata(L, sizeof(void*));
   luaL_setmetatable(L, STDOUT_METATABLE);
   
-  // Get io table
   lua_getglobal(L, "io");
-  
-  // Replace io.stdout with our custom stdout object
-  lua_pushvalue(L, -2); // push custom stdout again
-  lua_setfield(L, -2, "output"); // io.output = custom_stdout
-  lua_pushvalue(L, -2); // push custom stdout again
-  lua_setfield(L, -2, "stdout"); // io.stdout = custom_stdout
-  
-  // Override io.write function
+  lua_pushvalue(L, -2);
+  lua_setfield(L, -2, "output");
+  lua_pushvalue(L, -2);
+  lua_setfield(L, -2, "stdout");
   lua_pushcfunction(L, f_io_write);
   lua_setfield(L, -2, "write");
-  
-  // Override io.read function
   lua_pushcfunction(L, f_io_read);
   lua_setfield(L, -2, "read");
-  
-  lua_pop(L, 2); // pop io table and custom stdout
+  lua_pop(L, 2);
   
   return L;
 }
 
+// Coroutine management
 static void continue_coroutine(terminal_state_t *state, int nargs) {
   int nres, status = lua_resume(state->co, NULL, nargs, &nres);
   
   if (status == LUA_OK) {
     f_strcat(&state->textbuf, "\nProcess finished\n");
     state->waiting_for_input = false;
-    state->process_finished = true;  // Mark process as finished
+    state->process_finished = true;
   } else if (status == LUA_YIELD) {
     state->waiting_for_input = true;
     f_strcat(&state->textbuf, "\n> ");
@@ -234,7 +233,7 @@ static void continue_coroutine(terminal_state_t *state, int nargs) {
     f_strcat(&state->textbuf, lua_tostring(state->co, -1));
     f_strcat(&state->textbuf, "\n");
     state->waiting_for_input = false;
-    state->process_finished = true;  // Mark process as finished on error
+    state->process_finished = true;
   }
 }
 
@@ -260,7 +259,6 @@ static void cmd_help(terminal_state_t *state) {
 }
 
 static void cmd_clear(terminal_state_t *state) {
-  // Clear the text buffer
   if (state->textbuf) {
     state->textbuf->size = 0;
     state->textbuf->data[0] = '\0';
@@ -277,9 +275,8 @@ static const terminal_cmd_t terminal_commands[] = {
 };
 
 static void process_command(terminal_state_t *state, const char *cmd) {
-  if (!cmd || !state) return;  // Safety check
+  if (!cmd || !state) return;
   
-  // Trim leading/trailing whitespace
   while (*cmd == ' ' || *cmd == '\t') cmd++;
   
   if (strlen(cmd) == 0) {
@@ -287,7 +284,6 @@ static void process_command(terminal_state_t *state, const char *cmd) {
     return;
   }
   
-  // Find and execute command
   bool found = false;
   for (int i = 0; terminal_commands[i].name != NULL; i++) {
     if (strcmp(cmd, terminal_commands[i].name) == 0) {
@@ -303,7 +299,6 @@ static void process_command(terminal_state_t *state, const char *cmd) {
     f_strcat(&state->textbuf, "\nType 'help' for a list of commands.\n");
   }
   
-  // Show prompt again if not finished
   if (!state->process_finished) {
     f_strcat(&state->textbuf, "Terminal> ");
   }
@@ -313,67 +308,13 @@ static void process_command(terminal_state_t *state, const char *cmd) {
 // This function allows external code (including tests) to retrieve the current
 // terminal output buffer. It safely handles null pointers and invalid window types.
 const char* terminal_get_buffer(window_t *win) {
-  if (!win || !win->userdata) {
-    return "";
-  }
-  
-  // Verify this is a terminal window by checking the window procedure
-  if (win->proc != win_terminal) {
-    return "";
-  }
+  if (!win || !win->userdata) return "";
+  if (win->proc != win_terminal) return "";
   
   terminal_state_t *state = (terminal_state_t *)win->userdata;
-  if (!state || !state->textbuf) {
-    return "";
-  }
+  if (!state || !state->textbuf) return "";
   
   return state->textbuf->data;
-}
-
-const char *luaX_getpackagepath(lua_State *L) {
-  lua_getglobal(L, "package");
-  lua_getfield(L, -1, "path");
-  const char *path = lua_tostring(L, -1);
-  lua_pop(L, 2); // pop path and package
-  return path ? path : "";
-}
-
-const char *luaX_addcurrentfolder(lua_State *L, const char *filepath, char *filename_buf, size_t buf_size) {
-  // Extract directory from filepath
-  char dir[512];
-  strncpy(dir, filepath, sizeof(dir));
-  char *last_slash = strrchr(dir, '/');
-#ifdef _WIN32
-  char *last_backslash = strrchr(dir, '\\');
-  if (last_backslash && (!last_slash || last_backslash > last_slash)) {
-    last_slash = last_backslash;
-  }
-#endif
-  
-  const char *filename;
-  if (last_slash) {
-    *last_slash = '\0';
-    filename = last_slash + 1;
-  } else {
-    strcpy(dir, "."); // Current directory
-    filename = filepath;
-  }
-  
-  // Copy filename to output buffer
-  snprintf(filename_buf, buf_size, "%s", filename);
-  
-  // Change working directory to script's directory
-  chdir(dir);
-  
-  // Append ";./?.lua" to package.path
-  char new_path[4096];
-  snprintf(new_path, sizeof(new_path), "%s;%s/?.lua", luaX_getpackagepath(L), dir);
-  lua_getglobal(L, "package");
-  lua_pushstring(L, new_path);
-  lua_setfield(L, -2, "path");
-  lua_pop(L, 1); // pop package table
-  
-  return filename_buf;
 }
 
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -382,16 +323,11 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
   switch (msg) {
     case kWindowMessageCreate: {
       state = allocate_window_data(win, sizeof(terminal_state_t));
-      if (!state) {
-        return false;
-      }
+      if (!state) return false;
       
-      // Enable vertical scrolling
       win->flags |= WINDOW_VSCROLL;
       
-      // Check if lparam is NULL - if so, enter command mode
       if (lparam == NULL) {
-        // Command mode - no Lua script
         state->L = NULL;
         state->co = NULL;
         state->command_mode = true;
@@ -399,34 +335,24 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         state->process_finished = false;
         state->input_buffer[0] = '\0';
         
-        // Initialize text buffer manually for command mode
         init_text_buffer(&state->textbuf);
-        if (!state->textbuf) {
-          return false;
-        }
+        if (!state->textbuf) return false;
         
-        // Display welcome message
         f_strcat(&state->textbuf, "Terminal - Command Mode\n");
         f_strcat(&state->textbuf, "Type 'help' for available commands\n");
         f_strcat(&state->textbuf, "Terminal> ");
       } else {
-        // Lua script mode
         state->command_mode = false;
         state->L = create_lua_state(&state->textbuf);
-        if (!state->L) {
-          // Lua state creation failed
-          return false;
-        }
-        state->co = lua_newthread(state->L); // Create coroutine for script execution
+        if (!state->L) return false;
+        state->co = lua_newthread(state->L);
         state->waiting_for_input = false;
         state->process_finished = false;
         state->input_buffer[0] = '\0';
 
-        // Extract filename and change to script directory
         char filename[256];
         const char *script_file = luaX_addcurrentfolder(state->co, lparam, filename, sizeof(filename));
         
-        // Load the file into the coroutine
         if (luaL_loadfile(state->co, script_file) != LUA_OK) {
           f_strcat(&state->textbuf, "Error loading file: ");
           f_strcat(&state->textbuf, lua_tostring(state->co, -1));
@@ -435,37 +361,29 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           return true;
         }
         
-        // Start executing the coroutine
         continue_coroutine(state, 0);
       }
       
       return true;
     }
     case kWindowMessageKeyDown:
-      // Don't accept input if process is finished
       if (state->process_finished || !state->waiting_for_input) {
         return false;
       } else if (wparam == SDL_SCANCODE_RETURN) {
-        // User pressed Enter
         f_strcat(&state->textbuf, state->input_buffer);
         f_strcat(&state->textbuf, "\n");
         
         if (state->command_mode) {
-          // Command mode - process command
           process_command(state, state->input_buffer);
         } else if (state->co) {
-          // Lua mode - push the input as return value for io.read
           lua_pushstring(state->co, state->input_buffer);
-          // Resume the coroutine with 1 argument (the input string)
           continue_coroutine(state, 1);
         }
         
-        // Clear input buffer
         state->input_buffer[0] = '\0';
         invalidate_window(win);
         return true;
       } else if (wparam == SDL_SCANCODE_BACKSPACE) {
-        // Handle backspace
         size_t len = strlen(state->input_buffer);
         if (len > 0) {
           state->input_buffer[len - 1] = '\0';
@@ -476,16 +394,11 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return false;
       }
     case kWindowMessageTextInput:
-      // Don't accept input if process is finished
       if (state->process_finished || !state->waiting_for_input) {
         return false;
       } else {
-        // Validate that lparam contains a valid printable character
         char c = *(char*)lparam;
-        if (c < 32 || c > 126) {
-          // Not a printable ASCII character, ignore
-          return false;
-        }
+        if (c < 32 || c > 126) return false;
         size_t len = strlen(state->input_buffer);
         if (len < sizeof(state->input_buffer) - 1) {
           state->input_buffer[len] = c;
@@ -498,18 +411,15 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case kWindowMessageDestroy:
       if (state) {
         free_text_buffer(&state->textbuf);
-        if (state->L) {
-          lua_close(state->L);
-        }
+        if (state->L) lua_close(state->L);
         free(state);
-        win->userdata = NULL;  // Prevent use-after-free
+        win->userdata = NULL;
       }
       return true;
       
     case kWindowMessagePaint: {
       if (!state) return false;
       
-      // Draw terminal contents with wrapping and scrolling
       rect_t viewport = {
         WINDOW_PADDING, 
         WINDOW_PADDING,
@@ -518,10 +428,8 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       };
       draw_text_wrapped(state->textbuf->data, &viewport, COLOR_TEXT_NORMAL);
       
-      // Only show input prompt if waiting for input AND process not finished
       if (state->waiting_for_input && !state->process_finished) {
-        // Draw input buffer at the bottom of the window
-        int y = win->frame.h - WINDOW_PADDING - CHAR_HEIGHT + win->scroll[1]; // Position near bottom
+        int y = win->frame.h - WINDOW_PADDING - CHAR_HEIGHT + win->scroll[1];
         draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
         draw_icon8(ICON_CURSOR, WINDOW_PADDING + strwidth(state->input_buffer), y, COLOR_TEXT_NORMAL);
       }
