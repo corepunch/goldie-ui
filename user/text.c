@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "text.h"
+#include "user.h"
 
 #define FONT_TEX_SIZE 128
 #define MAX_TEXT_LENGTH 256
@@ -298,12 +299,17 @@ int calc_text_height(const char* text, int width) {
 }
 
 // Draw text with wrapping and viewport clipping
-void draw_text_wrapped(const char* text, int x, int y, int width, int height, int scroll_y, uint32_t col) {
+void draw_text_wrapped(const char* text, rect_t const *viewport, int scroll_y, uint32_t col) {
   extern bool running;
-  if (!text || !*text || !running) return;
+  if (!text || !*text || !running || !viewport) return;
   
   // Check if text_state is initialized
   if (text_state.small_font.char_height == 0) return;
+  
+  int x = viewport->x;
+  int y = viewport->y;
+  int width = viewport->w;
+  int height = viewport->h;
   
   static text_vertex_t buffer[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
   int vertex_count = 0, cx = x, cy = y - scroll_y;
@@ -316,7 +322,7 @@ void draw_text_wrapped(const char* text, int x, int y, int width, int height, in
       continue;
     }
     if (c == ' ') {
-      cx += SPACE_WIDTH;
+      cx += 3;
       continue;
     }
     

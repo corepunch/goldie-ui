@@ -6,6 +6,9 @@
 
 #define CHAR_HEIGHT 8
 
+// Forward declaration
+typedef struct rect_s rect_t;
+
 // Initialize the text rendering system
 void init_text_rendering(void);
 
@@ -19,6 +22,6 @@ int strnwidth(const char* text, int text_length);
 
 // Advanced text rendering with wrapping and viewport clipping
 int calc_text_height(const char* text, int width);
-void draw_text_wrapped(const char* text, int x, int y, int width, int height, int scroll_y, uint32_t col);
+void draw_text_wrapped(const char* text, rect_t const *viewport, int scroll_y, uint32_t col);
 
 #endif // __UI_TEXT_H__
