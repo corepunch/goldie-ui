@@ -29,7 +29,8 @@ void test_terminal_comprehensive_stdout(void) {
   
   // Verify stdout output is captured
   ASSERT_TRUE(buffer_contains(buffer, "Line 1"));
-  ASSERT_TRUE(buffer_contains(buffer, "Line\t2\twith\tmultiple\targs"));  // print() uses tabs between args
+  // Note: Lua's print() function outputs tabs between arguments
+  ASSERT_TRUE(buffer_contains(buffer, "Line\t2\twith\tmultiple\targs"));
   ASSERT_TRUE(buffer_contains(buffer, "Line 3"));
   ASSERT_TRUE(buffer_contains(buffer, "Line 4 concatenated"));
   ASSERT_TRUE(buffer_contains(buffer, "Line 5 from io.stdout:write"));
@@ -43,7 +44,8 @@ void test_terminal_comprehensive_stdout(void) {
   ASSERT_FALSE(buffer_contains(buffer, "This is file content line 2"));
   
   // Verify file was actually written correctly
-  FILE *f = fopen("/tmp/test_file_output.txt", "r");
+  // Note: File is written to current directory (tests/) after chdir in terminal.c
+  FILE *f = fopen("test_file_output.txt", "r");
   ASSERT_NOT_NULL(f);
   
   char file_content[1024];

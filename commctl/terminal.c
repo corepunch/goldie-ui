@@ -358,8 +358,7 @@ const char *luaX_addcurrentfolder(lua_State *L, const char *filepath, char *file
   }
   
   // Copy filename to output buffer
-  strncpy(filename_buf, filename, buf_size - 1);
-  filename_buf[buf_size - 1] = '\0';
+  snprintf(filename_buf, buf_size, "%s", filename);
   
   // Change working directory to script's directory
   chdir(dir);

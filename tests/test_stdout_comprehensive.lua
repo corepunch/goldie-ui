@@ -16,7 +16,8 @@ io.stdout:write("Line 5 from io.stdout:write\n")
 print("Before file write")
 
 -- Write to a file - this should NOT appear in terminal buffer
-local f = io.open("/tmp/test_file_output.txt", "w")
+-- Use current directory for cross-platform compatibility
+local f = io.open("test_file_output.txt", "w")
 if f then
   f:write("This is file content line 1\n")
   f:write("This is file content line 2\n")
@@ -25,11 +26,11 @@ if f then
 end
 
 -- Read from a file - this should work normally
-f = io.open("/tmp/test_file_output.txt", "r")
+f = io.open("test_file_output.txt", "r")
 if f then
   local content = f:read("*a")
   f:close()
-  -- Don't print file content to avoid cluttering the test
+  -- The file content is verified in the C test code
   print("File read completed")
 end
 
