@@ -286,6 +286,9 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return false;
       }
       
+      // Enable vertical scrolling
+      win->flags |= WINDOW_VSCROLL;
+      
       // Check if lparam is NULL - if so, enter command mode
       if (lparam == NULL) {
         // Command mode - no Lua script
@@ -404,8 +407,12 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case kWindowMessagePaint: {
       if (!state) return false;
       
-      // Draw terminal contents
-      draw_text_small(state->textbuf->data, WINDOW_PADDING, WINDOW_PADDING, COLOR_TEXT_NORMAL);
+      int content_width = win->frame.w - WINDOW_PADDING * 2;
+      int content_height = win->frame.h - WINDOW_PADDING * 2;
+      
+      // Draw terminal contents with wrapping and scrolling
+      draw_text_wrapped(state->textbuf->data, WINDOW_PADDING, WINDOW_PADDING, 
+                       content_width, content_height, win->scroll[1], COLOR_TEXT_NORMAL);
       
       // Only show input prompt if waiting for input AND process not finished
       if (state->waiting_for_input && !state->process_finished) {

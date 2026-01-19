@@ -17,4 +17,8 @@ void draw_text_small(const char* text, int x, int y, uint32_t col);
 int strwidth(const char* text);
 int strnwidth(const char* text, int text_length);
 
+// Advanced text rendering with wrapping and viewport clipping
+int calc_text_height(const char* text, int width);
+void draw_text_wrapped(const char* text, int x, int y, int width, int height, int scroll_y, uint32_t col);
+
 #endif // __UI_TEXT_H__

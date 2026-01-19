@@ -263,6 +263,96 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
   // glDisable(GL_BLEND);
 }
 
+// Calculate total height of text with wrapping
+int calc_text_height(const char* text, int width) {
+  if (!text || !*text || width <= 0) return 0;
+  
+  int lines = 1, x = 0;
+  for (const char* p = text; *p; p++) {
+    if (*p == '\n') {
+      lines++;
+      x = 0;
+    } else if (*p == ' ') {
+      x += 3;
+    } else {
+      int cw = text_state.small_font.char_to[(unsigned char)*p] - text_state.small_font.char_from[(unsigned char)*p];
+      if (x + cw > width && x > 0) {
+        lines++;
+        x = cw;
+      } else {
+        x += cw;
+      }
+    }
+  }
+  return lines * SMALL_LINE_HEIGHT;
+}
+
+// Draw text with wrapping and viewport clipping
+void draw_text_wrapped(const char* text, int x, int y, int width, int height, int scroll_y, uint32_t col) {
+  extern bool running;
+  if (!text || !*text || !running) return;
+  
+  static text_vertex_t buffer[MAX_TEXT_LENGTH * 6];
+  int vertex_count = 0, cx = x, cy = y - scroll_y;
+  
+  for (const char* p = text; *p && vertex_count < MAX_TEXT_LENGTH * 6 - 6; p++) {
+    unsigned char c = *p;
+    if (c == '\n') {
+      cx = x;
+      cy += SMALL_LINE_HEIGHT;
+      continue;
+    }
+    if (c == ' ') {
+      cx += 3;
+      continue;
+    }
+    
+    int cw = text_state.small_font.char_to[c] - text_state.small_font.char_from[c];
+    if (cx + cw > x + width && cx > x) {
+      cx = x;
+      cy += SMALL_LINE_HEIGHT;
+    }
+    
+    if (cy + SMALL_FONT_HEIGHT >= y && cy < y + height) {
+      int ax = (c % text_state.small_font.chars_per_row) * SMALL_FONT_WIDTH;
+      int ay = (c / text_state.small_font.chars_per_row) * SMALL_FONT_HEIGHT;
+      float u1 = (ax + text_state.small_font.char_from[c]) / (float)FONT_TEX_SIZE;
+      float v1 = ay / (float)FONT_TEX_SIZE;
+      float u2 = (ax + text_state.small_font.char_to[c]) / (float)FONT_TEX_SIZE;
+      float v2 = (ay + SMALL_FONT_HEIGHT) / (float)FONT_TEX_SIZE;
+      
+      buffer[vertex_count++] = (text_vertex_t){cx, cy, u1, v1, col};
+      buffer[vertex_count++] = (text_vertex_t){cx, cy + SMALL_FONT_HEIGHT, u1, v2, col};
+      buffer[vertex_count++] = (text_vertex_t){cx + cw, cy, u2, v1, col};
+      buffer[vertex_count++] = (text_vertex_t){cx, cy + SMALL_FONT_HEIGHT, u1, v2, col};
+      buffer[vertex_count++] = (text_vertex_t){cx + cw, cy + SMALL_FONT_HEIGHT, u2, v2, col};
+      buffer[vertex_count++] = (text_vertex_t){cx + cw, cy, u2, v1, col};
+    }
+    cx += cw;
+  }
+  
+  if (vertex_count == 0) return;
+  
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_DEPTH_TEST);
+  push_sprite_args(text_state.small_font.texture, 0, 0, 1, 1, 1);
+  glBindTexture(GL_TEXTURE_2D, text_state.small_font.texture);
+  glBindVertexArray(text_state.small_font.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, text_state.small_font.vbo);
+  glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(text_vertex_t), buffer, GL_DYNAMIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(1);
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(0, 2, GL_SHORT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, x));
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, u));
+  glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, col));
+  glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+  glDisableVertexAttribArray(0);
+  glDisableVertexAttribArray(1);
+  glDisableVertexAttribArray(2);
+}
+
 // Clean up text rendering resources
 void shutdown_text_rendering(void) {
   // Delete small font resources
