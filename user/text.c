@@ -131,6 +131,7 @@ static bool create_font_atlas(void) {
   printf("Small font atlas created successfully\n");
   
   // Initialize mesh for text rendering
+  // Vertex attribute layout: 0 = Position, 1 = UV, 2 = Color
   R_VertexAttrib attribs[] = {
     {0, 2, GL_SHORT, GL_FALSE, offsetof(text_vertex_t, x)},  // Position
     {1, 2, GL_FLOAT, GL_FALSE, offsetof(text_vertex_t, u)},  // UV

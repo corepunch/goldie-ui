@@ -67,8 +67,9 @@ void R_MeshDrawDynamic(R_Mesh* mesh, const void* data, size_t vertex_count) {
   // Draw
   glDrawArrays(mesh->draw_mode, 0, vertex_count);
   
-  // Unbind
+  // Unbind to avoid accidental modifications
   glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 // Destroy mesh and free GPU resources
