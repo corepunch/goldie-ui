@@ -345,7 +345,7 @@ int partial_width = strnwidth("Hello", 5);
 int height = calc_text_height(text, window_width);
 
 // Draw text with wrapping and viewport clipping
-draw_text_wrapped(text, x, y, width, height, scroll_y, 0xFFFFFFFF);
+draw_text_wrapped(text, x, y, width, height, 0xFFFFFFFF);
 
 // Clean up (call at shutdown)
 shutdown_text_rendering();

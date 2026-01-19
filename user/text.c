@@ -16,7 +16,7 @@
 #define MAX_TEXT_LENGTH 256
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
-#define SMALL_LINE_HEIGHT 12
+#define SMALL_LINE_HEIGHT 8
 #define SPACE_WIDTH 3 
 #define VERTICES_PER_CHAR 6  // 2 triangles = 6 vertices
 
@@ -299,7 +299,7 @@ int calc_text_height(const char* text, int width) {
 }
 
 // Draw text with wrapping and viewport clipping
-void draw_text_wrapped(const char* text, rect_t const *viewport, int scroll_y, uint32_t col) {
+void draw_text_wrapped(const char* text, rect_t const *viewport, uint32_t col) {
   extern bool running;
   if (!text || !*text || !running || !viewport) return;
   
@@ -312,7 +312,7 @@ void draw_text_wrapped(const char* text, rect_t const *viewport, int scroll_y, u
   int height = viewport->h;
   
   static text_vertex_t buffer[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
-  int vertex_count = 0, cx = x, cy = y - scroll_y;
+  int vertex_count = 0, cx = x, cy = y;
   
   for (const char* p = text; *p && vertex_count < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR; p++) {
     unsigned char c = *p;
@@ -333,7 +333,7 @@ void draw_text_wrapped(const char* text, rect_t const *viewport, int scroll_y, u
     }
     
     // Show character if any part of it is visible in viewport
-    if (cy + SMALL_FONT_HEIGHT > y && cy < y + height) {
+    // if (cy + SMALL_FONT_HEIGHT > y && cy < y + height) {
       int ax = (c % text_state.small_font.chars_per_row) * SMALL_FONT_WIDTH;
       int ay = (c / text_state.small_font.chars_per_row) * SMALL_FONT_HEIGHT;
       float u1 = (ax + text_state.small_font.char_from[c]) / (float)FONT_TEX_SIZE;
@@ -347,7 +347,7 @@ void draw_text_wrapped(const char* text, rect_t const *viewport, int scroll_y, u
       buffer[vertex_count++] = (text_vertex_t){cx, cy + SMALL_FONT_HEIGHT, u1, v2, col};
       buffer[vertex_count++] = (text_vertex_t){cx + cw, cy + SMALL_FONT_HEIGHT, u2, v2, col};
       buffer[vertex_count++] = (text_vertex_t){cx + cw, cy, u2, v1, col};
-    }
+    // }
     cx += cw;
   }
   
