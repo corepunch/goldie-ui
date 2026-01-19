@@ -218,52 +218,52 @@ static lua_State *create_lua_state(text_buffer_t **textbuf) {
 }
 
 // Coroutine management
-static void continue_coroutine(terminal_state_t *state, int nargs) {
-  int nres, status = lua_resume(state->co, NULL, nargs, &nres);
+static void continue_coroutine(terminal_state_t *s, int nargs) {
+  int nres, status = lua_resume(s->co, NULL, nargs, &nres);
   
   if (status == LUA_OK) {
-    f_strcat(&state->textbuf, "\nProcess finished\n");
-    state->waiting_for_input = false;
-    state->process_finished = true;
+    f_strcat(&s->textbuf, "\nProcess finished\n");
+    s->waiting_for_input = false;
+    s->process_finished = true;
   } else if (status == LUA_YIELD) {
-    state->waiting_for_input = true;
-    f_strcat(&state->textbuf, "\n> ");
+    s->waiting_for_input = true;
+    f_strcat(&s->textbuf, "\n> ");
   } else {
-    f_strcat(&state->textbuf, "Error: ");
-    f_strcat(&state->textbuf, lua_tostring(state->co, -1));
-    f_strcat(&state->textbuf, "\n");
-    state->waiting_for_input = false;
-    state->process_finished = true;
+    f_strcat(&s->textbuf, "Error: ");
+    f_strcat(&s->textbuf, lua_tostring(s->co, -1));
+    f_strcat(&s->textbuf, "\n");
+    s->waiting_for_input = false;
+    s->process_finished = true;
   }
 }
 
 // Command mode functions
-static void cmd_exit(terminal_state_t *state) {
-  f_strcat(&state->textbuf, "Exiting terminal...\n");
-  state->process_finished = true;
-  state->waiting_for_input = false;
+static void cmd_exit(terminal_state_t *s) {
+  f_strcat(&s->textbuf, "Exiting terminal...\n");
+  s->process_finished = true;
+  s->waiting_for_input = false;
 }
 
 // Forward declaration
 static const terminal_cmd_t terminal_commands[];
 
-static void cmd_help(terminal_state_t *state) {
-  f_strcat(&state->textbuf, "Available commands:\n");
+static void cmd_help(terminal_state_t *s) {
+  f_strcat(&s->textbuf, "Available commands:\n");
   for (int i = 0; terminal_commands[i].name != NULL; i++) {
-    f_strcat(&state->textbuf, "  ");
-    f_strcat(&state->textbuf, terminal_commands[i].name);
-    f_strcat(&state->textbuf, " - ");
-    f_strcat(&state->textbuf, terminal_commands[i].help);
-    f_strcat(&state->textbuf, "\n");
+    f_strcat(&s->textbuf, "  ");
+    f_strcat(&s->textbuf, terminal_commands[i].name);
+    f_strcat(&s->textbuf, " - ");
+    f_strcat(&s->textbuf, terminal_commands[i].help);
+    f_strcat(&s->textbuf, "\n");
   }
 }
 
-static void cmd_clear(terminal_state_t *state) {
-  if (state->textbuf) {
-    state->textbuf->size = 0;
-    state->textbuf->data[0] = '\0';
+static void cmd_clear(terminal_state_t *s) {
+  if (s->textbuf) {
+    s->textbuf->size = 0;
+    s->textbuf->data[0] = '\0';
   }
-  f_strcat(&state->textbuf, "Terminal> ");
+  f_strcat(&s->textbuf, "Terminal> ");
 }
 
 // Static array of available commands
@@ -274,33 +274,33 @@ static const terminal_cmd_t terminal_commands[] = {
   {NULL, NULL, NULL}  // Sentinel
 };
 
-static void process_command(terminal_state_t *state, const char *cmd) {
-  if (!cmd || !state) return;
+static void process_command(terminal_state_t *s, const char *cmd) {
+  if (!cmd || !s) return;
   
   while (*cmd == ' ' || *cmd == '\t') cmd++;
   
   if (strlen(cmd) == 0) {
-    f_strcat(&state->textbuf, "Terminal> ");
+    f_strcat(&s->textbuf, "Terminal> ");
     return;
   }
   
   bool found = false;
   for (int i = 0; terminal_commands[i].name != NULL; i++) {
     if (strcmp(cmd, terminal_commands[i].name) == 0) {
-      terminal_commands[i].callback(state);
+      terminal_commands[i].callback(s);
       found = true;
       break;
     }
   }
   
   if (!found) {
-    f_strcat(&state->textbuf, "Unknown command: ");
-    f_strcat(&state->textbuf, cmd);
-    f_strcat(&state->textbuf, "\nType 'help' for a list of commands.\n");
+    f_strcat(&s->textbuf, "Unknown command: ");
+    f_strcat(&s->textbuf, cmd);
+    f_strcat(&s->textbuf, "\nType 'help' for a list of commands.\n");
   }
   
-  if (!state->process_finished) {
-    f_strcat(&state->textbuf, "Terminal> ");
+  if (!s->process_finished) {
+    f_strcat(&s->textbuf, "Terminal> ");
   }
 }
 
@@ -311,82 +311,82 @@ const char* terminal_get_buffer(window_t *win) {
   if (!win || !win->userdata) return "";
   if (win->proc != win_terminal) return "";
   
-  terminal_state_t *state = (terminal_state_t *)win->userdata;
-  if (!state || !state->textbuf) return "";
+  terminal_state_t *s = (terminal_state_t *)win->userdata;
+  if (!s || !s->textbuf) return "";
   
-  return state->textbuf->data;
+  return s->textbuf->data;
 }
 
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  terminal_state_t *state = (terminal_state_t *)win->userdata;
+  terminal_state_t *s = (terminal_state_t *)win->userdata;
   
   switch (msg) {
     case kWindowMessageCreate: {
-      state = allocate_window_data(win, sizeof(terminal_state_t));
-      if (!state) return false;
+      s = allocate_window_data(win, sizeof(terminal_state_t));
+      if (!s) return false;
       
       win->flags |= WINDOW_VSCROLL;
       
       if (lparam == NULL) {
-        state->L = NULL;
-        state->co = NULL;
-        state->command_mode = true;
-        state->waiting_for_input = true;
-        state->process_finished = false;
-        state->input_buffer[0] = '\0';
+        s->L = NULL;
+        s->co = NULL;
+        s->command_mode = true;
+        s->waiting_for_input = true;
+        s->process_finished = false;
+        s->input_buffer[0] = '\0';
         
-        init_text_buffer(&state->textbuf);
-        if (!state->textbuf) return false;
+        init_text_buffer(&s->textbuf);
+        if (!s->textbuf) return false;
         
-        f_strcat(&state->textbuf, "Terminal - Command Mode\n");
-        f_strcat(&state->textbuf, "Type 'help' for available commands\n");
-        f_strcat(&state->textbuf, "Terminal> ");
+        f_strcat(&s->textbuf, "Terminal - Command Mode\n");
+        f_strcat(&s->textbuf, "Type 'help' for available commands\n");
+        f_strcat(&s->textbuf, "Terminal> ");
       } else {
-        state->command_mode = false;
-        state->L = create_lua_state(&state->textbuf);
-        if (!state->L) return false;
-        state->co = lua_newthread(state->L);
-        state->waiting_for_input = false;
-        state->process_finished = false;
-        state->input_buffer[0] = '\0';
+        s->command_mode = false;
+        s->L = create_lua_state(&s->textbuf);
+        if (!s->L) return false;
+        s->co = lua_newthread(s->L);
+        s->waiting_for_input = false;
+        s->process_finished = false;
+        s->input_buffer[0] = '\0';
 
         char filename[256];
-        const char *script_file = luaX_addcurrentfolder(state->co, lparam, filename, sizeof(filename));
+        const char *script_file = luaX_addcurrentfolder(s->co, lparam, filename, sizeof(filename));
         
-        if (luaL_loadfile(state->co, script_file) != LUA_OK) {
-          f_strcat(&state->textbuf, "Error loading file: ");
-          f_strcat(&state->textbuf, lua_tostring(state->co, -1));
-          f_strcat(&state->textbuf, "\n");
-          state->process_finished = true;
+        if (luaL_loadfile(s->co, script_file) != LUA_OK) {
+          f_strcat(&s->textbuf, "Error loading file: ");
+          f_strcat(&s->textbuf, lua_tostring(s->co, -1));
+          f_strcat(&s->textbuf, "\n");
+          s->process_finished = true;
           return true;
         }
         
-        continue_coroutine(state, 0);
+        continue_coroutine(s, 0);
       }
       
       return true;
     }
     case kWindowMessageKeyDown:
-      if (state->process_finished || !state->waiting_for_input) {
+      if (s->process_finished || !s->waiting_for_input) {
         return false;
       } else if (wparam == SDL_SCANCODE_RETURN) {
-        f_strcat(&state->textbuf, state->input_buffer);
-        f_strcat(&state->textbuf, "\n");
+        f_strcat(&s->textbuf, s->input_buffer);
+        f_strcat(&s->textbuf, "\n");
         
-        if (state->command_mode) {
-          process_command(state, state->input_buffer);
-        } else if (state->co) {
-          lua_pushstring(state->co, state->input_buffer);
-          continue_coroutine(state, 1);
+        if (s->command_mode) {
+          process_command(s, s->input_buffer);
+        } else if (s->co) {
+          lua_pushstring(s->co, s->input_buffer);
+          continue_coroutine(s, 1);
         }
         
-        state->input_buffer[0] = '\0';
+        s->input_buffer[0] = '\0';
         invalidate_window(win);
         return true;
       } else if (wparam == SDL_SCANCODE_BACKSPACE) {
-        size_t len = strlen(state->input_buffer);
+        size_t len = strlen(s->input_buffer);
         if (len > 0) {
-          state->input_buffer[len - 1] = '\0';
+          s->input_buffer[len - 1] = '\0';
           invalidate_window(win);
         }
         return true;
@@ -394,31 +394,31 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return false;
       }
     case kWindowMessageTextInput:
-      if (state->process_finished || !state->waiting_for_input) {
+      if (s->process_finished || !s->waiting_for_input) {
         return false;
       } else {
         char c = *(char*)lparam;
         if (c < 32 || c > 126) return false;
-        size_t len = strlen(state->input_buffer);
-        if (len < sizeof(state->input_buffer) - 1) {
-          state->input_buffer[len] = c;
-          state->input_buffer[len + 1] = '\0';
+        size_t len = strlen(s->input_buffer);
+        if (len < sizeof(s->input_buffer) - 1) {
+          s->input_buffer[len] = c;
+          s->input_buffer[len + 1] = '\0';
         }
         invalidate_window(win);
         return true;
       }
     
     case kWindowMessageDestroy:
-      if (state) {
-        free_text_buffer(&state->textbuf);
-        if (state->L) lua_close(state->L);
-        free(state);
+      if (s) {
+        free_text_buffer(&s->textbuf);
+        if (s->L) lua_close(s->L);
+        free(s);
         win->userdata = NULL;
       }
       return true;
       
     case kWindowMessagePaint: {
-      if (!state) return false;
+      if (!s) return false;
       
       rect_t viewport = {
         WINDOW_PADDING, 
@@ -426,12 +426,12 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         win->frame.w - WINDOW_PADDING * 2,
         win->frame.h - WINDOW_PADDING * 2
       };
-      draw_text_wrapped(state->textbuf->data, &viewport, COLOR_TEXT_NORMAL);
+      draw_text_wrapped(s->textbuf->data, &viewport, COLOR_TEXT_NORMAL);
       
-      if (state->waiting_for_input && !state->process_finished) {
+      if (s->waiting_for_input && !s->process_finished) {
         int y = win->frame.h - WINDOW_PADDING - CHAR_HEIGHT + win->scroll[1];
-        draw_text_small(state->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
-        draw_icon8(ICON_CURSOR, WINDOW_PADDING + strwidth(state->input_buffer), y, COLOR_TEXT_NORMAL);
+        draw_text_small(s->input_buffer, WINDOW_PADDING, y, COLOR_TEXT_NORMAL);
+        draw_icon8(ICON_CURSOR, WINDOW_PADDING + strwidth(s->input_buffer), y, COLOR_TEXT_NORMAL);
       }
       
       return true;
