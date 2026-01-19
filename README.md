@@ -21,6 +21,9 @@ ui/
 │   └── draw_impl.c   # Drawing primitives implementation
 ├── kernel/           # Event loop and SDL integration (KERNEL.DLL equivalent)
 │   ├── kernel.h      # Event management and SDL initialization
+│   ├── renderer.h    # Renderer API - OpenGL abstraction (NEW)
+│   ├── renderer_impl.c # Renderer API implementation (NEW)
+│   ├── renderer.c    # Sprite rendering implementation
 │   ├── event.c       # Event loop implementation
 │   ├── init.c        # SDL initialization
 │   └── joystick.c    # Joystick/gamepad support
@@ -54,12 +57,14 @@ Handles window creation, destruction, message passing, and basic rendering primi
 - Window messages (kWindowMessageCreate, kWindowMessagePaint, kWindowMessageLeftButtonUp, etc.)
 
 ### ui/kernel/ - Event Management Layer
-Manages the SDL event loop and translates SDL events into window messages.
+Manages the SDL event loop and translates SDL events into window messages. Also provides the Renderer API for OpenGL abstraction.
 
 **Key Components:**
 - SDL initialization
 - Event loop (`get_message`, `dispatch_message`)
 - Global state (screen dimensions, running flag)
+- **Renderer API**: High-level OpenGL abstraction (`R_Mesh`, `R_Texture`, `R_MeshDrawDynamic`)
+  - See [docs/RENDERER_API.md](docs/RENDERER_API.md) for detailed documentation
 
 ### ui/commctl/ - Common Controls Layer
 Implements standard UI controls that can be used to build interfaces.
