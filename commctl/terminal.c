@@ -190,28 +190,20 @@ static lua_State *create_lua_state(text_buffer_t **textbuf) {
   lua_setglobal(L, "print");
   
   luaL_newmetatable(L, STDOUT_METATABLE);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-  lua_pushcfunction(L, f_stdout_write);
-  lua_setfield(L, -2, "write");
-  lua_pushcfunction(L, f_stdout_flush);
-  lua_setfield(L, -2, "flush");
-  lua_pushcfunction(L, f_stdout_setvbuf);
-  lua_setfield(L, -2, "setvbuf");
+  lua_pushvalue(L, -1);                   lua_setfield(L, -2, "__index");
+  lua_pushcfunction(L, f_stdout_write);   lua_setfield(L, -2, "write");
+  lua_pushcfunction(L, f_stdout_flush);   lua_setfield(L, -2, "flush");
+  lua_pushcfunction(L, f_stdout_setvbuf); lua_setfield(L, -2, "setvbuf");
   lua_pop(L, 1);
   
   lua_newuserdata(L, sizeof(void*));
   luaL_setmetatable(L, STDOUT_METATABLE);
   
   lua_getglobal(L, "io");
-  lua_pushvalue(L, -2);
-  lua_setfield(L, -2, "output");
-  lua_pushvalue(L, -2);
-  lua_setfield(L, -2, "stdout");
-  lua_pushcfunction(L, f_io_write);
-  lua_setfield(L, -2, "write");
-  lua_pushcfunction(L, f_io_read);
-  lua_setfield(L, -2, "read");
+  lua_pushvalue(L, -2);             lua_setfield(L, -2, "output");
+  lua_pushvalue(L, -2);             lua_setfield(L, -2, "stdout");
+  lua_pushcfunction(L, f_io_write); lua_setfield(L, -2, "write");
+  lua_pushcfunction(L, f_io_read);  lua_setfield(L, -2, "read");
   lua_pop(L, 2);
   
   return L;
