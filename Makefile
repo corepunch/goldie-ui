@@ -187,6 +187,9 @@ $(LIB_DIR): | $(BUILD_DIR)
 $(BIN_DIR): | $(BUILD_DIR)
 	mkdir -p $(BIN_DIR)
 
+$(OBJ_DIR): | $(BUILD_DIR)
+	mkdir -p $(OBJ_DIR)
+
 $(OBJ_DIR)/user: | $(BUILD_DIR)
 	mkdir -p $(OBJ_DIR)/user
 
