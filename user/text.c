@@ -10,12 +10,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include "text.h"
+#include "user.h"
 
 #define FONT_TEX_SIZE 128
 #define MAX_TEXT_LENGTH 256
 #define SMALL_FONT_WIDTH 8
 #define SMALL_FONT_HEIGHT 8
-#define SMALL_LINE_HEIGHT 12
+#define SMALL_LINE_HEIGHT 8
+#define SPACE_WIDTH 3 
+#define VERTICES_PER_CHAR 6  // 2 triangles = 6 vertices
 
 typedef struct {
   int16_t x, y;
@@ -38,6 +41,11 @@ typedef struct {
 static struct {
   font_atlas_t small_font;   // Small 6x8 font atlas
 } text_state = {0};
+
+// Helper to get character width
+static inline int get_char_width(unsigned char c) {
+  return text_state.small_font.char_to[c] - text_state.small_font.char_from[c];
+}
 
 // Forward declarations for external functions
 extern void push_sprite_args(int tex, int x, int y, int w, int h, float alpha);
@@ -146,7 +154,7 @@ int strnwidth(const char* text, int text_length) {
   for (int i = 0; i < text_length; i++) {
     char c = text[i];
     if (c == ' ') {
-      cursor_x += 3;
+      cursor_x += SPACE_WIDTH;
       continue;
     }
     // Advance cursor position
@@ -173,7 +181,7 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
   int text_length = (int)strlen(text);
   if (text_length > MAX_TEXT_LENGTH) text_length = MAX_TEXT_LENGTH;
   
-  static text_vertex_t buffer[MAX_TEXT_LENGTH * 6]; // 6 vertices per character (2 triangles)
+  static text_vertex_t buffer[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
   int vertex_count = 0;
   
   int cursor_x = x;
@@ -183,7 +191,7 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
     unsigned char c = text[i];
     
     if (c == ' ') {
-      cursor_x += 3;
+      cursor_x += SPACE_WIDTH;
       continue;
     }
     if (c == '\n') {
@@ -261,6 +269,108 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
   // Note: Commented out to match original behavior
   // glEnable(GL_DEPTH_TEST);
   // glDisable(GL_BLEND);
+}
+
+// Calculate total height of text with wrapping
+int calc_text_height(const char* text, int width) {
+  if (!text || !*text || width <= 0) return 0;
+  
+  // Check if text_state is initialized
+  if (text_state.small_font.char_height == 0) return 0;
+  
+  int lines = 1, x = 0;
+  for (const char* p = text; *p; p++) {
+    if (*p == '\n') {
+      lines++;
+      x = 0;
+    } else if (*p == ' ') {
+      x += SPACE_WIDTH;
+    } else {
+      int cw = get_char_width((unsigned char)*p);
+      if (x + cw > width) {
+        lines++;
+        x = cw;
+      } else {
+        x += cw;
+      }
+    }
+  }
+  return lines * SMALL_LINE_HEIGHT;
+}
+
+// Draw text with wrapping and viewport clipping
+void draw_text_wrapped(const char* text, rect_t const *viewport, uint32_t col) {
+  extern bool running;
+  if (!text || !*text || !running || !viewport) return;
+  
+  // Check if text_state is initialized
+  if (text_state.small_font.char_height == 0) return;
+  
+  int x = viewport->x;
+  int y = viewport->y;
+  int width = viewport->w;
+  int height = viewport->h;
+  
+  static text_vertex_t buffer[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
+  int vertex_count = 0, cx = x, cy = y;
+  
+  for (const char* p = text; *p && vertex_count < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR; p++) {
+    unsigned char c = *p;
+    if (c == '\n') {
+      cx = x;
+      cy += SMALL_LINE_HEIGHT;
+      continue;
+    }
+    if (c == ' ') {
+      cx += 3;
+      continue;
+    }
+    
+    int cw = get_char_width(c);
+    if (cx + cw > x + width) {
+      cx = x;
+      cy += SMALL_LINE_HEIGHT;
+    }
+    
+    // Show character if any part of it is visible in viewport
+    // if (cy + SMALL_FONT_HEIGHT > y && cy < y + height) {
+      int ax = (c % text_state.small_font.chars_per_row) * SMALL_FONT_WIDTH;
+      int ay = (c / text_state.small_font.chars_per_row) * SMALL_FONT_HEIGHT;
+      float u1 = (ax + text_state.small_font.char_from[c]) / (float)FONT_TEX_SIZE;
+      float v1 = ay / (float)FONT_TEX_SIZE;
+      float u2 = (ax + text_state.small_font.char_to[c]) / (float)FONT_TEX_SIZE;
+      float v2 = (ay + SMALL_FONT_HEIGHT) / (float)FONT_TEX_SIZE;
+      
+      buffer[vertex_count++] = (text_vertex_t){cx, cy, u1, v1, col};
+      buffer[vertex_count++] = (text_vertex_t){cx, cy + SMALL_FONT_HEIGHT, u1, v2, col};
+      buffer[vertex_count++] = (text_vertex_t){cx + cw, cy, u2, v1, col};
+      buffer[vertex_count++] = (text_vertex_t){cx, cy + SMALL_FONT_HEIGHT, u1, v2, col};
+      buffer[vertex_count++] = (text_vertex_t){cx + cw, cy + SMALL_FONT_HEIGHT, u2, v2, col};
+      buffer[vertex_count++] = (text_vertex_t){cx + cw, cy, u2, v1, col};
+    // }
+    cx += cw;
+  }
+  
+  if (vertex_count == 0) return;
+  
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glDisable(GL_DEPTH_TEST);
+  push_sprite_args(text_state.small_font.texture, 0, 0, 1, 1, 1);
+  glBindTexture(GL_TEXTURE_2D, text_state.small_font.texture);
+  glBindVertexArray(text_state.small_font.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, text_state.small_font.vbo);
+  glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(text_vertex_t), buffer, GL_DYNAMIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(1);
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(0, 2, GL_SHORT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, x));
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, u));
+  glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, col));
+  glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+  glDisableVertexAttribArray(0);
+  glDisableVertexAttribArray(1);
+  glDisableVertexAttribArray(2);
 }
 
 // Clean up text rendering resources

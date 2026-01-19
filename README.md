@@ -250,6 +250,8 @@ show_window(terminal, true);
 // - Interactive input when script calls io.read()
 // - Displaying "Process finished" message when script completes
 // - Preventing further input after process finishes (like Windows CMD)
+// - Text wrapping to fit window width
+// - Vertical scrolling for long output (use mouse wheel to scroll)
 
 // Example Lua script (interactive.lua):
 // print("What is your name?")
@@ -267,8 +269,11 @@ show_window(terminal, true);
 // - "help"  - Lists available commands
 // - "clear" - Clears the terminal screen
 // - "exit"  - Closes the terminal window
-
-// New commands can be added by editing the terminal_commands[] array in commctl/terminal.c
+//
+// Features:
+// - Text wrapping to fit window width
+// - Vertical scrolling for long output (use mouse wheel to scroll)
+// - New commands can be added by editing the terminal_commands[] array in commctl/terminal.c
 ```
 
 ## Window Messages
@@ -335,6 +340,13 @@ draw_text_small("Hello World", x, y, 0xFFFFFFFF); // color as RGBA
 int width = strwidth("Hello World");
 int partial_width = strnwidth("Hello", 5);
 
+// Advanced text rendering with wrapping and scrolling (NEW)
+// Calculate text height with wrapping
+int height = calc_text_height(text, window_width);
+
+// Draw text with wrapping and viewport clipping
+draw_text_wrapped(text, x, y, width, height, 0xFFFFFFFF);
+
 // Clean up (call at shutdown)
 shutdown_text_rendering();
 ```
@@ -357,6 +369,9 @@ int width = get_text_width("DOOM");
 - DOOM/Hexen font supports characters 33-95 (printable ASCII)
 - Font atlas is created automatically for efficient rendering
 - Text rendering uses OpenGL for hardware acceleration
+- `draw_text_wrapped()` automatically wraps text to fit within specified width
+- `calc_text_height()` calculates total height needed for wrapped text
+- Both functions handle text that exceeds viewport bounds efficiently
 
 
 ## Status
