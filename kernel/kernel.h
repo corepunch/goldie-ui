@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <SDL2/SDL.h>
+#include "renderer.h"
 
 #define UI_INIT_DESKTOP 0x01000000u
 #define UI_INIT_TRAY 0x02000000u

@@ -28,8 +28,8 @@ typedef struct {
 
 // Font atlas structure
 typedef struct {
-  GLuint vao, vbo;
-  GLuint texture;    // Atlas texture ID
+  R_Mesh mesh;       // Mesh for rendering text
+  R_Texture texture; // Atlas texture
   uint8_t char_from[256];    // Start position of each character in pixels
   uint8_t char_to[256];      // End position of each character in pixels
   uint8_t char_height;       // Height of each character in pixels
@@ -117,7 +117,10 @@ static bool create_font_atlas(void) {
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, FONT_TEX_SIZE, FONT_TEX_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, atlas_data);
   
   // Store atlas information
-  text_state.small_font.texture = texture;
+  text_state.small_font.texture.id = texture;
+  text_state.small_font.texture.width = FONT_TEX_SIZE;
+  text_state.small_font.texture.height = FONT_TEX_SIZE;
+  text_state.small_font.texture.format = GL_RED;
   text_state.small_font.char_height = char_height;
   text_state.small_font.chars_per_row = chars_per_row;
   text_state.small_font.total_chars = chars_per_row * rows;
@@ -127,11 +130,14 @@ static bool create_font_atlas(void) {
   
   printf("Small font atlas created successfully\n");
   
-  glGenVertexArrays(1, &text_state.small_font.vao);
-  glGenBuffers(1, &text_state.small_font.vbo);
-  
-  glBindVertexArray(text_state.small_font.vao);
-  glBindBuffer(GL_ARRAY_BUFFER, text_state.small_font.vbo);
+  // Initialize mesh for text rendering
+  // Vertex attribute layout: 0 = Position, 1 = UV, 2 = Color
+  R_VertexAttrib attribs[] = {
+    {0, 2, GL_SHORT, GL_FALSE, offsetof(text_vertex_t, x)},  // Position
+    {1, 2, GL_FLOAT, GL_FALSE, offsetof(text_vertex_t, u)},  // UV
+    {2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(text_vertex_t, col)} // Color
+  };
+  R_MeshInit(&text_state.small_font.mesh, attribs, 3, sizeof(text_vertex_t), GL_TRIANGLES);
 
   return true;
 }
@@ -239,31 +245,11 @@ void draw_text_small(const char* text, int x, int y, uint32_t col) {
   glDisable(GL_DEPTH_TEST);
   
   // Get locations for shader uniforms
-  push_sprite_args(text_state.small_font.texture, 0, 0, 1, 1, 1);
+  push_sprite_args(text_state.small_font.texture.id, 0, 0, 1, 1, 1);
   
-  // Bind font texture
-  glBindTexture(GL_TEXTURE_2D, text_state.small_font.texture);
-  
-  // Bind and update the VBO with the vertex data
-  glBindVertexArray(text_state.small_font.vao);
-  glBindBuffer(GL_ARRAY_BUFFER, text_state.small_font.vbo);
-  glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(text_vertex_t), buffer, GL_DYNAMIC_DRAW);
-  
-  // Set up vertex attributes
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glEnableVertexAttribArray(2);
-  glVertexAttribPointer(0, 2, GL_SHORT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, x)); // Position
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, u)); // UV
-  glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, col)); // Color
-
-  // Draw all vertices in one call
-  glDrawArrays(GL_TRIANGLES, 0, vertex_count);
-  
-  // Clean up
-  glDisableVertexAttribArray(0);
-  glDisableVertexAttribArray(1);
-  glDisableVertexAttribArray(2);
+  // Bind font texture and draw
+  R_TextureBind(&text_state.small_font.texture);
+  R_MeshDrawDynamic(&text_state.small_font.mesh, buffer, vertex_count);
   
   // Restore GL state
   // Note: Commented out to match original behavior
@@ -356,29 +342,16 @@ void draw_text_wrapped(const char* text, rect_t const *viewport, uint32_t col) {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDisable(GL_DEPTH_TEST);
-  push_sprite_args(text_state.small_font.texture, 0, 0, 1, 1, 1);
-  glBindTexture(GL_TEXTURE_2D, text_state.small_font.texture);
-  glBindVertexArray(text_state.small_font.vao);
-  glBindBuffer(GL_ARRAY_BUFFER, text_state.small_font.vbo);
-  glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(text_vertex_t), buffer, GL_DYNAMIC_DRAW);
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glEnableVertexAttribArray(2);
-  glVertexAttribPointer(0, 2, GL_SHORT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, x));
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, u));
-  glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(text_vertex_t), (void*)offsetof(text_vertex_t, col));
-  glDrawArrays(GL_TRIANGLES, 0, vertex_count);
-  glDisableVertexAttribArray(0);
-  glDisableVertexAttribArray(1);
-  glDisableVertexAttribArray(2);
+  push_sprite_args(text_state.small_font.texture.id, 0, 0, 1, 1, 1);
+  R_TextureBind(&text_state.small_font.texture);
+  R_MeshDrawDynamic(&text_state.small_font.mesh, buffer, vertex_count);
 }
 
 // Clean up text rendering resources
 void shutdown_text_rendering(void) {
   // Delete small font resources
-  SAFE_DELETE_N(text_state.small_font.texture, glDeleteTextures);
-  SAFE_DELETE_N(text_state.small_font.vao, glDeleteVertexArrays);
-  SAFE_DELETE_N(text_state.small_font.vbo, glDeleteBuffers);
+  SAFE_DELETE_N(text_state.small_font.texture.id, glDeleteTextures);
+  R_MeshDestroy(&text_state.small_font.mesh);
   
   // Clear the entire state
   memset(&text_state, 0, sizeof(text_state));

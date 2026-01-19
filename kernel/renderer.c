@@ -27,8 +27,7 @@ wall_vertex_t sprite_verts[] = {
 // Sprite system state
 typedef struct {
   GLuint program;        // Shader program
-  GLuint vao;            // Vertex array object
-  GLuint vbo;            // Vertex buffer object
+  R_Mesh mesh;           // Sprite mesh for drawing quads
   mat4 projection;       // Orthographic projection matrix
 } renderer_system_t;
 
@@ -88,7 +87,7 @@ int get_sprite_prog(void) {
 }
 
 int get_sprite_vao(void) {
-  return g_ref.vao;
+  return g_ref.mesh.vao;
 }
 
 // Initialize the sprite system
@@ -105,26 +104,17 @@ bool ui_init_prog(void) {
   glBindAttribLocation(g_ref.program, 2, "color");
   glLinkProgram(g_ref.program);
   
-  // Create VAO, VBO, EBO
-  glGenVertexArrays(1, &g_ref.vao);
-  glBindVertexArray(g_ref.vao);
+  // Initialize mesh for sprite rendering using Renderer API
+  // Vertex attribute layout: 0 = Position, 1 = UV, 2 = Color
+  R_VertexAttrib attribs[] = {
+    {0, 3, GL_SHORT, GL_FALSE, offsetof(wall_vertex_t, x)},      // Position (x, y, z)
+    {1, 2, GL_SHORT, GL_FALSE, offsetof(wall_vertex_t, u)},      // UV
+    {2, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(wall_vertex_t, color)} // Color
+  };
+  R_MeshInit(&g_ref.mesh, attribs, 3, sizeof(wall_vertex_t), GL_TRIANGLE_FAN);
   
-  glGenBuffers(1, &g_ref.vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, g_ref.vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(sprite_verts), sprite_verts, GL_STATIC_DRAW);
-  
-  // Set up vertex attributes
-  //  glEnableVertexAttribArray(0);
-  //  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-  //  glEnableVertexAttribArray(1);
-  //  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-  
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glEnableVertexAttribArray(2);
-  glVertexAttribPointer(0, 3, GL_SHORT, GL_FALSE, sizeof(wall_vertex_t), OFFSET_OF(wall_vertex_t, x)); // Position
-  glVertexAttribPointer(1, 2, GL_SHORT, GL_FALSE, sizeof(wall_vertex_t), OFFSET_OF(wall_vertex_t, u)); // UV
-  glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(wall_vertex_t), OFFSET_OF(wall_vertex_t, color)); // Color
+  // Upload static sprite vertex data
+  R_MeshUpload(&g_ref.mesh, sprite_verts, 4);
   
   // Create orthographic projection matrix for screen-space rendering
   int width, height;
@@ -147,8 +137,7 @@ bool ui_init_prog(void) {
 void ui_shutdown_prog(void) {
   // Delete shader program and buffers
   SAFE_DELETE(g_ref.program, glDeleteProgram);
-  SAFE_DELETE_N(g_ref.vao, glDeleteVertexArrays);
-  SAFE_DELETE_N(g_ref.vbo, glDeleteBuffers);
+  R_MeshDestroy(&g_ref.mesh);
 }
 
 void push_sprite_args(int tex, int x, int y, int w, int h, float alpha) {
@@ -177,19 +166,15 @@ float *get_sprite_matrix(void) {
 void draw_rect_ex(int tex, int x, int y, int w, int h, int type, float alpha) {
   push_sprite_args(tex, x, y, w, h, alpha);
   
-  // Bind VAO and draw
-  glBindVertexArray(g_ref.vao);
-  //  if (alpha == 1) {
-  //    glDisable(GL_BLEND);
-  //  } else {
   // Enable blending for transparency
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  //  }
   // Disable depth testing for UI elements
   glDisable(GL_DEPTH_TEST);
   
-  glDrawArrays(type?GL_LINE_LOOP:GL_TRIANGLE_FAN, 0, 4);
+  // Use the appropriate drawing mode
+  g_ref.mesh.draw_mode = type ? GL_LINE_LOOP : GL_TRIANGLE_FAN;
+  R_MeshDraw(&g_ref.mesh);
   
   // Reset state
   glEnable(GL_DEPTH_TEST);
