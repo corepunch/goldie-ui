@@ -1,5 +1,5 @@
-# Goldie UI Framework Makefile
-# Builds UI library, examples, and tests for Linux, macOS, and Windows
+# Orion Framework Makefile
+# Builds Orion library, examples, and tests for Linux, macOS, and Windows
 
 # Compiler and flags
 CC = gcc
@@ -70,8 +70,8 @@ COMMCTL_OBJS = $(patsubst commctl/%.c,$(OBJ_DIR)/commctl/%.o,$(COMMCTL_SRCS))
 LIB_OBJS = $(USER_OBJS) $(KERNEL_OBJS) $(COMMCTL_OBJS)
 
 # Library targets
-STATIC_LIB = $(LIB_DIR)/libgoldieui.a
-SHARED_LIB = $(LIB_DIR)/libgoldieui$(LIB_EXT)
+STATIC_LIB = $(LIB_DIR)/liborion.a
+SHARED_LIB = $(LIB_DIR)/liborion$(LIB_EXT)
 
 # Example sources
 EXAMPLE_SRCS = $(wildcard examples/*.c)

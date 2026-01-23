@@ -1,8 +1,8 @@
-# GitHub Copilot Instructions for goldie-ui
+# GitHub Copilot Instructions for Orion
 
 ## Project Overview
 
-This is a UI framework library extracted from DOOM-ED, organized in a Windows-like architecture with three main layers:
+Orion is a UI framework library extracted from DOOM-ED, organized in a Windows-like architecture with three main layers:
 - **user/** - Window management and user interface (USER.DLL equivalent)
 - **kernel/** - Event loop and SDL integration (KERNEL.DLL equivalent)  
 - **commctl/** - Common controls (COMCTL32.DLL equivalent)
@@ -51,7 +51,7 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 
 ### Memory Management
 - Use malloc/free for dynamic allocations
-- Window structures are managed by the framework - don't manually free them
+- Window structures are managed by Orion - don't manually free them
 - Always pair init functions with corresponding shutdown functions
 
 ## Common Tasks

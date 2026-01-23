@@ -1,10 +1,10 @@
 # Memory Leak and Cleanup Verification
 
-This document describes the memory leak testing and cleanup verification for the Goldie UI framework.
+This document describes the memory leak testing and cleanup verification for Orion.
 
 ## Summary
 
-The Goldie UI framework has been verified to have **zero memory leaks** using Valgrind memory analysis tool.
+Orion has been verified to have **zero memory leaks** using Valgrind memory analysis tool.
 
 ### Valgrind Results
 
@@ -17,7 +17,7 @@ LEAK SUMMARY:
 
 ## Cleanup Functions
 
-The framework provides comprehensive cleanup through `ui_shutdown_graphics()`:
+Orion provides comprehensive cleanup through `ui_shutdown_graphics()`:
 
 1. **Window Cleanup** - Destroys all windows and child windows
 2. **Hook Cleanup** - Frees all registered window hooks
