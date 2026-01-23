@@ -1,4 +1,4 @@
-// Simple test framework for Goldie UI
+// Simple test framework for Orion
 // Inspired by Windows 1.0 testing approach - simple, direct, minimal
 
 #ifndef __TEST_FRAMEWORK_H__

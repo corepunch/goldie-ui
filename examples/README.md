@@ -1,6 +1,6 @@
-# UI Framework Examples
+# Orion Examples
 
-This directory contains example programs demonstrating the use of the UI framework.
+This directory contains example programs demonstrating the use of Orion.
 
 ## Hello World Example
 
@@ -8,7 +8,7 @@ This directory contains example programs demonstrating the use of the UI framewo
 
 A simple standalone application that demonstrates:
 - Initializing SDL and OpenGL
-- Creating windows using the UI framework
+- Creating windows using Orion
 - Handling window messages and events
 - Drawing text in a window
 - Basic event loop
@@ -32,14 +32,14 @@ The example creates a simple window with "Hello World!" text displayed in the ce
 ### Code Structure
 
 1. **Initialization** - Sets up SDL, creates an OpenGL context
-2. **Window Creation** - Uses the UI framework to create a desktop and a hello world window
+2. **Window Creation** - Uses Orion to create a desktop and a hello world window
 3. **Event Loop** - Processes SDL events and window messages
 4. **Rendering** - Draws the windows and their contents
 5. **Cleanup** - Properly shuts down SDL
 
 ### Current Limitations
 
-The example currently links against some mapview files (sprites.c, font.c, icons.c) for drawing functions. This is temporary until these functions are fully extracted into the UI framework.
+The example currently links against some mapview files (sprites.c, font.c, icons.c) for drawing functions. This is temporary until these functions are fully extracted into Orion.
 
 ## File Manager Example
 
@@ -78,7 +78,7 @@ Additional examples to be added:
 
 ## Dependencies
 
-The UI framework examples require:
+Orion examples require:
 - SDL2
 - OpenGL 3.2+
 

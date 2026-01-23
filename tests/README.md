@@ -1,6 +1,6 @@
-# Goldie UI Test Suite
+# Orion Test Suite
 
-This directory contains the test suite for the Goldie UI framework. The tests are inspired by the testing approach used for Windows 1.0, focusing on core functionality: window management, event handling, and common controls.
+This directory contains the test suite for Orion. The tests are inspired by the testing approach used for Windows 1.0, focusing on core functionality: window management, event handling, and common controls.
 
 ## Test Organization
 
@@ -37,12 +37,12 @@ This will:
 
 ## Test Environment
 
-The test environment (`test_env.h` and `test_env.c`) provides utilities for testing UI windows and messages:
+The test environment (`test_env.h` and `test_env.c`) provides utilities for testing Orion windows and messages:
 
 ### Features
 
 - **Window Creation**: Helper functions to create test windows
-- **Message Tracking**: Uses the UI framework's hook system to track all messages sent to windows
+- **Message Tracking**: Uses Orion's hook system to track all messages sent to windows
 - **Event History**: Maintains a history of all tracked events with details (window, message, parameters, call count)
 - **Query Interface**: Functions to check if messages were sent, count message occurrences, and retrieve event details
 
@@ -136,7 +136,7 @@ The test suite follows the Windows 1.0 testing philosophy:
 
 ## Hook System
 
-The test environment leverages the UI framework's built-in hook system to track window messages. Hooks are registered for common window messages:
+The test environment leverages Orion's built-in hook system to track window messages. Hooks are registered for common window messages:
 
 - kWindowMessageCreate - Window creation
 - kWindowMessageDestroy - Window destruction  

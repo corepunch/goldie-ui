@@ -1,6 +1,6 @@
-# UI Framework
+# Orion
 
-This directory contains the extracted UI framework for DOOM-ED, organized in a Windows-like architecture.
+Orion is a UI framework library extracted from DOOM-ED, organized in a Windows-like architecture.
 
 ![Screenshot 2026-01-16 at 15 21 17](https://github.com/user-attachments/assets/1474fcfa-17eb-4731-8af5-06a83ace958f)
 ![Screenshot 2026-01-16 at 15 20 19](https://github.com/user-attachments/assets/57ef5b20-56ff-4d4c-8057-d7f2e699a08e)
@@ -44,7 +44,7 @@ ui/
 
 ## Architecture
 
-The UI framework follows a layered architecture similar to Windows:
+Orion follows a layered architecture similar to Windows:
 
 ### ui/user/ - Window Management Layer
 Handles window creation, destruction, message passing, and basic rendering primitives.
@@ -82,7 +82,7 @@ Implements standard UI controls that can be used to build interfaces.
 
 ## Building
 
-The framework supports Linux, macOS, and Windows platforms.
+Orion supports Linux, macOS, and Windows platforms.
 
 ### Dependencies
 
@@ -119,9 +119,9 @@ make clean
 
 ### Build Output
 
-- **Linux**: `build/lib/libgoldieui.a`, `build/lib/libgoldieui.so`
-- **macOS**: `build/lib/libgoldieui.a`, `build/lib/libgoldieui.dylib`
-- **Windows**: `build/lib/libgoldieui.a`, `build/lib/libgoldieui.dll`
+- **Linux**: `build/lib/liborion.a`, `build/lib/liborion.so`
+- **macOS**: `build/lib/liborion.a`, `build/lib/liborion.dylib`
+- **Windows**: `build/lib/liborion.a`, `build/lib/liborion.dll`
 - **Examples/Tests**: `build/bin/`
 
 ## Usage
@@ -328,7 +328,7 @@ The framework uses a message-based architecture. Common messages include:
 
 ## Text Rendering API
 
-The UI framework provides text rendering through `ui/user/text.h`:
+Orion provides text rendering through `ui/user/text.h`:
 
 ### Small Bitmap Font (6x8 pixels)
 
@@ -394,7 +394,7 @@ This is an in-progress refactoring. The framework currently:
 
 ## Memory Management
 
-The framework has been verified to have proper cleanup with no memory leaks:
+Orion has been verified to have proper cleanup with no memory leaks:
 
 ### Cleanup Functions
 - `ui_shutdown_graphics()` - Main cleanup function that:
@@ -410,7 +410,7 @@ The framework has been verified to have proper cleanup with no memory leaks:
 All cleanup functions are idempotent and safe to call multiple times.
 
 ### Memory Leak Verification
-The framework has been tested with Valgrind to ensure no memory leaks:
+Orion has been tested with Valgrind to ensure no memory leaks:
 - **definitely lost: 0 bytes** ✅
 - **indirectly lost: 0 bytes** ✅
 - **possibly lost: 0 bytes** ✅
