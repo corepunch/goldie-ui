@@ -14,7 +14,10 @@
 result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
-      win->frame.w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXT_SHADOW_OFFSET);
+      // Single-line labels auto-expand to fit text; multiline labels wrap and
+      // must not expand or the layout breaks.
+      if (win->frame.h <= CONTROL_HEIGHT)
+        win->frame.w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXT_SHADOW_OFFSET);
       win->flags |= WINDOW_NOTABSTOP;
       if (lparam) win->userdata = lparam;
       return true;
@@ -31,9 +34,15 @@ result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       else
         col = (uint32_t)ud;
       irect16_t text_pos = {0, 0, win->frame.w, win->frame.h};
-      irect16_t shadow_pos = rect_offset(text_pos, TEXT_SHADOW_OFFSET, TEXT_SHADOW_OFFSET);
-      draw_text_clipped(FONT_SMALL, win->title, &shadow_pos, get_sys_color(brDarkEdge), 0);
-      draw_text_clipped(FONT_SMALL, win->title, &text_pos, col, 0);
+      // Labels taller than a single control row use draw_text_wrapped so that
+      // long text reflowes naturally within the available width.
+      if (win->frame.h > CONTROL_HEIGHT) {
+        draw_text_wrapped(win->title, &text_pos, col);
+      } else {
+        irect16_t shadow_pos = rect_offset(text_pos, TEXT_SHADOW_OFFSET, TEXT_SHADOW_OFFSET);
+        draw_text_clipped(FONT_SMALL, win->title, &shadow_pos, get_sys_color(brDarkEdge), 0);
+        draw_text_clipped(FONT_SMALL, win->title, &text_pos, col, 0);
+      }
       return true;
     }
   }

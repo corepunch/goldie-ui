@@ -1,48 +1,19 @@
 // VIEW: Post detail dialog — shows post body, threaded comments, and likes.
 //
 // Layout (client area POST_DLG_W x POST_DLG_H):
-//   y=  4  Post title
-//   y= 18  "by Author"
-//   y= 32  Body text (wrapped, up to ~50px high)
-//   y= 86  "N likes"  +  [♥ Like Post] button
-//   y=104  Horizontal separator
-//   y=108  "Comments (N):" label
-//   y=122  Comments reportview (fills to y=272)
-//   y=278  [Add Comment] [Add Reply] [Like Comment]  [Close]
+//   y=  4  Post title label       (ID_LBL_POST_TITLE)
+//   y= 18  "by Author" label      (ID_LBL_POST_AUTHOR)
+//   y= 32  Body text label        (ID_LBL_POST_BODY, wrapped, h=50)
+//   y= 86  "N likes" label        (ID_LBL_POST_LIKES)  + [Like Post] button
+//   y=108  "Comments (N):" label  (ID_LBL_COMMENTS_HDR)
+//   y=122  Comments reportview    (created imperatively in evCreate)
+//   y=280  [Add Comment] [Add Reply] [Like Comment]  [Close]
 //
-// Standard button controls are declared in a static form_def_t so their
-// layout is declarative.  Only the win_reportview — which has no
-// FORM_CTRL_* equivalent — is created imperatively in evCreate.
+// All static controls and buttons are declared in socialfeed.orion (post_detail
+// form) and created automatically before evCreate fires.  Only the reportview —
+// which has no FORM_CTRL_* equivalent — is created imperatively.
 
 #include "socialfeed.h"
-
-// ============================================================
-// Static form definition — declares the 5 standard buttons.
-// win_reportview is not a FORM_CTRL_* type so it is still
-// created imperatively in evCreate below.
-// ============================================================
-
-static const form_ctrl_def_t kPostDetailButtons[] = {
-  { "button", ID_BTN_LIKE_POST,
-    {POST_DLG_W - 100, 82, 96, 18}, 0,              "Like Post",     "like_post"    },
-  { "button", ID_BTN_ADD_COMMENT,
-    {2,               280, 90, 18}, 0,              "Add Comment",   "add_comment"  },
-  { "button", ID_BTN_ADD_REPLY,
-    {96,              280, 74, 18}, 0,              "Add Reply",     "add_reply"    },
-  { "button", ID_BTN_LIKE_COMMENT,
-    {174,             280, 90, 18}, 0,              "Like Comment",  "like_comment" },
-  { "button", ID_BTN_CLOSE,
-    {POST_DLG_W -  76, 280, 74, 18}, BUTTON_DEFAULT, "Close",        "close"        },
-};
-
-static const form_def_t kPostDetailForm = {
-  .name        = "Post Detail",
-  .width       = POST_DLG_W,
-  .height      = POST_DLG_H,
-  .flags       = 0,
-  .children    = kPostDetailButtons,
-  .child_count = ARRAY_LEN(kPostDetailButtons),
-};
 
 // ============================================================
 // Flat comment item — represents one row in the comment list
@@ -205,42 +176,20 @@ static void refresh_comments(post_detail_t *s) {
 }
 
 // ============================================================
-// draw_post_header — custom paint for the post info section
+// update_header_labels — push current post data into the label controls
 // ============================================================
 
-static void draw_post_header(post_detail_t *s) {
+static void update_header_labels(window_t *win, post_detail_t *s) {
   post_t *p = s->post;
 
-  uint32_t col_normal   = get_sys_color(brTextNormal);
-  uint32_t col_disabled = get_sys_color(brTextDisabled);
-
-  // Title
-  draw_text_small(p->title, 4, 4, col_normal);
-
-  // Author line
-  char by_buf[160];
-  snprintf(by_buf, sizeof(by_buf), "by %s", p->author);
-  draw_text_small(by_buf, 4, 18, col_disabled);
-
-  // Body (wrapped in a rect; reserve right side for the like button)
-  irect16_t body_rect = { 4, 32, POST_DLG_W - 110, 50 };
-  draw_text_wrapped(p->body, &body_rect, col_normal);
-
-  // Like count
-  char like_buf[32];
-  snprintf(like_buf, sizeof(like_buf),
-           p->like_count == 1 ? "%d like" : "%d likes", p->like_count);
-  draw_text_small(like_buf, 4, 88, col_disabled);
-
-  // Separator line
-  fill_rect(get_sys_color(brDarkEdge),  R(0, 102, POST_DLG_W, 1));
-  fill_rect(get_sys_color(brLightEdge), R(0, 103, POST_DLG_W, 1));
-
-  // "Comments (N):" label
-  char hdr_buf[64];
-  snprintf(hdr_buf, sizeof(hdr_buf),
-           "Comments (%d):", s->post->comment_count);
-  draw_text_small(hdr_buf, 4, 108, col_normal);
+  set_window_item_text(win, ID_LBL_POST_TITLE,    "%s",  p->title);
+  set_window_item_text(win, ID_LBL_POST_AUTHOR,   "by %s", p->author);
+  set_window_item_text(win, ID_LBL_POST_BODY,     "%s",  p->body);
+  set_window_item_text(win, ID_LBL_POST_LIKES,
+                       p->like_count == 1 ? "%d like" : "%d likes",
+                       p->like_count);
+  set_window_item_text(win, ID_LBL_COMMENTS_HDR, "Comments (%d):",
+                       p->comment_count);
 }
 
 // ============================================================
@@ -253,9 +202,9 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
 
   switch (msg) {
     case evCreate: {
-      // Standard button children were created by the form before evCreate fired.
-      // Only the win_reportview must be created imperatively here, since
-      // win_reportview has no FORM_CTRL_* equivalent.
+      // Standard button and label children were created by the form before
+      // evCreate fired.  Only the win_reportview must be created imperatively
+      // here, since win_reportview has no FORM_CTRL_* equivalent.
       s = (post_detail_t *)lparam;
       win->userdata    = s;
       s->selection     = (flat_sel_t){ -1, -1 };
@@ -265,13 +214,10 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
           MAKERECT(2, 122, POST_DLG_W - 4, 150),
           win, win_reportview, 0, NULL);
 
+      update_header_labels(win, s);
       refresh_comments(s);
       return true;
     }
-
-    case evPaint:
-      draw_post_header(s);
-      return false;
 
     case evDestroy:
       if (s) { free(s->flat); s->flat = NULL; s->flat_cap = 0; }
@@ -309,7 +255,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
         // ---- Like Post ----
         case ID_BTN_LIKE_POST:
           post_like(s->post);
-          invalidate_window(win);
+          update_header_labels(win, s);
           SF_DEBUG("liked post id=%d likes=%d", s->post->id, s->post->like_count);
           return true;
 
@@ -324,7 +270,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
             if (c) {
               app_add_comment(s->post, c);
               refresh_comments(s);
-              invalidate_window(win);
+              update_header_labels(win, s);
               SF_DEBUG("comment added post_id=%d comment_id=%d", s->post->id, c->id);
             }
           }
@@ -357,7 +303,6 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
             if (reply) {
               app_add_reply(parent_c, reply);
               refresh_comments(s);
-              invalidate_window(win);
               SF_DEBUG("reply added comment_idx=%d reply_id=%d", ci, reply->id);
             }
           }
@@ -416,6 +361,6 @@ void show_post_detail(window_t *parent, int post_idx) {
     .comments_win  = NULL,
   };
 
-  show_dialog_from_form(&kPostDetailForm, "Post Detail",
+  show_dialog_from_form(&socialfeed_post_detail_form, "Post Detail",
                         parent, post_detail_proc, &state);
 }

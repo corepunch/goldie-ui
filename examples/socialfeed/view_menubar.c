@@ -1,40 +1,11 @@
 // VIEW: Menu bar and command dispatch for Social Feed.
+//
+// Menu arrays (kFileItems, kPostItems, …), kMenus/kNumMenus, and the toolbar
+// array kFeedToolbar are generated from socialfeed.orion and declared in the
+// generated forms header included via socialfeed.h.
 
 #include "socialfeed.h"
 #include "../../gem_magic.h"
-
-// ============================================================
-// Menu definitions
-// ============================================================
-
-static const menu_item_t kFileItems[] = {
-  {"Quit", ID_FILE_QUIT},
-};
-
-static const menu_item_t kPostItems[] = {
-  {"New Post...",  ID_POST_NEW},
-  {"Like Post",    ID_POST_LIKE},
-  {"View Post...", ID_POST_VIEW},
-  {NULL, 0},
-  {"Delete Post",  ID_POST_DELETE},
-};
-
-static const menu_item_t kViewItems[] = {
-  {"Refresh", ID_VIEW_REFRESH},
-};
-
-static const menu_item_t kHelpItems[] = {
-  {"About...", ID_HELP_ABOUT},
-};
-
-menu_def_t kMenus[] = {
-  {"File", kFileItems, (int)(sizeof(kFileItems)/sizeof(kFileItems[0]))},
-  {"Post", kPostItems, (int)(sizeof(kPostItems)/sizeof(kPostItems[0]))},
-  {"View", kViewItems, (int)(sizeof(kViewItems)/sizeof(kViewItems[0]))},
-  {"Help", kHelpItems, (int)(sizeof(kHelpItems)/sizeof(kHelpItems[0]))},
-};
-
-const int kNumMenus = (int)(sizeof(kMenus)/sizeof(kMenus[0]));
 
 // ============================================================
 // Accelerator table

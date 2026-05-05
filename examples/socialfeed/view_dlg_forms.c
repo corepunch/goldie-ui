@@ -1,24 +1,13 @@
 // VIEW: Form-based dialogs — New Post and New Comment / Reply.
+//
+// Form layout (kNewPostChildren, kNewCommentChildren) is generated from
+// socialfeed.orion.  Only the window procedures and binding tables live here.
 
 #include "socialfeed.h"
 
 // ============================================================
 // New Post dialog (form-based)
 // ============================================================
-
-static const form_ctrl_def_t kNewPostChildren[] = {
-  { "label",     -1,                  { 4,  8, 58, 13 }, 0,              "Author:",  "lbl_author" },
-  { "textedit",  ID_POST_AUTHOR_CTRL, { 64, 6, 200, 16 }, 0,             "",         "edit_author"},
-
-  { "label",     -1,                  { 4, 28, 58, 13 }, 0,              "Title:",   "lbl_title"  },
-  { "textedit",  ID_POST_TITLE_CTRL,  { 64, 26, 200, 16 }, 0,            "",         "edit_title" },
-
-  { "label",     -1,                  { 4, 48, 58, 13 }, 0,              "Body:",    "lbl_body"   },
-  { "multiedit", ID_POST_BODY_CTRL,   { 64, 46, 200, 60 }, 0,            "",         "edit_body"  },
-
-  { "button", ID_OK,     { 72, 118, 60, 18 }, BUTTON_DEFAULT, "Post",   "btn_ok"     },
-  { "button", ID_CANCEL, { 136, 118, 60, 18 }, 0,             "Cancel", "btn_cancel" },
-};
 
 typedef struct {
   char author[64];
@@ -31,18 +20,6 @@ static const ctrl_binding_t kNewPostBindings[] = {
   DDX_TEXT(ID_POST_AUTHOR_CTRL, new_post_state_t, author),
   DDX_TEXT(ID_POST_TITLE_CTRL, new_post_state_t, title),
   DDX_TEXT(ID_POST_BODY_CTRL, new_post_state_t, body),
-};
-
-static const form_def_t kNewPostForm = {
-  .name          = "New Post",
-  .width         = 272,
-  .height        = 146,
-  .children      = kNewPostChildren,
-  .child_count   = (int)(sizeof(kNewPostChildren)/sizeof(kNewPostChildren[0])),
-  .bindings      = kNewPostBindings,
-  .binding_count = (int)(sizeof(kNewPostBindings)/sizeof(kNewPostBindings[0])),
-  .ok_id         = ID_OK,
-  .cancel_id     = ID_CANCEL,
 };
 
 static result_t new_post_proc(window_t *win, uint32_t msg,
@@ -92,7 +69,7 @@ static result_t new_post_proc(window_t *win, uint32_t msg,
 bool show_new_post_dialog(window_t *parent) {
   new_post_state_t state = { "", "", "", false };
 
-  show_dialog_from_form(&kNewPostForm, "New Post", parent,
+  show_dialog_from_form(&socialfeed_new_post_form, "New Post", parent,
                         new_post_proc, &state);
 
   if (!state.accepted) return false;
@@ -104,17 +81,6 @@ bool show_new_post_dialog(window_t *parent) {
 // ============================================================
 // New Comment / Reply dialog (form-based)
 // ============================================================
-
-static const form_ctrl_def_t kNewCommentChildren[] = {
-  { "label",    -1,               { 4,  8, 58, 13 }, 0,              "Author:", "lbl_author" },
-  { "textedit", ID_CMT_AUTHOR_CTRL, { 64, 6, 188, 16 }, 0,           "",        "edit_author"},
-
-  { "label",    -1,               { 4, 28, 58, 13 }, 0,              "Text:",   "lbl_text"   },
-  { "textedit", ID_CMT_TEXT_CTRL, { 64, 26, 188, 16 }, 0,            "",        "edit_text"  },
-
-  { "button", ID_OK,     { 62, 54, 60, 18 }, BUTTON_DEFAULT, "Submit", "btn_ok"     },
-  { "button", ID_CANCEL, { 126, 54, 60, 18 }, 0,             "Cancel", "btn_cancel" },
-};
 
 typedef struct {
   char *author_buf;
@@ -176,14 +142,6 @@ static result_t new_comment_proc(window_t *win, uint32_t msg,
   }
 }
 
-static const form_def_t kNewCommentForm = {
-  .name        = "New Comment",
-  .width       = 260,
-  .height      = 82,
-  .children    = kNewCommentChildren,
-  .child_count = (int)(sizeof(kNewCommentChildren)/sizeof(kNewCommentChildren[0])),
-};
-
 bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
                              char *author_buf, size_t author_sz,
                              char *text_buf,   size_t text_sz) {
@@ -195,7 +153,7 @@ bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
     .accepted   = false,
   };
 
-  show_dialog_from_form(&kNewCommentForm, prompt_title, parent,
+  show_dialog_from_form(&socialfeed_new_comment_form, prompt_title, parent,
                         new_comment_proc, &state);
 
   return state.accepted;

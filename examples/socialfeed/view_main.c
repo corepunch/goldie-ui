@@ -1,18 +1,9 @@
 // VIEW: Main window — feed list of posts (win_reportview).
+//
+// kFeedToolbar and kFeedToolbarCount are generated from socialfeed.orion and
+// declared in the generated forms header included via socialfeed.h.
 
 #include "socialfeed.h"
-
-// ============================================================
-// Toolbar button definitions
-// ============================================================
-
-static const toolbar_item_t kFeedToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, ID_POST_NEW,    sysicon_add,     0, 0, NULL },
-  { TOOLBAR_ITEM_BUTTON, ID_POST_LIKE,   sysicon_heart,   0, 0, NULL },
-  { TOOLBAR_ITEM_BUTTON, ID_POST_VIEW,   sysicon_comment, 0, 0, NULL },
-  { TOOLBAR_ITEM_SPACER, 0,              0,               0, 0, NULL },
-  { TOOLBAR_ITEM_BUTTON, ID_POST_DELETE, sysicon_delete,  0, 0, NULL },
-};
 
 // ============================================================
 // feed_list_proc — thin wrapper that adjusts the Title column
@@ -102,7 +93,7 @@ result_t main_win_proc(window_t *win, uint32_t msg,
       g_app->main_win = win;
 
       send_message(win, tbSetItems,
-                   (int)(sizeof(kFeedToolbar)/sizeof(kFeedToolbar[0])),
+                   kFeedToolbarCount,
                    (void *)kFeedToolbar);
 
       g_app->feed_win = create_window(

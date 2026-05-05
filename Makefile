@@ -191,7 +191,7 @@ SHELL_SRCS = $(wildcard shell/*.c)
 
 # Example sources - each example lives in its own subdirectory with a main.c.
 # Browser is built with a dedicated rule because it needs libxml2 flags.
-EXAMPLE_DIRS = $(filter-out examples/browser/main.c examples/formeditor/main.c examples/imageeditor/main.c,$(wildcard examples/*/main.c))
+EXAMPLE_DIRS = $(filter-out examples/browser/main.c examples/formeditor/main.c examples/imageeditor/main.c examples/socialfeed/main.c,$(wildcard examples/*/main.c))
 EXAMPLE_BINS = $(patsubst examples/%/main.c,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLE_DIRS))
 
 # Detect libxml2 before deciding whether to include the browser target.
@@ -228,9 +228,10 @@ ifneq ($(strip $(LIBXML2_LIBS)),)
 TOOLS_BINS += $(ORIONC_BIN)
 FORMEDITOR_EXAMPLE_BIN = $(BIN_DIR)/formeditor$(EXE_EXT)
 IMAGEEDITOR_EXAMPLE_BIN = $(BIN_DIR)/imageeditor$(EXE_EXT)
+SOCIALFEED_EXAMPLE_BIN = $(BIN_DIR)/socialfeed$(EXE_EXT)
 LIBXML_UI_TEST_BINS = $(IMAGEEDITOR_UI_TEST_BIN) $(FORMEDITOR_UI_TEST_BIN)
 else
-$(info NOTE: libxml2 not found; skipping orionc, formeditor and imageeditor examples.)
+$(info NOTE: libxml2 not found; skipping orionc, formeditor, imageeditor and socialfeed examples.)
 endif
 
 # Gitclient tests require custom build rules because they compile gitclient
@@ -265,6 +266,8 @@ IE_COMPONENTS_PLUGIN = $(LIB_DIR)/imageeditor_components$(LIB_EXT)
 GENERATED_DIR = $(BUILD_DIR)/generated
 IMAGEEDITOR_ORION = examples/imageeditor/imageeditor.orion
 IMAGEEDITOR_FORMS_H = $(GENERATED_DIR)/examples/imageeditor/imageeditor_forms.h
+SOCIALFEED_ORION = examples/socialfeed/socialfeed.orion
+SOCIALFEED_FORMS_H = $(GENERATED_DIR)/examples/socialfeed/socialfeed_forms.h
 
 # Tests with custom build rules — excluded from the generic pattern rules.
 APP_UI_TEST_SRCS = $(GITCLIENT_TEST_SRCS) $(IMAGEEDITOR_UI_TEST_SRC) $(FORMEDITOR_UI_TEST_SRC)
@@ -318,6 +321,11 @@ $(IMAGEEDITOR_FORMS_H): $(ORIONC_BIN) $(IMAGEEDITOR_ORION) | $(GENERATED_DIR)
 	@echo "Compiling Orion form: $@"
 	@mkdir -p $(dir $@)
 	$(ORIONC_BIN) --input $(IMAGEEDITOR_ORION) --output $@ --prefix imageeditor
+
+$(SOCIALFEED_FORMS_H): $(ORIONC_BIN) $(SOCIALFEED_ORION) | $(GENERATED_DIR)
+	@echo "Compiling Orion form: $@"
+	@mkdir -p $(dir $@)
+	$(ORIONC_BIN) --input $(SOCIALFEED_ORION) --output $@ --prefix socialfeed
 
 # Build the platform submodule shared library
 .PHONY: platform
@@ -388,7 +396,7 @@ $(SHARED_LIB): $(USER_SRCS) $(KERNEL_SRCS) $(COMMCTL_SRCS) $(PLATFORM_LIB) | $(L
 
 # Examples
 .PHONY: examples
-examples: share $(EXAMPLE_BINS) $(EXTRA_EXAMPLE_BINS) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) $(FORMEDITOR_EXAMPLE_BIN) $(IMAGEEDITOR_EXAMPLE_BIN)
+examples: share $(EXAMPLE_BINS) $(EXTRA_EXAMPLE_BINS) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) $(FORMEDITOR_EXAMPLE_BIN) $(IMAGEEDITOR_EXAMPLE_BIN) $(SOCIALFEED_EXAMPLE_BIN)
 
 .PHONY: plugins
 plugins: $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN)
@@ -426,6 +434,13 @@ $(BIN_DIR)/imageeditor$(EXE_EXT): $(wildcard examples/imageeditor/*.c) $(IMAGEED
 	@(find examples/imageeditor -maxdepth 1 -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/imageeditor/main.c"') | \
 		$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -DSHAREDIR='"../share/imageeditor"' -x c -o $@ - \
+		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
+$(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEED_FORMS_H) $(SHARED_LIB) | $(BIN_DIR) share
+	@echo "Building example: $@"
+	@(find examples/socialfeed -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "examples/socialfeed/main.c"') | \
+		$(CC) $(CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 # Static unity-build rule for all examples.

@@ -14,6 +14,11 @@
 #include "../../user/accel.h"
 #include "../../user/icons.h"
 
+// Menu / toolbar IDs and static form definitions are generated from socialfeed.orion.
+// The generated header also defines kMenus, kNumMenus, kFeedToolbar/kFeedToolbarCount
+// and the three form_def_t structs used by the dialogs.
+#include "build/generated/examples/socialfeed/socialfeed_forms.h"
+
 #ifndef SOCIALFEED_DEBUG
 #define SOCIALFEED_DEBUG 1
 #endif
@@ -38,45 +43,6 @@
 // Post detail dialog dimensions (client area)
 #define POST_DLG_W  520
 #define POST_DLG_H  336
-
-// ============================================================
-// Menu / command IDs
-// ============================================================
-
-#define ID_FILE_QUIT      5
-
-#define ID_POST_NEW      10
-#define ID_POST_LIKE     11
-#define ID_POST_VIEW     12
-#define ID_POST_DELETE   13
-
-#define ID_VIEW_REFRESH  20
-
-#define ID_HELP_ABOUT   100
-
-// ============================================================
-// Dialog control IDs
-// ============================================================
-
-// New-post dialog
-#define ID_POST_AUTHOR_CTRL  1001
-#define ID_POST_TITLE_CTRL   1002
-#define ID_POST_BODY_CTRL    1003
-
-// New-comment / reply dialog
-#define ID_CMT_AUTHOR_CTRL   2001
-#define ID_CMT_TEXT_CTRL     2002
-
-// Post detail — child window IDs
-#define ID_BTN_LIKE_POST       301
-#define ID_BTN_ADD_COMMENT     302
-#define ID_BTN_ADD_REPLY       303
-#define ID_BTN_LIKE_COMMENT    304
-#define ID_BTN_CLOSE           305
-
-// Shared OK / Cancel IDs
-#define ID_OK      1
-#define ID_CANCEL  2
 
 // ============================================================
 // Data capacity constants
@@ -172,8 +138,6 @@ bool         app_add_reply(comment_t *parent, comment_t *reply);
 // View — menu bar (view_menubar.c)
 // ============================================================
 
-extern menu_def_t  kMenus[];
-extern const int   kNumMenus;
 void     handle_menu_command(uint16_t id);
 result_t app_menubar_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam);
