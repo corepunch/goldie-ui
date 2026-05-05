@@ -317,6 +317,8 @@ static uint8_t *bmp8_load(const char *path, int *out_w, int *out_h,
   uint8_t ihdr[40];
   if (fread(ihdr, 1, 40, fp) != 40) { fclose(fp); return NULL; }
   uint32_t info_size   = iio_read_u32_le(ihdr + 0);
+  // Reject unsupported or truncated DIB headers.
+  if (info_size < 40) { fclose(fp); return NULL; }
   int      w           = (int)iio_read_u32_le(ihdr + 4);
   int32_t  h_signed    = (int32_t)iio_read_u32_le(ihdr + 8);
   uint16_t bit_count   = iio_read_u16_le(ihdr + 14);
@@ -421,14 +423,21 @@ bool image_io_save(const char *path, const canvas_doc_t *doc) {
 // Public API — 32-bit RGBA mode (delegates to user/image.h + PNG)
 // ============================================================
 
-// Wraps the framework's load_image().  Returns 4-byte/px RGBA.
+// Wraps the framework's load_image().  Returns a malloc'd 4-byte/px RGBA
+// buffer that the caller must free() — image_free() is called internally.
 // out_pal and out_pal_count are set to zero (unused in 32-bit mode).
-// Caller must free() the returned buffer (stb uses system malloc).
 uint8_t *image_io_load(const char *path, int *out_w, int *out_h,
                        uint32_t out_pal[256], int *out_pal_count) {
   (void)out_pal;
   if (out_pal_count) *out_pal_count = 0;
-  return load_image(path, out_w, out_h);
+  uint8_t *src = load_image(path, out_w, out_h);
+  if (!src) return NULL;
+  // Copy into a malloc-owned buffer so callers can always use free().
+  size_t sz = (size_t)(*out_w) * (size_t)(*out_h) * 4;
+  uint8_t *buf = malloc(sz);
+  if (buf) memcpy(buf, src, sz);
+  image_free(src);
+  return buf;
 }
 
 // Composites all layers and saves the result as PNG.

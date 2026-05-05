@@ -475,6 +475,12 @@ bool canvas_resize(canvas_doc_t *doc, int new_w, int new_h);
 bool canvas_resize_image(canvas_doc_t *doc, int new_w, int new_h,
                          image_resize_filter_t filter);
 
+// Composite all visible layers into dst (4-byte RGBA per pixel).
+// dst must point to canvas_w * canvas_h * 4 bytes.
+void canvas_composite(const canvas_doc_t *doc, uint8_t *dst);
+// Apply a checkerboard background to the composited RGBA buffer in-place.
+void canvas_composite_over_bg(const canvas_doc_t *doc, uint8_t *rgba);
+
 // Forward declarations for canvas operations
 void canvas_set_pixel(canvas_doc_t *doc, int x, int y, uint32_t c);
 uint32_t canvas_get_pixel(const canvas_doc_t *doc, int x, int y);
@@ -555,6 +561,8 @@ void doc_discard_undo(canvas_doc_t *doc);
 //
 // image_io_load: returns a malloc'd pixel buffer (1 bpp in indexed mode,
 //   4 bpp RGBA in 32-bit mode).  Caller must free() the result.
+//   In 32-bit mode the underlying stb buffer is copied internally, so
+//   free() is always safe regardless of stb's allocator hooks.
 //   out_pal[256] and *out_pal_count are only set in indexed mode.
 uint8_t *image_io_load(const char *path, int *out_w, int *out_h,
                        uint32_t out_pal[256], int *out_pal_count);

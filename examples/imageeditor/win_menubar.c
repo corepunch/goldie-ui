@@ -321,7 +321,11 @@ bool imageeditor_open_file_path(const char *path) {
   // accurate from the start.
   if (ndoc->anim && ndoc->anim->frame_count > 0)
     anim_frame_compress(ndoc->anim->frames[0], px, img_w, img_h,
+#if IMAGEEDITOR_INDEXED
+                        FRAME_FORMAT_INDEXED);
+#else
                         FRAME_FORMAT_RGBA);
+#endif
   doc_update_title(ndoc);
   send_message(ndoc->win, evStatusBar, 0, (void *)path);
   // Large images open in a bird's-eye view using the maximum reasonable

@@ -217,7 +217,11 @@ canvas_doc_t *create_document(const char *filename, int w, int h) {
   doc->anim = anim_timeline_new(w, h);
   if (doc->anim)
     anim_frame_compress(doc->anim->frames[0], doc->pixels, w, h,
+#if IMAGEEDITOR_INDEXED
+                        FRAME_FORMAT_INDEXED);
+#else
                         FRAME_FORMAT_RGBA);
+#endif
 
   if (filename) {
     strncpy(doc->filename, filename, sizeof(doc->filename) - 1);

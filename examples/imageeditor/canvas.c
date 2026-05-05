@@ -66,7 +66,7 @@ static bool layer_crop_expand(layer_t *lay, int old_w, int old_h,
 
 // Composite all visible layers into dst (canvas_w * canvas_h * 4 RGBA).
 // The result preserves alpha so the canvas can be drawn over a checkerboard.
-static void canvas_composite(const canvas_doc_t *doc, uint8_t *dst) {
+void canvas_composite(const canvas_doc_t *doc, uint8_t *dst) {
   size_t n = (size_t)doc->canvas_w * doc->canvas_h;
   memset(dst, 0x00, n * 4);
 
@@ -145,7 +145,7 @@ static void canvas_composite(const canvas_doc_t *doc, uint8_t *dst) {
 #endif
 }
 
-static void canvas_composite_over_bg(const canvas_doc_t *doc, uint8_t *rgba) {
+void canvas_composite_over_bg(const canvas_doc_t *doc, uint8_t *rgba) {
   if (!doc || !rgba) return;
   if (!doc->background.show) return;
 
@@ -245,11 +245,11 @@ bool doc_add_layer_filled(canvas_doc_t *doc, uint32_t fill_color) {
 
   // Fill with the requested color.
 #if IMAGEEDITOR_INDEXED
-  // In indexed mode, fill with the transparent index by default.
-  // Opaque fill colors map to palette index 0 (first palette entry).
-  uint8_t pidx = (COLOR_A(fill_color) == 0)
-               ? (uint8_t)IMAGEEDITOR_TRANSPARENT_INDEX
-               : 0;
+  // In indexed mode, map the fill color to the nearest palette entry.
+  // Transparent fill uses the designated transparent index; opaque fill
+  // uses nearest_palette_index() so it never accidentally lands on index 0
+  // (which is always the transparent slot).
+  uint8_t pidx = (uint8_t)canvas_nearest_palette_index(doc, fill_color);
   memset(lay->pixels, pidx, (size_t)doc->canvas_w * (size_t)doc->canvas_h);
   (void)fill_color;
 #else
