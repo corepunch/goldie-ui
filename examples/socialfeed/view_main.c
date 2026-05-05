@@ -165,10 +165,10 @@ result_t main_win_proc(window_t *win, uint32_t msg,
 
 void create_main_window(void) {
   if (!g_app) return;
-  int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
-  int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
-  int x  = 4;
-  int y  = MENUBAR_HEIGHT + 4;
+  int sw = 480;
+  int sh = 400;
+  int x  = 40;
+  int y  = MENUBAR_HEIGHT + 40;
   int w  = sw - 8;
   int h  = sh - y - 4;
 
