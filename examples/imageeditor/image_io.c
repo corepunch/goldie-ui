@@ -21,6 +21,12 @@
 // Keeps pixel buffer arithmetic safely within size_t bounds.
 #define IIO_MAX_DIM 16384
 
+// ============================================================
+// Indexed-mode path (PCX and BMP, 8-bit palette)
+// ============================================================
+
+#if IMAGEEDITOR_INDEXED
+
 static bool iio_has_ext(const char *path, const char *ext) {
   if (!path || !ext) return false;
   size_t plen = strlen(path);
@@ -28,12 +34,6 @@ static bool iio_has_ext(const char *path, const char *ext) {
   if (plen < elen) return false;
   return strcasecmp(path + plen - elen, ext) == 0;
 }
-
-// ============================================================
-// Indexed-mode path (PCX and BMP, 8-bit palette)
-// ============================================================
-
-#if IMAGEEDITOR_INDEXED
 
 // ---- Byte-order helpers ----
 
