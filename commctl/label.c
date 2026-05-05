@@ -35,7 +35,7 @@ result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         col = (uint32_t)ud;
       irect16_t text_pos = {0, 0, win->frame.w, win->frame.h};
       // Labels taller than a single control row use draw_text_wrapped so that
-      // long text reflowes naturally within the available width.
+      // long text reflows naturally within the available width.
       if (win->frame.h > CONTROL_HEIGHT) {
         draw_text_wrapped(win->title, &text_pos, col);
       } else {
