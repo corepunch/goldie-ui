@@ -10,6 +10,7 @@
 
 #ifdef _WIN32
 #define COBJMACROS
+#define INITGUID
 #include <windows.h>
 #include <xmllite.h>
 #endif
