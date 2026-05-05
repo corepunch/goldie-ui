@@ -185,9 +185,9 @@ int quantize_rgba_indexed(const uint8_t *rgba, int w, int h,
 // Frame compress / expand
 // ============================================================
 
-bool anim_frame_compress(anim_frame_t *frame, const uint8_t *rgba,
+bool anim_frame_compress(anim_frame_t *frame, const uint8_t *pixels,
                          int w, int h, frame_format_t fmt) {
-  if (!frame || !rgba || w <= 0 || h <= 0) return false;
+  if (!frame || !pixels || w <= 0 || h <= 0) return false;
 
   size_t npx = (size_t)w * (size_t)h;
   uint8_t *new_data = NULL;
@@ -200,7 +200,7 @@ bool anim_frame_compress(anim_frame_t *frame, const uint8_t *rgba,
       size_t sz = npx * 4;
       new_data = malloc(sz);
       if (!new_data) return false;
-      memcpy(new_data, rgba, sz);
+      memcpy(new_data, pixels, sz);
       new_size = sz;
       break;
     }
@@ -211,10 +211,10 @@ bool anim_frame_compress(anim_frame_t *frame, const uint8_t *rgba,
 #if IMAGEEDITOR_INDEXED
       // In indexed builds the working buffer is already 1-byte/pixel.
       // Store the indices directly instead of re-quantizing RGBA.
-      memcpy(indices, rgba, npx);
+      memcpy(indices, pixels, npx);
       (void)new_palette; // palette is embedded in doc->ipal; not stored per-frame
 #else
-      int pal_sz = quantize_rgba_indexed(rgba, w, h, new_palette, indices);
+      int pal_sz = quantize_rgba_indexed(pixels, w, h, new_palette, indices);
       if (pal_sz == 0) { free(indices); return false; }
 #endif
       new_data = indices;
@@ -227,7 +227,7 @@ bool anim_frame_compress(anim_frame_t *frame, const uint8_t *rgba,
       uint8_t *bits = calloc(1, byte_count);
       if (!bits) return false;
       for (size_t i = 0; i < npx; i++) {
-        uint8_t lum = rgba_luminance(rgba + i * 4);
+        uint8_t lum = rgba_luminance(pixels + i * 4);
         if (lum > 128)
           bits[i / 8] |= (uint8_t)(1u << (7 - (i & 7)));
       }
@@ -250,16 +250,16 @@ bool anim_frame_compress(anim_frame_t *frame, const uint8_t *rgba,
   return true;
 }
 
-bool anim_frame_expand(const anim_frame_t *frame, uint8_t *rgba_out,
+bool anim_frame_expand(const anim_frame_t *frame, uint8_t *pixels_out,
                        int w, int h) {
-  if (!frame || !rgba_out || w <= 0 || h <= 0 || !frame->data) return false;
+  if (!frame || !pixels_out || w <= 0 || h <= 0 || !frame->data) return false;
 
   size_t npx = (size_t)w * (size_t)h;
 
   switch (frame->format) {
     case FRAME_FORMAT_RGBA:
       if (frame->data_size < npx * 4) return false;
-      memcpy(rgba_out, frame->data, npx * 4);
+      memcpy(pixels_out, frame->data, npx * 4);
       return true;
 
     case FRAME_FORMAT_INDEXED:
@@ -267,16 +267,16 @@ bool anim_frame_expand(const anim_frame_t *frame, uint8_t *rgba_out,
 #if IMAGEEDITOR_INDEXED
       // In indexed builds the working buffer is already 1-byte/pixel.
       // Copy indices directly; palette lives in doc->ipal.
-      memcpy(rgba_out, frame->data, npx);
+      memcpy(pixels_out, frame->data, npx);
       return true;
 #else
       for (size_t i = 0; i < npx; i++) {
         uint8_t idx = frame->data[i];
         uint32_t col = frame->palette[idx];
-        rgba_out[i*4+0] = COLOR_R(col);
-        rgba_out[i*4+1] = COLOR_G(col);
-        rgba_out[i*4+2] = COLOR_B(col);
-        rgba_out[i*4+3] = COLOR_A(col);
+        pixels_out[i*4+0] = COLOR_R(col);
+        pixels_out[i*4+1] = COLOR_G(col);
+        pixels_out[i*4+2] = COLOR_B(col);
+        pixels_out[i*4+3] = COLOR_A(col);
       }
       return true;
 #endif
@@ -287,10 +287,10 @@ bool anim_frame_expand(const anim_frame_t *frame, uint8_t *rgba_out,
       for (size_t i = 0; i < npx; i++) {
         uint8_t bit = (frame->data[i / 8] >> (7 - (i & 7))) & 1;
         uint8_t v = bit ? 255 : 0;
-        rgba_out[i*4+0] = v;
-        rgba_out[i*4+1] = v;
-        rgba_out[i*4+2] = v;
-        rgba_out[i*4+3] = 255;
+        pixels_out[i*4+0] = v;
+        pixels_out[i*4+1] = v;
+        pixels_out[i*4+2] = v;
+        pixels_out[i*4+3] = 255;
       }
       return true;
     }
@@ -453,25 +453,25 @@ void anim_timeline_move_frame(anim_timeline_t *tl, int from, int to) {
 }
 
 bool anim_timeline_switch_frame(anim_timeline_t *tl, int idx,
-                                uint8_t **rgba_working, int w, int h,
+                                uint8_t **working_buf, int w, int h,
                                 frame_format_t commit_fmt) {
-  if (!tl || !rgba_working || !*rgba_working || w <= 0 || h <= 0) return false;
+  if (!tl || !working_buf || !*working_buf || w <= 0 || h <= 0) return false;
   if (idx < 0 || idx >= tl->frame_count) return false;
   if (idx == tl->active_frame) return true;
 
-  // Commit current RGBA to the active frame.
+  // Commit current pixel buffer to the active frame.
   anim_frame_t *cur = tl->frames[tl->active_frame];
-  if (!anim_frame_compress(cur, *rgba_working, w, h, commit_fmt))
+  if (!anim_frame_compress(cur, *working_buf, w, h, commit_fmt))
     return false;
 
-  // Load the new frame: expand into rgba_working.
+  // Load the new frame: expand into working_buf.
   anim_frame_t *next = tl->frames[idx];
   if (next->data && next->data_size > 0) {
-    if (!anim_frame_expand(next, *rgba_working, w, h))
+    if (!anim_frame_expand(next, *working_buf, w, h))
       return false;
   } else {
     // New empty frame — start with transparent pixels.
-    memset(*rgba_working, 0, (size_t)w * (size_t)h * DOC_BPP);
+    memset(*working_buf, 0, (size_t)w * (size_t)h * DOC_BPP);
   }
 
   tl->active_frame = idx;
