@@ -177,8 +177,6 @@ TOOLS_BINS = $(patsubst tools/%.c,$(BIN_DIR)/%$(EXE_EXT),$(TOOLS_SRCS))
 # orionc requires libxml2; added to TOOLS_BINS only when libxml2 is available.
 TOOLS_CFLAGS = $(CFLAGS) -Wno-unused-function
 
-IMAGEEDITOR256_EXAMPLE_BIN = $(BIN_DIR)/imageeditor256$(EXE_EXT)
-
 # .gem output directory and target list
 GEM_DIR  = $(BUILD_DIR)/gem
 GEM_BINS = $(GEM_DIR)/imageeditor.gem \
@@ -224,16 +222,18 @@ endif
 endif
 
 # orionc (Orion form compiler) and imageeditor.exe both require libxml2.
-# formeditor.exe also requires libxml2. Skip all three when libxml2 is absent.
+# formeditor.exe and imageeditor256.exe also require libxml2 (orionc generates
+# the forms header they depend on). Skip all four when libxml2 is absent.
 # The imageeditor and formeditor UI tests also need the generated forms header
 # (via imageeditor.h) and LIBXML2_CFLAGS respectively, so skip those too.
 ifneq ($(strip $(LIBXML2_LIBS)),)
 TOOLS_BINS += $(ORIONC_BIN)
 FORMEDITOR_EXAMPLE_BIN = $(BIN_DIR)/formeditor$(EXE_EXT)
 IMAGEEDITOR_EXAMPLE_BIN = $(BIN_DIR)/imageeditor$(EXE_EXT)
+IMAGEEDITOR256_EXAMPLE_BIN = $(BIN_DIR)/imageeditor256$(EXE_EXT)
 LIBXML_UI_TEST_BINS = $(IMAGEEDITOR_UI_TEST_BIN) $(FORMEDITOR_UI_TEST_BIN)
 else
-$(info NOTE: libxml2 not found; skipping orionc, formeditor and imageeditor examples.)
+$(info NOTE: libxml2 not found; skipping orionc, formeditor, imageeditor and imageeditor256 examples.)
 endif
 
 # Gitclient tests require custom build rules because they compile gitclient
