@@ -16,7 +16,7 @@ LIBS = -lm
 # Detect Windows first (uname may not exist or may return different values on Windows)
 ifeq ($(OS),Windows_NT)
     # Windows specific flags (MinGW/MSYS2)
-    LIBS += -lglew32 -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi
+    LIBS += -lglew32 -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi -lxmllite
     # Lua library (MSYS2 provides -llua, not -llua5.4 like Unix platforms) – optional for terminal
     ifeq ($(shell pkg-config --exists lua 2>/dev/null && echo yes || echo no),yes)
         CFLAGS += -DHAVE_LUA
@@ -358,14 +358,14 @@ share: $(VGA_FONT_PNG) | $(SHARE_DIR)
 	@[ ! -f share/fonts/Geneva9.png ] || cp share/fonts/Geneva9.png $(SHARE_DIR)/orion/fonts/
 	@for dir in examples/*/; do \
 	  name=$$(basename "$$dir"); \
-	  assets=$$(find "$$dir" -maxdepth 1 \( -name "*.png" -o -name "*.ttf" -o -name "*.jpg" -o -name "*.jpeg" \) 2>/dev/null); \
+	  assets=$$(find "$$dir" -maxdepth 1 \( -name "*.png" -o -name "*.ttf" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.xml" \) 2>/dev/null); \
 	  if [ -n "$$assets" ]; then \
 	    mkdir -p $(SHARE_DIR)/$$name; \
 	    echo "$$assets" | tr '\n' '\0' | xargs -0 -I{} cp {} $(SHARE_DIR)/$$name/; \
 	  fi; \
 	  if [ -d "$${dir}share" ]; then \
 	    mkdir -p $(SHARE_DIR)/$$name; \
-	    find "$${dir}share" -maxdepth 1 \( -name "*.png" -o -name "*.ttf" -o -name "*.jpg" -o -name "*.jpeg" \) 2>/dev/null | \
+	    find "$${dir}share" -maxdepth 1 \( -name "*.png" -o -name "*.ttf" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.xml" \) 2>/dev/null | \
 	      tr '\n' '\0' | xargs -0 -I{} cp {} $(SHARE_DIR)/$$name/ 2>/dev/null || true; \
 	  fi; \
 	done

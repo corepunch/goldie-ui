@@ -203,4 +203,10 @@ bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
                              char *author_buf, size_t author_sz,
                              char *text_buf,   size_t text_sz);
 
+// ============================================================
+// Seed data loading
+// ============================================================
+
+bool socialfeed_load_seed_data(const char *path);
+
 #endif // __SOCIALFEED_H__
