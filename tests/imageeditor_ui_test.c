@@ -1161,6 +1161,78 @@ void test_ie_clear_selection_makes_pixels_transparent(void) {
     PASS();
 }
 
+void test_ie_fill_layer_with_background_color(void) {
+    TEST("Layer > Fill with Background Color fills the active layer");
+
+    ie_setup();
+    canvas_doc_t *doc = create_document(NULL, 4, 4);
+    ASSERT_NOT_NULL(doc);
+    g_app->active_doc = doc;
+
+    uint32_t red = MAKE_COLOR(0xE0, 0x10, 0x10, 0xFF);
+    uint32_t blue = MAKE_COLOR(0x20, 0x20, 0xD0, 0xFF);
+    g_app->bg_color = blue;
+
+    for (int y = 0; y < doc->canvas_h; y++)
+        for (int x = 0; x < doc->canvas_w; x++)
+            canvas_set_pixel(doc, x, y, red);
+
+    ASSERT_TRUE(canvas_select_rect(doc, 1, 1, 2, 2));
+    handle_menu_command(ID_LAYER_FILL_BACKGROUND);
+
+    for (int y = 0; y < doc->canvas_h; y++) {
+        for (int x = 0; x < doc->canvas_w; x++) {
+            uint32_t px = canvas_get_pixel(doc, x, y);
+            if (x >= 1 && x <= 2 && y >= 1 && y <= 2) {
+                ASSERT_EQUAL(px, blue);
+            } else {
+                ASSERT_EQUAL(px, red);
+            }
+        }
+    }
+    ASSERT_TRUE(doc->sel.active);
+    ASSERT_TRUE(doc->modified);
+
+    ie_teardown();
+    PASS();
+}
+
+void test_ie_fill_layer_with_foreground_color(void) {
+    TEST("Layer > Fill with Foreground Color fills the active layer");
+
+    ie_setup();
+    canvas_doc_t *doc = create_document(NULL, 4, 4);
+    ASSERT_NOT_NULL(doc);
+    g_app->active_doc = doc;
+
+    uint32_t red = MAKE_COLOR(0xE0, 0x10, 0x10, 0xFF);
+    uint32_t green = MAKE_COLOR(0x20, 0xA0, 0x20, 0xFF);
+    g_app->fg_color = green;
+
+    for (int y = 0; y < doc->canvas_h; y++)
+        for (int x = 0; x < doc->canvas_w; x++)
+            canvas_set_pixel(doc, x, y, red);
+
+    ASSERT_TRUE(canvas_select_rect(doc, 1, 1, 2, 2));
+    handle_menu_command(ID_LAYER_FILL_FOREGROUND);
+
+    for (int y = 0; y < doc->canvas_h; y++) {
+        for (int x = 0; x < doc->canvas_w; x++) {
+            uint32_t px = canvas_get_pixel(doc, x, y);
+            if (x >= 1 && x <= 2 && y >= 1 && y <= 2) {
+                ASSERT_EQUAL(px, green);
+            } else {
+                ASSERT_EQUAL(px, red);
+            }
+        }
+    }
+    ASSERT_TRUE(doc->sel.active);
+    ASSERT_TRUE(doc->modified);
+
+    ie_teardown();
+    PASS();
+}
+
 void test_ie_image_crop_command_crops_to_selection(void) {
     TEST("Image > Crop: crops canvas to active selection bounds");
 
@@ -2011,6 +2083,8 @@ int main(int argc, char *argv[]) {
     test_ie_move_tool_moves_selected_pixels();
     test_ie_move_masked_selection_preserves_shape();
     test_ie_clear_selection_makes_pixels_transparent();
+    test_ie_fill_layer_with_background_color();
+    test_ie_fill_layer_with_foreground_color();
     test_ie_image_crop_command_crops_to_selection();
     test_ie_selection_expand_contract_mask();
     test_ie_selection_expand_preserves_soft_mask();

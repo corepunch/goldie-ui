@@ -81,6 +81,8 @@
         <separator />
         <item id="ID_LAYER_MERGE_DOWN" value="65" label="Merge Down" />
         <item id="ID_LAYER_FLATTEN" value="66" label="Flatten Image" />
+        <item id="ID_LAYER_FILL_FOREGROUND" value="74" label="Fill with Foreground Color" shortcut="Alt+Backspace" />
+        <item id="ID_LAYER_FILL_BACKGROUND" value="73" label="Fill with Background Color" shortcut="Ctrl+Backspace" />
         <separator />
         <item id="ID_LAYER_ADD_MASK" value="67" label="Add Mask" />
         <item id="ID_LAYER_APPLY_MASK" value="68" label="Apply Mask" />

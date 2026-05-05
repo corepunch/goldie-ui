@@ -823,6 +823,32 @@ void handle_menu_command(uint16_t id) {
       }
       break;
 
+    case ID_LAYER_FILL_BACKGROUND:
+      if (doc) {
+        doc_push_undo(doc);
+        if (!canvas_fill_active_layer(doc, g_app ? g_app->bg_color : 0)) {
+          doc_discard_undo(doc);
+          break;
+        }
+        if (doc->canvas_win)
+          invalidate_window(doc->canvas_win);
+        layers_win_refresh();
+      }
+      break;
+
+    case ID_LAYER_FILL_FOREGROUND:
+      if (doc) {
+        doc_push_undo(doc);
+        if (!canvas_fill_active_layer(doc, g_app ? g_app->fg_color : 0)) {
+          doc_discard_undo(doc);
+          break;
+        }
+        if (doc->canvas_win)
+          invalidate_window(doc->canvas_win);
+        layers_win_refresh();
+      }
+      break;
+
     case ID_LAYER_ADD_MASK:
       if (doc) {
         doc_push_undo(doc);

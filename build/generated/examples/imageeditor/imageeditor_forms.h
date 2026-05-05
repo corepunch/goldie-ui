@@ -40,6 +40,8 @@
 #define ID_LAYER_MOVE_DOWN   64
 #define ID_LAYER_MERGE_DOWN  65
 #define ID_LAYER_FLATTEN     66
+#define ID_LAYER_FILL_FOREGROUND 74
+#define ID_LAYER_FILL_BACKGROUND 73
 #define ID_LAYER_ADD_MASK    67
 #define ID_LAYER_APPLY_MASK  68
 #define ID_LAYER_REMOVE_MASK 69
@@ -206,6 +208,8 @@ static const menu_item_t kLayerItems[] = {
   { NULL, 0, NULL, 0 },
   { "Merge Down", ID_LAYER_MERGE_DOWN, NULL, 0 },
   { "Flatten Image", ID_LAYER_FLATTEN, NULL, 0 },
+  { "Fill with Foreground Color\tAlt+Backspace", ID_LAYER_FILL_FOREGROUND, NULL, 0 },
+  { "Fill with Background Color\tCtrl+Backspace", ID_LAYER_FILL_BACKGROUND, NULL, 0 },
   { NULL, 0, NULL, 0 },
   { "Add Mask", ID_LAYER_ADD_MASK, NULL, 0 },
   { "Apply Mask", ID_LAYER_APPLY_MASK, NULL, 0 },

@@ -709,6 +709,9 @@ bool doc_add_layer(canvas_doc_t *doc);
 // dialog so the caller picks the fill without a second memset pass.
 bool doc_add_layer_filled(canvas_doc_t *doc, uint32_t fill_color);
 
+// Fill the active layer with the given RGBA color, ignoring selection state.
+bool canvas_fill_active_layer(canvas_doc_t *doc, uint32_t fill_color);
+
 // Delete the active layer (minimum 1 layer always kept).
 bool doc_delete_layer(canvas_doc_t *doc);
 

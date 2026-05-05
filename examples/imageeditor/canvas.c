@@ -280,6 +280,35 @@ bool doc_add_layer(canvas_doc_t *doc) {
   return doc_add_layer_filled(doc, MAKE_COLOR(0x00, 0x00, 0x00, 0x00));
 }
 
+bool canvas_fill_active_layer(canvas_doc_t *doc, uint32_t fill_color) {
+  if (!doc || doc->layer.count <= 0 || doc->layer.active < 0 ||
+      doc->layer.active >= doc->layer.count)
+    return false;
+
+  layer_t *lay = doc->layer.stack[doc->layer.active];
+  if (!lay || !lay->pixels) return false;
+
+  if (doc->sel.active) {
+    uint32_t *dst = (uint32_t *)lay->pixels;
+    for (int y = 0; y < doc->canvas_h; y++) {
+      for (int x = 0; x < doc->canvas_w; x++) {
+        if (!canvas_in_selection(doc, x, y)) continue;
+        dst[(size_t)y * (size_t)doc->canvas_w + (size_t)x] = fill_color;
+      }
+    }
+  } else {
+    size_t npx = (size_t)doc->canvas_w * (size_t)doc->canvas_h;
+    uint32_t *dst = (uint32_t *)lay->pixels;
+    for (size_t i = 0; i < npx; i++)
+      dst[i] = fill_color;
+  }
+
+  doc->pixels = lay->pixels;
+  doc->canvas_dirty = true;
+  doc->modified = true;
+  return true;
+}
+
 bool doc_delete_layer(canvas_doc_t *doc) {
   if (!doc || doc->layer.count <= 1) return false;
   int i = doc->layer.active;

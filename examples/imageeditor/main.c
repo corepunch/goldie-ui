@@ -26,6 +26,9 @@ static const accel_t kAccelEntries[] = {
   // Delete / Backspace clears the active selection to transparency.
   { FVIRTKEY,          AX_KEY_DEL,       ID_SELECT_CLEAR },
   { FVIRTKEY,          AX_KEY_BACKSPACE, ID_SELECT_CLEAR },
+  // Photoshop-style layer fill shortcuts.
+  { FALT|FVIRTKEY,     AX_KEY_BACKSPACE, ID_LAYER_FILL_FOREGROUND },
+  { FCONTROL|FVIRTKEY, AX_KEY_BACKSPACE, ID_LAYER_FILL_BACKGROUND },
   { FCONTROL|FVIRTKEY, AX_KEY_N, ID_FILE_NEW  },
   { FCONTROL|FVIRTKEY, AX_KEY_O, ID_FILE_OPEN },
   { FCONTROL|FVIRTKEY, AX_KEY_S, ID_FILE_SAVE },
