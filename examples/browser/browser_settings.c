@@ -249,6 +249,9 @@ bool browser_show_settings_window(window_t *parent, browser_state_t *st) {
   if (!ds) return false;
   ds->st = st;
 
+  // Use create_window_from_form (not show_dialog_from_form) because the settings
+  // window is modeless — it stays open while the user continues browsing.
+  // Manual centering is therefore necessary here.
   form_def_t settings_def = kSettingsForm;
   settings_def.flags |= WINDOW_DIALOG | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE;
 

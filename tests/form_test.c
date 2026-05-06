@@ -1027,7 +1027,7 @@ void test_show_ddx_dialog_form_flags(void) {
 }
 
 void test_stackview_layout(void) {
-  TEST("stackview: stretches children vertically by default");
+  TEST("stackview: stretches children horizontally (cross-axis) in a vertical stack by default");
 
   test_env_init();
 
