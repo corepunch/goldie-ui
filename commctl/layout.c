@@ -348,6 +348,21 @@ static void layout_paint_children(window_t *win) {
   }
 }
 
+void layout_flow_row(window_t *first, int start_x, int gap) {
+  int cur_x = start_x;
+  bool placed_visual = false;
+  bool prev_was_space = false;
+  for (window_t *child = first; child; child = child->next) {
+    bool is_space = child->proc == win_space;
+    if (placed_visual && !prev_was_space && !is_space)
+      cur_x += gap;
+    child->frame.x = cur_x;
+    cur_x += child->frame.w;
+    placed_visual = true;
+    prev_was_space = is_space;
+  }
+}
+
 static result_t layout_container_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam,
                                       const char *default_layout_kind,

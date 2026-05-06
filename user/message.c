@@ -16,6 +16,7 @@
 // Forward declarations for toolbar child creation.
 // These procs live in commctl but are referenced from user/ via extern linkage.
 extern result_t win_toolbar_button(window_t *, uint32_t, uint32_t, void *);
+extern result_t win_space(window_t *, uint32_t, uint32_t, void *);
 extern result_t win_label(window_t *, uint32_t, uint32_t, void *);
 extern result_t win_combobox(window_t *, uint32_t, uint32_t, void *);
 extern result_t win_textedit(window_t *, uint32_t, uint32_t, void *);
@@ -150,27 +151,30 @@ static void layout_toolbar_items(window_t *parent,
   int base_y  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
   int field_y = base_y + 2;
   int field_h = bsz > 4 ? (bsz - 4) : bsz;
-  int cur_x   = 0;
-  bool placed_visual_item = false;
   window_t **tail = &parent->toolbar_children;
   while (*tail) tail = &(*tail)->next;
   for (uint32_t i = 0; i < n; i++) {
     const toolbar_item_t *item = &items[i];
-    if (item->type != TOOLBAR_ITEM_SPACER && placed_visual_item)
-      cur_x += TOOLBAR_SPACING;
     switch (item->type) {
       case TOOLBAR_ITEM_SPACER:
-        cur_x += item->w > 0 ? item->w : TOOLBAR_SPACING_GAP_WIDTH;
+        {
+          int w = item->w > 0 ? item->w : TOOLBAR_SPACING_GAP_WIDTH;
+          window_t *tc = create_toolbar_child(parent, win_space,
+                                               (uint32_t)item->ident, 0,
+                                               NULL,
+                                               0, base_y,
+                                               w, bsz, -1);
+          if (!tc) break;
+          *tail = tc; tail = &tc->next;
+        }
         break;
       case TOOLBAR_ITEM_SEPARATOR: {
         int sw = item->w > 0 ? item->w : 6;
         window_t *tc = create_toolbar_child(parent, win_toolbar_sep,
                                              (uint32_t)item->ident, 0, NULL,
-                                             base_x + cur_x, base_y, sw, bsz, -1);
-        if (!tc) { cur_x += sw; break; }
+                                             0, base_y, sw, bsz, -1);
+        if (!tc) break;
         *tail = tc; tail = &tc->next;
-        cur_x += sw;
-        placed_visual_item = true;
         break;
       }
       case TOOLBAR_ITEM_BUTTON: {
@@ -181,13 +185,11 @@ static void layout_toolbar_items(window_t *parent,
                                              (uint32_t)item->ident,
                                              extra,
                                              item->text,
-                                             base_x + cur_x, base_y,
+                                             0, base_y,
                                              w, bsz, icon);
-        if (!tc) { cur_x += w; break; }
+        if (!tc) break;
         if (item->flags & TOOLBAR_BUTTON_FLAG_ACTIVE) tc->value = true;
         *tail = tc; tail = &tc->next;
-        cur_x += w;
-        placed_visual_item = true;
         break;
       }
       case TOOLBAR_ITEM_LABEL: {
@@ -195,12 +197,10 @@ static void layout_toolbar_items(window_t *parent,
         window_t *tc = create_toolbar_child(parent, win_label,
                                              (uint32_t)item->ident, 0,
                                              item->text,
-                                             base_x + cur_x, base_y,
+                                             0, base_y,
                                              w, bsz, -1);
-        if (!tc) { cur_x += w; break; }
+        if (!tc) break;
         *tail = tc; tail = &tc->next;
-        cur_x += w;
-        placed_visual_item = true;
         break;
       }
       case TOOLBAR_ITEM_COMBOBOX: {
@@ -208,12 +208,10 @@ static void layout_toolbar_items(window_t *parent,
         window_t *tc = create_toolbar_child(parent, win_combobox,
                                              (uint32_t)item->ident, 0,
                                              item->text,
-                                             base_x + cur_x, field_y,
+                                             0, field_y,
                                              w, field_h, -1);
-        if (!tc) { cur_x += w; break; }
+        if (!tc) break;
         *tail = tc; tail = &tc->next;
-        cur_x += w;
-        placed_visual_item = true;
         break;
       }
       case TOOLBAR_ITEM_TEXTEDIT: {
@@ -221,16 +219,15 @@ static void layout_toolbar_items(window_t *parent,
         window_t *tc = create_toolbar_child(parent, win_textedit,
                                              (uint32_t)item->ident, 0,
                                              item->text,
-                                             base_x + cur_x, field_y,
+                                             0, field_y,
                                              w, field_h, -1);
-        if (!tc) { cur_x += w; break; }
+        if (!tc) break;
         *tail = tc; tail = &tc->next;
-        cur_x += w;
-        placed_visual_item = true;
         break;
       }
     }
   }
+  layout_flow_row(parent->toolbar_children, base_x, TOOLBAR_SPACING);
 }
 
 // Window hooks
