@@ -511,9 +511,11 @@ bool layer_add_mask(canvas_doc_t *doc, int idx) {
   return layer_add_mask_ex(doc, idx, MASK_EXTRACT_WHITE);
 }
 
+#if !IMAGEEDITOR_INDEXED
 static uint8_t color_to_gray(uint32_t c) {
   return (uint8_t)((COLOR_R(c) * 77 + COLOR_G(c) * 150 + COLOR_B(c) * 29) >> 8);
 }
+#endif
 
 void canvas_clear_selection_mask(canvas_doc_t *doc) {
   if (!doc) return;
@@ -627,6 +629,7 @@ bool canvas_select_rect_add(canvas_doc_t *doc, int x0, int y0, int x1, int y1) {
   return canvas_select_rect_ex(doc, x0, y0, x1, y1, true);
 }
 
+#if !IMAGEEDITOR_INDEXED
 static void fill_alpha_from_layer_gray(canvas_doc_t *doc, layer_t *lay) {
   size_t n = (size_t)doc->canvas_w * doc->canvas_h;
   for (size_t i = 0; i < n; i++) {
@@ -653,6 +656,7 @@ static uint8_t fill_mode_to_alpha(int fill_mode) {
       return 0x00; // handled separately
   }
 }
+#endif
 
 const char *layer_blend_mode_name(layer_blend_mode_t mode) {
   switch (mode) {
@@ -1982,6 +1986,7 @@ static inline uint8_t clamp_u8_float(float v) {
   return (uint8_t)(v + 0.5f);
 }
 
+#if !IMAGEEDITOR_INDEXED
 static void sample_layer_nearest(const layer_t *lay, int old_w, int old_h,
                                  float sx, float sy, uint8_t out[4]) {
   int ix = (int)floorf(sx + 0.5f);
@@ -2031,6 +2036,7 @@ static void sample_layer_bilinear(const layer_t *lay, int old_w, int old_h,
   }
   out[3] = clamp_u8_float(acc_a);
 }
+#endif
 
 static uint8_t *layer_resample_pixels(const layer_t *lay, int old_w, int old_h,
                                       int new_w, int new_h,
