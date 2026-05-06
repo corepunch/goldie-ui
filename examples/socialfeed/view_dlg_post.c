@@ -187,7 +187,8 @@ static void update_header_labels(window_t *win, post_detail_t *s) {
   set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES,
                        p->like_count == 1 ? "%d like" : "%d likes",
                        p->like_count);
-  set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR, "Comments (%d):",
+  set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR,
+                       p->comment_count == 1 ? "%d comment" : "%d comments",
                        p->comment_count);
 }
 

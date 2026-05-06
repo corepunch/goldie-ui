@@ -691,10 +691,10 @@ static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
   (void)lparam;
   if (msg == evCreate) {
     set_window_item_text(win, ID_POST_DETAIL_LBL_TITLE, "Orion UI is awesome!");
-    set_window_item_text(win, ID_POST_DETAIL_LBL_AUTHOR, "by alice");
+    set_window_item_text(win, ID_POST_DETAIL_LBL_AUTHOR, "by alice |");
     set_window_item_text(win, ID_POST_DETAIL_LBL_BODY, "%s", kPostDetailLikeBodyText);
-    set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES, "12 likes");
-    set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR, "Comments (3):");
+    set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES, "12 likes |");
+    set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR, "3 comments");
 
     window_t *cv = get_window_item(win, ID_POST_DETAIL_COMMENTS);
     if (cv) {
@@ -1166,6 +1166,59 @@ void test_auto_layout_wrapped_label(void) {
   PASS();
 }
 
+void test_label_font_pack_and_measure(void) {
+  TEST("label: packed userdata stores palette index and font");
+
+  test_env_init();
+  window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+                                 MAKERECT(0, 0, 120, 40), NULL, nop_proc, 0, NULL);
+  ASSERT_NOT_NULL(root);
+  label_create_params_t params = {
+    .color_index = brTextDisabled,
+    .font = FONT_ICON,
+    .color_set = true,
+  };
+  window_t *label = create_window("Font test", 0, MAKERECT(0, 0, 1, CONTROL_HEIGHT),
+                                  root, win_label, 0, &params);
+  ASSERT_NOT_NULL(label);
+  uint32_t packed = (uint32_t)(uintptr_t)label->userdata;
+  ASSERT_EQUAL((int)(packed & 0xffu), (int)brTextDisabled);
+  ASSERT_EQUAL((int)((packed >> 8) & 0xffu), (int)FONT_ICON);
+  ASSERT_TRUE((packed & (1u << 16)) != 0);
+  ASSERT_EQUAL(label->frame.w, MAX(1, text_strwidth(FONT_ICON, "Font test") + TEXT_SHADOW_OFFSET));
+
+  label_create_params_t defaults = {
+    .font = FONT_SMALL,
+    .color_index = 0,
+    .color_set = false,
+  };
+  window_t *default_label = create_window("Default", 0,
+                                          MAKERECT(0, 20, 1, CONTROL_HEIGHT),
+                                          root, win_label, 0, &defaults);
+  ASSERT_NOT_NULL(default_label);
+  uint32_t default_packed = (uint32_t)(uintptr_t)default_label->userdata;
+  ASSERT_EQUAL((int)(default_packed & 0xffu), 0);
+  ASSERT_TRUE((default_packed & (1u << 16)) == 0);
+  ASSERT_EQUAL(get_sys_color(brTransparent), 0u);
+
+  label_create_params_t transparent = {
+    .font = FONT_SMALL,
+    .color_index = 0,
+    .color_set = true,
+  };
+  window_t *transparent_label = create_window("Transparent", 0,
+                                              MAKERECT(0, 32, 1, CONTROL_HEIGHT),
+                                              root, win_label, 0, &transparent);
+  ASSERT_NOT_NULL(transparent_label);
+  uint32_t transparent_packed = (uint32_t)(uintptr_t)transparent_label->userdata;
+  ASSERT_EQUAL((int)(transparent_packed & 0xffu), 0);
+  ASSERT_TRUE((transparent_packed & (1u << 16)) != 0);
+
+  destroy_window(root);
+  test_env_shutdown();
+  PASS();
+}
+
 void test_nested_stack_positions(void) {
   TEST("nested layout: stack children and grid rows sit in the right place");
 
@@ -1320,12 +1373,37 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_NOT_NULL(win);
 
   window_t *layout = get_window_item(win, ID_POST_DETAIL_LAYOUT);
+  window_t *title = get_window_item(win, ID_POST_DETAIL_LBL_TITLE);
+  window_t *author = get_window_item(win, ID_POST_DETAIL_LBL_AUTHOR);
+  window_t *body = get_window_item(win, ID_POST_DETAIL_LBL_BODY);
+  window_t *likes = get_window_item(win, ID_POST_DETAIL_LBL_LIKES);
+  window_t *comments_hdr = get_window_item(win, ID_POST_DETAIL_LBL_CMT_HDR);
+  window_t *meta = get_window_item(win, ID_POST_DETAIL_META);
   window_t *comments = get_window_item(win, ID_POST_DETAIL_COMMENTS);
   window_t *actions = get_window_item(win, ID_POST_DETAIL_ACTIONS);
   ASSERT_NOT_NULL(layout);
+  ASSERT_NOT_NULL(title);
+  ASSERT_NOT_NULL(author);
+  ASSERT_NOT_NULL(body);
+  ASSERT_NOT_NULL(likes);
+  ASSERT_NOT_NULL(comments_hdr);
+  ASSERT_NOT_NULL(meta);
   ASSERT_NOT_NULL(comments);
   ASSERT_NOT_NULL(actions);
 
+  ASSERT_EQUAL(layout->v_align, LAYOUT_ALIGN_STRETCH);
+  ASSERT_EQUAL(((uint32_t)(uintptr_t)title->userdata >> 8) & 0xffu, FONT_SYSTEM);
+  ASSERT_EQUAL((uint32_t)(uintptr_t)title->userdata & 0xffu, brTextNormal);
+  ASSERT_EQUAL(((uint32_t)(uintptr_t)author->userdata >> 8) & 0xffu, FONT_SMALL);
+  ASSERT_EQUAL((uint32_t)(uintptr_t)author->userdata & 0xffu, brTextDisabled);
+  ASSERT_EQUAL(((uint32_t)(uintptr_t)body->userdata >> 8) & 0xffu, FONT_SMALL);
+  ASSERT_EQUAL((uint32_t)(uintptr_t)body->userdata & 0xffu, brTextNormal);
+  ASSERT_EQUAL(meta->frame.y, body->frame.y + body->frame.h + 2);
+  ASSERT_EQUAL(author->frame.y, 0);
+  ASSERT_EQUAL(likes->frame.y, 0);
+  ASSERT_EQUAL(comments_hdr->frame.y, 0);
+  ASSERT_TRUE(author->frame.x < likes->frame.x);
+  ASSERT_TRUE(likes->frame.x < comments_hdr->frame.x);
   ASSERT_TRUE(comments->frame.h > 100);
   ASSERT_EQUAL(actions->frame.y + actions->frame.h, layout->frame.h);
   ASSERT_TRUE(actions->frame.y > comments->frame.y);
@@ -1358,6 +1436,7 @@ int main(int argc, char *argv[]) {
   test_auto_layout_padding();
   test_auto_layout_margin();
   test_auto_layout_wrapped_label();
+  test_label_font_pack_and_measure();
   test_nested_stack_positions();
   test_default_auto_layout_stack();
   test_new_post_grid_stack_layout();
