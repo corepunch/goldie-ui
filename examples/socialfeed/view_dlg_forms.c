@@ -69,8 +69,9 @@ static result_t new_post_proc(window_t *win, uint32_t msg,
 bool show_new_post_dialog(window_t *parent) {
   new_post_state_t state = { "", "", "", false };
 
-  show_dialog_from_form(&socialfeed_new_post_form, "New Post", parent,
-                        new_post_proc, &state);
+  show_dialog_from_form_ex(&socialfeed_new_post_form, "New Post", parent,
+                           WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
+                           new_post_proc, &state);
 
   if (!state.accepted) return false;
 
@@ -153,8 +154,9 @@ bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
     .accepted   = false,
   };
 
-  show_dialog_from_form(&socialfeed_new_comment_form, prompt_title, parent,
-                        new_comment_proc, &state);
+  show_dialog_from_form_ex(&socialfeed_new_comment_form, prompt_title, parent,
+                           WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
+                           new_comment_proc, &state);
 
   return state.accepted;
 }

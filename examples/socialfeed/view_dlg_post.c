@@ -356,6 +356,7 @@ void show_post_detail(window_t *parent, int post_idx) {
     .comments_win  = NULL,
   };
 
-  show_dialog_from_form(&socialfeed_post_detail_form, "Post Detail",
-                        parent, post_detail_proc, &state);
+  show_dialog_from_form_ex(&socialfeed_post_detail_form, "Post Detail",
+                           parent, WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
+                           post_detail_proc, &state);
 }
