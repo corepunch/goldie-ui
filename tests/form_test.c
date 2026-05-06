@@ -305,6 +305,221 @@ static const form_def_t kNestForm = {
   .child_count = ARRAY_LEN(kNestChildren),
 };
 
+static result_t form_test_proc(window_t *win, uint32_t msg,
+                               uint32_t wparam, void *lparam);
+static result_t post_detail_like_proc(window_t *win, uint32_t msg,
+                                      uint32_t wparam, void *lparam);
+
+// ──────────────────────────────────────────────────────────────────────────
+// Post-detail-like form used to validate wrapped labels + reportview + footer
+// sizing.  This mirrors the Social Feed Post Detail dialog closely enough to
+// catch footer clipping when the title/body labels wrap onto extra lines.
+// ──────────────────────────────────────────────────────────────────────────
+
+#define PD_FORM_ID_LAYOUT       401
+#define PD_FORM_ID_HEADER       402
+#define PD_FORM_ID_TITLE        403
+#define PD_FORM_ID_AUTHOR       404
+#define PD_FORM_ID_BODY         405
+#define PD_FORM_ID_LIKES        406
+#define PD_FORM_ID_COMMENTS_HDR  407
+#define PD_FORM_ID_COMMENTS     408
+#define PD_FORM_ID_ACTIONS      409
+#define PD_FORM_ID_LIKE_POST    410
+#define PD_FORM_ID_ADD_COMMENT  411
+#define PD_FORM_ID_ADD_REPLY    412
+#define PD_FORM_ID_LIKE_COMMENT 413
+#define PD_FORM_ID_CLOSE        414
+
+static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
+  {
+    .class_name = "label",
+    .id = PD_FORM_ID_TITLE,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "lbl_title",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "label",
+    .id = PD_FORM_ID_AUTHOR,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "lbl_author",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "label",
+    .id = PD_FORM_ID_BODY,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "lbl_body",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "label",
+    .id = PD_FORM_ID_LIKES,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "lbl_likes",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "label",
+    .id = PD_FORM_ID_COMMENTS_HDR,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "lbl_cmt_hdr",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
+  {
+    .class_name = "button",
+    .id = PD_FORM_ID_LIKE_POST,
+    .frame = {0, 0, 0, 0},
+    .text = "Like Post",
+    .name = "like_post",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = PD_FORM_ID_ADD_COMMENT,
+    .frame = {0, 0, 0, 0},
+    .text = "Add Comment",
+    .name = "add_comment",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = PD_FORM_ID_ADD_REPLY,
+    .frame = {0, 0, 0, 0},
+    .text = "Add Reply",
+    .name = "add_reply",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = PD_FORM_ID_LIKE_COMMENT,
+    .frame = {0, 0, 0, 0},
+    .text = "Like Comment",
+    .name = "like_comment",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = PD_FORM_ID_CLOSE,
+    .frame = {0, 0, 0, 0},
+    .text = "Close",
+    .name = "close",
+    .flags = BUTTON_DEFAULT,
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const char *kPostDetailLikeBodyText =
+  "Declare children in a static form_ctrl_def_t[] array, add a ctrl_binding_t[] "
+  "for data exchange, then call show_dialog_from_form(). No imperative child "
+  "creation needed - everything is declarative. The same tree should also "
+  "support auto layout, report views, and wrapped labels without special cases.";
+
+static const form_ctrl_def_t kPostDetailLikeChildren[] = {
+  {
+    .class_name = "stack",
+    .id = PD_FORM_ID_LAYOUT,
+    .frame = {0, 0, 0, 0},
+    .name = "layout",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      {
+        .class_name = "stack",
+        .id = PD_FORM_ID_HEADER,
+        .frame = {0, 0, 0, 0},
+        .name = "header",
+        .h_align = LAYOUT_ALIGN_STRETCH,
+        .v_align = LAYOUT_ALIGN_START,
+        .children = kPostDetailLikeHeaderChildren,
+        .child_count = ARRAY_LEN(kPostDetailLikeHeaderChildren),
+        .layout_kind = WINDOW_LAYOUT_STACK,
+        .layout_orientation = WINDOW_STACK_VERTICAL,
+        .layout_spacing = 2,
+      },
+      {
+        .class_name = "reportview",
+        .id = PD_FORM_ID_COMMENTS,
+        .frame = {0, 0, 0, 0},
+        .text = "",
+        .name = "comments",
+        .flags = WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
+        .h_align = LAYOUT_ALIGN_STRETCH,
+        .v_align = LAYOUT_ALIGN_STRETCH,
+      },
+      {
+        .class_name = "stack",
+        .id = PD_FORM_ID_ACTIONS,
+        .frame = {0, 0, 0, 0},
+        .name = "actions",
+        .h_align = LAYOUT_ALIGN_STRETCH,
+        .v_align = LAYOUT_ALIGN_START,
+        .children = kPostDetailLikeActionsChildren,
+        .child_count = ARRAY_LEN(kPostDetailLikeActionsChildren),
+        .layout_kind = WINDOW_LAYOUT_STACK,
+        .layout_orientation = WINDOW_STACK_HORIZONTAL,
+        .layout_spacing = 4,
+      },
+    },
+    .child_count = 3,
+    .layout_kind = WINDOW_LAYOUT_STACK,
+    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .layout_spacing = 8,
+  },
+};
+
+static window_t *create_post_detail_like_window(int height) {
+  form_def_t def = {
+    .name = "Post Detail Like",
+    .width = 520,
+    .height = height,
+    .flags = 0,
+    .auto_layout = true,
+    .layout_kind = WINDOW_LAYOUT_STACK,
+    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .layout_spacing = 8,
+    .padding = {8, 8, 8, 8},
+    .children = kPostDetailLikeChildren,
+    .child_count = ARRAY_LEN(kPostDetailLikeChildren),
+  };
+  return create_window_from_form(&def, 0, 0, NULL, post_detail_like_proc, 0, NULL);
+}
+
+static result_t post_detail_like_proc(window_t *win, uint32_t msg,
+                                      uint32_t wparam, void *lparam) {
+  (void)wparam;
+  (void)lparam;
+  if (msg == evCreate) {
+    set_window_item_text(win, PD_FORM_ID_TITLE, "Orion UI is awesome!");
+    set_window_item_text(win, PD_FORM_ID_AUTHOR, "by alice");
+    set_window_item_text(win, PD_FORM_ID_BODY, "%s", kPostDetailLikeBodyText);
+    set_window_item_text(win, PD_FORM_ID_LIKES, "12 likes");
+    set_window_item_text(win, PD_FORM_ID_COMMENTS_HDR, "Comments (3):");
+    window_layout_sync(win);
+    return true;
+  }
+  return false;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // State captured in the window proc during evCreate
 // ──────────────────────────────────────────────────────────────────────────
@@ -782,6 +997,36 @@ void test_nested_stack_positions(void) {
   PASS();
 }
 
+void test_post_detail_layout_budget(void) {
+  TEST("post-detail-like layout: footer fits inside the 336px window");
+
+  test_env_init();
+
+  window_t *short_win = create_post_detail_like_window(336);
+  ASSERT_NOT_NULL(short_win);
+  window_t *short_layout = get_window_item(short_win, PD_FORM_ID_LAYOUT);
+  window_t *short_header = get_window_item(short_win, PD_FORM_ID_HEADER);
+  window_t *short_comments = get_window_item(short_win, PD_FORM_ID_COMMENTS);
+  window_t *short_actions = get_window_item(short_win, PD_FORM_ID_ACTIONS);
+  window_t *short_body = get_window_item(short_win, PD_FORM_ID_BODY);
+  ASSERT_NOT_NULL(short_layout);
+  ASSERT_NOT_NULL(short_header);
+  ASSERT_NOT_NULL(short_comments);
+  ASSERT_NOT_NULL(short_actions);
+  ASSERT_NOT_NULL(short_body);
+  irect16_t short_client = get_client_rect(short_win);
+  int short_bottom = short_actions->frame.y + short_actions->frame.h;
+  ASSERT_EQUAL(short_layout->frame.y, 8);
+  ASSERT_EQUAL(short_layout->frame.h, short_client.h - 16);
+  ASSERT_TRUE(short_header->frame.h > CONTROL_HEIGHT);
+  ASSERT_TRUE(short_body->frame.h > CONTROL_HEIGHT);
+  ASSERT_TRUE(short_bottom <= short_client.h);
+  destroy_window(short_win);
+
+  test_env_shutdown();
+  PASS();
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // main
 // ──────────────────────────────────────────────────────────────────────────
@@ -806,6 +1051,7 @@ int main(int argc, char *argv[]) {
   test_auto_layout_margin();
   test_auto_layout_wrapped_label();
   test_nested_stack_positions();
+  test_post_detail_layout_budget();
 
   TEST_END();
 }

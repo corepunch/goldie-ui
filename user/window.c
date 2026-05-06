@@ -323,6 +323,10 @@ static void layout_arrange_child(window_t *child, irect16_t rect) {
 
 void layout_measure_window(window_t *win, layout_measure_t *m) {
   irect16_t cr = get_client_rect(win);
+  if (m) {
+    if (m->avail_w > 0) cr.w = m->avail_w;
+    if (m->avail_h > 0) cr.h = m->avail_h;
+  }
   irect16_t content = layout_content_rect(win, cr);
   int content_w = content.w;
   int content_h = content.h;
@@ -384,7 +388,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       for (window_t *child = win->children; child; child = child->next) {
         if (x > content.x) x += gap;
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-        int cw = (child->h_align == LAYOUT_ALIGN_STRETCH) ? MAX(cm.desired_w, stretch_share)
+        int cw = (child->h_align == LAYOUT_ALIGN_STRETCH) ? stretch_share
                                                           : cm.desired_w;
         int ch = layout_apply_alignment(content.h, cm.desired_h, child->v_align);
         int cy = content.y;
@@ -413,7 +417,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
         if (y > content.y) y += gap;
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
         int cw = layout_apply_alignment(content.w, cm.desired_w, child->h_align);
-        int ch = (child->v_align == LAYOUT_ALIGN_STRETCH) ? MAX(cm.desired_h, stretch_share)
+        int ch = (child->v_align == LAYOUT_ALIGN_STRETCH) ? stretch_share
                                                           : cm.desired_h;
         int cx = content.x;
         if (child->h_align == LAYOUT_ALIGN_CENTER)
