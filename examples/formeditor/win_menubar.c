@@ -785,7 +785,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     char *layout_orientation = xml_attr_dup(form_node, "orientation");
     if (!layout_orientation)
       layout_orientation = xml_attr_dup(form_node, "layout_orientation");
-    doc->layout_kind = layout_kind_attr(layout_kind, 0);
+    doc->layout_kind = layout_kind_attr(layout_kind, doc->auto_layout ? 1 : 0);
     doc->layout_orientation = layout_orientation_attr(layout_orientation,
                                                       WINDOW_STACK_VERTICAL);
     free(layout_kind);
@@ -877,7 +877,7 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
           doc->form_size.w, doc->form_size.h, doc->flags);
   if (doc->auto_layout)
     fprintf(f, "\n            auto_layout=\"1\"");
-  if (doc->auto_layout || doc->layout_kind != 0)
+  if (doc->layout_kind == 2)
     fprintf(f, "\n            layout_kind=\"%s\"",
             layout_kind_token(doc->layout_kind));
   if (doc->auto_layout || doc->layout_orientation != 0)

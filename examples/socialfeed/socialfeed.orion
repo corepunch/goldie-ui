@@ -44,7 +44,6 @@
             flags="0"
             auto_layout="1"
             padding="8"
-            layout_kind="stack"
 >
         <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
           <label name="lbl_author" v-align="top" text="Author:" />
@@ -73,7 +72,6 @@
             flags="0"
             auto_layout="1"
             padding="8"
-            layout_kind="stack"
 >
         <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
           <label name="lbl_author" v-align="top" text="Author:" />
@@ -97,7 +95,6 @@
             flags="0"
             auto_layout="1"
             padding="8 8 8 8"
-            layout_kind="stack"
 >
         <stack name="layout" orientation="vertical" spacing="8">
           <stack name="header" orientation="vertical" v-align="top" spacing="2">
