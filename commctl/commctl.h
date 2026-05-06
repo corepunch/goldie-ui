@@ -59,7 +59,7 @@ typedef struct {
 
 result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-void layout_flow_row(window_t *first, int start_x, int gap);
+void layout_flow_horizontal(window_t *first, int start_x, int gap);
 
 // Toolbox — 2-column grid of icon buttons (Photoshop / VB3 / Paint style).
 // See commctl/toolbox.c for the full API and usage examples.

@@ -227,7 +227,7 @@ static void layout_toolbar_items(window_t *parent,
       }
     }
   }
-  layout_flow_row(parent->toolbar_children, base_x, TOOLBAR_SPACING);
+  layout_flow_horizontal(parent->toolbar_children, base_x, TOOLBAR_SPACING);
 }
 
 // Window hooks

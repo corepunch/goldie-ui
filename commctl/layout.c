@@ -191,9 +191,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       int remaining = content.w - total_fixed - total_gap;
       if (remaining < 0) remaining = 0;
       int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;
-      int x = content.x;
       for (window_t *child = win->children; child; child = child->next) {
-        if (x > content.x) x += gap;
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
         int cw = (child->h_align == LAYOUT_ALIGN_STRETCH) ? stretch_share
                                                           : cm.desired_w;
@@ -203,9 +201,9 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
           cy += (content.h - ch) / 2;
         else if (child->v_align == LAYOUT_ALIGN_END)
           cy += content.h - ch;
-        layout_arrange_child(child, R(x, cy, cw, ch));
-        x += cw;
+        layout_arrange_child(child, R(content.x, cy, cw, ch));
       }
+      layout_flow_horizontal(win->children, content.x, gap);
     } else {
       int total_fixed = 0;
       int stretch_count = 0;
@@ -348,7 +346,7 @@ static void layout_paint_children(window_t *win) {
   }
 }
 
-void layout_flow_row(window_t *first, int start_x, int gap) {
+void layout_flow_horizontal(window_t *first, int start_x, int gap) {
   int cur_x = start_x;
   bool placed_visual = false;
   bool prev_was_space = false;
