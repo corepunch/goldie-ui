@@ -364,6 +364,82 @@ void test_show_ddx_dialog_form_flags(void) {
   PASS();
 }
 
+void test_stackview_layout(void) {
+  TEST("stackview: stretches children vertically by default");
+
+  test_env_init();
+
+  layout_view_config_t cfg = {
+    .layout_kind = WINDOW_LAYOUT_STACK,
+    .orientation = WINDOW_STACK_VERTICAL,
+    .columns = 0,
+  };
+  window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+                                 MAKERECT(0, 0, 200, 100),
+                                 NULL, "stackview", 0, &cfg);
+  ASSERT_NOT_NULL(root);
+
+  window_t *a = create_window("One", 0, MAKERECT(0, 0, 30, 12), root, "button", 0, NULL);
+  window_t *b = create_window("Two", 0, MAKERECT(0, 0, 30, 12), root, "button", 0, NULL);
+  ASSERT_NOT_NULL(a);
+  ASSERT_NOT_NULL(b);
+
+  window_layout_sync(root);
+
+  ASSERT_EQUAL(a->frame.x, 0);
+  ASSERT_EQUAL(a->frame.y, 0);
+  ASSERT_EQUAL(a->frame.w, 200);
+  ASSERT_EQUAL(b->frame.x, 0);
+  ASSERT_EQUAL(b->frame.w, 200);
+  ASSERT_EQUAL(b->frame.y, a->frame.y + a->frame.h + 4);
+
+  destroy_window(root);
+  test_env_shutdown();
+  PASS();
+}
+
+void test_gridview_layout(void) {
+  TEST("gridview: arranges children in equal cells");
+
+  test_env_init();
+
+  layout_view_config_t cfg = {
+    .layout_kind = WINDOW_LAYOUT_GRID,
+    .orientation = WINDOW_STACK_VERTICAL,
+    .columns = 2,
+  };
+  window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+                                 MAKERECT(0, 0, 200, 80),
+                                 NULL, "gridview", 0, &cfg);
+  ASSERT_NOT_NULL(root);
+
+  window_t *c0 = create_window("A", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
+  window_t *c1 = create_window("B", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
+  window_t *c2 = create_window("C", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
+  window_t *c3 = create_window("D", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
+  ASSERT_NOT_NULL(c0);
+  ASSERT_NOT_NULL(c1);
+  ASSERT_NOT_NULL(c2);
+  ASSERT_NOT_NULL(c3);
+
+  window_layout_sync(root);
+
+  ASSERT_EQUAL(c0->frame.x, 0);
+  ASSERT_EQUAL(c0->frame.y, 0);
+  ASSERT_EQUAL(c0->frame.w, 100);
+  ASSERT_EQUAL(c0->frame.h, 40);
+  ASSERT_EQUAL(c1->frame.x, 100);
+  ASSERT_EQUAL(c1->frame.y, 0);
+  ASSERT_EQUAL(c2->frame.x, 0);
+  ASSERT_EQUAL(c2->frame.y, 40);
+  ASSERT_EQUAL(c3->frame.x, 100);
+  ASSERT_EQUAL(c3->frame.y, 40);
+
+  destroy_window(root);
+  test_env_shutdown();
+  PASS();
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // main
 // ──────────────────────────────────────────────────────────────────────────
@@ -382,7 +458,8 @@ int main(int argc, char *argv[]) {
   test_ddx_form_def_fields();
   test_ddx_push_pull_roundtrip();
   test_show_ddx_dialog_form_flags();
+  test_stackview_layout();
+  test_gridview_layout();
 
   TEST_END();
 }
-

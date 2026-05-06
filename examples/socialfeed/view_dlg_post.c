@@ -45,6 +45,7 @@ typedef struct {
   int          flat_count;
   int          flat_cap;
   flat_sel_t   selection;   // stable identity; resolved to flat index on demand
+  window_t    *content_win;
   window_t    *comments_win;
 } post_detail_t;
 
@@ -201,21 +202,113 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
 
   switch (msg) {
     case evCreate: {
-      // All children (including the reportview) were created by the form before
-      // evCreate fired. Just get the reportview reference.
       s = (post_detail_t *)lparam;
       win->userdata    = s;
       s->selection     = (flat_sel_t){ -1, -1 };
+      irect16_t cr = get_client_rect(win);
+      layout_view_config_t stack_cfg = {
+        .layout_kind = WINDOW_LAYOUT_STACK,
+        .orientation = WINDOW_STACK_VERTICAL,
+        .columns = 0,
+      };
+      layout_view_config_t row_cfg = {
+        .layout_kind = WINDOW_LAYOUT_STACK,
+        .orientation = WINDOW_STACK_HORIZONTAL,
+        .columns = 0,
+      };
+      layout_view_config_t footer_cfg = {
+        .layout_kind = WINDOW_LAYOUT_GRID,
+        .orientation = WINDOW_STACK_VERTICAL,
+        .columns = 4,
+      };
 
-      s->comments_win = get_window_item(win, ID_COMMENTS_VIEW);
+      s->content_win = create_window(
+          "", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, cr.h),
+          win, "stackview", 0, &stack_cfg);
+      if (!s->content_win)
+        return false;
+
+      window_t *title_lbl = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, CONTROL_HEIGHT),
+          s->content_win, "label", 0, NULL);
+      if (title_lbl) title_lbl->id = ID_LBL_POST_TITLE;
+      window_t *author_lbl = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, CONTROL_HEIGHT),
+          s->content_win, "label", 0, (void *)(uintptr_t)brTextDisabled);
+      if (author_lbl) author_lbl->id = ID_LBL_POST_AUTHOR;
+      window_t *body_lbl = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, CONTROL_HEIGHT),
+          s->content_win, "label", 0, NULL);
+      if (body_lbl) body_lbl->id = ID_LBL_POST_BODY;
+      window_t *likes_row = create_window(
+          "", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, CONTROL_HEIGHT),
+          s->content_win, "stackview", 0, &row_cfg);
+      if (likes_row) {
+        window_t *likes_lbl = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+            MAKERECT(0, 0, 180, CONTROL_HEIGHT),
+            likes_row, "label", 0, NULL);
+        if (likes_lbl) likes_lbl->id = ID_LBL_POST_LIKES;
+        window_t *like_btn = create_window("Like Post", 0,
+            MAKERECT(0, 0, 96, BUTTON_HEIGHT),
+            likes_row, "button", 0, NULL);
+        if (like_btn) like_btn->id = ID_BTN_LIKE_POST;
+      }
+      window_t *cmt_hdr = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, CONTROL_HEIGHT),
+          s->content_win, "label", 0, NULL);
+      if (cmt_hdr) cmt_hdr->id = ID_LBL_COMMENTS_HDR;
+      s->comments_win = create_window(
+          "", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
+          MAKERECT(0, 0, cr.w, 180),
+          s->content_win, win_reportview, 0, NULL);
+      if (s->comments_win)
+        s->comments_win->id = ID_COMMENTS_VIEW;
+      window_t *footer = create_window(
+          "", WINDOW_NOTITLE | WINDOW_NOFILL,
+          MAKERECT(0, 0, cr.w, BUTTON_HEIGHT),
+          s->content_win, "gridview", 0, &footer_cfg);
+      if (footer) {
+        window_t *add_comment_btn = create_window("Add Comment", 0,
+            MAKERECT(0, 0, 90, BUTTON_HEIGHT),
+            footer, "button", 0, NULL);
+        if (add_comment_btn) add_comment_btn->id = ID_BTN_ADD_COMMENT;
+        window_t *add_reply_btn = create_window("Add Reply", 0,
+            MAKERECT(0, 0, 90, BUTTON_HEIGHT),
+            footer, "button", 0, NULL);
+        if (add_reply_btn) add_reply_btn->id = ID_BTN_ADD_REPLY;
+        window_t *like_comment_btn = create_window("Like Comment", 0,
+            MAKERECT(0, 0, 90, BUTTON_HEIGHT),
+            footer, "button", 0, NULL);
+        if (like_comment_btn) like_comment_btn->id = ID_BTN_LIKE_COMMENT;
+        window_t *close_btn = create_window("Close", BUTTON_DEFAULT,
+            MAKERECT(0, 0, 74, BUTTON_HEIGHT),
+            footer, "button", 0, NULL);
+        if (close_btn) close_btn->id = ID_BTN_CLOSE;
+      }
 
       update_header_labels(win, s);
       refresh_comments(s);
+      window_layout_sync(s->content_win);
       return true;
     }
 
     case evDestroy:
-      if (s) { free(s->flat); s->flat = NULL; s->flat_cap = 0; }
+      if (s) {
+        free(s->flat);
+        s->flat = NULL;
+        s->flat_cap = 0;
+        s->content_win = NULL;
+        s->comments_win = NULL;
+      }
+      return false;
+
+    case evResize:
+      if (s && s->content_win) {
+        irect16_t cr = get_client_rect(win);
+        resize_window(s->content_win, cr.w, cr.h);
+      }
       return false;
 
     case evCommand: {
@@ -356,7 +449,6 @@ void show_post_detail(window_t *parent, int post_idx) {
     .comments_win  = NULL,
   };
 
-  show_dialog_from_form_ex(&socialfeed_post_detail_form, "Post Detail",
-                           parent, WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
-                           post_detail_proc, &state);
+  show_dialog("Post Detail", POST_DLG_W, POST_DLG_H + TITLEBAR_HEIGHT,
+              parent, post_detail_proc, &state);
 }

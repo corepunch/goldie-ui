@@ -39,6 +39,14 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+6);
       win->frame.h = MAX(win->frame.h, BUTTON_HEIGHT);
       return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        m->desired_w = MAX(win->frame.w, strwidth(win->title) + 6);
+        m->desired_h = MAX(win->frame.h, BUTTON_HEIGHT);
+      }
+      return true;
+    }
     case evPaint: {
       // BUTTON_PUSHLIKE: render as pressed whenever the button is checked (value==true)
       bool show_pressed = win->pressed ||

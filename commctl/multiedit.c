@@ -178,6 +178,15 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return true;
     }
 
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        m->desired_w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ * 2);
+        m->desired_h = MAX(win->frame.h, text_char_height(FONT_SMALL) * 4);
+      }
+      return true;
+    }
+
     // ── Destroy ────────────────────────────────────────────────────────────
     case evDestroy:
       free(s);

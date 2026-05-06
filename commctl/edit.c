@@ -19,6 +19,14 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       win->frame.w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ* 2);
       win->frame.h = MAX(win->frame.h, text_char_height(FONT_SMALL) + TEXTEDIT_PADDING_VERT* 2);
       return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        m->desired_w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ * 2);
+        m->desired_h = MAX(win->frame.h, text_char_height(FONT_SMALL) + TEXTEDIT_PADDING_VERT * 2);
+      }
+      return true;
+    }
     case evPaint: {
       irect16_t local = {0, 0, win->frame.w, win->frame.h};
       fill_rect(g_ui_runtime.focused == win?get_sys_color(brFocusRing):get_sys_color(brWindowBg),

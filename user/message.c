@@ -793,6 +793,25 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       case evPaintStencil:
         paint_window_stencil(win);
         break;
+      case evMeasure: {
+        layout_measure_t *m = (layout_measure_t *)lparam;
+        if (m) {
+          if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
+          if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
+        }
+        break;
+      }
+      case evArrange: {
+        layout_arrange_t *a = (layout_arrange_t *)lparam;
+        if (a) {
+          irect16_t r = a->rect;
+          if (r.w < 1) r.w = 1;
+          if (r.h < 1) r.h = 1;
+          win->frame = r;
+          send_message(win, evResize, 0, NULL);
+        }
+        break;
+      }
       case evHitTest:
         for (window_t *item = win->children; item; item = item->next) {
           irect16_t r = item->frame;

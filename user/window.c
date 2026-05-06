@@ -68,6 +68,8 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "gradient") || streq(class_name, "win_gradient")) return win_gradient;
   if (streq(class_name, "toolbox") || streq(class_name, "win_toolbox")) return win_toolbox;
   if (streq(class_name, "splitter") || streq(class_name, "win_splitter")) return win_splitter;
+  if (streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
+  if (streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
 
   return NULL;
 }
@@ -240,11 +242,179 @@ void resize_window(window_t *win, int new_w, int new_h) {
   // lag where a child's vertical scrollbar still uses the previous
   // dimensions while the parent's border has already moved.
   send_message(win, evResize, 0, NULL);
+  window_layout_sync(win);
 
   post_message(win, evRefreshStencil, 0, NULL);
 
   invalidate_overlaps(win);
   invalidate_window(win);
+}
+
+static int layout_apply_alignment(int avail, int desired, uint8_t align) {
+  if (avail < 0) avail = 0;
+  if (desired < 0) desired = 0;
+  if (align == LAYOUT_ALIGN_STRETCH) return avail;
+  if (desired > avail) desired = avail;
+  return desired;
+}
+
+static layout_measure_t layout_measure_child(window_t *child, int avail_w, int avail_h) {
+  layout_measure_t m = {
+    .avail_w = avail_w,
+    .avail_h = avail_h,
+    .desired_w = child && child->frame.w > 0 ? child->frame.w : 1,
+    .desired_h = child && child->frame.h > 0 ? child->frame.h : 1,
+  };
+  if (child) {
+    send_message(child, evMeasure, 0, &m);
+    if (m.desired_w < 1) m.desired_w = 1;
+    if (m.desired_h < 1) m.desired_h = 1;
+  }
+  return m;
+}
+
+static void layout_arrange_child(window_t *child, irect16_t rect) {
+  layout_arrange_t a = {
+    .rect = rect,
+    .h_align = child ? child->h_align : LAYOUT_ALIGN_STRETCH,
+    .v_align = child ? child->v_align : LAYOUT_ALIGN_STRETCH,
+  };
+  send_message(child, evArrange, 0, &a);
+}
+
+void layout_measure_window(window_t *win, layout_measure_t *m) {
+  irect16_t cr = get_client_rect(win);
+  int avail_w = m && m->avail_w > 0 ? m->avail_w : cr.w;
+  int avail_h = m && m->avail_h > 0 ? m->avail_h : cr.h;
+  int count = 0;
+  int desired_w = 0;
+  int desired_h = 0;
+  int gap = 4;
+
+  for (window_t *child = win->children; child; child = child->next) {
+    layout_measure_t cm = layout_measure_child(child, avail_w, avail_h);
+    if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+      if (count > 0) desired_w += gap;
+      desired_w += cm.desired_w;
+      if (cm.desired_h > desired_h) desired_h = cm.desired_h;
+    } else {
+      if (count > 0) desired_h += gap;
+      desired_h += cm.desired_h;
+      if (cm.desired_w > desired_w) desired_w = cm.desired_w;
+    }
+    count++;
+  }
+
+  if (count == 0) {
+    desired_w = avail_w;
+    desired_h = avail_h;
+  }
+  if (m) {
+    if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+      m->desired_w = desired_w;
+      m->desired_h = desired_h;
+    } else {
+      m->desired_w = desired_w;
+      m->desired_h = desired_h;
+    }
+  }
+}
+
+void layout_arrange_window(window_t *win, const irect16_t *rect) {
+  irect16_t cr = rect ? *rect : get_client_rect(win);
+  int gap = 4;
+
+  if (win->layout_kind == WINDOW_LAYOUT_STACK) {
+    int count = 0;
+    if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+      int x = cr.x;
+      for (window_t *child = win->children; child; child = child->next) {
+        if (count > 0) x += gap;
+        layout_measure_t cm = layout_measure_child(child, cr.w, cr.h);
+        int cw = cm.desired_w;
+        int ch = layout_apply_alignment(cr.h, cm.desired_h, child->v_align);
+        int cy = cr.y;
+        if (child->v_align == LAYOUT_ALIGN_CENTER)
+          cy += (cr.h - ch) / 2;
+        else if (child->v_align == LAYOUT_ALIGN_END)
+          cy += cr.h - ch;
+        layout_arrange_child(child, R(x, cy, cw, ch));
+        x += cw;
+        count++;
+      }
+    } else {
+      int y = cr.y;
+      for (window_t *child = win->children; child; child = child->next) {
+        if (count > 0) y += gap;
+        layout_measure_t cm = layout_measure_child(child, cr.w, cr.h);
+        int cw = layout_apply_alignment(cr.w, cm.desired_w, child->h_align);
+        int ch = cm.desired_h;
+        int cx = cr.x;
+        if (child->h_align == LAYOUT_ALIGN_CENTER)
+          cx += (cr.w - cw) / 2;
+        else if (child->h_align == LAYOUT_ALIGN_END)
+          cx += cr.w - cw;
+        layout_arrange_child(child, R(cx, y, cw, ch));
+        y += ch;
+        count++;
+      }
+    }
+    return;
+  }
+
+  if (win->layout_kind == WINDOW_LAYOUT_GRID) {
+    int cols = win->layout_columns > 0 ? win->layout_columns : 2;
+    int count = 0;
+    for (window_t *child = win->children; child; child = child->next) {
+      count++;
+    }
+    int rows = (count + cols - 1) / cols;
+    if (rows < 1) rows = 1;
+    int base_w = cr.w / cols;
+    int rem_w = cr.w % cols;
+    int base_h = cr.h / rows;
+    int rem_h = cr.h % rows;
+    int idx = 0;
+    for (window_t *child = win->children; child; child = child->next) {
+      int row = idx / cols;
+      int col = idx % cols;
+      int x = cr.x + col * base_w + (col < rem_w ? col : rem_w);
+      int y = cr.y + row * base_h + (row < rem_h ? row : rem_h);
+      int cw = base_w + (col < rem_w ? 1 : 0);
+      int ch = base_h + (row < rem_h ? 1 : 0);
+      layout_measure_t cm = layout_measure_child(child, cw, ch);
+      if (cm.desired_w > cw && child->h_align != LAYOUT_ALIGN_STRETCH)
+        cw = cm.desired_w < cr.w ? cm.desired_w : cr.w;
+      if (cm.desired_h > ch && child->v_align != LAYOUT_ALIGN_STRETCH)
+        ch = cm.desired_h < cr.h ? cm.desired_h : cr.h;
+      if (child->h_align == LAYOUT_ALIGN_CENTER)
+        x += (base_w - cw) / 2;
+      else if (child->h_align == LAYOUT_ALIGN_END)
+        x += base_w - cw;
+      if (child->v_align == LAYOUT_ALIGN_CENTER)
+        y += (base_h - ch) / 2;
+      else if (child->v_align == LAYOUT_ALIGN_END)
+        y += base_h - ch;
+      layout_arrange_child(child, R(x, y, cw, ch));
+      idx++;
+    }
+  }
+}
+
+void window_layout_sync(window_t *win) {
+  if (!win || !win->auto_layout || win->layout_kind == WINDOW_LAYOUT_NONE)
+    return;
+  irect16_t cr = get_client_rect(win);
+  switch (win->layout_kind) {
+    case WINDOW_LAYOUT_STACK:
+      layout_arrange_window(win, &cr);
+      break;
+    case WINDOW_LAYOUT_GRID:
+      layout_arrange_window(win, &cr);
+      break;
+    default:
+      break;
+  }
 }
 
 void set_default_window_position(int x, int y) {
@@ -631,6 +801,10 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Allocate the parent window without sending evCreate yet.
   window_t *win = alloc_window(def->name ? def->name : "", def->flags, &r, parent, proc, hinstance);
   if (!win) return NULL;
+  win->auto_layout       = def->auto_layout;
+  win->layout_kind       = def->layout_kind;
+  win->layout_orientation= def->layout_orientation;
+  win->layout_columns    = def->layout_columns;
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).
@@ -641,12 +815,21 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
       if (!cp) continue;
       window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
                                       &cd->frame, win, cp, 0, NULL);
-      if (child) child->id = cd->id;
+      if (child) {
+        child->id = cd->id;
+        child->h_align = cd->h_align;
+        child->v_align = cd->v_align;
+      }
     }
   }
 
+  if (win->auto_layout)
+    window_layout_sync(win);
+
   // Now notify the parent that creation (with children already present) is complete.
   send_message(win, evCreate, 0, lparam);
+  if (win->auto_layout)
+    window_layout_sync(win);
   // For root windows (no parent), check whether the proc destroyed the window
   // during evCreate (e.g. end_dialog called from within the proc).
   // Child windows are in parent->children, not the global list, so skip the

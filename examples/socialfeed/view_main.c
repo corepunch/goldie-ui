@@ -96,20 +96,35 @@ result_t main_win_proc(window_t *win, uint32_t msg,
                    kFeedToolbarCount,
                    (void *)kFeedToolbar);
 
-      g_app->feed_win = create_window(
-          "feed",
-          WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
-          MAKERECT(0, 0, get_client_rect(win).w, get_client_rect(win).h),
-          win, feed_list_proc, 0, NULL);
+      {
+        irect16_t cr = get_client_rect(win);
+        layout_view_config_t stack_cfg = {
+          .layout_kind = WINDOW_LAYOUT_STACK,
+          .orientation = WINDOW_STACK_VERTICAL,
+          .columns = 0,
+        };
+        g_app->content_win = create_window(
+            "", WINDOW_NOTITLE | WINDOW_NOFILL,
+            MAKERECT(0, 0, cr.w, cr.h),
+            win, "stackview", 0, &stack_cfg);
+        if (!g_app->content_win)
+          return false;
+
+        g_app->feed_win = create_window(
+            "feed",
+            WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
+            MAKERECT(0, 0, cr.w, cr.h),
+            g_app->content_win, feed_list_proc, 0, NULL);
+      }
 
       feed_refresh();
       app_update_status();
       return true;
 
     case evResize:
-      if (g_app && g_app->feed_win) {
+      if (g_app && g_app->content_win) {
         irect16_t cr = get_client_rect(win);
-        resize_window(g_app->feed_win, cr.w, cr.h);
+        resize_window(g_app->content_win, cr.w, cr.h);
       }
       return false;
 
@@ -144,6 +159,14 @@ result_t main_win_proc(window_t *win, uint32_t msg,
     case evClose:
       ui_request_quit();
       return true;
+
+    case evDestroy:
+      if (g_app && g_app->main_win == win) {
+        g_app->main_win = NULL;
+        g_app->content_win = NULL;
+        g_app->feed_win = NULL;
+      }
+      return false;
 
     default:
       return false;

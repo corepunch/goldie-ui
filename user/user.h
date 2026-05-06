@@ -33,6 +33,17 @@ typedef struct {
   void     *child_lparam;
 } parent_notify_t;
 
+typedef enum {
+  WINDOW_LAYOUT_NONE  = 0,
+  WINDOW_LAYOUT_STACK = 1,
+  WINDOW_LAYOUT_GRID  = 2,
+} window_layout_kind_t;
+
+typedef enum {
+  WINDOW_STACK_VERTICAL   = 0,
+  WINDOW_STACK_HORIZONTAL = 1,
+} window_stack_orientation_t;
+
 // Window hook callback type
 typedef void (*winhook_func_t)(window_t *win, uint32_t msg, uint32_t wparam, void *lparam, void *userdata);
 
@@ -56,6 +67,22 @@ struct irect16_s {
   int16_t x, y, w, h;
 };
 
+// Auto-layout helpers.  Measures and arrangements follow WPF-style semantics:
+// the parent passes an available size, the child reports its desired size, and
+// the final arrange rect is usually the parent's full client area.
+typedef struct {
+  int avail_w;
+  int avail_h;
+  int desired_w;
+  int desired_h;
+} layout_measure_t;
+
+typedef struct {
+  irect16_t rect;
+  uint8_t   h_align;  // LAYOUT_ALIGN_*; 0 = stretch
+  uint8_t   v_align;  // LAYOUT_ALIGN_*; 0 = stretch
+} layout_arrange_t;
+
 // A fixed-size-tile bitmap strip, analogous to WinAPI HIMAGELIST / TB_ADDBITMAP.
 // Icons are indexed 0..N left-to-right then top-to-bottom.
 // Used with btnSetImage and tbSetStrip.
@@ -75,6 +102,10 @@ typedef struct {
   uint32_t id;
   int w, h;
   flags_t flags;
+  bool auto_layout;
+  uint8_t layout_kind;
+  uint8_t layout_orientation;
+  uint8_t layout_columns;
 } windef_t;
 
 // ── Dialog Data Exchange (DDX) ──────────────────────────────────────────────
@@ -175,6 +206,8 @@ typedef struct {
   flags_t           flags;  // style flags passed to create_window
   const char       *text;   // initial caption / label text
   const char       *name;   // identifier name (informational)
+  uint8_t           h_align; // horizontal alignment; 0 = stretch
+  uint8_t           v_align; // vertical alignment; 0 = stretch
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -188,6 +221,10 @@ typedef struct {
   const char             *name;        // window title
   int                     width, height; // client area dimensions
   flags_t                 flags;       // window flags
+  bool                    auto_layout; // enable measure/arrange on children
+  uint8_t                 layout_kind;  // window_layout_kind_t
+  uint8_t                 layout_orientation; // window_stack_orientation_t
+  uint8_t                 layout_columns; // grid columns (0 = default)
   const form_ctrl_def_t  *children;    // array of child control definitions (may be NULL)
   int                     child_count; // number of entries in children[]
   // ── DDX (Dialog Data Exchange) fields ───────────────────────────────────
@@ -291,6 +328,12 @@ struct window_s {
   int    toolbar_btn_size;   // 0 = use TB_SPACING default; >0 = custom square button size in pixels
   window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
   int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
+  bool      auto_layout;    // auto layout the direct children
+  uint8_t   layout_kind;    // window_layout_kind_t
+  uint8_t   layout_orientation; // window_stack_orientation_t
+  uint8_t   layout_columns;  // grid columns (0 = default)
+  uint8_t   h_align;        // horizontal alignment; 0 = stretch
+  uint8_t   v_align;        // vertical alignment; 0 = stretch
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)
@@ -346,6 +389,9 @@ void clear_window_children(window_t *win);
 void clear_toolbar_children(window_t *win);
 void move_window(window_t *win, int x, int y);
 void resize_window(window_t *win, int new_w, int new_h);
+void layout_measure_window(window_t *win, layout_measure_t *m);
+void layout_arrange_window(window_t *win, const irect16_t *rect);
+void window_layout_sync(window_t *win);
 void set_default_window_position(int x, int y);
 
 // Window message functions

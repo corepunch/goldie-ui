@@ -32,6 +32,11 @@ enum {
   evRightButtonDown,
   evRightButtonUp,
   evResize,
+  // Measure / arrange messages for auto-layout containers.
+  // evMeasure: lparam = layout_measure_t*; child writes desired size.
+  // evArrange: lparam = layout_arrange_t*; child adopts the assigned rect.
+  evMeasure,
+  evArrange,
   evDisplayChange,
   evKeyDown,
   evKeyUp,
@@ -226,6 +231,15 @@ typedef struct {
 #define WINDOW_SIDEBAR      (1 << 16)
 #define WINDOW_NOACTIVATE   (1 << 17)  // do not steal keyboard focus when shown
 #define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab-key focus cycle (WS_TABSTOP equivalent)
+
+// Auto-layout alignment values used by layout_measure_t / layout_arrange_t.
+// 0 = stretch (default), matching WPF/SwiftUI "fill available space".
+enum {
+  LAYOUT_ALIGN_STRETCH = 0,
+  LAYOUT_ALIGN_START   = 1,
+  LAYOUT_ALIGN_CENTER  = 2,
+  LAYOUT_ALIGN_END     = 3,
+};
 
 // Scroll bar constants (WinAPI-style, used with set_scroll_info / get_scroll_info)
 #define SB_HORZ  0   // horizontal scroll bar

@@ -92,6 +92,7 @@ typedef struct {
   int          selected_idx;
   window_t    *menubar_win;
   window_t    *main_win;
+  window_t    *content_win;
   window_t    *feed_win;
   hinstance_t  hinstance;
   accel_table_t *accel;
