@@ -98,10 +98,10 @@ static uint8_t prop_parse_align(const char *s, uint8_t fallback) {
 
 static const char *prop_align_name(uint8_t align) {
   switch (align) {
-    case LAYOUT_ALIGN_START: return "Start";
-    case LAYOUT_ALIGN_CENTER: return "Center";
-    case LAYOUT_ALIGN_END: return "End";
-    default: return "Stretch";
+    case LAYOUT_ALIGN_START: return "start";
+    case LAYOUT_ALIGN_CENTER: return "center";
+    case LAYOUT_ALIGN_END: return "end";
+    default: return "stretch";
   }
 }
 

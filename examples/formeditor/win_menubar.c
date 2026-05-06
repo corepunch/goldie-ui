@@ -615,7 +615,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   }
 
   if (doc->layout_orientation == WINDOW_STACK_HORIZONTAL) {
-    int x = 4;
+    int x = 0;
     for (int i = 0; i < count; i++) {
       form_element_t *el = &doc->elements[i];
       if (i > 0) x += gap;
@@ -633,7 +633,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
       x += dw;
     }
   } else {
-    int y = 4;
+    int y = 0;
     for (int i = 0; i < count; i++) {
       form_element_t *el = &doc->elements[i];
       if (i > 0) y += gap;

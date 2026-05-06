@@ -380,21 +380,21 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       int col = idx % cols;
       int x = cr.x + col * base_w + (col < rem_w ? col : rem_w);
       int y = cr.y + row * base_h + (row < rem_h ? row : rem_h);
-      int cw = base_w + (col < rem_w ? 1 : 0);
-      int ch = base_h + (row < rem_h ? 1 : 0);
-      layout_measure_t cm = layout_measure_child(child, cw, ch);
-      if (cm.desired_w > cw && child->h_align != LAYOUT_ALIGN_STRETCH)
-        cw = cm.desired_w < cr.w ? cm.desired_w : cr.w;
-      if (cm.desired_h > ch && child->v_align != LAYOUT_ALIGN_STRETCH)
-        ch = cm.desired_h < cr.h ? cm.desired_h : cr.h;
+      int cell_w = base_w + (col < rem_w ? 1 : 0);
+      int cell_h = base_h + (row < rem_h ? 1 : 0);
+      layout_measure_t cm = layout_measure_child(child, cell_w, cell_h);
+      int cw = (child->h_align == LAYOUT_ALIGN_STRETCH) ? cell_w
+             : (cm.desired_w < cell_w ? cm.desired_w : cell_w);
+      int ch = (child->v_align == LAYOUT_ALIGN_STRETCH) ? cell_h
+             : (cm.desired_h < cell_h ? cm.desired_h : cell_h);
       if (child->h_align == LAYOUT_ALIGN_CENTER)
-        x += (base_w - cw) / 2;
+        x += (cell_w - cw) / 2;
       else if (child->h_align == LAYOUT_ALIGN_END)
-        x += base_w - cw;
+        x += cell_w - cw;
       if (child->v_align == LAYOUT_ALIGN_CENTER)
-        y += (base_h - ch) / 2;
+        y += (cell_h - ch) / 2;
       else if (child->v_align == LAYOUT_ALIGN_END)
-        y += base_h - ch;
+        y += cell_h - ch;
       layout_arrange_child(child, R(x, y, cw, ch));
       idx++;
     }
