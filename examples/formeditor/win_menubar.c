@@ -3,6 +3,7 @@
 
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
+#include "../../user/enum_parse.h"
 #include <inttypes.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -326,61 +327,66 @@ static bool attr_is_true(xmlNodePtr node, const char *name) {
   return yes;
 }
 
-static uint8_t align_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  if (strcmp(v, "stretch") == 0) return LAYOUT_ALIGN_STRETCH;
-  if (strcmp(v, "start") == 0) return LAYOUT_ALIGN_START;
-  if (strcmp(v, "center") == 0) return LAYOUT_ALIGN_CENTER;
-  if (strcmp(v, "end") == 0) return LAYOUT_ALIGN_END;
-  char *end = NULL;
-  long n = strtol(v, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
-  return fallback;
+static const enum_token_t kAlignHTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"left",    LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"right",   LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kAlignVTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"top",     LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"bottom",  LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kLayoutKindTokens[] = {
+  {"none",  WINDOW_LAYOUT_NONE},
+  {"stack", WINDOW_LAYOUT_STACK},
+  {"grid",  WINDOW_LAYOUT_GRID},
+};
+
+static const enum_token_t kLayoutOrientationTokens[] = {
+  {"vertical",   WINDOW_STACK_VERTICAL},
+  {"horizontal", WINDOW_STACK_HORIZONTAL},
+};
+
+static uint8_t align_h_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kAlignHTokens, ARRAY_LEN(kAlignHTokens), fallback);
 }
 
-static const char *align_token(uint8_t align) {
-  switch (align) {
-    case LAYOUT_ALIGN_START: return "start";
-    case LAYOUT_ALIGN_CENTER: return "center";
-    case LAYOUT_ALIGN_END: return "end";
-    default: return "stretch";
-  }
+static uint8_t align_v_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kAlignVTokens, ARRAY_LEN(kAlignVTokens), fallback);
+}
+
+static const char *align_h_token(uint8_t align) {
+  return enum_token_name(align, kAlignHTokens, ARRAY_LEN(kAlignHTokens), "stretch");
+}
+
+static const char *align_v_token(uint8_t align) {
+  return enum_token_name(align, kAlignVTokens, ARRAY_LEN(kAlignVTokens), "stretch");
 }
 
 static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  if (strcmp(v, "none") == 0) return WINDOW_LAYOUT_NONE;
-  if (strcmp(v, "stack") == 0) return WINDOW_LAYOUT_STACK;
-  if (strcmp(v, "grid") == 0) return WINDOW_LAYOUT_GRID;
-  int n = 0;
-  if (sscanf(v, "%d", &n) == 1 && n >= 0 && n <= 255)
-    return (uint8_t)n;
-  return fallback;
+  return (uint8_t)enum_parse_token(v, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), fallback);
 }
 
 static uint8_t layout_orientation_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  if (strcmp(v, "vertical") == 0) return WINDOW_STACK_VERTICAL;
-  if (strcmp(v, "horizontal") == 0) return WINDOW_STACK_HORIZONTAL;
-  int n = 0;
-  if (sscanf(v, "%d", &n) == 1 && n >= 0 && n <= 255)
-    return (uint8_t)n;
-  return fallback;
+  return (uint8_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), fallback);
 }
 
 static const char *layout_kind_token(uint8_t kind) {
-  switch (kind) {
-    case WINDOW_LAYOUT_STACK: return "stack";
-    case WINDOW_LAYOUT_GRID: return "grid";
-    default: return "none";
-  }
+  return enum_token_name(kind, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), "none");
 }
 
 static const char *layout_orientation_token(uint8_t orientation) {
-  switch (orientation) {
-    case WINDOW_STACK_HORIZONTAL: return "horizontal";
-    default: return "vertical";
-  }
+  return enum_token_name(orientation, kLayoutOrientationTokens,
+                         ARRAY_LEN(kLayoutOrientationTokens), "vertical");
 }
 
 static bool parse_numeric_expr(const char *s, int *out) {
@@ -390,11 +396,6 @@ static bool parse_numeric_expr(const char *s, int *out) {
   if (!end || *end != '\0') return false;
   *out = (int)n;
   return true;
-}
-
-static bool is_numeric_expr(const char *s) {
-  int ignored = 0;
-  return parse_numeric_expr(s, &ignored);
 }
 
 static uint32_t flag_value(const char *tok) {
@@ -446,12 +447,9 @@ static bool load_component_plugin_named(const char *name) {
   return fe_load_component_plugin(path);
 }
 
-static int project_resolve_control_id(form_doc_t *doc, const char *expr,
-                                      const char *value_expr) {
+static int project_resolve_control_id(form_doc_t *doc, const char *expr) {
   int id = 0;
   if (parse_numeric_expr(expr, &id))
-    return id;
-  if (parse_numeric_expr(value_expr, &id))
     return id;
   return doc ? doc->next_id++ : CTRL_ID_BASE;
 }
@@ -541,9 +539,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->h_align = LAYOUT_ALIGN_STRETCH;
       el->v_align = LAYOUT_ALIGN_STRETCH;
       copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
-      char value_expr[32] = {0};
-      copy_attr(n, "value", value_expr, sizeof(value_expr));
-      el->id = project_resolve_control_id(doc, el->id_expr, value_expr);
+      el->id = project_resolve_control_id(doc, el->id_expr);
       if (!frame_attr(n, &el->frame)) {
         el->frame.x = int_attr(n, "x", 0);
         el->frame.y = int_attr(n, "y", 0);
@@ -556,10 +552,12 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->flags = parse_flags_expr(el->flags_expr);
       copy_attr(n, "text", el->text, sizeof(el->text));
       copy_attr(n, "name", el->name, sizeof(el->name));
-      char *h_align = xml_attr_dup(n, "h_align");
-      char *v_align = xml_attr_dup(n, "v_align");
-      el->h_align = align_attr(h_align, el->h_align);
-      el->v_align = align_attr(v_align, el->v_align);
+      char *h_align = xml_attr_dup(n, "h-align");
+      char *v_align = xml_attr_dup(n, "v-align");
+      if (!h_align) h_align = xml_attr_dup(n, "h_align");
+      if (!v_align) v_align = xml_attr_dup(n, "v_align");
+      el->h_align = align_h_attr(h_align, el->h_align);
+      el->v_align = align_v_attr(v_align, el->v_align);
       el->padding = rect_attr(n, "padding",
                               rect_attr(n, "layout_padding", (irect16_t){0, 0, 0, 0}));
       el->margin = rect_attr(n, "margin",
@@ -732,7 +730,9 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   doc->auto_layout = attr_is_true(form_node, "auto_layout");
   {
     char *layout_kind = xml_attr_dup(form_node, "layout_kind");
-    char *layout_orientation = xml_attr_dup(form_node, "layout_orientation");
+    char *layout_orientation = xml_attr_dup(form_node, "orientation");
+    if (!layout_orientation)
+      layout_orientation = xml_attr_dup(form_node, "layout_orientation");
     doc->layout_kind = layout_kind_attr(layout_kind, WINDOW_LAYOUT_NONE);
     doc->layout_orientation = layout_orientation_attr(layout_orientation,
                                                       WINDOW_STACK_VERTICAL);
@@ -855,13 +855,11 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     char id_buf[32];
     snprintf(id_buf, sizeof(id_buf), "%d", el->id);
     xml_attr(f, "id", el->id_expr[0] ? el->id_expr : id_buf);
-    if (el->id_expr[0] && !is_numeric_expr(el->id_expr))
-      xml_attr(f, "value", id_buf);
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
     if (doc->auto_layout) {
-      fprintf(f, " h_align=\"%s\"", align_token(el->h_align));
-      fprintf(f, " v_align=\"%s\"", align_token(el->v_align));
+      fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
+      fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
     } else {
       fprintf(f, " frame=\"%d %d %d %d\"",
               el->frame.x, el->frame.y, el->frame.w, el->frame.h);

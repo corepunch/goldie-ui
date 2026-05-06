@@ -7,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../user/user.h"
+#include "../user/enum_parse.h"
+
+#ifndef ARRAY_LEN
+#define ARRAY_LEN(a) ((int)(sizeof(a) / sizeof((a)[0])))
+#endif
+
 typedef struct {
   int x, y, w, h;
 } frame_t;
@@ -187,37 +194,57 @@ static bool attr_is_true(xmlNodePtr node, const char *name) {
   return yes;
 }
 
-static uint8_t align_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  if (!strcmp(v, "stretch")) return 0;
-  if (!strcmp(v, "start")) return 1;
-  if (!strcmp(v, "center")) return 2;
-  if (!strcmp(v, "end")) return 3;
-  char *end = NULL;
-  long n = strtol(v, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
-  return fallback;
+static const enum_token_t kAlignHTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"left",    LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"right",   LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kAlignVTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"top",     LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"bottom",  LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kLayoutKindTokens[] = {
+  {"none",  WINDOW_LAYOUT_NONE},
+  {"stack", WINDOW_LAYOUT_STACK},
+  {"grid",  WINDOW_LAYOUT_GRID},
+};
+
+static const enum_token_t kLayoutOrientationTokens[] = {
+  {"vertical",   WINDOW_STACK_VERTICAL},
+  {"horizontal", WINDOW_STACK_HORIZONTAL},
+};
+
+static uint8_t align_h_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kAlignHTokens, ARRAY_LEN(kAlignHTokens), fallback);
+}
+
+static uint8_t align_v_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kAlignVTokens, ARRAY_LEN(kAlignVTokens), fallback);
+}
+
+static const char *align_h_token(uint8_t align) {
+  return enum_token_name(align, kAlignHTokens, ARRAY_LEN(kAlignHTokens), "stretch");
+}
+
+static const char *align_v_token(uint8_t align) {
+  return enum_token_name(align, kAlignVTokens, ARRAY_LEN(kAlignVTokens), "stretch");
 }
 
 static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  if (!strcmp(v, "none")) return 0;
-  if (!strcmp(v, "stack")) return 1;
-  if (!strcmp(v, "grid")) return 2;
-  char *end = NULL;
-  long n = strtol(v, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
-  return fallback;
+  return (uint8_t)enum_parse_token(v, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), fallback);
 }
 
 static uint8_t layout_orientation_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  if (!strcmp(v, "vertical")) return 0;
-  if (!strcmp(v, "horizontal")) return 1;
-  char *end = NULL;
-  long n = strtol(v, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
-  return fallback;
+  return (uint8_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), fallback);
 }
 
 static char *attr_dup_first(xmlNodePtr node, const char *a, const char *b) {
@@ -244,15 +271,18 @@ static uint8_t layout_spacing_attr(const char *v, uint8_t fallback) {
 }
 
 static const char *layout_kind_c_token(uint8_t kind) {
-  switch (kind) {
-    case 1: return "WINDOW_LAYOUT_STACK";
-    case 2: return "WINDOW_LAYOUT_GRID";
-    default: return "WINDOW_LAYOUT_NONE";
-  }
+  return enum_token_name(kind, (const enum_token_t[]) {
+    {"WINDOW_LAYOUT_NONE",  WINDOW_LAYOUT_NONE},
+    {"WINDOW_LAYOUT_STACK", WINDOW_LAYOUT_STACK},
+    {"WINDOW_LAYOUT_GRID",  WINDOW_LAYOUT_GRID},
+  }, 3, "WINDOW_LAYOUT_NONE");
 }
 
 static const char *layout_orientation_c_token(uint8_t orientation) {
-  return orientation == 1 ? "WINDOW_STACK_HORIZONTAL" : "WINDOW_STACK_VERTICAL";
+  return enum_token_name(orientation, (const enum_token_t[]) {
+    {"WINDOW_STACK_VERTICAL",   WINDOW_STACK_VERTICAL},
+    {"WINDOW_STACK_HORIZONTAL", WINDOW_STACK_HORIZONTAL},
+  }, 2, "WINDOW_STACK_VERTICAL");
 }
 
 static bool is_control_node(xmlNodePtr node) {
@@ -323,8 +353,10 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   char *name = attr_dup(c, "name");
   char *text = attr_dup(c, "text");
   char *cflags = attr_dup(c, "flags");
-  char *h_align = attr_dup(c, "h_align");
-  char *v_align = attr_dup(c, "v_align");
+  char *h_align = attr_dup(c, "h-align");
+  char *v_align = attr_dup(c, "v-align");
+  if (!h_align) h_align = attr_dup(c, "h_align");
+  if (!v_align) v_align = attr_dup(c, "v_align");
   char *layout_kind = attr_dup(c, "layout_kind");
   char *layout_orientation = attr_dup_first(c, "orientation", "layout_orientation");
   char *layout_columns = attr_dup_first(c, "columns", "layout_columns");
@@ -405,7 +437,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   fprint_c_string(f, nonempty(text, ""));
   fputs(", ", f);
   fprint_c_string(f, nonempty(name, ""));
-  fprintf(f, ", %u, %u, ", (unsigned)align_attr(h_align, 0), (unsigned)align_attr(v_align, 0));
+  fprintf(f, ", %u, %u, ", (unsigned)align_h_attr(h_align, 0), (unsigned)align_v_attr(v_align, 0));
   if (nested) {
     fprintf(f, "%s, %d, %s, %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d } },\n",
             nested_name, nested_count,
@@ -498,22 +530,42 @@ static bool collect_define(define_list_t *defs, const char *name,
   return true;
 }
 
-static bool collect_control_tree_defines(define_list_t *defs, xmlNodePtr node) {
+static bool collect_control_define_auto(define_list_t *defs, const char *name,
+                                        const char *explicit_value,
+                                        int *next_value) {
+  if (!defs || !is_ident_expr(name)) return true;
+  for (int i = 0; i < defs->count; i++) {
+    if (!strcmp(defs->items[i].name, name))
+      return true;
+  }
+
+  if (explicit_value && *explicit_value)
+    return collect_define(defs, name, explicit_value);
+
+  if (!next_value) return true;
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%d", (*next_value)++);
+  return collect_define(defs, name, buf);
+}
+
+static bool collect_control_tree_defines(define_list_t *defs, xmlNodePtr node,
+                                         int *next_value) {
   for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
     if (!is_control_node(c)) continue;
     char *cid = attr_dup(c, "id");
     char *value = attr_dup(c, "value");
-    bool ok = collect_define(defs, cid, value);
+      bool ok = collect_control_define_auto(defs, cid, value, next_value);
     free(cid);
     free(value);
     if (!ok) return false;
-    if (!collect_control_tree_defines(defs, c)) return false;
+    if (!collect_control_tree_defines(defs, c, next_value)) return false;
   }
   return true;
 }
 
 static bool collect_form_defines(define_list_t *defs, xmlNodePtr form) {
-  return collect_control_tree_defines(defs, form);
+  int next_value = 1001;
+  return collect_control_tree_defines(defs, form, &next_value);
 }
 
 static bool collect_menu_node_defines(define_list_t *defs, xmlNodePtr menu) {

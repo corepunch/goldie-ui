@@ -5,6 +5,7 @@
 
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
+#include "../../user/enum_parse.h"
 
 enum {
   PROP_ROW_NONE = 0,
@@ -85,24 +86,38 @@ static int prop_parse_int(const char *s, int fallback) {
   return (int)v;
 }
 
-static uint8_t prop_parse_align(const char *s, uint8_t fallback) {
-  if (!s || !*s) return fallback;
-  if (strcmp(s, "stretch") == 0) return LAYOUT_ALIGN_STRETCH;
-  if (strcmp(s, "start") == 0) return LAYOUT_ALIGN_START;
-  if (strcmp(s, "center") == 0) return LAYOUT_ALIGN_CENTER;
-  if (strcmp(s, "end") == 0) return LAYOUT_ALIGN_END;
-  int v = prop_parse_int(s, (int)fallback);
-  if (v < 0 || v > 255) return fallback;
-  return (uint8_t)v;
+static const enum_token_t kPropHAlignTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"left",    LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"right",   LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kPropVAlignTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"top",     LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"bottom",  LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static uint8_t prop_parse_h_align(const char *s, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(s, kPropHAlignTokens, ARRAY_LEN(kPropHAlignTokens), fallback);
 }
 
-static const char *prop_align_name(uint8_t align) {
-  switch (align) {
-    case LAYOUT_ALIGN_START: return "start";
-    case LAYOUT_ALIGN_CENTER: return "center";
-    case LAYOUT_ALIGN_END: return "end";
-    default: return "stretch";
-  }
+static uint8_t prop_parse_v_align(const char *s, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(s, kPropVAlignTokens, ARRAY_LEN(kPropVAlignTokens), fallback);
+}
+
+static const char *prop_h_align_name(uint8_t align) {
+  return enum_token_name(align, kPropHAlignTokens, ARRAY_LEN(kPropHAlignTokens), "stretch");
+}
+
+static const char *prop_v_align_name(uint8_t align) {
+  return enum_token_name(align, kPropVAlignTokens, ARRAY_LEN(kPropVAlignTokens), "stretch");
 }
 
 static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
@@ -132,10 +147,10 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
       snprintf(el->text, sizeof(el->text), "%s", value);
       break;
     case PROP_ROW_H_ALIGN:
-      el->h_align = prop_parse_align(value, el->h_align);
+      el->h_align = prop_parse_h_align(value, el->h_align);
       break;
     case PROP_ROW_V_ALIGN:
-      el->v_align = prop_parse_align(value, el->v_align);
+      el->v_align = prop_parse_v_align(value, el->v_align);
       break;
     case PROP_ROW_LEFT:
       el->frame.x = prop_parse_int(value, el->frame.x);
@@ -223,8 +238,8 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
   if (g_app && g_app->doc && g_app->doc->auto_layout) {
-    prop_add_row(list, "Horizontal alignment", prop_align_name(el->h_align), PROP_ROW_H_ALIGN);
-    prop_add_row(list, "Vertical alignment", prop_align_name(el->v_align), PROP_ROW_V_ALIGN);
+    prop_add_row(list, "Horizontal alignment", prop_h_align_name(el->h_align), PROP_ROW_H_ALIGN);
+    prop_add_row(list, "Vertical alignment", prop_v_align_name(el->v_align), PROP_ROW_V_ALIGN);
   } else {
     snprintf(buf, sizeof(buf), "%d", el->frame.x);
     prop_add_row(list, "Left", buf, PROP_ROW_LEFT);

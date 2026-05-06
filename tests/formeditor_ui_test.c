@@ -1132,8 +1132,8 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
     ASSERT_TRUE(strstr(xml, "padding=\"8 8 8 8\"") != NULL);
     ASSERT_TRUE(strstr(xml, "margin=\"8 8 8 8\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "h_align=\"center\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "v_align=\"end\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "h-align=\"center\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "v-align=\"bottom\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
     ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") == NULL);
     free(xml);
@@ -1442,8 +1442,10 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     ASSERT_TRUE(strstr(xml, "<menus") != NULL);
     ASSERT_TRUE(strstr(xml, "id=\"ID_FILE_NEW\" value=\"1\"") != NULL);
     ASSERT_TRUE(strstr(xml, "var=\"s_view_items\" mutable=\"true\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\" value=\"1\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\" value=\"8\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\" value=") == NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\" value=") == NULL);
     free(xml);
     unlink(path);
 

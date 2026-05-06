@@ -21,21 +21,6 @@
 #define LV_TRACK_L         8
 #define LV_TRACK_R       (LV_GRAPH_W - 8)
 
-// Child window IDs used by the levels dialog.
-#define LV_ID_GRAPH      1
-#define LV_ID_OK         2
-#define LV_ID_RESET      3
-#define LV_ID_CANCEL     4
-#define LV_ID_IN_BLACK   5
-#define LV_ID_IN_GAMMA   6
-#define LV_ID_IN_WHITE   7
-#define LV_ID_OUT_BLACK  8
-#define LV_ID_OUT_WHITE  9
-#define LV_ID_IN_SLIDER 10
-#define LV_ID_OUT_SLIDER 11
-#define LV_ID_OUT_STRIP LV_ID_OUT_SLIDER
-#define LV_ID_PREVIEW   12
-
 // Notifications sent by levels controls to their parent with evCommand.
 // LOWORD(wparam) is the control id.
 #define lvStripChanged   0x8001u
