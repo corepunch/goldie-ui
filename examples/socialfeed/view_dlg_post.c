@@ -6,12 +6,11 @@
 //   y= 32  Body text label        (ID_LBL_POST_BODY, wrapped, h=50)
 //   y= 86  "N likes" label        (ID_LBL_POST_LIKES)  + [Like Post] button
 //   y=108  "Comments (N):" label  (ID_LBL_COMMENTS_HDR)
-//   y=122  Comments reportview    (created imperatively in evCreate)
+//   y=122  Comments reportview    (ID_COMMENTS_VIEW)
 //   y=280  [Add Comment] [Add Reply] [Like Comment]  [Close]
 //
-// All static controls and buttons are declared in socialfeed.orion (post_detail
-// form) and created automatically before evCreate fires.  Only the reportview —
-// which has no FORM_CTRL_* equivalent — is created imperatively.
+// All controls are declared in socialfeed.orion (post_detail form) and created
+// automatically before evCreate fires.
 
 #include "socialfeed.h"
 
@@ -202,17 +201,13 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
 
   switch (msg) {
     case evCreate: {
-      // Standard button and label children were created by the form before
-      // evCreate fired.  Only the win_reportview must be created imperatively
-      // here, since win_reportview has no FORM_CTRL_* equivalent.
+      // All children (including the reportview) were created by the form before
+      // evCreate fired. Just get the reportview reference.
       s = (post_detail_t *)lparam;
       win->userdata    = s;
       s->selection     = (flat_sel_t){ -1, -1 };
 
-      s->comments_win = create_window("comments",
-          WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
-          MAKERECT(2, 122, POST_DLG_W - 4, 150),
-          win, win_reportview, 0, NULL);
+      s->comments_win = get_window_item(win, ID_COMMENTS_VIEW);
 
       update_header_labels(win, s);
       refresh_comments(s);

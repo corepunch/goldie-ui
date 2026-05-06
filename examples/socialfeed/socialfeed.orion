@@ -88,12 +88,15 @@
           <control class="label" id="ID_LBL_POST_LIKES"    value="313" name="lbl_likes"    text="" frame="4  86 200 13" flags="0" />
           <control class="label" id="ID_LBL_COMMENTS_HDR" value="314" name="lbl_cmt_hdr"  text="" frame="4 108 200 13" flags="0" />
 
+          <!-- Comments reportview -->
+          <control class="reportview" id="ID_COMMENTS_VIEW" value="315" name="comments" text="" frame="2 122 516 180" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
+
           <!-- Buttons -->
           <control class="button" id="ID_BTN_LIKE_POST"    value="301" name="like_post"    text="Like Post"    frame="420  82  96 18" flags="0" />
-          <control class="button" id="ID_BTN_ADD_COMMENT"  value="302" name="add_comment"  text="Add Comment"  frame="2   280  90 18" flags="0" />
-          <control class="button" id="ID_BTN_ADD_REPLY"    value="303" name="add_reply"    text="Add Reply"    frame="96  280  74 18" flags="0" />
-          <control class="button" id="ID_BTN_LIKE_COMMENT" value="304" name="like_comment" text="Like Comment" frame="174 280  90 18" flags="0" />
-          <control class="button" id="ID_BTN_CLOSE"        value="305" name="close"        text="Close"        frame="444 280  74 18" flags="BUTTON_DEFAULT" />
+          <control class="button" id="ID_BTN_ADD_COMMENT"  value="302" name="add_comment"  text="Add Comment"  frame="2   310  90 18" flags="0" />
+          <control class="button" id="ID_BTN_ADD_REPLY"    value="303" name="add_reply"    text="Add Reply"    frame="96  310  74 18" flags="0" />
+          <control class="button" id="ID_BTN_LIKE_COMMENT" value="304" name="like_comment" text="Like Comment" frame="174 310  90 18" flags="0" />
+          <control class="button" id="ID_BTN_CLOSE"        value="305" name="close"        text="Close"        frame="444 310  74 18" flags="BUTTON_DEFAULT" />
         </controls>
       </form>
     </forms>
