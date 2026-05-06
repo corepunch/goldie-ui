@@ -448,9 +448,10 @@ void test_ie_close_unmodified_doc_no_dialog(void) {
 }
 
 // Closing a modified document via evClose must show an "Unsaved Changes" dialog.
-// In headless mode (g_ui_runtime.running = false) the modal loop exits immediately
-// and returns 0 (not IDYES), so the document is still closed; but a dialog window
-// (plus label and button children) must have been created.
+// In headless mode (g_ui_runtime.running = false) the modal loop exits immediately;
+// run_dialog_loop then destroys the dialog before returning, so the net window
+// change is exactly -2 (dwin + cwin destroyed, dialog created and immediately
+// cleaned up).  The document is always closed in this path.
 void test_ie_close_modified_doc_shows_dialog(void) {
     TEST("evClose on modified doc: unsaved-changes dialog is created");
 
@@ -464,15 +465,14 @@ void test_ie_close_modified_doc_shows_dialog(void) {
 
     send_message(doc->win, evClose, 0, NULL);
 
-    // After evClose: dwin + cwin are destroyed (-2), but the dialog window and
-    // its children (label + Yes + No = 3) are created, leaving +1 net change.
+    // After evClose: dwin + cwin are destroyed (-2). The dialog is created and
+    // immediately destroyed by run_dialog_loop in headless mode, so the net
+    // change is exactly -2.
     int windows_after = count_all_windows(g_ui_runtime.windows);
+    ASSERT_TRUE(windows_after == windows_before - 2);
 
-    ASSERT_TRUE(windows_after > windows_before - 2);  // dialog subtree present
-    ASSERT_TRUE(windows_after >= 1);                   // at least the dialog itself
-
-    // The document was still closed (headless returns 0 = not IDYES, so
-    // doc_confirm_close falls through to close_document).
+    // The document was closed (headless dialog returns 0; doc_confirm_close
+    // falls through to close_document regardless of dialog result).
     ASSERT_NULL(g_app->docs);
 
     ie_teardown();
@@ -505,7 +505,8 @@ void test_ie_doc_confirm_close_unmodified(void) {
 }
 
 // Calling doc_confirm_close on a modified doc must show the dialog and still
-// close the doc (headless returns IDCANCEL which is treated as IDNO — doc closes).
+// close the doc.  In headless mode run_dialog_loop destroys the dialog before
+// returning, so the net window change is exactly -2 (dwin + cwin).
 void test_ie_doc_confirm_close_modified(void) {
     TEST("doc_confirm_close on modified doc: dialog created, doc closed");
 
@@ -519,9 +520,10 @@ void test_ie_doc_confirm_close_modified(void) {
 
     doc_confirm_close(doc, doc->win);
 
-    // Dialog + its children were created; dwin + cwin were destroyed.
+    // Dialog is created then immediately destroyed by run_dialog_loop in
+    // headless mode; dwin + cwin are also destroyed. Net change is exactly -2.
     int windows_after = count_all_windows(g_ui_runtime.windows);
-    ASSERT_TRUE(windows_after > windows_before - 2);  // dialog subtree present
+    ASSERT_TRUE(windows_after == windows_before - 2);
 
     // Document must be closed.
     ASSERT_NULL(g_app->docs);
