@@ -71,7 +71,13 @@ typedef struct {
 
 text_wrap_result_t text_wrap_layout(const char* text, irect16_t const *viewport,
                                     uint32_t col, bool draw);
+text_wrap_result_t text_wrap_layout_font(ui_font_t font, const char* text,
+                                         irect16_t const *viewport,
+                                         uint32_t col, bool draw);
 int calc_text_height(const char* text, int width);
+int calc_text_height_font(ui_font_t font, const char* text, int width);
 void draw_text_wrapped(const char* text, irect16_t const *viewport, uint32_t col);
+void draw_text_wrapped_font(ui_font_t font, const char* text,
+                            irect16_t const *viewport, uint32_t col);
 
 #endif // __UI_TEXT_H__

@@ -1118,11 +1118,16 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON,   20, 20, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_TEXTEDIT, 20, 56, 120, 18);
+    fe_place_ctrl(doc, ID_TOOL_LABEL,   20, 86, 96, 13);
     doc->elements[0].h_align = LAYOUT_ALIGN_CENTER;
     doc->elements[0].v_align = LAYOUT_ALIGN_END;
     doc->elements[0].margin = (irect16_t){8, 8, 8, 8};
     doc->elements[1].h_align = LAYOUT_ALIGN_START;
     doc->elements[1].v_align = LAYOUT_ALIGN_STRETCH;
+    doc->elements[2].font = FONT_ICON;
+    doc->elements[2].font_set = true;
+    doc->elements[2].color = brTextDisabled;
+    doc->elements[2].color_set = true;
 
     bool saved = form_project_save(path);
     ASSERT_TRUE(saved);
@@ -1134,6 +1139,8 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "margin=\"8 8 8 8\"") != NULL);
     ASSERT_TRUE(strstr(xml, "h-align=\"center\"") != NULL);
     ASSERT_TRUE(strstr(xml, "v-align=\"bottom\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "font=\"icon\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "color=\"text-disabled\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
     ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") == NULL);
     free(xml);
@@ -1144,19 +1151,23 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     form_doc_t *ndoc = g_app->docs;
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->auto_layout);
-    ASSERT_EQUAL(ndoc->padding.x, 8);
-    ASSERT_EQUAL(ndoc->padding.y, 8);
-    ASSERT_EQUAL(ndoc->padding.w, 8);
-    ASSERT_EQUAL(ndoc->padding.h, 8);
-    ASSERT_EQUAL(ndoc->element_count, 2);
-    ASSERT_EQUAL(ndoc->elements[0].h_align, LAYOUT_ALIGN_CENTER);
-    ASSERT_EQUAL(ndoc->elements[0].v_align, LAYOUT_ALIGN_END);
-    ASSERT_EQUAL(ndoc->elements[0].margin.x, 8);
-    ASSERT_EQUAL(ndoc->elements[0].margin.y, 8);
-    ASSERT_EQUAL(ndoc->elements[0].margin.w, 8);
-    ASSERT_EQUAL(ndoc->elements[0].margin.h, 8);
-    ASSERT_EQUAL(ndoc->elements[1].h_align, LAYOUT_ALIGN_START);
-    ASSERT_EQUAL(ndoc->elements[1].v_align, LAYOUT_ALIGN_STRETCH);
+    ASSERT(ndoc->padding.x == 8, "padding.x");
+    ASSERT(ndoc->padding.y == 8, "padding.y");
+    ASSERT(ndoc->padding.w == 8, "padding.w");
+    ASSERT(ndoc->padding.h == 8, "padding.h");
+    ASSERT(ndoc->element_count == 3, "element_count");
+    ASSERT(ndoc->elements[0].h_align == LAYOUT_ALIGN_CENTER, "element0 h_align");
+    ASSERT(ndoc->elements[0].v_align == LAYOUT_ALIGN_END, "element0 v_align");
+    ASSERT(ndoc->elements[0].margin.x == 8, "element0 margin.x");
+    ASSERT(ndoc->elements[0].margin.y == 8, "element0 margin.y");
+    ASSERT(ndoc->elements[0].margin.w == 8, "element0 margin.w");
+    ASSERT(ndoc->elements[0].margin.h == 8, "element0 margin.h");
+    ASSERT(ndoc->elements[1].h_align == LAYOUT_ALIGN_START, "element1 h_align");
+    ASSERT(ndoc->elements[1].v_align == LAYOUT_ALIGN_STRETCH, "element1 v_align");
+    ASSERT(ndoc->elements[2].font == FONT_ICON, "element2 font");
+    ASSERT(ndoc->elements[2].font_set, "element2 font_set");
+    ASSERT(ndoc->elements[2].color == brTextDisabled, "element2 color");
+    ASSERT(ndoc->elements[2].color_set, "element2 color_set");
 
     unlink(path);
 

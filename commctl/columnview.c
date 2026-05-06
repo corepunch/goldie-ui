@@ -586,7 +586,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       if (!m) return true;
 
       int min_h = ENTRY_HEIGHT;
-      int min_w = win->frame.w > 0 ? win->frame.w : 1;
+      int min_w = 1;
       if (data) {
         if (data->view_mode == RVM_VIEW_REPORT) {
           min_h = rv_report_header_height(data) + ENTRY_HEIGHT;
@@ -778,6 +778,14 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data->columns[ci].width = (uint32_t)(uintptr_t)lparam;
       rv_invalidate(win, data);
       return true;
+    }
+
+    case RVM_GETREPORTCOLUMNWIDTH: {
+      uint32_t ci = (uint32_t)wparam;
+      if (ci >= data->column_count)
+        return 0;
+      return (result_t)data->columns[ci].width;
+    }
 
     case RVM_SETREDRAW:
       if (wparam) {
@@ -790,7 +798,6 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         data->redraw_enabled = false;
       }
       return true;
-    }
 
     case RVM_SETICONSTRIP:
       data->icon_strip = (bitmap_strip_t *)lparam;

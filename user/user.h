@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "messages.h"
+#include "text.h"
 #include "../kernel/kernel.h"
 
 // Forward declarations
@@ -209,6 +210,10 @@ typedef struct form_ctrl_def_s {
   irect16_t         padding; // inner padding for layout containers
   irect16_t         margin;  // outer margin when this control is laid out by a parent
   uint32_t          parent;  // parent control ID; 0 = form root
+  uint8_t           font;    // label font; FONT_SMALL by default
+  bool              font_set; // font attribute explicitly set
+  uint8_t           color;   // label color palette index; 0 = transparent
+  bool              color_set; // color attribute explicitly set
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -237,6 +242,18 @@ typedef struct {
   uint32_t                ok_id;           // child ID of the Accept / OK button
   uint32_t                cancel_id;       // child ID of the Cancel button (0 = none)
 } form_def_t;
+
+typedef struct {
+  uint32_t color_index;   // palette index for label text color; 0 = transparent
+  ui_font_t font;         // prepared font role for labels
+  bool      color_set;    // whether color_index is explicitly set
+} label_create_params_t;
+
+static inline uint32_t label_pack_userdata(uint32_t color_index, ui_font_t font, bool color_set) {
+  return (uint32_t)(color_index & 0xffu) |
+         ((uint32_t)(font & 0xffu) << 8) |
+         (color_set ? (1u << 16) : 0u);
+}
 
 // FormEditor component registry metadata/API.
 // Runtime window classes and design-time components are registered through this

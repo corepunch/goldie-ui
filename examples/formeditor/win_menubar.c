@@ -357,6 +357,40 @@ static const enum_token_t kLayoutOrientationTokens[] = {
   {"horizontal", WINDOW_STACK_HORIZONTAL},
 };
 
+static const enum_token_t kFontTokens[] = {
+  {"system", FONT_SYSTEM},
+  {"small",  FONT_SMALL},
+  {"icon",   FONT_ICON},
+};
+
+static const enum_token_t kColorTokens[] = {
+  {"transparent",         brTransparent},
+  {"window-bg",           brWindowBg},
+  {"window-dark-bg",      brWindowDarkBg},
+  {"workspace-bg",        brWorkspaceBg},
+  {"active-titlebar",     brActiveTitlebar},
+  {"active-titlebar-text", brActiveTitlebarText},
+  {"inactive-titlebar",   brInactiveTitlebar},
+  {"inactive-titlebar-text", brInactiveTitlebarText},
+  {"statusbar-bg",        brStatusbarBg},
+  {"light-edge",          brLightEdge},
+  {"dark-edge",           brDarkEdge},
+  {"flare",               brFlare},
+  {"focus-ring",          brFocusRing},
+  {"button-bg",           brButtonBg},
+  {"button-inner",        brButtonInner},
+  {"button-hover",        brButtonHover},
+  {"text-normal",         brTextNormal},
+  {"text-disabled",       brTextDisabled},
+  {"text-error",          brTextError},
+  {"text-success",        brTextSuccess},
+  {"border-focus",        brBorderFocus},
+  {"border-active",       brBorderActive},
+  {"folder-text",         brFolderText},
+  {"column-view-bg",      brColumnViewBg},
+  {"modal-overlay",       brModalOverlay},
+};
+
 static uint8_t align_h_attr(const char *v, uint8_t fallback) {
   return (uint8_t)enum_parse_token(v, kAlignHTokens, ARRAY_LEN(kAlignHTokens), fallback);
 }
@@ -388,6 +422,22 @@ static const char *layout_kind_token(uint8_t kind) {
 static const char *layout_orientation_token(flags_t orientation) {
   return enum_token_name(orientation, kLayoutOrientationTokens,
                          ARRAY_LEN(kLayoutOrientationTokens), "vertical");
+}
+
+static uint8_t font_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kFontTokens, ARRAY_LEN(kFontTokens), fallback);
+}
+
+static const char *font_token(uint8_t font) {
+  return enum_token_name(font, kFontTokens, ARRAY_LEN(kFontTokens), "small");
+}
+
+static uint8_t color_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kColorTokens, ARRAY_LEN(kColorTokens), fallback);
+}
+
+static const char *color_token(uint8_t color) {
+  return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
 }
 
 static bool parse_numeric_expr(const char *s, int *out) {
@@ -584,6 +634,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->type = type;
       el->h_align = LAYOUT_ALIGN_STRETCH;
       el->v_align = LAYOUT_ALIGN_STRETCH;
+      el->color = brTextNormal;
       copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
       el->id = project_resolve_control_id(doc, el->id_expr);
       if (!frame_attr(n, &el->frame)) {
@@ -598,6 +649,12 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->flags = parse_flags_expr(el->flags_expr);
       copy_attr(n, "text", el->text, sizeof(el->text));
       copy_attr(n, "name", el->name, sizeof(el->name));
+      char *font = xml_attr_dup(n, "font");
+      el->font = font_attr(font, FONT_SMALL);
+      el->font_set = (font != NULL);
+      char *color = xml_attr_dup(n, "color");
+      el->color = color_attr(color, brTextNormal);
+      el->color_set = (color != NULL);
       if (!el->id_expr[0]) {
         make_control_id_expr(el->id_expr, sizeof(el->id_expr),
                              doc->form_id, el->name,
@@ -613,6 +670,8 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
                               rect_attr(n, "layout_padding", (irect16_t){0, 0, 0, 0}));
       el->margin = rect_attr(n, "margin",
                               rect_attr(n, "layout_margin", (irect16_t){0, 0, 0, 0}));
+      free(font);
+      free(color);
       free(h_align);
       free(v_align);
       if (doc->auto_layout) {
@@ -905,6 +964,10 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     fprintf(f, "        <%s", ctrl_type_token(el->type));
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
+    if (el->font_set || el->font != FONT_SMALL)
+      xml_attr(f, "font", font_token(el->font));
+    if (el->color_set || el->color != brTextNormal)
+      xml_attr(f, "color", color_token(el->color));
     if (doc->auto_layout) {
       fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
       fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));

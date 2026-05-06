@@ -262,6 +262,34 @@ static const enum_token_t kLayoutOrientationTokens[] = {
   {"horizontal", WINDOW_STACK_HORIZONTAL},
 };
 
+static const enum_token_t kColorTokens[] = {
+  {"transparent",         brTransparent},
+  {"window-bg",           brWindowBg},
+  {"window-dark-bg",      brWindowDarkBg},
+  {"workspace-bg",        brWorkspaceBg},
+  {"active-titlebar",     brActiveTitlebar},
+  {"active-titlebar-text", brActiveTitlebarText},
+  {"inactive-titlebar",   brInactiveTitlebar},
+  {"inactive-titlebar-text", brInactiveTitlebarText},
+  {"statusbar-bg",        brStatusbarBg},
+  {"light-edge",          brLightEdge},
+  {"dark-edge",           brDarkEdge},
+  {"flare",               brFlare},
+  {"focus-ring",          brFocusRing},
+  {"button-bg",           brButtonBg},
+  {"button-inner",        brButtonInner},
+  {"button-hover",        brButtonHover},
+  {"text-normal",         brTextNormal},
+  {"text-disabled",       brTextDisabled},
+  {"text-error",          brTextError},
+  {"text-success",        brTextSuccess},
+  {"border-focus",        brBorderFocus},
+  {"border-active",       brBorderActive},
+  {"folder-text",         brFolderText},
+  {"column-view-bg",      brColumnViewBg},
+  {"modal-overlay",       brModalOverlay},
+};
+
 static uint8_t align_h_attr(const char *v, uint8_t fallback) {
   return (uint8_t)enum_parse_token(v, kAlignHTokens, ARRAY_LEN(kAlignHTokens), fallback);
 }
@@ -310,6 +338,14 @@ static const char *layout_orientation_c_token(flags_t orientation) {
     {"WINDOW_STACK_VERTICAL",   WINDOW_STACK_VERTICAL},
     {"WINDOW_STACK_HORIZONTAL", WINDOW_STACK_HORIZONTAL},
   }, 2, "WINDOW_STACK_VERTICAL");
+}
+
+static uint8_t color_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kColorTokens, ARRAY_LEN(kColorTokens), fallback);
+}
+
+static const char *color_c_token(uint8_t color) {
+  return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
 }
 
 static bool is_control_node(xmlNodePtr node) {
@@ -372,6 +408,8 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   char *layout_spacing = attr_dup_first(c, "spacing", "layout_spacing");
   char *padding = attr_dup_first(c, "padding", "layout_padding");
   char *margin = attr_dup_first(c, "margin", "layout_margin");
+  char *font = attr_dup(c, "font");
+  char *color = attr_dup(c, "color");
   frame_t cr = {0, 0, 0, 0};
   frame_t pad = {0, 0, 0, 0};
   frame_t mar = {0, 0, 0, 0};
@@ -382,7 +420,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     free(klass); free(name); free(text); free(cflags);
     free(h_align); free(v_align); free(layout_kind);
     free(layout_orientation); free(layout_columns); free(layout_spacing);
-    free(padding); free(margin);
+    free(padding); free(margin); free(font); free(color);
     return false;
   }
 
@@ -393,7 +431,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
       free(klass); free(name); free(text); free(cflags);
       free(h_align); free(v_align); free(layout_kind);
       free(layout_orientation); free(layout_columns); free(layout_spacing);
-      free(padding); free(margin);
+      free(padding); free(margin); free(font); free(color);
       return false;
     }
     cr = (frame_t){0, 0, 0, 0};
@@ -423,6 +461,20 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     (void)parse_rect_attr(c, "layout_padding", &pad);
   if (!parse_rect_attr(c, "margin", &mar))
     (void)parse_rect_attr(c, "layout_margin", &mar);
+  uint8_t font_val = FONT_SMALL;
+  bool font_set = false;
+  uint8_t color_val = brTextNormal;
+  bool color_set = false;
+  if (font && *font) {
+    if (!strcmp(font, "system")) font_val = FONT_SYSTEM;
+    else if (!strcmp(font, "small")) font_val = FONT_SMALL;
+    else if (!strcmp(font, "icon")) font_val = FONT_ICON;
+    font_set = true;
+  }
+  if (color && *color) {
+    color_val = color_attr(color, brTextNormal);
+    color_set = true;
+  }
 
   fputs("  { ", f);
   fprint_c_string(f, emit_class);
@@ -439,18 +491,22 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   fprintf(f, ", %u, %u, ", (unsigned)align_h_attr(h_align, 0), (unsigned)align_v_attr(v_align, 0));
   fputs("NULL, 0, ", f);
   fprint_c_string(f, layout_kind_attr(layout_kind, layout_kind_default_for_class(emit_class)));
-  fprintf(f, ", %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s },\n",
+  fprintf(f, ", %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %u, %s, %u, %s },\n",
           layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)),
           (unsigned)layout_columns_attr(layout_columns, layout_columns_default_for_class(emit_class)),
           (unsigned)layout_spacing_attr(layout_spacing, 4),
           pad.x, pad.y, pad.w, pad.h,
           mar.x, mar.y, mar.w, mar.h,
-          nonempty(parent_expr, "0"));
+          nonempty(parent_expr, "0"),
+          (unsigned)font_val,
+          font_set ? "true" : "false",
+          (unsigned)color_val,
+          color_set ? "true" : "false");
 
   free(klass); free(name); free(text); free(cflags);
   free(h_align); free(v_align); free(layout_kind);
   free(layout_orientation); free(layout_columns); free(layout_spacing);
-  free(padding); free(margin);
+  free(padding); free(margin); free(font); free(color);
   return true;
 }
 

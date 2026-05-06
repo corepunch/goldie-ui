@@ -7,6 +7,7 @@
 #include "user.h"
 
 uint32_t g_sys_colors[brCount] = {
+  [brTransparent]          = 0x00000000,   // fully transparent
   [brWindowBg]             = 0xff3c3c3c,   // main panel / window background
   [brWindowDarkBg]         = 0xff2c2c2c,   // dark secondary panel background
   [brWorkspaceBg]          = 0xff1e1e1e,   // darker than status bar — canvas workspace

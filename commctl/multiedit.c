@@ -16,6 +16,7 @@
 
 #define ME_BUF_SIZE 2048
 #define ME_PADDING  3
+#define ME_MIN_WIDTH  80
 // Maximum number of characters that can be stored (leave room for the NUL).
 #define ME_MAX_LEN  (ME_BUF_SIZE - 2)
 
@@ -181,8 +182,12 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
-        m->desired_w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ * 2);
-        m->desired_h = MAX(win->frame.h, text_char_height(FONT_SMALL) * 4);
+        int avail_w = m->avail_w > 0 ? m->avail_w : ME_MIN_WIDTH;
+        if (avail_w < ME_MIN_WIDTH) avail_w = ME_MIN_WIDTH;
+        m->desired_w = MAX(ME_MIN_WIDTH,
+                           text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ * 2);
+        m->desired_h = MAX(text_char_height(FONT_SMALL) * 4,
+                           calc_text_height_font(FONT_SMALL, s ? s->buf : win->title, avail_w) + ME_PADDING * 2);
       }
       return true;
     }

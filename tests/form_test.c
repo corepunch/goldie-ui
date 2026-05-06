@@ -474,6 +474,7 @@ static result_t post_detail_like_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam);
 static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
                                                    uint32_t wparam, void *lparam);
+static void socialfeed_post_detail_setup_comments(window_t *win);
 
 // ──────────────────────────────────────────────────────────────────────────
 // Post-detail-like form used to validate wrapped labels + reportview + footer
@@ -685,6 +686,28 @@ static result_t post_detail_like_proc(window_t *win, uint32_t msg,
   return false;
 }
 
+static void socialfeed_post_detail_setup_comments(window_t *win) {
+  window_t *cv = get_window_item(win, ID_POST_DETAIL_COMMENTS);
+  if (!cv) return;
+  send_message(cv, RVM_SETREDRAW, 0, NULL);
+  send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+  send_message(cv, RVM_CLEARCOLUMNS, 0, NULL);
+  irect16_t cr = get_client_rect(cv);
+  int cv_w = cr.w;
+  int auth_w = 70;
+  int like_w = 45;
+  int text_w = cv_w - auth_w - like_w;
+  if (text_w < 20) text_w = 20;
+  reportview_column_t col_author = { "Author", (uint32_t)auth_w };
+  reportview_column_t col_text   = { "Text",   (uint32_t)text_w };
+  reportview_column_t col_likes  = { "Likes",  (uint32_t)like_w };
+  send_message(cv, RVM_ADDCOLUMN, 0, &col_author);
+  send_message(cv, RVM_ADDCOLUMN, 0, &col_text);
+  send_message(cv, RVM_ADDCOLUMN, 0, &col_likes);
+  send_message(cv, RVM_CLEAR, 0, NULL);
+  send_message(cv, RVM_SETREDRAW, 1, NULL);
+}
+
 static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
                                                    uint32_t wparam, void *lparam) {
   (void)wparam;
@@ -695,23 +718,13 @@ static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
     set_window_item_text(win, ID_POST_DETAIL_LBL_BODY, "%s", kPostDetailLikeBodyText);
     set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES, "12 likes |");
     set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR, "3 comments");
-
-    window_t *cv = get_window_item(win, ID_POST_DETAIL_COMMENTS);
-    if (cv) {
-      send_message(cv, RVM_SETREDRAW, 0, NULL);
-      send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
-      send_message(cv, RVM_CLEARCOLUMNS, 0, NULL);
-      reportview_column_t col_author = { "Author", 70 };
-      reportview_column_t col_text = { "Text", 120 };
-      reportview_column_t col_likes = { "Likes", 45 };
-      send_message(cv, RVM_ADDCOLUMN, 0, &col_author);
-      send_message(cv, RVM_ADDCOLUMN, 0, &col_text);
-      send_message(cv, RVM_ADDCOLUMN, 0, &col_likes);
-      send_message(cv, RVM_CLEAR, 0, NULL);
-      send_message(cv, RVM_SETREDRAW, 1, NULL);
-    }
-
+    socialfeed_post_detail_setup_comments(win);
     window_layout_sync(win);
+    return true;
+  }
+  if (msg == evResize) {
+    window_layout_sync(win);
+    socialfeed_post_detail_setup_comments(win);
     return true;
   }
   return false;
@@ -1326,6 +1339,22 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_EQUAL(cancel->frame.y, 0);
   ASSERT_TRUE(cancel->frame.x > ok->frame.x);
 
+  int initial_author_w = author_e->frame.w;
+  int initial_title_w = title_e->frame.w;
+  int initial_body_w = body_e->frame.w;
+
+  resize_window(win, 360, 150);
+  ASSERT_TRUE(author_e->frame.w >= initial_author_w);
+  ASSERT_TRUE(title_e->frame.w >= initial_title_w);
+  ASSERT_TRUE(body_e->frame.w >= initial_body_w);
+  ASSERT_TRUE(actions->frame.y >= fields->frame.y + fields->frame.h + 4);
+
+  resize_window(win, 220, 150);
+  ASSERT_TRUE(author_e->frame.w <= initial_author_w);
+  ASSERT_TRUE(title_e->frame.w <= initial_title_w);
+  ASSERT_TRUE(body_e->frame.w <= initial_body_w);
+  ASSERT_TRUE(actions->frame.y >= fields->frame.y + fields->frame.h + 4);
+
   destroy_window(win);
   test_env_shutdown();
   PASS();
@@ -1404,9 +1433,32 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_EQUAL(comments_hdr->frame.y, 0);
   ASSERT_TRUE(author->frame.x < likes->frame.x);
   ASSERT_TRUE(likes->frame.x < comments_hdr->frame.x);
+  ASSERT_EQUAL(comments->frame.w, layout->frame.w);
   ASSERT_TRUE(comments->frame.h > 100);
   ASSERT_EQUAL(actions->frame.y + actions->frame.h, layout->frame.h);
   ASSERT_TRUE(actions->frame.y > comments->frame.y);
+
+  int initial_text_col = (int)send_message(comments, RVM_GETREPORTCOLUMNWIDTH, 1, NULL);
+  ASSERT_TRUE(initial_text_col > 0);
+
+  int wide_body_h = body->frame.h;
+  int wide_comments_y = comments->frame.y;
+  int wide_comments_w = comments->frame.w;
+
+  resize_window(win, 420, 336);
+  ASSERT_TRUE(body->frame.h >= wide_body_h);
+  ASSERT_TRUE(comments->frame.y >= wide_comments_y);
+  ASSERT_EQUAL(comments->frame.w, layout->frame.w);
+  int narrow_text_col = (int)send_message(comments, RVM_GETREPORTCOLUMNWIDTH, 1, NULL);
+  ASSERT_TRUE(narrow_text_col < initial_text_col);
+
+  resize_window(win, 620, 336);
+  ASSERT_TRUE(body->frame.h <= wide_body_h);
+  ASSERT_TRUE(comments->frame.y <= wide_comments_y);
+  ASSERT_EQUAL(comments->frame.w, layout->frame.w);
+  int wide_text_col = (int)send_message(comments, RVM_GETREPORTCOLUMNWIDTH, 1, NULL);
+  ASSERT_TRUE(wide_text_col > narrow_text_col);
+  ASSERT_TRUE(wide_comments_w > 0);
 
   destroy_window(win);
   test_env_shutdown();

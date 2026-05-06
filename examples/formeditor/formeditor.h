@@ -125,6 +125,10 @@ typedef struct {
   uint8_t  v_align;     // vertical alignment; 0 = stretch
   irect16_t padding;    // inner padding for nested layout containers
   irect16_t margin;     // outer margin when auto-layout reflows this element
+  uint8_t  font;        // label font; FONT_SMALL by default
+  bool     font_set;    // font attribute explicitly set in the project
+  uint8_t  color;       // label color palette index; 0 = transparent
+  bool     color_set;   // color attribute explicitly set in the project
   window_t *live_win;    // design-time live control hosted on the canvas
 } form_element_t;
 

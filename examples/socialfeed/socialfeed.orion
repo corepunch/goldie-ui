@@ -89,14 +89,16 @@
             auto_layout="1"
             padding="8"
 >
-        <stack name="layout" orientation="vertical" spacing="8">
+        <stack name="layout" orientation="vertical" spacing="8" h-align="stretch" v-align="stretch">
           <stack name="header" orientation="vertical" v-align="top" spacing="2">
             <!-- Post header labels (populated in evCreate) -->
-            <label name="lbl_title" h-align="start" v-align="top" text="" />
-            <label name="lbl_author" h-align="start" v-align="top" text="" />
-            <label name="lbl_body" h-align="start" v-align="top" text="" />
-            <label name="lbl_likes" h-align="start" v-align="top" text="" />
-            <label name="lbl_cmt_hdr" h-align="start" v-align="top" text="" />
+            <label name="lbl_title" h-align="start" v-align="top" font="system" color="text-normal" text="" />
+            <label name="lbl_body" h-align="start" v-align="top" font="small" color="text-normal" text="" />
+            <stack name="meta" orientation="horizontal" spacing="8" v-align="top">
+              <label name="lbl_author" h-align="start" v-align="top" font="small" color="text-disabled" text="" />
+              <label name="lbl_likes" h-align="start" v-align="top" font="small" color="text-disabled" text="" />
+              <label name="lbl_cmt_hdr" h-align="start" v-align="top" font="small" color="text-disabled" text="" />
+            </stack>
           </stack>
 
           <!-- Comments reportview -->

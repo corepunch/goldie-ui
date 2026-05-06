@@ -8,6 +8,7 @@
 #include "../user/theme.h"
 
 #define BUFFER_SIZE 512
+#define TEXTEDIT_MIN_WIDTH  80
 
 // Helper function (will be moved to ui/user/window.c later)
 extern window_t *get_root_window(window_t *window);
@@ -22,8 +23,9 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
-        m->desired_w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ * 2);
-        m->desired_h = MAX(win->frame.h, text_char_height(FONT_SMALL) + TEXTEDIT_PADDING_VERT * 2);
+        m->desired_w = MAX(TEXTEDIT_MIN_WIDTH,
+                           text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ * 2);
+        m->desired_h = text_char_height(FONT_SMALL) + TEXTEDIT_PADDING_VERT * 2;
       }
       return true;
     }

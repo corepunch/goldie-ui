@@ -222,6 +222,10 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
       return false;
 
     case evResize:
+      if (s) {
+        window_layout_sync(win);
+        refresh_comments(s);
+      }
       return false;
 
     case evCommand: {

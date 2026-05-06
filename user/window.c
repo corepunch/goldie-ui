@@ -665,6 +665,13 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     };
     if (cp == win_stackview || cp == win_gridview)
       param = &cfg;
+      label_create_params_t label_cfg = {
+        .color_index = cd->color,
+        .font = cd->font_set ? cd->font : FONT_SMALL,
+        .color_set = cd->color_set,
+      };
+    if (cp == win_label)
+      param = &label_cfg;
 
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
                                     &cd->frame, parent, cp, 0, param);
@@ -772,6 +779,13 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     };
     if (cp == win_stackview || cp == win_gridview)
       param = &cfg;
+      label_create_params_t label_cfg = {
+        .color_index = cd->color,
+        .font = cd->font_set ? cd->font : FONT_SMALL,
+        .color_set = cd->color_set,
+      };
+    if (cp == win_label)
+      param = &label_cfg;
 
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
                                     &cd->frame, parent, cp, 0, param);

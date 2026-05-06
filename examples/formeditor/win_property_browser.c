@@ -19,6 +19,7 @@ enum {
   PROP_ROW_HEIGHT,
   PROP_ROW_H_ALIGN,
   PROP_ROW_V_ALIGN,
+  PROP_ROW_FONT,
 };
 
 typedef struct {
@@ -70,6 +71,7 @@ static bool prop_row_editable(uint32_t prop_id) {
     case PROP_ROW_HEIGHT:
     case PROP_ROW_H_ALIGN:
     case PROP_ROW_V_ALIGN:
+    case PROP_ROW_FONT:
       return true;
     default:
       return false;
@@ -104,6 +106,12 @@ static const enum_token_t kPropVAlignTokens[] = {
   {"end",     LAYOUT_ALIGN_END},
 };
 
+static const enum_token_t kPropFontTokens[] = {
+  {"system", FONT_SYSTEM},
+  {"small",  FONT_SMALL},
+  {"icon",   FONT_ICON},
+};
+
 static uint8_t prop_parse_h_align(const char *s, uint8_t fallback) {
   return (uint8_t)enum_parse_token(s, kPropHAlignTokens, ARRAY_LEN(kPropHAlignTokens), fallback);
 }
@@ -118,6 +126,19 @@ static const char *prop_h_align_name(uint8_t align) {
 
 static const char *prop_v_align_name(uint8_t align) {
   return enum_token_name(align, kPropVAlignTokens, ARRAY_LEN(kPropVAlignTokens), "stretch");
+}
+
+static uint8_t prop_parse_font(const char *s, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(s, kPropFontTokens, ARRAY_LEN(kPropFontTokens), fallback);
+}
+
+static const char *prop_font_name(uint8_t font) {
+  return enum_token_name(font, kPropFontTokens, ARRAY_LEN(kPropFontTokens), "small");
+}
+
+static bool prop_is_label(form_element_t *el) {
+  const fe_component_desc_t *c = el ? fe_component_by_id(el->type) : NULL;
+  return c && c->class_name && strcmp(c->class_name, "label") == 0;
 }
 
 static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
@@ -151,6 +172,10 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
       break;
     case PROP_ROW_V_ALIGN:
       el->v_align = prop_parse_v_align(value, el->v_align);
+      break;
+    case PROP_ROW_FONT:
+      el->font = prop_parse_font(value, el->font);
+      el->font_set = true;
       break;
     case PROP_ROW_LEFT:
       el->frame.x = prop_parse_int(value, el->frame.x);
@@ -210,6 +235,29 @@ static void prop_begin_edit(prop_browser_state_t *pbs, int row) {
               - (pbs->list_win->vscroll.visible ? SCROLLBAR_WIDTH : 0);
   if (value_w < 20) value_w = 20;
 
+  pbs->edit_prop_id = item.userdata;
+  pbs->edit_row = row;
+  if (item.userdata == PROP_ROW_FONT) {
+    static const char *kFontItems[] = { "system", "small", "icon" };
+    pbs->edit_win = create_window(
+        item.subitem_count > 0 && item.subitems[0] ? item.subitems[0] : "",
+        WINDOW_NOTITLE,
+        MAKERECT(value_x, y, value_w, COLUMNVIEW_ENTRY_HEIGHT),
+        pbs->list_win, win_combobox, 0, NULL);
+    if (!pbs->edit_win)
+      return;
+    pbs->edit_win->id = 1;
+    pbs->edit_win->userdata = pbs;
+    send_message(pbs->edit_win, cbClear, 0, NULL);
+    for (size_t i = 0; i < ARRAY_LEN(kFontItems); i++)
+      send_message(pbs->edit_win, cbAddString, 0, (void *)kFontItems[i]);
+    send_message(pbs->edit_win, cbSetCurrentSelection,
+                 (uint32_t)prop_parse_font(item.subitems[0], FONT_SMALL), NULL);
+    resize_window(pbs->edit_win, value_w, COLUMNVIEW_ENTRY_HEIGHT);
+    set_focus(pbs->edit_win);
+    return;
+  }
+
   pbs->edit_win = create_window(
       item.subitem_count > 0 && item.subitems[0] ? item.subitems[0] : "",
       WINDOW_NOTITLE,
@@ -220,8 +268,6 @@ static void prop_begin_edit(prop_browser_state_t *pbs, int row) {
 
   pbs->edit_win->id = 1;
   pbs->edit_win->userdata = pbs;
-  pbs->edit_prop_id = item.userdata;
-  pbs->edit_row = row;
   resize_window(pbs->edit_win, value_w, COLUMNVIEW_ENTRY_HEIGHT);
   pbs->edit_win->editing = true;
   pbs->edit_win->cursor_pos = (int)strlen(pbs->edit_win->title);
@@ -234,6 +280,8 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
   prop_add_row(list, "(Name)", el->name, PROP_ROW_NAME);
   prop_add_row(list, "Caption", el->text, PROP_ROW_CAPTION);
   prop_add_row(list, "Type", prop_ctrl_type_name(el->type), PROP_ROW_TYPE);
+  if (prop_is_label(el))
+    prop_add_row(list, "Font", prop_font_name(el->font), PROP_ROW_FONT);
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
@@ -329,7 +377,7 @@ result_t win_property_browser_proc(window_t *win, uint32_t msg,
       if (!pbs)
         return false;
 
-      if (lparam == pbs->edit_win && notif == edUpdate) {
+      if (lparam == pbs->edit_win && (notif == edUpdate || notif == cbSelectionChange)) {
         prop_end_edit(pbs, true);
         return true;
       }

@@ -341,8 +341,9 @@ static inline int fallback_char_advance(unsigned char c, ui_font_t font) {
   return aw > 0 ? aw : 6;
 }
 
-static inline int wrapped_line_advance(void) {
-  int adv = text_state.small_height ? text_state.small_height : 8;
+static inline int wrapped_line_advance(ui_font_t font) {
+  int adv = text_char_height(font);
+  if (adv <= 0) adv = text_state.small_height ? text_state.small_height : 8;
   return adv > 0 ? adv : 1;
 }
 
@@ -545,8 +546,9 @@ void draw_text_small_clipped(const char *text, irect16_t const *viewport,
 
 // ── calc_text_height ──────────────────────────────────────────────────────────
 
-text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
-                                    uint32_t col, bool draw) {
+text_wrap_result_t text_wrap_layout_font(ui_font_t font, const char *text,
+                                         irect16_t const *viewport,
+                                         uint32_t col, bool draw) {
   text_wrap_result_t out = {0, 0, false};
   if (!text || !*text || !viewport || viewport->w <= 0) return out;
   if (draw && (!g_ui_runtime.running || !text_state.small_height)) return out;
@@ -556,8 +558,10 @@ text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
   int x = viewport->x;
   int y = viewport->y;
   int w = viewport->w;
-  int lh = wrapped_line_advance();
-  int sw = (text_state.small_space ? text_state.small_space : get_space_width());
+  int lh = wrapped_line_advance(font);
+  int sw = text_strwidth(font, " ");
+  if (sw <= 0)
+    sw = (font == FONT_SMALL && text_state.small_space ? text_state.small_space : get_space_width());
   if (sw <= 0) sw = 3;
 
   int cx = x;
@@ -565,6 +569,7 @@ text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
   int line_w = 0;
   int max_line_w = 0;
   int lines = 1;
+  font_atlas_t *cur_atlas = NULL;
 
   for (const char *p = text; *p; p++) {
     unsigned char c = (unsigned char)*p;
@@ -594,7 +599,7 @@ text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
       continue;
     }
 
-    int cw = wrap_char_advance(FONT_SMALL, c);
+    int cw = wrap_char_advance(font, c);
     if (cx + cw > x + w) {
       if (line_w > max_line_w) max_line_w = line_w;
       line_w = 0;
@@ -606,7 +611,12 @@ text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
 
     if (draw && vc < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR) {
       glyph_metrics_t *met;
-      font_atlas_t *atlas = atlas_for_font(FONT_SMALL, c, &met);
+      font_atlas_t *atlas = atlas_for_font(font, c, &met);
+      if (cur_atlas && atlas != cur_atlas && vc > 0) {
+        flush_batch(cur_atlas, buf, vc);
+        vc = 0;
+      }
+      cur_atlas = atlas;
       vc += emit_char_verts(buf + vc, cx, cy, c, col, atlas, met);
     }
     cx += cw;
@@ -617,22 +627,36 @@ text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
   out.width = max_line_w;
   out.height = lines * lh;
 
-  if (draw && vc > 0)
-    flush_batch(&text_state.small, buf, vc);
+  if (draw && vc > 0 && cur_atlas)
+    flush_batch(cur_atlas, buf, vc);
 
   return out;
 }
 
-int calc_text_height(const char *text, int width) {
+text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
+                                    uint32_t col, bool draw) {
+  return text_wrap_layout_font(FONT_SMALL, text, viewport, col, draw);
+}
+
+int calc_text_height_font(ui_font_t font, const char *text, int width) {
   irect16_t vp = {0, 0, width, 1};
-  return text_wrap_layout(text, &vp, 0, false).height;
+  return text_wrap_layout_font(font, text, &vp, 0, false).height;
+}
+
+int calc_text_height(const char *text, int width) {
+  return calc_text_height_font(FONT_SMALL, text, width);
 }
 
 // ── draw_text_wrapped ─────────────────────────────────────────────────────────
 // Always uses Geneva-12 (FONT_SMALL) for wrapped content text.
 
+void draw_text_wrapped_font(ui_font_t font, const char *text,
+                            irect16_t const *viewport, uint32_t col) {
+  (void)text_wrap_layout_font(font, text, viewport, col, true);
+}
+
 void draw_text_wrapped(const char *text, irect16_t const *viewport, uint32_t col) {
-  (void)text_wrap_layout(text, viewport, col, true);
+  draw_text_wrapped_font(FONT_SMALL, text, viewport, col);
 }
 
 // ── shutdown_text_rendering ───────────────────────────────────────────────────
