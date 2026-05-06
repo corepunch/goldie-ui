@@ -11,293 +11,293 @@
     </plugins>
 
     <menus var="kMenus" count="kNumMenus">
-      <menu id="file" label="File" var="kFileItems">
-        <item id="ID_FILE_NEW" value="1" label="New" />
-        <item id="ID_FILE_OPEN" value="2" label="Open..." />
+      <menu name="file" label="File" var="kFileItems">
+        <item name="new" label="New" />
+        <item name="open" label="Open..." />
         <separator />
-        <item id="ID_FILE_SAVE" value="3" label="Save" />
-        <item id="ID_FILE_SAVEAS" value="4" label="Save As..." />
+        <item name="save" label="Save" />
+        <item name="saveas" label="Save As..." />
         <separator />
-        <item id="ID_FILE_CLOSE" value="5" label="Close" />
+        <item name="close" label="Close" />
         <separator />
-        <item id="ID_FILE_QUIT" value="6" label="Quit" />
+        <item name="quit" label="Quit" />
       </menu>
 
-      <menu id="edit" label="Edit" var="kEditItems">
-        <item id="ID_EDIT_UNDO" value="10" label="Undo" />
-        <item id="ID_EDIT_REDO" value="11" label="Redo" />
+      <menu name="edit" label="Edit" var="kEditItems">
+        <item name="undo" label="Undo" />
+        <item name="redo" label="Redo" />
         <separator />
-        <item id="ID_EDIT_CUT" value="12" label="Cut" />
-        <item id="ID_EDIT_COPY" value="13" label="Copy" />
-        <item id="ID_EDIT_PASTE" value="14" label="Paste" />
+        <item name="cut" label="Cut" />
+        <item name="copy" label="Copy" />
+        <item name="paste" label="Paste" />
       </menu>
 
-      <menu id="select" label="Select" var="kSelectItems">
-        <item id="ID_SELECT_ALL" value="80" label="All" />
-        <item id="ID_SELECT_DESELECT" value="81" label="Deselect" />
+      <menu name="select" label="Select" var="kSelectItems">
+        <item name="all" label="All" />
+        <item name="deselect" label="Deselect" />
         <separator />
-        <item id="ID_SELECT_CLEAR" value="82" label="Clear Selection" />
+        <item name="clear" label="Clear Selection" />
         <separator />
-        <item id="ID_SELECT_EXPAND" value="83" label="Expand..." />
-        <item id="ID_SELECT_CONTRACT" value="84" label="Contract..." />
+        <item name="expand" label="Expand..." />
+        <item name="contract" label="Contract..." />
       </menu>
 
-      <menu id="image" label="Image" var="kImageItems">
-        <item id="ID_IMAGE_CROP" value="58" label="Crop" shortcut="C" />
+      <menu name="image" label="Image" var="kImageItems">
+        <item name="crop" label="Crop" shortcut="C" />
         <separator />
-        <item id="ID_IMAGE_RESIZE" value="53" label="Image Size..." />
-        <item id="ID_IMAGE_CANVAS_SIZE" value="59" label="Canvas Size..." />
+        <item name="resize" label="Image Size..." />
+        <item name="canvas_size" label="Canvas Size..." />
         <separator />
-        <item id="ID_IMAGE_FLIP_H" value="50" label="Flip Horizontal" />
-        <item id="ID_IMAGE_FLIP_V" value="51" label="Flip Vertical" />
+        <item name="flip_h" label="Flip Horizontal" />
+        <item name="flip_v" label="Flip Vertical" />
         <separator />
-        <item id="ID_IMAGE_INVERT" value="52" label="Invert Colors" />
-        <item id="ID_IMAGE_LEVELS" value="57" label="Levels..." />
+        <item name="invert" label="Invert Colors" />
+        <item name="levels" label="Levels..." />
       </menu>
 
-      <menu id="filter" label="Filter" var="kFilterItems" dynamic="true">
-        <item id="ID_FILTER_RELOAD" value="90" label="Reload Filters" />
-        <item id="ID_FILTER_GALLERY" value="91" label="Filter Gallery..." />
+      <menu name="filter" label="Filter" var="kFilterItems" dynamic="true">
+        <item name="reload" label="Reload Filters" />
+        <item name="gallery" label="Filter Gallery..." />
         <separator />
-        <submenu id="blur" label="Blur">
-          <item id="ID_FILTER_BLUR" value="92" label="Blur" />
+        <submenu name="blur" label="Blur">
+          <item name="blur" label="Blur" />
         </submenu>
-        <submenu id="sharpen" label="Sharpen">
-          <item id="ID_FILTER_SHARPEN" value="93" label="Sharpen" />
+        <submenu name="sharpen" label="Sharpen">
+          <item name="sharpen" label="Sharpen" />
         </submenu>
-        <submenu id="stylize" label="Stylize">
-          <item id="ID_FILTER_EDGE" value="94" label="Find Edges" />
+        <submenu name="stylize" label="Stylize">
+          <item name="edge" label="Find Edges" />
         </submenu>
-        <submenu id="photo" label="Photo" />
+        <submenu name="photo" label="Photo" />
       </menu>
 
-      <menu id="layer" label="Layer" var="kLayerItems">
-        <item id="ID_LAYER_NEW" value="60" label="New Layer" />
-        <item id="ID_LAYER_DUPLICATE" value="61" label="Duplicate Layer" />
-        <item id="ID_LAYER_DELETE" value="62" label="Delete Layer" />
+      <menu name="layer" label="Layer" var="kLayerItems">
+        <item name="new" label="New Layer" />
+        <item name="duplicate" label="Duplicate Layer" />
+        <item name="delete" label="Delete Layer" />
         <separator />
-        <item id="ID_LAYER_MOVE_UP" value="63" label="Move Layer Up" />
-        <item id="ID_LAYER_MOVE_DOWN" value="64" label="Move Layer Down" />
+        <item name="move_up" label="Move Layer Up" />
+        <item name="move_down" label="Move Layer Down" />
         <separator />
-        <item id="ID_LAYER_MERGE_DOWN" value="65" label="Merge Down" />
-        <item id="ID_LAYER_FLATTEN" value="66" label="Flatten Image" />
-        <item id="ID_LAYER_FILL_FOREGROUND" value="74" label="Fill with Foreground Color" shortcut="Alt+Backspace" />
-        <item id="ID_LAYER_FILL_BACKGROUND" value="73" label="Fill with Background Color" shortcut="Ctrl+Backspace" />
+        <item name="merge_down" label="Merge Down" />
+        <item name="flatten" label="Flatten Image" />
+        <item name="fill_foreground" label="Fill with Foreground Color" shortcut="Alt+Backspace" />
+        <item name="fill_background" label="Fill with Background Color" shortcut="Ctrl+Backspace" />
         <separator />
-        <item id="ID_LAYER_ADD_MASK" value="67" label="Add Mask" />
-        <item id="ID_LAYER_APPLY_MASK" value="68" label="Apply Mask" />
-        <item id="ID_LAYER_REMOVE_MASK" value="69" label="Remove Mask" />
-        <item id="ID_LAYER_EXTRACT_MASK" value="70" label="Extract Mask" />
+        <item name="add_mask" label="Add Mask" />
+        <item name="apply_mask" label="Apply Mask" />
+        <item name="remove_mask" label="Remove Mask" />
+        <item name="extract_mask" label="Extract Mask" />
         <separator />
-        <item id="ID_LAYER_EDIT_MASK" value="71" label="[ ] Edit Mask" />
+        <item name="edit_mask" label="[ ] Edit Mask" />
       </menu>
 
-      <menu id="view" label="View" var="s_view_items" mutable="true">
-        <item id="ID_VIEW_ZOOM_IN" value="40" label="Zoom In" />
-        <item id="ID_VIEW_ZOOM_OUT" value="41" label="Zoom Out" />
-        <item id="ID_VIEW_ZOOM_FIT" value="55" label="Fit on Screen" />
+      <menu name="view" label="View" var="s_view_items" mutable="true">
+        <item name="zoom_in" label="Zoom In" />
+        <item name="zoom_out" label="Zoom Out" />
+        <item name="zoom_fit" label="Fit on Screen" />
         <separator />
-        <item id="ID_VIEW_ZOOM_1X" value="42" label="1x" />
-        <item id="ID_VIEW_ZOOM_2X" value="43" label="2x" />
-        <item id="ID_VIEW_ZOOM_4X" value="44" label="4x" />
-        <item id="ID_VIEW_ZOOM_6X" value="45" label="6x" />
-        <item id="ID_VIEW_ZOOM_8X" value="46" label="8x" />
+        <item name="zoom_1x" label="1x" />
+        <item name="zoom_2x" label="2x" />
+        <item name="zoom_4x" label="4x" />
+        <item name="zoom_6x" label="6x" />
+        <item name="zoom_8x" label="8x" />
         <separator />
-        <item id="ID_VIEW_SHOW_GRID" value="47" label="[ ] Show Grid" />
-        <item id="ID_VIEW_SNAP_GRID" value="48" label="[ ] Snap to Grid" />
-        <item id="ID_VIEW_SHOW_BACKGROUND" value="72" label="[x] Show Background" />
-        <item id="ID_VIEW_MASK_ONLY" value="56" label="[ ] Mask Only View" />
+        <item name="show_grid" label="[ ] Show Grid" />
+        <item name="snap_grid" label="[ ] Snap to Grid" />
+        <item name="show_background" label="[x] Show Background" />
+        <item name="mask_only" label="[ ] Mask Only View" />
         <separator />
-        <item id="ID_VIEW_GRID_OPTIONS" value="49" label="Grid Options..." />
+        <item name="grid_options" label="Grid Options..." />
       </menu>
 
-      <menu id="window" label="Window" var="kWindowItems" dynamic="true">
-        <item id="ID_WINDOW_TOOLS" value="200" label="Tools" />
-        <item id="ID_WINDOW_COLORS" value="201" label="Colors" />
-        <item id="ID_WINDOW_LAYERS" value="202" label="Layers" />
-        <item id="ID_WINDOW_TIMELINE" value="203" label="Timeline" />
+      <menu name="window" label="Window" var="kWindowItems" dynamic="true">
+        <item name="tools" label="Tools" />
+        <item name="colors" label="Colors" />
+        <item name="layers" label="Layers" />
+        <item name="timeline" label="Timeline" />
         <separator />
       </menu>
 
-      <menu id="anim" label="Anim" var="kAnimItems">
-        <item id="ID_ANIM_NEW_FRAME" value="400" label="New Frame" />
-        <item id="ID_ANIM_DUPLICATE_FRAME" value="401" label="Duplicate Frame" />
-        <item id="ID_ANIM_DELETE_FRAME" value="402" label="Delete Frame" />
+      <menu name="anim" label="Anim" var="kAnimItems">
+        <item name="new_frame" label="New Frame" />
+        <item name="duplicate_frame" label="Duplicate Frame" />
+        <item name="delete_frame" label="Delete Frame" />
         <separator />
-        <item id="ID_ANIM_PREV_FRAME" value="407" label="Previous Frame" shortcut="Page Up" />
-        <item id="ID_ANIM_NEXT_FRAME" value="408" label="Next Frame" shortcut="Page Down" />
+        <item name="prev_frame" label="Previous Frame" shortcut="Page Up" />
+        <item name="next_frame" label="Next Frame" shortcut="Page Down" />
         <separator />
-        <item id="ID_ANIM_PLAY" value="403" label="Play" />
-        <item id="ID_ANIM_STOP" value="404" label="Stop" />
-        <item id="ID_ANIM_LOOP" value="405" label="[ ] Loop" />
+        <item name="play" label="Play" />
+        <item name="stop" label="Stop" />
+        <item name="loop" label="[ ] Loop" />
         <separator />
-        <item id="ID_ANIM_EXPORT_GIF" value="410" label="Export GIF..." />
-        <item id="ID_ANIM_EXPORT_APNG" value="411" label="Export APNG..." />
-        <item id="ID_ANIM_EXPORT_SPRITESHEET" value="412" label="Export Sprite Sheet..." />
-        <item id="ID_ANIM_SET_FPS" value="406" label="Set FPS..." />
+        <item name="export_gif" label="Export GIF..." />
+        <item name="export_apng" label="Export APNG..." />
+        <item name="export_spritesheet" label="Export Sprite Sheet..." />
+        <item name="set_fps" label="Set FPS..." />
       </menu>
 
-      <menu id="help" label="Help" var="kHelpItems">
-        <item id="ID_HELP_ABOUT" value="100" label="About..." />
+      <menu name="help" label="Help" var="kHelpItems">
+        <item name="about" label="About..." />
       </menu>
     </menus>
 
     <toolbars>
-      <toolbar id="main" var="kMainToolbar" count="kMainToolbarCount">
-        <button id="ID_FILE_NEW" icon="sysicon_page_add" text="New" />
-        <button id="ID_FILE_OPEN" icon="sysicon_folder_page" text="Open" />
-        <button id="ID_FILE_SAVE" icon="sysicon_disk_save" text="Save" />
-        <button id="ID_FILE_SAVEAS" icon="sysicon_disk_multiple" text="Save As" />
+      <toolbar name="main" var="kMainToolbar" count="kMainToolbarCount">
+        <button name="new" menu="file" icon="sysicon_page_add" text="New" />
+        <button name="open" menu="file" icon="sysicon_folder_page" text="Open" />
+        <button name="save" menu="file" icon="sysicon_disk_save" text="Save" />
+        <button name="saveas" menu="file" icon="sysicon_disk_multiple" text="Save As" />
         <spacer w="10" />
-        <button id="ID_VIEW_ZOOM_OUT" icon="sysicon_magnifier_zoom_out" text="Zoom Out" />
-        <button id="ID_VIEW_ZOOM_IN" icon="sysicon_magnifier_zoom_in" text="Zoom In" />
-        <button id="ID_VIEW_ZOOM_1X" icon="sysicon_image_dimensions" text="1x" />
-        <button id="ID_VIEW_ZOOM_FIT" icon="sysicon_expand" text="Fit" />
+        <button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="Zoom Out" />
+        <button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="Zoom In" />
+        <button name="zoom_1x" menu="view" icon="sysicon_image_dimensions" text="1x" />
+        <button name="zoom_fit" menu="view" icon="sysicon_expand" text="Fit" />
         <spacer w="10" />
-        <button id="ID_VIEW_SHOW_BACKGROUND" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" />
-        <button id="ID_VIEW_MASK_ONLY" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" />
+        <button name="show_background" menu="view" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" />
+        <button name="mask_only" menu="view" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" />
       </toolbar>
     </toolbars>
 
     <forms>
-      <form id="new_image"
+      <form name="new_image"
             title="New Image"
             frame="0 0 180 84"
             flags="0"
-            owner="examples/imageeditor/win_newimage.c">
-          <label id="-1" name="lbl_width" text="Width:" frame="4 8 56 13" flags="0" />
-          <label id="-1" name="lbl_height" text="Height:" frame="4 29 56 13" flags="0" />
-          <textedit id="NI_ID_WIDTH"  value="1" name="width"  text="" frame="62 8 56 13" flags="0" />
-          <textedit id="NI_ID_HEIGHT" value="2" name="height" text="" frame="62 29 56 13" flags="0" />
-          <button id="NI_ID_OK"     value="3" name="ok"     text="OK" frame="92 54 40 19" flags="BUTTON_DEFAULT" />
-          <button id="NI_ID_CANCEL" value="4" name="cancel" text="Cancel" frame="136 54 40 19" flags="0" />
+>
+          <label name="lbl_width" text="Width:" frame="4 8 56 13" flags="0" />
+          <label name="lbl_height" text="Height:" frame="4 29 56 13" flags="0" />
+          <textedit name="width" value="1" text="" frame="62 8 56 13" flags="0" />
+          <textedit name="height" value="2" text="" frame="62 29 56 13" flags="0" />
+          <button name="ok" value="3" text="OK" frame="92 54 40 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="4" text="Cancel" frame="136 54 40 19" flags="0" />
       </form>
 
-      <form id="image_resize"
+      <form name="image_resize"
             title="Image Size"
             frame="0 0 210 104"
             flags="0"
-            owner="examples/imageeditor/win_imageresize.c">
-          <label id="-1" name="lbl_width" text="Width:" frame="4 8 44 13" flags="0" />
-          <textedit id="IR_ID_WIDTH" value="1" name="width" text="" frame="54 8 72 13" flags="0" />
-          <label id="-1" name="lbl_height" text="Height:" frame="4 29 44 13" flags="0" />
-          <textedit id="IR_ID_HEIGHT" value="2" name="height" text="" frame="54 29 72 13" flags="0" />
-          <label id="-1" name="lbl_filter" text="Filter:" frame="4 50 44 13" flags="0" />
-          <combobox id="IR_ID_FILTER" value="3" name="filter" text="" frame="54 50 150 13" flags="0" />
-          <button id="IR_ID_OK" value="4" name="ok" text="OK" frame="112 79 44 19" flags="BUTTON_DEFAULT" />
-          <button id="IR_ID_CANCEL" value="5" name="cancel" text="Cancel" frame="160 79 46 19" flags="0" />
+>
+          <label name="lbl_width" text="Width:" frame="4 8 44 13" flags="0" />
+          <textedit name="width" value="1" text="" frame="54 8 72 13" flags="0" />
+          <label name="lbl_height" text="Height:" frame="4 29 44 13" flags="0" />
+          <textedit name="height" value="2" text="" frame="54 29 72 13" flags="0" />
+          <label name="lbl_filter" text="Filter:" frame="4 50 44 13" flags="0" />
+          <combobox name="filter" value="3" text="" frame="54 50 150 13" flags="0" />
+          <button name="ok" value="4" text="OK" frame="112 79 44 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="5" text="Cancel" frame="160 79 46 19" flags="0" />
       </form>
 
-      <form id="grid_options"
+      <form name="grid_options"
             title="Grid Options"
             frame="0 0 180 84"
             flags="0"
-            owner="examples/imageeditor/win_gridoptions.c">
-          <label id="GO_ID_LBL_H" value="5" name="lbl_h" text="Horizontal:" frame="4 9 66 13" flags="0" />
-          <label id="GO_ID_LBL_V" value="6" name="lbl_v" text="Vertical:" frame="4 26 66 13" flags="0" />
-          <textedit id="GO_ID_GRIDX"  value="1" name="gridx" text="" frame="74 8 56 13" flags="0" />
-          <textedit id="GO_ID_GRIDY"  value="2" name="gridy" text="" frame="74 25 56 13" flags="0" />
-          <button id="GO_ID_OK"     value="3" name="ok"     text="OK" frame="92 44 40 19" flags="BUTTON_DEFAULT" />
-          <button id="GO_ID_CANCEL" value="4" name="cancel" text="Cancel" frame="136 44 40 19" flags="0" />
+>
+          <label name="lbl_h" value="5" text="Horizontal:" frame="4 9 66 13" flags="0" />
+          <label name="lbl_v" value="6" text="Vertical:" frame="4 26 66 13" flags="0" />
+          <textedit name="gridx" value="1" text="" frame="74 8 56 13" flags="0" />
+          <textedit name="gridy" value="2" text="" frame="74 25 56 13" flags="0" />
+          <button name="ok" value="3" text="OK" frame="92 44 40 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="4" text="Cancel" frame="136 44 40 19" flags="0" />
       </form>
 
-      <form id="selection_modify"
+      <form name="selection_modify"
             title="Modify Selection"
             frame="0 0 180 68"
             flags="0"
-            owner="examples/imageeditor/win_selectmodify.c">
-          <label id="-1" name="lbl_amount" text="By:" frame="8 10 34 13" flags="0" />
-          <textedit id="SM_ID_AMOUNT" value="1" name="amount" text="" frame="44 9 56 13" flags="0" />
-          <label id="-1" name="lbl_pixels" text="pixels" frame="106 10 44 13" flags="0" />
-          <button id="SM_ID_OK" value="2" name="ok" text="OK" frame="84 35 44 19" flags="BUTTON_DEFAULT" />
-          <button id="SM_ID_CANCEL" value="3" name="cancel" text="Cancel" frame="132 35 44 19" flags="0" />
+>
+          <label name="lbl_amount" text="By:" frame="8 10 34 13" flags="0" />
+          <textedit name="amount" value="1" text="" frame="44 9 56 13" flags="0" />
+          <label name="lbl_pixels" text="pixels" frame="106 10 44 13" flags="0" />
+          <button name="ok" value="2" text="OK" frame="84 35 44 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="3" text="Cancel" frame="132 35 44 19" flags="0" />
       </form>
 
-      <form id="new_layer"
+      <form name="new_layer"
             title="New Layer"
             frame="0 0 200 68"
             flags="0"
-            owner="examples/imageeditor/win_newlayer.c">
-          <label id="-1" name="lbl_fill" text="Fill with:" frame="4 8 48 13" flags="0" />
-          <combobox id="NL_ID_FILL" value="1" name="combo_fill" text="" frame="54 8 138 13" flags="0" />
-          <button id="NL_ID_OK"     value="2" name="ok"     text="OK" frame="104 33 44 19" flags="BUTTON_DEFAULT" />
-          <button id="NL_ID_CANCEL" value="3" name="cancel" text="Cancel" frame="152 33 44 19" flags="0" />
+>
+          <label name="lbl_fill" text="Fill with:" frame="4 8 48 13" flags="0" />
+          <combobox name="combo_fill" value="1" text="" frame="54 8 138 13" flags="0" />
+          <button name="ok" value="2" text="OK" frame="104 33 44 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="3" text="Cancel" frame="152 33 44 19" flags="0" />
       </form>
 
-      <form id="add_mask"
+      <form name="add_mask"
             title="Add Mask"
             frame="0 0 220 68"
             flags="0"
-            owner="examples/imageeditor/win_extractmask.c">
-          <label id="-1" name="lbl_fill" text="Fill with:" frame="4 10 64 13" flags="0" />
-          <combobox id="EM_ID_FILL" value="1" name="combo_fill" text="" frame="70 10 140 13" flags="0" />
-          <button id="EM_ID_OK"     value="2" name="ok"     text="OK" frame="124 35 44 19" flags="BUTTON_DEFAULT" />
-          <button id="EM_ID_CANCEL" value="3" name="cancel" text="Cancel" frame="172 35 44 19" flags="0" />
+>
+          <label name="lbl_fill" text="Fill with:" frame="4 10 64 13" flags="0" />
+          <combobox name="combo_fill" value="1" text="" frame="70 10 140 13" flags="0" />
+          <button name="ok" value="2" text="OK" frame="124 35 44 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="3" text="Cancel" frame="172 35 44 19" flags="0" />
       </form>
 
-      <form id="text_tool"
+      <form name="text_tool"
             title="Insert Text"
             frame="0 0 220 96"
             flags="0"
-            owner="examples/imageeditor/win_textdialog.c">
-          <label id="-1" name="lbl_text" text="Text:" frame="2 3 36 13" flags="0" />
-          <textedit id="TD_ID_EDIT" value="1" name="edit_text" text="" frame="2 12 216 13" flags="0" />
-          <label id="TD_ID_SIZE_LBL" value="7" name="lbl_size" text="Size: 16px" frame="2 30 80 13" flags="0" />
-          <slider id="TD_ID_SIZE" value="8" name="size" text="" frame="2 36 216 17" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <label id="-1" name="lbl_color" text="Color:" frame="2 55 36 13" flags="0" />
-          <space id="TD_ID_SWATCH" value="6" name="swatch" text="" frame="40 53 14 11" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <button id="TD_ID_COLOR" value="4" name="btn_color" text="Change..." frame="58 52 54 19" flags="0" />
-          <checkbox id="TD_ID_AA" value="5" name="chk_aa" text="Anti-alias" frame="118 53 74 12" flags="0" />
-          <button id="TD_ID_OK" value="2" name="btn_ok" text="OK" frame="2 71 38 19" flags="0" />
-          <button id="TD_ID_CANCEL" value="3" name="btn_cancel" text="Cancel" frame="44 71 50 19" flags="0" />
+>
+          <label name="lbl_text" text="Text:" frame="2 3 36 13" flags="0" />
+          <textedit name="edit_text" value="1" text="" frame="2 12 216 13" flags="0" />
+          <label name="lbl_size" value="7" text="Size: 16px" frame="2 30 80 13" flags="0" />
+          <slider name="size" value="8" text="" frame="2 36 216 17" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <label name="lbl_color" text="Color:" frame="2 55 36 13" flags="0" />
+          <space name="swatch" value="6" text="" frame="40 53 14 11" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <button name="btn_color" value="4" text="Change..." frame="58 52 54 19" flags="0" />
+          <checkbox name="chk_aa" value="5" text="Anti-alias" frame="118 53 74 12" flags="0" />
+          <button name="btn_ok" value="2" text="OK" frame="2 71 38 19" flags="0" />
+          <button name="btn_cancel" value="3" text="Cancel" frame="44 71 50 19" flags="0" />
       </form>
 
-      <form id="levels"
+      <form name="levels"
             title="Levels"
             frame="0 0 280 222"
             flags="0"
-            owner="examples/imageeditor/win_levels.c">
+>
         <requires library="imageeditor_components" />
-          <label id="0" name="in_label" text="Input Levels:" frame="10 4 0 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <textedit id="LV_ID_IN_BLACK" name="in_black" text="0" frame="84 0 34 13" flags="0" />
-          <textedit id="LV_ID_IN_GAMMA" name="in_gamma" text="1.00" frame="122 0 34 13" flags="0" />
-          <textedit id="LV_ID_IN_WHITE" name="in_white" text="255" frame="160 0 34 13" flags="0" />
-          <lv_histogram id="LV_ID_GRAPH" name="graph" text="" frame="10 21 260 84" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <slider id="LV_ID_IN_SLIDER" name="in_slider" text="" frame="10 107 260 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <label id="0" name="out_label" text="Output Levels:" frame="10 128 0 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <textedit id="LV_ID_OUT_BLACK" name="out_black" text="0" frame="84 128 34 13" flags="0" />
-          <textedit id="LV_ID_OUT_WHITE" name="out_white" text="255" frame="160 128 34 13" flags="0" />
-          <gradient id="0" name="out_grad" text="" frame="18 146 244 8" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <slider id="LV_ID_OUT_SLIDER" name="out_slider" text="" frame="10 156 260 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <checkbox id="LV_ID_PREVIEW" name="preview" text="Preview" frame="10 178 74 12" flags="0" />
-          <button id="LV_ID_OK" name="ok" text="OK" frame="116 198 48 19" flags="0" />
-          <button id="LV_ID_RESET" name="reset" text="Reset" frame="168 198 48 19" flags="0" />
-          <button id="LV_ID_CANCEL" name="cancel" text="Cancel" frame="220 198 48 19" flags="0" />
+          <label name="in_label" text="Input Levels:" frame="10 4 0 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <textedit name="in_black" text="0" frame="84 0 34 13" flags="0" />
+          <textedit name="in_gamma" text="1.00" frame="122 0 34 13" flags="0" />
+          <textedit name="in_white" text="255" frame="160 0 34 13" flags="0" />
+          <lv_histogram name="graph" text="" frame="10 21 260 84" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <slider name="in_slider" text="" frame="10 107 260 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <label name="out_label" text="Output Levels:" frame="10 128 0 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <textedit name="out_black" text="0" frame="84 128 34 13" flags="0" />
+          <textedit name="out_white" text="255" frame="160 128 34 13" flags="0" />
+          <gradient name="out_grad" text="" frame="18 146 244 8" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <slider name="out_slider" text="" frame="10 156 260 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <checkbox name="preview" text="Preview" frame="10 178 74 12" flags="0" />
+          <button name="ok" text="OK" frame="116 198 48 19" flags="0" />
+          <button name="reset" text="Reset" frame="168 198 48 19" flags="0" />
+          <button name="cancel" text="Cancel" frame="220 198 48 19" flags="0" />
       </form>
 
-      <form id="filter_gallery"
+      <form name="filter_gallery"
             title="Filter Gallery"
             frame="0 0 560 360"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
-            owner="examples/imageeditor/win_filtergallery.c">
+>
         <requires library="imageeditor_components" />
-          <filter_preview id="FG_ID_PREVIEW" value="4002" name="preview" text="" frame="14 18 248 248" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <label id="FG_ID_LABEL" value="4003" name="filter_name" text="No filters loaded" frame="14 276 248 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <reportview id="FG_ID_LIST" value="4001" name="filters" text="" frame="286 18 256 290" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
-          <button id="FG_ID_OK" value="5001" name="ok" text="OK" frame="404 326 66 19" flags="BUTTON_DEFAULT" />
-          <button id="FG_ID_CANCEL" value="5002" name="cancel" text="Cancel" frame="478 326 66 19" flags="0" />
+          <filter_preview name="preview" value="4002" text="" frame="14 18 248 248" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <label name="filter_name" value="4003" text="No filters loaded" frame="14 276 248 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <reportview name="filters" value="4001" text="" frame="286 18 256 290" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
+          <button name="ok" value="5001" text="OK" frame="404 326 66 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="5002" text="Cancel" frame="478 326 66 19" flags="0" />
       </form>
 
-      <form id="blur_dialog"
+      <form name="blur_dialog"
             title="Blur"
             frame="0 0 240 96"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
-            owner="examples/imageeditor/win_blur.c">
-          <label id="BL_ID_AMOUNT_LBL" value="1" name="amount_label" text="Blur: 4px" frame="10 8 220 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <slider id="BL_ID_AMOUNT" value="2" name="amount" text="" frame="10 26 220 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <checkbox id="BL_ID_PREVIEW" value="3" name="preview" text="Preview" frame="10 48 74 12" flags="0" />
-          <button id="BL_ID_OK" value="4" name="ok" text="OK" frame="92 68 44 19" flags="BUTTON_DEFAULT" />
-          <button id="BL_ID_CANCEL" value="5" name="cancel" text="Cancel" frame="140 68 56 19" flags="0" />
+>
+          <label name="amount_label" value="1" text="Blur: 4px" frame="10 8 220 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <slider name="amount" value="2" text="" frame="10 26 220 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <checkbox name="preview" value="3" text="Preview" frame="10 48 74 12" flags="0" />
+          <button name="ok" value="4" text="OK" frame="92 68 44 19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" value="5" text="Cancel" frame="140 68 56 19" flags="0" />
       </form>
     </forms>
 </orion>

@@ -99,8 +99,8 @@ static void filter_gallery_bake_thumbnails(filter_gallery_state_t *st) {
 
 static void filter_gallery_sync_preview(window_t *win, filter_gallery_state_t *st) {
   if (!win) return;
-  window_t *preview = get_window_item(win, FG_ID_PREVIEW);
-  window_t *label = get_window_item(win, FG_ID_LABEL);
+  window_t *preview = get_window_item(win, ID_FILTER_GALLERY_PREVIEW);
+  window_t *label = get_window_item(win, ID_FILTER_GALLERY_FILTER_NAME);
   if (label) {
     const char *text = "No filters loaded";
     if (st && st->selected >= 0 && g_app && st->selected < g_app->filter_count)
@@ -147,7 +147,7 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
       filter_gallery_bake_thumbnails(st);
       filter_gallery_sync_preview(win, st);
 
-      window_t *list = get_window_item(win, FG_ID_LIST);
+      window_t *list = get_window_item(win, ID_FILTER_GALLERY_FILTERS);
       if (list) {
         send_message(list, RVM_SETVIEWMODE,  RVM_VIEW_LARGE_ICON, NULL);
         send_message(list, RVM_SETCOLUMNWIDTH, FG_ICON_CELL_W, NULL);
@@ -177,7 +177,7 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
       if (HIWORD(wparam) == RVN_SELCHANGE) {
         // Selection changed in the thumbnail list — update the large preview.
         window_t *src = (window_t *)lparam;
-        if (st && src && src->id == FG_ID_LIST) {
+        if (st && src && src->id == ID_FILTER_GALLERY_FILTERS) {
           st->selected = (int)(uint16_t)LOWORD(wparam);
           filter_gallery_sync_preview(win, st);
         }
@@ -186,7 +186,7 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
       if (HIWORD(wparam) == RVN_DBLCLK) {
         // Double-click in the list acts like pressing OK.
         window_t *src = (window_t *)lparam;
-        if (st && src && src->id == FG_ID_LIST) {
+        if (st && src && src->id == ID_FILTER_GALLERY_FILTERS) {
           st->selected = (int)(uint16_t)LOWORD(wparam);
           filter_gallery_accept(win, st);
         }
@@ -194,11 +194,11 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
       }
       if (HIWORD(wparam) == btnClicked) {
         uint16_t id = LOWORD(wparam);
-        if (id == FG_ID_OK) {
+        if (id == ID_FILTER_GALLERY_OK) {
           filter_gallery_accept(win, st);
           return true;
         }
-        if (id == FG_ID_CANCEL) {
+        if (id == ID_FILTER_GALLERY_CANCEL) {
           end_dialog(win, 0);
           return true;
         }

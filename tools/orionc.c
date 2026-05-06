@@ -181,6 +181,46 @@ static void make_ident(char *out, size_t out_sz, const char *s) {
   out[n] = '\0';
 }
 
+static void make_upper_ident(char *out, size_t out_sz, const char *s) {
+  make_ident(out, out_sz, s);
+  for (char *p = out; p && *p; p++) {
+    if (*p >= 'a' && *p <= 'z')
+      *p = (char)(*p - 'a' + 'A');
+  }
+}
+
+static void make_control_ident(char *out, size_t out_sz,
+                               const char *form_ident,
+                               const char *control_name,
+                               const char *class_name,
+                               int ordinal) {
+  char form_buf[128];
+  char name_buf[128];
+  make_upper_ident(form_buf, sizeof(form_buf), nonempty(form_ident, "form"));
+  make_upper_ident(name_buf, sizeof(name_buf), nonempty(control_name, nonempty(class_name, "control")));
+  if (ordinal >= 0 && (!control_name || !*control_name)) {
+    snprintf(out, out_sz, "ID_%s_%s%d", form_buf, name_buf, ordinal);
+  } else {
+    snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
+  }
+}
+
+static void make_scoped_ident(char *out, size_t out_sz,
+                              const char *scope_ident,
+                              const char *name,
+                              const char *fallback,
+                              int ordinal) {
+  char scope_buf[128];
+  char name_buf[128];
+  make_upper_ident(scope_buf, sizeof(scope_buf), nonempty(scope_ident, "scope"));
+  make_upper_ident(name_buf, sizeof(name_buf), nonempty(name, nonempty(fallback, "item")));
+  if (ordinal >= 0 && (!name || !*name)) {
+    snprintf(out, out_sz, "ID_%s_%s%d", scope_buf, name_buf, ordinal);
+  } else {
+    snprintf(out, out_sz, "ID_%s_%s", scope_buf, name_buf);
+  }
+}
+
 static bool is_element(xmlNodePtr node, const char *name) {
   return node && node->type == XML_ELEMENT_NODE &&
          xmlStrcmp(node->name, BAD_CAST name) == 0;
@@ -312,14 +352,15 @@ static uint8_t layout_columns_default_for_class(const char *klass) {
 }
 
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
-                              const char *parent_expr, bool allow_auto_layout,
-                              int *out_count);
+                              const char *form_ident, const char *parent_expr,
+                              bool allow_auto_layout, int *out_count);
 
 static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
-                              const char *parent_expr, bool allow_auto_layout) {
+                              const char *ident, const char *parent_expr,
+                              bool allow_auto_layout) {
   char *klass = control_class_name(c);
-  char *cid = attr_dup(c, "id");
   char *name = attr_dup(c, "name");
+  char *cid = attr_dup(c, "id");
   char *text = attr_dup(c, "text");
   char *cflags = attr_dup(c, "flags");
   char *h_align = attr_dup(c, "h-align");
@@ -386,7 +427,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
 
   fputs("  { ", f);
   fprint_c_string(f, emit_class);
-  fprintf(f, ", %s, ", nonempty(cid, "0"));
+  fprintf(f, ", %s, ", nonempty(ident, nonempty(cid, "0")));
   if (nested || !parse_frame(c, &cr)) {
     fprintf(f, "{ 0, 0, 0, 0 }, %s, ", nonempty(cflags, "0"));
   } else {
@@ -415,24 +456,49 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
 }
 
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
-                              const char *parent_expr, bool allow_auto_layout,
-                              int *out_count) {
+                              const char *form_ident, const char *parent_expr,
+                              bool allow_auto_layout, int *out_count) {
   int count = 0;
+  int ordinal = 0;
   for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
     if (!is_control_node(c)) continue;
-    if (!emit_control_node(f, c, scope, parent_expr, allow_auto_layout))
+    char *name = attr_dup(c, "name");
+    char *cid = attr_dup(c, "id");
+    char *klass = control_class_name(c);
+    char ident[256];
+    if (cid && *cid) {
+      snprintf(ident, sizeof(ident), "%s", cid);
+    } else {
+      make_control_ident(ident, sizeof(ident), form_ident, name, klass, ordinal);
+    }
+    free(name);
+    free(cid);
+    free(klass);
+
+    if (!emit_control_node(f, c, scope, ident, parent_expr, allow_auto_layout))
       return false;
     count++;
+    ordinal++;
     if (has_child_controls(c)) {
-      char *cid = attr_dup(c, "id");
-      const char *next_parent = nonempty(cid, "0");
+      char *cname = attr_dup(c, "name");
+      char *cclass = control_class_name(c);
+      char next_parent_buf[256];
+      if (is_ident_expr(ident)) {
+        snprintf(next_parent_buf, sizeof(next_parent_buf), "%s", ident);
+      } else {
+        make_control_ident(next_parent_buf, sizeof(next_parent_buf), form_ident,
+                           cname, cclass, ordinal - 1);
+      }
+      const char *next_parent = next_parent_buf;
       int subcount = 0;
-      if (!emit_control_tree(f, c, scope, next_parent, true, &subcount)) {
-        free(cid);
+      if (!emit_control_tree(f, c, scope, form_ident, next_parent, true, &subcount)) {
+        free(cname);
+        free(cclass);
         return false;
       }
       count += subcount;
-      free(cid);
+      free(cname);
+      free(cclass);
     }
   }
   if (out_count) *out_count = count;
@@ -479,71 +545,163 @@ static bool collect_ident(ident_list_t *ids, const char *name) {
   return true;
 }
 
-static bool collect_control_tree_idents(ident_list_t *ids, xmlNodePtr node) {
+static bool collect_control_tree_idents(ident_list_t *ids, xmlNodePtr node,
+                                        const char *form_ident) {
+  int ordinal = 0;
   for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
     if (!is_control_node(c)) continue;
     char *cid = attr_dup(c, "id");
-    bool ok = collect_ident(ids, cid);
-    free(cid);
-    if (!ok) return false;
-    if (!collect_control_tree_idents(ids, c)) return false;
+    char *cname = attr_dup(c, "name");
+    char *cclass = control_class_name(c);
+    char ident[256];
+    if (cid && *cid) {
+      bool ok = collect_ident(ids, cid);
+      free(cid);
+      free(cname);
+      free(cclass);
+      if (!ok) return false;
+    } else {
+      make_control_ident(ident, sizeof(ident), form_ident, cname, cclass, ordinal);
+      bool ok = collect_ident(ids, ident);
+      free(cid);
+      free(cname);
+      free(cclass);
+      if (!ok) return false;
+    }
+    if (!collect_control_tree_idents(ids, c, form_ident)) return false;
+    ordinal++;
   }
   return true;
 }
 
-static bool collect_form_idents(ident_list_t *ids, xmlNodePtr form) {
-  return collect_control_tree_idents(ids, form);
+static bool collect_form_idents(ident_list_t *ids, xmlNodePtr form,
+                                const char *form_ident) {
+  return collect_control_tree_idents(ids, form, form_ident);
 }
 
-static bool collect_menu_node_defines(define_list_t *defs, xmlNodePtr menu) {
+static void menu_scope_ident(char *out, size_t out_sz, xmlNodePtr node,
+                             const char *parent_scope) {
+  char *name = attr_dup(node, "name");
+  char *id = attr_dup(node, "id");
+  const char *src = nonempty(name, nonempty(id, "item"));
+  if (parent_scope && *parent_scope) {
+    char scoped[128];
+    make_upper_ident(scoped, sizeof(scoped), src);
+    snprintf(out, out_sz, "%s_%s", parent_scope, scoped);
+  } else {
+    make_upper_ident(out, out_sz, src);
+  }
+  free(name);
+  free(id);
+}
+
+static bool collect_menu_node_idents(ident_list_t *ids, xmlNodePtr menu,
+                                     const char *scope) {
   for (xmlNodePtr it = menu ? menu->children : NULL; it; it = it->next) {
     if (is_element(it, "submenu")) {
-      if (!collect_menu_node_defines(defs, it)) return false;
+      if (!collect_menu_node_idents(ids, it, scope)) return false;
       continue;
     }
     if (!is_element(it, "item")) continue;
+    char *name = attr_dup(it, "name");
     char *id = attr_dup(it, "id");
-    char *value = attr_dup(it, "value");
-    bool ok = collect_define(defs, id, value);
+    char *label = attr_dup(it, "label");
+    char ident[256];
+    if (name && *name) {
+      make_scoped_ident(ident, sizeof(ident), scope, name, label, -1);
+    } else if (is_ident_expr(id)) {
+      snprintf(ident, sizeof(ident), "%s", id);
+    } else {
+      make_scoped_ident(ident, sizeof(ident), scope, label, "item", -1);
+    }
+    if (!collect_ident(ids, ident)) {
+      free(name); free(id); free(label);
+      return false;
+    }
+    free(name);
     free(id);
-    free(value);
-    if (!ok) return false;
+    free(label);
   }
   return true;
 }
 
-static bool collect_menu_defines(define_list_t *defs, xmlNodePtr menus) {
+static bool collect_menu_idents(ident_list_t *ids, xmlNodePtr menus) {
   for (xmlNodePtr m = menus ? menus->children : NULL; m; m = m->next) {
     if (!is_element(m, "menu")) continue;
-    if (!collect_menu_node_defines(defs, m)) return false;
+    char *mid = attr_dup(m, "name");
+    if (!mid) mid = attr_dup(m, "id");
+    char menu_ident[128];
+    make_upper_ident(menu_ident, sizeof(menu_ident), nonempty(mid, "menu"));
+    free(mid);
+    if (!collect_menu_node_idents(ids, m, menu_ident)) return false;
   }
   return true;
 }
 
 static const char *toolbar_item_type_for_node(xmlNodePtr node);
 
-static bool collect_toolbar_defines(define_list_t *defs, xmlNodePtr toolbars) {
+static bool collect_toolbar_idents(ident_list_t *ids, xmlNodePtr toolbars) {
   for (xmlNodePtr tb = toolbars ? toolbars->children : NULL; tb; tb = tb->next) {
     if (!is_element(tb, "toolbar")) continue;
+    char *tbid = attr_dup(tb, "name");
+    if (!tbid) tbid = attr_dup(tb, "id");
+    char toolbar_ident[128];
+    make_upper_ident(toolbar_ident, sizeof(toolbar_ident), nonempty(tbid, "toolbar"));
+    free(tbid);
     for (xmlNodePtr it = tb->children; it; it = it->next) {
       if (!toolbar_item_type_for_node(it)) continue;
+      if (is_element(it, "separator") || is_element(it, "spacer"))
+        continue;
+      char *menu = attr_dup(it, "menu");
+      char *name = attr_dup(it, "name");
       char *id = attr_dup(it, "id");
-      char *value = attr_dup(it, "value");
-      bool ok = collect_define(defs, id, value);
+      char *label = attr_dup(it, "label");
+      char ident[256];
+      const char *scope = (menu && *menu) ? menu : toolbar_ident;
+      if (menu && *menu) {
+        char menu_scope[128];
+        make_upper_ident(menu_scope, sizeof(menu_scope), menu);
+        if (name && *name) {
+          make_scoped_ident(ident, sizeof(ident), menu_scope, name, label, -1);
+        } else if (is_ident_expr(id)) {
+          snprintf(ident, sizeof(ident), "%s", id);
+        } else {
+          make_scoped_ident(ident, sizeof(ident), menu_scope, label, "item", -1);
+        }
+      } else {
+        if (name && *name) {
+          make_scoped_ident(ident, sizeof(ident), scope, name, label, -1);
+        } else if (is_ident_expr(id)) {
+          snprintf(ident, sizeof(ident), "%s", id);
+        } else {
+          make_scoped_ident(ident, sizeof(ident), scope, label, "item", -1);
+        }
+      }
+      if (!collect_ident(ids, ident)) {
+        free(menu); free(name); free(id); free(label);
+        return false;
+      }
+      free(menu);
+      free(name);
       free(id);
-      free(value);
-      if (!ok) return false;
+      free(label);
     }
   }
   return true;
 }
 
-static void emit_defines(FILE *f, const define_list_t *defs) {
-  if (!defs || defs->count <= 0) return;
-  fputs("/* IDs generated from symbolic id/value pairs. */\n", f);
-  for (int i = 0; i < defs->count; i++)
-    fprintf(f, "#define %-20s %s\n", defs->items[i].name, defs->items[i].value);
-  fputc('\n', f);
+static void emit_command_enums(FILE *f, const ident_list_t *ids) {
+  if (!ids || ids->count <= 0) return;
+  fputs("/* Menu and toolbar command IDs generated as symbolic enums. */\n", f);
+  fputs("enum {\n", f);
+  for (int i = 0; i < ids->count; i++) {
+    if (i == 0)
+      fprintf(f, "  %s = ID_COMMAND_BASE + 1%s\n", ids->items[i],
+              (i + 1 < ids->count) ? "," : "");
+    else
+      fprintf(f, "  %s%s\n", ids->items[i], (i + 1 < ids->count) ? "," : "");
+  }
+  fputs("};\n\n", f);
 }
 
 static void emit_control_idents(FILE *f, const ident_list_t *ids) {
@@ -588,23 +746,25 @@ static void emit_menu_indices(FILE *f, xmlNodePtr menus) {
   bool emitted = false;
   for (xmlNodePtr m = menus->children; m; m = m->next) {
     if (!is_element(m, "menu")) continue;
-    char *id = attr_dup(m, "id");
+    char *id = attr_dup(m, "name");
+    if (!id) id = attr_dup(m, "id");
     if (is_ident_expr(id)) {
       if (!emitted) {
         fputs("/* Top-level menu indices generated from <menu> order. */\n", f);
+        fputs("enum {\n", f);
         emitted = true;
       }
       char ident[128];
       make_ident(ident, sizeof(ident), id);
       for (char *p = ident; *p; p++)
         if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
-      fprintf(f, "#define MENU_%s_INDEX %d\n", ident, idx);
+      fprintf(f, "  MENU_%s_INDEX = %d,\n", ident, idx);
     }
     free(id);
     idx++;
   }
   if (emitted)
-    fputc('\n', f);
+    fputs("};\n\n", f);
 }
 
 static void menu_child_var(char *out, size_t out_sz,
@@ -617,7 +777,8 @@ static void menu_child_var(char *out, size_t out_sz,
   }
   free(var);
 
-  char *id = attr_dup(node, "id");
+  char *id = attr_dup(node, "name");
+  if (!id) id = attr_dup(node, "id");
   char *label = attr_dup(node, "label");
   char ident[128];
   make_ident(ident, sizeof(ident), nonempty(id, nonempty(label, "submenu")));
@@ -627,28 +788,35 @@ static void menu_child_var(char *out, size_t out_sz,
 }
 
 static bool emit_menu_item_array(FILE *f, xmlNodePtr menu,
-                                 const char *var, bool is_mutable);
+                                 const char *var, const char *command_scope,
+                                 bool is_mutable);
 
 static bool emit_submenu_arrays(FILE *f, xmlNodePtr menu,
-                                const char *parent_var, bool is_mutable) {
+                                const char *parent_var, const char *command_scope,
+                                bool is_mutable) {
   for (xmlNodePtr it = menu ? menu->children : NULL; it; it = it->next) {
     if (!is_element(it, "submenu")) continue;
     char child_var[256];
     menu_child_var(child_var, sizeof(child_var), parent_var, it);
-    if (!emit_submenu_arrays(f, it, child_var, is_mutable))
+    if (!emit_submenu_arrays(f, it, child_var, command_scope, is_mutable))
       return false;
-    if (!emit_menu_item_array(f, it, child_var, is_mutable))
+    if (!emit_menu_item_array(f, it, child_var, command_scope, is_mutable))
       return false;
   }
   return true;
 }
 
 static bool emit_menu_item_array(FILE *f, xmlNodePtr menu,
-                                 const char *var, bool is_mutable) {
+                                 const char *var, const char *command_scope,
+                                 bool is_mutable) {
   int item_count = count_menu_items(menu);
   if (item_count <= 0) return true;
   fprintf(f, "static %smenu_item_t %s[] = {\n",
           is_mutable ? "" : "const ", var);
+  char *menu_id = attr_dup(menu, "name");
+  if (!menu_id) menu_id = attr_dup(menu, "id");
+  char menu_scope[128];
+  make_upper_ident(menu_scope, sizeof(menu_scope), nonempty(command_scope, nonempty(menu_id, "menu")));
   for (xmlNodePtr it = menu->children; it; it = it->next) {
     emit_optional_if(f, it);
     if (is_element(it, "separator")) {
@@ -684,18 +852,30 @@ static bool emit_menu_item_array(FILE *f, xmlNodePtr menu,
       emit_optional_endif(f, it);
       continue;
     }
-    char *id = attr_dup(it, "id");
+    char *name = attr_dup(it, "name");
+    char *id = attr_dup(it, "name");
+    if (!id) id = attr_dup(it, "id");
     char *label = attr_dup(it, "label");
     char *shortcut = attr_dup(it, "shortcut");
+    char item_ident[256];
+    if (name && *name) {
+      make_scoped_ident(item_ident, sizeof(item_ident), menu_scope, name, label, -1);
+    } else if (is_ident_expr(id)) {
+      snprintf(item_ident, sizeof(item_ident), "%s", id);
+    } else {
+      make_scoped_ident(item_ident, sizeof(item_ident), menu_scope, label, "item", -1);
+    }
     fputs("  { ", f);
     fprint_c_string_with_shortcut(f, nonempty(label, ""), shortcut);
-    fprintf(f, ", %s, NULL, 0 },\n", nonempty(id, "0"));
+    fprintf(f, ", %s, NULL, 0 },\n", item_ident);
+    free(name);
     free(id);
     free(label);
     free(shortcut);
     emit_optional_endif(f, it);
   }
   fputs("};\n\n", f);
+  free(menu_id);
   return true;
 }
 
@@ -708,6 +888,10 @@ static bool emit_menu_resources(FILE *f, xmlNodePtr menus) {
 
   for (xmlNodePtr m = menus->children; m; m = m->next) {
     if (!is_element(m, "menu")) continue;
+    char *mid = attr_dup(m, "id");
+    char menu_scope[128];
+    make_upper_ident(menu_scope, sizeof(menu_scope), nonempty(mid, "menu"));
+    free(mid);
     char *var = attr_dup(m, "var");
     int item_count = count_menu_items(m);
     if (item_count <= 0) {
@@ -720,8 +904,8 @@ static bool emit_menu_resources(FILE *f, xmlNodePtr menus) {
       return false;
     }
     bool is_mutable = attr_is_true(m, "mutable");
-    if (!emit_submenu_arrays(f, m, var, is_mutable) ||
-        !emit_menu_item_array(f, m, var, is_mutable)) {
+    if (!emit_submenu_arrays(f, m, var, menu_scope, is_mutable) ||
+        !emit_menu_item_array(f, m, var, menu_scope, is_mutable)) {
       free(var); free(menus_var); free(count_var);
       return false;
     }
@@ -798,18 +982,47 @@ static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
     }
 
     fprintf(f, "static const toolbar_item_t %s[] = {\n", var);
+    char *tbid = attr_dup(tb, "name");
+    if (!tbid) tbid = attr_dup(tb, "id");
+    char toolbar_scope[128];
+    make_upper_ident(toolbar_scope, sizeof(toolbar_scope), nonempty(tbid, "toolbar"));
     for (xmlNodePtr it = tb->children; it; it = it->next) {
       const char *type = toolbar_item_type_for_node(it);
       if (!type) continue;
 
-      char *id = attr_dup(it, "id");
+      char *menu = attr_dup(it, "menu");
+      char *name = attr_dup(it, "name");
+      char *id = attr_dup(it, "name");
+      if (!id) id = attr_dup(it, "id");
       char *icon = attr_dup(it, "icon");
       char *w = attr_dup(it, "w");
       char *flags = attr_dup(it, "flags");
       char *text = attr_dup(it, "text");
+      char ident[256];
+      if (menu && *menu) {
+        char menu_scope[128];
+        make_upper_ident(menu_scope, sizeof(menu_scope), menu);
+        if (name && *name) {
+          make_scoped_ident(ident, sizeof(ident), menu_scope, name, text, -1);
+        } else if (is_ident_expr(id)) {
+          snprintf(ident, sizeof(ident), "%s", id);
+        } else {
+          make_scoped_ident(ident, sizeof(ident), menu_scope, text, "item", -1);
+        }
+      } else if (is_element(it, "separator") || is_element(it, "spacer")) {
+        snprintf(ident, sizeof(ident), "0");
+      } else {
+        if (name && *name) {
+          make_scoped_ident(ident, sizeof(ident), toolbar_scope, name, text, -1);
+        } else if (is_ident_expr(id)) {
+          snprintf(ident, sizeof(ident), "%s", id);
+        } else {
+          make_scoped_ident(ident, sizeof(ident), toolbar_scope, text, "item", -1);
+        }
+      }
       fprintf(f, "  { %s, %s, %s, %s, %s, ",
               type,
-              nonempty(id, "0"),
+              nonempty(ident, "0"),
               nonempty(icon, "-1"),
               nonempty(w, "0"),
               nonempty(flags, "0"));
@@ -818,6 +1031,8 @@ static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
       else
         fputs("NULL", f);
       fputs(" },\n", f);
+      free(menu);
+      free(name);
       free(id);
       free(icon);
       free(w);
@@ -829,6 +1044,7 @@ static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
       fprintf(f, "static const int %s = (int)(sizeof(%s) / sizeof(%s[0]));\n",
               count, var, var);
     fputc('\n', f);
+    free(tbid);
     free(var);
     free(count);
   }
@@ -837,7 +1053,8 @@ static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
 }
 
 static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
-  char *id = attr_dup(form, "id");
+  char *id = attr_dup(form, "name");
+  if (!id) id = attr_dup(form, "id");
   char *title = attr_dup(form, "title");
   char *flags = attr_dup(form, "flags");
   char *layout_kind = attr_dup(form, "layout_kind");
@@ -867,7 +1084,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
           prefix, id_ident);
   int child_count = 0;
-  if (!emit_control_tree(f, form, id_ident, "0", auto_layout, &child_count)) {
+  if (!emit_control_tree(f, form, id_ident, id_ident, "0", auto_layout, &child_count)) {
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
     free(padding); free(margin);
@@ -960,18 +1177,18 @@ int main(int argc, char **argv) {
   fputs("#include \"ui.h\"\n\n", f);
 
   int emitted = 0;
-  define_list_t defines = {0};
   ident_list_t control_ids = {0};
+  ident_list_t command_ids = {0};
   xmlNodePtr menus = first_child_element(root, "menus");
   xmlNodePtr toolbars = first_child_element(root, "toolbars");
   xmlNodePtr forms = first_child_element(root, "forms");
 
-  if (!collect_menu_defines(&defines, menus)) {
+  if (!collect_menu_idents(&command_ids, menus)) {
     fclose(f);
     xmlFreeDoc(doc);
     return 1;
   }
-  if (!collect_toolbar_defines(&defines, toolbars)) {
+  if (!collect_toolbar_idents(&command_ids, toolbars)) {
     fclose(f);
     xmlFreeDoc(doc);
     return 1;
@@ -979,17 +1196,24 @@ int main(int argc, char **argv) {
 
   for (xmlNodePtr n = forms ? forms->children : NULL; n; n = n->next) {
     if (!is_element(n, "form")) continue;
-    char *id = attr_dup(n, "id");
+    char *id = attr_dup(n, "name");
+    if (!id) id = attr_dup(n, "id");
     bool want = !only_form || streq(id, only_form);
     free(id);
     if (!want) continue;
-    if (!collect_form_idents(&control_ids, n)) {
+    char *form_id = attr_dup(n, "name");
+    if (!form_id) form_id = attr_dup(n, "id");
+    char form_ident[128];
+    make_ident(form_ident, sizeof(form_ident), nonempty(form_id, "form"));
+    if (!collect_form_idents(&control_ids, n, form_ident)) {
+      free(form_id);
       fclose(f);
       xmlFreeDoc(doc);
       return 1;
     }
+    free(form_id);
   }
-  emit_defines(f, &defines);
+  emit_command_enums(f, &command_ids);
   emit_control_idents(f, &control_ids);
   emit_menu_indices(f, menus);
   if (!emit_menu_resources(f, menus)) {
@@ -1005,7 +1229,8 @@ int main(int argc, char **argv) {
 
   for (xmlNodePtr n = forms ? forms->children : NULL; n; n = n->next) {
     if (!is_element(n, "form")) continue;
-    char *id = attr_dup(n, "id");
+    char *id = attr_dup(n, "name");
+    if (!id) id = attr_dup(n, "id");
     bool want = !only_form || streq(id, only_form);
     free(id);
     if (!want) continue;

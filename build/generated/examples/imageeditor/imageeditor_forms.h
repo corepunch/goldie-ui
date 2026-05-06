@@ -4,209 +4,227 @@
 
 #include "ui.h"
 
-/* IDs generated from symbolic id/value pairs. */
-#define ID_FILE_NEW          1
-#define ID_FILE_OPEN         2
-#define ID_FILE_SAVE         3
-#define ID_FILE_SAVEAS       4
-#define ID_FILE_CLOSE        5
-#define ID_FILE_QUIT         6
-#define ID_EDIT_UNDO         10
-#define ID_EDIT_REDO         11
-#define ID_EDIT_CUT          12
-#define ID_EDIT_COPY         13
-#define ID_EDIT_PASTE        14
-#define ID_SELECT_ALL        80
-#define ID_SELECT_DESELECT   81
-#define ID_SELECT_CLEAR      82
-#define ID_SELECT_EXPAND     83
-#define ID_SELECT_CONTRACT   84
-#define ID_IMAGE_CROP        58
-#define ID_IMAGE_RESIZE      53
-#define ID_IMAGE_CANVAS_SIZE 59
-#define ID_IMAGE_FLIP_H      50
-#define ID_IMAGE_FLIP_V      51
-#define ID_IMAGE_INVERT      52
-#define ID_IMAGE_LEVELS      57
-#define ID_FILTER_RELOAD     90
-#define ID_FILTER_GALLERY    91
-#define ID_FILTER_BLUR       92
-#define ID_FILTER_SHARPEN    93
-#define ID_FILTER_EDGE       94
-#define ID_LAYER_NEW         60
-#define ID_LAYER_DUPLICATE   61
-#define ID_LAYER_DELETE      62
-#define ID_LAYER_MOVE_UP     63
-#define ID_LAYER_MOVE_DOWN   64
-#define ID_LAYER_MERGE_DOWN  65
-#define ID_LAYER_FLATTEN     66
-#define ID_LAYER_FILL_FOREGROUND 74
-#define ID_LAYER_FILL_BACKGROUND 73
-#define ID_LAYER_ADD_MASK    67
-#define ID_LAYER_APPLY_MASK  68
-#define ID_LAYER_REMOVE_MASK 69
-#define ID_LAYER_EXTRACT_MASK 70
-#define ID_LAYER_EDIT_MASK   71
-#define ID_VIEW_ZOOM_IN      40
-#define ID_VIEW_ZOOM_OUT     41
-#define ID_VIEW_ZOOM_FIT     55
-#define ID_VIEW_ZOOM_1X      42
-#define ID_VIEW_ZOOM_2X      43
-#define ID_VIEW_ZOOM_4X      44
-#define ID_VIEW_ZOOM_6X      45
-#define ID_VIEW_ZOOM_8X      46
-#define ID_VIEW_SHOW_GRID    47
-#define ID_VIEW_SNAP_GRID    48
-#define ID_VIEW_SHOW_BACKGROUND 72
-#define ID_VIEW_MASK_ONLY    56
-#define ID_VIEW_GRID_OPTIONS 49
-#define ID_WINDOW_TOOLS      200
-#define ID_WINDOW_COLORS     201
-#define ID_WINDOW_LAYERS     202
-#define ID_WINDOW_TIMELINE   203
-#define ID_ANIM_NEW_FRAME    400
-#define ID_ANIM_DUPLICATE_FRAME 401
-#define ID_ANIM_DELETE_FRAME 402
-#define ID_ANIM_PREV_FRAME   407
-#define ID_ANIM_NEXT_FRAME   408
-#define ID_ANIM_PLAY         403
-#define ID_ANIM_STOP         404
-#define ID_ANIM_LOOP         405
-#define ID_ANIM_EXPORT_GIF   410
-#define ID_ANIM_EXPORT_APNG  411
-#define ID_ANIM_EXPORT_SPRITESHEET 412
-#define ID_ANIM_SET_FPS      406
-#define ID_HELP_ABOUT        100
+/* Menu and toolbar command IDs generated as symbolic enums. */
+enum {
+  ID_FILE_NEW = ID_COMMAND_BASE + 1,
+  ID_FILE_OPEN,
+  ID_FILE_SAVE,
+  ID_FILE_SAVEAS,
+  ID_FILE_CLOSE,
+  ID_FILE_QUIT,
+  ID_EDIT_UNDO,
+  ID_EDIT_REDO,
+  ID_EDIT_CUT,
+  ID_EDIT_COPY,
+  ID_EDIT_PASTE,
+  ID_SELECT_ALL,
+  ID_SELECT_DESELECT,
+  ID_SELECT_CLEAR,
+  ID_SELECT_EXPAND,
+  ID_SELECT_CONTRACT,
+  ID_IMAGE_CROP,
+  ID_IMAGE_RESIZE,
+  ID_IMAGE_CANVAS_SIZE,
+  ID_IMAGE_FLIP_H,
+  ID_IMAGE_FLIP_V,
+  ID_IMAGE_INVERT,
+  ID_IMAGE_LEVELS,
+  ID_FILTER_RELOAD,
+  ID_FILTER_GALLERY,
+  ID_FILTER_BLUR,
+  ID_FILTER_SHARPEN,
+  ID_FILTER_EDGE,
+  ID_LAYER_NEW,
+  ID_LAYER_DUPLICATE,
+  ID_LAYER_DELETE,
+  ID_LAYER_MOVE_UP,
+  ID_LAYER_MOVE_DOWN,
+  ID_LAYER_MERGE_DOWN,
+  ID_LAYER_FLATTEN,
+  ID_LAYER_FILL_FOREGROUND,
+  ID_LAYER_FILL_BACKGROUND,
+  ID_LAYER_ADD_MASK,
+  ID_LAYER_APPLY_MASK,
+  ID_LAYER_REMOVE_MASK,
+  ID_LAYER_EXTRACT_MASK,
+  ID_LAYER_EDIT_MASK,
+  ID_VIEW_ZOOM_IN,
+  ID_VIEW_ZOOM_OUT,
+  ID_VIEW_ZOOM_FIT,
+  ID_VIEW_ZOOM_1X,
+  ID_VIEW_ZOOM_2X,
+  ID_VIEW_ZOOM_4X,
+  ID_VIEW_ZOOM_6X,
+  ID_VIEW_ZOOM_8X,
+  ID_VIEW_SHOW_GRID,
+  ID_VIEW_SNAP_GRID,
+  ID_VIEW_SHOW_BACKGROUND,
+  ID_VIEW_MASK_ONLY,
+  ID_VIEW_GRID_OPTIONS,
+  ID_WINDOW_TOOLS,
+  ID_WINDOW_COLORS,
+  ID_WINDOW_LAYERS,
+  ID_WINDOW_TIMELINE,
+  ID_ANIM_NEW_FRAME,
+  ID_ANIM_DUPLICATE_FRAME,
+  ID_ANIM_DELETE_FRAME,
+  ID_ANIM_PREV_FRAME,
+  ID_ANIM_NEXT_FRAME,
+  ID_ANIM_PLAY,
+  ID_ANIM_STOP,
+  ID_ANIM_LOOP,
+  ID_ANIM_EXPORT_GIF,
+  ID_ANIM_EXPORT_APNG,
+  ID_ANIM_EXPORT_SPRITESHEET,
+  ID_ANIM_SET_FPS,
+  ID_HELP_ABOUT
+};
 
 /* Control IDs generated as symbolic enums. */
 enum {
-  NI_ID_WIDTH = ID_CONTROL_BASE + 1,
-  NI_ID_HEIGHT,
-  NI_ID_OK,
-  NI_ID_CANCEL,
-  IR_ID_WIDTH,
-  IR_ID_HEIGHT,
-  IR_ID_FILTER,
-  IR_ID_OK,
-  IR_ID_CANCEL,
-  GO_ID_LBL_H,
-  GO_ID_LBL_V,
-  GO_ID_GRIDX,
-  GO_ID_GRIDY,
-  GO_ID_OK,
-  GO_ID_CANCEL,
-  SM_ID_AMOUNT,
-  SM_ID_OK,
-  SM_ID_CANCEL,
-  NL_ID_FILL,
-  NL_ID_OK,
-  NL_ID_CANCEL,
-  EM_ID_FILL,
-  EM_ID_OK,
-  EM_ID_CANCEL,
-  TD_ID_EDIT,
-  TD_ID_SIZE_LBL,
-  TD_ID_SIZE,
-  TD_ID_SWATCH,
-  TD_ID_COLOR,
-  TD_ID_AA,
-  TD_ID_OK,
-  TD_ID_CANCEL,
-  LV_ID_IN_BLACK,
-  LV_ID_IN_GAMMA,
-  LV_ID_IN_WHITE,
-  LV_ID_GRAPH,
-  LV_ID_IN_SLIDER,
-  LV_ID_OUT_BLACK,
-  LV_ID_OUT_WHITE,
-  LV_ID_OUT_SLIDER,
-  LV_ID_PREVIEW,
-  LV_ID_OK,
-  LV_ID_RESET,
-  LV_ID_CANCEL,
-  FG_ID_PREVIEW,
-  FG_ID_LABEL,
-  FG_ID_LIST,
-  FG_ID_OK,
-  FG_ID_CANCEL,
-  BL_ID_AMOUNT_LBL,
-  BL_ID_AMOUNT,
-  BL_ID_PREVIEW,
-  BL_ID_OK,
-  BL_ID_CANCEL
+  ID_NEW_IMAGE_LBL_WIDTH = ID_CONTROL_BASE + 1,
+  ID_NEW_IMAGE_LBL_HEIGHT,
+  ID_NEW_IMAGE_WIDTH,
+  ID_NEW_IMAGE_HEIGHT,
+  ID_NEW_IMAGE_OK,
+  ID_NEW_IMAGE_CANCEL,
+  ID_IMAGE_RESIZE_LBL_WIDTH,
+  ID_IMAGE_RESIZE_WIDTH,
+  ID_IMAGE_RESIZE_LBL_HEIGHT,
+  ID_IMAGE_RESIZE_HEIGHT,
+  ID_IMAGE_RESIZE_LBL_FILTER,
+  ID_IMAGE_RESIZE_FILTER,
+  ID_IMAGE_RESIZE_OK,
+  ID_IMAGE_RESIZE_CANCEL,
+  ID_GRID_OPTIONS_LBL_H,
+  ID_GRID_OPTIONS_LBL_V,
+  ID_GRID_OPTIONS_GRIDX,
+  ID_GRID_OPTIONS_GRIDY,
+  ID_GRID_OPTIONS_OK,
+  ID_GRID_OPTIONS_CANCEL,
+  ID_SELECTION_MODIFY_LBL_AMOUNT,
+  ID_SELECTION_MODIFY_AMOUNT,
+  ID_SELECTION_MODIFY_LBL_PIXELS,
+  ID_SELECTION_MODIFY_OK,
+  ID_SELECTION_MODIFY_CANCEL,
+  ID_NEW_LAYER_LBL_FILL,
+  ID_NEW_LAYER_COMBO_FILL,
+  ID_NEW_LAYER_OK,
+  ID_NEW_LAYER_CANCEL,
+  ID_ADD_MASK_LBL_FILL,
+  ID_ADD_MASK_COMBO_FILL,
+  ID_ADD_MASK_OK,
+  ID_ADD_MASK_CANCEL,
+  ID_TEXT_TOOL_LBL_TEXT,
+  ID_TEXT_TOOL_EDIT_TEXT,
+  ID_TEXT_TOOL_LBL_SIZE,
+  ID_TEXT_TOOL_SIZE,
+  ID_TEXT_TOOL_LBL_COLOR,
+  ID_TEXT_TOOL_SWATCH,
+  ID_TEXT_TOOL_BTN_COLOR,
+  ID_TEXT_TOOL_CHK_AA,
+  ID_TEXT_TOOL_BTN_OK,
+  ID_TEXT_TOOL_BTN_CANCEL,
+  ID_LEVELS_IN_LABEL,
+  ID_LEVELS_IN_BLACK,
+  ID_LEVELS_IN_GAMMA,
+  ID_LEVELS_IN_WHITE,
+  ID_LEVELS_GRAPH,
+  ID_LEVELS_IN_SLIDER,
+  ID_LEVELS_OUT_LABEL,
+  ID_LEVELS_OUT_BLACK,
+  ID_LEVELS_OUT_WHITE,
+  ID_LEVELS_OUT_GRAD,
+  ID_LEVELS_OUT_SLIDER,
+  ID_LEVELS_PREVIEW,
+  ID_LEVELS_OK,
+  ID_LEVELS_RESET,
+  ID_LEVELS_CANCEL,
+  ID_FILTER_GALLERY_PREVIEW,
+  ID_FILTER_GALLERY_FILTER_NAME,
+  ID_FILTER_GALLERY_FILTERS,
+  ID_FILTER_GALLERY_OK,
+  ID_FILTER_GALLERY_CANCEL,
+  ID_BLUR_DIALOG_AMOUNT_LABEL,
+  ID_BLUR_DIALOG_AMOUNT,
+  ID_BLUR_DIALOG_PREVIEW,
+  ID_BLUR_DIALOG_OK,
+  ID_BLUR_DIALOG_CANCEL
 };
 
 /* Top-level menu indices generated from <menu> order. */
-#define MENU_FILE_INDEX 0
-#define MENU_EDIT_INDEX 1
-#define MENU_SELECT_INDEX 2
-#define MENU_IMAGE_INDEX 3
-#define MENU_FILTER_INDEX 4
-#define MENU_LAYER_INDEX 5
-#define MENU_VIEW_INDEX 6
-#define MENU_WINDOW_INDEX 7
-#define MENU_ANIM_INDEX 8
-#define MENU_HELP_INDEX 9
+enum {
+  MENU_FILE_INDEX = 0,
+  MENU_EDIT_INDEX = 1,
+  MENU_SELECT_INDEX = 2,
+  MENU_IMAGE_INDEX = 3,
+  MENU_FILTER_INDEX = 4,
+  MENU_LAYER_INDEX = 5,
+  MENU_VIEW_INDEX = 6,
+  MENU_WINDOW_INDEX = 7,
+  MENU_ANIM_INDEX = 8,
+  MENU_HELP_INDEX = 9,
+};
 
 static const menu_item_t kFileItems[] = {
-  { "New", ID_FILE_NEW, NULL, 0 },
-  { "Open...", ID_FILE_OPEN, NULL, 0 },
+  { "New", ID_MENU_NEW, NULL, 0 },
+  { "Open...", ID_MENU_OPEN, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Save", ID_FILE_SAVE, NULL, 0 },
-  { "Save As...", ID_FILE_SAVEAS, NULL, 0 },
+  { "Save", ID_MENU_SAVE, NULL, 0 },
+  { "Save As...", ID_MENU_SAVEAS, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Close", ID_FILE_CLOSE, NULL, 0 },
+  { "Close", ID_MENU_CLOSE, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Quit", ID_FILE_QUIT, NULL, 0 },
+  { "Quit", ID_MENU_QUIT, NULL, 0 },
 };
 
 static const menu_item_t kEditItems[] = {
-  { "Undo", ID_EDIT_UNDO, NULL, 0 },
-  { "Redo", ID_EDIT_REDO, NULL, 0 },
+  { "Undo", ID_MENU_UNDO, NULL, 0 },
+  { "Redo", ID_MENU_REDO, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Cut", ID_EDIT_CUT, NULL, 0 },
-  { "Copy", ID_EDIT_COPY, NULL, 0 },
-  { "Paste", ID_EDIT_PASTE, NULL, 0 },
+  { "Cut", ID_MENU_CUT, NULL, 0 },
+  { "Copy", ID_MENU_COPY, NULL, 0 },
+  { "Paste", ID_MENU_PASTE, NULL, 0 },
 };
 
 static const menu_item_t kSelectItems[] = {
-  { "All", ID_SELECT_ALL, NULL, 0 },
-  { "Deselect", ID_SELECT_DESELECT, NULL, 0 },
+  { "All", ID_MENU_ALL, NULL, 0 },
+  { "Deselect", ID_MENU_DESELECT, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Clear Selection", ID_SELECT_CLEAR, NULL, 0 },
+  { "Clear Selection", ID_MENU_CLEAR, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Expand...", ID_SELECT_EXPAND, NULL, 0 },
-  { "Contract...", ID_SELECT_CONTRACT, NULL, 0 },
+  { "Expand...", ID_MENU_EXPAND, NULL, 0 },
+  { "Contract...", ID_MENU_CONTRACT, NULL, 0 },
 };
 
 static const menu_item_t kImageItems[] = {
-  { "Crop\tC", ID_IMAGE_CROP, NULL, 0 },
+  { "Crop\tC", ID_MENU_CROP, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Image Size...", ID_IMAGE_RESIZE, NULL, 0 },
-  { "Canvas Size...", ID_IMAGE_CANVAS_SIZE, NULL, 0 },
+  { "Image Size...", ID_MENU_RESIZE, NULL, 0 },
+  { "Canvas Size...", ID_MENU_CANVAS_SIZE, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Flip Horizontal", ID_IMAGE_FLIP_H, NULL, 0 },
-  { "Flip Vertical", ID_IMAGE_FLIP_V, NULL, 0 },
+  { "Flip Horizontal", ID_MENU_FLIP_H, NULL, 0 },
+  { "Flip Vertical", ID_MENU_FLIP_V, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Invert Colors", ID_IMAGE_INVERT, NULL, 0 },
-  { "Levels...", ID_IMAGE_LEVELS, NULL, 0 },
+  { "Invert Colors", ID_MENU_INVERT, NULL, 0 },
+  { "Levels...", ID_MENU_LEVELS, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems_blur[] = {
-  { "Blur", ID_FILTER_BLUR, NULL, 0 },
+  { "Blur", ID_MENU_BLUR, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems_sharpen[] = {
-  { "Sharpen", ID_FILTER_SHARPEN, NULL, 0 },
+  { "Sharpen", ID_MENU_SHARPEN, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems_stylize[] = {
-  { "Find Edges", ID_FILTER_EDGE, NULL, 0 },
+  { "Find Edges", ID_MENU_EDGE, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems[] = {
-  { "Reload Filters", ID_FILTER_RELOAD, NULL, 0 },
-  { "Filter Gallery...", ID_FILTER_GALLERY, NULL, 0 },
+  { "Reload Filters", ID_MENU_RELOAD, NULL, 0 },
+  { "Filter Gallery...", ID_MENU_GALLERY, NULL, 0 },
   { NULL, 0, NULL, 0 },
   { "Blur", 0, kFilterItems_blur, (int)(sizeof(kFilterItems_blur) / sizeof(kFilterItems_blur[0])) },
   { "Sharpen", 0, kFilterItems_sharpen, (int)(sizeof(kFilterItems_sharpen) / sizeof(kFilterItems_sharpen[0])) },
@@ -215,73 +233,73 @@ static const menu_item_t kFilterItems[] = {
 };
 
 static const menu_item_t kLayerItems[] = {
-  { "New Layer", ID_LAYER_NEW, NULL, 0 },
-  { "Duplicate Layer", ID_LAYER_DUPLICATE, NULL, 0 },
-  { "Delete Layer", ID_LAYER_DELETE, NULL, 0 },
+  { "New Layer", ID_MENU_NEW, NULL, 0 },
+  { "Duplicate Layer", ID_MENU_DUPLICATE, NULL, 0 },
+  { "Delete Layer", ID_MENU_DELETE, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Move Layer Up", ID_LAYER_MOVE_UP, NULL, 0 },
-  { "Move Layer Down", ID_LAYER_MOVE_DOWN, NULL, 0 },
+  { "Move Layer Up", ID_MENU_MOVE_UP, NULL, 0 },
+  { "Move Layer Down", ID_MENU_MOVE_DOWN, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Merge Down", ID_LAYER_MERGE_DOWN, NULL, 0 },
-  { "Flatten Image", ID_LAYER_FLATTEN, NULL, 0 },
-  { "Fill with Foreground Color\tAlt+Backspace", ID_LAYER_FILL_FOREGROUND, NULL, 0 },
-  { "Fill with Background Color\tCtrl+Backspace", ID_LAYER_FILL_BACKGROUND, NULL, 0 },
+  { "Merge Down", ID_MENU_MERGE_DOWN, NULL, 0 },
+  { "Flatten Image", ID_MENU_FLATTEN, NULL, 0 },
+  { "Fill with Foreground Color\tAlt+Backspace", ID_MENU_FILL_FOREGROUND, NULL, 0 },
+  { "Fill with Background Color\tCtrl+Backspace", ID_MENU_FILL_BACKGROUND, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Add Mask", ID_LAYER_ADD_MASK, NULL, 0 },
-  { "Apply Mask", ID_LAYER_APPLY_MASK, NULL, 0 },
-  { "Remove Mask", ID_LAYER_REMOVE_MASK, NULL, 0 },
-  { "Extract Mask", ID_LAYER_EXTRACT_MASK, NULL, 0 },
+  { "Add Mask", ID_MENU_ADD_MASK, NULL, 0 },
+  { "Apply Mask", ID_MENU_APPLY_MASK, NULL, 0 },
+  { "Remove Mask", ID_MENU_REMOVE_MASK, NULL, 0 },
+  { "Extract Mask", ID_MENU_EXTRACT_MASK, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "[ ] Edit Mask", ID_LAYER_EDIT_MASK, NULL, 0 },
+  { "[ ] Edit Mask", ID_MENU_EDIT_MASK, NULL, 0 },
 };
 
 static menu_item_t s_view_items[] = {
-  { "Zoom In", ID_VIEW_ZOOM_IN, NULL, 0 },
-  { "Zoom Out", ID_VIEW_ZOOM_OUT, NULL, 0 },
-  { "Fit on Screen", ID_VIEW_ZOOM_FIT, NULL, 0 },
+  { "Zoom In", ID_MENU_ZOOM_IN, NULL, 0 },
+  { "Zoom Out", ID_MENU_ZOOM_OUT, NULL, 0 },
+  { "Fit on Screen", ID_MENU_ZOOM_FIT, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "1x", ID_VIEW_ZOOM_1X, NULL, 0 },
-  { "2x", ID_VIEW_ZOOM_2X, NULL, 0 },
-  { "4x", ID_VIEW_ZOOM_4X, NULL, 0 },
-  { "6x", ID_VIEW_ZOOM_6X, NULL, 0 },
-  { "8x", ID_VIEW_ZOOM_8X, NULL, 0 },
+  { "1x", ID_MENU_ZOOM_1X, NULL, 0 },
+  { "2x", ID_MENU_ZOOM_2X, NULL, 0 },
+  { "4x", ID_MENU_ZOOM_4X, NULL, 0 },
+  { "6x", ID_MENU_ZOOM_6X, NULL, 0 },
+  { "8x", ID_MENU_ZOOM_8X, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "[ ] Show Grid", ID_VIEW_SHOW_GRID, NULL, 0 },
-  { "[ ] Snap to Grid", ID_VIEW_SNAP_GRID, NULL, 0 },
-  { "[x] Show Background", ID_VIEW_SHOW_BACKGROUND, NULL, 0 },
-  { "[ ] Mask Only View", ID_VIEW_MASK_ONLY, NULL, 0 },
+  { "[ ] Show Grid", ID_MENU_SHOW_GRID, NULL, 0 },
+  { "[ ] Snap to Grid", ID_MENU_SNAP_GRID, NULL, 0 },
+  { "[x] Show Background", ID_MENU_SHOW_BACKGROUND, NULL, 0 },
+  { "[ ] Mask Only View", ID_MENU_MASK_ONLY, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Grid Options...", ID_VIEW_GRID_OPTIONS, NULL, 0 },
+  { "Grid Options...", ID_MENU_GRID_OPTIONS, NULL, 0 },
 };
 
 static const menu_item_t kWindowItems[] = {
-  { "Tools", ID_WINDOW_TOOLS, NULL, 0 },
-  { "Colors", ID_WINDOW_COLORS, NULL, 0 },
-  { "Layers", ID_WINDOW_LAYERS, NULL, 0 },
-  { "Timeline", ID_WINDOW_TIMELINE, NULL, 0 },
+  { "Tools", ID_MENU_TOOLS, NULL, 0 },
+  { "Colors", ID_MENU_COLORS, NULL, 0 },
+  { "Layers", ID_MENU_LAYERS, NULL, 0 },
+  { "Timeline", ID_MENU_TIMELINE, NULL, 0 },
   { NULL, 0, NULL, 0 },
 };
 
 static const menu_item_t kAnimItems[] = {
-  { "New Frame", ID_ANIM_NEW_FRAME, NULL, 0 },
-  { "Duplicate Frame", ID_ANIM_DUPLICATE_FRAME, NULL, 0 },
-  { "Delete Frame", ID_ANIM_DELETE_FRAME, NULL, 0 },
+  { "New Frame", ID_MENU_NEW_FRAME, NULL, 0 },
+  { "Duplicate Frame", ID_MENU_DUPLICATE_FRAME, NULL, 0 },
+  { "Delete Frame", ID_MENU_DELETE_FRAME, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Previous Frame\tPage Up", ID_ANIM_PREV_FRAME, NULL, 0 },
-  { "Next Frame\tPage Down", ID_ANIM_NEXT_FRAME, NULL, 0 },
+  { "Previous Frame\tPage Up", ID_MENU_PREV_FRAME, NULL, 0 },
+  { "Next Frame\tPage Down", ID_MENU_NEXT_FRAME, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Play", ID_ANIM_PLAY, NULL, 0 },
-  { "Stop", ID_ANIM_STOP, NULL, 0 },
-  { "[ ] Loop", ID_ANIM_LOOP, NULL, 0 },
+  { "Play", ID_MENU_PLAY, NULL, 0 },
+  { "Stop", ID_MENU_STOP, NULL, 0 },
+  { "[ ] Loop", ID_MENU_LOOP, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Export GIF...", ID_ANIM_EXPORT_GIF, NULL, 0 },
-  { "Export APNG...", ID_ANIM_EXPORT_APNG, NULL, 0 },
-  { "Export Sprite Sheet...", ID_ANIM_EXPORT_SPRITESHEET, NULL, 0 },
-  { "Set FPS...", ID_ANIM_SET_FPS, NULL, 0 },
+  { "Export GIF...", ID_MENU_EXPORT_GIF, NULL, 0 },
+  { "Export APNG...", ID_MENU_EXPORT_APNG, NULL, 0 },
+  { "Export Sprite Sheet...", ID_MENU_EXPORT_SPRITESHEET, NULL, 0 },
+  { "Set FPS...", ID_MENU_SET_FPS, NULL, 0 },
 };
 
 static const menu_item_t kHelpItems[] = {
-  { "About...", ID_HELP_ABOUT, NULL, 0 },
+  { "About...", ID_MENU_ABOUT, NULL, 0 },
 };
 
 static menu_def_t kMenus[] = {
@@ -315,12 +333,12 @@ static const toolbar_item_t kMainToolbar[] = {
 static const int kMainToolbarCount = (int)(sizeof(kMainToolbar) / sizeof(kMainToolbar[0]));
 
 static const form_ctrl_def_t imageeditor_new_image_children[] = {
-  { "label", -1, { 4, 8, 56, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", -1, { 4, 29, 56, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", NI_ID_WIDTH, { 62, 8, 56, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", NI_ID_HEIGHT, { 62, 29, 56, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", NI_ID_OK, { 92, 54, 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", NI_ID_CANCEL, { 136, 54, 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_NEW_IMAGE_LBL_WIDTH, { 4, 8, 56, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_NEW_IMAGE_LBL_HEIGHT, { 4, 29, 56, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_NEW_IMAGE_WIDTH, { 62, 8, 56, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_NEW_IMAGE_HEIGHT, { 62, 29, 56, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_NEW_IMAGE_OK, { 92, 54, 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_NEW_IMAGE_CANCEL, { 136, 54, 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_new_image_form = {
@@ -340,14 +358,14 @@ static const form_def_t imageeditor_new_image_form = {
 };
 
 static const form_ctrl_def_t imageeditor_image_resize_children[] = {
-  { "label", -1, { 4, 8, 44, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", IR_ID_WIDTH, { 54, 8, 72, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", -1, { 4, 29, 44, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", IR_ID_HEIGHT, { 54, 29, 72, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", -1, { 4, 50, 44, 13 }, 0, "Filter:", "lbl_filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "combobox", IR_ID_FILTER, { 54, 50, 150, 13 }, 0, "", "filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", IR_ID_OK, { 112, 79, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", IR_ID_CANCEL, { 160, 79, 46, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_IMAGE_RESIZE_LBL_WIDTH, { 4, 8, 44, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_IMAGE_RESIZE_WIDTH, { 54, 8, 72, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_IMAGE_RESIZE_LBL_HEIGHT, { 4, 29, 44, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_IMAGE_RESIZE_HEIGHT, { 54, 29, 72, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_IMAGE_RESIZE_LBL_FILTER, { 4, 50, 44, 13 }, 0, "Filter:", "lbl_filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "combobox", ID_IMAGE_RESIZE_FILTER, { 54, 50, 150, 13 }, 0, "", "filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_IMAGE_RESIZE_OK, { 112, 79, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_IMAGE_RESIZE_CANCEL, { 160, 79, 46, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_image_resize_form = {
@@ -367,12 +385,12 @@ static const form_def_t imageeditor_image_resize_form = {
 };
 
 static const form_ctrl_def_t imageeditor_grid_options_children[] = {
-  { "label", GO_ID_LBL_H, { 4, 9, 66, 13 }, 0, "Horizontal:", "lbl_h", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", GO_ID_LBL_V, { 4, 26, 66, 13 }, 0, "Vertical:", "lbl_v", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", GO_ID_GRIDX, { 74, 8, 56, 13 }, 0, "", "gridx", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", GO_ID_GRIDY, { 74, 25, 56, 13 }, 0, "", "gridy", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", GO_ID_OK, { 92, 44, 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", GO_ID_CANCEL, { 136, 44, 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_GRID_OPTIONS_LBL_H, { 4, 9, 66, 13 }, 0, "Horizontal:", "lbl_h", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_GRID_OPTIONS_LBL_V, { 4, 26, 66, 13 }, 0, "Vertical:", "lbl_v", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_GRID_OPTIONS_GRIDX, { 74, 8, 56, 13 }, 0, "", "gridx", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_GRID_OPTIONS_GRIDY, { 74, 25, 56, 13 }, 0, "", "gridy", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_GRID_OPTIONS_OK, { 92, 44, 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_GRID_OPTIONS_CANCEL, { 136, 44, 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_grid_options_form = {
@@ -392,11 +410,11 @@ static const form_def_t imageeditor_grid_options_form = {
 };
 
 static const form_ctrl_def_t imageeditor_selection_modify_children[] = {
-  { "label", -1, { 8, 10, 34, 13 }, 0, "By:", "lbl_amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", SM_ID_AMOUNT, { 44, 9, 56, 13 }, 0, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", -1, { 106, 10, 44, 13 }, 0, "pixels", "lbl_pixels", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", SM_ID_OK, { 84, 35, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", SM_ID_CANCEL, { 132, 35, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_SELECTION_MODIFY_LBL_AMOUNT, { 8, 10, 34, 13 }, 0, "By:", "lbl_amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_SELECTION_MODIFY_AMOUNT, { 44, 9, 56, 13 }, 0, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_SELECTION_MODIFY_LBL_PIXELS, { 106, 10, 44, 13 }, 0, "pixels", "lbl_pixels", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_SELECTION_MODIFY_OK, { 84, 35, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_SELECTION_MODIFY_CANCEL, { 132, 35, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_selection_modify_form = {
@@ -416,10 +434,10 @@ static const form_def_t imageeditor_selection_modify_form = {
 };
 
 static const form_ctrl_def_t imageeditor_new_layer_children[] = {
-  { "label", -1, { 4, 8, 48, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "combobox", NL_ID_FILL, { 54, 8, 138, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", NL_ID_OK, { 104, 33, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", NL_ID_CANCEL, { 152, 33, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_NEW_LAYER_LBL_FILL, { 4, 8, 48, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "combobox", ID_NEW_LAYER_COMBO_FILL, { 54, 8, 138, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_NEW_LAYER_OK, { 104, 33, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_NEW_LAYER_CANCEL, { 152, 33, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_new_layer_form = {
@@ -439,10 +457,10 @@ static const form_def_t imageeditor_new_layer_form = {
 };
 
 static const form_ctrl_def_t imageeditor_add_mask_children[] = {
-  { "label", -1, { 4, 10, 64, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "combobox", EM_ID_FILL, { 70, 10, 140, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", EM_ID_OK, { 124, 35, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", EM_ID_CANCEL, { 172, 35, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_ADD_MASK_LBL_FILL, { 4, 10, 64, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "combobox", ID_ADD_MASK_COMBO_FILL, { 70, 10, 140, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_ADD_MASK_OK, { 124, 35, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_ADD_MASK_CANCEL, { 172, 35, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_add_mask_form = {
@@ -462,16 +480,16 @@ static const form_def_t imageeditor_add_mask_form = {
 };
 
 static const form_ctrl_def_t imageeditor_text_tool_children[] = {
-  { "label", -1, { 2, 3, 36, 13 }, 0, "Text:", "lbl_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", TD_ID_EDIT, { 2, 12, 216, 13 }, 0, "", "edit_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", TD_ID_SIZE_LBL, { 2, 30, 80, 13 }, 0, "Size: 16px", "lbl_size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "slider", TD_ID_SIZE, { 2, 36, 216, 17 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", -1, { 2, 55, 36, 13 }, 0, "Color:", "lbl_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "space", TD_ID_SWATCH, { 40, 53, 14, 11 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "swatch", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", TD_ID_COLOR, { 58, 52, 54, 19 }, 0, "Change...", "btn_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "checkbox", TD_ID_AA, { 118, 53, 74, 12 }, 0, "Anti-alias", "chk_aa", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", TD_ID_OK, { 2, 71, 38, 19 }, 0, "OK", "btn_ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", TD_ID_CANCEL, { 44, 71, 50, 19 }, 0, "Cancel", "btn_cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_TEXT_TOOL_LBL_TEXT, { 2, 3, 36, 13 }, 0, "Text:", "lbl_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_TEXT_TOOL_EDIT_TEXT, { 2, 12, 216, 13 }, 0, "", "edit_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_TEXT_TOOL_LBL_SIZE, { 2, 30, 80, 13 }, 0, "Size: 16px", "lbl_size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "slider", ID_TEXT_TOOL_SIZE, { 2, 36, 216, 17 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_TEXT_TOOL_LBL_COLOR, { 2, 55, 36, 13 }, 0, "Color:", "lbl_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "space", ID_TEXT_TOOL_SWATCH, { 40, 53, 14, 11 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "swatch", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_TEXT_TOOL_BTN_COLOR, { 58, 52, 54, 19 }, 0, "Change...", "btn_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "checkbox", ID_TEXT_TOOL_CHK_AA, { 118, 53, 74, 12 }, 0, "Anti-alias", "chk_aa", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_TEXT_TOOL_BTN_OK, { 2, 71, 38, 19 }, 0, "OK", "btn_ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_TEXT_TOOL_BTN_CANCEL, { 44, 71, 50, 19 }, 0, "Cancel", "btn_cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_text_tool_form = {
@@ -491,21 +509,21 @@ static const form_def_t imageeditor_text_tool_form = {
 };
 
 static const form_ctrl_def_t imageeditor_levels_children[] = {
-  { "label", 0, { 10, 4, 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Input Levels:", "in_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", LV_ID_IN_BLACK, { 84, 0, 34, 13 }, 0, "0", "in_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", LV_ID_IN_GAMMA, { 122, 0, 34, 13 }, 0, "1.00", "in_gamma", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", LV_ID_IN_WHITE, { 160, 0, 34, 13 }, 0, "255", "in_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "lv_histogram", LV_ID_GRAPH, { 10, 21, 260, 84 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "graph", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "slider", LV_ID_IN_SLIDER, { 10, 107, 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "in_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", 0, { 10, 128, 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Output Levels:", "out_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", LV_ID_OUT_BLACK, { 84, 128, 34, 13 }, 0, "0", "out_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "textedit", LV_ID_OUT_WHITE, { 160, 128, 34, 13 }, 0, "255", "out_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "gradient", 0, { 18, 146, 244, 8 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_grad", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "slider", LV_ID_OUT_SLIDER, { 10, 156, 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "checkbox", LV_ID_PREVIEW, { 10, 178, 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", LV_ID_OK, { 116, 198, 48, 19 }, 0, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", LV_ID_RESET, { 168, 198, 48, 19 }, 0, "Reset", "reset", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", LV_ID_CANCEL, { 220, 198, 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_LEVELS_IN_LABEL, { 10, 4, 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Input Levels:", "in_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_LEVELS_IN_BLACK, { 84, 0, 34, 13 }, 0, "0", "in_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_LEVELS_IN_GAMMA, { 122, 0, 34, 13 }, 0, "1.00", "in_gamma", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_LEVELS_IN_WHITE, { 160, 0, 34, 13 }, 0, "255", "in_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "lv_histogram", ID_LEVELS_GRAPH, { 10, 21, 260, 84 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "graph", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "slider", ID_LEVELS_IN_SLIDER, { 10, 107, 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "in_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_LEVELS_OUT_LABEL, { 10, 128, 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Output Levels:", "out_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_LEVELS_OUT_BLACK, { 84, 128, 34, 13 }, 0, "0", "out_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "textedit", ID_LEVELS_OUT_WHITE, { 160, 128, 34, 13 }, 0, "255", "out_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "gradient", ID_LEVELS_OUT_GRAD, { 18, 146, 244, 8 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_grad", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "slider", ID_LEVELS_OUT_SLIDER, { 10, 156, 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "checkbox", ID_LEVELS_PREVIEW, { 10, 178, 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_LEVELS_OK, { 116, 198, 48, 19 }, 0, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_LEVELS_RESET, { 168, 198, 48, 19 }, 0, "Reset", "reset", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_LEVELS_CANCEL, { 220, 198, 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_levels_form = {
@@ -525,11 +543,11 @@ static const form_def_t imageeditor_levels_form = {
 };
 
 static const form_ctrl_def_t imageeditor_filter_gallery_children[] = {
-  { "filter_preview", FG_ID_PREVIEW, { 14, 18, 248, 248 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "label", FG_ID_LABEL, { 14, 276, 248, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "No filters loaded", "filter_name", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "reportview", FG_ID_LIST, { 286, 18, 256, 290 }, WINDOW_NOTITLE | WINDOW_NORESIZE, "", "filters", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", FG_ID_OK, { 404, 326, 66, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", FG_ID_CANCEL, { 478, 326, 66, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "filter_preview", ID_FILTER_GALLERY_PREVIEW, { 14, 18, 248, 248 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_FILTER_GALLERY_FILTER_NAME, { 14, 276, 248, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "No filters loaded", "filter_name", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "reportview", ID_FILTER_GALLERY_FILTERS, { 286, 18, 256, 290 }, WINDOW_NOTITLE | WINDOW_NORESIZE, "", "filters", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_FILTER_GALLERY_OK, { 404, 326, 66, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_FILTER_GALLERY_CANCEL, { 478, 326, 66, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_filter_gallery_form = {
@@ -549,11 +567,11 @@ static const form_def_t imageeditor_filter_gallery_form = {
 };
 
 static const form_ctrl_def_t imageeditor_blur_dialog_children[] = {
-  { "label", BL_ID_AMOUNT_LBL, { 10, 8, 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Blur: 4px", "amount_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "slider", BL_ID_AMOUNT, { 10, 26, 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "checkbox", BL_ID_PREVIEW, { 10, 48, 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", BL_ID_OK, { 92, 68, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
-  { "button", BL_ID_CANCEL, { 140, 68, 56, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "label", ID_BLUR_DIALOG_AMOUNT_LABEL, { 10, 8, 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Blur: 4px", "amount_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "slider", ID_BLUR_DIALOG_AMOUNT, { 10, 26, 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "checkbox", ID_BLUR_DIALOG_PREVIEW, { 10, 48, 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_BLUR_DIALOG_OK, { 92, 68, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
+  { "button", ID_BLUR_DIALOG_CANCEL, { 140, 68, 56, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0 },
 };
 
 static const form_def_t imageeditor_blur_dialog_form = {

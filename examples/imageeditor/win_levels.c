@@ -21,11 +21,11 @@ static void lv_apply_slider_values(lv_state_t *st, uint16_t slider_id);
 static void lv_sync_component_views(lv_state_t *st);
 
 static const ctrl_binding_t k_lv_bindings[] = {
-  DDX_TEXT(LV_ID_IN_BLACK,   lv_ddx_state_t, in_black),
-  DDX_TEXT(LV_ID_IN_GAMMA,   lv_ddx_state_t, in_gamma),
-  DDX_TEXT(LV_ID_IN_WHITE,   lv_ddx_state_t, in_white),
-  DDX_TEXT(LV_ID_OUT_BLACK,  lv_ddx_state_t, out_black),
-  DDX_TEXT(LV_ID_OUT_WHITE,  lv_ddx_state_t, out_white),
+  DDX_TEXT(ID_LEVELS_IN_BLACK,   lv_ddx_state_t, in_black),
+  DDX_TEXT(ID_LEVELS_IN_GAMMA,   lv_ddx_state_t, in_gamma),
+  DDX_TEXT(ID_LEVELS_IN_WHITE,   lv_ddx_state_t, in_white),
+  DDX_TEXT(ID_LEVELS_OUT_BLACK,  lv_ddx_state_t, out_black),
+  DDX_TEXT(ID_LEVELS_OUT_WHITE,  lv_ddx_state_t, out_white),
 };
 
 static int lv_mid_from_gamma(const lv_state_t *st) {
@@ -70,7 +70,7 @@ static void lv_apply_slider_values(lv_state_t *st, uint16_t slider_id) {
   window_t *slider = NULL;
   if (!st) return;
 
-  if (slider_id == LV_ID_IN_SLIDER) {
+  if (slider_id == ID_LEVELS_IN_SLIDER) {
     slider = st->in_slider_win;
     if (!slider) return;
     s0 = (int)send_message(slider, slGetPos, LV_STRIP_INDEX_MIN, NULL);
@@ -87,7 +87,7 @@ static void lv_apply_slider_values(lv_state_t *st, uint16_t slider_id) {
     return;
   }
 
-  if (slider_id == LV_ID_OUT_SLIDER) {
+  if (slider_id == ID_LEVELS_OUT_SLIDER) {
     slider = st->out_slider_win;
     if (!slider) return;
     s0 = (int)send_message(slider, slGetPos, LV_STRIP_INDEX_MIN, NULL);
@@ -234,10 +234,10 @@ static result_t levels_dlg_proc(window_t *win, uint32_t msg,
 
       st->dlg_win = win;
 
-      st->graph_win = get_window_item(win, LV_ID_GRAPH);
-      st->in_slider_win = get_window_item(win, LV_ID_IN_SLIDER);
-      st->out_slider_win = get_window_item(win, LV_ID_OUT_SLIDER);
-      st->preview_win = get_window_item(win, LV_ID_PREVIEW);
+      st->graph_win = get_window_item(win, ID_LEVELS_GRAPH);
+      st->in_slider_win = get_window_item(win, ID_LEVELS_IN_SLIDER);
+      st->out_slider_win = get_window_item(win, ID_LEVELS_OUT_SLIDER);
+      st->preview_win = get_window_item(win, ID_LEVELS_PREVIEW);
       st->preview_enabled = true;
       if (st->preview_win)
         send_message(st->preview_win, btnSetCheck, btnStateChecked, NULL);
@@ -273,17 +273,17 @@ static result_t levels_dlg_proc(window_t *win, uint32_t msg,
           return true;
         }
 
-        if (src && src_id == LV_ID_IN_SLIDER &&
+        if (src && src_id == ID_LEVELS_IN_SLIDER &&
             notif >= sliderValueChanged && notif <= sliderValueChanged4) {
-          lv_apply_slider_values(st, LV_ID_IN_SLIDER);
+          lv_apply_slider_values(st, ID_LEVELS_IN_SLIDER);
           send_message(win, evCommand,
                        MAKEWPARAM(src_id, ddxDataChanged), st);
           return true;
         }
 
-        if (src && src_id == LV_ID_OUT_SLIDER &&
+        if (src && src_id == ID_LEVELS_OUT_SLIDER &&
             notif >= sliderValueChanged && notif <= sliderValueChanged4) {
-          lv_apply_slider_values(st, LV_ID_OUT_SLIDER);
+          lv_apply_slider_values(st, ID_LEVELS_OUT_SLIDER);
           send_message(win, evCommand,
                        MAKEWPARAM(src_id, ddxDataChanged), st);
           return true;
@@ -297,7 +297,7 @@ static result_t levels_dlg_proc(window_t *win, uint32_t msg,
 
         if (!src) return false;
         if (notif != btnClicked) return false;
-        if (src->id == LV_ID_PREVIEW) {
+        if (src->id == ID_LEVELS_PREVIEW) {
           st->preview_enabled = (send_message(src, btnGetCheck, 0, NULL) == btnStateChecked);
           if (st->preview_enabled)
             lv_apply_preview_effect(st);
@@ -306,16 +306,16 @@ static result_t levels_dlg_proc(window_t *win, uint32_t msg,
           lv_sync_component_views(st);
           return true;
         }
-        if (src->id == LV_ID_OK) {
+        if (src->id == ID_LEVELS_OK) {
           st->accepted = true;
           end_dialog(win, 1);
           return true;
         }
-        if (src->id == LV_ID_CANCEL) {
+        if (src->id == ID_LEVELS_CANCEL) {
           end_dialog(win, 0);
           return true;
         }
-        if (src->id == LV_ID_RESET) {
+        if (src->id == ID_LEVELS_RESET) {
           lv_set_defaults(st);
           lv_sync_edit_fields(st);
           return true;

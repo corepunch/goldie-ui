@@ -6,118 +6,118 @@
     root="examples/socialfeed">
 
     <menus var="kMenus" count="kNumMenus">
-      <menu id="file" label="File" var="kFileItems">
-        <item id="ID_FILE_QUIT" value="5" label="Quit" />
+      <menu name="file" label="File" var="kFileItems">
+        <item name="quit" label="Quit" />
       </menu>
 
-      <menu id="post" label="Post" var="kPostItems">
-        <item id="ID_POST_NEW"    value="10" label="New Post..."  />
-        <item id="ID_POST_LIKE"   value="11" label="Like Post"    />
-        <item id="ID_POST_VIEW"   value="12" label="View Post..." />
+      <menu name="post" label="Post" var="kPostItems">
+        <item name="new" label="New Post..." />
+        <item name="like" label="Like Post" />
+        <item name="view" label="View Post..." />
         <separator />
-        <item id="ID_POST_DELETE" value="13" label="Delete Post"  />
+        <item name="delete" label="Delete Post" />
       </menu>
 
-      <menu id="view" label="View" var="kViewItems">
-        <item id="ID_VIEW_REFRESH" value="20" label="Refresh" />
+      <menu name="view" label="View" var="kViewItems">
+        <item name="refresh" label="Refresh" />
       </menu>
 
-      <menu id="help" label="Help" var="kHelpItems">
-        <item id="ID_HELP_ABOUT" value="100" label="About..." />
+      <menu name="help" label="Help" var="kHelpItems">
+        <item name="about" label="About..." />
       </menu>
     </menus>
 
     <toolbars>
-      <toolbar id="feed" var="kFeedToolbar" count="kFeedToolbarCount">
-        <button id="ID_POST_NEW"    icon="sysicon_add"     text="New Post"  />
-        <button id="ID_POST_LIKE"   icon="sysicon_heart"   text="Like"      />
-        <button id="ID_POST_VIEW"   icon="sysicon_comment" text="View Post" />
+      <toolbar name="feed" var="kFeedToolbar" count="kFeedToolbarCount">
+        <button name="new" menu="post" icon="sysicon_add" text="New Post" />
+        <button name="like" menu="post" icon="sysicon_heart" text="Like" />
+        <button name="view" menu="post" icon="sysicon_comment" text="View Post" />
         <spacer />
-        <button id="ID_POST_DELETE" icon="sysicon_delete"  text="Delete"    />
+        <button name="delete" menu="post" icon="sysicon_delete" text="Delete" />
       </toolbar>
     </toolbars>
 
     <forms>
-      <form id="new_post"
+      <form name="new_post"
             title="New Post"
             frame="0 0 272 150"
             flags="0"
             auto_layout="1"
             padding="8"
             layout_kind="stack"
-            owner="examples/socialfeed/view_dlg_forms.c">
-        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_POST_AUTHOR_ROW">
-          <label v-align="top" name="lbl_author" text="Author:" />
-          <textedit h-align="stretch" v-align="top" id="ID_POST_AUTHOR_CTRL" name="edit_author" text="" />
+>
+        <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
+          <label name="lbl_author" v-align="top" text="Author:" />
+          <textedit name="author" h-align="stretch" v-align="top" text="" />
         </stack>
 
-        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_POST_TITLE_ROW">
-          <label v-align="top" name="lbl_title" text="Title:" />
-          <textedit h-align="stretch" v-align="top" id="ID_POST_TITLE_CTRL" name="edit_title" text="" />
+        <stack name="title_row" orientation="horizontal" spacing="6" v-align="top">
+          <label name="lbl_title" v-align="top" text="Title:" />
+          <textedit name="title" h-align="stretch" v-align="top" text="" />
         </stack>
 
-        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_POST_BODY_ROW">
-          <label v-align="top" name="lbl_body" text="Body:" />
-          <multiedit h-align="stretch" v-align="top" id="ID_POST_BODY_CTRL" name="edit_body" text="" flags="WINDOW_VSCROLL" />
+        <stack name="body_row" orientation="horizontal" spacing="6" v-align="top">
+          <label name="lbl_body" v-align="top" text="Body:" />
+          <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
         </stack>
 
-        <stack orientation="horizontal" spacing="6" h-align="center" v-align="top" id="ID_NEW_POST_ACTIONS">
-          <button h-align="left" v-align="top" id="ID_OK"     name="btn_ok"     text="Post"   flags="BUTTON_DEFAULT" />
-          <button h-align="left" v-align="top" id="ID_CANCEL" name="btn_cancel" text="Cancel" flags="0" />
+        <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
+          <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
+          <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
         </stack>
       </form>
 
-      <form id="new_comment"
+      <form name="new_comment"
             title="New Comment"
             frame="0 0 260 84"
             flags="0"
             auto_layout="1"
             padding="8"
             layout_kind="stack"
-            owner="examples/socialfeed/view_dlg_forms.c">
-        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_COMMENT_AUTHOR_ROW">
-          <label v-align="top" name="lbl_author" text="Author:" />
-          <textedit h-align="stretch" v-align="top" id="ID_CMT_AUTHOR_CTRL" name="edit_author" text="" />
+>
+        <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
+          <label name="lbl_author" v-align="top" text="Author:" />
+          <textedit name="author" h-align="stretch" v-align="top" text="" />
         </stack>
 
-        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_COMMENT_TEXT_ROW">
-          <label v-align="top" name="lbl_text" text="Text:" />
-          <textedit h-align="stretch" v-align="top" id="ID_CMT_TEXT_CTRL" name="edit_text" text="" />
+        <stack name="text_row" orientation="horizontal" spacing="6" v-align="top">
+          <label name="lbl_text" v-align="top" text="Text:" />
+          <textedit name="text" h-align="stretch" v-align="top" text="" />
         </stack>
 
-        <stack orientation="horizontal" spacing="6" h-align="center" v-align="top" id="ID_NEW_COMMENT_ACTIONS">
-          <button h-align="left" v-align="top" id="ID_OK"     name="btn_ok"     text="Submit" flags="BUTTON_DEFAULT" />
-          <button h-align="left" v-align="top" id="ID_CANCEL" name="btn_cancel" text="Cancel" flags="0" />
+        <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
+          <button name="ok" h-align="left" v-align="top" text="Submit" flags="BUTTON_DEFAULT" />
+          <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
         </stack>
       </form>
 
-      <form id="post_detail"
+      <form name="post_detail"
             title="Post Detail"
             frame="0 0 520 336"
             flags="0"
             auto_layout="1"
             padding="8 8 8 8"
             layout_kind="stack"
-            owner="examples/socialfeed/view_dlg_post.c">
-        <stack orientation="vertical" spacing="8" id="ID_POST_DETAIL_LAYOUT">
-          <stack orientation="vertical" v-align="top" spacing="2" id="ID_POST_DETAIL_HEADER">
+>
+        <stack name="layout" orientation="vertical" spacing="8">
+          <stack name="header" orientation="vertical" v-align="top" spacing="2">
             <!-- Post header labels (populated in evCreate) -->
-            <label v-align="top" id="ID_LBL_POST_TITLE"    name="lbl_title"    text="" />
-            <label v-align="top" id="ID_LBL_POST_AUTHOR"   name="lbl_author"   text="" />
-            <label v-align="top" id="ID_LBL_POST_BODY"     name="lbl_body"     text="" />
-            <label v-align="top" id="ID_LBL_POST_LIKES"    name="lbl_likes"    text="" />
-            <label v-align="top" id="ID_LBL_COMMENTS_HDR" name="lbl_cmt_hdr"  text="" />
+            <label name="lbl_title" v-align="top" text="" />
+            <label name="lbl_author" v-align="top" text="" />
+            <label name="lbl_body" v-align="top" text="" />
+            <label name="lbl_likes" v-align="top" text="" />
+            <label name="lbl_cmt_hdr" v-align="top" text="" />
           </stack>
 
           <!-- Comments reportview -->
-          <reportview id="ID_COMMENTS_VIEW" name="comments" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
+          <reportview name="comments" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
 
-          <stack orientation="horizontal" v-align="top" spacing="4" id="ID_POST_DETAIL_ACTIONS">
-            <button h-align="left" v-align="top" id="ID_BTN_LIKE_POST"    name="like_post"    text="Like Post"    flags="0" />
-            <button h-align="left" v-align="top" id="ID_BTN_ADD_COMMENT"  name="add_comment"  text="Add Comment"  flags="0" />
-            <button h-align="left" v-align="top" id="ID_BTN_ADD_REPLY"    name="add_reply"    text="Add Reply"    flags="0" />
-            <button h-align="left" v-align="top" id="ID_BTN_LIKE_COMMENT" name="like_comment" text="Like Comment" flags="0" />
-            <button h-align="left" v-align="top" id="ID_BTN_CLOSE"        name="close"        text="Close"        flags="BUTTON_DEFAULT" />
+          <stack name="actions" orientation="horizontal" v-align="top" spacing="4">
+            <button name="like_post" h-align="left" v-align="top" text="Like Post" flags="0" />
+            <button name="add_comment" h-align="left" v-align="top" text="Add Comment" flags="0" />
+            <button name="add_reply" h-align="left" v-align="top" text="Add Reply" flags="0" />
+            <button name="like_comment" h-align="left" v-align="top" text="Like Comment" flags="0" />
+            <button name="close" h-align="left" v-align="top"  text="Close"  flags="BUTTON_DEFAULT" />
           </stack>
         </stack>
       </form>

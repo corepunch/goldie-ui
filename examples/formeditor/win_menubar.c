@@ -4,6 +4,7 @@
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
 #include "../../user/enum_parse.h"
+#include <ctype.h>
 #include <inttypes.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -454,6 +455,51 @@ static int project_resolve_control_id(form_doc_t *doc, const char *expr) {
   return doc ? doc->next_id++ : CTRL_ID_BASE;
 }
 
+static void upper_ident(char *s) {
+  if (!s) return;
+  for (; *s; s++) {
+    if (*s >= 'a' && *s <= 'z')
+      *s = (char)(*s - 'a' + 'A');
+  }
+}
+
+static void make_control_id_expr(char *out, size_t out_sz,
+                                 const char *form_id,
+                                 const char *name,
+                                 const char *class_name,
+                                 int ordinal) {
+  char form_buf[96];
+  char name_buf[96];
+  size_t i = 0;
+
+  if (!out || out_sz == 0) return;
+
+  for (const char *p = form_id && *form_id ? form_id : "form";
+       *p && i + 1 < sizeof(form_buf); p++) {
+    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
+    form_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
+  }
+  if (i == 0) form_buf[i++] = 'F';
+  form_buf[i] = '\0';
+  upper_ident(form_buf);
+
+  i = 0;
+  for (const char *p = name && *name ? name : (class_name && *class_name ? class_name : "control");
+       *p && i + 1 < sizeof(name_buf); p++) {
+    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
+    name_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
+  }
+  if (i == 0) {
+    snprintf(name_buf, sizeof(name_buf), "CONTROL%d", ordinal);
+    upper_ident(name_buf);
+  } else {
+    name_buf[i] = '\0';
+    upper_ident(name_buf);
+  }
+
+  snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
+}
+
 static bool frame_attr(xmlNodePtr node, irect16_t *out) {
   if (!out) return false;
   char *v = xml_attr_dup(node, "frame");
@@ -552,6 +598,11 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->flags = parse_flags_expr(el->flags_expr);
       copy_attr(n, "text", el->text, sizeof(el->text));
       copy_attr(n, "name", el->name, sizeof(el->name));
+      if (!el->id_expr[0]) {
+        make_control_id_expr(el->id_expr, sizeof(el->id_expr),
+                             doc->form_id, el->name,
+                             ctrl_type_token(el->type), doc->element_count);
+      }
       char *h_align = xml_attr_dup(n, "h-align");
       char *v_align = xml_attr_dup(n, "v-align");
       if (!h_align) h_align = xml_attr_dup(n, "h_align");
@@ -721,9 +772,10 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   form_doc_t *doc = create_form_doc(w, h);
   if (!doc) return false;
 
-  copy_attr(form_node, "id", doc->form_id, sizeof(doc->form_id));
+  copy_attr(form_node, "name", doc->form_id, sizeof(doc->form_id));
+  if (!doc->form_id[0])
+    copy_attr(form_node, "id", doc->form_id, sizeof(doc->form_id));
   copy_attr(form_node, "title", doc->form_title, sizeof(doc->form_title));
-  copy_attr(form_node, "owner", doc->owner, sizeof(doc->owner));
   char flags_expr[128] = {0};
   copy_attr(form_node, "flags", flags_expr, sizeof(flags_expr));
   doc->flags = parse_flags_expr(flags_expr);
@@ -819,7 +871,7 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   const char *label = doc->form_title[0] ? doc->form_title :
                       (doc->form_id[0] ? doc->form_id : "Untitled");
   fprintf(f, "      <form");
-  xml_attr(f, "id", doc->form_id[0] ? doc->form_id : "form");
+  xml_attr(f, "name", doc->form_id[0] ? doc->form_id : "form");
   xml_attr(f, "title", label);
   fprintf(f, "\n            frame=\"0 0 %d %d\"\n            flags=\"%" PRIu32 "\"",
           doc->form_size.w, doc->form_size.h, doc->flags);
@@ -841,7 +893,6 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   if (doc->margin.x || doc->margin.y || doc->margin.w || doc->margin.h)
     fprintf(f, "\n            margin=\"%d %d %d %d\"",
             doc->margin.x, doc->margin.y, doc->margin.w, doc->margin.h);
-  if (doc->owner[0]) xml_attr(f, "owner", doc->owner);
   fprintf(f, ">\n");
 
   if (doc->required_plugin[0]) {
@@ -852,9 +903,6 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   for (int i = 0; i < doc->element_count; i++) {
     form_element_t *el = &doc->elements[i];
     fprintf(f, "        <%s", ctrl_type_token(el->type));
-    char id_buf[32];
-    snprintf(id_buf, sizeof(id_buf), "%d", el->id);
-    xml_attr(f, "id", el->id_expr[0] ? el->id_expr : id_buf);
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
     if (doc->auto_layout) {

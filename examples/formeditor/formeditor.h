@@ -143,7 +143,6 @@ typedef struct form_doc_t {
   bool   modified;
   char   form_id[64];
   char   form_title[128];
-  char   owner[256];
   char   required_plugin[64];
   int    next_id;                      // next numeric control ID
   int    type_counters[FE_MAX_COMPONENTS]; // per-component name counter

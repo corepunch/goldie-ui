@@ -1251,6 +1251,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
 
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
+    ASSERT_TRUE(strstr(xml, "<form name=\"layout\" title=\"Layout\"") != NULL);
     ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
     ASSERT_TRUE(strstr(xml, "layout_kind=\"grid\"") != NULL);
     ASSERT_TRUE(strstr(xml, "layout_orientation=\"horizontal\"") != NULL);
@@ -1335,7 +1336,6 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     TEST("project load: ImageEditor levels keeps sliders and gradient");
 
     fe_setup();
-
     ASSERT_TRUE(form_project_load("examples/imageeditor/imageeditor.orion"));
 
     form_doc_t *levels = NULL;
@@ -1429,7 +1429,6 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
         if (levels->elements[i].type == gradient_type)
             gradients++;
     }
-
     ASSERT_EQUAL(sliders, 2);
     ASSERT_EQUAL(gradients, 1);
 
@@ -1440,12 +1439,16 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "<menus") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"ID_FILE_NEW\" value=\"1\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<item") != NULL);
+    ASSERT_TRUE(strstr(xml, "label=\"New\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "name=\"new\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<button") != NULL);
     ASSERT_TRUE(strstr(xml, "var=\"s_view_items\" mutable=\"true\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\" value=") == NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\" value=") == NULL);
+    ASSERT_TRUE(strstr(xml, "name=\"width\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "name=\"size\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"ID_FILE_NEW\"") == NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\"") == NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\"") == NULL);
     free(xml);
     unlink(path);
 
