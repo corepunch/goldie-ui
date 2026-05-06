@@ -167,64 +167,64 @@ enum {
 };
 
 static const menu_item_t kFileItems[] = {
-  { "New", ID_MENU_NEW, NULL, 0 },
-  { "Open...", ID_MENU_OPEN, NULL, 0 },
+  { "New", ID_FILE_NEW, NULL, 0 },
+  { "Open...", ID_FILE_OPEN, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Save", ID_MENU_SAVE, NULL, 0 },
-  { "Save As...", ID_MENU_SAVEAS, NULL, 0 },
+  { "Save", ID_FILE_SAVE, NULL, 0 },
+  { "Save As...", ID_FILE_SAVEAS, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Close", ID_MENU_CLOSE, NULL, 0 },
+  { "Close", ID_FILE_CLOSE, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Quit", ID_MENU_QUIT, NULL, 0 },
+  { "Quit", ID_FILE_QUIT, NULL, 0 },
 };
 
 static const menu_item_t kEditItems[] = {
-  { "Undo", ID_MENU_UNDO, NULL, 0 },
-  { "Redo", ID_MENU_REDO, NULL, 0 },
+  { "Undo", ID_EDIT_UNDO, NULL, 0 },
+  { "Redo", ID_EDIT_REDO, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Cut", ID_MENU_CUT, NULL, 0 },
-  { "Copy", ID_MENU_COPY, NULL, 0 },
-  { "Paste", ID_MENU_PASTE, NULL, 0 },
+  { "Cut", ID_EDIT_CUT, NULL, 0 },
+  { "Copy", ID_EDIT_COPY, NULL, 0 },
+  { "Paste", ID_EDIT_PASTE, NULL, 0 },
 };
 
 static const menu_item_t kSelectItems[] = {
-  { "All", ID_MENU_ALL, NULL, 0 },
-  { "Deselect", ID_MENU_DESELECT, NULL, 0 },
+  { "All", ID_SELECT_ALL, NULL, 0 },
+  { "Deselect", ID_SELECT_DESELECT, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Clear Selection", ID_MENU_CLEAR, NULL, 0 },
+  { "Clear Selection", ID_SELECT_CLEAR, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Expand...", ID_MENU_EXPAND, NULL, 0 },
-  { "Contract...", ID_MENU_CONTRACT, NULL, 0 },
+  { "Expand...", ID_SELECT_EXPAND, NULL, 0 },
+  { "Contract...", ID_SELECT_CONTRACT, NULL, 0 },
 };
 
 static const menu_item_t kImageItems[] = {
-  { "Crop\tC", ID_MENU_CROP, NULL, 0 },
+  { "Crop\tC", ID_IMAGE_CROP, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Image Size...", ID_MENU_RESIZE, NULL, 0 },
-  { "Canvas Size...", ID_MENU_CANVAS_SIZE, NULL, 0 },
+  { "Image Size...", ID_IMAGE_RESIZE, NULL, 0 },
+  { "Canvas Size...", ID_IMAGE_CANVAS_SIZE, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Flip Horizontal", ID_MENU_FLIP_H, NULL, 0 },
-  { "Flip Vertical", ID_MENU_FLIP_V, NULL, 0 },
+  { "Flip Horizontal", ID_IMAGE_FLIP_H, NULL, 0 },
+  { "Flip Vertical", ID_IMAGE_FLIP_V, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Invert Colors", ID_MENU_INVERT, NULL, 0 },
-  { "Levels...", ID_MENU_LEVELS, NULL, 0 },
+  { "Invert Colors", ID_IMAGE_INVERT, NULL, 0 },
+  { "Levels...", ID_IMAGE_LEVELS, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems_blur[] = {
-  { "Blur", ID_MENU_BLUR, NULL, 0 },
+  { "Blur", ID_FILTER_BLUR, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems_sharpen[] = {
-  { "Sharpen", ID_MENU_SHARPEN, NULL, 0 },
+  { "Sharpen", ID_FILTER_SHARPEN, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems_stylize[] = {
-  { "Find Edges", ID_MENU_EDGE, NULL, 0 },
+  { "Find Edges", ID_FILTER_EDGE, NULL, 0 },
 };
 
 static const menu_item_t kFilterItems[] = {
-  { "Reload Filters", ID_MENU_RELOAD, NULL, 0 },
-  { "Filter Gallery...", ID_MENU_GALLERY, NULL, 0 },
+  { "Reload Filters", ID_FILTER_RELOAD, NULL, 0 },
+  { "Filter Gallery...", ID_FILTER_GALLERY, NULL, 0 },
   { NULL, 0, NULL, 0 },
   { "Blur", 0, kFilterItems_blur, (int)(sizeof(kFilterItems_blur) / sizeof(kFilterItems_blur[0])) },
   { "Sharpen", 0, kFilterItems_sharpen, (int)(sizeof(kFilterItems_sharpen) / sizeof(kFilterItems_sharpen[0])) },
@@ -233,73 +233,73 @@ static const menu_item_t kFilterItems[] = {
 };
 
 static const menu_item_t kLayerItems[] = {
-  { "New Layer", ID_MENU_NEW, NULL, 0 },
-  { "Duplicate Layer", ID_MENU_DUPLICATE, NULL, 0 },
-  { "Delete Layer", ID_MENU_DELETE, NULL, 0 },
+  { "New Layer", ID_LAYER_NEW, NULL, 0 },
+  { "Duplicate Layer", ID_LAYER_DUPLICATE, NULL, 0 },
+  { "Delete Layer", ID_LAYER_DELETE, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Move Layer Up", ID_MENU_MOVE_UP, NULL, 0 },
-  { "Move Layer Down", ID_MENU_MOVE_DOWN, NULL, 0 },
+  { "Move Layer Up", ID_LAYER_MOVE_UP, NULL, 0 },
+  { "Move Layer Down", ID_LAYER_MOVE_DOWN, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Merge Down", ID_MENU_MERGE_DOWN, NULL, 0 },
-  { "Flatten Image", ID_MENU_FLATTEN, NULL, 0 },
-  { "Fill with Foreground Color\tAlt+Backspace", ID_MENU_FILL_FOREGROUND, NULL, 0 },
-  { "Fill with Background Color\tCtrl+Backspace", ID_MENU_FILL_BACKGROUND, NULL, 0 },
+  { "Merge Down", ID_LAYER_MERGE_DOWN, NULL, 0 },
+  { "Flatten Image", ID_LAYER_FLATTEN, NULL, 0 },
+  { "Fill with Foreground Color\tAlt+Backspace", ID_LAYER_FILL_FOREGROUND, NULL, 0 },
+  { "Fill with Background Color\tCtrl+Backspace", ID_LAYER_FILL_BACKGROUND, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Add Mask", ID_MENU_ADD_MASK, NULL, 0 },
-  { "Apply Mask", ID_MENU_APPLY_MASK, NULL, 0 },
-  { "Remove Mask", ID_MENU_REMOVE_MASK, NULL, 0 },
-  { "Extract Mask", ID_MENU_EXTRACT_MASK, NULL, 0 },
+  { "Add Mask", ID_LAYER_ADD_MASK, NULL, 0 },
+  { "Apply Mask", ID_LAYER_APPLY_MASK, NULL, 0 },
+  { "Remove Mask", ID_LAYER_REMOVE_MASK, NULL, 0 },
+  { "Extract Mask", ID_LAYER_EXTRACT_MASK, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "[ ] Edit Mask", ID_MENU_EDIT_MASK, NULL, 0 },
+  { "[ ] Edit Mask", ID_LAYER_EDIT_MASK, NULL, 0 },
 };
 
 static menu_item_t s_view_items[] = {
-  { "Zoom In", ID_MENU_ZOOM_IN, NULL, 0 },
-  { "Zoom Out", ID_MENU_ZOOM_OUT, NULL, 0 },
-  { "Fit on Screen", ID_MENU_ZOOM_FIT, NULL, 0 },
+  { "Zoom In", ID_VIEW_ZOOM_IN, NULL, 0 },
+  { "Zoom Out", ID_VIEW_ZOOM_OUT, NULL, 0 },
+  { "Fit on Screen", ID_VIEW_ZOOM_FIT, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "1x", ID_MENU_ZOOM_1X, NULL, 0 },
-  { "2x", ID_MENU_ZOOM_2X, NULL, 0 },
-  { "4x", ID_MENU_ZOOM_4X, NULL, 0 },
-  { "6x", ID_MENU_ZOOM_6X, NULL, 0 },
-  { "8x", ID_MENU_ZOOM_8X, NULL, 0 },
+  { "1x", ID_VIEW_ZOOM_1X, NULL, 0 },
+  { "2x", ID_VIEW_ZOOM_2X, NULL, 0 },
+  { "4x", ID_VIEW_ZOOM_4X, NULL, 0 },
+  { "6x", ID_VIEW_ZOOM_6X, NULL, 0 },
+  { "8x", ID_VIEW_ZOOM_8X, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "[ ] Show Grid", ID_MENU_SHOW_GRID, NULL, 0 },
-  { "[ ] Snap to Grid", ID_MENU_SNAP_GRID, NULL, 0 },
-  { "[x] Show Background", ID_MENU_SHOW_BACKGROUND, NULL, 0 },
-  { "[ ] Mask Only View", ID_MENU_MASK_ONLY, NULL, 0 },
+  { "[ ] Show Grid", ID_VIEW_SHOW_GRID, NULL, 0 },
+  { "[ ] Snap to Grid", ID_VIEW_SNAP_GRID, NULL, 0 },
+  { "[x] Show Background", ID_VIEW_SHOW_BACKGROUND, NULL, 0 },
+  { "[ ] Mask Only View", ID_VIEW_MASK_ONLY, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Grid Options...", ID_MENU_GRID_OPTIONS, NULL, 0 },
+  { "Grid Options...", ID_VIEW_GRID_OPTIONS, NULL, 0 },
 };
 
 static const menu_item_t kWindowItems[] = {
-  { "Tools", ID_MENU_TOOLS, NULL, 0 },
-  { "Colors", ID_MENU_COLORS, NULL, 0 },
-  { "Layers", ID_MENU_LAYERS, NULL, 0 },
-  { "Timeline", ID_MENU_TIMELINE, NULL, 0 },
+  { "Tools", ID_WINDOW_TOOLS, NULL, 0 },
+  { "Colors", ID_WINDOW_COLORS, NULL, 0 },
+  { "Layers", ID_WINDOW_LAYERS, NULL, 0 },
+  { "Timeline", ID_WINDOW_TIMELINE, NULL, 0 },
   { NULL, 0, NULL, 0 },
 };
 
 static const menu_item_t kAnimItems[] = {
-  { "New Frame", ID_MENU_NEW_FRAME, NULL, 0 },
-  { "Duplicate Frame", ID_MENU_DUPLICATE_FRAME, NULL, 0 },
-  { "Delete Frame", ID_MENU_DELETE_FRAME, NULL, 0 },
+  { "New Frame", ID_ANIM_NEW_FRAME, NULL, 0 },
+  { "Duplicate Frame", ID_ANIM_DUPLICATE_FRAME, NULL, 0 },
+  { "Delete Frame", ID_ANIM_DELETE_FRAME, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Previous Frame\tPage Up", ID_MENU_PREV_FRAME, NULL, 0 },
-  { "Next Frame\tPage Down", ID_MENU_NEXT_FRAME, NULL, 0 },
+  { "Previous Frame\tPage Up", ID_ANIM_PREV_FRAME, NULL, 0 },
+  { "Next Frame\tPage Down", ID_ANIM_NEXT_FRAME, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Play", ID_MENU_PLAY, NULL, 0 },
-  { "Stop", ID_MENU_STOP, NULL, 0 },
-  { "[ ] Loop", ID_MENU_LOOP, NULL, 0 },
+  { "Play", ID_ANIM_PLAY, NULL, 0 },
+  { "Stop", ID_ANIM_STOP, NULL, 0 },
+  { "[ ] Loop", ID_ANIM_LOOP, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Export GIF...", ID_MENU_EXPORT_GIF, NULL, 0 },
-  { "Export APNG...", ID_MENU_EXPORT_APNG, NULL, 0 },
-  { "Export Sprite Sheet...", ID_MENU_EXPORT_SPRITESHEET, NULL, 0 },
-  { "Set FPS...", ID_MENU_SET_FPS, NULL, 0 },
+  { "Export GIF...", ID_ANIM_EXPORT_GIF, NULL, 0 },
+  { "Export APNG...", ID_ANIM_EXPORT_APNG, NULL, 0 },
+  { "Export Sprite Sheet...", ID_ANIM_EXPORT_SPRITESHEET, NULL, 0 },
+  { "Set FPS...", ID_ANIM_SET_FPS, NULL, 0 },
 };
 
 static const menu_item_t kHelpItems[] = {
-  { "About...", ID_MENU_ABOUT, NULL, 0 },
+  { "About...", ID_HELP_ABOUT, NULL, 0 },
 };
 
 static menu_def_t kMenus[] = {
