@@ -73,7 +73,7 @@
 
       <form id="post_detail"
             title="Post Detail"
-            frame="0 0 520 336"
+            frame="0 0 520 436"
             flags="0"
             auto_layout="1"
             padding="8 8 8 8"
