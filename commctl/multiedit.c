@@ -98,10 +98,47 @@ static void me_ensure_visible(me_state_t *s, int max_w, int vis_h) {
   if (s->scroll_y < 0) s->scroll_y = 0;
 }
 
+// Text-area dimensions in client pixels (scrollbar strip excluded when visible).
+// Uses win->frame.w directly (not get_client_rect) because multiedit draws into
+// the full frame without a title bar; only the vertical scrollbar strip is carved out.
+static void me_text_dims(window_t *win, int *tw, int *th) {
+  bool has_v = (win->flags & WINDOW_VSCROLL) && win->vscroll.visible;
+  *tw = win->frame.w - (has_v ? SCROLLBAR_WIDTH : 0) - ME_PADDING * 2;
+  *th = win->frame.h - ME_PADDING * 2;
+  if (*tw < 1) *tw = 1;
+  if (*th < 1) *th = 1;
+}
+
+// Synchronise the built-in vertical scrollbar with the current text height.
+// Only does anything when WINDOW_VSCROLL is set.  The bar remains permanently
+// visible (forced by show_scroll_bar in evCreate) but is disabled/greyed out
+// when the entire text fits in the viewport without scrolling.
+static void me_sync_scrollbar(window_t *win, me_state_t *s) {
+  if (!(win->flags & WINDOW_VSCROLL)) return;
+  int tw, th;
+  me_text_dims(win, &tw, &th);
+  int total_h = calc_text_height(s->buf, tw);
+  bool needs_scroll = (total_h > th);
+  int max_scroll = needs_scroll ? (total_h - th) : 0;
+  if (s->scroll_y > max_scroll) s->scroll_y = max_scroll;
+  if (s->scroll_y < 0)         s->scroll_y = 0;
+  scroll_info_t si = {
+    .fMask = SIF_RANGE | SIF_PAGE | SIF_POS,
+    .nMin  = 0,
+    .nMax  = (total_h > th) ? total_h : th,
+    .nPage = (uint32_t)th,
+    .nPos  = s->scroll_y,
+  };
+  set_scroll_info(win, SB_VERT, &si, false);
+  enable_scroll_bar(win, SB_VERT, needs_scroll);
+}
+
 // Compute the absolute screen rect of win's text area.
 // Walks the parent chain so the result is correct even when win is nested
 // inside an intermediate container window (not a direct child of root).
 static irect16_t me_text_screen_rect(window_t *win, window_t *root) {
+  int tw, th;
+  me_text_dims(win, &tw, &th);
   int x = win->frame.x + ME_PADDING;
   int y = win->frame.y + ME_PADDING;
   for (window_t *p = win->parent; p && p != root; p = p->parent) {
@@ -111,8 +148,8 @@ static irect16_t me_text_screen_rect(window_t *win, window_t *root) {
   return (irect16_t){
     root->frame.x + x,
     root->frame.y + titlebar_height(root) + y,
-    win->frame.w - ME_PADDING * 2,
-    win->frame.h - ME_PADDING * 2,
+    tw,
+    th,
   };
 }
 
@@ -133,6 +170,11 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->len      = (int)strlen(s->buf);
       s->cursor   = s->len;
       s->scroll_y = 0;
+      // When WINDOW_VSCROLL is set, lock the bar permanently visible so it is
+      // always shown (enabled/disabled to indicate whether scrolling is needed).
+      if (win->flags & WINDOW_VSCROLL)
+        show_scroll_bar(win, SB_VERT, true);
+      me_sync_scrollbar(win, s);
       return true;
     }
 
@@ -161,8 +203,8 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       // Inset bevel border.
       draw_button((irect16_t){0, 0, win->frame.w, win->frame.h}, 1, 1, true);
 
-      int tw = win->frame.w - ME_PADDING * 2;
-      int th = win->frame.h - ME_PADDING * 2;
+      int tw, th;
+      me_text_dims(win, &tw, &th);
       int tx = ME_PADDING;
       int ty = ME_PADDING;
 
@@ -198,8 +240,8 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     // ── Mouse click to position ────────────────────────────────────────────
     case evLeftButtonUp: {
       if (!s) return true;
-      int tw = win->frame.w - ME_PADDING * 2;
-      int th = win->frame.h - ME_PADDING * 2;
+      int tw, th;
+      me_text_dims(win, &tw, &th);
       // wparam carries client-local x (LOWORD) and y (HIWORD).
       int lx = (int)(int16_t)LOWORD(wparam) - ME_PADDING;
       int ly = (int)(int16_t)HIWORD(wparam) - ME_PADDING + s->scroll_y;
@@ -214,8 +256,8 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     // ── Mouse-wheel scroll ─────────────────────────────────────────────────
     case evWheel: {
       if (!s) return true;
-      int th = win->frame.h - ME_PADDING * 2;
-      int tw = win->frame.w - ME_PADDING * 2;
+      int tw, th;
+      me_text_dims(win, &tw, &th);
       int delta = -(int16_t)HIWORD(wparam);
       s->scroll_y += delta;
       if (s->scroll_y < 0) s->scroll_y = 0;
@@ -223,6 +265,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       int max_scroll = total_h - th;
       if (max_scroll < 0) max_scroll = 0;
       if (s->scroll_y > max_scroll) s->scroll_y = max_scroll;
+      me_sync_scrollbar(win, s);
       invalidate_window(win);
       return true;
     }
@@ -240,9 +283,10 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->buf[s->cursor] = c;
       s->cursor++;
       s->len++;
-      int tw = win->frame.w - ME_PADDING * 2;
-      int th = win->frame.h - ME_PADDING * 2;
+      int tw, th;
+      me_text_dims(win, &tw, &th);
       me_ensure_visible(s, tw, th);
+      me_sync_scrollbar(win, s);
       invalidate_window(win);
       return true;
     }
@@ -250,8 +294,8 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     // ── Key navigation and editing ─────────────────────────────────────────
     case evKeyDown: {
       if (!s) return true;
-      int tw = win->frame.w - ME_PADDING * 2;
-      int th = win->frame.h - ME_PADDING * 2;
+      int tw, th;
+      me_text_dims(win, &tw, &th);
       switch (wparam) {
 
         case AX_KEY_ENTER:
@@ -263,6 +307,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
             s->cursor++;
             s->len++;
             me_ensure_visible(s, tw, th);
+            me_sync_scrollbar(win, s);
             invalidate_window(win);
           }
           return true;
@@ -275,6 +320,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
             s->cursor--;
             s->len--;
             me_ensure_visible(s, tw, th);
+            me_sync_scrollbar(win, s);
             invalidate_window(win);
           }
           return true;
@@ -286,6 +332,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
                     (size_t)(s->len - s->cursor));
             s->len--;
             me_ensure_visible(s, tw, th);
+            me_sync_scrollbar(win, s);
             invalidate_window(win);
           }
           return true;
@@ -374,6 +421,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->len      = (int)strlen(s->buf);
       s->cursor   = s->len;
       s->scroll_y = 0;
+      me_sync_scrollbar(win, s);
       invalidate_window(win);
       return true;
     }
@@ -388,6 +436,27 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       dst[maxlen - 1] = '\0';
       return (result_t)strlen(dst);
     }
+
+    // ── evVScroll — scrollbar thumb dragged / arrow clicked ─────────────────
+    case evVScroll: {
+      if (!s) return true;
+      int tw, th;
+      me_text_dims(win, &tw, &th);
+      int total_h   = calc_text_height(s->buf, tw);
+      int max_scroll = total_h - th;
+      if (max_scroll < 0) max_scroll = 0;
+      s->scroll_y = (int)wparam;
+      if (s->scroll_y > max_scroll) s->scroll_y = max_scroll;
+      if (s->scroll_y < 0)         s->scroll_y = 0;
+      me_sync_scrollbar(win, s);
+      invalidate_window(win);
+      return true;
+    }
+
+    // ── evResize — re-sync scrollbar after layout change ────────────────────
+    case evResize:
+      if (s) me_sync_scrollbar(win, s);
+      return false;
 
     default:
       return false;
