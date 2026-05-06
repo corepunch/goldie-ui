@@ -34,6 +34,8 @@ static result_t layout_container_proc(window_t *win, uint32_t msg,
       win->layout_orientation = default_orientation;
       win->layout_columns = default_columns;
       win->layout_spacing = default_spacing;
+      win->layout_padding = (irect16_t){0, 0, 0, 0};
+      win->layout_margin = (irect16_t){0, 0, 0, 0};
       win->h_align = LAYOUT_ALIGN_STRETCH;
       win->v_align = LAYOUT_ALIGN_STRETCH;
       if (cfg) {
@@ -45,6 +47,8 @@ static result_t layout_container_proc(window_t *win, uint32_t msg,
           win->layout_columns = cfg->columns;
         if (cfg->spacing > 0)
           win->layout_spacing = cfg->spacing;
+        win->layout_padding = cfg->padding;
+        win->layout_margin = cfg->margin;
       }
       return true;
     }

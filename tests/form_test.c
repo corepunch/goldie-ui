@@ -69,6 +69,114 @@ static const form_def_t kDdxTestForm = {
 };
 
 // ──────────────────────────────────────────────────────────────────────────
+// Auto-layout form with padding used to verify the inset is honored
+// ──────────────────────────────────────────────────────────────────────────
+
+#define PAD_FORM_ID_FIRST   201
+#define PAD_FORM_ID_SECOND  202
+
+static const form_ctrl_def_t kPadChildren[] = {
+  {
+    .class_name = "button",
+    .id = PAD_FORM_ID_FIRST,
+    .frame = {0, 0, 80, 0},
+    .text = "Alpha",
+    .name = "alpha",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = PAD_FORM_ID_SECOND,
+    .frame = {0, 0, 80, 0},
+    .text = "Beta",
+    .name = "beta",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_def_t kPadForm = {
+  .name = "Pad",
+  .width = 200,
+  .height = 80,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = WINDOW_LAYOUT_STACK,
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .padding = {8, 8, 8, 8},
+  .children = kPadChildren,
+  .child_count = ARRAY_LEN(kPadChildren),
+};
+
+#define MAR_FORM_ID_FIRST   301
+#define MAR_FORM_ID_SECOND  302
+
+static const form_ctrl_def_t kMarChildren[] = {
+  {
+    .class_name = "button",
+    .id = MAR_FORM_ID_FIRST,
+    .frame = {0, 0, 80, 0},
+    .text = "Gamma",
+    .name = "gamma",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .margin = {8, 8, 8, 8},
+  },
+  {
+    .class_name = "button",
+    .id = MAR_FORM_ID_SECOND,
+    .frame = {0, 0, 80, 0},
+    .text = "Delta",
+    .name = "delta",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .margin = {2, 6, 2, 6},
+  },
+};
+
+static const form_def_t kMarForm = {
+  .name = "Margin",
+  .width = 200,
+  .height = 80,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = WINDOW_LAYOUT_STACK,
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .children = kMarChildren,
+  .child_count = ARRAY_LEN(kMarChildren),
+};
+
+#define WRAP_FORM_ID_LABEL 401
+
+static const form_ctrl_def_t kWrapChildren[] = {
+  {
+    .class_name = "label",
+    .id = WRAP_FORM_ID_LABEL,
+    .frame = {0, 0, 0, 0},
+    .text = "This label should wrap when the available width is limited by layout.",
+    .name = "wrap",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_def_t kWrapForm = {
+  .name = "Wrap",
+  .width = 80,
+  .height = 80,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = WINDOW_LAYOUT_STACK,
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .children = kWrapChildren,
+  .child_count = ARRAY_LEN(kWrapChildren),
+};
+
+// ──────────────────────────────────────────────────────────────────────────
 // Nested auto-layout form used to debug stack and grid positioning
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -569,6 +677,69 @@ void test_gridview_layout(void) {
   PASS();
 }
 
+void test_auto_layout_padding(void) {
+  TEST("auto-layout: padding offsets content inside the client area");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kPadForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+  window_t *first = get_window_item(win, PAD_FORM_ID_FIRST);
+  window_t *second = get_window_item(win, PAD_FORM_ID_SECOND);
+  ASSERT_NOT_NULL(first);
+  ASSERT_NOT_NULL(second);
+
+  ASSERT_EQUAL(first->frame.x, 8);
+  ASSERT_EQUAL(first->frame.y, 8);
+  ASSERT_EQUAL(first->frame.w, 184);
+  ASSERT_EQUAL(second->frame.x, 8);
+  ASSERT_EQUAL(second->frame.y, first->frame.y + first->frame.h + 4);
+  ASSERT_EQUAL(second->frame.w, 184);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
+void test_auto_layout_margin(void) {
+  TEST("auto-layout: margin offsets individual controls");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kMarForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+  window_t *first = get_window_item(win, MAR_FORM_ID_FIRST);
+  window_t *second = get_window_item(win, MAR_FORM_ID_SECOND);
+  ASSERT_NOT_NULL(first);
+  ASSERT_NOT_NULL(second);
+
+  ASSERT_EQUAL(first->frame.x, 8);
+  ASSERT_EQUAL(first->frame.y, 8);
+  ASSERT_EQUAL(first->frame.w, 184);
+  ASSERT_EQUAL(second->frame.x, 2);
+  ASSERT_EQUAL(second->frame.y, 45);
+  ASSERT_EQUAL(second->frame.w, 196);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
+void test_auto_layout_wrapped_label(void) {
+  TEST("auto-layout: label wraps when width is constrained");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kWrapForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+  window_t *label = get_window_item(win, WRAP_FORM_ID_LABEL);
+  ASSERT_NOT_NULL(label);
+
+  ASSERT_EQUAL(label->frame.w, 80);
+  ASSERT_TRUE(label->frame.h > CONTROL_HEIGHT);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 void test_nested_stack_positions(void) {
   TEST("nested layout: stack children and grid rows sit in the right place");
 
@@ -631,6 +802,9 @@ int main(int argc, char *argv[]) {
   test_show_ddx_dialog_form_flags();
   test_stackview_layout();
   test_gridview_layout();
+  test_auto_layout_padding();
+  test_auto_layout_margin();
+  test_auto_layout_wrapped_label();
   test_nested_stack_positions();
 
   TEST_END();

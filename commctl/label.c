@@ -11,6 +11,7 @@
 // Label control window procedure.
 // lparam in evCreate is an optional RGBA color (void*)(uintptr_t)col.
 // When lparam is NULL the default brTextNormal is used.
+
 result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
@@ -24,14 +25,17 @@ result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (!m) return true;
-      if (win->frame.h <= CONTROL_HEIGHT) {
-        m->desired_w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXT_SHADOW_OFFSET);
-        m->desired_h = MAX(win->frame.h, CONTROL_HEIGHT);
+      int avail_w = m->avail_w > 0 ? m->avail_w : win->frame.w;
+      if (avail_w < 1) avail_w = win->frame.w > 0 ? win->frame.w : 1;
+      irect16_t wrap_vp = {0, 0, avail_w, 1};
+      text_wrap_result_t wrap = text_wrap_layout(win->title, &wrap_vp, 0, false);
+      if (wrap.wrapped || win->frame.h > CONTROL_HEIGHT) {
+        m->desired_w = avail_w;
+        m->desired_h = MAX(win->frame.h, wrap.height);
       } else {
-        int avail_w = m->avail_w > 0 ? m->avail_w : win->frame.w;
-        if (avail_w < 1) avail_w = win->frame.w > 0 ? win->frame.w : 1;
-        m->desired_w = MAX(win->frame.w, avail_w);
-        m->desired_h = MAX(win->frame.h, calc_text_height(win->title, avail_w));
+        int text_w = MAX(wrap.width, text_strwidth(FONT_SMALL, win->title));
+        m->desired_w = MAX(win->frame.w, text_w + TEXT_SHADOW_OFFSET);
+        m->desired_h = MAX(win->frame.h, CONTROL_HEIGHT);
       }
       return true;
     }

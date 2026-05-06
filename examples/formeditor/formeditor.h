@@ -123,6 +123,8 @@ typedef struct {
   char     name[32];     // identifier name (e.g. "IDC_BUTTON1")
   uint8_t  h_align;     // horizontal alignment; 0 = stretch
   uint8_t  v_align;     // vertical alignment; 0 = stretch
+  irect16_t padding;    // inner padding for nested layout containers
+  irect16_t margin;     // outer margin when auto-layout reflows this element
   window_t *live_win;    // design-time live control hosted on the canvas
 } form_element_t;
 
@@ -136,6 +138,8 @@ typedef struct form_doc_t {
   uint8_t layout_orientation; // window_stack_orientation_t
   uint8_t layout_columns; // grid columns (0 = default)
   uint8_t layout_spacing; // spacing between direct children; 0 = default
+  irect16_t padding;    // inner padding for auto-layout content
+  irect16_t margin;     // outer margin for the form when serialized
   bool   modified;
   char   form_id[64];
   char   form_title[128];

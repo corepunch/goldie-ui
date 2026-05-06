@@ -329,6 +329,37 @@ static inline int char_advance(unsigned char c) {
   return m->advance[c];
 }
 
+static inline int fallback_char_advance(unsigned char c, ui_font_t font) {
+  if (c == '\n') return 0;
+  if (c == ' ') {
+    int sw = get_space_width();
+    return sw > 0 ? sw : 3;
+  }
+
+  int ch = text_char_height(font);
+  int aw = ch / 2 + 2;
+  return aw > 0 ? aw : 6;
+}
+
+static inline int wrapped_line_advance(void) {
+  int adv = text_state.small_height ? text_state.small_height : 8;
+  return adv > 0 ? adv : 1;
+}
+
+static inline int wrap_char_advance(ui_font_t font, unsigned char c) {
+  if (c == '\n') return 0;
+  if (c == ' ') {
+    int sw = (font == FONT_SMALL && text_state.small_space) ? text_state.small_space : get_space_width();
+    return sw > 0 ? sw : 3;
+  }
+  if (text_state.big_height) {
+    glyph_metrics_t *met;
+    atlas_for_font(font, c, &met);
+    return met->advance[c];
+  }
+  return fallback_char_advance(c, font);
+}
+
 // Public API: pixel width of one glyph from the FONT_SYSTEM atlas.
 int char_width(unsigned char c) {
   if (!text_state.big_height) return 0;
@@ -514,57 +545,94 @@ void draw_text_small_clipped(const char *text, irect16_t const *viewport,
 
 // ── calc_text_height ──────────────────────────────────────────────────────────
 
-int calc_text_height(const char *text, int width) {
-  if (!text || !*text || width <= 0 || !text_state.big_height) return 0;
-  int lines = 1, cx = 0;
+text_wrap_result_t text_wrap_layout(const char *text, irect16_t const *viewport,
+                                    uint32_t col, bool draw) {
+  text_wrap_result_t out = {0, 0, false};
+  if (!text || !*text || !viewport || viewport->w <= 0) return out;
+  if (draw && (!g_ui_runtime.running || !text_state.small_height)) return out;
+
+  static text_vertex_t buf[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
+  int vc = 0;
+  int x = viewport->x;
+  int y = viewport->y;
+  int w = viewport->w;
+  int lh = wrapped_line_advance();
+  int sw = (text_state.small_space ? text_state.small_space : get_space_width());
+  if (sw <= 0) sw = 3;
+
+  int cx = x;
+  int cy = y;
+  int line_w = 0;
+  int max_line_w = 0;
+  int lines = 1;
+
   for (const char *p = text; *p; p++) {
     unsigned char c = (unsigned char)*p;
-    if (c == '\n') { lines++; cx = 0; continue; }
-    if (c == ' ')  { cx += get_space_width(); continue; }
-    int cw = char_advance(c);
-    if (cx + cw > width) { lines++; cx = cw; }
-    else                 { cx += cw; }
+
+    if (c == '\n') {
+      if (line_w > max_line_w) max_line_w = line_w;
+      line_w = 0;
+      cx = x;
+      cy += lh;
+      lines++;
+      out.wrapped = true;
+      continue;
+    }
+
+    if (c == ' ') {
+      int cw = sw;
+      if (cx + cw > x + w) {
+        if (line_w > max_line_w) max_line_w = line_w;
+        line_w = 0;
+        cx = x;
+        cy += lh;
+        lines++;
+        out.wrapped = true;
+      }
+      cx += cw;
+      line_w += cw;
+      continue;
+    }
+
+    int cw = wrap_char_advance(FONT_SMALL, c);
+    if (cx + cw > x + w) {
+      if (line_w > max_line_w) max_line_w = line_w;
+      line_w = 0;
+      cx = x;
+      cy += lh;
+      lines++;
+      out.wrapped = true;
+    }
+
+    if (draw && vc < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR) {
+      glyph_metrics_t *met;
+      font_atlas_t *atlas = atlas_for_font(FONT_SMALL, c, &met);
+      vc += emit_char_verts(buf + vc, cx, cy, c, col, atlas, met);
+    }
+    cx += cw;
+    line_w += cw;
   }
-  return lines * get_line_height();
+
+  if (line_w > max_line_w) max_line_w = line_w;
+  out.width = max_line_w;
+  out.height = lines * lh;
+
+  if (draw && vc > 0)
+    flush_batch(&text_state.small, buf, vc);
+
+  return out;
+}
+
+int calc_text_height(const char *text, int width) {
+  irect16_t vp = {0, 0, width, 1};
+  return text_wrap_layout(text, &vp, 0, false).height;
 }
 
 // ── draw_text_wrapped ─────────────────────────────────────────────────────────
 // Always uses Geneva-12 (FONT_SMALL) for wrapped content text.
 
 void draw_text_wrapped(const char *text, irect16_t const *viewport, uint32_t col) {
-  if (!text || !*text || !g_ui_runtime.running || !viewport) return;
-  if (!text_state.small_height) return;
-
-  static text_vertex_t buf[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
-  int vc = 0;
-  
-  // Use FONT_SMALL metrics (same logic as draw_text for FONT_SMALL)
-  int sw = text_state.small_space ? text_state.small_space : 3;
-  int lh = (text_state.small_line ? text_state.small_line : 12) * 0.75; // HACK: legacy line height was 1.5x char height; new fonts have built-in line spacing so use 0.75x to avoid excess spacing
-
-  int x = viewport->x, y = viewport->y, w = viewport->w;
-  int cx = x, cy = y;
-
-  for (const char *p = text;
-       *p && vc < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR;
-       p++) {
-    unsigned char c = (unsigned char)*p;
-    if (c == '\n') { cx = x; cy += lh; continue; }
-    if (c == ' ')  { cx += sw; continue; }
-
-    glyph_metrics_t *met;
-    font_atlas_t    *atlas = atlas_for_font(FONT_SMALL, c, &met);
-    
-    // Use per-character advance from metrics (same as draw_text)
-    int cw = met->advance[c];
-    if (cx + cw > x + w) { cx = x; cy += lh; }
-
-    vc += emit_char_verts(buf + vc, cx, cy, c, col, atlas, met);
-    cx += cw;
-  }
-
-  if (vc > 0)
-    flush_batch(&text_state.small, buf, vc);
+  (void)text_wrap_layout(text, viewport, col, true);
 }
 
 // ── shutdown_text_rendering ───────────────────────────────────────────────────

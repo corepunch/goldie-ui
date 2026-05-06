@@ -53,6 +53,8 @@ typedef struct {
   uint8_t orientation;       // WINDOW_STACK_VERTICAL / WINDOW_STACK_HORIZONTAL
   uint8_t columns;           // grid column count (0 = default)
   uint8_t spacing;           // spacing between direct children (0 = default)
+  irect16_t padding;         // inner padding for the container
+  irect16_t margin;          // outer margin when nested in a parent layout
 } layout_view_config_t;
 
 result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

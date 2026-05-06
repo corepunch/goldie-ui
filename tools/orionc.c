@@ -85,6 +85,28 @@ static bool parse_frame(xmlNodePtr node, frame_t *out) {
   return false;
 }
 
+static bool parse_rect_attr(xmlNodePtr node, const char *name, frame_t *out) {
+  if (!node || !name || !out) return false;
+  char *v = attr_dup(node, name);
+  if (!v) return false;
+  int a = 0, b = 0, c = 0, d = 0;
+  int n = sscanf(v, "%d %d %d %d", &a, &b, &c, &d);
+  free(v);
+  switch (n) {
+    case 1:
+      *out = (frame_t){a, a, a, a};
+      return true;
+    case 2:
+      *out = (frame_t){a, b, a, b};
+      return true;
+    case 4:
+      *out = (frame_t){a, b, c, d};
+      return true;
+    default:
+      return false;
+  }
+}
+
 static void fprint_c_string(FILE *f, const char *s) {
   fputc('"', f);
   if (s) {
@@ -307,7 +329,11 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   char *layout_orientation = attr_dup_first(c, "orientation", "layout_orientation");
   char *layout_columns = attr_dup_first(c, "columns", "layout_columns");
   char *layout_spacing = attr_dup_first(c, "spacing", "layout_spacing");
+  char *padding = attr_dup_first(c, "padding", "layout_padding");
+  char *margin = attr_dup_first(c, "margin", "layout_margin");
   frame_t cr = {0, 0, 0, 0};
+  frame_t pad = {0, 0, 0, 0};
+  frame_t mar = {0, 0, 0, 0};
   bool nested = has_child_controls(c);
   int nested_count = count_direct_controls(c);
   char nested_name[256] = {0};
@@ -317,6 +343,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
     free(klass); free(cid); free(name); free(text); free(cflags);
     free(h_align); free(v_align); free(layout_kind);
     free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(padding); free(margin);
     return false;
   }
 
@@ -334,6 +361,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
       free(klass); free(cid); free(name); free(text); free(cflags);
       free(h_align); free(v_align); free(layout_kind);
       free(layout_orientation); free(layout_columns); free(layout_spacing);
+      free(padding); free(margin);
       return false;
     }
     cr = (frame_t){0, 0, 0, 0};
@@ -360,6 +388,11 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
     }
   }
 
+  if (!parse_rect_attr(c, "padding", &pad))
+    (void)parse_rect_attr(c, "layout_padding", &pad);
+  if (!parse_rect_attr(c, "margin", &mar))
+    (void)parse_rect_attr(c, "layout_margin", &mar);
+
   fputs("  { ", f);
   fprint_c_string(f, emit_class);
   fprintf(f, ", %s, ", nonempty(cid, "0"));
@@ -374,20 +407,24 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   fprint_c_string(f, nonempty(name, ""));
   fprintf(f, ", %u, %u, ", (unsigned)align_attr(h_align, 0), (unsigned)align_attr(v_align, 0));
   if (nested) {
-    fprintf(f, "%s, %d, %s, %s, %u, %u },\n",
+    fprintf(f, "%s, %d, %s, %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d } },\n",
             nested_name, nested_count,
             layout_kind_c_token_for_class(emit_class,
                                          layout_kind_attr(layout_kind, layout_kind_default_for_class(emit_class))),
             layout_orientation_c_token(layout_orientation_attr(layout_orientation, 0)),
             (unsigned)layout_columns_attr(layout_columns, layout_columns_default_for_class(emit_class)),
-            (unsigned)layout_spacing_attr(layout_spacing, 4));
+            (unsigned)layout_spacing_attr(layout_spacing, 4),
+            pad.x, pad.y, pad.w, pad.h,
+            mar.x, mar.y, mar.w, mar.h);
   } else {
-    fputs("NULL, 0, 0, 0, 0, 0 },\n", f);
+    fprintf(f, "NULL, 0, 0, 0, 0, 0, { %d, %d, %d, %d }, { %d, %d, %d, %d } },\n",
+            pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h);
   }
 
   free(klass); free(cid); free(name); free(text); free(cflags);
   free(h_align); free(v_align); free(layout_kind);
   free(layout_orientation); free(layout_columns); free(layout_spacing);
+  free(padding); free(margin);
   return true;
 }
 
@@ -814,20 +851,30 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *layout_orientation = attr_dup(form, "layout_orientation");
   char *layout_columns = attr_dup(form, "layout_columns");
   char *layout_spacing = attr_dup_first(form, "spacing", "layout_spacing");
+  char *padding = attr_dup_first(form, "padding", "layout_padding");
+  char *margin = attr_dup_first(form, "margin", "layout_margin");
   bool auto_layout = attr_is_true(form, "auto_layout");
   frame_t fr = {0, 0, 0, 0};
+  frame_t pad = {0, 0, 0, 0};
+  frame_t mar = {0, 0, 0, 0};
   if (!parse_frame(form, &fr)) {
     fprintf(stderr, "orionc: form '%s' has no valid frame\n", nonempty(id, ""));
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(padding); free(margin);
     return false;
   }
+  if (!parse_rect_attr(form, "padding", &pad))
+    (void)parse_rect_attr(form, "layout_padding", &pad);
+  if (!parse_rect_attr(form, "margin", &mar))
+    (void)parse_rect_attr(form, "layout_margin", &mar);
 
   char id_ident[128];
   make_ident(id_ident, sizeof(id_ident), id);
   if (!emit_nested_control_arrays(f, form, prefix, id_ident, auto_layout)) {
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(padding); free(margin);
     return false;
   }
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
@@ -836,6 +883,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   if (!emit_control_entries(f, form, prefix, id_ident, auto_layout, &child_count)) {
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(padding); free(margin);
     return false;
   }
   fprintf(f, "};\n\n");
@@ -853,12 +901,15 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
           (unsigned)layout_columns_attr(layout_columns, 0));
   fprintf(f, "  .layout_spacing = %u,\n",
           (unsigned)layout_spacing_attr(layout_spacing, 4));
+  fprintf(f, "  .padding = { %d, %d, %d, %d },\n", pad.x, pad.y, pad.w, pad.h);
+  fprintf(f, "  .margin = { %d, %d, %d, %d },\n", mar.x, mar.y, mar.w, mar.h);
   fprintf(f, "  .children = %s_%s_children,\n", prefix, id_ident);
   fprintf(f, "  .child_count = %d,\n", child_count);
   fputs("};\n\n", f);
 
   free(id); free(title); free(flags);
   free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+  free(padding); free(margin);
   return true;
 }
 

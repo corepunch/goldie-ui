@@ -191,6 +191,8 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->layout_orientation = WINDOW_STACK_VERTICAL;
   doc->layout_columns = 0;
   doc->layout_spacing = 4;
+  doc->padding = (irect16_t){0, 0, 0, 0};
+  doc->margin = (irect16_t){0, 0, 0, 0};
   doc->next_id   = CTRL_ID_BASE;
   doc->grid_size    = 8;
   doc->show_grid    = true;
@@ -466,6 +468,20 @@ static bool frame_attr(xmlNodePtr node, irect16_t *out) {
   return true;
 }
 
+static irect16_t rect_attr(xmlNodePtr node, const char *name, irect16_t fallback) {
+  char *v = xml_attr_dup(node, name);
+  if (!v) return fallback;
+  int a = fallback.x, b = fallback.y, c = fallback.w, d = fallback.h;
+  int n = sscanf(v, "%d %d %d %d", &a, &b, &c, &d);
+  free(v);
+  switch (n) {
+    case 1: return (irect16_t){a, a, a, a};
+    case 2: return (irect16_t){a, b, a, b};
+    case 4: return (irect16_t){a, b, c, d};
+    default: return fallback;
+  }
+}
+
 static void project_reset(void) {
   if (!g_app) return;
   while (g_app->docs)
@@ -544,6 +560,10 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       char *v_align = xml_attr_dup(n, "v_align");
       el->h_align = align_attr(h_align, el->h_align);
       el->v_align = align_attr(v_align, el->v_align);
+      el->padding = rect_attr(n, "padding",
+                              rect_attr(n, "layout_padding", (irect16_t){0, 0, 0, 0}));
+      el->margin = rect_attr(n, "margin",
+                              rect_attr(n, "layout_margin", (irect16_t){0, 0, 0, 0}));
       free(h_align);
       free(v_align);
       if (doc->auto_layout) {
@@ -572,8 +592,14 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   if (!doc || !doc->auto_layout) return;
   const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
   int count = doc->element_count;
-  int max_w = MAX(1, doc->form_size.w);
-  int max_h = MAX(1, doc->form_size.h);
+  int pad_l = doc->padding.x;
+  int pad_t = doc->padding.y;
+  int pad_r = doc->padding.w;
+  int pad_b = doc->padding.h;
+  int max_w = MAX(1, doc->form_size.w - pad_l - pad_r);
+  int max_h = MAX(1, doc->form_size.h - pad_t - pad_b);
+  int content_x = pad_l;
+  int content_y = pad_t;
 
   if (doc->layout_kind == WINDOW_LAYOUT_GRID) {
     int cols = doc->layout_columns > 0 ? doc->layout_columns : 2;
@@ -588,66 +614,86 @@ static void project_auto_layout_doc(form_doc_t *doc) {
       form_element_t *el = &doc->elements[i];
       int row = i / cols;
       int col = i % cols;
-      int x = col * base_w + (col < rem_w ? col : rem_w);
-      int y = row * base_h + (row < rem_h ? row : rem_h);
-      int cw = base_w + (col < rem_w ? 1 : 0);
-      int ch = base_h + (row < rem_h ? 1 : 0);
-      int dw = el->frame.w > 0 ? el->frame.w : 1;
-      int dh = el->frame.h > 0 ? el->frame.h : 1;
-      if (el->h_align == LAYOUT_ALIGN_STRETCH) {
-        dw = cw;
-      } else {
-        if (dw > cw) dw = cw;
-        if (el->h_align == LAYOUT_ALIGN_CENTER) x += (cw - dw) / 2;
-        else if (el->h_align == LAYOUT_ALIGN_END) x += cw - dw;
-      }
-      if (el->v_align == LAYOUT_ALIGN_STRETCH) {
-        dh = ch;
-      } else {
-        if (dh > ch) dh = ch;
-        if (el->v_align == LAYOUT_ALIGN_CENTER) y += (ch - dh) / 2;
-        else if (el->v_align == LAYOUT_ALIGN_END) y += ch - dh;
-      }
-      el->frame = (irect16_t){x, y, MAX(1, dw), MAX(1, dh)};
+      irect16_t margin = el->margin;
+      int cell_w = base_w + (col < rem_w ? 1 : 0);
+      int cell_h = base_h + (row < rem_h ? 1 : 0);
+      int ow = el->frame.w > 0 ? el->frame.w + margin.x + margin.w : margin.x + margin.w + 1;
+      int oh = el->frame.h > 0 ? el->frame.h + margin.y + margin.h : margin.y + margin.h + 1;
+      int x = content_x + col * (base_w + gap) + (col < rem_w ? col : rem_w);
+      int y = content_y + row * (base_h + gap) + (row < rem_h ? row : rem_h);
+      int outer_x = x;
+      int outer_y = y;
+      int outer_w = (el->h_align == LAYOUT_ALIGN_STRETCH) ? cell_w : MIN(ow, cell_w);
+      int outer_h = (el->v_align == LAYOUT_ALIGN_STRETCH) ? cell_h : MIN(oh, cell_h);
+      if (el->h_align == LAYOUT_ALIGN_CENTER)
+        outer_x += (cell_w - outer_w) / 2;
+      else if (el->h_align == LAYOUT_ALIGN_END)
+        outer_x += cell_w - outer_w;
+      if (el->v_align == LAYOUT_ALIGN_CENTER)
+        outer_y += (cell_h - outer_h) / 2;
+      else if (el->v_align == LAYOUT_ALIGN_END)
+        outer_y += cell_h - outer_h;
+      el->frame = (irect16_t){
+        outer_x + margin.x,
+        outer_y + margin.y,
+        MAX(1, outer_w - margin.x - margin.w),
+        MAX(1, outer_h - margin.y - margin.h)
+      };
     }
     return;
   }
 
   if (doc->layout_orientation == WINDOW_STACK_HORIZONTAL) {
-    int x = 0;
+    int x = content_x;
     for (int i = 0; i < count; i++) {
       form_element_t *el = &doc->elements[i];
+      irect16_t margin = el->margin;
       if (i > 0) x += gap;
-      int dw = el->frame.w > 0 ? el->frame.w : 1;
-      int dh = el->frame.h > 0 ? el->frame.h : 1;
-      int y = 0;
+      int inner_w = el->frame.w > 0 ? el->frame.w : 1;
+      int inner_h = el->frame.h > 0 ? el->frame.h : 1;
+      int ow = inner_w + margin.x + margin.w;
+      int oh = inner_h + margin.y + margin.h;
+      int outer_y = content_y;
       if (el->v_align == LAYOUT_ALIGN_STRETCH) {
-        dh = max_h;
+        oh = max_h;
       } else {
-        if (dh > max_h) dh = max_h;
-        if (el->v_align == LAYOUT_ALIGN_CENTER) y = (max_h - dh) / 2;
-        else if (el->v_align == LAYOUT_ALIGN_END) y = max_h - dh;
+        if (oh > max_h) oh = max_h;
+        if (el->v_align == LAYOUT_ALIGN_CENTER) outer_y = content_y + (max_h - oh) / 2;
+        else if (el->v_align == LAYOUT_ALIGN_END) outer_y = content_y + max_h - oh;
       }
-      el->frame = (irect16_t){x, y, MAX(1, dw), MAX(1, dh)};
-      x += dw;
+      el->frame = (irect16_t){
+        x + margin.x,
+        outer_y + margin.y,
+        MAX(1, ow - margin.x - margin.w),
+        MAX(1, oh - margin.y - margin.h)
+      };
+      x += ow;
     }
   } else {
-    int y = 0;
+    int y = content_y;
     for (int i = 0; i < count; i++) {
       form_element_t *el = &doc->elements[i];
+      irect16_t margin = el->margin;
       if (i > 0) y += gap;
-      int dw = el->frame.w > 0 ? el->frame.w : 1;
-      int dh = el->frame.h > 0 ? el->frame.h : 1;
-      int x = 0;
+      int inner_w = el->frame.w > 0 ? el->frame.w : 1;
+      int inner_h = el->frame.h > 0 ? el->frame.h : 1;
+      int ow = inner_w + margin.x + margin.w;
+      int oh = inner_h + margin.y + margin.h;
+      int outer_x = content_x;
       if (el->h_align == LAYOUT_ALIGN_STRETCH) {
-        dw = max_w;
+        ow = max_w;
       } else {
-        if (dw > max_w) dw = max_w;
-        if (el->h_align == LAYOUT_ALIGN_CENTER) x = (max_w - dw) / 2;
-        else if (el->h_align == LAYOUT_ALIGN_END) x = max_w - dw;
+        if (ow > max_w) ow = max_w;
+        if (el->h_align == LAYOUT_ALIGN_CENTER) outer_x = content_x + (max_w - ow) / 2;
+        else if (el->h_align == LAYOUT_ALIGN_END) outer_x = content_x + max_w - ow;
       }
-      el->frame = (irect16_t){x, y, MAX(1, dw), MAX(1, dh)};
-      y += dh;
+      el->frame = (irect16_t){
+        outer_x + margin.x,
+        y + margin.y,
+        MAX(1, ow - margin.x - margin.w),
+        MAX(1, oh - margin.y - margin.h)
+      };
+      y += oh;
     }
   }
 }
@@ -696,6 +742,10 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   doc->layout_columns = (uint8_t)int_attr(form_node, "layout_columns", 0);
   doc->layout_spacing = (uint8_t)int_attr(form_node, "spacing",
                                           int_attr(form_node, "layout_spacing", 0));
+  doc->padding = rect_attr(form_node, "padding",
+                           rect_attr(form_node, "layout_padding", (irect16_t){0, 0, 0, 0}));
+  doc->margin = rect_attr(form_node, "margin",
+                          rect_attr(form_node, "layout_margin", (irect16_t){0, 0, 0, 0}));
   project_load_requires(doc, form_node);
   project_load_controls(doc, form_node);
   project_auto_layout_doc(doc);
@@ -785,6 +835,12 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     fprintf(f, "\n            layout_columns=\"%u\"", (unsigned)doc->layout_columns);
   if (doc->auto_layout || doc->layout_spacing != 0)
     fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
+  if (doc->auto_layout || doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
+    fprintf(f, "\n            padding=\"%d %d %d %d\"",
+            doc->padding.x, doc->padding.y, doc->padding.w, doc->padding.h);
+  if (doc->margin.x || doc->margin.y || doc->margin.w || doc->margin.h)
+    fprintf(f, "\n            margin=\"%d %d %d %d\"",
+            doc->margin.x, doc->margin.y, doc->margin.w, doc->margin.h);
   if (doc->owner[0]) xml_attr(f, "owner", doc->owner);
   fprintf(f, ">\n");
 
@@ -810,6 +866,12 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
       fprintf(f, " frame=\"%d %d %d %d\"",
               el->frame.x, el->frame.y, el->frame.w, el->frame.h);
     }
+    if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
+      fprintf(f, " padding=\"%d %d %d %d\"",
+              el->padding.x, el->padding.y, el->padding.w, el->padding.h);
+    if (el->margin.x || el->margin.y || el->margin.w || el->margin.h)
+      fprintf(f, " margin=\"%d %d %d %d\"",
+              el->margin.x, el->margin.y, el->margin.w, el->margin.h);
     char flags_buf[32];
     snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, el->flags);
     xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);

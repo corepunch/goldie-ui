@@ -87,6 +87,50 @@ static char *fe_read_file(const char *path) {
     return buf;
 }
 
+static void fe_write_padding_project(const char *path, const char *padding_attr) {
+    FILE *f = fopen(path, "w");
+    ASSERT_NOT_NULL(f);
+    fprintf(f,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<orion version=\"1\" name=\"padtest\" title=\"Pad Test\" root=\"examples/formeditor\">\n"
+            "  <forms>\n"
+            "    <form id=\"pad\"\n"
+            "          title=\"Pad\"\n"
+            "          frame=\"0 0 120 80\"\n"
+            "          flags=\"0\"\n"
+            "          auto_layout=\"1\"\n"
+            "          padding=\"%s\"\n"
+            "          layout_kind=\"stack\">\n"
+            "      <button id=\"1\" name=\"ok\" text=\"OK\" flags=\"0\" />\n"
+            "    </form>\n"
+            "  </forms>\n"
+            "</orion>\n",
+            padding_attr);
+    fclose(f);
+}
+
+static void fe_write_margin_project(const char *path, const char *margin_attr) {
+    FILE *f = fopen(path, "w");
+    ASSERT_NOT_NULL(f);
+    fprintf(f,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<orion version=\"1\" name=\"margintest\" title=\"Margin Test\" root=\"examples/formeditor\">\n"
+            "  <forms>\n"
+            "    <form id=\"margin\"\n"
+            "          title=\"Margin\"\n"
+            "          frame=\"0 0 120 80\"\n"
+            "          flags=\"0\"\n"
+            "          auto_layout=\"1\"\n"
+            "          padding=\"8\"\n"
+            "          layout_kind=\"stack\">\n"
+            "      <button id=\"1\" name=\"ok\" text=\"OK\" margin=\"%s\" flags=\"0\" />\n"
+            "    </form>\n"
+            "  </forms>\n"
+            "</orion>\n",
+            margin_attr);
+    fclose(f);
+}
+
 // ── Setup / teardown ───────────────────────────────────────────────────────
 
 static void fe_close_all_docs(void) {
@@ -1068,6 +1112,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     fe_setup();
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
+    doc->padding = (irect16_t){8, 8, 8, 8};
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "auto");
     snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Auto");
 
@@ -1075,6 +1120,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     fe_place_ctrl(doc, ID_TOOL_TEXTEDIT, 20, 56, 120, 18);
     doc->elements[0].h_align = LAYOUT_ALIGN_CENTER;
     doc->elements[0].v_align = LAYOUT_ALIGN_END;
+    doc->elements[0].margin = (irect16_t){8, 8, 8, 8};
     doc->elements[1].h_align = LAYOUT_ALIGN_START;
     doc->elements[1].v_align = LAYOUT_ALIGN_STRETCH;
 
@@ -1084,6 +1130,8 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "padding=\"8 8 8 8\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "margin=\"8 8 8 8\"") != NULL);
     ASSERT_TRUE(strstr(xml, "h_align=\"center\"") != NULL);
     ASSERT_TRUE(strstr(xml, "v_align=\"end\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
@@ -1096,15 +1144,87 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     form_doc_t *ndoc = g_app->docs;
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->auto_layout);
+    ASSERT_EQUAL(ndoc->padding.x, 8);
+    ASSERT_EQUAL(ndoc->padding.y, 8);
+    ASSERT_EQUAL(ndoc->padding.w, 8);
+    ASSERT_EQUAL(ndoc->padding.h, 8);
     ASSERT_EQUAL(ndoc->element_count, 2);
     ASSERT_EQUAL(ndoc->elements[0].h_align, LAYOUT_ALIGN_CENTER);
     ASSERT_EQUAL(ndoc->elements[0].v_align, LAYOUT_ALIGN_END);
+    ASSERT_EQUAL(ndoc->elements[0].margin.x, 8);
+    ASSERT_EQUAL(ndoc->elements[0].margin.y, 8);
+    ASSERT_EQUAL(ndoc->elements[0].margin.w, 8);
+    ASSERT_EQUAL(ndoc->elements[0].margin.h, 8);
     ASSERT_EQUAL(ndoc->elements[1].h_align, LAYOUT_ALIGN_START);
     ASSERT_EQUAL(ndoc->elements[1].v_align, LAYOUT_ALIGN_STRETCH);
 
     unlink(path);
 
     fe_teardown();
+    PASS();
+}
+
+void test_fe_load_padding_shorthand(void) {
+    TEST("project load: padding shorthand values expand correctly");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_pad_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    fe_write_padding_project(path, "8");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->padding.x, 8);
+    ASSERT_EQUAL(g_app->docs->padding.y, 8);
+    ASSERT_EQUAL(g_app->docs->padding.w, 8);
+    ASSERT_EQUAL(g_app->docs->padding.h, 8);
+    unlink(path);
+    fe_teardown();
+
+    fe_setup();
+    fe_write_padding_project(path, "2 6");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->padding.x, 2);
+    ASSERT_EQUAL(g_app->docs->padding.y, 6);
+    ASSERT_EQUAL(g_app->docs->padding.w, 2);
+    ASSERT_EQUAL(g_app->docs->padding.h, 6);
+    unlink(path);
+    fe_teardown();
+
+    PASS();
+}
+
+void test_fe_load_margin_shorthand(void) {
+    TEST("project load: margin shorthand values expand correctly");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_margin_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    fe_write_margin_project(path, "7");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 7);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 7);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.w, 7);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.h, 7);
+    unlink(path);
+    fe_teardown();
+
+    fe_setup();
+    fe_write_margin_project(path, "3 5");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 3);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 5);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.w, 3);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.h, 5);
+    unlink(path);
+    fe_teardown();
+
     PASS();
 }
 
@@ -1547,6 +1667,8 @@ int main(void) {
     test_fe_property_browser_edit_respects_vertical_scrollbar();
     test_fe_save_load_roundtrip();
     test_fe_save_load_auto_layout_roundtrip();
+    test_fe_load_padding_shorthand();
+    test_fe_load_margin_shorthand();
     test_fe_save_load_layout_kind_roundtrip();
     test_fe_save_load_form_dimensions();
     test_fe_save_load_form_flags();

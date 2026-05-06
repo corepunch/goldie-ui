@@ -76,6 +76,7 @@
             frame="0 0 520 336"
             flags="0"
             auto_layout="1"
+            padding="8 8 8 8"
             layout_kind="stack"
             owner="examples/socialfeed/view_dlg_post.c">
         <stack orientation="vertical" spacing="8" id="ID_POST_DETAIL_LAYOUT" value="316">

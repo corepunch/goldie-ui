@@ -217,6 +217,8 @@ typedef struct form_ctrl_def_s {
   uint8_t           layout_orientation; // window_stack_orientation_t
   uint8_t           layout_columns; // grid columns (0 = default)
   uint8_t           layout_spacing; // spacing between direct children; 0 = default
+  irect16_t         padding; // inner padding for layout containers
+  irect16_t         margin;  // outer margin when this control is laid out by a parent
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -235,6 +237,8 @@ typedef struct {
   uint8_t                 layout_orientation; // window_stack_orientation_t
   uint8_t                 layout_columns; // grid columns (0 = default)
   uint8_t                 layout_spacing; // spacing between direct children; 0 = default
+  irect16_t               padding;      // inner padding for auto-layout content
+  irect16_t               margin;       // outer margin for this form when nested
   const form_ctrl_def_t  *children;    // array of child control definitions (may be NULL)
   int                     child_count; // number of entries in children[]
   // ── DDX (Dialog Data Exchange) fields ───────────────────────────────────
@@ -345,6 +349,8 @@ struct window_s {
   uint8_t   h_align;        // horizontal alignment; 0 = stretch
   uint8_t   v_align;        // vertical alignment; 0 = stretch
   uint8_t   layout_spacing;  // spacing between direct children; 0 = default
+  irect16_t layout_padding;  // inner padding for auto-layout containers
+  irect16_t layout_margin;   // outer margin when nested inside a layout container
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)

@@ -63,6 +63,14 @@ int strwidth(const char* text);
 int strnwidth(const char* text, int text_length);
 
 // ── Advanced text rendering ───────────────────────────────────────────────────
+typedef struct {
+  int  width;
+  int  height;
+  bool wrapped;
+} text_wrap_result_t;
+
+text_wrap_result_t text_wrap_layout(const char* text, irect16_t const *viewport,
+                                    uint32_t col, bool draw);
 int calc_text_height(const char* text, int width);
 void draw_text_wrapped(const char* text, irect16_t const *viewport, uint32_t col);
 
