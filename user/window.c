@@ -962,6 +962,10 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   win->layout_spacing    = def->layout_spacing;
   win->layout_padding    = def->padding;
   win->layout_margin     = def->margin;
+  if (win->auto_layout && (!win->layout_kind || !*win->layout_kind))
+    win->layout_kind = "stack";
+  if (win->auto_layout && win->layout_spacing == 0 && streq(win->layout_kind, "stack"))
+    win->layout_spacing = 4;
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).

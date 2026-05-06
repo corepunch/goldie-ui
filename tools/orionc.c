@@ -1052,7 +1052,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprintf(f, "  .flags = %s,\n", nonempty(flags, "0"));
   fprintf(f, "  .auto_layout = %s,\n", auto_layout ? "true" : "false");
   fprintf(f, "  .layout_kind = ");
-  fprint_c_string(f, layout_kind_attr(layout_kind, "none"));
+  fprint_c_string(f, layout_kind_attr(layout_kind, auto_layout ? "stack" : "none"));
   fputs(",\n", f);
   fprintf(f, "  .layout_orientation = %s,\n",
           layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)));

@@ -305,6 +305,38 @@ static const form_def_t kNestForm = {
   .child_count = ARRAY_LEN(kNestChildren),
 };
 
+static const form_ctrl_def_t kDefaultStackChildren[] = {
+  {
+    .class_name = "button",
+    .id = 201,
+    .frame = {0, 0, 80, 0},
+    .text = "First",
+    .name = "first",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = 202,
+    .frame = {0, 0, 80, 0},
+    .text = "Second",
+    .name = "second",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_def_t kDefaultStackForm = {
+  .name = "DefaultStack",
+  .width = 200,
+  .height = 80,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .padding = {0, 0, 0, 0},
+  .children = kDefaultStackChildren,
+  .child_count = ARRAY_LEN(kDefaultStackChildren),
+};
+
 static result_t form_test_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam);
 static result_t post_detail_like_proc(window_t *win, uint32_t msg,
@@ -997,6 +1029,27 @@ void test_nested_stack_positions(void) {
   PASS();
 }
 
+void test_default_auto_layout_stack(void) {
+  TEST("auto-layout: root form defaults to vertical stack");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kDefaultStackForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+  window_t *first = get_window_item(win, 201);
+  window_t *second = get_window_item(win, 202);
+  ASSERT_NOT_NULL(first);
+  ASSERT_NOT_NULL(second);
+
+  ASSERT_EQUAL(first->frame.x, 0);
+  ASSERT_EQUAL(first->frame.y, 0);
+  ASSERT_TRUE(second->frame.y > first->frame.y);
+  ASSERT_EQUAL(second->frame.y, first->frame.h + 4);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 void test_post_detail_layout_budget(void) {
   TEST("post-detail-like layout: footer fits inside the 336px window");
 
@@ -1051,6 +1104,7 @@ int main(int argc, char *argv[]) {
   test_auto_layout_margin();
   test_auto_layout_wrapped_label();
   test_nested_stack_positions();
+  test_default_auto_layout_stack();
   test_post_detail_layout_budget();
 
   TEST_END();

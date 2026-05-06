@@ -44,17 +44,19 @@
             flags="0"
             auto_layout="1"
             padding="8"
-            layout_kind="grid"
-            layout_columns="2"
 >
-        <label name="lbl_author" v-align="top" text="Author:" />
-        <textedit name="author" h-align="stretch" v-align="top" text="" />
-        <label name="lbl_title" v-align="top" text="Title:" />
-        <textedit name="title" h-align="stretch" v-align="top" text="" />
-        <label name="lbl_body" v-align="top" text="Body:" />
-        <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
-        <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
-        <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
+        <grid name="fields" columns="2" spacing="4">
+          <label name="lbl_author" v-align="top" text="Author:" />
+          <textedit name="author" h-align="stretch" v-align="top" text="" />
+          <label name="lbl_title" v-align="top" text="Title:" />
+          <textedit name="title" h-align="stretch" v-align="top" text="" />
+          <label name="lbl_body" v-align="top" text="Body:" />
+          <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
+        </grid>
+        <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
+          <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
+          <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="new_comment"
