@@ -100,7 +100,7 @@
           </stack>
 
           <!-- Comments reportview -->
-          <reportview name="comments" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
+          <reportview name="comments" v-align="stretch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
 
           <stack name="actions" orientation="horizontal" v-align="top" spacing="4">
             <button name="like_post" h-align="left" v-align="top" text="Like Post" flags="0" />

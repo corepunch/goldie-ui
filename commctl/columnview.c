@@ -581,6 +581,33 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       return true;
     }
 
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (!m) return true;
+
+      int min_h = ENTRY_HEIGHT;
+      int min_w = win->frame.w > 0 ? win->frame.w : 1;
+      if (data) {
+        if (data->view_mode == RVM_VIEW_REPORT) {
+          min_h = rv_report_header_height(data) + ENTRY_HEIGHT;
+          if (data->column_count > 0) {
+            int cols_w = 0;
+            for (uint32_t i = 0; i < data->column_count; i++) {
+              if (i > 0) cols_w += 1;
+              cols_w += data->columns[i].width > 0 ? (int)data->columns[i].width : (int)data->column_width;
+            }
+            if (cols_w > 0) min_w = MAX(min_w, cols_w);
+          }
+        } else if (data->view_mode == RVM_VIEW_LARGE_ICON) {
+          min_h = 2 * RV_LARGE_ICON_PAD + rv_large_icon_cell_h(data);
+        }
+      }
+
+      m->desired_w = MAX(m->desired_w, min_w);
+      m->desired_h = MAX(m->desired_h, min_h);
+      return true;
+    }
+
     case evPaint:
       if (data->view_mode == RVM_VIEW_REPORT)
         rv_paint_report_view(win, data);

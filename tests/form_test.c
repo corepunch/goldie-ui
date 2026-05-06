@@ -11,6 +11,7 @@
 #include "test_framework.h"
 #include "test_env.h"
 #include "../ui.h"
+#include "../examples/socialfeed/socialfeed.h"
 
 // ──────────────────────────────────────────────────────────────────────────
 // Shared form definition used by several tests
@@ -471,6 +472,8 @@ static result_t form_test_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam);
 static result_t post_detail_like_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam);
+static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
+                                                   uint32_t wparam, void *lparam);
 
 // ──────────────────────────────────────────────────────────────────────────
 // Post-detail-like form used to validate wrapped labels + reportview + footer
@@ -676,6 +679,38 @@ static result_t post_detail_like_proc(window_t *win, uint32_t msg,
     set_window_item_text(win, PD_FORM_ID_BODY, "%s", kPostDetailLikeBodyText);
     set_window_item_text(win, PD_FORM_ID_LIKES, "12 likes");
     set_window_item_text(win, PD_FORM_ID_COMMENTS_HDR, "Comments (3):");
+    window_layout_sync(win);
+    return true;
+  }
+  return false;
+}
+
+static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
+                                                   uint32_t wparam, void *lparam) {
+  (void)wparam;
+  (void)lparam;
+  if (msg == evCreate) {
+    set_window_item_text(win, ID_POST_DETAIL_LBL_TITLE, "Orion UI is awesome!");
+    set_window_item_text(win, ID_POST_DETAIL_LBL_AUTHOR, "by alice");
+    set_window_item_text(win, ID_POST_DETAIL_LBL_BODY, "%s", kPostDetailLikeBodyText);
+    set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES, "12 likes");
+    set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR, "Comments (3):");
+
+    window_t *cv = get_window_item(win, ID_POST_DETAIL_COMMENTS);
+    if (cv) {
+      send_message(cv, RVM_SETREDRAW, 0, NULL);
+      send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+      send_message(cv, RVM_CLEARCOLUMNS, 0, NULL);
+      reportview_column_t col_author = { "Author", 70 };
+      reportview_column_t col_text = { "Text", 120 };
+      reportview_column_t col_likes = { "Likes", 45 };
+      send_message(cv, RVM_ADDCOLUMN, 0, &col_author);
+      send_message(cv, RVM_ADDCOLUMN, 0, &col_text);
+      send_message(cv, RVM_ADDCOLUMN, 0, &col_likes);
+      send_message(cv, RVM_CLEAR, 0, NULL);
+      send_message(cv, RVM_SETREDRAW, 1, NULL);
+    }
+
     window_layout_sync(win);
     return true;
   }
@@ -1265,10 +1300,37 @@ void test_post_detail_layout_budget(void) {
   ASSERT_EQUAL(short_layout->frame.y, 8);
   ASSERT_EQUAL(short_layout->frame.h, short_client.h - 16);
   ASSERT_TRUE(short_header->frame.h > CONTROL_HEIGHT);
+  ASSERT_TRUE(short_comments->frame.h > 0);
   ASSERT_TRUE(short_body->frame.h > CONTROL_HEIGHT);
   ASSERT_TRUE(short_bottom <= short_client.h);
+  ASSERT_EQUAL(short_bottom, short_layout->frame.h);
   destroy_window(short_win);
 
+  test_env_shutdown();
+  PASS();
+}
+
+void test_socialfeed_post_detail_layout(void) {
+  TEST("socialfeed post detail: reportview takes leftover height");
+
+  test_env_init();
+
+  window_t *win = create_window_from_form(&socialfeed_post_detail_form, 0, 0, NULL,
+                                          socialfeed_post_detail_layout_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+
+  window_t *layout = get_window_item(win, ID_POST_DETAIL_LAYOUT);
+  window_t *comments = get_window_item(win, ID_POST_DETAIL_COMMENTS);
+  window_t *actions = get_window_item(win, ID_POST_DETAIL_ACTIONS);
+  ASSERT_NOT_NULL(layout);
+  ASSERT_NOT_NULL(comments);
+  ASSERT_NOT_NULL(actions);
+
+  ASSERT_TRUE(comments->frame.h > 100);
+  ASSERT_EQUAL(actions->frame.y + actions->frame.h, layout->frame.h);
+  ASSERT_TRUE(actions->frame.y > comments->frame.y);
+
+  destroy_window(win);
   test_env_shutdown();
   PASS();
 }
@@ -1300,6 +1362,7 @@ int main(int argc, char *argv[]) {
   test_default_auto_layout_stack();
   test_new_post_grid_stack_layout();
   test_post_detail_layout_budget();
+  test_socialfeed_post_detail_layout();
 
   TEST_END();
 }
