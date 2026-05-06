@@ -44,26 +44,17 @@
             flags="0"
             auto_layout="1"
             padding="8"
+            layout_kind="grid"
+            layout_columns="2"
 >
-        <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_author" v-align="top" text="Author:" />
-          <textedit name="author" h-align="stretch" v-align="top" text="" />
-        </stack>
-
-        <stack name="title_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_title" v-align="top" text="Title:" />
-          <textedit name="title" h-align="stretch" v-align="top" text="" />
-        </stack>
-
-        <stack name="body_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_body" v-align="top" text="Body:" />
-          <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
-        </stack>
-
-        <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
-          <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
-          <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
-        </stack>
+        <label name="lbl_author" v-align="top" text="Author:" />
+        <textedit name="author" h-align="stretch" v-align="top" text="" />
+        <label name="lbl_title" v-align="top" text="Title:" />
+        <textedit name="title" h-align="stretch" v-align="top" text="" />
+        <label name="lbl_body" v-align="top" text="Body:" />
+        <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
+        <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
+        <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
       </form>
 
       <form name="new_comment"
@@ -94,7 +85,7 @@
             frame="0 0 520 336"
             flags="0"
             auto_layout="1"
-            padding="8 8 8 8"
+            padding="8"
 >
         <stack name="layout" orientation="vertical" spacing="8">
           <stack name="header" orientation="vertical" v-align="top" spacing="2">
