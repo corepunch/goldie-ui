@@ -337,6 +337,136 @@ static const form_def_t kDefaultStackForm = {
   .child_count = ARRAY_LEN(kDefaultStackChildren),
 };
 
+#define NP_FORM_ID_FIELDS   203
+#define NP_FORM_ID_AUTHOR_L 204
+#define NP_FORM_ID_AUTHOR_E 205
+#define NP_FORM_ID_TITLE_L   206
+#define NP_FORM_ID_TITLE_E   207
+#define NP_FORM_ID_BODY_L    208
+#define NP_FORM_ID_BODY_E    209
+#define NP_FORM_ID_ACTIONS   210
+#define NP_FORM_ID_OK        211
+#define NP_FORM_ID_CANCEL    212
+
+static const form_ctrl_def_t kNewPostFieldsChildren[] = {
+  {
+    .class_name = "label",
+    .id = NP_FORM_ID_AUTHOR_L,
+    .frame = {0, 0, 56, 0},
+    .text = "Author:",
+    .name = "author_lbl",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "textedit",
+    .id = NP_FORM_ID_AUTHOR_E,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "author",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "label",
+    .id = NP_FORM_ID_TITLE_L,
+    .frame = {0, 0, 56, 0},
+    .text = "Title:",
+    .name = "title_lbl",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "textedit",
+    .id = NP_FORM_ID_TITLE_E,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "title",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "label",
+    .id = NP_FORM_ID_BODY_L,
+    .frame = {0, 0, 56, 0},
+    .text = "Body:",
+    .name = "body_lbl",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "multiedit",
+    .id = NP_FORM_ID_BODY_E,
+    .frame = {0, 0, 0, 48},
+    .text = "",
+    .name = "body",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_ctrl_def_t kNewPostChildren[] = {
+  {
+    .class_name = "grid",
+    .id = NP_FORM_ID_FIELDS,
+    .frame = {0, 0, 0, 0},
+    .name = "fields",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+    .children = kNewPostFieldsChildren,
+    .child_count = ARRAY_LEN(kNewPostFieldsChildren),
+    .layout_kind = "grid",
+    .layout_columns = 2,
+    .layout_spacing = 4,
+  },
+  {
+    .class_name = "stack",
+    .id = NP_FORM_ID_ACTIONS,
+    .frame = {0, 0, 0, 0},
+    .name = "actions",
+    .h_align = LAYOUT_ALIGN_CENTER,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = (const form_ctrl_def_t[]){
+      {
+        .class_name = "button",
+        .id = NP_FORM_ID_OK,
+        .frame = {0, 0, 44, 0},
+        .text = "Post",
+        .name = "ok",
+        .h_align = LAYOUT_ALIGN_START,
+        .v_align = LAYOUT_ALIGN_START,
+      },
+      {
+        .class_name = "button",
+        .id = NP_FORM_ID_CANCEL,
+        .frame = {0, 0, 56, 0},
+        .text = "Cancel",
+        .name = "cancel",
+        .h_align = LAYOUT_ALIGN_START,
+        .v_align = LAYOUT_ALIGN_START,
+      },
+    },
+    .child_count = 2,
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+  },
+};
+
+static const form_def_t kNewPostGridForm = {
+  .name = "NewPostGrid",
+  .width = 272,
+  .height = 150,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .padding = {8, 8, 8, 8},
+  .children = kNewPostChildren,
+  .child_count = ARRAY_LEN(kNewPostChildren),
+};
+
 static result_t form_test_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam);
 static result_t post_detail_like_proc(window_t *win, uint32_t msg,
@@ -883,7 +1013,7 @@ void test_stackview_layout(void) {
 }
 
 void test_gridview_layout(void) {
-  TEST("gridview: arranges children in equal cells");
+  TEST("gridview: arranges children compactly by row and column sizes");
 
   test_env_init();
 
@@ -905,19 +1035,33 @@ void test_gridview_layout(void) {
   ASSERT_NOT_NULL(c1);
   ASSERT_NOT_NULL(c2);
   ASSERT_NOT_NULL(c3);
+  c0->h_align = LAYOUT_ALIGN_START;
+  c1->h_align = LAYOUT_ALIGN_START;
+  c2->h_align = LAYOUT_ALIGN_START;
+  c3->h_align = LAYOUT_ALIGN_START;
+  c0->v_align = LAYOUT_ALIGN_START;
+  c1->v_align = LAYOUT_ALIGN_START;
+  c2->v_align = LAYOUT_ALIGN_START;
+  c3->v_align = LAYOUT_ALIGN_START;
 
   window_layout_sync(root);
 
   ASSERT_EQUAL(c0->frame.x, 0);
   ASSERT_EQUAL(c0->frame.y, 0);
-  ASSERT_EQUAL(c0->frame.w, 100);
-  ASSERT_EQUAL(c0->frame.h, 40);
-  ASSERT_EQUAL(c1->frame.x, 100);
+  ASSERT_EQUAL(c0->frame.w, 20);
+  ASSERT_EQUAL(c0->frame.h, 19);
+  ASSERT_EQUAL(c1->frame.x, 20);
   ASSERT_EQUAL(c1->frame.y, 0);
+  ASSERT_EQUAL(c1->frame.w, 20);
+  ASSERT_EQUAL(c1->frame.h, 19);
   ASSERT_EQUAL(c2->frame.x, 0);
-  ASSERT_EQUAL(c2->frame.y, 40);
-  ASSERT_EQUAL(c3->frame.x, 100);
-  ASSERT_EQUAL(c3->frame.y, 40);
+  ASSERT_EQUAL(c2->frame.y, 19);
+  ASSERT_EQUAL(c2->frame.w, 20);
+  ASSERT_EQUAL(c2->frame.h, 19);
+  ASSERT_EQUAL(c3->frame.x, 20);
+  ASSERT_EQUAL(c3->frame.y, 19);
+  ASSERT_EQUAL(c3->frame.w, 20);
+  ASSERT_EQUAL(c3->frame.h, 19);
 
   destroy_window(root);
   test_env_shutdown();
@@ -1050,6 +1194,55 @@ void test_default_auto_layout_stack(void) {
   PASS();
 }
 
+void test_new_post_grid_stack_layout(void) {
+  TEST("auto-layout: grid rows and action stack stay compact");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kNewPostGridForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+
+  window_t *fields = get_window_item(win, NP_FORM_ID_FIELDS);
+  window_t *author_l = get_window_item(win, NP_FORM_ID_AUTHOR_L);
+  window_t *author_e = get_window_item(win, NP_FORM_ID_AUTHOR_E);
+  window_t *title_l = get_window_item(win, NP_FORM_ID_TITLE_L);
+  window_t *title_e = get_window_item(win, NP_FORM_ID_TITLE_E);
+  window_t *body_l = get_window_item(win, NP_FORM_ID_BODY_L);
+  window_t *body_e = get_window_item(win, NP_FORM_ID_BODY_E);
+  window_t *actions = get_window_item(win, NP_FORM_ID_ACTIONS);
+  window_t *ok = get_window_item(win, NP_FORM_ID_OK);
+  window_t *cancel = get_window_item(win, NP_FORM_ID_CANCEL);
+  ASSERT_NOT_NULL(fields);
+  ASSERT_NOT_NULL(author_l);
+  ASSERT_NOT_NULL(author_e);
+  ASSERT_NOT_NULL(title_l);
+  ASSERT_NOT_NULL(title_e);
+  ASSERT_NOT_NULL(body_l);
+  ASSERT_NOT_NULL(body_e);
+  ASSERT_NOT_NULL(actions);
+  ASSERT_NOT_NULL(ok);
+  ASSERT_NOT_NULL(cancel);
+
+  ASSERT_EQUAL(fields->frame.y, 8);
+  ASSERT_TRUE(fields->frame.h < 120);
+  ASSERT_EQUAL(author_l->frame.y, 0);
+  ASSERT_EQUAL(author_e->frame.y, 0);
+  ASSERT_EQUAL(title_l->frame.y, author_l->frame.h + 4);
+  ASSERT_EQUAL(title_e->frame.y, title_l->frame.y);
+  ASSERT_EQUAL(body_l->frame.y, title_l->frame.y + title_l->frame.h + 4);
+  ASSERT_EQUAL(body_e->frame.y, body_l->frame.y);
+  ASSERT_TRUE(author_e->frame.w > author_l->frame.w);
+  ASSERT_TRUE(title_e->frame.w > title_l->frame.w);
+  ASSERT_TRUE(body_e->frame.w > body_l->frame.w);
+  ASSERT_EQUAL(actions->frame.y, fields->frame.y + fields->frame.h + 4);
+  ASSERT_EQUAL(ok->frame.y, 0);
+  ASSERT_EQUAL(cancel->frame.y, 0);
+  ASSERT_TRUE(cancel->frame.x > ok->frame.x);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 void test_post_detail_layout_budget(void) {
   TEST("post-detail-like layout: footer fits inside the 336px window");
 
@@ -1105,6 +1298,7 @@ int main(int argc, char *argv[]) {
   test_auto_layout_wrapped_label();
   test_nested_stack_positions();
   test_default_auto_layout_stack();
+  test_new_post_grid_stack_layout();
   test_post_detail_layout_budget();
 
   TEST_END();

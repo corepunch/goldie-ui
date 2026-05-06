@@ -46,11 +46,11 @@
             padding="8"
 >
         <grid name="fields" columns="2" spacing="4">
-          <label name="lbl_author" v-align="top" text="Author:" />
+          <label name="lbl_author" h-align="start" v-align="top" text="Author:" />
           <textedit name="author" h-align="stretch" v-align="top" text="" />
-          <label name="lbl_title" v-align="top" text="Title:" />
+          <label name="lbl_title" h-align="start" v-align="top" text="Title:" />
           <textedit name="title" h-align="stretch" v-align="top" text="" />
-          <label name="lbl_body" v-align="top" text="Body:" />
+          <label name="lbl_body" h-align="start" v-align="top" text="Body:" />
           <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
         </grid>
         <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
@@ -67,12 +67,12 @@
             padding="8"
 >
         <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_author" v-align="top" text="Author:" />
+          <label name="lbl_author" h-align="start" v-align="top" text="Author:" />
           <textedit name="author" h-align="stretch" v-align="top" text="" />
         </stack>
 
         <stack name="text_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_text" v-align="top" text="Text:" />
+          <label name="lbl_text" h-align="start" v-align="top" text="Text:" />
           <textedit name="text" h-align="stretch" v-align="top" text="" />
         </stack>
 
@@ -92,11 +92,11 @@
         <stack name="layout" orientation="vertical" spacing="8">
           <stack name="header" orientation="vertical" v-align="top" spacing="2">
             <!-- Post header labels (populated in evCreate) -->
-            <label name="lbl_title" v-align="top" text="" />
-            <label name="lbl_author" v-align="top" text="" />
-            <label name="lbl_body" v-align="top" text="" />
-            <label name="lbl_likes" v-align="top" text="" />
-            <label name="lbl_cmt_hdr" v-align="top" text="" />
+            <label name="lbl_title" h-align="start" v-align="top" text="" />
+            <label name="lbl_author" h-align="start" v-align="top" text="" />
+            <label name="lbl_body" h-align="start" v-align="top" text="" />
+            <label name="lbl_likes" h-align="start" v-align="top" text="" />
+            <label name="lbl_cmt_hdr" h-align="start" v-align="top" text="" />
           </stack>
 
           <!-- Comments reportview -->
