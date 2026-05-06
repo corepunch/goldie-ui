@@ -469,7 +469,7 @@ void test_ie_close_modified_doc_shows_dialog(void) {
     // immediately destroyed by run_dialog_loop in headless mode, so the net
     // change is exactly -2.
     int windows_after = count_all_windows(g_ui_runtime.windows);
-    ASSERT_TRUE(windows_after == windows_before - 2);
+    ASSERT_EQUAL(windows_after, windows_before - 2);
 
     // The document was closed (headless dialog returns 0; doc_confirm_close
     // falls through to close_document regardless of dialog result).
@@ -523,7 +523,7 @@ void test_ie_doc_confirm_close_modified(void) {
     // Dialog is created then immediately destroyed by run_dialog_loop in
     // headless mode; dwin + cwin are also destroyed. Net change is exactly -2.
     int windows_after = count_all_windows(g_ui_runtime.windows);
-    ASSERT_TRUE(windows_after == windows_before - 2);
+    ASSERT_EQUAL(windows_after, windows_before - 2);
 
     // Document must be closed.
     ASSERT_NULL(g_app->docs);
