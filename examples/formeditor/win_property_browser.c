@@ -376,6 +376,13 @@ static result_t prop_edit_proc(window_t *win, uint32_t msg,
         prop_end_edit(pbs, false);
         return true;
       }
+      if (wparam == AX_KEY_ENTER) {
+        // Handle Enter directly: do NOT delegate to win_textedit, which would
+        // write to win->editing and call invalidate_window(win) AFTER
+        // prop_end_edit -> destroy_window frees the window (use-after-free).
+        prop_end_edit(pbs, true);
+        return true;
+      }
       return win_textedit(win, msg, wparam, lparam);
 
     default:
