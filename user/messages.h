@@ -32,11 +32,6 @@ enum {
   evRightButtonDown,
   evRightButtonUp,
   evResize,
-  // Measure / arrange messages for auto-layout containers.
-  // evMeasure: lparam = layout_measure_t*; child writes desired size.
-  // evArrange: lparam = layout_arrange_t*; child adopts the assigned rect.
-  evMeasure,
-  evArrange,
   evDisplayChange,
   evKeyDown,
   evKeyUp,
@@ -64,6 +59,13 @@ enum {
   // lparam = char[256] output buffer — write the NUL-terminated tooltip text
   //          here and return true; return false if no tooltip at that position.
   evGetTooltipText,
+  // Measure / arrange messages for auto-layout containers.
+  // Appended here (rather than inserted mid-enum) to preserve the numeric
+  // values of all existing messages and avoid breaking compiled ABI.
+  // evMeasure: lparam = layout_measure_t*; child writes desired size.
+  // evArrange: lparam = layout_arrange_t*; child adopts the assigned rect.
+  evMeasure,
+  evArrange,
   evUser = 1000
 };
 
