@@ -1056,6 +1056,100 @@ void test_fe_save_load_roundtrip(void) {
     PASS();
 }
 
+void test_fe_save_load_auto_layout_roundtrip(void) {
+    TEST("project save/load roundtrip: auto_layout and alignments preserve");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_auto_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->auto_layout = true;
+    snprintf(doc->form_id, sizeof(doc->form_id), "%s", "auto");
+    snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Auto");
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON,   20, 20, 80, 24);
+    fe_place_ctrl(doc, ID_TOOL_TEXTEDIT, 20, 56, 120, 18);
+    doc->elements[0].h_align = LAYOUT_ALIGN_CENTER;
+    doc->elements[0].v_align = LAYOUT_ALIGN_END;
+    doc->elements[1].h_align = LAYOUT_ALIGN_START;
+    doc->elements[1].v_align = LAYOUT_ALIGN_STRETCH;
+
+    bool saved = form_project_save(path);
+    ASSERT_TRUE(saved);
+
+    char *xml = fe_read_file(path);
+    ASSERT_NOT_NULL(xml);
+    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "h_align=\"center\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "v_align=\"end\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") == NULL);
+    free(xml);
+
+    bool loaded = form_project_load(path);
+    ASSERT_TRUE(loaded);
+
+    form_doc_t *ndoc = g_app->docs;
+    ASSERT_NOT_NULL(ndoc);
+    ASSERT_TRUE(ndoc->auto_layout);
+    ASSERT_EQUAL(ndoc->element_count, 2);
+    ASSERT_EQUAL(ndoc->elements[0].h_align, LAYOUT_ALIGN_CENTER);
+    ASSERT_EQUAL(ndoc->elements[0].v_align, LAYOUT_ALIGN_END);
+    ASSERT_EQUAL(ndoc->elements[1].h_align, LAYOUT_ALIGN_START);
+    ASSERT_EQUAL(ndoc->elements[1].v_align, LAYOUT_ALIGN_STRETCH);
+
+    unlink(path);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_save_load_layout_kind_roundtrip(void) {
+    TEST("project save/load roundtrip: layout kind and orientation preserve");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_layout_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->auto_layout = true;
+    doc->layout_kind = WINDOW_LAYOUT_GRID;
+    doc->layout_orientation = WINDOW_STACK_HORIZONTAL;
+    doc->layout_columns = 3;
+    snprintf(doc->form_id, sizeof(doc->form_id), "%s", "layout");
+    snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Layout");
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
+
+    bool saved = form_project_save(path);
+    ASSERT_TRUE(saved);
+
+    char *xml = fe_read_file(path);
+    ASSERT_NOT_NULL(xml);
+    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_kind=\"grid\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_orientation=\"horizontal\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_columns=\"3\"") != NULL);
+    free(xml);
+
+    bool loaded = form_project_load(path);
+    ASSERT_TRUE(loaded);
+
+    form_doc_t *ndoc = g_app->docs;
+    ASSERT_NOT_NULL(ndoc);
+    ASSERT_TRUE(ndoc->auto_layout);
+    ASSERT_EQUAL(ndoc->layout_kind, WINDOW_LAYOUT_GRID);
+    ASSERT_EQUAL(ndoc->layout_orientation, WINDOW_STACK_HORIZONTAL);
+    ASSERT_EQUAL(ndoc->layout_columns, 3);
+
+    unlink(path);
+
+    fe_teardown();
+    PASS();
+}
+
 // form_project_load preserves form dimensions stored in the .orion file.
 void test_fe_save_load_form_dimensions(void) {
     TEST("project save/load: form_size round-trips correctly");
@@ -1449,6 +1543,8 @@ int main(void) {
     test_fe_property_browser_edits_caption_in_place();
     test_fe_property_browser_edit_respects_vertical_scrollbar();
     test_fe_save_load_roundtrip();
+    test_fe_save_load_auto_layout_roundtrip();
+    test_fe_save_load_layout_kind_roundtrip();
     test_fe_save_load_form_dimensions();
     test_fe_save_load_form_flags();
     test_fe_load_imageeditor_levels_keeps_slider_and_gradient();

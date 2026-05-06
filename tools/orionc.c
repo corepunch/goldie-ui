@@ -2,6 +2,7 @@
 #include <libxml/tree.h>
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,6 +163,59 @@ static bool attr_is_true(xmlNodePtr node, const char *name) {
   bool yes = v && (!strcmp(v, "true") || !strcmp(v, "1") || !strcmp(v, "yes"));
   free(v);
   return yes;
+}
+
+static uint8_t align_attr(const char *v, uint8_t fallback) {
+  if (!v || !*v) return fallback;
+  if (!strcmp(v, "stretch")) return 0;
+  if (!strcmp(v, "start")) return 1;
+  if (!strcmp(v, "center")) return 2;
+  if (!strcmp(v, "end")) return 3;
+  char *end = NULL;
+  long n = strtol(v, &end, 0);
+  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
+  return fallback;
+}
+
+static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
+  if (!v || !*v) return fallback;
+  if (!strcmp(v, "none")) return 0;
+  if (!strcmp(v, "stack")) return 1;
+  if (!strcmp(v, "grid")) return 2;
+  char *end = NULL;
+  long n = strtol(v, &end, 0);
+  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
+  return fallback;
+}
+
+static uint8_t layout_orientation_attr(const char *v, uint8_t fallback) {
+  if (!v || !*v) return fallback;
+  if (!strcmp(v, "vertical")) return 0;
+  if (!strcmp(v, "horizontal")) return 1;
+  char *end = NULL;
+  long n = strtol(v, &end, 0);
+  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
+  return fallback;
+}
+
+static uint8_t layout_columns_attr(const char *v, uint8_t fallback) {
+  if (!v || !*v) return fallback;
+  char *end = NULL;
+  long n = strtol(v, &end, 0);
+  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
+  return fallback;
+}
+
+static const char *layout_kind_c_token(uint8_t kind) {
+  switch (kind) {
+    case 1: return "WINDOW_LAYOUT_STACK";
+    case 2: return "WINDOW_LAYOUT_GRID";
+    default: return "WINDOW_LAYOUT_NONE";
+  }
+}
+
+static const char *layout_orientation_c_token(uint8_t orientation) {
+  return orientation == 1 ? "WINDOW_STACK_HORIZONTAL" : "WINDOW_STACK_VERTICAL";
 }
 
 static int count_controls(xmlNodePtr form) {
@@ -540,10 +594,15 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *id = attr_dup(form, "id");
   char *title = attr_dup(form, "title");
   char *flags = attr_dup(form, "flags");
+  char *layout_kind = attr_dup(form, "layout_kind");
+  char *layout_orientation = attr_dup(form, "layout_orientation");
+  char *layout_columns = attr_dup(form, "layout_columns");
+  bool auto_layout = attr_is_true(form, "auto_layout");
   frame_t fr = {0, 0, 0, 0};
   if (!parse_frame(form, &fr)) {
     fprintf(stderr, "orionc: form '%s' has no valid frame\n", nonempty(id, ""));
     free(id); free(title); free(flags);
+    free(layout_kind); free(layout_orientation); free(layout_columns);
     return false;
   }
 
@@ -560,25 +619,44 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
     char *name = attr_dup(c, "name");
     char *text = attr_dup(c, "text");
     char *cflags = attr_dup(c, "flags");
+    char *h_align = attr_dup(c, "h_align");
+    char *v_align = attr_dup(c, "v_align");
     frame_t cr = {0, 0, 0, 0};
     if (!parse_frame(c, &cr)) {
-      fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
-              nonempty(name, ""), nonempty(id, ""));
-      free(klass); free(cid); free(name); free(text); free(cflags);
-      free(id); free(title); free(flags);
-      return false;
+      if (!auto_layout) {
+        fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
+                nonempty(name, ""), nonempty(id, ""));
+        free(klass); free(cid); free(name); free(text); free(cflags);
+        free(h_align); free(v_align);
+        free(id); free(title); free(flags);
+        free(layout_kind); free(layout_orientation); free(layout_columns);
+        return false;
+      }
+      cr = (frame_t){0, 0, 0, 0};
+    }
+    if (auto_layout) {
+      if (!h_align) h_align = strdup("stretch");
+      if (!v_align) v_align = strdup("stretch");
     }
 
     fputs("  { ", f);
     fprint_c_string(f, nonempty(klass, ""));
-    fprintf(f, ", %s, { %d, %d, %d, %d }, %s, ",
-            nonempty(cid, "0"), cr.x, cr.y, cr.w, cr.h, nonempty(cflags, "0"));
+    if (auto_layout) {
+      fprintf(f, ", %s, { 0, 0, 0, 0 }, %s, ",
+              nonempty(cid, "0"), nonempty(cflags, "0"));
+    } else {
+      fprintf(f, ", %s, { %d, %d, %d, %d }, %s, ",
+              nonempty(cid, "0"), cr.x, cr.y, cr.w, cr.h, nonempty(cflags, "0"));
+    }
     fprint_c_string(f, nonempty(text, ""));
     fputs(", ", f);
     fprint_c_string(f, nonempty(name, ""));
-    fputs(" },\n", f);
+    fprintf(f, ", %u, %u },\n",
+            (unsigned)align_attr(h_align, 0),
+            (unsigned)align_attr(v_align, 0));
 
     free(klass); free(cid); free(name); free(text); free(cflags);
+    free(h_align); free(v_align);
   }
 
   int child_count = count_controls(form);
@@ -588,11 +666,19 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprint_c_string(f, nonempty(title, nonempty(id, "")));
   fprintf(f, ",\n  .width = %d,\n  .height = %d,\n", fr.w, fr.h);
   fprintf(f, "  .flags = %s,\n", nonempty(flags, "0"));
+  fprintf(f, "  .auto_layout = %s,\n", auto_layout ? "true" : "false");
+  fprintf(f, "  .layout_kind = %s,\n",
+          layout_kind_c_token(layout_kind_attr(layout_kind, 0)));
+  fprintf(f, "  .layout_orientation = %s,\n",
+          layout_orientation_c_token(layout_orientation_attr(layout_orientation, 0)));
+  fprintf(f, "  .layout_columns = %u,\n",
+          (unsigned)layout_columns_attr(layout_columns, 0));
   fprintf(f, "  .children = %s_%s_children,\n", prefix, id_ident);
   fprintf(f, "  .child_count = %d,\n", child_count);
   fputs("};\n\n", f);
 
   free(id); free(title); free(flags);
+  free(layout_kind); free(layout_orientation); free(layout_columns);
   return true;
 }
 

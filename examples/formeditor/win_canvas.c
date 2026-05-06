@@ -560,6 +560,8 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame) {
   el->id    = doc->next_id++;
   el->frame = frame;
   el->flags = 0;
+  el->h_align = LAYOUT_ALIGN_STRETCH;
+  el->v_align = LAYOUT_ALIGN_STRETCH;
 
   int n = ++doc->type_counters[type];
   // Caption (text shown inside the control)

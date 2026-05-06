@@ -79,6 +79,7 @@
             title="Post Detail"
             frame="0 0 520 336"
             flags="0"
+            auto_layout="1"
             owner="examples/socialfeed/view_dlg_post.c">
         <controls>
           <!-- Post header labels (populated in evCreate) -->

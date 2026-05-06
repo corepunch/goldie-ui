@@ -121,6 +121,8 @@ typedef struct {
   char     flags_expr[128]; // original flags expression from project XML, if any
   char     text[64];     // control caption / label text
   char     name[32];     // identifier name (e.g. "IDC_BUTTON1")
+  uint8_t  h_align;     // horizontal alignment; 0 = stretch
+  uint8_t  v_align;     // vertical alignment; 0 = stretch
   window_t *live_win;    // design-time live control hosted on the canvas
 } form_element_t;
 
@@ -129,6 +131,10 @@ typedef struct form_doc_t {
   int    element_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
+  bool   auto_layout;   // save controls without absolute frames
+  uint8_t layout_kind;  // window_layout_kind_t
+  uint8_t layout_orientation; // window_stack_orientation_t
+  uint8_t layout_columns; // grid columns (0 = default)
   bool   modified;
   char   form_id[64];
   char   form_title[128];
@@ -253,6 +259,7 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam);
 void canvas_rebuild_live_controls(form_doc_t *doc);
 void canvas_sync_live_controls(form_doc_t *doc);
+void form_doc_auto_layout_reflow(form_doc_t *doc);
 void formeditor_rebuild_tool_palette(void);
 window_t *property_browser_create(hinstance_t hinstance);
 void property_browser_refresh(form_doc_t *doc);

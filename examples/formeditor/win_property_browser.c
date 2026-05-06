@@ -16,6 +16,8 @@ enum {
   PROP_ROW_TOP,
   PROP_ROW_WIDTH,
   PROP_ROW_HEIGHT,
+  PROP_ROW_H_ALIGN,
+  PROP_ROW_V_ALIGN,
 };
 
 typedef struct {
@@ -65,6 +67,8 @@ static bool prop_row_editable(uint32_t prop_id) {
     case PROP_ROW_TOP:
     case PROP_ROW_WIDTH:
     case PROP_ROW_HEIGHT:
+    case PROP_ROW_H_ALIGN:
+    case PROP_ROW_V_ALIGN:
       return true;
     default:
       return false;
@@ -79,6 +83,26 @@ static int prop_parse_int(const char *s, int fallback) {
   if (v < INT16_MIN) v = INT16_MIN;
   if (v > INT16_MAX) v = INT16_MAX;
   return (int)v;
+}
+
+static uint8_t prop_parse_align(const char *s, uint8_t fallback) {
+  if (!s || !*s) return fallback;
+  if (strcmp(s, "stretch") == 0) return LAYOUT_ALIGN_STRETCH;
+  if (strcmp(s, "start") == 0) return LAYOUT_ALIGN_START;
+  if (strcmp(s, "center") == 0) return LAYOUT_ALIGN_CENTER;
+  if (strcmp(s, "end") == 0) return LAYOUT_ALIGN_END;
+  int v = prop_parse_int(s, (int)fallback);
+  if (v < 0 || v > 255) return fallback;
+  return (uint8_t)v;
+}
+
+static const char *prop_align_name(uint8_t align) {
+  switch (align) {
+    case LAYOUT_ALIGN_START: return "Start";
+    case LAYOUT_ALIGN_CENTER: return "Center";
+    case LAYOUT_ALIGN_END: return "End";
+    default: return "Stretch";
+  }
 }
 
 static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
@@ -106,6 +130,12 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
       break;
     case PROP_ROW_CAPTION:
       snprintf(el->text, sizeof(el->text), "%s", value);
+      break;
+    case PROP_ROW_H_ALIGN:
+      el->h_align = prop_parse_align(value, el->h_align);
+      break;
+    case PROP_ROW_V_ALIGN:
+      el->v_align = prop_parse_align(value, el->v_align);
       break;
     case PROP_ROW_LEFT:
       el->frame.x = prop_parse_int(value, el->frame.x);
@@ -192,14 +222,19 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
-  snprintf(buf, sizeof(buf), "%d", el->frame.x);
-  prop_add_row(list, "Left", buf, PROP_ROW_LEFT);
-  snprintf(buf, sizeof(buf), "%d", el->frame.y);
-  prop_add_row(list, "Top", buf, PROP_ROW_TOP);
-  snprintf(buf, sizeof(buf), "%d", el->frame.w);
-  prop_add_row(list, "Width", buf, PROP_ROW_WIDTH);
-  snprintf(buf, sizeof(buf), "%d", el->frame.h);
-  prop_add_row(list, "Height", buf, PROP_ROW_HEIGHT);
+  if (g_app && g_app->doc && g_app->doc->auto_layout) {
+    prop_add_row(list, "Horizontal alignment", prop_align_name(el->h_align), PROP_ROW_H_ALIGN);
+    prop_add_row(list, "Vertical alignment", prop_align_name(el->v_align), PROP_ROW_V_ALIGN);
+  } else {
+    snprintf(buf, sizeof(buf), "%d", el->frame.x);
+    prop_add_row(list, "Left", buf, PROP_ROW_LEFT);
+    snprintf(buf, sizeof(buf), "%d", el->frame.y);
+    prop_add_row(list, "Top", buf, PROP_ROW_TOP);
+    snprintf(buf, sizeof(buf), "%d", el->frame.w);
+    prop_add_row(list, "Width", buf, PROP_ROW_WIDTH);
+    snprintf(buf, sizeof(buf), "%d", el->frame.h);
+    prop_add_row(list, "Height", buf, PROP_ROW_HEIGHT);
+  }
 }
 
 void property_browser_refresh(form_doc_t *doc) {
