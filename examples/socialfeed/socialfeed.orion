@@ -40,35 +40,55 @@
     <forms>
       <form id="new_post"
             title="New Post"
-            frame="0 0 272 146"
+            frame="0 0 272 150"
             flags="0"
+            auto_layout="1"
+            padding="8"
+            layout_kind="stack"
             owner="examples/socialfeed/view_dlg_forms.c">
-        <label    id="-1"                  name="lbl_author"   text="Author:"  frame="4  8  58 13" flags="0" />
-        <textedit id="ID_POST_AUTHOR_CTRL" name="edit_author" text="" frame="64  6 200 16" flags="0" />
+        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_POST_AUTHOR_ROW">
+          <label v-align="top" name="lbl_author" text="Author:" />
+          <textedit h-align="stretch" v-align="top" id="ID_POST_AUTHOR_CTRL" name="edit_author" text="" />
+        </stack>
 
-        <label    id="-1"                  name="lbl_title"    text="Title:"   frame="4 28  58 13" flags="0" />
-        <textedit id="ID_POST_TITLE_CTRL"  name="edit_title"  text="" frame="64 26 200 16" flags="0" />
+        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_POST_TITLE_ROW">
+          <label v-align="top" name="lbl_title" text="Title:" />
+          <textedit h-align="stretch" v-align="top" id="ID_POST_TITLE_CTRL" name="edit_title" text="" />
+        </stack>
 
-        <label    id="-1"                  name="lbl_body"     text="Body:"    frame="4 48  58 13" flags="0" />
-        <multiedit id="ID_POST_BODY_CTRL"  name="edit_body"   text="" frame="64 46 200 60" flags="WINDOW_VSCROLL" />
+        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_POST_BODY_ROW">
+          <label v-align="top" name="lbl_body" text="Body:" />
+          <multiedit h-align="stretch" v-align="top" id="ID_POST_BODY_CTRL" name="edit_body" text="" flags="WINDOW_VSCROLL" />
+        </stack>
 
-        <button id="ID_OK"     name="btn_ok"     text="Post"   frame="72  118 60 18" flags="BUTTON_DEFAULT" />
-        <button id="ID_CANCEL" name="btn_cancel" text="Cancel" frame="136 118 60 18" flags="0" />
+        <stack orientation="horizontal" spacing="6" h-align="center" v-align="top" id="ID_NEW_POST_ACTIONS">
+          <button h-align="left" v-align="top" id="ID_OK"     name="btn_ok"     text="Post"   flags="BUTTON_DEFAULT" />
+          <button h-align="left" v-align="top" id="ID_CANCEL" name="btn_cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form id="new_comment"
             title="New Comment"
-            frame="0 0 260 82"
+            frame="0 0 260 84"
             flags="0"
+            auto_layout="1"
+            padding="8"
+            layout_kind="stack"
             owner="examples/socialfeed/view_dlg_forms.c">
-        <label    id="-1"                  name="lbl_author"   text="Author:" frame="4  8  58 13" flags="0" />
-        <textedit id="ID_CMT_AUTHOR_CTRL"  name="edit_author" text="" frame="64  6 188 16" flags="0" />
+        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_COMMENT_AUTHOR_ROW">
+          <label v-align="top" name="lbl_author" text="Author:" />
+          <textedit h-align="stretch" v-align="top" id="ID_CMT_AUTHOR_CTRL" name="edit_author" text="" />
+        </stack>
 
-        <label    id="-1"                  name="lbl_text"     text="Text:"   frame="4 28  58 13" flags="0" />
-        <textedit id="ID_CMT_TEXT_CTRL"    name="edit_text"   text="" frame="64 26 188 16" flags="0" />
+        <stack orientation="horizontal" spacing="6" v-align="top" id="ID_NEW_COMMENT_TEXT_ROW">
+          <label v-align="top" name="lbl_text" text="Text:" />
+          <textedit h-align="stretch" v-align="top" id="ID_CMT_TEXT_CTRL" name="edit_text" text="" />
+        </stack>
 
-        <button id="ID_OK"     name="btn_ok"     text="Submit" frame="62 54 60 18" flags="BUTTON_DEFAULT" />
-        <button id="ID_CANCEL" name="btn_cancel" text="Cancel" frame="126 54 60 18" flags="0" />
+        <stack orientation="horizontal" spacing="6" h-align="center" v-align="top" id="ID_NEW_COMMENT_ACTIONS">
+          <button h-align="left" v-align="top" id="ID_OK"     name="btn_ok"     text="Submit" flags="BUTTON_DEFAULT" />
+          <button h-align="left" v-align="top" id="ID_CANCEL" name="btn_cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form id="post_detail"
