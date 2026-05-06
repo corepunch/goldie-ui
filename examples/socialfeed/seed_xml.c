@@ -10,6 +10,7 @@
 
 #ifdef _WIN32
 #define COBJMACROS
+#define INITGUID
 #include <windows.h>
 #include <xmllite.h>
 #endif
@@ -499,7 +500,7 @@ static bool socialfeed_load_seed_data_xmllite(const char *path) {
   HRESULT hr;
 
   while ((hr = IXmlReader_Read(reader, &node_type)) == S_OK) {
-    if (node_type == XmlNodeType_Whitespace || node_type == XmlNodeType_SignificantWhitespace)
+    if (node_type == XmlNodeType_Whitespace)
       continue;
 
     if (node_type == XmlNodeType_Element) {

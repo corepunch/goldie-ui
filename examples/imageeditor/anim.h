@@ -66,16 +66,20 @@ int quantize_rgba_indexed(const uint8_t *rgba, int w, int h,
 // Frame compress / expand
 // ============================================================
 
-// Compress raw RGBA pixels into a frame using the given format.
+// Compress pixel data into a frame using the given format.
+// In RGBA builds: pixels is 4-byte/px RGBA; FRAME_FORMAT_INDEXED quantizes it.
+// In IMAGEEDITOR_INDEXED builds: pixels is 1-byte/px indices, stored directly.
 // frame->data is (re)allocated on success; old data is freed first.
 // Returns true on success, false on allocation failure.
-bool anim_frame_compress(anim_frame_t *frame, const uint8_t *rgba,
+bool anim_frame_compress(anim_frame_t *frame, const uint8_t *pixels,
                          int w, int h, frame_format_t fmt);
 
-// Expand a compressed frame back to RGBA.
-// rgba_out must point to a buffer of at least w*h*4 bytes.
+// Expand a compressed frame back to a working pixel buffer.
+// In RGBA builds: pixels_out receives w*h*4 RGBA bytes.
+// In IMAGEEDITOR_INDEXED builds: pixels_out receives w*h index bytes.
+// pixels_out must be large enough (w*h*DOC_BPP bytes).
 // Returns true on success.
-bool anim_frame_expand(const anim_frame_t *frame, uint8_t *rgba_out,
+bool anim_frame_expand(const anim_frame_t *frame, uint8_t *pixels_out,
                        int w, int h);
 
 // ============================================================
@@ -108,12 +112,14 @@ bool anim_timeline_delete_frame(anim_timeline_t *tl, int idx);
 // Move frame from `from` to `to` (shift frames between them).
 void anim_timeline_move_frame(anim_timeline_t *tl, int from, int to);
 
-// Commit the RGBA working buffer to the current active frame's storage,
-// then switch to frame `idx`, expanding its compressed data back to RGBA.
-// doc->pixels is updated to point to the new RGBA working buffer.
+// Commit the working pixel buffer to the current active frame's storage,
+// then switch to frame `idx`, expanding its compressed data back into the
+// working buffer.  In RGBA builds the buffer is 4-byte/px; in
+// IMAGEEDITOR_INDEXED builds it is 1-byte/px.
+// working_buf is updated to point to the new working buffer.
 // Returns false on allocation failure (doc state unchanged).
 bool anim_timeline_switch_frame(anim_timeline_t *tl, int idx,
-                                uint8_t **rgba_working, int w, int h,
+                                uint8_t **working_buf, int w, int h,
                                 frame_format_t commit_fmt);
 
 // ============================================================
