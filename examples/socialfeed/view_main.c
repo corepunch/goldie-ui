@@ -99,7 +99,7 @@ result_t main_win_proc(window_t *win, uint32_t msg,
       {
         irect16_t cr = get_client_rect(win);
         layout_view_config_t stack_cfg = {
-          .layout_kind = WINDOW_LAYOUT_STACK,
+          .layout_kind = "stack",
           .orientation = WINDOW_STACK_VERTICAL,
           .columns = 0,
         };

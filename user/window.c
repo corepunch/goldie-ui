@@ -12,6 +12,8 @@
 #include "draw.h"
 #include "../commctl/commctl.h"
 
+static bool layout_is_horizontal(const window_t *win);
+
 #define MAX_WINDOW_CLASSES 256
 
 typedef struct {
@@ -263,6 +265,9 @@ static int layout_apply_alignment(int avail, int desired, uint8_t align) {
   return desired;
 }
 
+static bool is_stack_layout(const window_t *win);
+static bool is_grid_layout(const window_t *win);
+
 static layout_measure_t layout_measure_child(window_t *child, int avail_w, int avail_h) {
   irect16_t margin = child ? child->layout_margin : (irect16_t){0, 0, 0, 0};
   avail_w -= margin.x + margin.w;
@@ -337,7 +342,7 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
 
   for (window_t *child = win->children; child; child = child->next) {
     layout_measure_t cm = layout_measure_child(child, content_w, content_h);
-    if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+    if (layout_is_horizontal(win)) {
       if (count > 0) desired_w += gap;
       desired_w += cm.desired_w;
       if (cm.desired_h > desired_h) desired_h = cm.desired_h;
@@ -354,13 +359,8 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
     desired_h = content.h;
   }
   if (m) {
-    if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
-      m->desired_w = desired_w + layout_padding_for(win).x + layout_padding_for(win).w;
-      m->desired_h = desired_h + layout_padding_for(win).y + layout_padding_for(win).h;
-    } else {
-      m->desired_w = desired_w + layout_padding_for(win).x + layout_padding_for(win).w;
-      m->desired_h = desired_h + layout_padding_for(win).y + layout_padding_for(win).h;
-    }
+    m->desired_w = desired_w + layout_padding_for(win).x + layout_padding_for(win).w;
+    m->desired_h = desired_h + layout_padding_for(win).y + layout_padding_for(win).h;
   }
 }
 
@@ -369,9 +369,9 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
   irect16_t content = layout_content_rect(win, cr);
   int gap = layout_spacing_for(win);
 
-  if (win->layout_kind == WINDOW_LAYOUT_STACK) {
+  if (is_stack_layout(win)) {
     int count = 0;
-    if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+    if (layout_is_horizontal(win)) {
       int total_fixed = 0;
       int stretch_count = 0;
       for (window_t *child = win->children; child; child = child->next) {
@@ -431,7 +431,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
     return;
   }
 
-  if (win->layout_kind == WINDOW_LAYOUT_GRID) {
+  if (is_grid_layout(win)) {
     int cols = win->layout_columns > 0 ? win->layout_columns : 2;
     int count = 0;
     for (window_t *child = win->children; child; child = child->next) {
@@ -477,19 +477,10 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
 }
 
 void window_layout_sync(window_t *win) {
-  if (!win || !win->auto_layout || win->layout_kind == WINDOW_LAYOUT_NONE)
+  if (!win || !win->auto_layout || !win->layout_kind || !*win->layout_kind)
     return;
   irect16_t cr = get_client_rect(win);
-  switch (win->layout_kind) {
-    case WINDOW_LAYOUT_STACK:
-      layout_arrange_window(win, &cr);
-      break;
-    case WINDOW_LAYOUT_GRID:
-      layout_arrange_window(win, &cr);
-      break;
-    default:
-      break;
-  }
+  layout_arrange_window(win, &cr);
 }
 
 void set_default_window_position(int x, int y) {
@@ -861,6 +852,76 @@ void load_window_children(window_t *win, windef_t const *def) {
 static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
                                  int child_count);
 
+static bool form_children_use_parent_links(const form_ctrl_def_t *children, int child_count) {
+  if (!children || child_count <= 0) return false;
+  for (int i = 0; i < child_count; i++) {
+    if (children[i].parent != 0)
+      return true;
+  }
+  return false;
+}
+
+static bool form_children_have_parent(const form_ctrl_def_t *children, int child_count,
+                                      uint32_t parent_id) {
+  if (!children || child_count <= 0 || parent_id == 0) return false;
+  for (int i = 0; i < child_count; i++) {
+    if (children[i].parent == parent_id)
+      return true;
+  }
+  return false;
+}
+
+static bool is_stack_layout(const window_t *win) {
+  return win && win->layout_kind && strcmp(win->layout_kind, "stack") == 0;
+}
+
+static bool is_grid_layout(const window_t *win) {
+  return win && win->layout_kind && strcmp(win->layout_kind, "grid") == 0;
+}
+
+static bool layout_is_horizontal(const window_t *win) {
+  return win && (win->layout_orientation & WINDOW_STACK_HORIZONTAL) != 0;
+}
+
+static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *children,
+                                      int child_count, uint32_t parent_id) {
+  if (!parent || !children || child_count <= 0) return;
+
+  for (int i = 0; i < child_count; i++) {
+    const form_ctrl_def_t *cd = &children[i];
+    if (cd->parent != parent_id) continue;
+
+    winproc_t cp = find_window_class_proc(cd->class_name);
+    if (!cp) continue;
+
+    void *param = NULL;
+    layout_view_config_t cfg = {
+      .layout_kind = cd->layout_kind,
+      .orientation = cd->layout_orientation,
+      .columns = cd->layout_columns,
+      .spacing = cd->layout_spacing,
+      .padding = cd->padding,
+      .margin = cd->margin,
+    };
+    if (cp == win_stackview || cp == win_gridview)
+      param = &cfg;
+
+    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+                                    &cd->frame, parent, cp, 0, param);
+    if (!child) continue;
+    child->id = cd->id;
+    child->h_align = cd->h_align;
+    child->v_align = cd->v_align;
+    child->layout_margin = cd->margin;
+
+    if (form_children_have_parent(children, child_count, child->id))
+      create_form_children_flat(child, children, child_count, child->id);
+
+    if (child->auto_layout)
+      window_layout_sync(child);
+  }
+}
+
 window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
@@ -925,6 +986,11 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
 static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
                                  int child_count) {
   if (!parent || !children || child_count <= 0) return;
+
+  if (form_children_use_parent_links(children, child_count)) {
+    create_form_children_flat(parent, children, child_count, 0);
+    return;
+  }
 
   for (int i = 0; i < child_count; i++) {
     const form_ctrl_def_t *cd = &children[i];

@@ -49,8 +49,8 @@ result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 
 // Auto-layout container windows.
 typedef struct {
-  uint8_t layout_kind;       // WINDOW_LAYOUT_STACK / WINDOW_LAYOUT_GRID
-  uint8_t orientation;       // WINDOW_STACK_VERTICAL / WINDOW_STACK_HORIZONTAL
+  const char *layout_kind;   // layout class name: "stack", "grid", or NULL
+  flags_t orientation;       // WINDOW_STACK_HORIZONTAL bit flag; 0 = vertical
   uint8_t columns;           // grid column count (0 = default)
   uint8_t spacing;           // spacing between direct children (0 = default)
   irect16_t padding;         // inner padding for the container

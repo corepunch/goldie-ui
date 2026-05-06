@@ -1238,7 +1238,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     fe_setup();
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
-    doc->layout_kind = WINDOW_LAYOUT_GRID;
+    doc->layout_kind = 2;
     doc->layout_orientation = WINDOW_STACK_HORIZONTAL;
     doc->layout_columns = 3;
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "layout");
@@ -1263,7 +1263,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     form_doc_t *ndoc = g_app->docs;
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->auto_layout);
-    ASSERT_EQUAL(ndoc->layout_kind, WINDOW_LAYOUT_GRID);
+    ASSERT_EQUAL(ndoc->layout_kind, 2);
     ASSERT_EQUAL(ndoc->layout_orientation, WINDOW_STACK_HORIZONTAL);
     ASSERT_EQUAL(ndoc->layout_columns, 3);
 

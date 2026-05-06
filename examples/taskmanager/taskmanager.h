@@ -82,8 +82,6 @@ static inline const char *tm_command_name(uint16_t id) {
 #define ID_TASK_PRIORITY_CTRL 1003
 #define ID_TASK_STATUS_CTRL   1004
 #define ID_TASK_DUEDATE_CTRL  1005
-#define ID_OK                 1
-#define ID_CANCEL             2
 
 // ============================================================
 // Task data model

@@ -22,7 +22,7 @@ static inline int enum_parse_token(const char *s, const enum_token_t *tokens,
 
   char *end = NULL;
   long n = strtol(s, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255)
+  if (end && *end == '\0' && n >= (long)INT32_MIN && n <= (long)INT32_MAX)
     return (int)n;
   return fallback;
 }

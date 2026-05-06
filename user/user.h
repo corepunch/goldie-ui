@@ -33,17 +33,6 @@ typedef struct {
   void     *child_lparam;
 } parent_notify_t;
 
-typedef enum {
-  WINDOW_LAYOUT_NONE  = 0,
-  WINDOW_LAYOUT_STACK = 1,
-  WINDOW_LAYOUT_GRID  = 2,
-} window_layout_kind_t;
-
-typedef enum {
-  WINDOW_STACK_VERTICAL   = 0,
-  WINDOW_STACK_HORIZONTAL = 1,
-} window_stack_orientation_t;
-
 // Window hook callback type
 typedef void (*winhook_func_t)(window_t *win, uint32_t msg, uint32_t wparam, void *lparam, void *userdata);
 
@@ -103,8 +92,8 @@ typedef struct {
   int w, h;
   flags_t flags;
   bool auto_layout;
-  uint8_t layout_kind;
-  uint8_t layout_orientation;
+  const char *layout_kind;
+  flags_t layout_orientation;
   uint8_t layout_columns;
   uint8_t layout_spacing;
 } windef_t;
@@ -213,12 +202,13 @@ typedef struct form_ctrl_def_s {
   uint8_t           v_align; // vertical alignment; 0 = stretch
   const struct form_ctrl_def_s *children; // nested child controls
   int               child_count; // number of entries in children[]
-  uint8_t           layout_kind; // window_layout_kind_t for containers
-  uint8_t           layout_orientation; // window_stack_orientation_t
+  const char       *layout_kind; // layout class name for containers
+  flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL = bit flag, 0 = vertical
   uint8_t           layout_columns; // grid columns (0 = default)
   uint8_t           layout_spacing; // spacing between direct children; 0 = default
   irect16_t         padding; // inner padding for layout containers
   irect16_t         margin;  // outer margin when this control is laid out by a parent
+  uint32_t          parent;  // parent control ID; 0 = form root
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -233,8 +223,8 @@ typedef struct {
   int                     width, height; // client area dimensions
   flags_t                 flags;       // window flags
   bool                    auto_layout; // enable measure/arrange on children
-  uint8_t                 layout_kind;  // window_layout_kind_t
-  uint8_t                 layout_orientation; // window_stack_orientation_t
+  const char             *layout_kind;  // layout class name: "stack", "grid", or NULL
+  flags_t                 layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
   uint8_t                 layout_columns; // grid columns (0 = default)
   uint8_t                 layout_spacing; // spacing between direct children; 0 = default
   irect16_t               padding;      // inner padding for auto-layout content
@@ -343,8 +333,8 @@ struct window_s {
   window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
   int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
   bool      auto_layout;    // auto layout the direct children
-  uint8_t   layout_kind;    // window_layout_kind_t
-  uint8_t   layout_orientation; // window_stack_orientation_t
+  const char *layout_kind;  // layout class name: "stack", "grid", or NULL
+  flags_t   layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
   uint8_t   layout_columns;  // grid columns (0 = default)
   uint8_t   h_align;        // horizontal alignment; 0 = stretch
   uint8_t   v_align;        // vertical alignment; 0 = stretch

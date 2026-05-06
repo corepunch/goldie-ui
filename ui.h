@@ -19,4 +19,11 @@
 // Common controls subsystem
 #include "commctl/commctl.h"
 
+// Shared dialog button IDs.
+enum {
+    ID_OK = 1,
+    ID_CANCEL = 2,
+    ID_CONTROL_BASE = 1000,
+};
+
 #endif

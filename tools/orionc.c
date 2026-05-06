@@ -28,6 +28,11 @@ typedef struct {
   int count;
 } define_list_t;
 
+typedef struct {
+  char items[512][128];
+  int count;
+} ident_list_t;
+
 static const char *base_name(const char *path) {
   const char *s = strrchr(path, '/');
   return s ? s + 1 : path;
@@ -212,12 +217,6 @@ static const enum_token_t kAlignVTokens[] = {
   {"end",     LAYOUT_ALIGN_END},
 };
 
-static const enum_token_t kLayoutKindTokens[] = {
-  {"none",  WINDOW_LAYOUT_NONE},
-  {"stack", WINDOW_LAYOUT_STACK},
-  {"grid",  WINDOW_LAYOUT_GRID},
-};
-
 static const enum_token_t kLayoutOrientationTokens[] = {
   {"vertical",   WINDOW_STACK_VERTICAL},
   {"horizontal", WINDOW_STACK_HORIZONTAL},
@@ -239,12 +238,8 @@ static const char *align_v_token(uint8_t align) {
   return enum_token_name(align, kAlignVTokens, ARRAY_LEN(kAlignVTokens), "stretch");
 }
 
-static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
-  return (uint8_t)enum_parse_token(v, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), fallback);
-}
-
-static uint8_t layout_orientation_attr(const char *v, uint8_t fallback) {
-  return (uint8_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), fallback);
+static flags_t layout_orientation_attr(const char *v, flags_t fallback) {
+  return (flags_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), (int)fallback);
 }
 
 static char *attr_dup_first(xmlNodePtr node, const char *a, const char *b) {
@@ -270,15 +265,7 @@ static uint8_t layout_spacing_attr(const char *v, uint8_t fallback) {
   return fallback;
 }
 
-static const char *layout_kind_c_token(uint8_t kind) {
-  return enum_token_name(kind, (const enum_token_t[]) {
-    {"WINDOW_LAYOUT_NONE",  WINDOW_LAYOUT_NONE},
-    {"WINDOW_LAYOUT_STACK", WINDOW_LAYOUT_STACK},
-    {"WINDOW_LAYOUT_GRID",  WINDOW_LAYOUT_GRID},
-  }, 3, "WINDOW_LAYOUT_NONE");
-}
-
-static const char *layout_orientation_c_token(uint8_t orientation) {
+static const char *layout_orientation_c_token(flags_t orientation) {
   return enum_token_name(orientation, (const enum_token_t[]) {
     {"WINDOW_STACK_VERTICAL",   WINDOW_STACK_VERTICAL},
     {"WINDOW_STACK_HORIZONTAL", WINDOW_STACK_HORIZONTAL},
@@ -301,35 +288,20 @@ static bool has_child_controls(xmlNodePtr node) {
   return false;
 }
 
-static int count_direct_controls(xmlNodePtr node) {
-  int n = 0;
-  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
-    if (is_control_node(c)) n++;
-  }
-  return n;
-}
-
-static void make_scope_name(char *out, size_t out_sz, const char *scope,
-                            const char *name) {
-  char tmp[256];
-  snprintf(tmp, sizeof(tmp), "%s_%s", nonempty(scope, "scope"),
-           nonempty(name, "control"));
-  make_ident(out, out_sz, tmp);
-}
-
-static uint8_t layout_kind_default_for_class(const char *klass) {
-  if (!klass) return 0;
+static const char *layout_kind_default_for_class(const char *klass) {
+  if (!klass) return "none";
   if (!strcmp(klass, "stack") || !strcmp(klass, "stackview"))
-    return 1;
+    return "stack";
   if (!strcmp(klass, "grid") || !strcmp(klass, "gridview"))
-    return 2;
-  return 0;
+    return "grid";
+  return "none";
 }
 
-static const char *layout_kind_c_token_for_class(const char *klass, uint8_t kind) {
-  if (kind == 0)
-    kind = layout_kind_default_for_class(klass);
-  return layout_kind_c_token(kind);
+static const char *layout_kind_attr(const char *v, const char *fallback) {
+  if (!v || !*v) return fallback;
+  if (!strcmp(v, "none") || !strcmp(v, "stack") || !strcmp(v, "grid"))
+    return v;
+  return fallback;
 }
 
 static uint8_t layout_columns_default_for_class(const char *klass) {
@@ -339,15 +311,12 @@ static uint8_t layout_columns_default_for_class(const char *klass) {
   return 0;
 }
 
-static bool emit_control_entries(FILE *f, xmlNodePtr parent, const char *prefix,
-                                 const char *scope, bool allow_auto_layout,
-                                 int *out_count);
-static bool emit_nested_control_arrays(FILE *f, xmlNodePtr parent,
-                                       const char *prefix, const char *scope,
-                                       bool allow_auto_layout);
+static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
+                              const char *parent_expr, bool allow_auto_layout,
+                              int *out_count);
 
-static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
-                              const char *scope, bool allow_auto_layout) {
+static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
+                              const char *parent_expr, bool allow_auto_layout) {
   char *klass = control_class_name(c);
   char *cid = attr_dup(c, "id");
   char *name = attr_dup(c, "name");
@@ -367,8 +336,6 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   frame_t pad = {0, 0, 0, 0};
   frame_t mar = {0, 0, 0, 0};
   bool nested = has_child_controls(c);
-  int nested_count = count_direct_controls(c);
-  char nested_name[256] = {0};
   const char *emit_class = nonempty(klass, "");
 
   if (!emit_class || !*emit_class) {
@@ -377,13 +344,6 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
     free(layout_orientation); free(layout_columns); free(layout_spacing);
     free(padding); free(margin);
     return false;
-  }
-
-  if (nested) {
-    char child_scope[128];
-    make_scope_name(child_scope, sizeof(child_scope), scope,
-                    nonempty(name, nonempty(cid, "container")));
-    snprintf(nested_name, sizeof(nested_name), "%s_children", child_scope);
   }
 
   if (!parse_frame(c, &cr)) {
@@ -402,8 +362,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   if (allow_auto_layout || nested) {
     if (!layout_kind || !*layout_kind) {
       free(layout_kind);
-      layout_kind = strdup(layout_kind_c_token_for_class(emit_class,
-                           layout_kind_default_for_class(emit_class)));
+      layout_kind = strdup(layout_kind_default_for_class(emit_class));
     }
     if (!layout_orientation || !*layout_orientation)
       layout_orientation = strdup("vertical");
@@ -438,20 +397,15 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   fputs(", ", f);
   fprint_c_string(f, nonempty(name, ""));
   fprintf(f, ", %u, %u, ", (unsigned)align_h_attr(h_align, 0), (unsigned)align_v_attr(v_align, 0));
-  if (nested) {
-    fprintf(f, "%s, %d, %s, %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d } },\n",
-            nested_name, nested_count,
-            layout_kind_c_token_for_class(emit_class,
-                                         layout_kind_attr(layout_kind, layout_kind_default_for_class(emit_class))),
-            layout_orientation_c_token(layout_orientation_attr(layout_orientation, 0)),
-            (unsigned)layout_columns_attr(layout_columns, layout_columns_default_for_class(emit_class)),
-            (unsigned)layout_spacing_attr(layout_spacing, 4),
-            pad.x, pad.y, pad.w, pad.h,
-            mar.x, mar.y, mar.w, mar.h);
-  } else {
-    fprintf(f, "NULL, 0, 0, 0, 0, 0, { %d, %d, %d, %d }, { %d, %d, %d, %d } },\n",
-            pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h);
-  }
+  fputs("NULL, 0, ", f);
+  fprint_c_string(f, layout_kind_attr(layout_kind, layout_kind_default_for_class(emit_class)));
+  fprintf(f, ", %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s },\n",
+          layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)),
+          (unsigned)layout_columns_attr(layout_columns, layout_columns_default_for_class(emit_class)),
+          (unsigned)layout_spacing_attr(layout_spacing, 4),
+          pad.x, pad.y, pad.w, pad.h,
+          mar.x, mar.y, mar.w, mar.h,
+          nonempty(parent_expr, "0"));
 
   free(klass); free(cid); free(name); free(text); free(cflags);
   free(h_align); free(v_align); free(layout_kind);
@@ -460,50 +414,28 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
   return true;
 }
 
-static bool emit_control_entries(FILE *f, xmlNodePtr parent, const char *prefix,
-                                 const char *scope, bool allow_auto_layout,
-                                 int *out_count) {
+static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
+                              const char *parent_expr, bool allow_auto_layout,
+                              int *out_count) {
   int count = 0;
   for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
     if (!is_control_node(c)) continue;
-    if (!emit_control_node(f, c, prefix, scope, allow_auto_layout))
+    if (!emit_control_node(f, c, scope, parent_expr, allow_auto_layout))
       return false;
     count++;
+    if (has_child_controls(c)) {
+      char *cid = attr_dup(c, "id");
+      const char *next_parent = nonempty(cid, "0");
+      int subcount = 0;
+      if (!emit_control_tree(f, c, scope, next_parent, true, &subcount)) {
+        free(cid);
+        return false;
+      }
+      count += subcount;
+      free(cid);
+    }
   }
   if (out_count) *out_count = count;
-  return true;
-}
-
-static bool emit_nested_control_arrays(FILE *f, xmlNodePtr parent,
-                                       const char *prefix, const char *scope,
-  bool allow_auto_layout) {
-  for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
-    if (!is_control_node(c)) continue;
-    if (!has_child_controls(c)) continue;
-
-    char *cid = attr_dup(c, "id");
-    char *name = attr_dup(c, "name");
-    char child_scope[128];
-    char nested_name[256];
-    make_scope_name(child_scope, sizeof(child_scope), scope,
-                    nonempty(name, nonempty(cid, "container")));
-    snprintf(nested_name, sizeof(nested_name), "%s_children", child_scope);
-
-    if (!emit_nested_control_arrays(f, c, prefix, child_scope, true)) {
-      free(cid); free(name);
-      return false;
-    }
-
-    fprintf(f, "static const form_ctrl_def_t %s[] = {\n", nested_name);
-    if (!emit_control_entries(f, c, prefix, child_scope, true, NULL)) {
-      free(cid); free(name);
-      return false;
-    }
-    fputs("};\n\n", f);
-
-    free(cid); free(name);
-    (void)allow_auto_layout;
-  }
   return true;
 }
 
@@ -530,42 +462,37 @@ static bool collect_define(define_list_t *defs, const char *name,
   return true;
 }
 
-static bool collect_control_define_auto(define_list_t *defs, const char *name,
-                                        const char *explicit_value,
-                                        int *next_value) {
-  if (!defs || !is_ident_expr(name)) return true;
-  for (int i = 0; i < defs->count; i++) {
-    if (!strcmp(defs->items[i].name, name))
+static bool collect_ident(ident_list_t *ids, const char *name) {
+  if (!ids || !is_ident_expr(name)) return true;
+  if (!strcmp(name, "ID_OK") || !strcmp(name, "ID_CANCEL"))
+    return true;
+  for (int i = 0; i < ids->count; i++) {
+    if (!strcmp(ids->items[i], name))
       return true;
   }
-
-  if (explicit_value && *explicit_value)
-    return collect_define(defs, name, explicit_value);
-
-  if (!next_value) return true;
-  char buf[32];
-  snprintf(buf, sizeof(buf), "%d", (*next_value)++);
-  return collect_define(defs, name, buf);
+  if (ids->count >= (int)(sizeof(ids->items) / sizeof(ids->items[0]))) {
+    fprintf(stderr, "orionc: too many generated control ids\n");
+    return false;
+  }
+  snprintf(ids->items[ids->count], sizeof(ids->items[ids->count]), "%s", name);
+  ids->count++;
+  return true;
 }
 
-static bool collect_control_tree_defines(define_list_t *defs, xmlNodePtr node,
-                                         int *next_value) {
+static bool collect_control_tree_idents(ident_list_t *ids, xmlNodePtr node) {
   for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
     if (!is_control_node(c)) continue;
     char *cid = attr_dup(c, "id");
-    char *value = attr_dup(c, "value");
-      bool ok = collect_control_define_auto(defs, cid, value, next_value);
+    bool ok = collect_ident(ids, cid);
     free(cid);
-    free(value);
     if (!ok) return false;
-    if (!collect_control_tree_defines(defs, c, next_value)) return false;
+    if (!collect_control_tree_idents(ids, c)) return false;
   }
   return true;
 }
 
-static bool collect_form_defines(define_list_t *defs, xmlNodePtr form) {
-  int next_value = 1001;
-  return collect_control_tree_defines(defs, form, &next_value);
+static bool collect_form_idents(ident_list_t *ids, xmlNodePtr form) {
+  return collect_control_tree_idents(ids, form);
 }
 
 static bool collect_menu_node_defines(define_list_t *defs, xmlNodePtr menu) {
@@ -617,6 +544,20 @@ static void emit_defines(FILE *f, const define_list_t *defs) {
   for (int i = 0; i < defs->count; i++)
     fprintf(f, "#define %-20s %s\n", defs->items[i].name, defs->items[i].value);
   fputc('\n', f);
+}
+
+static void emit_control_idents(FILE *f, const ident_list_t *ids) {
+  if (!ids || ids->count <= 0) return;
+  fputs("/* Control IDs generated as symbolic enums. */\n", f);
+  fputs("enum {\n", f);
+  for (int i = 0; i < ids->count; i++) {
+    if (i == 0)
+      fprintf(f, "  %s = ID_CONTROL_BASE + 1%s\n", ids->items[i],
+              (i + 1 < ids->count) ? "," : "");
+    else
+      fprintf(f, "  %s%s\n", ids->items[i], (i + 1 < ids->count) ? "," : "");
+  }
+  fputs("};\n\n", f);
 }
 
 static int count_menu_items(xmlNodePtr menu) {
@@ -923,16 +864,10 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
 
   char id_ident[128];
   make_ident(id_ident, sizeof(id_ident), id);
-  if (!emit_nested_control_arrays(f, form, prefix, id_ident, auto_layout)) {
-    free(id); free(title); free(flags);
-    free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
-    free(padding); free(margin);
-    return false;
-  }
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
           prefix, id_ident);
   int child_count = 0;
-  if (!emit_control_entries(f, form, prefix, id_ident, auto_layout, &child_count)) {
+  if (!emit_control_tree(f, form, id_ident, "0", auto_layout, &child_count)) {
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
     free(padding); free(margin);
@@ -945,10 +880,11 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprintf(f, ",\n  .width = %d,\n  .height = %d,\n", fr.w, fr.h);
   fprintf(f, "  .flags = %s,\n", nonempty(flags, "0"));
   fprintf(f, "  .auto_layout = %s,\n", auto_layout ? "true" : "false");
-  fprintf(f, "  .layout_kind = %s,\n",
-          layout_kind_c_token(layout_kind_attr(layout_kind, 0)));
+  fprintf(f, "  .layout_kind = ");
+  fprint_c_string(f, layout_kind_attr(layout_kind, "none"));
+  fputs(",\n", f);
   fprintf(f, "  .layout_orientation = %s,\n",
-          layout_orientation_c_token(layout_orientation_attr(layout_orientation, 0)));
+          layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)));
   fprintf(f, "  .layout_columns = %u,\n",
           (unsigned)layout_columns_attr(layout_columns, 0));
   fprintf(f, "  .layout_spacing = %u,\n",
@@ -1025,6 +961,7 @@ int main(int argc, char **argv) {
 
   int emitted = 0;
   define_list_t defines = {0};
+  ident_list_t control_ids = {0};
   xmlNodePtr menus = first_child_element(root, "menus");
   xmlNodePtr toolbars = first_child_element(root, "toolbars");
   xmlNodePtr forms = first_child_element(root, "forms");
@@ -1046,13 +983,14 @@ int main(int argc, char **argv) {
     bool want = !only_form || streq(id, only_form);
     free(id);
     if (!want) continue;
-    if (!collect_form_defines(&defines, n)) {
+    if (!collect_form_idents(&control_ids, n)) {
       fclose(f);
       xmlFreeDoc(doc);
       return 1;
     }
   }
   emit_defines(f, &defines);
+  emit_control_idents(f, &control_ids);
   emit_menu_indices(f, menus);
   if (!emit_menu_resources(f, menus)) {
     fclose(f);

@@ -188,7 +188,7 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->flags     = 0;
   doc->modified  = false;
   doc->auto_layout = false;
-  doc->layout_kind = WINDOW_LAYOUT_NONE;
+  doc->layout_kind = 0;
   doc->layout_orientation = WINDOW_STACK_VERTICAL;
   doc->layout_columns = 0;
   doc->layout_spacing = 4;
@@ -346,9 +346,9 @@ static const enum_token_t kAlignVTokens[] = {
 };
 
 static const enum_token_t kLayoutKindTokens[] = {
-  {"none",  WINDOW_LAYOUT_NONE},
-  {"stack", WINDOW_LAYOUT_STACK},
-  {"grid",  WINDOW_LAYOUT_GRID},
+  {"none",  0},
+  {"stack", 1},
+  {"grid",  2},
 };
 
 static const enum_token_t kLayoutOrientationTokens[] = {
@@ -376,15 +376,15 @@ static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
   return (uint8_t)enum_parse_token(v, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), fallback);
 }
 
-static uint8_t layout_orientation_attr(const char *v, uint8_t fallback) {
-  return (uint8_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), fallback);
+static flags_t layout_orientation_attr(const char *v, flags_t fallback) {
+  return (flags_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), (int)fallback);
 }
 
 static const char *layout_kind_token(uint8_t kind) {
   return enum_token_name(kind, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), "none");
 }
 
-static const char *layout_orientation_token(uint8_t orientation) {
+static const char *layout_orientation_token(flags_t orientation) {
   return enum_token_name(orientation, kLayoutOrientationTokens,
                          ARRAY_LEN(kLayoutOrientationTokens), "vertical");
 }
@@ -599,7 +599,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   int content_x = pad_l;
   int content_y = pad_t;
 
-  if (doc->layout_kind == WINDOW_LAYOUT_GRID) {
+  if (doc->layout_kind == 2) {
     int cols = doc->layout_columns > 0 ? doc->layout_columns : 2;
     if (cols < 1) cols = 1;
     int rows = (count + cols - 1) / cols;
@@ -641,7 +641,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
     return;
   }
 
-  if (doc->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+  if (doc->layout_orientation & WINDOW_STACK_HORIZONTAL) {
     int x = content_x;
     for (int i = 0; i < count; i++) {
       form_element_t *el = &doc->elements[i];
@@ -733,7 +733,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     char *layout_orientation = xml_attr_dup(form_node, "orientation");
     if (!layout_orientation)
       layout_orientation = xml_attr_dup(form_node, "layout_orientation");
-    doc->layout_kind = layout_kind_attr(layout_kind, WINDOW_LAYOUT_NONE);
+    doc->layout_kind = layout_kind_attr(layout_kind, 0);
     doc->layout_orientation = layout_orientation_attr(layout_orientation,
                                                       WINDOW_STACK_VERTICAL);
     free(layout_kind);
@@ -825,10 +825,10 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
           doc->form_size.w, doc->form_size.h, doc->flags);
   if (doc->auto_layout)
     fprintf(f, "\n            auto_layout=\"1\"");
-  if (doc->auto_layout || doc->layout_kind != WINDOW_LAYOUT_NONE)
+  if (doc->auto_layout || doc->layout_kind != 0)
     fprintf(f, "\n            layout_kind=\"%s\"",
             layout_kind_token(doc->layout_kind));
-  if (doc->auto_layout || doc->layout_orientation != WINDOW_STACK_VERTICAL)
+  if (doc->auto_layout || doc->layout_orientation != 0)
     fprintf(f, "\n            layout_orientation=\"%s\"",
             layout_orientation_token(doc->layout_orientation));
   if (doc->auto_layout || doc->layout_columns != 0)
@@ -1179,7 +1179,7 @@ static void form_props_fill_layout_combos(window_t *win) {
 
 static const ctrl_binding_t k_form_props_bindings[] = {
   DDX_CHECK(FORM_PROPS_ID_AUTO, form_props_state_t, auto_layout),
-  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_kind, WINDOW_LAYOUT_NONE),
+  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_kind, 0),
   DDX_COMBO(FORM_PROPS_ID_ORIENT, form_props_state_t, layout_orientation, WINDOW_STACK_VERTICAL),
   DDX_TEXT(FORM_PROPS_ID_COLUMNS, form_props_state_t, layout_columns),
 };
@@ -1230,7 +1230,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
           form_doc_t *doc = g_app->doc;
           bool old_auto_layout = doc->auto_layout;
           uint8_t old_kind = doc->layout_kind;
-          uint8_t old_orient = doc->layout_orientation;
+          flags_t old_orient = doc->layout_orientation;
           uint8_t old_columns = doc->layout_columns;
           dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
           {

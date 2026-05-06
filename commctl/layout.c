@@ -21,8 +21,8 @@ static void layout_paint_children(window_t *win) {
 
 static result_t layout_container_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam,
-                                      window_layout_kind_t kind,
-                                      window_stack_orientation_t default_orientation,
+                                      const char *default_layout_kind,
+                                      flags_t default_orientation,
                                       uint8_t default_columns,
                                       uint8_t default_spacing) {
   (void)wparam;
@@ -30,7 +30,7 @@ static result_t layout_container_proc(window_t *win, uint32_t msg,
     case evCreate: {
       const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
       win->auto_layout = true;
-      win->layout_kind = kind;
+      win->layout_kind = default_layout_kind;
       win->layout_orientation = default_orientation;
       win->layout_columns = default_columns;
       win->layout_spacing = default_spacing;
@@ -39,10 +39,9 @@ static result_t layout_container_proc(window_t *win, uint32_t msg,
       win->h_align = LAYOUT_ALIGN_STRETCH;
       win->v_align = LAYOUT_ALIGN_STRETCH;
       if (cfg) {
-        if (cfg->layout_kind == WINDOW_LAYOUT_STACK || cfg->layout_kind == WINDOW_LAYOUT_GRID)
-          win->layout_kind = (window_layout_kind_t)cfg->layout_kind;
-        if (cfg->orientation <= WINDOW_STACK_HORIZONTAL)
-          win->layout_orientation = (window_stack_orientation_t)cfg->orientation;
+        if (cfg->layout_kind && *cfg->layout_kind)
+          win->layout_kind = cfg->layout_kind;
+        win->layout_orientation = cfg->orientation & WINDOW_STACK_HORIZONTAL;
         if (cfg->columns > 0)
           win->layout_columns = cfg->columns;
         if (cfg->spacing > 0)
@@ -78,7 +77,7 @@ static result_t layout_container_proc(window_t *win, uint32_t msg,
 
 result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   return layout_container_proc(win, msg, wparam, lparam,
-                               WINDOW_LAYOUT_STACK,
+                               "stack",
                                WINDOW_STACK_VERTICAL,
                                0,
                                4);
@@ -86,7 +85,7 @@ result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   return layout_container_proc(win, msg, wparam, lparam,
-                               WINDOW_LAYOUT_GRID,
+                               "grid",
                                WINDOW_STACK_VERTICAL,
                                2,
                                0);
