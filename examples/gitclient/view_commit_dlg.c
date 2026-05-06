@@ -18,20 +18,46 @@
 #undef  CTL_CANCEL
 #define CTL_CANCEL  4
 
+// Bottom row: amend checkbox + spacer + cancel + commit buttons
+static const form_ctrl_def_t kCommitBottomRow[] = {
+  { .class_name = "checkbox", .id = CTL_AMEND, .text = "Amend last commit",
+    .name = "amend", .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "space",    .name = "spacer", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button",   .id = CTL_COMMIT, .flags = BUTTON_DEFAULT,
+    .text = "Commit", .name = "ok",     .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button",   .id = CTL_CANCEL, .text = "Cancel",
+    .name = "cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
 static const form_ctrl_def_t kCommitCtrls[] = {
-  { "multiedit", CTL_MSG,    {8,   20, 300, 60}, 0,              "",                 "msg"    },
-  { "checkbox",  CTL_AMEND,  {8,   86,  120, 13}, 0,              "Amend last commit","amend"  },
-  { "button",    CTL_COMMIT, {220, 106,  45, 14}, BUTTON_DEFAULT, "Commit",           "ok"     },
-  { "button",    CTL_CANCEL, {269, 106,  45, 14}, 0,              "Cancel",           "cancel" },
+  { .class_name = "label",     .text = "Message:", .name = "lbl_msg",
+    .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "multiedit", .id = CTL_MSG,      .name = "msg",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_STRETCH },
+  {
+    .class_name         = "stack",
+    .name               = "actions",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kCommitBottomRow,
+    .child_count        = (int)(sizeof(kCommitBottomRow)/sizeof(kCommitBottomRow[0])),
+  },
 };
 static const form_def_t kCommitForm = {
-  .name        = "Commit",
-  .width       = 324,
-  .height      = 128,
-  .children    = kCommitCtrls,
-  .child_count = 4,
-  .ok_id       = CTL_COMMIT,
-  .cancel_id   = CTL_CANCEL,
+  .name           = "Commit",
+  .width          = 324,
+  .height         = 128,
+  .auto_layout    = true,
+  .layout_kind    = "stack",
+  .layout_spacing = 6,
+  .padding        = {8, 8, 8, 8},
+  .children       = kCommitCtrls,
+  .child_count    = (int)(sizeof(kCommitCtrls)/sizeof(kCommitCtrls[0])),
+  .ok_id          = CTL_COMMIT,
+  .cancel_id      = CTL_CANCEL,
 };
 
 // Dialog state passed via lparam.
@@ -67,10 +93,6 @@ static result_t commit_dlg_proc(window_t *win, uint32_t msg,
         }
       }
       return true;
-
-    case evPaint:
-      draw_text_small("Message:", 4, 8, get_sys_color(brTextDisabled));
-      return false;
 
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {

@@ -71,6 +71,15 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+16);
       win->userdata = malloc(sizeof(combobox_string_t) * MAX_COMBOBOX_STRINGS);
       return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        int text_w = strwidth(win->title) + 16 + 16; /* text + padding + arrow */
+        m->desired_w = MAX(win->frame.w > 0 ? win->frame.w : 60, text_w);
+        m->desired_h = MAX(win->frame.h > 0 ? win->frame.h : BUTTON_HEIGHT, BUTTON_HEIGHT);
+      }
+      return true;
+    }
     case evDestroy:
       free(win->userdata);
       return true;

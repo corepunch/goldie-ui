@@ -21,22 +21,75 @@
 #undef  CTL_CANCEL
 #define CTL_CANCEL   6
 
+static const form_ctrl_def_t kPPFRemoteRow[] = {
+  { .class_name = "label",   .text = "Remote:", .name = "lbl_remote",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "combobox", .id = CTL_REMOTE, .name = "remote",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+static const form_ctrl_def_t kPPFBranchRow[] = {
+  { .class_name = "label",   .text = "Branch:", .name = "lbl_branch",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "combobox", .id = CTL_BRANCH, .name = "branch",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+static const form_ctrl_def_t kPPFBtnRow[] = {
+  { .class_name = "button", .id = CTL_OK,     .flags = BUTTON_DEFAULT, .text = "OK",
+    .name = "ok",     .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = CTL_CANCEL, .text = "Cancel",
+    .name = "cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
 static const form_ctrl_def_t kPPFCtrls[] = {
-  { "combobox", CTL_REMOTE, {60,  8, 130, 13}, 0, "", "remote" },
-  { "combobox", CTL_BRANCH, {60, 26, 130, 13}, 0, "", "branch" },
-  { "checkbox", CTL_PRUNE,  {8,  46, 170, 13}, 0, "Prune deleted remote branches", "prune" },
-  { "checkbox", CTL_FORCE,  {8,  62, 100, 13}, 0, "Force", "force" },
-  { "button",   CTL_OK,     {130,82,  60, 14}, BUTTON_DEFAULT, "OK",     "ok"    },
-  { "button",   CTL_CANCEL, {194,82,  60, 14}, 0, "Cancel", "cancel" },
+  {
+    .class_name         = "stack",
+    .name               = "remote_row",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .children           = kPPFRemoteRow,
+    .child_count        = 2,
+  },
+  {
+    .class_name         = "stack",
+    .name               = "branch_row",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .children           = kPPFBranchRow,
+    .child_count        = 2,
+  },
+  { .class_name = "checkbox", .id = CTL_PRUNE, .text = "Prune deleted remote branches",
+    .name = "prune", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "checkbox", .id = CTL_FORCE, .text = "Force",
+    .name = "force", .h_align = LAYOUT_ALIGN_STRETCH },
+  {
+    .class_name         = "stack",
+    .name               = "actions",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_END,
+    .children           = kPPFBtnRow,
+    .child_count        = 2,
+  },
 };
 static const form_def_t kPPFForm = {
-  .name        = "Remote Operation",
-  .width       = 262,
-  .height      = 104,
-  .children    = kPPFCtrls,
-  .child_count = 6,
-  .ok_id       = CTL_OK,
-  .cancel_id   = CTL_CANCEL,
+  .name           = "Remote Operation",
+  .width          = 262,
+  .height         = 104,
+  .auto_layout    = true,
+  .layout_kind    = "stack",
+  .layout_spacing = 6,
+  .padding        = {8, 8, 8, 8},
+  .children       = kPPFCtrls,
+  .child_count    = (int)(sizeof(kPPFCtrls)/sizeof(kPPFCtrls[0])),
+  .ok_id          = CTL_OK,
+  .cancel_id      = CTL_CANCEL,
 };
 
 typedef struct {
@@ -75,11 +128,6 @@ static result_t ppf_dlg_proc(window_t *win, uint32_t msg,
 
       return true;
     }
-
-    case evPaint:
-      draw_text_small("Remote:", 4, 11, get_sys_color(brTextDisabled));
-      draw_text_small("Branch:", 4, 29, get_sys_color(brTextDisabled));
-      return false;
 
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {

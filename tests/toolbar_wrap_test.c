@@ -48,8 +48,12 @@ static window_t *find_toolbar_child(window_t *win, uint32_t id) {
 }
 
 static window_t *find_toolbar_space_child(window_t *win) {
+    // Use find_window_class_proc to look up the DLL-internal pointer; a direct
+    // comparison against the win_space symbol would fail on Windows because the
+    // test executable holds an IAT stub while tc->proc holds the real address.
+    winproc_t space_proc = find_window_class_proc("space");
     for (window_t *tc = win->toolbar_children; tc; tc = tc->next)
-        if (tc->proc == win_space) return tc;
+        if (tc->proc == space_proc) return tc;
     return NULL;
 }
 
