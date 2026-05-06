@@ -1136,7 +1136,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
             filter_gallery = doc;
         }
     }
-    ASSERT_EQUAL(doc_count, 9);
+    ASSERT_EQUAL(doc_count, 10);
     ASSERT_EQUAL(visible_docs, 1);
     ASSERT_NOT_NULL(g_app->doc);
     ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
@@ -1184,7 +1184,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     doc_count = 0;
     for (form_doc_t *doc = g_app->docs; doc; doc = doc->next)
         doc_count++;
-    ASSERT_EQUAL(doc_count, 9);
+    ASSERT_EQUAL(doc_count, 10);
     ASSERT_TRUE(g_app->doc && !g_app->doc->doc_win->visible);
 
     const fe_component_desc_t *slider = fe_component_by_token("slider");
