@@ -529,45 +529,42 @@ int calc_text_height(const char *text, int width) {
 }
 
 // ── draw_text_wrapped ─────────────────────────────────────────────────────────
+// Always uses Geneva-12 (FONT_SMALL) for wrapped content text.
 
 void draw_text_wrapped(const char *text, irect16_t const *viewport, uint32_t col) {
   if (!text || !*text || !g_ui_runtime.running || !viewport) return;
-  if (!text_state.big_height) return;
+  if (!text_state.small_height) return;
 
-  static text_vertex_t buf_big  [MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
-  static text_vertex_t buf_small[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
-  int vc_big = 0, vc_small = 0;
-  int lh = get_line_height(), sw = get_space_width();
+  static text_vertex_t buf[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
+  int vc = 0;
+  
+  // Use FONT_SMALL metrics (same logic as draw_text for FONT_SMALL)
+  int sw = text_state.small_space ? text_state.small_space : 3;
+  int lh = (text_state.small_line ? text_state.small_line : 12) * 0.75; // HACK: legacy line height was 1.5x char height; new fonts have built-in line spacing so use 0.75x to avoid excess spacing
 
   int x = viewport->x, y = viewport->y, w = viewport->w;
   int cx = x, cy = y;
 
   for (const char *p = text;
-       *p && vc_big   < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR
-          && vc_small < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR;
+       *p && vc < MAX_TEXT_LENGTH * VERTICES_PER_CHAR - VERTICES_PER_CHAR;
        p++) {
     unsigned char c = (unsigned char)*p;
     if (c == '\n') { cx = x; cy += lh; continue; }
     if (c == ' ')  { cx += sw; continue; }
 
-    int cw = char_advance(c);
+    glyph_metrics_t *met;
+    font_atlas_t    *atlas = atlas_for_font(FONT_SMALL, c, &met);
+    
+    // Use per-character advance from metrics (same as draw_text)
+    int cw = met->advance[c];
     if (cx + cw > x + w) { cx = x; cy += lh; }
 
-    glyph_metrics_t *met;
-    font_atlas_t    *atlas = atlas_for_font(FONT_SYSTEM, c, &met);
-
-    bool use_small = (text_state.has_small && atlas == &text_state.small);
-    text_vertex_t *buf = use_small ? buf_small : buf_big;
-    int           *vc  = use_small ? &vc_small  : &vc_big;
-
-    *vc += emit_char_verts(buf + *vc, cx, cy, c, col, atlas, met);
+    vc += emit_char_verts(buf + vc, cx, cy, c, col, atlas, met);
     cx += cw;
   }
 
-  if (vc_big > 0)
-    flush_batch(&text_state.big,   buf_big,   vc_big);
-  if (vc_small > 0)
-    flush_batch(&text_state.small, buf_small, vc_small);
+  if (vc > 0)
+    flush_batch(&text_state.small, buf, vc);
 }
 
 // ── shutdown_text_rendering ───────────────────────────────────────────────────
