@@ -106,6 +106,7 @@ typedef struct {
   uint8_t layout_kind;
   uint8_t layout_orientation;
   uint8_t layout_columns;
+  uint8_t layout_spacing;
 } windef_t;
 
 // ── Dialog Data Exchange (DDX) ──────────────────────────────────────────────
@@ -199,7 +200,9 @@ void ddx_pull_check(window_t *dlg, const ctrl_binding_t *b, void *state);
   }
 
 // Describes one child control in a form definition (analogous to DLGITEMTEMPLATE).
-typedef struct {
+// Controls may themselves contain nested child definitions so that layout
+// containers such as stack/grid can be expressed as explicit components.
+typedef struct form_ctrl_def_s {
   const char       *class_name; // control class name (e.g. "button")
   uint32_t          id;     // numeric control ID
   irect16_t         frame;  // position and dimensions in parent client coordinates
@@ -208,6 +211,12 @@ typedef struct {
   const char       *name;   // identifier name (informational)
   uint8_t           h_align; // horizontal alignment; 0 = stretch
   uint8_t           v_align; // vertical alignment; 0 = stretch
+  const struct form_ctrl_def_s *children; // nested child controls
+  int               child_count; // number of entries in children[]
+  uint8_t           layout_kind; // window_layout_kind_t for containers
+  uint8_t           layout_orientation; // window_stack_orientation_t
+  uint8_t           layout_columns; // grid columns (0 = default)
+  uint8_t           layout_spacing; // spacing between direct children; 0 = default
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -225,6 +234,7 @@ typedef struct {
   uint8_t                 layout_kind;  // window_layout_kind_t
   uint8_t                 layout_orientation; // window_stack_orientation_t
   uint8_t                 layout_columns; // grid columns (0 = default)
+  uint8_t                 layout_spacing; // spacing between direct children; 0 = default
   const form_ctrl_def_t  *children;    // array of child control definitions (may be NULL)
   int                     child_count; // number of entries in children[]
   // ── DDX (Dialog Data Exchange) fields ───────────────────────────────────
@@ -334,6 +344,7 @@ struct window_s {
   uint8_t   layout_columns;  // grid columns (0 = default)
   uint8_t   h_align;        // horizontal alignment; 0 = stretch
   uint8_t   v_align;        // vertical alignment; 0 = stretch
+  uint8_t   layout_spacing;  // spacing between direct children; 0 = default
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)
@@ -347,6 +358,8 @@ struct window_s {
 // is set) the single-row toolbar band.  Used by event routing and layout.
 int titlebar_height(window_t const *win);
 int statusbar_height(window_t const *win);
+int window_screen_x(window_t const *win);
+int window_screen_y(window_t const *win);
 
 // Window management functions
 // Class-based API (preferred): create by registered class name.

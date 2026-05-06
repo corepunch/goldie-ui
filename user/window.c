@@ -68,8 +68,8 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "gradient") || streq(class_name, "win_gradient")) return win_gradient;
   if (streq(class_name, "toolbox") || streq(class_name, "win_toolbox")) return win_toolbox;
   if (streq(class_name, "splitter") || streq(class_name, "win_splitter")) return win_splitter;
-  if (streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
-  if (streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
+  if (streq(class_name, "stack") || streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
+  if (streq(class_name, "grid") || streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
 
   return NULL;
 }
@@ -115,6 +115,10 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   memset(win, 0, sizeof(window_t));
   win->frame = *frame;
   win->proc = proc;
+  // Child controls participate in client-area layout, so they should not
+  // reserve a title bar unless a caller explicitly creates a root window.
+  if (parent)
+    flags |= WINDOW_NOTITLE;
   win->flags = flags;
   // Inherit hinstance from parent for child windows; use supplied value for roots.
   win->hinstance = parent ? parent->hinstance : hinstance;
@@ -165,6 +169,7 @@ window_t* create_window_proc(char const *title,
     .flags       = flags,
     .children    = NULL,
     .child_count = 0,
+    .layout_spacing = 4,
   };
   int x = frame ? frame->x : 0;
   int y = frame ? frame->y : 0;
@@ -273,6 +278,10 @@ static layout_measure_t layout_measure_child(window_t *child, int avail_w, int a
   return m;
 }
 
+static int layout_spacing_for(window_t *win) {
+  return win ? (int)win->layout_spacing : 0;
+}
+
 static void layout_arrange_child(window_t *child, irect16_t rect) {
   layout_arrange_t a = {
     .rect = rect,
@@ -289,7 +298,7 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
   int count = 0;
   int desired_w = 0;
   int desired_h = 0;
-  int gap = 4;
+  int gap = layout_spacing_for(win);
 
   for (window_t *child = win->children; child; child = child->next) {
     layout_measure_t cm = layout_measure_child(child, avail_w, avail_h);
@@ -322,16 +331,29 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
 
 void layout_arrange_window(window_t *win, const irect16_t *rect) {
   irect16_t cr = rect ? *rect : get_client_rect(win);
-  int gap = 4;
+  int gap = layout_spacing_for(win);
 
   if (win->layout_kind == WINDOW_LAYOUT_STACK) {
     int count = 0;
     if (win->layout_orientation == WINDOW_STACK_HORIZONTAL) {
+      int total_fixed = 0;
+      int stretch_count = 0;
+      for (window_t *child = win->children; child; child = child->next) {
+        layout_measure_t cm = layout_measure_child(child, cr.w, cr.h);
+        if (child->h_align == LAYOUT_ALIGN_STRETCH) stretch_count++;
+        else total_fixed += cm.desired_w;
+        count++;
+      }
+      int total_gap = (count > 0) ? gap * (count - 1) : 0;
+      int remaining = cr.w - total_fixed - total_gap;
+      if (remaining < 0) remaining = 0;
+      int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;
       int x = cr.x;
       for (window_t *child = win->children; child; child = child->next) {
-        if (count > 0) x += gap;
+        if (x > cr.x) x += gap;
         layout_measure_t cm = layout_measure_child(child, cr.w, cr.h);
-        int cw = cm.desired_w;
+        int cw = (child->h_align == LAYOUT_ALIGN_STRETCH) ? MAX(cm.desired_w, stretch_share)
+                                                          : cm.desired_w;
         int ch = layout_apply_alignment(cr.h, cm.desired_h, child->v_align);
         int cy = cr.y;
         if (child->v_align == LAYOUT_ALIGN_CENTER)
@@ -340,15 +362,27 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
           cy += cr.h - ch;
         layout_arrange_child(child, R(x, cy, cw, ch));
         x += cw;
-        count++;
       }
     } else {
+      int total_fixed = 0;
+      int stretch_count = 0;
+      for (window_t *child = win->children; child; child = child->next) {
+        layout_measure_t cm = layout_measure_child(child, cr.w, cr.h);
+        if (child->v_align == LAYOUT_ALIGN_STRETCH) stretch_count++;
+        else total_fixed += cm.desired_h;
+        count++;
+      }
+      int total_gap = (count > 0) ? gap * (count - 1) : 0;
+      int remaining = cr.h - total_fixed - total_gap;
+      if (remaining < 0) remaining = 0;
+      int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;
       int y = cr.y;
       for (window_t *child = win->children; child; child = child->next) {
-        if (count > 0) y += gap;
+        if (y > cr.y) y += gap;
         layout_measure_t cm = layout_measure_child(child, cr.w, cr.h);
         int cw = layout_apply_alignment(cr.w, cm.desired_w, child->h_align);
-        int ch = cm.desired_h;
+        int ch = (child->v_align == LAYOUT_ALIGN_STRETCH) ? MAX(cm.desired_h, stretch_share)
+                                                          : cm.desired_h;
         int cx = cr.x;
         if (child->h_align == LAYOUT_ALIGN_CENTER)
           cx += (cr.w - cw) / 2;
@@ -356,7 +390,6 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
           cx += cr.w - cw;
         layout_arrange_child(child, R(cx, y, cw, ch));
         y += ch;
-        count++;
       }
     }
     return;
@@ -370,16 +403,22 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
     }
     int rows = (count + cols - 1) / cols;
     if (rows < 1) rows = 1;
-    int base_w = cr.w / cols;
-    int rem_w = cr.w % cols;
-    int base_h = cr.h / rows;
-    int rem_h = cr.h % rows;
+    int total_gap_w = (cols > 0) ? gap * (cols - 1) : 0;
+    int total_gap_h = (rows > 0) ? gap * (rows - 1) : 0;
+    int cell_area_w = cr.w - total_gap_w;
+    int cell_area_h = cr.h - total_gap_h;
+    if (cell_area_w < 0) cell_area_w = 0;
+    if (cell_area_h < 0) cell_area_h = 0;
+    int base_w = cols > 0 ? cell_area_w / cols : cell_area_w;
+    int rem_w = cols > 0 ? cell_area_w % cols : 0;
+    int base_h = rows > 0 ? cell_area_h / rows : cell_area_h;
+    int rem_h = rows > 0 ? cell_area_h % rows : 0;
     int idx = 0;
     for (window_t *child = win->children; child; child = child->next) {
       int row = idx / cols;
       int col = idx % cols;
-      int x = cr.x + col * base_w + (col < rem_w ? col : rem_w);
-      int y = cr.y + row * base_h + (row < rem_h ? row : rem_h);
+      int x = cr.x + col * (base_w + gap) + (col < rem_w ? col : rem_w);
+      int y = cr.y + row * (base_h + gap) + (row < rem_h ? row : rem_h);
       int cell_w = base_w + (col < rem_w ? 1 : 0);
       int cell_h = base_h + (row < rem_h ? 1 : 0);
       layout_measure_t cm = layout_measure_child(child, cell_w, cell_h);
@@ -546,6 +585,21 @@ window_t *find_window(int x, int y) {
 // Get root window
 window_t *get_root_window(window_t *window) {
   return window->parent ? get_root_window(window->parent) : window;
+}
+
+int window_screen_x(window_t const *win) {
+  if (!win) return 0;
+  if (!win->parent) return win->frame.x;
+  return window_screen_x(win->parent) + win->frame.x;
+}
+
+int window_screen_y(window_t const *win) {
+  if (!win) return 0;
+  if (!win->parent) return win->frame.y;
+  int y = window_screen_y(win->parent) + win->frame.y;
+  if (!win->parent->parent)
+    y += titlebar_height(win->parent);
+  return y;
 }
 
 irect16_t center_window_rect(irect16_t frame_rect, window_t const *owner) {
@@ -768,6 +822,9 @@ void load_window_children(window_t *win, windef_t const *def) {
 // def->children before firing evCreate on the parent.
 // This allows the window proc to find its children already in place during
 // evCreate, analogous to WinAPI CreateDialogIndirect behaviour.
+static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
+                                 int child_count);
+
 window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
@@ -805,23 +862,11 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   win->layout_kind       = def->layout_kind;
   win->layout_orientation= def->layout_orientation;
   win->layout_columns    = def->layout_columns;
+  win->layout_spacing    = def->layout_spacing;
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).
-  if (def->children && def->child_count > 0) {
-    for (int i = 0; i < def->child_count; i++) {
-      const form_ctrl_def_t *cd = &def->children[i];
-      winproc_t cp = find_window_class_proc(cd->class_name);
-      if (!cp) continue;
-      window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
-                                      &cd->frame, win, cp, 0, NULL);
-      if (child) {
-        child->id = cd->id;
-        child->h_align = cd->h_align;
-        child->v_align = cd->v_align;
-      }
-    }
-  }
+  create_form_children(win, def->children, def->child_count);
 
   if (win->auto_layout)
     window_layout_sync(win);
@@ -837,6 +882,40 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   if (!parent && !is_window(win)) return NULL;
   if (parent) invalidate_window(win);
   return win;
+}
+
+static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
+                                 int child_count) {
+  if (!parent || !children || child_count <= 0) return;
+
+  for (int i = 0; i < child_count; i++) {
+    const form_ctrl_def_t *cd = &children[i];
+    winproc_t cp = find_window_class_proc(cd->class_name);
+    if (!cp) continue;
+
+    void *param = NULL;
+    layout_view_config_t cfg = {
+      .layout_kind = cd->layout_kind,
+      .orientation = cd->layout_orientation,
+      .columns = cd->layout_columns,
+      .spacing = cd->layout_spacing,
+    };
+    if (cp == win_stackview || cp == win_gridview)
+      param = &cfg;
+
+    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+                                    &cd->frame, parent, cp, 0, param);
+    if (!child) continue;
+    child->id = cd->id;
+    child->h_align = cd->h_align;
+    child->v_align = cd->v_align;
+
+    if (cd->children && cd->child_count > 0)
+      create_form_children(child, cd->children, cd->child_count);
+
+    if (child->auto_layout)
+      window_layout_sync(child);
+  }
 }
 
 // Show or hide window

@@ -190,6 +190,7 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->layout_kind = WINDOW_LAYOUT_NONE;
   doc->layout_orientation = WINDOW_STACK_VERTICAL;
   doc->layout_columns = 0;
+  doc->layout_spacing = 4;
   doc->next_id   = CTRL_ID_BASE;
   doc->grid_size    = 8;
   doc->show_grid    = true;
@@ -509,43 +510,38 @@ static void project_load_menus(xmlDocPtr xdoc, xmlNodePtr root) {
   }
 }
 
-static void project_load_controls(form_doc_t *doc, xmlNodePtr form_node) {
-  for (xmlNodePtr n = form_node->children; n; n = n->next) {
-    if (n->type != XML_ELEMENT_NODE || xmlStrcmp(n->name, BAD_CAST "controls") != 0)
+static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
+  for (xmlNodePtr n = node ? node->children : NULL; n; n = n->next) {
+    if (n->type != XML_ELEMENT_NODE)
       continue;
-    for (xmlNodePtr c = n->children; c; c = c->next) {
-      if (c->type != XML_ELEMENT_NODE || xmlStrcmp(c->name, BAD_CAST "control") != 0)
-        continue;
-      if (doc->element_count >= MAX_ELEMENTS) break;
+    if (xmlStrcmp(n->name, BAD_CAST "requires") == 0)
+      continue;
+    int type = ctrl_type_from_token((const char *)n->name);
 
-      char *class_name = xml_attr_dup(c, "class");
-      int type = ctrl_type_from_token(class_name);
-      free(class_name);
-      if (type < 0 || type >= FE_MAX_COMPONENTS) continue;
-
+    if (type >= 0 && type < FE_MAX_COMPONENTS && doc->element_count < MAX_ELEMENTS) {
       form_element_t *el = &doc->elements[doc->element_count++];
       memset(el, 0, sizeof(*el));
       el->type = type;
       el->h_align = LAYOUT_ALIGN_STRETCH;
       el->v_align = LAYOUT_ALIGN_STRETCH;
-      copy_attr(c, "id", el->id_expr, sizeof(el->id_expr));
+      copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
       char value_expr[32] = {0};
-      copy_attr(c, "value", value_expr, sizeof(value_expr));
+      copy_attr(n, "value", value_expr, sizeof(value_expr));
       el->id = project_resolve_control_id(doc, el->id_expr, value_expr);
-      if (!frame_attr(c, &el->frame)) {
-        el->frame.x = int_attr(c, "x", 0);
-        el->frame.y = int_attr(c, "y", 0);
-        el->frame.w = int_attr(c, "w", 10);
-        el->frame.h = int_attr(c, "h", 8);
+      if (!frame_attr(n, &el->frame)) {
+        el->frame.x = int_attr(n, "x", 0);
+        el->frame.y = int_attr(n, "y", 0);
+        el->frame.w = int_attr(n, "w", 10);
+        el->frame.h = int_attr(n, "h", 8);
       }
       el->frame.w = MAX(1, el->frame.w);
       el->frame.h = MAX(1, el->frame.h);
-      copy_attr(c, "flags", el->flags_expr, sizeof(el->flags_expr));
+      copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
       el->flags = parse_flags_expr(el->flags_expr);
-      copy_attr(c, "text", el->text, sizeof(el->text));
-      copy_attr(c, "name", el->name, sizeof(el->name));
-      char *h_align = xml_attr_dup(c, "h_align");
-      char *v_align = xml_attr_dup(c, "v_align");
+      copy_attr(n, "text", el->text, sizeof(el->text));
+      copy_attr(n, "name", el->name, sizeof(el->name));
+      char *h_align = xml_attr_dup(n, "h_align");
+      char *v_align = xml_attr_dup(n, "v_align");
       el->h_align = align_attr(h_align, el->h_align);
       el->v_align = align_attr(v_align, el->v_align);
       free(h_align);
@@ -558,20 +554,23 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr form_node) {
         }
         el->frame.x = 0;
         el->frame.y = 0;
-      }
-      if (!el->name[0])
-        snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
+    }
+    if (!el->name[0])
+      snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
       if (el->id >= doc->next_id)
         doc->next_id = el->id + 1;
       if (type >= 0 && type < FE_MAX_COMPONENTS)
         doc->type_counters[type]++;
     }
+
+    if (n->children)
+      project_load_controls(doc, n);
   }
 }
 
 static void project_auto_layout_doc(form_doc_t *doc) {
   if (!doc || !doc->auto_layout) return;
-  const int gap = 4;
+  const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
   int count = doc->element_count;
   int max_w = MAX(1, doc->form_size.w);
   int max_h = MAX(1, doc->form_size.h);
@@ -695,6 +694,8 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     free(layout_orientation);
   }
   doc->layout_columns = (uint8_t)int_attr(form_node, "layout_columns", 0);
+  doc->layout_spacing = (uint8_t)int_attr(form_node, "spacing",
+                                          int_attr(form_node, "layout_spacing", 0));
   project_load_requires(doc, form_node);
   project_load_controls(doc, form_node);
   project_auto_layout_doc(doc);
@@ -782,6 +783,8 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
             layout_orientation_token(doc->layout_orientation));
   if (doc->auto_layout || doc->layout_columns != 0)
     fprintf(f, "\n            layout_columns=\"%u\"", (unsigned)doc->layout_columns);
+  if (doc->auto_layout || doc->layout_spacing != 0)
+    fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
   if (doc->owner[0]) xml_attr(f, "owner", doc->owner);
   fprintf(f, ">\n");
 
@@ -790,11 +793,9 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     xml_attr(f, "library", doc->required_plugin);
     fprintf(f, " />\n");
   }
-  fprintf(f, "        <controls>\n");
   for (int i = 0; i < doc->element_count; i++) {
     form_element_t *el = &doc->elements[i];
-    fprintf(f, "          <control");
-    xml_attr(f, "class", ctrl_type_token(el->type));
+    fprintf(f, "        <%s", ctrl_type_token(el->type));
     char id_buf[32];
     snprintf(id_buf, sizeof(id_buf), "%d", el->id);
     xml_attr(f, "id", el->id_expr[0] ? el->id_expr : id_buf);
@@ -814,7 +815,6 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);
     fprintf(f, " />\n");
   }
-  fprintf(f, "        </controls>\n");
   fprintf(f, "      </form>\n");
 }
 

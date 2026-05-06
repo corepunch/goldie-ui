@@ -69,6 +69,135 @@ static const form_def_t kDdxTestForm = {
 };
 
 // ──────────────────────────────────────────────────────────────────────────
+// Nested auto-layout form used to debug stack and grid positioning
+// ──────────────────────────────────────────────────────────────────────────
+
+#define NEST_FORM_ID_HEADER      101
+#define NEST_FORM_ID_BODY        102
+#define NEST_FORM_ID_GRID        103
+#define NEST_FORM_ID_TITLE       104
+#define NEST_FORM_ID_AUTHOR      105
+#define NEST_FORM_ID_BODY_BTN1    106
+#define NEST_FORM_ID_BODY_BTN2    107
+#define NEST_FORM_ID_GRID_1       108
+#define NEST_FORM_ID_GRID_2       109
+#define NEST_FORM_ID_GRID_3       110
+#define NEST_FORM_ID_GRID_4       111
+
+static const form_ctrl_def_t kNestBodyChildren[] = {
+  {
+    .class_name = "button",
+    .id = NEST_FORM_ID_BODY_BTN1,
+    .frame = {0, 0, 88, 0},
+    .text = "Like Post",
+    .name = "like",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = NEST_FORM_ID_BODY_BTN2,
+    .frame = {0, 0, 72, 0},
+    .text = "Close",
+    .name = "close",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_ctrl_def_t kNestGridChildren[] = {
+  {
+    .class_name = "label",
+    .id = NEST_FORM_ID_GRID_1,
+    .frame = {0, 0, 40, 0},
+    .text = "G1",
+    .name = "g1",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "label",
+    .id = NEST_FORM_ID_GRID_2,
+    .frame = {0, 0, 40, 0},
+    .text = "G2",
+    .name = "g2",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "label",
+    .id = NEST_FORM_ID_GRID_3,
+    .frame = {0, 0, 40, 0},
+    .text = "G3",
+    .name = "g3",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "label",
+    .id = NEST_FORM_ID_GRID_4,
+    .frame = {0, 0, 40, 0},
+    .text = "G4",
+    .name = "g4",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+};
+
+static const form_ctrl_def_t kNestChildren[] = {
+  {
+    .class_name = "label",
+    .id = NEST_FORM_ID_HEADER,
+    .frame = {0, 0, 120, 0},
+    .text = "Post Detail",
+    .name = "header",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "stack",
+    .id = NEST_FORM_ID_BODY,
+    .frame = {0, 0, 0, 0},
+    .name = "body",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kNestBodyChildren,
+    .child_count = ARRAY_LEN(kNestBodyChildren),
+    .layout_kind = WINDOW_LAYOUT_STACK,
+    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .layout_spacing = 3,
+  },
+  {
+    .class_name = "grid",
+    .id = NEST_FORM_ID_GRID,
+    .frame = {0, 0, 0, 0},
+    .name = "grid",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kNestGridChildren,
+    .child_count = ARRAY_LEN(kNestGridChildren),
+    .layout_kind = WINDOW_LAYOUT_GRID,
+    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .layout_columns = 2,
+    .layout_spacing = 0,
+  },
+};
+
+static const form_def_t kNestForm = {
+  .name = "Nest",
+  .width = 240,
+  .height = 180,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = WINDOW_LAYOUT_STACK,
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_columns = 0,
+  .layout_spacing = 6,
+  .children = kNestChildren,
+  .child_count = ARRAY_LEN(kNestChildren),
+};
+
+// ──────────────────────────────────────────────────────────────────────────
 // State captured in the window proc during evCreate
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -440,6 +569,48 @@ void test_gridview_layout(void) {
   PASS();
 }
 
+void test_nested_stack_positions(void) {
+  TEST("nested layout: stack children and grid rows sit in the right place");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kNestForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+  window_t *header = get_window_item(win, NEST_FORM_ID_HEADER);
+  window_t *body = get_window_item(win, NEST_FORM_ID_BODY);
+  window_t *grid = get_window_item(win, NEST_FORM_ID_GRID);
+  window_t *body_btn1 = get_window_item(win, NEST_FORM_ID_BODY_BTN1);
+  window_t *body_btn2 = get_window_item(win, NEST_FORM_ID_BODY_BTN2);
+  window_t *grid_1 = get_window_item(win, NEST_FORM_ID_GRID_1);
+  window_t *grid_2 = get_window_item(win, NEST_FORM_ID_GRID_2);
+  window_t *grid_3 = get_window_item(win, NEST_FORM_ID_GRID_3);
+  window_t *grid_4 = get_window_item(win, NEST_FORM_ID_GRID_4);
+  ASSERT_NOT_NULL(header);
+  ASSERT_NOT_NULL(body);
+  ASSERT_NOT_NULL(grid);
+  ASSERT_NOT_NULL(body_btn1);
+  ASSERT_NOT_NULL(body_btn2);
+  ASSERT_NOT_NULL(grid_1);
+  ASSERT_NOT_NULL(grid_2);
+  ASSERT_NOT_NULL(grid_3);
+  ASSERT_NOT_NULL(grid_4);
+
+  ASSERT_EQUAL(header->frame.y, 0);
+  ASSERT_EQUAL(body->frame.y, header->frame.h + 6);
+  ASSERT_EQUAL(grid->frame.y, body->frame.y + body->frame.h + 6);
+
+  ASSERT_EQUAL(body_btn1->frame.y, 0);
+  ASSERT_EQUAL(body_btn2->frame.y, body_btn1->frame.h + 3);
+
+  ASSERT_EQUAL(grid_1->frame.y, grid_2->frame.y);
+  ASSERT_EQUAL(grid_3->frame.y, grid_4->frame.y);
+  ASSERT_TRUE(grid_3->frame.y > grid_1->frame.y);
+  ASSERT_EQUAL(grid_1->frame.y, 0);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // main
 // ──────────────────────────────────────────────────────────────────────────
@@ -460,6 +631,7 @@ int main(int argc, char *argv[]) {
   test_show_ddx_dialog_form_flags();
   test_stackview_layout();
   test_gridview_layout();
+  test_nested_stack_positions();
 
   TEST_END();
 }

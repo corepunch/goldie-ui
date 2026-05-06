@@ -43,19 +43,17 @@
             frame="0 0 272 146"
             flags="0"
             owner="examples/socialfeed/view_dlg_forms.c">
-        <controls>
-          <control class="label"    id="-1"                  name="lbl_author"   text="Author:"  frame="4  8  58 13" flags="0" />
-          <control class="textedit" id="ID_POST_AUTHOR_CTRL" value="1001" name="edit_author" text="" frame="64  6 200 16" flags="0" />
+        <label    id="-1"                  name="lbl_author"   text="Author:"  frame="4  8  58 13" flags="0" />
+        <textedit id="ID_POST_AUTHOR_CTRL" value="1001" name="edit_author" text="" frame="64  6 200 16" flags="0" />
 
-          <control class="label"    id="-1"                  name="lbl_title"    text="Title:"   frame="4 28  58 13" flags="0" />
-          <control class="textedit" id="ID_POST_TITLE_CTRL"  value="1002" name="edit_title"  text="" frame="64 26 200 16" flags="0" />
+        <label    id="-1"                  name="lbl_title"    text="Title:"   frame="4 28  58 13" flags="0" />
+        <textedit id="ID_POST_TITLE_CTRL"  value="1002" name="edit_title"  text="" frame="64 26 200 16" flags="0" />
 
-          <control class="label"    id="-1"                  name="lbl_body"     text="Body:"    frame="4 48  58 13" flags="0" />
-          <control class="multiedit" id="ID_POST_BODY_CTRL"  value="1003" name="edit_body"   text="" frame="64 46 200 60" flags="WINDOW_VSCROLL" />
+        <label    id="-1"                  name="lbl_body"     text="Body:"    frame="4 48  58 13" flags="0" />
+        <multiedit id="ID_POST_BODY_CTRL"  value="1003" name="edit_body"   text="" frame="64 46 200 60" flags="WINDOW_VSCROLL" />
 
-          <control class="button" id="ID_OK"     value="1" name="btn_ok"     text="Post"   frame="72  118 60 18" flags="BUTTON_DEFAULT" />
-          <control class="button" id="ID_CANCEL" value="2" name="btn_cancel" text="Cancel" frame="136 118 60 18" flags="0" />
-        </controls>
+        <button id="ID_OK"     value="1" name="btn_ok"     text="Post"   frame="72  118 60 18" flags="BUTTON_DEFAULT" />
+        <button id="ID_CANCEL" value="2" name="btn_cancel" text="Cancel" frame="136 118 60 18" flags="0" />
       </form>
 
       <form id="new_comment"
@@ -63,16 +61,14 @@
             frame="0 0 260 82"
             flags="0"
             owner="examples/socialfeed/view_dlg_forms.c">
-        <controls>
-          <control class="label"    id="-1"                  name="lbl_author"   text="Author:" frame="4  8  58 13" flags="0" />
-          <control class="textedit" id="ID_CMT_AUTHOR_CTRL"  value="2001" name="edit_author" text="" frame="64  6 188 16" flags="0" />
+        <label    id="-1"                  name="lbl_author"   text="Author:" frame="4  8  58 13" flags="0" />
+        <textedit id="ID_CMT_AUTHOR_CTRL"  value="2001" name="edit_author" text="" frame="64  6 188 16" flags="0" />
 
-          <control class="label"    id="-1"                  name="lbl_text"     text="Text:"   frame="4 28  58 13" flags="0" />
-          <control class="textedit" id="ID_CMT_TEXT_CTRL"    value="2002" name="edit_text"   text="" frame="64 26 188 16" flags="0" />
+        <label    id="-1"                  name="lbl_text"     text="Text:"   frame="4 28  58 13" flags="0" />
+        <textedit id="ID_CMT_TEXT_CTRL"    value="2002" name="edit_text"   text="" frame="64 26 188 16" flags="0" />
 
-          <control class="button" id="ID_OK"     value="1" name="btn_ok"     text="Submit" frame="62 54 60 18" flags="BUTTON_DEFAULT" />
-          <control class="button" id="ID_CANCEL" value="2" name="btn_cancel" text="Cancel" frame="126 54 60 18" flags="0" />
-        </controls>
+        <button id="ID_OK"     value="1" name="btn_ok"     text="Submit" frame="62 54 60 18" flags="BUTTON_DEFAULT" />
+        <button id="ID_CANCEL" value="2" name="btn_cancel" text="Cancel" frame="126 54 60 18" flags="0" />
       </form>
 
       <form id="post_detail"
@@ -80,25 +76,29 @@
             frame="0 0 520 336"
             flags="0"
             auto_layout="1"
+            layout_kind="stack"
             owner="examples/socialfeed/view_dlg_post.c">
-        <controls>
-          <!-- Post header labels (populated in evCreate) -->
-          <control class="label" id="ID_LBL_POST_TITLE"    value="310" name="lbl_title"    text="" frame="4   4 410 13" flags="0" />
-          <control class="label" id="ID_LBL_POST_AUTHOR"   value="311" name="lbl_author"   text="" frame="4  18 410 13" flags="0" />
-          <control class="label" id="ID_LBL_POST_BODY"     value="312" name="lbl_body"     text="" frame="4  32 410 50" flags="0" />
-          <control class="label" id="ID_LBL_POST_LIKES"    value="313" name="lbl_likes"    text="" frame="4  86 200 13" flags="0" />
-          <control class="label" id="ID_LBL_COMMENTS_HDR" value="314" name="lbl_cmt_hdr"  text="" frame="4 108 200 13" flags="0" />
+        <stack orientation="vertical" spacing="8" id="ID_POST_DETAIL_LAYOUT" value="316">
+          <stack orientation="vertical" v_align="start" spacing="2" id="ID_POST_DETAIL_HEADER" value="317">
+            <!-- Post header labels (populated in evCreate) -->
+            <label v_align="start" id="ID_LBL_POST_TITLE"    value="310" name="lbl_title"    text="" />
+            <label v_align="start" id="ID_LBL_POST_AUTHOR"   value="311" name="lbl_author"   text="" />
+            <label v_align="start" id="ID_LBL_POST_BODY"     value="312" name="lbl_body"     text="" />
+            <label v_align="start" id="ID_LBL_POST_LIKES"    value="313" name="lbl_likes"    text="" />
+            <label v_align="start" id="ID_LBL_COMMENTS_HDR" value="314" name="lbl_cmt_hdr"  text="" />
+          </stack>
 
           <!-- Comments reportview -->
-          <control class="reportview" id="ID_COMMENTS_VIEW" value="315" name="comments" text="" frame="2 122 516 180" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
+          <reportview id="ID_COMMENTS_VIEW" value="315" name="comments" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
 
-          <!-- Buttons -->
-          <control class="button" id="ID_BTN_LIKE_POST"    value="301" name="like_post"    text="Like Post"    frame="420  82  96 18" flags="0" />
-          <control class="button" id="ID_BTN_ADD_COMMENT"  value="302" name="add_comment"  text="Add Comment"  frame="2   310  90 18" flags="0" />
-          <control class="button" id="ID_BTN_ADD_REPLY"    value="303" name="add_reply"    text="Add Reply"    frame="96  310  74 18" flags="0" />
-          <control class="button" id="ID_BTN_LIKE_COMMENT" value="304" name="like_comment" text="Like Comment" frame="174 310  90 18" flags="0" />
-          <control class="button" id="ID_BTN_CLOSE"        value="305" name="close"        text="Close"        frame="444 310  74 18" flags="BUTTON_DEFAULT" />
-        </controls>
+          <stack orientation="horizontal" v_align="start" spacing="4" id="ID_POST_DETAIL_ACTIONS" value="318">
+            <button h_align="start" v_align="start" id="ID_BTN_LIKE_POST"    value="301" name="like_post"    text="Like Post"    flags="0" />
+            <button h_align="start" v_align="start" id="ID_BTN_ADD_COMMENT"  value="302" name="add_comment"  text="Add Comment"  flags="0" />
+            <button h_align="start" v_align="start" id="ID_BTN_ADD_REPLY"    value="303" name="add_reply"    text="Add Reply"    flags="0" />
+            <button h_align="start" v_align="start" id="ID_BTN_LIKE_COMMENT" value="304" name="like_comment" text="Like Comment" flags="0" />
+            <button h_align="start" v_align="start" id="ID_BTN_CLOSE"        value="305" name="close"        text="Close"        flags="BUTTON_DEFAULT" />
+          </stack>
+        </stack>
       </form>
     </forms>
 </orion>

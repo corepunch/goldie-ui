@@ -135,6 +135,7 @@ typedef struct form_doc_t {
   uint8_t layout_kind;  // window_layout_kind_t
   uint8_t layout_orientation; // window_stack_orientation_t
   uint8_t layout_columns; // grid columns (0 = default)
+  uint8_t layout_spacing; // spacing between direct children; 0 = default
   bool   modified;
   char   form_id[64];
   char   form_title[128];

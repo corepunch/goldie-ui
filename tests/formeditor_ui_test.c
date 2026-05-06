@@ -1025,6 +1025,8 @@ void test_fe_save_load_roundtrip(void) {
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "frame=\"0 0 ") != NULL);
     ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
+    ASSERT_TRUE(strstr(xml, "<button ") != NULL);
     ASSERT_TRUE(strstr(xml, " x=\"") == NULL);
     ASSERT_TRUE(strstr(xml, " y=\"") == NULL);
     ASSERT_TRUE(strstr(xml, " w=\"") == NULL);
@@ -1084,6 +1086,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
     ASSERT_TRUE(strstr(xml, "h_align=\"center\"") != NULL);
     ASSERT_TRUE(strstr(xml, "v_align=\"end\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
     ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") == NULL);
     free(xml);
 

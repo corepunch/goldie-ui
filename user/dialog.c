@@ -36,6 +36,11 @@ static uint32_t run_dialog_loop(window_t *dlg, window_t *parent) {
     }
     repost_messages();
   }
+  // If the app is quitting, the modal loop exits without the dialog having
+  // been closed via end_dialog(). Make sure we destroy it here so stack-owned
+  // dialog state does not outlive the call site.
+  if (is_window(dlg))
+    destroy_window(dlg);
   if (modal_parent) {
     enable_window(modal_parent, true);
     set_focus(modal_parent);

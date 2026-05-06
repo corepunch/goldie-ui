@@ -266,7 +266,6 @@ extern void set_fullscreen(void);
 extern window_t *get_root_window(window_t *window);
 extern int titlebar_height(window_t const *win);
 extern int statusbar_height(window_t const *win);
-
 // Returns win's frame rect in absolute screen coordinates.
 // For root windows, frame.x/y are already screen-absolute.
 // For child windows, frame.x/y are root-client-space coords; they are mapped
@@ -813,11 +812,18 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         break;
       }
       case evHitTest:
-        for (window_t *item = win->children; item; item = item->next) {
-          irect16_t r = item->frame;
+        {
           uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
-          if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
-            *(window_t **)lparam = item;
+          if (win->parent) {
+            x += win->frame.x;
+            y += win->frame.y;
+          }
+          for (window_t *item = win->children; item; item = item->next) {
+            irect16_t r = item->frame;
+            if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
+              *(window_t **)lparam = item;
+              send_message(item, evHitTest, MAKEDWORD(x - r.x, y - r.y), lparam);
+            }
           }
         }
         break;

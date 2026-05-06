@@ -198,7 +198,22 @@ static uint8_t layout_orientation_attr(const char *v, uint8_t fallback) {
   return fallback;
 }
 
+static char *attr_dup_first(xmlNodePtr node, const char *a, const char *b) {
+  char *v = attr_dup(node, a);
+  if (v && *v) return v;
+  free(v);
+  return b ? attr_dup(node, b) : NULL;
+}
+
 static uint8_t layout_columns_attr(const char *v, uint8_t fallback) {
+  if (!v || !*v) return fallback;
+  char *end = NULL;
+  long n = strtol(v, &end, 0);
+  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
+  return fallback;
+}
+
+static uint8_t layout_spacing_attr(const char *v, uint8_t fallback) {
   if (!v || !*v) return fallback;
   char *end = NULL;
   long n = strtol(v, &end, 0);
@@ -218,12 +233,209 @@ static const char *layout_orientation_c_token(uint8_t orientation) {
   return orientation == 1 ? "WINDOW_STACK_HORIZONTAL" : "WINDOW_STACK_VERTICAL";
 }
 
-static int count_controls(xmlNodePtr form) {
+static bool is_control_node(xmlNodePtr node) {
+  return node && node->type == XML_ELEMENT_NODE && !is_element(node, "requires");
+}
+
+static char *control_class_name(xmlNodePtr node) {
+  return strdup((const char *)node->name);
+}
+
+static bool has_child_controls(xmlNodePtr node) {
+  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
+    if (!is_control_node(c)) continue;
+    return true;
+  }
+  return false;
+}
+
+static int count_direct_controls(xmlNodePtr node) {
   int n = 0;
-  xmlNodePtr controls = first_child_element(form, "controls");
-  for (xmlNodePtr c = controls ? controls->children : NULL; c; c = c->next)
-    if (is_element(c, "control")) n++;
+  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
+    if (is_control_node(c)) n++;
+  }
   return n;
+}
+
+static void make_scope_name(char *out, size_t out_sz, const char *scope,
+                            const char *name) {
+  char tmp[256];
+  snprintf(tmp, sizeof(tmp), "%s_%s", nonempty(scope, "scope"),
+           nonempty(name, "control"));
+  make_ident(out, out_sz, tmp);
+}
+
+static uint8_t layout_kind_default_for_class(const char *klass) {
+  if (!klass) return 0;
+  if (!strcmp(klass, "stack") || !strcmp(klass, "stackview"))
+    return 1;
+  if (!strcmp(klass, "grid") || !strcmp(klass, "gridview"))
+    return 2;
+  return 0;
+}
+
+static const char *layout_kind_c_token_for_class(const char *klass, uint8_t kind) {
+  if (kind == 0)
+    kind = layout_kind_default_for_class(klass);
+  return layout_kind_c_token(kind);
+}
+
+static uint8_t layout_columns_default_for_class(const char *klass) {
+  if (!klass) return 0;
+  if (!strcmp(klass, "grid") || !strcmp(klass, "gridview"))
+    return 2;
+  return 0;
+}
+
+static bool emit_control_entries(FILE *f, xmlNodePtr parent, const char *prefix,
+                                 const char *scope, bool allow_auto_layout,
+                                 int *out_count);
+static bool emit_nested_control_arrays(FILE *f, xmlNodePtr parent,
+                                       const char *prefix, const char *scope,
+                                       bool allow_auto_layout);
+
+static bool emit_control_node(FILE *f, xmlNodePtr c, const char *prefix,
+                              const char *scope, bool allow_auto_layout) {
+  char *klass = control_class_name(c);
+  char *cid = attr_dup(c, "id");
+  char *name = attr_dup(c, "name");
+  char *text = attr_dup(c, "text");
+  char *cflags = attr_dup(c, "flags");
+  char *h_align = attr_dup(c, "h_align");
+  char *v_align = attr_dup(c, "v_align");
+  char *layout_kind = attr_dup(c, "layout_kind");
+  char *layout_orientation = attr_dup_first(c, "orientation", "layout_orientation");
+  char *layout_columns = attr_dup_first(c, "columns", "layout_columns");
+  char *layout_spacing = attr_dup_first(c, "spacing", "layout_spacing");
+  frame_t cr = {0, 0, 0, 0};
+  bool nested = has_child_controls(c);
+  int nested_count = count_direct_controls(c);
+  char nested_name[256] = {0};
+  const char *emit_class = nonempty(klass, "");
+
+  if (!emit_class || !*emit_class) {
+    free(klass); free(cid); free(name); free(text); free(cflags);
+    free(h_align); free(v_align); free(layout_kind);
+    free(layout_orientation); free(layout_columns); free(layout_spacing);
+    return false;
+  }
+
+  if (nested) {
+    char child_scope[128];
+    make_scope_name(child_scope, sizeof(child_scope), scope,
+                    nonempty(name, nonempty(cid, "container")));
+    snprintf(nested_name, sizeof(nested_name), "%s_children", child_scope);
+  }
+
+  if (!parse_frame(c, &cr)) {
+    if (!allow_auto_layout && !nested) {
+      fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
+              nonempty(name, ""), nonempty(scope, ""));
+      free(klass); free(cid); free(name); free(text); free(cflags);
+      free(h_align); free(v_align); free(layout_kind);
+      free(layout_orientation); free(layout_columns); free(layout_spacing);
+      return false;
+    }
+    cr = (frame_t){0, 0, 0, 0};
+  }
+
+  if (allow_auto_layout || nested) {
+    if (!layout_kind || !*layout_kind) {
+      free(layout_kind);
+      layout_kind = strdup(layout_kind_c_token_for_class(emit_class,
+                           layout_kind_default_for_class(emit_class)));
+    }
+    if (!layout_orientation || !*layout_orientation)
+      layout_orientation = strdup("vertical");
+    if (!layout_columns || !*layout_columns) {
+      char buf[16];
+      snprintf(buf, sizeof(buf), "%u",
+               (unsigned)layout_columns_default_for_class(emit_class));
+      free(layout_columns);
+      layout_columns = strdup(buf);
+    }
+    if (!layout_spacing || !*layout_spacing) {
+      free(layout_spacing);
+      layout_spacing = strdup("4");
+    }
+  }
+
+  fputs("  { ", f);
+  fprint_c_string(f, emit_class);
+  fprintf(f, ", %s, ", nonempty(cid, "0"));
+  if (nested || !parse_frame(c, &cr)) {
+    fprintf(f, "{ 0, 0, 0, 0 }, %s, ", nonempty(cflags, "0"));
+  } else {
+    fprintf(f, "{ %d, %d, %d, %d }, %s, ",
+            cr.x, cr.y, cr.w, cr.h, nonempty(cflags, "0"));
+  }
+  fprint_c_string(f, nonempty(text, ""));
+  fputs(", ", f);
+  fprint_c_string(f, nonempty(name, ""));
+  fprintf(f, ", %u, %u, ", (unsigned)align_attr(h_align, 0), (unsigned)align_attr(v_align, 0));
+  if (nested) {
+    fprintf(f, "%s, %d, %s, %s, %u, %u },\n",
+            nested_name, nested_count,
+            layout_kind_c_token_for_class(emit_class,
+                                         layout_kind_attr(layout_kind, layout_kind_default_for_class(emit_class))),
+            layout_orientation_c_token(layout_orientation_attr(layout_orientation, 0)),
+            (unsigned)layout_columns_attr(layout_columns, layout_columns_default_for_class(emit_class)),
+            (unsigned)layout_spacing_attr(layout_spacing, 4));
+  } else {
+    fputs("NULL, 0, 0, 0, 0, 0 },\n", f);
+  }
+
+  free(klass); free(cid); free(name); free(text); free(cflags);
+  free(h_align); free(v_align); free(layout_kind);
+  free(layout_orientation); free(layout_columns); free(layout_spacing);
+  return true;
+}
+
+static bool emit_control_entries(FILE *f, xmlNodePtr parent, const char *prefix,
+                                 const char *scope, bool allow_auto_layout,
+                                 int *out_count) {
+  int count = 0;
+  for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
+    if (!is_control_node(c)) continue;
+    if (!emit_control_node(f, c, prefix, scope, allow_auto_layout))
+      return false;
+    count++;
+  }
+  if (out_count) *out_count = count;
+  return true;
+}
+
+static bool emit_nested_control_arrays(FILE *f, xmlNodePtr parent,
+                                       const char *prefix, const char *scope,
+  bool allow_auto_layout) {
+  for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
+    if (!is_control_node(c)) continue;
+    if (!has_child_controls(c)) continue;
+
+    char *cid = attr_dup(c, "id");
+    char *name = attr_dup(c, "name");
+    char child_scope[128];
+    char nested_name[256];
+    make_scope_name(child_scope, sizeof(child_scope), scope,
+                    nonempty(name, nonempty(cid, "container")));
+    snprintf(nested_name, sizeof(nested_name), "%s_children", child_scope);
+
+    if (!emit_nested_control_arrays(f, c, prefix, child_scope, true)) {
+      free(cid); free(name);
+      return false;
+    }
+
+    fprintf(f, "static const form_ctrl_def_t %s[] = {\n", nested_name);
+    if (!emit_control_entries(f, c, prefix, child_scope, true, NULL)) {
+      free(cid); free(name);
+      return false;
+    }
+    fputs("};\n\n", f);
+
+    free(cid); free(name);
+    (void)allow_auto_layout;
+  }
+  return true;
 }
 
 static bool collect_define(define_list_t *defs, const char *name,
@@ -249,18 +461,22 @@ static bool collect_define(define_list_t *defs, const char *name,
   return true;
 }
 
-static bool collect_form_defines(define_list_t *defs, xmlNodePtr form) {
-  xmlNodePtr controls = first_child_element(form, "controls");
-  for (xmlNodePtr c = controls ? controls->children : NULL; c; c = c->next) {
-    if (!is_element(c, "control")) continue;
+static bool collect_control_tree_defines(define_list_t *defs, xmlNodePtr node) {
+  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
+    if (!is_control_node(c)) continue;
     char *cid = attr_dup(c, "id");
     char *value = attr_dup(c, "value");
     bool ok = collect_define(defs, cid, value);
     free(cid);
     free(value);
     if (!ok) return false;
+    if (!collect_control_tree_defines(defs, c)) return false;
   }
   return true;
+}
+
+static bool collect_form_defines(define_list_t *defs, xmlNodePtr form) {
+  return collect_control_tree_defines(defs, form);
 }
 
 static bool collect_menu_node_defines(define_list_t *defs, xmlNodePtr menu) {
@@ -597,69 +813,31 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *layout_kind = attr_dup(form, "layout_kind");
   char *layout_orientation = attr_dup(form, "layout_orientation");
   char *layout_columns = attr_dup(form, "layout_columns");
+  char *layout_spacing = attr_dup_first(form, "spacing", "layout_spacing");
   bool auto_layout = attr_is_true(form, "auto_layout");
   frame_t fr = {0, 0, 0, 0};
   if (!parse_frame(form, &fr)) {
     fprintf(stderr, "orionc: form '%s' has no valid frame\n", nonempty(id, ""));
     free(id); free(title); free(flags);
-    free(layout_kind); free(layout_orientation); free(layout_columns);
+    free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
     return false;
   }
 
   char id_ident[128];
   make_ident(id_ident, sizeof(id_ident), id);
+  if (!emit_nested_control_arrays(f, form, prefix, id_ident, auto_layout)) {
+    free(id); free(title); free(flags);
+    free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    return false;
+  }
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
           prefix, id_ident);
-
-  xmlNodePtr controls = first_child_element(form, "controls");
-  for (xmlNodePtr c = controls ? controls->children : NULL; c; c = c->next) {
-    if (!is_element(c, "control")) continue;
-    char *klass = attr_dup(c, "class");
-    char *cid = attr_dup(c, "id");
-    char *name = attr_dup(c, "name");
-    char *text = attr_dup(c, "text");
-    char *cflags = attr_dup(c, "flags");
-    char *h_align = attr_dup(c, "h_align");
-    char *v_align = attr_dup(c, "v_align");
-    frame_t cr = {0, 0, 0, 0};
-    if (!parse_frame(c, &cr)) {
-      if (!auto_layout) {
-        fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
-                nonempty(name, ""), nonempty(id, ""));
-        free(klass); free(cid); free(name); free(text); free(cflags);
-        free(h_align); free(v_align);
-        free(id); free(title); free(flags);
-        free(layout_kind); free(layout_orientation); free(layout_columns);
-        return false;
-      }
-      cr = (frame_t){0, 0, 0, 0};
-    }
-    if (auto_layout) {
-      if (!h_align) h_align = strdup("stretch");
-      if (!v_align) v_align = strdup("stretch");
-    }
-
-    fputs("  { ", f);
-    fprint_c_string(f, nonempty(klass, ""));
-    if (auto_layout) {
-      fprintf(f, ", %s, { 0, 0, 0, 0 }, %s, ",
-              nonempty(cid, "0"), nonempty(cflags, "0"));
-    } else {
-      fprintf(f, ", %s, { %d, %d, %d, %d }, %s, ",
-              nonempty(cid, "0"), cr.x, cr.y, cr.w, cr.h, nonempty(cflags, "0"));
-    }
-    fprint_c_string(f, nonempty(text, ""));
-    fputs(", ", f);
-    fprint_c_string(f, nonempty(name, ""));
-    fprintf(f, ", %u, %u },\n",
-            (unsigned)align_attr(h_align, 0),
-            (unsigned)align_attr(v_align, 0));
-
-    free(klass); free(cid); free(name); free(text); free(cflags);
-    free(h_align); free(v_align);
+  int child_count = 0;
+  if (!emit_control_entries(f, form, prefix, id_ident, auto_layout, &child_count)) {
+    free(id); free(title); free(flags);
+    free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    return false;
   }
-
-  int child_count = count_controls(form);
   fprintf(f, "};\n\n");
   fprintf(f, "static const form_def_t %s_%s_form = {\n", prefix, id_ident);
   fputs("  .name = ", f);
@@ -673,12 +851,14 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
           layout_orientation_c_token(layout_orientation_attr(layout_orientation, 0)));
   fprintf(f, "  .layout_columns = %u,\n",
           (unsigned)layout_columns_attr(layout_columns, 0));
+  fprintf(f, "  .layout_spacing = %u,\n",
+          (unsigned)layout_spacing_attr(layout_spacing, 4));
   fprintf(f, "  .children = %s_%s_children,\n", prefix, id_ident);
   fprintf(f, "  .child_count = %d,\n", child_count);
   fputs("};\n\n", f);
 
   free(id); free(title); free(flags);
-  free(layout_kind); free(layout_orientation); free(layout_columns);
+  free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
   return true;
 }
 

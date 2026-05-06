@@ -206,6 +206,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
       s->selection     = (flat_sel_t){ -1, -1 };
       s->comments_win = get_window_item(win, ID_COMMENTS_VIEW);
       update_header_labels(win, s);
+      window_layout_sync(win);
       refresh_comments(s);
       return true;
     }

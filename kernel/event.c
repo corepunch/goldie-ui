@@ -82,11 +82,14 @@ static int resize_anchor[2];
 // Each child receives coords in its own client coordinate system (WinAPI style).
 static int handle_mouse(int msg, window_t *win, int x, int y) {
   for (window_t *c = win->children; c; c = c->next) {
-    if (CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h) &&
-        send_message(c, msg, MAKEDWORD(x - c->frame.x, y - c->frame.y), NULL))
-    {
+    if (!CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h))
+      continue;
+    int lx = x - c->frame.x;
+    int ly = y - c->frame.y;
+    if (handle_mouse(msg, c, lx, ly))
       return true;
-    }
+    if (send_message(c, msg, MAKEDWORD(lx, ly), NULL))
+      return true;
   }
   return false;
 }
