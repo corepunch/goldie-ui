@@ -11,7 +11,7 @@
     </plugins>
 
     <menus var="kMenus" count="kNumMenus">
-      <menu name="file" label="File" var="kFileItems">
+      <menu name="file" label="File">
         <item name="new" label="New" />
         <item name="open" label="Open..." />
         <separator />
@@ -23,7 +23,7 @@
         <item name="quit" label="Quit" />
       </menu>
 
-      <menu name="edit" label="Edit" var="kEditItems">
+      <menu name="edit" label="Edit">
         <item name="undo" label="Undo" />
         <item name="redo" label="Redo" />
         <separator />
@@ -32,7 +32,7 @@
         <item name="paste" label="Paste" />
       </menu>
 
-      <menu name="select" label="Select" var="kSelectItems">
+      <menu name="select" label="Select">
         <item name="all" label="All" />
         <item name="deselect" label="Deselect" />
         <separator />
@@ -42,7 +42,7 @@
         <item name="contract" label="Contract..." />
       </menu>
 
-      <menu name="image" label="Image" var="kImageItems">
+      <menu name="image" label="Image">
         <item name="crop" label="Crop" shortcut="C" />
         <separator />
         <item name="resize" label="Image Size..." />
@@ -55,7 +55,7 @@
         <item name="levels" label="Levels..." />
       </menu>
 
-      <menu name="filter" label="Filter" var="kFilterItems" dynamic="true">
+      <menu name="filter" label="Filter" dynamic="true">
         <item name="reload" label="Reload Filters" />
         <item name="gallery" label="Filter Gallery..." />
         <separator />
@@ -71,7 +71,7 @@
         <submenu name="photo" label="Photo" />
       </menu>
 
-      <menu name="layer" label="Layer" var="kLayerItems">
+      <menu name="layer" label="Layer">
         <item name="new" label="New Layer" />
         <item name="duplicate" label="Duplicate Layer" />
         <item name="delete" label="Delete Layer" />
@@ -92,7 +92,7 @@
         <item name="edit_mask" label="[ ] Edit Mask" />
       </menu>
 
-      <menu name="view" label="View" var="s_view_items" mutable="true">
+      <menu name="view" label="View" mutable="true">
         <item name="zoom_in" label="Zoom In" />
         <item name="zoom_out" label="Zoom Out" />
         <item name="zoom_fit" label="Fit on Screen" />
@@ -111,7 +111,7 @@
         <item name="grid_options" label="Grid Options..." />
       </menu>
 
-      <menu name="window" label="Window" var="kWindowItems" dynamic="true">
+      <menu name="window" label="Window" dynamic="true">
         <item name="tools" label="Tools" />
         <item name="colors" label="Colors" />
         <item name="layers" label="Layers" />
@@ -119,7 +119,7 @@
         <separator />
       </menu>
 
-      <menu name="anim" label="Anim" var="kAnimItems">
+      <menu name="anim" label="Anim">
         <item name="new_frame" label="New Frame" />
         <item name="duplicate_frame" label="Duplicate Frame" />
         <item name="delete_frame" label="Delete Frame" />
@@ -137,13 +137,13 @@
         <item name="set_fps" label="Set FPS..." />
       </menu>
 
-      <menu name="help" label="Help" var="kHelpItems">
+      <menu name="help" label="Help">
         <item name="about" label="About..." />
       </menu>
     </menus>
 
     <toolbars>
-      <toolbar name="main" var="kMainToolbar" count="kMainToolbarCount">
+      <toolbar name="main">
         <button name="new" menu="file" icon="sysicon_page_add" text="New" />
         <button name="open" menu="file" icon="sysicon_folder_page" text="Open" />
         <button name="save" menu="file" icon="sysicon_disk_save" text="Save" />

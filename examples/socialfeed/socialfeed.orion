@@ -6,11 +6,11 @@
     root="examples/socialfeed">
 
     <menus var="kMenus" count="kNumMenus">
-      <menu name="file" label="File" var="kFileItems">
+      <menu name="file" label="File">
         <item name="quit" label="Quit" />
       </menu>
 
-      <menu name="post" label="Post" var="kPostItems">
+      <menu name="post" label="Post">
         <item name="new" label="New Post..." />
         <item name="like" label="Like Post" />
         <item name="view" label="View Post..." />
@@ -18,17 +18,17 @@
         <item name="delete" label="Delete Post" />
       </menu>
 
-      <menu name="view" label="View" var="kViewItems">
+      <menu name="view" label="View">
         <item name="refresh" label="Refresh" />
       </menu>
 
-      <menu name="help" label="Help" var="kHelpItems">
+      <menu name="help" label="Help">
         <item name="about" label="About..." />
       </menu>
     </menus>
 
     <toolbars>
-      <toolbar name="feed" var="kFeedToolbar" count="kFeedToolbarCount">
+      <toolbar name="feed">
         <button name="new" menu="post" icon="sysicon_add" text="New Post" />
         <button name="like" menu="post" icon="sysicon_heart" text="Like" />
         <button name="view" menu="post" icon="sysicon_comment" text="View Post" />
@@ -46,13 +46,13 @@
             spacing="0"
             padding="8"
 >
-        <grid name="fields" columns="2" spacing="4" v-align="stretch">
-          <label name="lbl_author" v-align="top" text="Author:" />
-          <textedit name="author" v-align="top" text="" />
-          <label name="lbl_title" v-align="top" text="Title:" />
-          <textedit name="title" v-align="top" text="" />
-          <label name="lbl_body" v-align="top" text="Body:" />
-          <multiedit name="body" v-align="stretch" text="" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+        <grid name="fields" columns="2" spacing="4" flags="WINDOW_FLEXSPACE" v-align="stretch">
+          <label name="lbl_author" text="Author:" />
+          <textedit name="author" text="" />
+          <label name="lbl_title" text="Title:" />
+          <textedit name="title" text="" />
+          <label name="lbl_body" text="Body:" />
+          <multiedit name="body" text="" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
         </grid>
         <separator name="section_sep" h-align="stretch" v-align="stretch" />
         <stack name="actions" orientation="horizontal" spacing="6" h-align="stretch" v-align="top">
@@ -70,20 +70,20 @@
             auto_layout="1"
             padding="8"
 >
-        <stack name="author_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_author" h-align="start" v-align="top" text="Author:" />
-          <textedit name="author" h-align="stretch" v-align="top" text="" />
+        <stack name="author_row" orientation="horizontal" spacing="6">
+          <label name="lbl_author" h-align="start" text="Author:" />
+          <textedit name="author" h-align="stretch" text="" />
         </stack>
 
-        <stack name="text_row" orientation="horizontal" spacing="6" v-align="top">
-          <label name="lbl_text" h-align="start" v-align="top" text="Text:" />
-          <textedit name="text" h-align="stretch" v-align="top" text="" />
+        <stack name="text_row" orientation="horizontal" spacing="6">
+          <label name="lbl_text" h-align="start" text="Text:" />
+          <textedit name="text" h-align="stretch" text="" />
         </stack>
 
-        <stack name="actions" orientation="horizontal" spacing="6" h-align="stretch" v-align="top">
-          <button name="ok" h-align="left" v-align="top" text="Submit" flags="BUTTON_DEFAULT" />
-          <space name="flex" h-align="stretch" v-align="top" />
-          <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
+        <stack name="actions" orientation="horizontal" spacing="6" h-align="stretch">
+          <button name="ok" h-align="left" text="Submit" flags="BUTTON_DEFAULT" />
+          <space name="flex" h-align="stretch" />
+          <button name="cancel" h-align="left" text="Cancel" flags="0" />
         </stack>
       </form>
 
@@ -94,28 +94,28 @@
             auto_layout="1"
             padding="8"
 >
-        <stack name="layout" orientation="vertical" spacing="8" h-align="stretch" v-align="stretch">
-          <stack name="header" orientation="vertical" v-align="top" spacing="2">
+        <stack name="layout" orientation="vertical" spacing="8" flags="WINDOW_FLEXSPACE" h-align="stretch" v-align="stretch">
+          <stack name="header" orientation="vertical" spacing="2">
             <!-- Post header labels (populated in evCreate) -->
-            <label name="lbl_title" h-align="start" v-align="top" font="system" color="text-normal" text="" />
-            <label name="lbl_body" h-align="start" v-align="top" font="small" color="text-normal" text="" />
-            <stack name="meta" orientation="horizontal" spacing="8" v-align="top">
-              <label name="lbl_author" h-align="start" v-align="top" font="small" color="text-disabled" text="" />
-              <label name="lbl_likes" h-align="start" v-align="top" font="small" color="text-disabled" text="" />
-              <label name="lbl_cmt_hdr" h-align="start" v-align="top" font="small" color="text-disabled" text="" />
+            <label name="lbl_title" h-align="start" font="system" color="text-normal" text="" />
+            <label name="lbl_body" h-align="start" font="small" color="text-normal" text="" />
+            <stack name="meta" orientation="horizontal" spacing="8">
+              <label name="lbl_author" h-align="start" font="small" color="text-disabled" text="" />
+              <label name="lbl_likes" h-align="start" font="small" color="text-disabled" text="" />
+              <label name="lbl_cmt_hdr" h-align="start" font="small" color="text-disabled" text="" />
             </stack>
           </stack>
 
           <!-- Comments reportview -->
-          <reportview name="comments" v-align="stretch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+          <reportview name="comments" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
 
-          <stack name="actions" orientation="horizontal" v-align="top" spacing="4">
-            <button name="like_post" h-align="left" v-align="top" text="Like Post" flags="0" />
-            <button name="add_comment" h-align="left" v-align="top" text="Add Comment" flags="0" />
-            <button name="add_reply" h-align="left" v-align="top" text="Add Reply" flags="0" />
-            <button name="like_comment" h-align="left" v-align="top" text="Like Comment" flags="0" />
-            <space name="flex" h-align="stretch" v-align="top" />
-            <button name="close" h-align="left" v-align="top"  text="Close"  flags="BUTTON_DEFAULT" />
+          <stack name="actions" orientation="horizontal" spacing="4">
+            <button name="like_post" h-align="left" text="Like Post" flags="0" />
+            <button name="add_comment" h-align="left" text="Add Comment" flags="0" />
+            <button name="add_reply" h-align="left" text="Add Reply" flags="0" />
+            <button name="like_comment" h-align="left" text="Like Comment" flags="0" />
+            <space name="flex" h-align="stretch" />
+            <button name="close" h-align="left" text="Close" flags="BUTTON_DEFAULT" />
           </stack>
         </stack>
       </form>

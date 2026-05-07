@@ -1,6 +1,6 @@
 // VIEW: Main window — feed list of posts (win_reportview).
 //
-// kFeedToolbar and kFeedToolbarCount are generated from socialfeed.orion and
+// TB_FEED and TB_FEED_COUNT are generated from socialfeed.orion and
 // declared in the generated forms header included via socialfeed.h.
 
 #include "socialfeed.h"
@@ -93,8 +93,8 @@ result_t main_win_proc(window_t *win, uint32_t msg,
       g_app->main_win = win;
 
       send_message(win, tbSetItems,
-                   kFeedToolbarCount,
-                   (void *)kFeedToolbar);
+                   TB_FEED_COUNT,
+                   (void *)TB_FEED);
 
       {
         irect16_t cr = get_client_rect(win);

@@ -177,6 +177,61 @@ static const form_def_t kWrapForm = {
   .child_count = ARRAY_LEN(kWrapChildren),
 };
 
+#define BTN_TALL_FORM_ID_ROW     600
+#define BTN_TALL_FORM_ID_BUTTON  601
+#define BTN_TALL_FORM_ID_FILLER  602
+
+static const form_ctrl_def_t kBtnTallRowChildren[] = {
+  {
+    .class_name = "button",
+    .id = BTN_TALL_FORM_ID_BUTTON,
+    .frame = {0, 0, 80, 0},
+    .text = "Center Me",
+    .name = "button",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+};
+
+static const form_ctrl_def_t kBtnTallChildren[] = {
+  {
+    .class_name = "multiedit",
+    .id = BTN_TALL_FORM_ID_FILLER,
+    .frame = {0, 0, 0, 0},
+    .text = "Tall filler",
+    .name = "filler",
+    .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "stack",
+    .id = BTN_TALL_FORM_ID_ROW,
+    .frame = {0, 0, 0, 0},
+    .name = "row",
+    .flags = WINDOW_FLEXSPACE,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .children = kBtnTallRowChildren,
+    .child_count = ARRAY_LEN(kBtnTallRowChildren),
+  },
+};
+
+static const form_def_t kBtnTallForm = {
+  .name = "TallButton",
+  .width = 160,
+  .height = 120,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .children = kBtnTallChildren,
+  .child_count = 2,
+};
+
 #define GAP_FORM_ID_TEXT     501
 #define GAP_FORM_ID_SEP      502
 #define GAP_FORM_ID_ACTIONS  503
@@ -483,7 +538,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .text = "Author:",
     .name = "author_lbl",
     .h_align = LAYOUT_ALIGN_START,
-    .v_align = LAYOUT_ALIGN_START,
   },
   {
     .class_name = "textedit",
@@ -492,7 +546,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .text = "",
     .name = "author",
     .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_START,
   },
   {
     .class_name = "label",
@@ -501,7 +554,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .text = "Title:",
     .name = "title_lbl",
     .h_align = LAYOUT_ALIGN_START,
-    .v_align = LAYOUT_ALIGN_START,
   },
   {
     .class_name = "textedit",
@@ -510,7 +562,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .text = "",
     .name = "title",
     .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_START,
   },
   {
     .class_name = "label",
@@ -519,7 +570,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .text = "Body:",
     .name = "body_lbl",
     .h_align = LAYOUT_ALIGN_START,
-    .v_align = LAYOUT_ALIGN_START,
   },
   {
     .class_name = "multiedit",
@@ -529,7 +579,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .name = "body",
     .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
     .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
   },
 };
 
@@ -539,6 +588,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
     .id = NP_FORM_ID_FIELDS,
     .frame = {0, 0, 0, 0},
     .name = "fields",
+    .flags = WINDOW_FLEXSPACE,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_STRETCH,
     .children = kNewPostFieldsChildren,
@@ -771,6 +821,7 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
     .id = PD_FORM_ID_LAYOUT,
     .frame = {0, 0, 0, 0},
     .name = "layout",
+    .flags = WINDOW_FLEXSPACE,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1605,6 +1656,31 @@ void test_stack_separator_gap_and_valign(void) {
   PASS();
 }
 
+void test_button_keeps_fixed_height_and_centers_in_tall_row(void) {
+  TEST("auto-layout: button keeps BUTTON_HEIGHT and centers in tall row");
+
+  test_env_init();
+  window_t *win = create_window_from_form(&kBtnTallForm, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+
+  window_t *row = get_window_item(win, BTN_TALL_FORM_ID_ROW);
+  window_t *btn = get_window_item(win, BTN_TALL_FORM_ID_BUTTON);
+  ASSERT_NOT_NULL(btn);
+  ASSERT_NOT_NULL(row);
+  ASSERT_EQUAL(btn->frame.h, BUTTON_HEIGHT);
+  ASSERT_TRUE(row->frame.h > BUTTON_HEIGHT);
+  ASSERT_EQUAL(btn->frame.y, (row->frame.h - BUTTON_HEIGHT) / 2);
+
+  resize_window(win, kBtnTallForm.width, 160);
+  ASSERT_EQUAL(btn->frame.h, BUTTON_HEIGHT);
+  ASSERT_TRUE(row->frame.h > BUTTON_HEIGHT);
+  ASSERT_EQUAL(btn->frame.y, (row->frame.h - BUTTON_HEIGHT) / 2);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 void test_post_detail_layout_budget(void) {
   TEST("post-detail-like layout: footer fits inside the 336px window");
 
@@ -1684,7 +1760,8 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_EQUAL(comments->frame.w, layout->frame.w);
   int expected_comments_h = actions->frame.y - comments->frame.y - 8;
   ASSERT_EQUAL(comments->frame.h, expected_comments_h);
-  ASSERT_EQUAL(actions->frame.y + actions->frame.h, layout->frame.h);
+  ASSERT_TRUE(actions->frame.y + actions->frame.h <= layout->frame.h);
+  ASSERT_TRUE(layout->frame.h - (actions->frame.y + actions->frame.h) <= 2);
   ASSERT_TRUE(actions->frame.y > comments->frame.y);
   window_t *close = get_window_item(win, ID_POST_DETAIL_CLOSE);
   ASSERT_NOT_NULL(close);
@@ -1696,7 +1773,6 @@ void test_socialfeed_post_detail_layout(void) {
   int wide_body_h = body->frame.h;
   int wide_comments_y = comments->frame.y;
   int wide_comments_w = comments->frame.w;
-
   resize_window(win, 420, 336);
   ASSERT_TRUE(body->frame.h >= wide_body_h);
   ASSERT_TRUE(comments->frame.y >= wide_comments_y);
@@ -1745,6 +1821,7 @@ int main(int argc, char *argv[]) {
   test_default_auto_layout_stack();
   test_new_post_grid_stack_layout();
   test_stack_separator_gap_and_valign();
+  test_button_keeps_fixed_height_and_centers_in_tall_row();
   test_post_detail_layout_budget();
   test_socialfeed_post_detail_layout();
 

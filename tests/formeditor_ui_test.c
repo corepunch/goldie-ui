@@ -1454,7 +1454,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     ASSERT_TRUE(strstr(xml, "label=\"New\"") != NULL);
     ASSERT_TRUE(strstr(xml, "name=\"new\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<button") != NULL);
-    ASSERT_TRUE(strstr(xml, "var=\"s_view_items\" mutable=\"true\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<menu name=\"view\" label=\"View\" mutable=\"true\"") != NULL);
     ASSERT_TRUE(strstr(xml, "name=\"width\"") != NULL);
     ASSERT_TRUE(strstr(xml, "name=\"size\"") != NULL);
     ASSERT_TRUE(strstr(xml, "id=\"ID_FILE_NEW\"") == NULL);

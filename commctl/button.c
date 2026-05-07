@@ -43,7 +43,19 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
         m->desired_w = MAX(win->frame.w, strwidth(win->title) + 6);
-        m->desired_h = MAX(win->frame.h, BUTTON_HEIGHT);
+        m->desired_h = BUTTON_HEIGHT;
+      }
+      return true;
+    }
+    case evArrange: {
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) {
+        int h = BUTTON_HEIGHT;
+        if (a->rect.h > 0 && a->rect.h < h) h = a->rect.h;
+        win->frame.x = a->rect.x;
+        win->frame.w = MAX(1, a->rect.w);
+        win->frame.h = MAX(1, h);
+        win->frame.y = a->rect.y + MAX(0, (a->rect.h - win->frame.h) / 2);
       }
       return true;
     }

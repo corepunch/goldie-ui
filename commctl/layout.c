@@ -145,8 +145,7 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
       layout_measure_t cm = layout_measure_child(child, content_w, content_h);
       if (cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
-      if ((child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0 ||
-          (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH))
+      if ((child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0)
         row_stretch[row] = true;
       idx++;
     }
@@ -258,8 +257,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       int stretch_count = 0;
       for (window_t *child = win->children; child; child = child->next) {
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-        bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0 ||
-                           (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH);
+        bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
         if (stretchable) stretch_count++;
         else total_fixed += cm.desired_h;
         count++;
@@ -273,8 +271,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
         if (y > content.y) y += gap;
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
         int cw = layout_apply_alignment(content.w, cm.desired_w, child->h_align);
-        bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0 ||
-                           (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH);
+        bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
         int ch = stretchable ? stretch_share : cm.desired_h;
         int cx = content.x;
         if (child->h_align == LAYOUT_ALIGN_CENTER)

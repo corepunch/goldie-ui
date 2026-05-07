@@ -166,7 +166,7 @@ enum {
   MENU_HELP_INDEX = 9,
 };
 
-static const menu_item_t kFileItems[] = {
+static const menu_item_t MENU_FILE_ITEMS[] = {
   { "New", ID_FILE_NEW, NULL, 0 },
   { "Open...", ID_FILE_OPEN, NULL, 0 },
   { NULL, 0, NULL, 0 },
@@ -178,7 +178,7 @@ static const menu_item_t kFileItems[] = {
   { "Quit", ID_FILE_QUIT, NULL, 0 },
 };
 
-static const menu_item_t kEditItems[] = {
+static const menu_item_t MENU_EDIT_ITEMS[] = {
   { "Undo", ID_EDIT_UNDO, NULL, 0 },
   { "Redo", ID_EDIT_REDO, NULL, 0 },
   { NULL, 0, NULL, 0 },
@@ -187,7 +187,7 @@ static const menu_item_t kEditItems[] = {
   { "Paste", ID_EDIT_PASTE, NULL, 0 },
 };
 
-static const menu_item_t kSelectItems[] = {
+static const menu_item_t MENU_SELECT_ITEMS[] = {
   { "All", ID_SELECT_ALL, NULL, 0 },
   { "Deselect", ID_SELECT_DESELECT, NULL, 0 },
   { NULL, 0, NULL, 0 },
@@ -197,7 +197,7 @@ static const menu_item_t kSelectItems[] = {
   { "Contract...", ID_SELECT_CONTRACT, NULL, 0 },
 };
 
-static const menu_item_t kImageItems[] = {
+static const menu_item_t MENU_IMAGE_ITEMS[] = {
   { "Crop\tC", ID_IMAGE_CROP, NULL, 0 },
   { NULL, 0, NULL, 0 },
   { "Image Size...", ID_IMAGE_RESIZE, NULL, 0 },
@@ -210,29 +210,29 @@ static const menu_item_t kImageItems[] = {
   { "Levels...", ID_IMAGE_LEVELS, NULL, 0 },
 };
 
-static const menu_item_t kFilterItems_blur[] = {
+static const menu_item_t MENU_FILTER_BLUR_ITEMS[] = {
   { "Blur", ID_FILTER_BLUR, NULL, 0 },
 };
 
-static const menu_item_t kFilterItems_sharpen[] = {
+static const menu_item_t MENU_FILTER_SHARPEN_ITEMS[] = {
   { "Sharpen", ID_FILTER_SHARPEN, NULL, 0 },
 };
 
-static const menu_item_t kFilterItems_stylize[] = {
+static const menu_item_t MENU_FILTER_STYLIZE_ITEMS[] = {
   { "Find Edges", ID_FILTER_EDGE, NULL, 0 },
 };
 
-static const menu_item_t kFilterItems[] = {
+static const menu_item_t MENU_FILTER_ITEMS[] = {
   { "Reload Filters", ID_FILTER_RELOAD, NULL, 0 },
   { "Filter Gallery...", ID_FILTER_GALLERY, NULL, 0 },
   { NULL, 0, NULL, 0 },
-  { "Blur", 0, kFilterItems_blur, (int)(sizeof(kFilterItems_blur) / sizeof(kFilterItems_blur[0])) },
-  { "Sharpen", 0, kFilterItems_sharpen, (int)(sizeof(kFilterItems_sharpen) / sizeof(kFilterItems_sharpen[0])) },
-  { "Stylize", 0, kFilterItems_stylize, (int)(sizeof(kFilterItems_stylize) / sizeof(kFilterItems_stylize[0])) },
+  { "Blur", 0, MENU_FILTER_BLUR_ITEMS, (int)(sizeof(MENU_FILTER_BLUR_ITEMS) / sizeof(MENU_FILTER_BLUR_ITEMS[0])) },
+  { "Sharpen", 0, MENU_FILTER_SHARPEN_ITEMS, (int)(sizeof(MENU_FILTER_SHARPEN_ITEMS) / sizeof(MENU_FILTER_SHARPEN_ITEMS[0])) },
+  { "Stylize", 0, MENU_FILTER_STYLIZE_ITEMS, (int)(sizeof(MENU_FILTER_STYLIZE_ITEMS) / sizeof(MENU_FILTER_STYLIZE_ITEMS[0])) },
   { "Photo", 0, NULL, 0 },
 };
 
-static const menu_item_t kLayerItems[] = {
+static const menu_item_t MENU_LAYER_ITEMS[] = {
   { "New Layer", ID_LAYER_NEW, NULL, 0 },
   { "Duplicate Layer", ID_LAYER_DUPLICATE, NULL, 0 },
   { "Delete Layer", ID_LAYER_DELETE, NULL, 0 },
@@ -253,7 +253,7 @@ static const menu_item_t kLayerItems[] = {
   { "[ ] Edit Mask", ID_LAYER_EDIT_MASK, NULL, 0 },
 };
 
-static menu_item_t s_view_items[] = {
+static menu_item_t MENU_VIEW_ITEMS[] = {
   { "Zoom In", ID_VIEW_ZOOM_IN, NULL, 0 },
   { "Zoom Out", ID_VIEW_ZOOM_OUT, NULL, 0 },
   { "Fit on Screen", ID_VIEW_ZOOM_FIT, NULL, 0 },
@@ -272,7 +272,7 @@ static menu_item_t s_view_items[] = {
   { "Grid Options...", ID_VIEW_GRID_OPTIONS, NULL, 0 },
 };
 
-static const menu_item_t kWindowItems[] = {
+static const menu_item_t MENU_WINDOW_ITEMS[] = {
   { "Tools", ID_WINDOW_TOOLS, NULL, 0 },
   { "Colors", ID_WINDOW_COLORS, NULL, 0 },
   { "Layers", ID_WINDOW_LAYERS, NULL, 0 },
@@ -280,7 +280,7 @@ static const menu_item_t kWindowItems[] = {
   { NULL, 0, NULL, 0 },
 };
 
-static const menu_item_t kAnimItems[] = {
+static const menu_item_t MENU_ANIM_ITEMS[] = {
   { "New Frame", ID_ANIM_NEW_FRAME, NULL, 0 },
   { "Duplicate Frame", ID_ANIM_DUPLICATE_FRAME, NULL, 0 },
   { "Delete Frame", ID_ANIM_DELETE_FRAME, NULL, 0 },
@@ -298,25 +298,25 @@ static const menu_item_t kAnimItems[] = {
   { "Set FPS...", ID_ANIM_SET_FPS, NULL, 0 },
 };
 
-static const menu_item_t kHelpItems[] = {
+static const menu_item_t MENU_HELP_ITEMS[] = {
   { "About...", ID_HELP_ABOUT, NULL, 0 },
 };
 
 static menu_def_t kMenus[] = {
-  { "File", kFileItems, (int)(sizeof(kFileItems) / sizeof(kFileItems[0])) },
-  { "Edit", kEditItems, (int)(sizeof(kEditItems) / sizeof(kEditItems[0])) },
-  { "Select", kSelectItems, (int)(sizeof(kSelectItems) / sizeof(kSelectItems[0])) },
-  { "Image", kImageItems, (int)(sizeof(kImageItems) / sizeof(kImageItems[0])) },
-  { "Filter", kFilterItems, (int)(sizeof(kFilterItems) / sizeof(kFilterItems[0])) },
-  { "Layer", kLayerItems, (int)(sizeof(kLayerItems) / sizeof(kLayerItems[0])) },
-  { "View", s_view_items, (int)(sizeof(s_view_items) / sizeof(s_view_items[0])) },
-  { "Window", kWindowItems, (int)(sizeof(kWindowItems) / sizeof(kWindowItems[0])) },
-  { "Anim", kAnimItems, (int)(sizeof(kAnimItems) / sizeof(kAnimItems[0])) },
-  { "Help", kHelpItems, (int)(sizeof(kHelpItems) / sizeof(kHelpItems[0])) },
+  { "File", MENU_FILE_ITEMS, (int)(sizeof(MENU_FILE_ITEMS) / sizeof(MENU_FILE_ITEMS[0])) },
+  { "Edit", MENU_EDIT_ITEMS, (int)(sizeof(MENU_EDIT_ITEMS) / sizeof(MENU_EDIT_ITEMS[0])) },
+  { "Select", MENU_SELECT_ITEMS, (int)(sizeof(MENU_SELECT_ITEMS) / sizeof(MENU_SELECT_ITEMS[0])) },
+  { "Image", MENU_IMAGE_ITEMS, (int)(sizeof(MENU_IMAGE_ITEMS) / sizeof(MENU_IMAGE_ITEMS[0])) },
+  { "Filter", MENU_FILTER_ITEMS, (int)(sizeof(MENU_FILTER_ITEMS) / sizeof(MENU_FILTER_ITEMS[0])) },
+  { "Layer", MENU_LAYER_ITEMS, (int)(sizeof(MENU_LAYER_ITEMS) / sizeof(MENU_LAYER_ITEMS[0])) },
+  { "View", MENU_VIEW_ITEMS, (int)(sizeof(MENU_VIEW_ITEMS) / sizeof(MENU_VIEW_ITEMS[0])) },
+  { "Window", MENU_WINDOW_ITEMS, (int)(sizeof(MENU_WINDOW_ITEMS) / sizeof(MENU_WINDOW_ITEMS[0])) },
+  { "Anim", MENU_ANIM_ITEMS, (int)(sizeof(MENU_ANIM_ITEMS) / sizeof(MENU_ANIM_ITEMS[0])) },
+  { "Help", MENU_HELP_ITEMS, (int)(sizeof(MENU_HELP_ITEMS) / sizeof(MENU_HELP_ITEMS[0])) },
 };
 static const int kNumMenus = (int)(sizeof(kMenus) / sizeof(kMenus[0]));
 
-static const toolbar_item_t kMainToolbar[] = {
+static const toolbar_item_t TB_MAIN[] = {
   { TOOLBAR_ITEM_BUTTON, ID_FILE_NEW, sysicon_page_add, 0, 0, "New" },
   { TOOLBAR_ITEM_BUTTON, ID_FILE_OPEN, sysicon_folder_page, 0, 0, "Open" },
   { TOOLBAR_ITEM_BUTTON, ID_FILE_SAVE, sysicon_disk_save, 0, 0, "Save" },
@@ -330,7 +330,7 @@ static const toolbar_item_t kMainToolbar[] = {
   { TOOLBAR_ITEM_BUTTON, ID_VIEW_SHOW_BACKGROUND, sysicon_eye_show, 0, BUTTON_PUSHLIKE, "BG" },
   { TOOLBAR_ITEM_BUTTON, ID_VIEW_MASK_ONLY, sysicon_transparency, 0, BUTTON_PUSHLIKE, "Mask" },
 };
-static const int kMainToolbarCount = (int)(sizeof(kMainToolbar) / sizeof(kMainToolbar[0]));
+static const int TB_MAIN_COUNT = (int)(sizeof(TB_MAIN) / sizeof(TB_MAIN[0]));
 
 static const form_ctrl_def_t imageeditor_new_image_children[] = {
   { "label", ID_NEW_IMAGE_LBL_WIDTH, { 4, 8, 56, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
