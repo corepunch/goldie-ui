@@ -401,10 +401,7 @@ int window_screen_x(window_t const *win) {
 int window_screen_y(window_t const *win) {
   if (!win) return 0;
   if (!win->parent) return win->frame.y;
-  int y = window_screen_y(win->parent) + win->frame.y;
-  if (!win->parent->parent)
-    y += titlebar_height(win->parent);
-  return y;
+  return window_screen_y(win->parent) + titlebar_height(win->parent) + win->frame.y;
 }
 
 irect16_t center_window_rect(irect16_t frame_rect, window_t const *owner) {
@@ -669,8 +666,9 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
       .padding = cd->padding,
       .margin = cd->margin,
     };
-    if (cp == win_stackview || cp == win_gridview || cp == win_column)
+    if (cp == win_stackview || cp == win_gridview || cp == win_column) {
       param = &cfg;
+    }
     label_create_params_t label_cfg = {
       .color_index = cd->color,
       .font = cd->font_set ? cd->font : FONT_SMALL,
@@ -783,8 +781,9 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
       .padding = cd->padding,
       .margin = cd->margin,
     };
-    if (cp == win_stackview || cp == win_gridview || cp == win_column)
+    if (cp == win_stackview || cp == win_gridview || cp == win_column) {
       param = &cfg;
+    }
     label_create_params_t label_cfg = {
       .color_index = cd->color,
       .font = cd->font_set ? cd->font : FONT_SMALL,

@@ -593,9 +593,10 @@ text_wrap_result_t text_wrap_layout_font(ui_font_t font, const char *text,
         cy += lh;
         lines++;
         out.wrapped = true;
+      } else {
+        cx += cw;
+        line_w += cw;
       }
-      cx += cw;
-      line_w += cw;
       continue;
     }
 

@@ -1772,28 +1772,29 @@ void test_socialfeed_post_detail_layout(void) {
                                           socialfeed_post_detail_layout_proc, 0, NULL);
   ASSERT_NOT_NULL(win);
 
-  window_t *layout = get_window_item(win, ID_POST_DETAIL_LAYOUT);
   window_t *title = get_window_item(win, ID_POST_DETAIL_LBL_TITLE);
   window_t *author = get_window_item(win, ID_POST_DETAIL_LBL_AUTHOR);
   window_t *body = get_window_item(win, ID_POST_DETAIL_LBL_BODY);
   window_t *likes = get_window_item(win, ID_POST_DETAIL_LBL_LIKES);
   window_t *comments_hdr = get_window_item(win, ID_POST_DETAIL_LBL_CMT_HDR);
+  window_t *header = get_window_item(win, ID_POST_DETAIL_HEADER);
   window_t *meta = get_window_item(win, ID_POST_DETAIL_META);
   window_t *comments = get_window_item(win, ID_POST_DETAIL_COMMENTS);
+  window_t *section_sep = get_window_item(win, ID_POST_DETAIL_SECTION_SEP);
   window_t *actions = get_window_item(win, ID_POST_DETAIL_ACTIONS);
   window_t *flex = get_window_item(win, ID_POST_DETAIL_FLEX);
-  ASSERT_NOT_NULL(layout);
   ASSERT_NOT_NULL(title);
   ASSERT_NOT_NULL(author);
   ASSERT_NOT_NULL(body);
   ASSERT_NOT_NULL(likes);
   ASSERT_NOT_NULL(comments_hdr);
+  ASSERT_NOT_NULL(header);
   ASSERT_NOT_NULL(meta);
   ASSERT_NOT_NULL(comments);
+  ASSERT_NOT_NULL(section_sep);
   ASSERT_NOT_NULL(actions);
   ASSERT_NOT_NULL(flex);
   ASSERT_TRUE(flex->flags & WINDOW_FLEXSPACE);
-  ASSERT_EQUAL(layout->v_align, LAYOUT_ALIGN_STRETCH);
   ASSERT_EQUAL(((uint32_t)(uintptr_t)title->userdata >> 8) & 0xffu, FONT_SYSTEM);
   ASSERT_EQUAL((uint32_t)(uintptr_t)title->userdata & 0xffu, brTextNormal);
   ASSERT_EQUAL(((uint32_t)(uintptr_t)author->userdata >> 8) & 0xffu, FONT_SMALL);
@@ -1806,11 +1807,13 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_EQUAL(comments_hdr->frame.y, 0);
   ASSERT_TRUE(author->frame.x < likes->frame.x);
   ASSERT_TRUE(likes->frame.x < comments_hdr->frame.x);
-  ASSERT_EQUAL(comments->frame.w, layout->frame.w);
-  int expected_comments_h = actions->frame.y - comments->frame.y - 8;
+  ASSERT_EQUAL(comments->frame.w, header->frame.w);
+  /* comments height = space between comments and sep, minus the 4px gap */
+  int expected_comments_h = section_sep->frame.y - comments->frame.y - 4;
   ASSERT_EQUAL(comments->frame.h, expected_comments_h);
-  ASSERT_TRUE(actions->frame.y + actions->frame.h <= layout->frame.h);
-  ASSERT_TRUE(layout->frame.h - (actions->frame.y + actions->frame.h) <= 2);
+  int content_bottom = win->frame.h - titlebar_height(win) - 8;
+  ASSERT_TRUE(actions->frame.y + actions->frame.h <= content_bottom);
+  ASSERT_TRUE(content_bottom - (actions->frame.y + actions->frame.h) <= 2);
   ASSERT_TRUE(actions->frame.y > comments->frame.y);
   window_t *close = get_window_item(win, ID_POST_DETAIL_CLOSE);
   ASSERT_NOT_NULL(close);
@@ -1825,14 +1828,14 @@ void test_socialfeed_post_detail_layout(void) {
   resize_window(win, 420, 336);
   ASSERT_TRUE(body->frame.h >= wide_body_h);
   ASSERT_TRUE(comments->frame.y >= wide_comments_y);
-  ASSERT_EQUAL(comments->frame.w, layout->frame.w);
+  ASSERT_EQUAL(comments->frame.w, header->frame.w);
   int narrow_text_col = (int)send_message(comments, RVM_GETREPORTCOLUMNWIDTH, 1, NULL);
   ASSERT_TRUE(narrow_text_col < initial_text_col);
 
   resize_window(win, 620, 336);
   ASSERT_TRUE(body->frame.h <= wide_body_h);
   ASSERT_TRUE(comments->frame.y <= wide_comments_y);
-  ASSERT_EQUAL(comments->frame.w, layout->frame.w);
+  ASSERT_EQUAL(comments->frame.w, header->frame.w);
   int wide_text_col = (int)send_message(comments, RVM_GETREPORTCOLUMNWIDTH, 1, NULL);
   ASSERT_TRUE(wide_text_col > narrow_text_col);
   ASSERT_TRUE(wide_comments_w > 0);
