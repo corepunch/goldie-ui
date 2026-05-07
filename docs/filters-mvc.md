@@ -46,7 +46,7 @@ share/imageeditor/shaders/common.vert.glsl
 
 ### `g_app->filters[]` — application resource layer (model-adjacent)
 
-`app_state_t` holds an array of `filter_t {name, program}` records populated
+`app_state_t` holds an array of `image_filter_t {name, program}` records populated
 by `imageeditor_load_filters()`.  This is analogous to a font registry or
 shader library: it is global application configuration loaded from disk at
 startup and has no UI coupling.  In strict MVC it would sit in its own
@@ -55,8 +55,8 @@ the controller already owns that struct.
 
 ```c
 // imageeditor.h (app_state_t excerpt)
-filter_t filters[IMAGEEDITOR_MAX_FILTERS];
-int      filter_count;
+image_filter_t filters[IMAGEEDITOR_MAX_FILTERS];
+int            filter_count;
 ```
 
 ### `filtermgr.c` — **model**

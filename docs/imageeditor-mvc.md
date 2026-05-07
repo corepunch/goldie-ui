@@ -53,7 +53,7 @@ examples/imageeditor/
 ├── model_undo.c          ← (rename of undo.c) doc_push_undo, doc_undo/redo
 ├── model_anim.c          ← (rename of anim.c) frame compress/expand/switch
 ├── model_filters.c       ← (rename of filtermgr.c) load/free/apply filters
-├── model_image_io.c      ← (rename of image_io.c) png/bmp/pcx load-save
+├── model_image_io.c      ← (extracted from canvas.c) png save + load_image wrapper
 │
 ├── controller_app.c      ← g_app, handle_menu_command, imageeditor_open_file_path
 │                            window factory calls, filter/zoom/undo dispatch
@@ -155,16 +155,21 @@ create_main_toolbar_window()
 create_tool_options_window()
 create_color_palette_window()
 imageeditor_sync_main_toolbar()
-window_menu_rebuild()
 ```
 
 **Keep in `view_menubar.c`:**
 ```
 editor_menubar_proc()
 view_menu_rebuild()
+window_menu_rebuild()
 imageeditor_sync_filter_menu()
 s_filter_items[] / s_window_items[] statics
 ```
+
+`window_menu_rebuild()` mutates file-static menu item arrays (`s_window_items[]`,
+`kMenus[]`) and calls `send_message(g_app->menubar_win, ...)`, so it is tightly
+coupled to the view's own data structures.  Keep it in `view_menubar.c`; the
+controller calls it as a notification after any document open/close event.
 
 `handle_menu_command` may remain in `view_menubar.c` temporarily if the
 refactoring is done incrementally — but the long-term target is for it to
@@ -177,12 +182,13 @@ live in the controller.
 canvas_doc_t *create_document(const char *filename, int w, int h);
 void close_document(canvas_doc_t *doc);
 void doc_update_title(canvas_doc_t *doc);
-bool doc_confirm_close(canvas_doc_t *doc, window_t *parent_win);
 ```
 
-`doc_confirm_close` calls `destroy_window` so it straddles the boundary; the
-call to the view can be extracted via a callback, or it can live in the
-controller once the view-factory pattern is in place.
+`doc_confirm_close(canvas_doc_t *doc, window_t *parent_win)` takes a
+`window_t *` so it violates the model rule that bans UI arguments.  Move it to
+`controller_app.c` instead, or split it into a pure model predicate
+(`doc_needs_save_prompt`) plus a controller helper that shows the dialog and
+calls `close_document`.
 
 **Keep in `view_document.c`:**
 ```c
@@ -233,7 +239,7 @@ convention before splitting):
 | `undo.c` | `model_undo.c` |
 | `anim.c` | `model_anim.c` |
 | `filtermgr.c` | `model_filters.c` |
-| `image_io.c` | `model_image_io.c` |
+| `canvas.c` | `model_canvas.c` (after extracting `png_save` / image I/O into `model_image_io.c`) |
 | `win_canvas.c` | `view_canvas.c` |
 | `win_toolpalette.c` | `view_toolpalette.c` |
 | `win_tooloptions.c` | `view_tooloptions.c` |
@@ -253,7 +259,12 @@ convention before splitting):
 | `win_menubar.c` | `view_menubar.c` (partial — see §4.1) |
 | `win_document.c` | `view_document.c` (partial — see §4.2) |
 
-Update `Makefile` `SOURCES` list after each batch of renames.
+No `Makefile` source-list edits are needed for renames within
+`examples/imageeditor/`: the build uses `$(wildcard examples/imageeditor/*.c)`
+and `find examples/imageeditor -maxdepth 1 -name "*.c"`, so renamed files are
+picked up automatically.  The only Makefile change required is updating the
+`-DIMAGEEDITOR_SINGLE_LAYER` override on the `imagelite` target if any
+extracted files change how single-layer mode is expressed.
 
 ---
 
@@ -264,13 +275,13 @@ working state.  Do one step per PR.
 
 | Step | Action | Risk |
 |---|---|---|
-| 1 | Rename `undo.c`, `anim.c`, `filtermgr.c`, `image_io.c` to `model_*.c` | Low — pure renames, update Makefile |
-| 2 | Rename all `win_*.c` → `view_*.c` (except menubar / document) | Low — pure renames, update Makefile + `#include` paths |
+| 1 | Rename `undo.c`, `anim.c`, `filtermgr.c` to `model_*.c` | Low — pure renames; no Makefile change needed (wildcard build) |
+| 2 | Rename all `win_*.c` → `view_*.c` (except menubar / document) | Low — pure renames; update any explicit `#include` paths |
 | 3 | Extract `create_document` / `close_document` / `doc_update_title` into `model_document.c` | Medium — several callers, update `imageeditor.h` declarations |
 | 4 | Create `controller_app.c`; move `handle_menu_command` and `imageeditor_open_file_path` | Medium — large function, test all menu commands |
 | 5 | Rename `win_menubar.c` → `view_menubar.c` | Low — cosmetic after step 4 |
 | 6 | Remove `layer_t.preview`; add `g_app->active_preview` indirection | High — touch canvas paint path + all adjustment dialogs |
-| 7 | Split `canvas.c`: move `canvas_upload` into a `view_canvas_upload.c` facade | Low — only called from `model_filters.c` and `view_canvas.c` |
+| 7 | Extract `png_save` / image I/O from `canvas.c` into `model_image_io.c`; rename `canvas.c` → `model_canvas.c` | Low — small extraction, then pure rename |
 
 ---
 
@@ -283,13 +294,13 @@ working state.  Do one step per PR.
 - `main.c` is not touched — `gem_init` / `gem_shutdown` call the controller
   and view factories, which is already correct.
 - All accelerator and menu-command IDs are unchanged.
-- The `Makefile` is updated in each step's PR to keep the build green.
+- The `Makefile` uses wildcard source discovery, so no source-list edits are needed for renames within `examples/imageeditor/`.  Any PR that extracts a genuinely new file (e.g., `model_image_io.c`) will be picked up automatically.
 
 ---
 
 ## 7  Testing After Each Step
 
-1. **Build** both targets (`imageeditor` and `imageeditor256`).
+1. **Build** both the `imageeditor` binary and the `imagelite` (single-layer) binary.
 2. **Open** a PNG file, edit, undo, redo, save — basic document round-trip.
 3. **Filters** — open Photo > Filter Gallery, apply a filter, verify undo.
 4. **Layers** — add a layer, merge down, flatten, save.
