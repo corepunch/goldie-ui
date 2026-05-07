@@ -564,6 +564,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 
       win->userdata2 = data;
       win->flags |= WINDOW_VSCROLL;
+      win->flags |= WINDOW_FLEXSPACE;
       win->vscroll.visible_mode = SB_VIS_AUTO;
 
       data->selected = -1;

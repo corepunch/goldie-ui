@@ -177,6 +177,129 @@ static const form_def_t kWrapForm = {
   .child_count = ARRAY_LEN(kWrapChildren),
 };
 
+#define GAP_FORM_ID_TEXT     501
+#define GAP_FORM_ID_SEP      502
+#define GAP_FORM_ID_ACTIONS  503
+#define GAP_FORM_ID_OK       504
+#define GAP_FORM_ID_CANCEL   505
+
+static const form_ctrl_def_t kGapActionsChildren[] = {
+  {
+    .class_name = "button",
+    .id = GAP_FORM_ID_OK,
+    .frame = {0, 0, 44, 0},
+    .text = "Post",
+    .name = "ok",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = GAP_FORM_ID_CANCEL,
+    .frame = {0, 0, 56, 0},
+    .text = "Cancel",
+    .name = "cancel",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_ctrl_def_t kGapChildrenTop[] = {
+  {
+    .class_name = "textedit",
+    .id = GAP_FORM_ID_TEXT,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "text",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "separator",
+    .id = GAP_FORM_ID_SEP,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "sep",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "stack",
+    .id = GAP_FORM_ID_ACTIONS,
+    .frame = {0, 0, 0, 0},
+    .name = "actions",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kGapActionsChildren,
+    .child_count = ARRAY_LEN(kGapActionsChildren),
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+  },
+};
+
+static const form_ctrl_def_t kGapChildrenStretch[] = {
+  {
+    .class_name = "textedit",
+    .id = GAP_FORM_ID_TEXT,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "text",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "separator",
+    .id = GAP_FORM_ID_SEP,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "sep",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "stack",
+    .id = GAP_FORM_ID_ACTIONS,
+    .frame = {0, 0, 0, 0},
+    .name = "actions",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+    .children = kGapActionsChildren,
+    .child_count = ARRAY_LEN(kGapActionsChildren),
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+  },
+};
+
+static const form_def_t kGapFormTop = {
+  .name = "GapTop",
+  .width = 220,
+  .height = 120,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .padding = {8, 8, 8, 8},
+  .children = kGapChildrenTop,
+  .child_count = ARRAY_LEN(kGapChildrenTop),
+};
+
+static const form_def_t kGapFormStretch = {
+  .name = "GapStretch",
+  .width = 220,
+  .height = 120,
+  .flags = WINDOW_NOTITLE | WINDOW_NOFILL,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_spacing = 4,
+  .padding = {8, 8, 8, 8},
+  .children = kGapChildrenStretch,
+  .child_count = ARRAY_LEN(kGapChildrenStretch),
+};
+
 // ──────────────────────────────────────────────────────────────────────────
 // Nested auto-layout form used to debug stack and grid positioning
 // ──────────────────────────────────────────────────────────────────────────
@@ -348,7 +471,9 @@ static const form_def_t kDefaultStackForm = {
 #define NP_FORM_ID_ACTIONS   210
 #define NP_FORM_ID_OK        211
 #define NP_FORM_ID_CANCEL    212
-#define NP_FORM_ID_FLEX      213
+#define NP_FORM_ID_FLEX_LEFT  213
+#define NP_FORM_ID_SECTION_SEP 214
+#define NP_FORM_ID_FLEX_RIGHT 215
 
 static const form_ctrl_def_t kNewPostFieldsChildren[] = {
   {
@@ -402,8 +527,9 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .frame = {0, 0, 0, 48},
     .text = "",
     .name = "body",
+    .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
     .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_STRETCH,
   },
 };
 
@@ -422,6 +548,16 @@ static const form_ctrl_def_t kNewPostChildren[] = {
     .layout_spacing = 4,
   },
   {
+    .class_name = "separator",
+    .id = NP_FORM_ID_SECTION_SEP,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "section_sep",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+    .flags = WINDOW_FLEXSPACE,
+  },
+  {
     .class_name = "stack",
     .id = NP_FORM_ID_ACTIONS,
     .frame = {0, 0, 0, 0},
@@ -430,21 +566,21 @@ static const form_ctrl_def_t kNewPostChildren[] = {
     .v_align = LAYOUT_ALIGN_START,
     .children = (const form_ctrl_def_t[]){
       {
+        .class_name = "space",
+        .id = NP_FORM_ID_FLEX_LEFT,
+        .frame = {0, 0, 0, 0},
+        .text = "",
+        .name = "flex_left",
+        .h_align = LAYOUT_ALIGN_STRETCH,
+        .v_align = LAYOUT_ALIGN_START,
+      },
+      {
         .class_name = "button",
         .id = NP_FORM_ID_OK,
         .frame = {0, 0, 44, 0},
         .text = "Post",
         .name = "ok",
         .h_align = LAYOUT_ALIGN_START,
-        .v_align = LAYOUT_ALIGN_START,
-      },
-      {
-        .class_name = "space",
-        .id = NP_FORM_ID_FLEX,
-        .frame = {0, 0, 0, 0},
-        .text = "",
-        .name = "flex",
-        .h_align = LAYOUT_ALIGN_STRETCH,
         .v_align = LAYOUT_ALIGN_START,
       },
       {
@@ -456,8 +592,17 @@ static const form_ctrl_def_t kNewPostChildren[] = {
         .h_align = LAYOUT_ALIGN_START,
         .v_align = LAYOUT_ALIGN_START,
       },
+      {
+        .class_name = "space",
+        .id = NP_FORM_ID_FLEX_RIGHT,
+        .frame = {0, 0, 0, 0},
+        .text = "",
+        .name = "flex_right",
+        .h_align = LAYOUT_ALIGN_STRETCH,
+        .v_align = LAYOUT_ALIGN_START,
+      },
     },
-    .child_count = 3,
+    .child_count = 4,
     .layout_kind = "stack",
     .layout_orientation = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
@@ -648,7 +793,7 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
         .frame = {0, 0, 0, 0},
         .text = "",
         .name = "comments",
-        .flags = WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
+        .flags = WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE,
         .h_align = LAYOUT_ALIGN_STRETCH,
         .v_align = LAYOUT_ALIGN_STRETCH,
       },
@@ -1316,7 +1461,7 @@ void test_default_auto_layout_stack(void) {
 }
 
 void test_new_post_grid_stack_layout(void) {
-  TEST("auto-layout: grid rows and action stack stay compact");
+  TEST("auto-layout: grid rows stretch and action stack stays pinned");
 
   test_env_init();
   window_t *win = create_window_from_form(&kNewPostGridForm, 0, 0, NULL, form_test_proc, 0, NULL);
@@ -1330,9 +1475,11 @@ void test_new_post_grid_stack_layout(void) {
   window_t *body_l = get_window_item(win, NP_FORM_ID_BODY_L);
   window_t *body_e = get_window_item(win, NP_FORM_ID_BODY_E);
   window_t *actions = get_window_item(win, NP_FORM_ID_ACTIONS);
+  window_t *section_sep = get_window_item(win, NP_FORM_ID_SECTION_SEP);
   window_t *ok = get_window_item(win, NP_FORM_ID_OK);
   window_t *cancel = get_window_item(win, NP_FORM_ID_CANCEL);
-  window_t *flex = get_window_item(win, NP_FORM_ID_FLEX);
+  window_t *flex_left = get_window_item(win, NP_FORM_ID_FLEX_LEFT);
+  window_t *flex_right = get_window_item(win, NP_FORM_ID_FLEX_RIGHT);
   ASSERT_NOT_NULL(fields);
   ASSERT_NOT_NULL(author_l);
   ASSERT_NOT_NULL(author_e);
@@ -1341,9 +1488,13 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_NOT_NULL(body_l);
   ASSERT_NOT_NULL(body_e);
   ASSERT_NOT_NULL(actions);
+  ASSERT_NOT_NULL(section_sep);
   ASSERT_NOT_NULL(ok);
   ASSERT_NOT_NULL(cancel);
-  ASSERT_NOT_NULL(flex);
+  ASSERT_NOT_NULL(flex_left);
+  ASSERT_NOT_NULL(flex_right);
+  ASSERT_TRUE(flex_left->flags & WINDOW_FLEXSPACE);
+  ASSERT_TRUE(flex_right->flags & WINDOW_FLEXSPACE);
 
   ASSERT_EQUAL(fields->frame.y, 8);
   ASSERT_TRUE(fields->frame.h < 120);
@@ -1356,30 +1507,100 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_TRUE(author_e->frame.w > author_l->frame.w);
   ASSERT_TRUE(title_e->frame.w > title_l->frame.w);
   ASSERT_TRUE(body_e->frame.w > body_l->frame.w);
-  ASSERT_EQUAL(actions->frame.y, fields->frame.y + fields->frame.h + 4);
+  ASSERT_TRUE(section_sep->frame.h >= 6);
+  ASSERT_EQUAL(section_sep->frame.y, fields->frame.y + fields->frame.h + 4);
+  ASSERT_EQUAL(actions->frame.y, section_sep->frame.y + section_sep->frame.h + 4);
   ASSERT_EQUAL(ok->frame.y, 0);
-  ASSERT_EQUAL(flex->frame.y, 0);
+  ASSERT_EQUAL(flex_left->frame.y, 0);
   ASSERT_EQUAL(cancel->frame.y, 0);
-  ASSERT_TRUE(cancel->frame.x > ok->frame.x);
-  ASSERT_EQUAL(cancel->frame.x + cancel->frame.w, actions->frame.w);
+  ASSERT_EQUAL(flex_left->frame.x, 0);
+  ASSERT_EQUAL(ok->frame.x, flex_left->frame.w);
+  ASSERT_EQUAL(cancel->frame.x, ok->frame.x + ok->frame.w + 6);
+  ASSERT_EQUAL(flex_left->frame.w, flex_right->frame.w);
+  ASSERT_EQUAL(cancel->frame.x + cancel->frame.w + flex_right->frame.w, actions->frame.w);
 
   int initial_author_w = author_e->frame.w;
   int initial_title_w = title_e->frame.w;
   int initial_body_w = body_e->frame.w;
+  int initial_fields_h = fields->frame.h;
+  int initial_body_h = body_e->frame.h;
+  int initial_sep_h = section_sep->frame.h;
+  int initial_actions_y = actions->frame.y;
 
-  resize_window(win, 360, 150);
+  resize_window(win, 272, 220);
   ASSERT_TRUE(author_e->frame.w >= initial_author_w);
   ASSERT_TRUE(title_e->frame.w >= initial_title_w);
   ASSERT_TRUE(body_e->frame.w >= initial_body_w);
-  ASSERT_TRUE(actions->frame.y >= fields->frame.y + fields->frame.h + 4);
+  ASSERT_TRUE(fields->frame.h > initial_fields_h);
+  ASSERT_TRUE(body_e->frame.h > initial_body_h);
+  ASSERT_TRUE(section_sep->frame.h > initial_sep_h);
+  ASSERT_TRUE(actions->frame.y > initial_actions_y);
+  ASSERT_EQUAL(actions->frame.y, section_sep->frame.y + section_sep->frame.h + 4);
 
-  resize_window(win, 220, 150);
+  resize_window(win, 272, 150);
   ASSERT_TRUE(author_e->frame.w <= initial_author_w);
   ASSERT_TRUE(title_e->frame.w <= initial_title_w);
   ASSERT_TRUE(body_e->frame.w <= initial_body_w);
-  ASSERT_TRUE(actions->frame.y >= fields->frame.y + fields->frame.h + 4);
+  ASSERT_TRUE(fields->frame.h <= initial_fields_h);
+  ASSERT_TRUE(body_e->frame.h <= initial_body_h);
+  ASSERT_TRUE(section_sep->frame.h <= initial_sep_h);
+  ASSERT_TRUE(actions->frame.y <= initial_actions_y);
+  ASSERT_EQUAL(actions->frame.y, section_sep->frame.y + section_sep->frame.h + 4);
 
   destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
+void test_stack_separator_gap_and_valign(void) {
+  TEST("auto-layout: stack separator gap is explicit and valign does not move row position");
+
+  test_env_init();
+
+  window_t *top_win = create_window_from_form(&kGapFormTop, 0, 0, NULL, form_test_proc, 0, NULL);
+  window_t *stretch_win = create_window_from_form(&kGapFormStretch, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(top_win);
+  ASSERT_NOT_NULL(stretch_win);
+
+  window_t *top_text = get_window_item(top_win, GAP_FORM_ID_TEXT);
+  window_t *top_sep = get_window_item(top_win, GAP_FORM_ID_SEP);
+  window_t *top_actions = get_window_item(top_win, GAP_FORM_ID_ACTIONS);
+  window_t *top_ok = get_window_item(top_win, GAP_FORM_ID_OK);
+  window_t *top_cancel = get_window_item(top_win, GAP_FORM_ID_CANCEL);
+
+  window_t *stretch_text = get_window_item(stretch_win, GAP_FORM_ID_TEXT);
+  window_t *stretch_sep = get_window_item(stretch_win, GAP_FORM_ID_SEP);
+  window_t *stretch_actions = get_window_item(stretch_win, GAP_FORM_ID_ACTIONS);
+  window_t *stretch_ok = get_window_item(stretch_win, GAP_FORM_ID_OK);
+  window_t *stretch_cancel = get_window_item(stretch_win, GAP_FORM_ID_CANCEL);
+
+  ASSERT_NOT_NULL(top_text);
+  ASSERT_NOT_NULL(top_sep);
+  ASSERT_NOT_NULL(top_actions);
+  ASSERT_NOT_NULL(top_ok);
+  ASSERT_NOT_NULL(top_cancel);
+  ASSERT_NOT_NULL(stretch_text);
+  ASSERT_NOT_NULL(stretch_sep);
+  ASSERT_NOT_NULL(stretch_actions);
+  ASSERT_NOT_NULL(stretch_ok);
+  ASSERT_NOT_NULL(stretch_cancel);
+
+  ASSERT_EQUAL(top_text->frame.y, 8);
+  ASSERT_EQUAL(top_sep->frame.y, top_text->frame.y + top_text->frame.h + 4);
+  ASSERT_TRUE(top_sep->frame.h >= 6);
+  ASSERT_EQUAL(top_actions->frame.y, top_sep->frame.y + top_sep->frame.h + 4);
+  ASSERT_EQUAL(top_ok->frame.y, 0);
+  ASSERT_EQUAL(top_cancel->frame.y, 0);
+
+  ASSERT_EQUAL(stretch_text->frame.y, top_text->frame.y);
+  ASSERT_EQUAL(stretch_sep->frame.y, top_sep->frame.y);
+  ASSERT_EQUAL(stretch_sep->frame.h, top_sep->frame.h);
+  ASSERT_EQUAL(stretch_actions->frame.y, top_actions->frame.y);
+  ASSERT_EQUAL(stretch_ok->frame.y, top_ok->frame.y);
+  ASSERT_EQUAL(stretch_cancel->frame.y, top_cancel->frame.y);
+
+  destroy_window(top_win);
+  destroy_window(stretch_win);
   test_env_shutdown();
   PASS();
 }
@@ -1434,6 +1655,7 @@ void test_socialfeed_post_detail_layout(void) {
   window_t *meta = get_window_item(win, ID_POST_DETAIL_META);
   window_t *comments = get_window_item(win, ID_POST_DETAIL_COMMENTS);
   window_t *actions = get_window_item(win, ID_POST_DETAIL_ACTIONS);
+  window_t *flex = get_window_item(win, ID_POST_DETAIL_FLEX);
   ASSERT_NOT_NULL(layout);
   ASSERT_NOT_NULL(title);
   ASSERT_NOT_NULL(author);
@@ -1443,6 +1665,8 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_NOT_NULL(meta);
   ASSERT_NOT_NULL(comments);
   ASSERT_NOT_NULL(actions);
+  ASSERT_NOT_NULL(flex);
+  ASSERT_TRUE(flex->flags & WINDOW_FLEXSPACE);
 
   ASSERT_EQUAL(layout->v_align, LAYOUT_ALIGN_STRETCH);
   ASSERT_EQUAL(((uint32_t)(uintptr_t)title->userdata >> 8) & 0xffu, FONT_SYSTEM);
@@ -1520,6 +1744,7 @@ int main(int argc, char *argv[]) {
   test_nested_stack_positions();
   test_default_auto_layout_stack();
   test_new_post_grid_stack_layout();
+  test_stack_separator_gap_and_valign();
   test_post_detail_layout_budget();
   test_socialfeed_post_detail_layout();
 

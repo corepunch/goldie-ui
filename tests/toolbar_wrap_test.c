@@ -120,7 +120,9 @@ void test_toolbar_spacer_skipped(void) {
 
     // Spacer now creates a real space child, so total = 4.
     ASSERT_EQUAL(count_toolbar_children(win), 4);
-    ASSERT_NOT_NULL(find_toolbar_space_child(win));
+    window_t *space = find_toolbar_space_child(win);
+    ASSERT_NOT_NULL(space);
+    ASSERT_TRUE(space->flags & WINDOW_FLEXSPACE);
 
     destroy_window(win);
     test_env_shutdown();

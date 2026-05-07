@@ -40,23 +40,26 @@
     <forms>
       <form name="new_post"
             title="New Post"
-            frame="0 0 272 150"
+            frame="0 0 272 250"
             flags="0"
             auto_layout="1"
+            spacing="0"
             padding="8"
 >
-        <grid name="fields" columns="2" spacing="4">
-          <label name="lbl_author" h-align="start" v-align="top" text="Author:" />
-          <textedit name="author" h-align="stretch" v-align="top" text="" />
-          <label name="lbl_title" h-align="start" v-align="top" text="Title:" />
-          <textedit name="title" h-align="stretch" v-align="top" text="" />
-          <label name="lbl_body" h-align="start" v-align="top" text="Body:" />
-          <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
+        <grid name="fields" columns="2" spacing="4" v-align="stretch">
+          <label name="lbl_author" v-align="top" text="Author:" />
+          <textedit name="author" v-align="top" text="" />
+          <label name="lbl_title" v-align="top" text="Title:" />
+          <textedit name="title" v-align="top" text="" />
+          <label name="lbl_body" v-align="top" text="Body:" />
+          <multiedit name="body" v-align="stretch" text="" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
         </grid>
+        <separator name="section_sep" h-align="stretch" v-align="stretch" />
         <stack name="actions" orientation="horizontal" spacing="6" h-align="stretch" v-align="top">
+          <space name="flex_left" h-align="stretch" v-align="top" />
           <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
-          <space name="flex" h-align="stretch" v-align="top" />
           <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
+          <space name="flex_right" h-align="stretch" v-align="top" />
         </stack>
       </form>
 
@@ -104,7 +107,7 @@
           </stack>
 
           <!-- Comments reportview -->
-          <reportview name="comments" v-align="stretch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
+          <reportview name="comments" v-align="stretch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
 
           <stack name="actions" orientation="horizontal" v-align="top" spacing="4">
             <button name="like_post" h-align="left" v-align="top" text="Like Post" flags="0" />

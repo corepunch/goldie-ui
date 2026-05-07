@@ -40,6 +40,7 @@ result_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

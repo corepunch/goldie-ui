@@ -235,5 +235,28 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
 }
 
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  return false;
+  (void)wparam;
+  switch (msg) {
+    case evCreate:
+      return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        m->desired_w = MAX(0, win->frame.w);
+        m->desired_h = MAX(0, win->frame.h);
+      }
+      return true;
+    }
+    case evArrange: {
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) {
+        win->frame = a->rect;
+      }
+      return true;
+    }
+    case evDestroy:
+      return true;
+    default:
+      return false;
+  }
 }

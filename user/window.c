@@ -60,6 +60,7 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "list") || streq(class_name, "win_list")) return win_list;
   if (streq(class_name, "console") || streq(class_name, "win_console")) return win_console;
   if (streq(class_name, "space") || streq(class_name, "win_space")) return win_space;
+  if (streq(class_name, "separator") || streq(class_name, "win_separator")) return win_separator;
   if (streq(class_name, "filelist") || streq(class_name, "win_filelist")) return win_filelist;
   if (streq(class_name, "terminal") || streq(class_name, "win_terminal")) return win_terminal;
   if (streq(class_name, "menubar") || streq(class_name, "win_menubar")) return win_menubar;
@@ -119,6 +120,8 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   // reserve a title bar unless a caller explicitly creates a root window.
   if (parent)
     flags |= WINDOW_NOTITLE;
+  if (proc == win_space)
+    flags |= WINDOW_FLEXSPACE;
   win->flags = flags;
   // Inherit hinstance from parent for child windows; use supplied value for roots.
   win->hinstance = parent ? parent->hinstance : hinstance;

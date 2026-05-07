@@ -90,7 +90,7 @@ static int layout_horizontal_gap_total(window_t *first, int gap) {
   bool placed_visual = false;
   bool prev_was_space = false;
   for (window_t *child = first; child; child = child->next) {
-    bool is_space = child->proc == win_space;
+    bool is_space = (child->flags & WINDOW_FLEXSPACE) != 0;
     if (placed_visual && !prev_was_space && !is_space)
       total += gap;
     placed_visual = true;
@@ -129,12 +129,25 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
       return;
     }
     int idx = 0;
+    bool *row_stretch = rows > 0 ? calloc((size_t)rows, sizeof(bool)) : NULL;
+    if (!row_stretch) {
+      free(col_w);
+      free(row_h);
+      if (m) {
+        m->desired_w = content.w + layout_padding_for(win).x + layout_padding_for(win).w;
+        m->desired_h = content.h + layout_padding_for(win).y + layout_padding_for(win).h;
+      }
+      return;
+    }
     for (window_t *child = win->children; child; child = child->next) {
       int row = idx / cols;
       int col = idx % cols;
       layout_measure_t cm = layout_measure_child(child, content_w, content_h);
       if (cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
+      if ((child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0 ||
+          (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH))
+        row_stretch[row] = true;
       idx++;
     }
     int total_w = 0;
@@ -147,8 +160,30 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
       if (row > 0) total_h += gap;
       total_h += row_h[row];
     }
+    int remaining_h = content.h - total_h;
+    if (remaining_h > 0) {
+      int stretch_rows = 0;
+      for (int row = 0; row < rows; row++) {
+        if (row_stretch[row])
+          stretch_rows++;
+      }
+      if (stretch_rows > 0) {
+        int base = remaining_h / stretch_rows;
+        int extra = remaining_h % stretch_rows;
+        for (int row = 0; row < rows; row++) {
+          if (!row_stretch[row])
+            continue;
+          row_h[row] += base;
+          if (extra > 0) {
+            row_h[row]++;
+            extra--;
+          }
+        }
+      }
+    }
     free(col_w);
     free(row_h);
+    free(row_stretch);
     if (m) {
       m->desired_w = total_w + layout_padding_for(win).x + layout_padding_for(win).w;
       m->desired_h = total_h + layout_padding_for(win).y + layout_padding_for(win).h;
@@ -223,7 +258,9 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       int stretch_count = 0;
       for (window_t *child = win->children; child; child = child->next) {
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-        if (child->v_align == LAYOUT_ALIGN_STRETCH) stretch_count++;
+        bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0 ||
+                           (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH);
+        if (stretchable) stretch_count++;
         else total_fixed += cm.desired_h;
         count++;
       }
@@ -236,8 +273,9 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
         if (y > content.y) y += gap;
         layout_measure_t cm = layout_measure_child(child, content.w, content.h);
         int cw = layout_apply_alignment(content.w, cm.desired_w, child->h_align);
-        int ch = (child->v_align == LAYOUT_ALIGN_STRETCH) ? stretch_share
-                                                          : cm.desired_h;
+        bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0 ||
+                           (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH);
+        int ch = stretchable ? stretch_share : cm.desired_h;
         int cx = content.x;
         if (child->h_align == LAYOUT_ALIGN_CENTER)
           cx += (content.w - cw) / 2;
@@ -268,6 +306,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       return;
     }
     int idx = 0;
+    bool *row_stretch = rows > 0 ? calloc((size_t)rows, sizeof(bool)) : NULL;
     for (window_t *child = win->children; child; child = child->next) {
       int row = idx / cols;
       int col = idx % cols;
@@ -276,11 +315,20 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
       if (child->h_align == LAYOUT_ALIGN_STRETCH)
         col_stretch[col] = true;
+      if (row_stretch &&
+          ((child->flags & WINDOW_FLEXSPACE) != 0 ||
+           (child->layout_kind && child->v_align == LAYOUT_ALIGN_STRETCH)))
+        row_stretch[row] = true;
       idx++;
     }
     int total_w = 0;
+    int total_h = 0;
     for (int col = 0; col < cols; col++) {
       total_w += col_w[col];
+    }
+    for (int row = 0; row < rows; row++) {
+      if (row > 0) total_h += gap;
+      total_h += row_h[row];
     }
     int total_gap = (cols > 0) ? gap * (cols - 1) : 0;
     int remaining = content.w - total_w - total_gap;
@@ -299,6 +347,27 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
           col_w[col] += base;
           if (extra > 0) {
             col_w[col]++;
+            extra--;
+          }
+        }
+      }
+    }
+    int remaining_h = content.h - total_h;
+    if (remaining_h > 0 && row_stretch) {
+      int stretch_rows = 0;
+      for (int row = 0; row < rows; row++) {
+        if (row_stretch[row])
+          stretch_rows++;
+      }
+      if (stretch_rows > 0) {
+        int base = remaining_h / stretch_rows;
+        int extra = remaining_h % stretch_rows;
+        for (int row = 0; row < rows; row++) {
+          if (!row_stretch[row])
+            continue;
+          row_h[row] += base;
+          if (extra > 0) {
+            row_h[row]++;
             extra--;
           }
         }
@@ -337,6 +406,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
     free(col_w);
     free(row_h);
     free(col_stretch);
+    free(row_stretch);
   }
 }
 
@@ -365,7 +435,7 @@ void layout_flow_horizontal(window_t *first, int start_x, int gap) {
   bool placed_visual = false;
   bool prev_was_space = false;
   for (window_t *child = first; child; child = child->next) {
-    bool is_space = child->proc == win_space;
+    bool is_space = (child->flags & WINDOW_FLEXSPACE) != 0;
     if (placed_visual && !prev_was_space && !is_space)
       cur_x += gap;
     child->frame.x = cur_x;
