@@ -53,8 +53,9 @@
           <label name="lbl_body" h-align="start" v-align="top" text="Body:" />
           <multiedit name="body" h-align="stretch" v-align="top" text="" flags="WINDOW_VSCROLL" />
         </grid>
-        <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
+        <stack name="actions" orientation="horizontal" spacing="6" h-align="stretch" v-align="top">
           <button name="ok" h-align="left" v-align="top" text="Post" flags="BUTTON_DEFAULT" />
+          <space name="flex" h-align="stretch" v-align="top" />
           <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
         </stack>
       </form>
@@ -76,8 +77,9 @@
           <textedit name="text" h-align="stretch" v-align="top" text="" />
         </stack>
 
-        <stack name="actions" orientation="horizontal" spacing="6" h-align="center" v-align="top">
+        <stack name="actions" orientation="horizontal" spacing="6" h-align="stretch" v-align="top">
           <button name="ok" h-align="left" v-align="top" text="Submit" flags="BUTTON_DEFAULT" />
+          <space name="flex" h-align="stretch" v-align="top" />
           <button name="cancel" h-align="left" v-align="top" text="Cancel" flags="0" />
         </stack>
       </form>
@@ -109,6 +111,7 @@
             <button name="add_comment" h-align="left" v-align="top" text="Add Comment" flags="0" />
             <button name="add_reply" h-align="left" v-align="top" text="Add Reply" flags="0" />
             <button name="like_comment" h-align="left" v-align="top" text="Like Comment" flags="0" />
+            <space name="flex" h-align="stretch" v-align="top" />
             <button name="close" h-align="left" v-align="top"  text="Close"  flags="BUTTON_DEFAULT" />
           </stack>
         </stack>

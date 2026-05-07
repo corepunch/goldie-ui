@@ -85,6 +85,20 @@ static void layout_arrange_child(window_t *child, irect16_t rect) {
   send_message(child, evArrange, 0, &a);
 }
 
+static int layout_horizontal_gap_total(window_t *first, int gap) {
+  int total = 0;
+  bool placed_visual = false;
+  bool prev_was_space = false;
+  for (window_t *child = first; child; child = child->next) {
+    bool is_space = child->proc == win_space;
+    if (placed_visual && !prev_was_space && !is_space)
+      total += gap;
+    placed_visual = true;
+    prev_was_space = is_space;
+  }
+  return total;
+}
+
 void layout_measure_window(window_t *win, layout_measure_t *m) {
   irect16_t cr = get_client_rect(win);
   if (m) {
@@ -187,7 +201,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
         else total_fixed += cm.desired_w;
         count++;
       }
-      int total_gap = (count > 0) ? gap * (count - 1) : 0;
+      int total_gap = layout_horizontal_gap_total(win->children, gap);
       int remaining = content.w - total_fixed - total_gap;
       if (remaining < 0) remaining = 0;
       int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;

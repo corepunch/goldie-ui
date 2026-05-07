@@ -348,6 +348,7 @@ static const form_def_t kDefaultStackForm = {
 #define NP_FORM_ID_ACTIONS   210
 #define NP_FORM_ID_OK        211
 #define NP_FORM_ID_CANCEL    212
+#define NP_FORM_ID_FLEX      213
 
 static const form_ctrl_def_t kNewPostFieldsChildren[] = {
   {
@@ -425,7 +426,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
     .id = NP_FORM_ID_ACTIONS,
     .frame = {0, 0, 0, 0},
     .name = "actions",
-    .h_align = LAYOUT_ALIGN_CENTER,
+    .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
     .children = (const form_ctrl_def_t[]){
       {
@@ -438,6 +439,15 @@ static const form_ctrl_def_t kNewPostChildren[] = {
         .v_align = LAYOUT_ALIGN_START,
       },
       {
+        .class_name = "space",
+        .id = NP_FORM_ID_FLEX,
+        .frame = {0, 0, 0, 0},
+        .text = "",
+        .name = "flex",
+        .h_align = LAYOUT_ALIGN_STRETCH,
+        .v_align = LAYOUT_ALIGN_START,
+      },
+      {
         .class_name = "button",
         .id = NP_FORM_ID_CANCEL,
         .frame = {0, 0, 56, 0},
@@ -447,7 +457,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
         .v_align = LAYOUT_ALIGN_START,
       },
     },
-    .child_count = 2,
+    .child_count = 3,
     .layout_kind = "stack",
     .layout_orientation = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
@@ -496,6 +506,7 @@ static void socialfeed_post_detail_setup_comments(window_t *win);
 #define PD_FORM_ID_ADD_REPLY    412
 #define PD_FORM_ID_LIKE_COMMENT 413
 #define PD_FORM_ID_CLOSE        414
+#define PD_FORM_ID_FLEX         415
 
 static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
   {
@@ -580,6 +591,15 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
     .text = "Like Comment",
     .name = "like_comment",
     .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "space",
+    .id = PD_FORM_ID_FLEX,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "flex",
+    .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
   },
   {
@@ -1312,6 +1332,7 @@ void test_new_post_grid_stack_layout(void) {
   window_t *actions = get_window_item(win, NP_FORM_ID_ACTIONS);
   window_t *ok = get_window_item(win, NP_FORM_ID_OK);
   window_t *cancel = get_window_item(win, NP_FORM_ID_CANCEL);
+  window_t *flex = get_window_item(win, NP_FORM_ID_FLEX);
   ASSERT_NOT_NULL(fields);
   ASSERT_NOT_NULL(author_l);
   ASSERT_NOT_NULL(author_e);
@@ -1322,6 +1343,7 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_NOT_NULL(actions);
   ASSERT_NOT_NULL(ok);
   ASSERT_NOT_NULL(cancel);
+  ASSERT_NOT_NULL(flex);
 
   ASSERT_EQUAL(fields->frame.y, 8);
   ASSERT_TRUE(fields->frame.h < 120);
@@ -1336,8 +1358,10 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_TRUE(body_e->frame.w > body_l->frame.w);
   ASSERT_EQUAL(actions->frame.y, fields->frame.y + fields->frame.h + 4);
   ASSERT_EQUAL(ok->frame.y, 0);
+  ASSERT_EQUAL(flex->frame.y, 0);
   ASSERT_EQUAL(cancel->frame.y, 0);
   ASSERT_TRUE(cancel->frame.x > ok->frame.x);
+  ASSERT_EQUAL(cancel->frame.x + cancel->frame.w, actions->frame.w);
 
   int initial_author_w = author_e->frame.w;
   int initial_title_w = title_e->frame.w;
@@ -1434,9 +1458,13 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_TRUE(author->frame.x < likes->frame.x);
   ASSERT_TRUE(likes->frame.x < comments_hdr->frame.x);
   ASSERT_EQUAL(comments->frame.w, layout->frame.w);
-  ASSERT_TRUE(comments->frame.h > 100);
+  int expected_comments_h = actions->frame.y - comments->frame.y - 8;
+  ASSERT_EQUAL(comments->frame.h, expected_comments_h);
   ASSERT_EQUAL(actions->frame.y + actions->frame.h, layout->frame.h);
   ASSERT_TRUE(actions->frame.y > comments->frame.y);
+  window_t *close = get_window_item(win, ID_POST_DETAIL_CLOSE);
+  ASSERT_NOT_NULL(close);
+  ASSERT_EQUAL(close->frame.x + close->frame.w, actions->frame.w);
 
   int initial_text_col = (int)send_message(comments, RVM_GETREPORTCOLUMNWIDTH, 1, NULL);
   ASSERT_TRUE(initial_text_col > 0);
