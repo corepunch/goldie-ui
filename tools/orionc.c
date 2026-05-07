@@ -425,6 +425,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   frame_t mar = {0, 0, 0, 0};
   bool nested = has_child_controls(c);
   const char *emit_class = nonempty(klass, "");
+  bool keep_nested_frame = !strcmp(emit_class, "column");
 
   if (!emit_class || !*emit_class) {
     free(klass); free(name); free(text); free(cflags);
@@ -434,9 +435,9 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     return false;
   }
 
-    if (!parse_frame(c, &cr)) {
-      if (!allow_auto_layout && !nested) {
-        fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
+  if (!parse_frame(c, &cr)) {
+    if (!allow_auto_layout && !nested) {
+      fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
               nonempty(name, ""), nonempty(scope, ""));
       free(klass); free(name); free(text); free(cflags);
       free(h_align); free(v_align); free(layout_kind);
@@ -444,6 +445,8 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
       free(padding); free(margin); free(font); free(color);
       return false;
     }
+    cr = (frame_t){0, 0, 0, 0};
+  } else if (nested && !keep_nested_frame) {
     cr = (frame_t){0, 0, 0, 0};
   }
 
@@ -475,7 +478,6 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   bool font_set = false;
   uint8_t color_val = brTextNormal;
   bool color_set = false;
-  bool keep_nested_frame = !strcmp(emit_class, "column");
   if (font && *font) {
     if (!strcmp(font, "system")) font_val = FONT_SYSTEM;
     else if (!strcmp(font, "small")) font_val = FONT_SMALL;
@@ -486,9 +488,6 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     color_val = color_attr(color, brTextNormal);
     color_set = true;
   }
-
-  if ((nested && !keep_nested_frame) || !parse_frame(c, &cr))
-    cr = (frame_t){0, 0, 0, 0};
 
   fputs("  { ", f);
   fprint_c_string(f, emit_class);

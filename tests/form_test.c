@@ -55,6 +55,16 @@ static const form_def_t kTestForm = {
   .child_count = ARRAY_LEN(kTestFormChildren),
 };
 
+static const form_def_t kNonAutoLayoutChildForm = {
+  .name        = "Non Auto Layout Child Form",
+  .width       = 160,
+  .height      = 52,
+  .flags       = 0,
+  .auto_layout = false,
+  .children    = kTestFormChildren,
+  .child_count = ARRAY_LEN(kTestFormChildren),
+};
+
 // ──────────────────────────────────────────────────────────────────────────
 // DDX form and state for show_ddx_dialog tests
 // ──────────────────────────────────────────────────────────────────────────
@@ -1122,6 +1132,21 @@ void test_form_child_text(void) {
   PASS();
 }
 
+void test_form_rejects_non_auto_layout_children(void) {
+  TEST("create_window_from_form: rejects child forms without auto-layout");
+
+  test_env_init();
+  memset(&g_create_state, 0, sizeof(g_create_state));
+
+  window_t *win = create_window_from_form(&kNonAutoLayoutChildForm, 0, 0, NULL,
+                                          form_test_proc, 0, NULL);
+  ASSERT_NULL(win);
+  ASSERT_FALSE(g_create_state.create_fired);
+
+  test_env_shutdown();
+  PASS();
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Test 5: show_dialog_from_form applies WINDOW_DIALOG flag and title override
 // ──────────────────────────────────────────────────────────────────────────
@@ -1895,6 +1920,7 @@ int main(int argc, char *argv[]) {
   test_form_child_ids();
   test_form_child_flags();
   test_form_child_text();
+  test_form_rejects_non_auto_layout_children();
   test_show_dialog_from_form_flags();
   test_center_window_rect_owner();
   test_center_window_rect_screen_clamp();

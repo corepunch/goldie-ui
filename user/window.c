@@ -698,6 +698,10 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
   if (!def || !proc) return NULL;
+  if (!def->auto_layout && def->child_count > 0) {
+    fprintf(stderr, "create_window_from_form: forms with children require auto_layout=true\n");
+    return NULL;
+  }
 
   // Resolve CW_USEDEFAULT for root windows: cascade down from the configured
   // default origin.
