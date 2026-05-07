@@ -5,6 +5,7 @@
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
 #include "../../commctl/columnview.h"
+#include "../../user/icons.h"
 
 #define FE_TOOL_GRID_COLS 4
 #define FE_TOOL_ICON_SIZE 16
