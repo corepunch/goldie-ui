@@ -7,29 +7,28 @@
 // field rows in a 2-column grid, button row horizontal.
 // ============================================================
 
-static const form_ctrl_def_t kTaskFieldGrid[] = {
+static const form_ctrl_def_t kTaskFieldLabels[] = {
   { .class_name = "label",    .text = "Title:",        .name = "lbl_title",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "textedit", .id = ID_TASK_TITLE_CTRL, .name = "edit_title",
-    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
-
   { .class_name = "label",     .text = "Description:", .name = "lbl_desc",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_START },
-  { .class_name = "multiedit", .id = ID_TASK_DESC_CTRL, .name = "edit_desc",
-    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_STRETCH },
-
   { .class_name = "label",    .text = "Priority:",     .name = "lbl_prio",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "combobox", .id = ID_TASK_PRIORITY_CTRL, .name = "combo_prio",
-    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
-
   { .class_name = "label",    .text = "Status:",       .name = "lbl_status",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "combobox", .id = ID_TASK_STATUS_CTRL, .name = "combo_status",
-    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
-
   { .class_name = "label",    .text = "Due (epoch):",  .name = "lbl_due",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+static const form_ctrl_def_t kTaskFieldInputs[] = {
+  { .class_name = "textedit", .id = ID_TASK_TITLE_CTRL, .name = "edit_title",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "multiedit", .id = ID_TASK_DESC_CTRL, .name = "edit_desc",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "combobox", .id = ID_TASK_PRIORITY_CTRL, .name = "combo_prio",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "combobox", .id = ID_TASK_STATUS_CTRL, .name = "combo_status",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
   { .class_name = "textedit", .id = ID_TASK_DUEDATE_CTRL, .name = "edit_due",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
@@ -43,15 +42,29 @@ static const form_ctrl_def_t kTaskBtnRow[] = {
 
 static const form_ctrl_def_t kTaskEditChildren[] = {
   {
-    .class_name         = "stack",
+    .class_name         = "grid",
     .name               = "fields",
-    .layout_kind        = "grid",
-    .layout_columns     = 2,
+    .flags              = WINDOW_FLEXSPACE,
     .layout_spacing     = 4,
     .h_align            = LAYOUT_ALIGN_STRETCH,
     .v_align            = LAYOUT_ALIGN_STRETCH,
-    .children           = kTaskFieldGrid,
-    .child_count        = (int)(sizeof(kTaskFieldGrid)/sizeof(kTaskFieldGrid[0])),
+    .children           = (const form_ctrl_def_t[]){
+      {
+        .class_name = "column",
+        .name = "labels",
+        .frame = {0, 0, 120, 0},
+        .children = kTaskFieldLabels,
+        .child_count = (int)(sizeof(kTaskFieldLabels)/sizeof(kTaskFieldLabels[0])),
+      },
+      {
+        .class_name = "column",
+        .name = "inputs",
+        .flags = WINDOW_FLEXSPACE,
+        .children = kTaskFieldInputs,
+        .child_count = (int)(sizeof(kTaskFieldInputs)/sizeof(kTaskFieldInputs[0])),
+      },
+    },
+    .child_count        = 2,
   },
   {
     .class_name         = "stack",

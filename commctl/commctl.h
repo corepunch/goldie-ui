@@ -60,6 +60,7 @@ typedef struct {
 
 result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void layout_flow_horizontal(window_t *first, int start_x, int gap);
 
 // Toolbox — 2-column grid of icon buttons (Photoshop / VB3 / Paint style).

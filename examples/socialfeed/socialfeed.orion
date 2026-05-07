@@ -44,15 +44,18 @@
             flags="0"
             auto_layout="1"
             spacing="0"
-            padding="8"
->
-        <grid name="fields" columns="2" spacing="4" flags="WINDOW_FLEXSPACE">
-          <label name="lbl_author" text="Author:" />
-          <textedit name="author" text="" />
-          <label name="lbl_title" text="Title:" />
-          <textedit name="title" text="" />
-          <label name="lbl_body" text="Body:" />
-          <multiedit name="body" text="" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+            padding="8">
+        <grid name="fields" spacing="4" flags="WINDOW_FLEXSPACE">
+          <column name="labels" width="56">
+            <label name="lbl_author" text="Author:" />
+            <label name="lbl_title" text="Title:" />
+            <label name="lbl_body" text="Body:" />
+          </column>
+          <column name="inputs" flags="WINDOW_FLEXSPACE">
+            <textedit name="author" />
+            <textedit name="title" />
+            <multiedit name="body" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+          </column>
         </grid>
         <separator name="section_sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
@@ -71,13 +74,13 @@
             padding="8"
 >
         <stack name="author_row" orientation="horizontal" spacing="6">
-          <label name="lbl_author" h-align="start" text="Author:" />
-          <textedit name="author" h-align="stretch" text="" />
+          <label name="lbl_author" text="Author:" />
+          <textedit name="author" />
         </stack>
 
         <stack name="text_row" orientation="horizontal" spacing="6">
-          <label name="lbl_text" h-align="start" text="Text:" />
-          <textedit name="text" h-align="stretch" text="" />
+          <label name="lbl_text" text="Text:" />
+          <textedit name="text" />
         </stack>
 
         <stack name="actions" orientation="horizontal" spacing="6">
@@ -94,29 +97,29 @@
             auto_layout="1"
             padding="8"
 >
-        <stack name="layout" orientation="vertical" spacing="8" flags="WINDOW_FLEXSPACE">
-          <stack name="header" orientation="vertical" spacing="2">
-            <!-- Post header labels (populated in evCreate) -->
-            <label name="lbl_title" font="system" color="text-normal" text="" />
-            <label name="lbl_body" font="small" color="text-normal" text="" />
-            <stack name="meta" orientation="horizontal" spacing="8">
-              <label name="lbl_author" font="small" color="text-disabled" text="" />
-              <label name="lbl_likes" font="small" color="text-disabled" text="" />
-              <label name="lbl_cmt_hdr" font="small" color="text-disabled" text="" />
-            </stack>
+        <stack name="header" orientation="vertical" spacing="2">
+          <!-- Post header labels (populated in evCreate) -->
+          <label name="lbl_title" font="system" color="text-normal" />
+          <label name="lbl_body" font="small" color="text-normal" />
+          <stack name="meta" orientation="horizontal" spacing="8">
+            <label name="lbl_author" font="small" color="text-disabled" />
+            <label name="lbl_likes" font="small" color="text-disabled" />
+            <label name="lbl_cmt_hdr" font="small" color="text-disabled" />
           </stack>
+        </stack>
 
-          <!-- Comments reportview -->
-          <reportview name="comments" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+        <!-- Comments reportview -->
+        <reportview name="comments" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
 
-          <stack name="actions" orientation="horizontal" spacing="4">
-            <button name="like_post" text="Like Post" flags="0" />
-            <button name="add_comment" text="Add Comment" flags="0" />
-            <button name="add_reply" text="Add Reply" flags="0" />
-            <button name="like_comment" text="Like Comment" flags="0" />
-            <space name="flex" />
-            <button name="close" text="Close" flags="BUTTON_DEFAULT" />
-          </stack>
+        <separator name="section_sep" />
+
+        <stack name="actions" orientation="horizontal" spacing="4">
+          <button name="like_post" text="Like Post" flags="0" />
+          <button name="add_comment" text="Add Comment" flags="0" />
+          <button name="add_reply" text="Add Reply" flags="0" />
+          <button name="like_comment" text="Like Comment" flags="0" />
+          <space name="flex" />
+          <button name="close" text="Close" flags="BUTTON_DEFAULT" />
         </stack>
       </form>
     </forms>

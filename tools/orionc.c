@@ -93,6 +93,14 @@ static bool parse_frame(xmlNodePtr node, frame_t *out) {
     free(x); free(y); free(w); free(h);
     return true;
   }
+  if (w || h) {
+    out->x = 0;
+    out->y = 0;
+    out->w = w ? atoi(w) : 0;
+    out->h = h ? atoi(h) : 0;
+    free(x); free(y); free(w); free(h);
+    return true;
+  }
   free(x); free(y); free(w); free(h);
   return false;
 }
@@ -368,6 +376,8 @@ static const char *layout_kind_default_for_class(const char *klass) {
   if (!klass) return "none";
   if (!strcmp(klass, "stack") || !strcmp(klass, "stackview"))
     return "stack";
+  if (!strcmp(klass, "column"))
+    return "stack";
   if (!strcmp(klass, "grid") || !strcmp(klass, "gridview"))
     return "grid";
   return "none";
@@ -383,7 +393,7 @@ static const char *layout_kind_attr(const char *v, const char *fallback) {
 static uint8_t layout_columns_default_for_class(const char *klass) {
   if (!klass) return 0;
   if (!strcmp(klass, "grid") || !strcmp(klass, "gridview"))
-    return 2;
+    return 0;
   return 0;
 }
 
@@ -465,6 +475,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   bool font_set = false;
   uint8_t color_val = brTextNormal;
   bool color_set = false;
+  bool keep_nested_frame = !strcmp(emit_class, "column");
   if (font && *font) {
     if (!strcmp(font, "system")) font_val = FONT_SYSTEM;
     else if (!strcmp(font, "small")) font_val = FONT_SMALL;
@@ -479,7 +490,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   fputs("  { ", f);
   fprint_c_string(f, emit_class);
   fprintf(f, ", %s, ", nonempty(ident, "0"));
-  if (nested || !parse_frame(c, &cr)) {
+  if ((nested && !keep_nested_frame) || !parse_frame(c, &cr)) {
     fprintf(f, "{ 0, 0, 0, 0 }, %s, ", nonempty(cflags, "0"));
   } else {
     fprintf(f, "{ %d, %d, %d, %d }, %s, ",

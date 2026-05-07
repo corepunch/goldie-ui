@@ -92,6 +92,17 @@ static const fe_component_desc_t k_components[] = {
     .proc = win_gradient,
   },
   {
+    .class_name = "column",
+    .display_name = "Column",
+    .token = "column",
+    .name_prefix = "IDC_COL",
+    .toolbox_ident = 213,
+    .toolbox_icon = IC_PANEL,
+    .default_size = {120, 80},
+    .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
+    .proc = win_column,
+  },
+  {
     .class_name = "reportview",
     .display_name = "ReportView",
     .token = "reportview",

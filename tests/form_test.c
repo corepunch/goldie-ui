@@ -364,6 +364,8 @@ static const form_def_t kGapFormStretch = {
 #define NEST_FORM_ID_GRID_2       109
 #define NEST_FORM_ID_GRID_3       110
 #define NEST_FORM_ID_GRID_4       111
+#define NEST_FORM_ID_GRID_LEFT    112
+#define NEST_FORM_ID_GRID_RIGHT   113
 
 static const form_ctrl_def_t kNestBodyChildren[] = {
   {
@@ -386,7 +388,7 @@ static const form_ctrl_def_t kNestBodyChildren[] = {
   },
 };
 
-static const form_ctrl_def_t kNestGridChildren[] = {
+static const form_ctrl_def_t kNestGridLeftChildren[] = {
   {
     .class_name = "label",
     .id = NEST_FORM_ID_GRID_1,
@@ -398,19 +400,22 @@ static const form_ctrl_def_t kNestGridChildren[] = {
   },
   {
     .class_name = "label",
-    .id = NEST_FORM_ID_GRID_2,
-    .frame = {0, 0, 40, 0},
-    .text = "G2",
-    .name = "g2",
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
-  },
-  {
-    .class_name = "label",
     .id = NEST_FORM_ID_GRID_3,
     .frame = {0, 0, 40, 0},
     .text = "G3",
     .name = "g3",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+};
+
+static const form_ctrl_def_t kNestGridRightChildren[] = {
+  {
+    .class_name = "label",
+    .id = NEST_FORM_ID_GRID_2,
+    .frame = {0, 0, 40, 0},
+    .text = "G2",
+    .name = "g2",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_STRETCH,
   },
@@ -455,11 +460,28 @@ static const form_ctrl_def_t kNestChildren[] = {
     .name = "grid",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
-    .children = kNestGridChildren,
-    .child_count = ARRAY_LEN(kNestGridChildren),
+    .children = (const form_ctrl_def_t[]){
+      {
+        .class_name = "column",
+        .id = NEST_FORM_ID_GRID_LEFT,
+        .frame = {0, 0, 40, 0},
+        .name = "left",
+        .children = kNestGridLeftChildren,
+        .child_count = ARRAY_LEN(kNestGridLeftChildren),
+      },
+      {
+        .class_name = "column",
+        .id = NEST_FORM_ID_GRID_RIGHT,
+        .frame = {0, 0, 0, 0},
+        .name = "right",
+        .flags = WINDOW_FLEXSPACE,
+        .children = kNestGridRightChildren,
+        .child_count = ARRAY_LEN(kNestGridRightChildren),
+      },
+    },
+    .child_count = 2,
     .layout_kind = "grid",
     .layout_orientation = WINDOW_STACK_VERTICAL,
-    .layout_columns = 2,
     .layout_spacing = 0,
   },
 };
@@ -511,6 +533,8 @@ static const form_def_t kDefaultStackForm = {
 };
 
 #define NP_FORM_ID_FIELDS   203
+#define NP_FORM_ID_LABELS  216
+#define NP_FORM_ID_INPUTS  217
 #define NP_FORM_ID_AUTHOR_L 204
 #define NP_FORM_ID_AUTHOR_E 205
 #define NP_FORM_ID_TITLE_L   206
@@ -524,22 +548,13 @@ static const form_def_t kDefaultStackForm = {
 #define NP_FORM_ID_SECTION_SEP 214
 #define NP_FORM_ID_FLEX_RIGHT 215
 
-static const form_ctrl_def_t kNewPostFieldsChildren[] = {
+static const form_ctrl_def_t kNewPostLabelColumnChildren[] = {
   {
     .class_name = "label",
     .id = NP_FORM_ID_AUTHOR_L,
     .frame = {0, 0, 56, 0},
     .text = "Author:",
     .name = "author_lbl",
-    .h_align = LAYOUT_ALIGN_START,
-  },
-  {
-    .class_name = "textedit",
-    .id = NP_FORM_ID_AUTHOR_E,
-    .frame = {0, 0, 0, 0},
-    .text = "",
-    .name = "author",
-    .h_align = LAYOUT_ALIGN_STRETCH,
   },
   {
     .class_name = "label",
@@ -547,15 +562,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .frame = {0, 0, 56, 0},
     .text = "Title:",
     .name = "title_lbl",
-    .h_align = LAYOUT_ALIGN_START,
-  },
-  {
-    .class_name = "textedit",
-    .id = NP_FORM_ID_TITLE_E,
-    .frame = {0, 0, 0, 0},
-    .text = "",
-    .name = "title",
-    .h_align = LAYOUT_ALIGN_STRETCH,
   },
   {
     .class_name = "label",
@@ -563,7 +569,23 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .frame = {0, 0, 56, 0},
     .text = "Body:",
     .name = "body_lbl",
-    .h_align = LAYOUT_ALIGN_START,
+  },
+};
+
+static const form_ctrl_def_t kNewPostInputColumnChildren[] = {
+  {
+    .class_name = "textedit",
+    .id = NP_FORM_ID_AUTHOR_E,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "author",
+  },
+  {
+    .class_name = "textedit",
+    .id = NP_FORM_ID_TITLE_E,
+    .frame = {0, 0, 0, 0},
+    .text = "",
+    .name = "title",
   },
   {
     .class_name = "multiedit",
@@ -572,7 +594,6 @@ static const form_ctrl_def_t kNewPostFieldsChildren[] = {
     .text = "",
     .name = "body",
     .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
-    .h_align = LAYOUT_ALIGN_STRETCH,
   },
 };
 
@@ -583,12 +604,27 @@ static const form_ctrl_def_t kNewPostChildren[] = {
     .frame = {0, 0, 0, 0},
     .name = "fields",
     .flags = WINDOW_FLEXSPACE,
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
-    .children = kNewPostFieldsChildren,
-    .child_count = ARRAY_LEN(kNewPostFieldsChildren),
+    .children = (const form_ctrl_def_t[]){
+      {
+        .class_name = "column",
+        .id = NP_FORM_ID_LABELS,
+        .frame = {0, 0, 56, 0},
+        .name = "labels",
+        .children = kNewPostLabelColumnChildren,
+        .child_count = ARRAY_LEN(kNewPostLabelColumnChildren),
+      },
+      {
+        .class_name = "column",
+        .id = NP_FORM_ID_INPUTS,
+        .frame = {0, 0, 0, 0},
+        .name = "inputs",
+        .flags = WINDOW_FLEXSPACE,
+        .children = kNewPostInputColumnChildren,
+        .child_count = ARRAY_LEN(kNewPostInputColumnChildren),
+      },
+    },
+    .child_count = 2,
     .layout_kind = "grid",
-    .layout_columns = 2,
     .layout_spacing = 4,
   },
   {
@@ -597,9 +633,6 @@ static const form_ctrl_def_t kNewPostChildren[] = {
     .frame = {0, 0, 0, 0},
     .text = "",
     .name = "section_sep",
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
-    .flags = WINDOW_FLEXSPACE,
   },
   {
     .class_name = "stack",
@@ -1265,55 +1298,52 @@ void test_stackview_layout(void) {
 }
 
 void test_gridview_layout(void) {
-  TEST("gridview: arranges children compactly by row and column sizes");
+  TEST("gridview: arranges explicit columns compactly");
 
   test_env_init();
 
   layout_view_config_t cfg = {
     .layout_kind = "grid",
     .orientation = WINDOW_STACK_VERTICAL,
-    .columns = 2,
+    .columns = 0,
+    .spacing = 4,
   };
   window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
                                  MAKERECT(0, 0, 200, 80),
                                  NULL, "gridview", 0, &cfg);
   ASSERT_NOT_NULL(root);
 
-  window_t *c0 = create_window("A", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
-  window_t *c1 = create_window("B", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
-  window_t *c2 = create_window("C", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
-  window_t *c3 = create_window("D", 0, MAKERECT(0, 0, 20, 12), root, "button", 0, NULL);
-  ASSERT_NOT_NULL(c0);
-  ASSERT_NOT_NULL(c1);
-  ASSERT_NOT_NULL(c2);
-  ASSERT_NOT_NULL(c3);
-  c0->h_align = LAYOUT_ALIGN_START;
-  c1->h_align = LAYOUT_ALIGN_START;
-  c2->h_align = LAYOUT_ALIGN_START;
-  c3->h_align = LAYOUT_ALIGN_START;
-  c0->v_align = LAYOUT_ALIGN_START;
-  c1->v_align = LAYOUT_ALIGN_START;
-  c2->v_align = LAYOUT_ALIGN_START;
-  c3->v_align = LAYOUT_ALIGN_START;
+  window_t *left = create_window("", 0, MAKERECT(0, 0, 40, 0), root, "column", 0, NULL);
+  window_t *right = create_window("", WINDOW_FLEXSPACE, MAKERECT(0, 0, 0, 0), root, "column", 0, NULL);
+  ASSERT_NOT_NULL(left);
+  ASSERT_NOT_NULL(right);
+  window_t *l0 = create_window("A", 0, MAKERECT(0, 0, 20, 12), left, "label", 0, NULL);
+  window_t *l1 = create_window("B", 0, MAKERECT(0, 0, 20, 12), left, "label", 0, NULL);
+  window_t *r0 = create_window("", 0, MAKERECT(0, 0, 20, 12), right, "textedit", 0, NULL);
+  window_t *r1 = create_window("", 0, MAKERECT(0, 0, 20, 12), right, "textedit", 0, NULL);
+  ASSERT_NOT_NULL(l0);
+  ASSERT_NOT_NULL(l1);
+  ASSERT_NOT_NULL(r0);
+  ASSERT_NOT_NULL(r1);
 
   window_layout_sync(root);
 
-  ASSERT_EQUAL(c0->frame.x, 0);
-  ASSERT_EQUAL(c0->frame.y, 0);
-  ASSERT_EQUAL(c0->frame.w, 20);
-  ASSERT_EQUAL(c0->frame.h, 19);
-  ASSERT_EQUAL(c1->frame.x, 20);
-  ASSERT_EQUAL(c1->frame.y, 0);
-  ASSERT_EQUAL(c1->frame.w, 20);
-  ASSERT_EQUAL(c1->frame.h, 19);
-  ASSERT_EQUAL(c2->frame.x, 0);
-  ASSERT_EQUAL(c2->frame.y, 19);
-  ASSERT_EQUAL(c2->frame.w, 20);
-  ASSERT_EQUAL(c2->frame.h, 19);
-  ASSERT_EQUAL(c3->frame.x, 20);
-  ASSERT_EQUAL(c3->frame.y, 19);
-  ASSERT_EQUAL(c3->frame.w, 20);
-  ASSERT_EQUAL(c3->frame.h, 19);
+  ASSERT_EQUAL(left->frame.x, 0);
+  ASSERT_EQUAL(left->frame.w, 40);
+  ASSERT_EQUAL(left->frame.h, 80);
+  ASSERT_EQUAL(right->frame.x, left->frame.w + 4);
+  ASSERT_EQUAL(right->frame.w, 156);
+  ASSERT_EQUAL(right->frame.h, 80);
+  ASSERT_EQUAL(l0->frame.x, 0);
+  ASSERT_EQUAL(l0->frame.y, 0);
+  ASSERT_EQUAL(l1->frame.x, 0);
+  ASSERT_EQUAL(l1->frame.y, l0->frame.y + l0->frame.h + 4);
+  ASSERT_EQUAL(r0->frame.x, 0);
+  ASSERT_EQUAL(r0->frame.y, 0);
+  ASSERT_EQUAL(r0->frame.w, right->frame.w);
+  ASSERT_EQUAL(r1->frame.x, 0);
+  ASSERT_EQUAL(r1->frame.y, r0->frame.y + r0->frame.h + 4);
+  ASSERT_EQUAL(r1->frame.w, right->frame.w);
 
   destroy_window(root);
   test_env_shutdown();
@@ -1445,6 +1475,8 @@ void test_nested_stack_positions(void) {
   window_t *header = get_window_item(win, NEST_FORM_ID_HEADER);
   window_t *body = get_window_item(win, NEST_FORM_ID_BODY);
   window_t *grid = get_window_item(win, NEST_FORM_ID_GRID);
+  window_t *grid_left = get_window_item(win, NEST_FORM_ID_GRID_LEFT);
+  window_t *grid_right = get_window_item(win, NEST_FORM_ID_GRID_RIGHT);
   window_t *body_btn1 = get_window_item(win, NEST_FORM_ID_BODY_BTN1);
   window_t *body_btn2 = get_window_item(win, NEST_FORM_ID_BODY_BTN2);
   window_t *grid_1 = get_window_item(win, NEST_FORM_ID_GRID_1);
@@ -1454,6 +1486,8 @@ void test_nested_stack_positions(void) {
   ASSERT_NOT_NULL(header);
   ASSERT_NOT_NULL(body);
   ASSERT_NOT_NULL(grid);
+  ASSERT_NOT_NULL(grid_left);
+  ASSERT_NOT_NULL(grid_right);
   ASSERT_NOT_NULL(body_btn1);
   ASSERT_NOT_NULL(body_btn2);
   ASSERT_NOT_NULL(grid_1);
@@ -1464,13 +1498,25 @@ void test_nested_stack_positions(void) {
   ASSERT_EQUAL(header->frame.y, 0);
   ASSERT_EQUAL(body->frame.y, header->frame.h + 6);
   ASSERT_EQUAL(grid->frame.y, body->frame.y + body->frame.h + 6);
+  ASSERT_EQUAL(grid_left->frame.x, 0);
+  ASSERT_EQUAL(grid_left->frame.y, 0);
+  ASSERT_EQUAL(grid_left->frame.w, 40);
+  ASSERT_EQUAL(grid_right->frame.x, grid_left->frame.w + 0);
+  ASSERT_EQUAL(grid_right->frame.y, 0);
+  ASSERT_TRUE(grid_right->frame.w > grid_left->frame.w);
+  ASSERT_EQUAL(grid_left->frame.h, grid_right->frame.h);
 
   ASSERT_EQUAL(body_btn1->frame.y, 0);
   ASSERT_EQUAL(body_btn2->frame.y, body_btn1->frame.h + 3);
 
-  ASSERT_EQUAL(grid_1->frame.y, grid_2->frame.y);
-  ASSERT_EQUAL(grid_3->frame.y, grid_4->frame.y);
-  ASSERT_TRUE(grid_3->frame.y > grid_1->frame.y);
+  ASSERT_EQUAL(grid_1->frame.x, 0);
+  ASSERT_EQUAL(grid_2->frame.x, 0);
+  ASSERT_EQUAL(grid_3->frame.x, 0);
+  ASSERT_EQUAL(grid_4->frame.x, 0);
+  ASSERT_EQUAL(grid_1->frame.y, 0);
+  ASSERT_EQUAL(grid_3->frame.y, grid_1->frame.y + grid_1->frame.h);
+  ASSERT_EQUAL(grid_2->frame.y, 0);
+  ASSERT_EQUAL(grid_4->frame.y, grid_2->frame.y + grid_2->frame.h);
   ASSERT_EQUAL(grid_1->frame.y, 0);
 
   destroy_window(win);
@@ -1507,6 +1553,8 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_NOT_NULL(win);
 
   window_t *fields = get_window_item(win, NP_FORM_ID_FIELDS);
+  window_t *labels = get_window_item(win, NP_FORM_ID_LABELS);
+  window_t *inputs = get_window_item(win, NP_FORM_ID_INPUTS);
   window_t *author_l = get_window_item(win, NP_FORM_ID_AUTHOR_L);
   window_t *author_e = get_window_item(win, NP_FORM_ID_AUTHOR_E);
   window_t *title_l = get_window_item(win, NP_FORM_ID_TITLE_L);
@@ -1520,6 +1568,8 @@ void test_new_post_grid_stack_layout(void) {
   window_t *flex_left = get_window_item(win, NP_FORM_ID_FLEX_LEFT);
   window_t *flex_right = get_window_item(win, NP_FORM_ID_FLEX_RIGHT);
   ASSERT_NOT_NULL(fields);
+  ASSERT_NOT_NULL(labels);
+  ASSERT_NOT_NULL(inputs);
   ASSERT_NOT_NULL(author_l);
   ASSERT_NOT_NULL(author_e);
   ASSERT_NOT_NULL(title_l);
@@ -1536,16 +1586,24 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_TRUE(flex_right->flags & WINDOW_FLEXSPACE);
 
   ASSERT_EQUAL(fields->frame.y, 8);
-  ASSERT_TRUE(fields->frame.h < 120);
+  ASSERT_EQUAL(labels->frame.x, 0);
+  ASSERT_EQUAL(inputs->frame.x, labels->frame.w + 4);
+  ASSERT_EQUAL(labels->frame.w, 56);
+  ASSERT_EQUAL(fields->frame.h, labels->frame.h);
+  ASSERT_EQUAL(inputs->frame.h, labels->frame.h);
   ASSERT_EQUAL(author_l->frame.y, 0);
   ASSERT_EQUAL(author_e->frame.y, 0);
   ASSERT_EQUAL(title_l->frame.y, author_l->frame.h + 4);
   ASSERT_EQUAL(title_e->frame.y, title_l->frame.y);
   ASSERT_EQUAL(body_l->frame.y, title_l->frame.y + title_l->frame.h + 4);
   ASSERT_EQUAL(body_e->frame.y, body_l->frame.y);
-  ASSERT_TRUE(author_e->frame.w > author_l->frame.w);
-  ASSERT_TRUE(title_e->frame.w > title_l->frame.w);
-  ASSERT_TRUE(body_e->frame.w > body_l->frame.w);
+  ASSERT_EQUAL(author_e->frame.x, 0);
+  ASSERT_EQUAL(title_e->frame.x, 0);
+  ASSERT_EQUAL(body_e->frame.x, 0);
+  ASSERT_EQUAL(author_e->frame.w, inputs->frame.w);
+  ASSERT_EQUAL(title_e->frame.w, inputs->frame.w);
+  ASSERT_EQUAL(body_e->frame.w, inputs->frame.w);
+  ASSERT_TRUE(body_e->frame.h > title_e->frame.h);
   ASSERT_TRUE(section_sep->frame.h >= 6);
   ASSERT_EQUAL(section_sep->frame.y, fields->frame.y + fields->frame.h + 4);
   ASSERT_EQUAL(actions->frame.y, section_sep->frame.y + section_sep->frame.h + 4);
@@ -1574,7 +1632,7 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_TRUE(body_e->frame.w >= initial_body_w);
   ASSERT_TRUE(fields->frame.h > initial_fields_h);
   ASSERT_TRUE(body_e->frame.h > initial_body_h);
-  ASSERT_TRUE(section_sep->frame.h > initial_sep_h);
+  ASSERT_EQUAL(section_sep->frame.h, initial_sep_h);
   ASSERT_TRUE(actions->frame.y > initial_actions_y);
   ASSERT_EQUAL(actions->frame.y, section_sep->frame.y + section_sep->frame.h + 4);
 
@@ -1584,7 +1642,7 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_TRUE(body_e->frame.w <= initial_body_w);
   ASSERT_TRUE(fields->frame.h <= initial_fields_h);
   ASSERT_TRUE(body_e->frame.h <= initial_body_h);
-  ASSERT_TRUE(section_sep->frame.h <= initial_sep_h);
+  ASSERT_EQUAL(section_sep->frame.h, initial_sep_h);
   ASSERT_TRUE(actions->frame.y <= initial_actions_y);
   ASSERT_EQUAL(actions->frame.y, section_sep->frame.y + section_sep->frame.h + 4);
 
@@ -1735,7 +1793,6 @@ void test_socialfeed_post_detail_layout(void) {
   ASSERT_NOT_NULL(actions);
   ASSERT_NOT_NULL(flex);
   ASSERT_TRUE(flex->flags & WINDOW_FLEXSPACE);
-
   ASSERT_EQUAL(layout->v_align, LAYOUT_ALIGN_STRETCH);
   ASSERT_EQUAL(((uint32_t)(uintptr_t)title->userdata >> 8) & 0xffu, FONT_SYSTEM);
   ASSERT_EQUAL((uint32_t)(uintptr_t)title->userdata & 0xffu, brTextNormal);

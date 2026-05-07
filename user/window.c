@@ -69,6 +69,7 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "gradient") || streq(class_name, "win_gradient")) return win_gradient;
   if (streq(class_name, "toolbox") || streq(class_name, "win_toolbox")) return win_toolbox;
   if (streq(class_name, "splitter") || streq(class_name, "win_splitter")) return win_splitter;
+  if (streq(class_name, "column") || streq(class_name, "win_column")) return win_column;
   if (streq(class_name, "stack") || streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
   if (streq(class_name, "grid") || streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
 
@@ -115,6 +116,8 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   if (!win) return NULL;
   memset(win, 0, sizeof(window_t));
   win->frame = *frame;
+  win->layout_fixed_w = frame ? frame->w : 0;
+  win->layout_fixed_h = frame ? frame->h : 0;
   win->proc = proc;
   // Child controls participate in client-area layout, so they should not
   // reserve a title bar unless a caller explicitly creates a root window.
@@ -666,13 +669,13 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
       .padding = cd->padding,
       .margin = cd->margin,
     };
-    if (cp == win_stackview || cp == win_gridview)
+    if (cp == win_stackview || cp == win_gridview || cp == win_column)
       param = &cfg;
-      label_create_params_t label_cfg = {
-        .color_index = cd->color,
-        .font = cd->font_set ? cd->font : FONT_SMALL,
-        .color_set = cd->color_set,
-      };
+    label_create_params_t label_cfg = {
+      .color_index = cd->color,
+      .font = cd->font_set ? cd->font : FONT_SMALL,
+      .color_set = cd->color_set,
+    };
     if (cp == win_label)
       param = &label_cfg;
 
@@ -780,13 +783,13 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
       .padding = cd->padding,
       .margin = cd->margin,
     };
-    if (cp == win_stackview || cp == win_gridview)
+    if (cp == win_stackview || cp == win_gridview || cp == win_column)
       param = &cfg;
-      label_create_params_t label_cfg = {
-        .color_index = cd->color,
-        .font = cd->font_set ? cd->font : FONT_SMALL,
-        .color_set = cd->color_set,
-      };
+    label_create_params_t label_cfg = {
+      .color_index = cd->color,
+      .font = cd->font_set ? cd->font : FONT_SMALL,
+      .color_set = cd->color_set,
+    };
     if (cp == win_label)
       param = &label_cfg;
 
