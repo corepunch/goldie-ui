@@ -624,10 +624,11 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame, int in
   canvas_state_t *s = doc->canvas_win ? (canvas_state_t *)doc->canvas_win->userdata : NULL;
   if (s)
     s->selected_idx = index;
+  canvas_create_live_element_window(doc, el);
   if (doc->auto_layout)
     form_doc_auto_layout_reflow(doc);
-  canvas_create_live_element_window(doc, el);
-  canvas_sync_live_controls(doc);
+  else
+    canvas_sync_live_controls(doc);
   doc->modified = true;
   form_doc_update_title(doc);
   return index;

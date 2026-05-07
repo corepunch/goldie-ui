@@ -148,10 +148,11 @@ static ipoint16_t window_client_origin(window_t *win) {
 
 static bool point_in_window_client(window_t *win, int sx, int sy) {
   if (!win) return false;
+  irect16_t cr = get_client_rect(win);
   ipoint16_t o = window_client_origin(win);
   int lx = sx - o.x;
   int ly = sy - o.y;
-  return lx >= 0 && ly >= 0 && lx < win->frame.w && ly < win->frame.h;
+  return lx >= cr.x && ly >= cr.y && lx < cr.x + cr.w && ly < cr.y + cr.h;
 }
 
 static uint32_t window_point_to_local_wparam(window_t *win, int sx, int sy) {
