@@ -1,12 +1,12 @@
 // VIEW: Post detail dialog — shows post body, threaded comments, and likes.
 //
 // Layout (client area POST_DLG_W x POST_DLG_H):
-//   y=  4  Post title label       (ID_LBL_POST_TITLE)
-//   y= 18  "by Author" label      (ID_LBL_POST_AUTHOR)
-//   y= 32  Body text label        (ID_LBL_POST_BODY, wrapped, h=50)
-//   y= 86  "N likes" label        (ID_LBL_POST_LIKES)  + [Like Post] button
-//   y=108  "Comments (N):" label  (ID_LBL_COMMENTS_HDR)
-//   y=122  Comments reportview    (ID_COMMENTS_VIEW)
+//   y=  4  Post title label       (ID_POST_DETAIL_LBL_TITLE)
+//   y= 18  "by Author" label      (ID_POST_DETAIL_LBL_AUTHOR)
+//   y= 32  Body text label        (ID_POST_DETAIL_LBL_BODY, wrapped, h=50)
+//   y= 86  "N likes" label        (ID_POST_DETAIL_LBL_LIKES)  + [Like Post] button
+//   y=108  "Comments (N):" label  (ID_POST_DETAIL_LBL_CMT_HDR)
+//   y=122  Comments reportview    (ID_POST_DETAIL_COMMENTS)
 //   y=280  [Add Comment] [Add Reply] [Like Comment]  [Close]
 //
 // All controls are declared in socialfeed.orion (post_detail form) and created
@@ -181,13 +181,14 @@ static void refresh_comments(post_detail_t *s) {
 static void update_header_labels(window_t *win, post_detail_t *s) {
   post_t *p = s->post;
 
-  set_window_item_text(win, ID_LBL_POST_TITLE,    "%s",  p->title);
-  set_window_item_text(win, ID_LBL_POST_AUTHOR,   "by %s", p->author);
-  set_window_item_text(win, ID_LBL_POST_BODY,     "%s",  p->body);
-  set_window_item_text(win, ID_LBL_POST_LIKES,
+  set_window_item_text(win, ID_POST_DETAIL_LBL_TITLE,    "%s",  p->title);
+  set_window_item_text(win, ID_POST_DETAIL_LBL_AUTHOR,   "by %s", p->author);
+  set_window_item_text(win, ID_POST_DETAIL_LBL_BODY,     "%s",  p->body);
+  set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES,
                        p->like_count == 1 ? "%d like" : "%d likes",
                        p->like_count);
-  set_window_item_text(win, ID_LBL_COMMENTS_HDR, "Comments (%d):",
+  set_window_item_text(win, ID_POST_DETAIL_LBL_CMT_HDR,
+                       p->comment_count == 1 ? "%d comment" : "%d comments",
                        p->comment_count);
 }
 
@@ -201,21 +202,30 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
 
   switch (msg) {
     case evCreate: {
-      // All children (including the reportview) were created by the form before
-      // evCreate fired. Just get the reportview reference.
       s = (post_detail_t *)lparam;
       win->userdata    = s;
       s->selection     = (flat_sel_t){ -1, -1 };
-
-      s->comments_win = get_window_item(win, ID_COMMENTS_VIEW);
-
+      s->comments_win = get_window_item(win, ID_POST_DETAIL_COMMENTS);
       update_header_labels(win, s);
+      window_layout_sync(win);
       refresh_comments(s);
       return true;
     }
 
     case evDestroy:
-      if (s) { free(s->flat); s->flat = NULL; s->flat_cap = 0; }
+      if (s) {
+        free(s->flat);
+        s->flat = NULL;
+        s->flat_cap = 0;
+        s->comments_win = NULL;
+      }
+      return false;
+
+    case evResize:
+      if (s) {
+        window_layout_sync(win);
+        refresh_comments(s);
+      }
       return false;
 
     case evCommand: {
@@ -248,14 +258,14 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
 
       switch (src->id) {
         // ---- Like Post ----
-        case ID_BTN_LIKE_POST:
+        case ID_POST_DETAIL_LIKE_POST:
           post_like(s->post);
           update_header_labels(win, s);
           SF_DEBUG("liked post id=%d likes=%d", s->post->id, s->post->like_count);
           return true;
 
         // ---- Add Comment ----
-        case ID_BTN_ADD_COMMENT: {
+        case ID_POST_DETAIL_ADD_COMMENT: {
           char author[64] = "";
           char text[512]  = "";
           if (show_new_comment_dialog(win, "New Comment",
@@ -273,7 +283,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
         }
 
         // ---- Add Reply ----
-        case ID_BTN_ADD_REPLY: {
+        case ID_POST_DETAIL_ADD_REPLY: {
           int fi = selection_to_flat(s);
           if (fi < 0 || fi >= s->flat_count) {
             message_box(win, "Select a comment to reply to.",
@@ -305,7 +315,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
         }
 
         // ---- Like Comment ----
-        case ID_BTN_LIKE_COMMENT: {
+        case ID_POST_DETAIL_LIKE_COMMENT: {
           int fi = selection_to_flat(s);
           comment_t *c = flat_to_comment(s, fi);
           if (!c) {
@@ -320,7 +330,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
         }
 
         // ---- Close ----
-        case ID_BTN_CLOSE:
+        case ID_POST_DETAIL_CLOSE:
           end_dialog(win, 0);
           return true;
 
@@ -356,7 +366,10 @@ void show_post_detail(window_t *parent, int post_idx) {
     .comments_win  = NULL,
   };
 
-  show_dialog_from_form_ex(&socialfeed_post_detail_form, "Post Detail",
-                           parent, WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
-                           post_detail_proc, &state);
+  show_dialog_from_form_ex(&socialfeed_post_detail_form,
+                           "Post Detail",
+                           parent,
+                           WINDOW_VSCROLL | WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
+                           post_detail_proc,
+                           &state);
 }

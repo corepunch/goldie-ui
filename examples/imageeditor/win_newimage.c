@@ -20,8 +20,8 @@ typedef struct { int w, h; } ni_state_t;
 // ──────────────────────────────────────────────────────────────────
 
 static const ctrl_binding_t k_ni_bindings[] = {
-  DDX_TEXT(NI_ID_WIDTH, ni_state_t, w),
-  DDX_TEXT(NI_ID_HEIGHT, ni_state_t, h),
+  DDX_TEXT(ID_NEW_IMAGE_WIDTH, ni_state_t, w),
+  DDX_TEXT(ID_NEW_IMAGE_HEIGHT, ni_state_t, h),
 };
 
 // ──────────────────────────────────────────────────────────────────
@@ -36,8 +36,8 @@ bool show_size_dialog(window_t *parent, const char *title, int *out_w, int *out_
   form_def_t form = imageeditor_new_image_form;
   form.bindings = k_ni_bindings;
   form.binding_count = ARRAY_LEN(k_ni_bindings);
-  form.ok_id = NI_ID_OK;
-  form.cancel_id = NI_ID_CANCEL;
+  form.ok_id = ID_NEW_IMAGE_OK;
+  form.cancel_id = ID_NEW_IMAGE_CANCEL;
   if (!show_ddx_dialog(&form, title, parent, &st)) return false;
   if (st.w > 0 && st.w <= MAX_IMAGE_DIMENSION) *out_w = st.w;
   if (st.h > 0 && st.h <= MAX_IMAGE_DIMENSION) *out_h = st.h;

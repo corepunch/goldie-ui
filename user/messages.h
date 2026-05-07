@@ -59,6 +59,13 @@ enum {
   // lparam = char[256] output buffer — write the NUL-terminated tooltip text
   //          here and return true; return false if no tooltip at that position.
   evGetTooltipText,
+  // Measure / arrange messages for auto-layout containers.
+  // Appended here (rather than inserted mid-enum) to preserve the numeric
+  // values of all existing messages and avoid breaking compiled ABI.
+  // evMeasure: lparam = layout_measure_t*; child writes desired size.
+  // evArrange: lparam = layout_arrange_t*; child adopts the assigned rect.
+  evMeasure,
+  evArrange,
   evUser = 1000
 };
 
@@ -226,6 +233,18 @@ typedef struct {
 #define WINDOW_SIDEBAR      (1 << 16)
 #define WINDOW_NOACTIVATE   (1 << 17)  // do not steal keyboard focus when shown
 #define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab-key focus cycle (WS_TABSTOP equivalent)
+#define WINDOW_STACK_HORIZONTAL (1 << 19)  // auto-layout stack flows left-to-right
+#define WINDOW_FLEXSPACE    (1 << 20)  // space/spring child that absorbs leftover horizontal room
+#define WINDOW_STACK_VERTICAL   0
+
+// Auto-layout alignment values used by layout_measure_t / layout_arrange_t.
+// 0 = stretch (default), matching WPF/SwiftUI "fill available space".
+enum {
+  LAYOUT_ALIGN_STRETCH = 0,
+  LAYOUT_ALIGN_START   = 1,
+  LAYOUT_ALIGN_CENTER  = 2,
+  LAYOUT_ALIGN_END     = 3,
+};
 
 // Scroll bar constants (WinAPI-style, used with set_scroll_info / get_scroll_info)
 #define SB_HORZ  0   // horizontal scroll bar
@@ -344,31 +363,32 @@ typedef enum {
 // System color indices — analogous to WinAPI GetSysColor(nIndex).
 // Access via get_sys_color(brXxx); change via set_sys_colors().
 typedef enum {
-  brWindowBg             = 0,   // general panel / dialog background
-  brWindowDarkBg         = 1,   // dark secondary panel background
-  brWorkspaceBg          = 2,   // document / canvas workspace area
-  brActiveTitlebar       = 3,   // focused window title bar background
-  brActiveTitlebarText   = 4,   // focused window title bar text
-  brInactiveTitlebar     = 5,   // unfocused window title bar background
-  brInactiveTitlebarText = 6,   // unfocused window title bar text
-  brStatusbarBg          = 7,   // status bar background
-  brLightEdge            = 8,   // highlight edge of beveled elements
-  brDarkEdge             = 9,   // shadow edge of beveled elements
-  brFlare                = 10,  // corner flare of beveled elements
-  brFocusRing            = 11,  // keyboard focus highlight ring
-  brButtonBg             = 12,  // button background (unpressed)
-  brButtonInner          = 13,  // inner fill of button
-  brButtonHover          = 14,  // button hover state
-  brTextNormal           = 15,  // standard text
-  brTextDisabled         = 16,  // disabled / inactive text
-  brTextError            = 17,  // error message text
-  brTextSuccess          = 18,  // success message text
-  brBorderFocus          = 19,  // focused item dark outline
-  brBorderActive         = 20,  // active item border
-  brFolderText           = 21,  // folder entry text in file lists
-  brColumnViewBg         = 22,  // report/icon column view background
-  brModalOverlay         = 23,  // modal owner dimming overlay (ARGB with alpha)
-  brCount                = 24
+  brTransparent          = 0,   // fully transparent / no fill
+  brWindowBg             = 1,   // general panel / dialog background
+  brWindowDarkBg         = 2,   // dark secondary panel background
+  brWorkspaceBg          = 3,   // document / canvas workspace area
+  brActiveTitlebar       = 4,   // focused window title bar background
+  brActiveTitlebarText   = 5,   // focused window title bar text
+  brInactiveTitlebar     = 6,   // unfocused window title bar background
+  brInactiveTitlebarText = 7,   // unfocused window title bar text
+  brStatusbarBg          = 8,   // status bar background
+  brLightEdge            = 9,   // highlight edge of beveled elements
+  brDarkEdge             = 10,  // shadow edge of beveled elements
+  brFlare                = 11,  // corner flare of beveled elements
+  brFocusRing            = 12,  // keyboard focus highlight ring
+  brButtonBg             = 13,  // button background (unpressed)
+  brButtonInner          = 14,  // inner fill of button
+  brButtonHover          = 15,  // button hover state
+  brTextNormal           = 16,  // standard text
+  brTextDisabled         = 17,  // disabled / inactive text
+  brTextError            = 18,  // error message text
+  brTextSuccess          = 19,  // success message text
+  brBorderFocus          = 20,  // focused item dark outline
+  brBorderActive         = 21,  // active item border
+  brFolderText           = 22,  // folder entry text in file lists
+  brColumnViewBg         = 23,  // report/icon column view background
+  brModalOverlay         = 24,  // modal owner dimming overlay (ARGB with alpha)
+  brCount                = 25
 } sys_color_idx_t;
 
 // Runtime-accessible theme table (defined in user/theme.c).

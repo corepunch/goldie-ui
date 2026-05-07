@@ -247,6 +247,14 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
       if (!real_proc && creating_el)
         real_proc = ctrl_type_to_proc(creating_el->type);
       win->flags |= WINDOW_NOTABSTOP;
+      if (real_proc == win_label && creating_el) {
+        label_create_params_t params = {
+          .color_index = creating_el->color,
+          .font = creating_el->font_set ? (ui_font_t)creating_el->font : FONT_SMALL,
+          .color_set = creating_el->color_set,
+        };
+        return real_proc(win, msg, wparam, &params);
+      }
       return real_proc ? real_proc(win, msg, wparam, NULL) : true;
     }
     case evDestroy:
@@ -373,6 +381,13 @@ static void canvas_sync_live_element_window(form_doc_t *doc, form_element_t *el)
   irect16_t r = form_to_canvas_rect(s, el->frame);
   move_window(el->live_win, r.x, r.y);
   resize_window(el->live_win, el->frame.w, el->frame.h);
+  if (el->live_win->proc == win_label) {
+    uint32_t packed = label_pack_userdata(el->color,
+                                          el->font_set ? (ui_font_t)el->font : FONT_SMALL,
+                                          el->color_set);
+    if ((uint32_t)(uintptr_t)el->live_win->userdata != packed)
+      el->live_win->userdata = (void *)(uintptr_t)packed;
+  }
   if (strcmp(el->live_win->title, el->text) != 0) {
     snprintf(el->live_win->title, sizeof(el->live_win->title), "%s", el->text);
     invalidate_window(el->live_win);
@@ -560,6 +575,12 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame) {
   el->id    = doc->next_id++;
   el->frame = frame;
   el->flags = 0;
+  el->h_align = LAYOUT_ALIGN_STRETCH;
+  el->v_align = LAYOUT_ALIGN_STRETCH;
+  el->font = FONT_SMALL;
+  el->font_set = false;
+  el->color = brTextNormal;
+  el->color_set = false;
 
   int n = ++doc->type_counters[type];
   // Caption (text shown inside the control)

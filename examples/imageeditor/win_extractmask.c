@@ -19,7 +19,7 @@ typedef struct {
 } em_state_t;
 
 static const ctrl_binding_t kAddMaskBindings[] = {
-  DDX_COMBO(EM_ID_FILL, em_state_t, fill_mode, MASK_EXTRACT_GRAYSCALE),
+  DDX_COMBO(ID_ADD_MASK_COMBO_FILL, em_state_t, fill_mode, MASK_EXTRACT_GRAYSCALE),
 };
 
 static result_t add_mask_proc(window_t *win, uint32_t msg,
@@ -29,7 +29,7 @@ static result_t add_mask_proc(window_t *win, uint32_t msg,
     case evCreate: {
       win->userdata = lparam;
       s = (em_state_t *)lparam;
-      window_t *cb = get_window_item(win, EM_ID_FILL);
+      window_t *cb = get_window_item(win, ID_ADD_MASK_COMBO_FILL);
       if (cb) {
         send_message(cb, cbAddString, 0, (void *)"Grayscale copy of the image");
         send_message(cb, cbAddString, 0, (void *)"White");
@@ -44,13 +44,13 @@ static result_t add_mask_proc(window_t *win, uint32_t msg,
       if (HIWORD(wparam) == btnClicked) {
         window_t *src = (window_t *)lparam;
         if (!src) return false;
-        if (src->id == EM_ID_OK) {
+        if (src->id == ID_ADD_MASK_OK) {
           dialog_pull(win, s, kAddMaskBindings, ARRAY_LEN(kAddMaskBindings));
           s->accepted = true;
           end_dialog(win, 1);
           return true;
         }
-        if (src->id == EM_ID_CANCEL) {
+        if (src->id == ID_ADD_MASK_CANCEL) {
           end_dialog(win, 0);
           return true;
         }

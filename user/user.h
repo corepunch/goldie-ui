@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "messages.h"
+#include "text.h"
 #include "../kernel/kernel.h"
 
 // Forward declarations
@@ -56,6 +57,22 @@ struct irect16_s {
   int16_t x, y, w, h;
 };
 
+// Auto-layout helpers.  Measures and arrangements follow WPF-style semantics:
+// the parent passes an available size, the child reports its desired size, and
+// the final arrange rect is usually the parent's full client area.
+typedef struct {
+  int avail_w;
+  int avail_h;
+  int desired_w;
+  int desired_h;
+} layout_measure_t;
+
+typedef struct {
+  irect16_t rect;
+  uint8_t   h_align;  // LAYOUT_ALIGN_*; 0 = stretch
+  uint8_t   v_align;  // LAYOUT_ALIGN_*; 0 = stretch
+} layout_arrange_t;
+
 // A fixed-size-tile bitmap strip, analogous to WinAPI HIMAGELIST / TB_ADDBITMAP.
 // Icons are indexed 0..N left-to-right then top-to-bottom.
 // Used with btnSetImage and tbSetStrip.
@@ -75,6 +92,11 @@ typedef struct {
   uint32_t id;
   int w, h;
   flags_t flags;
+  bool auto_layout;
+  const char *layout_kind;
+  flags_t layout_orientation;
+  uint8_t layout_columns;
+  uint8_t layout_spacing;
 } windef_t;
 
 // ── Dialog Data Exchange (DDX) ──────────────────────────────────────────────
@@ -168,13 +190,30 @@ void ddx_pull_check(window_t *dlg, const ctrl_binding_t *b, void *state);
   }
 
 // Describes one child control in a form definition (analogous to DLGITEMTEMPLATE).
-typedef struct {
+// Controls may themselves contain nested child definitions so that layout
+// containers such as stack/grid can be expressed as explicit components.
+typedef struct form_ctrl_def_s {
   const char       *class_name; // control class name (e.g. "button")
   uint32_t          id;     // numeric control ID
   irect16_t         frame;  // position and dimensions in parent client coordinates
   flags_t           flags;  // style flags passed to create_window
   const char       *text;   // initial caption / label text
   const char       *name;   // identifier name (informational)
+  uint8_t           h_align; // horizontal alignment; 0 = stretch
+  uint8_t           v_align; // vertical alignment; 0 = stretch
+  const struct form_ctrl_def_s *children; // nested child controls
+  int               child_count; // number of entries in children[]
+  const char       *layout_kind; // layout class name for containers
+  flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL = bit flag, 0 = vertical
+  uint8_t           layout_columns; // grid columns (0 = default)
+  uint8_t           layout_spacing; // spacing between direct children; 0 = default
+  irect16_t         padding; // inner padding for layout containers
+  irect16_t         margin;  // outer margin when this control is laid out by a parent
+  uint32_t          parent;  // parent control ID; 0 = form root
+  uint8_t           font;    // label font; FONT_SMALL by default
+  bool              font_set; // font attribute explicitly set
+  uint8_t           color;   // label color palette index; 0 = transparent
+  bool              color_set; // color attribute explicitly set
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -188,6 +227,13 @@ typedef struct {
   const char             *name;        // window title
   int                     width, height; // client area dimensions
   flags_t                 flags;       // window flags
+  bool                    auto_layout; // enable measure/arrange on children
+  const char             *layout_kind;  // layout class name: "stack", "grid", or NULL
+  flags_t                 layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
+  uint8_t                 layout_columns; // grid columns (0 = default)
+  uint8_t                 layout_spacing; // spacing between direct children; 0 = default
+  irect16_t               padding;      // inner padding for auto-layout content
+  irect16_t               margin;       // outer margin for this form when nested
   const form_ctrl_def_t  *children;    // array of child control definitions (may be NULL)
   int                     child_count; // number of entries in children[]
   // ── DDX (Dialog Data Exchange) fields ───────────────────────────────────
@@ -196,6 +242,18 @@ typedef struct {
   uint32_t                ok_id;           // child ID of the Accept / OK button
   uint32_t                cancel_id;       // child ID of the Cancel button (0 = none)
 } form_def_t;
+
+typedef struct {
+  uint32_t color_index;   // palette index for label text color; 0 = transparent
+  ui_font_t font;         // prepared font role for labels
+  bool      color_set;    // whether color_index is explicitly set
+} label_create_params_t;
+
+static inline uint32_t label_pack_userdata(uint32_t color_index, ui_font_t font, bool color_set) {
+  return (uint32_t)(color_index & 0xffu) |
+         ((uint32_t)(font & 0xffu) << 8) |
+         (color_set ? (1u << 16) : 0u);
+}
 
 // FormEditor component registry metadata/API.
 // Runtime window classes and design-time components are registered through this
@@ -291,6 +349,17 @@ struct window_s {
   int    toolbar_btn_size;   // 0 = use TB_SPACING default; >0 = custom square button size in pixels
   window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
   int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
+  bool      auto_layout;    // auto layout the direct children
+  const char *layout_kind;  // layout class name: "stack", "grid", or NULL
+  flags_t   layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
+  uint8_t   layout_columns;  // grid columns (0 = default)
+  uint8_t   h_align;        // horizontal alignment; 0 = stretch
+  uint8_t   v_align;        // vertical alignment; 0 = stretch
+  uint8_t   layout_spacing;  // spacing between direct children; 0 = default
+  int16_t   layout_fixed_w;  // declarative width hint used by auto-layout
+  int16_t   layout_fixed_h;  // declarative height hint used by auto-layout
+  irect16_t layout_padding;  // inner padding for auto-layout containers
+  irect16_t layout_margin;   // outer margin when nested inside a layout container
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)
@@ -304,6 +373,8 @@ struct window_s {
 // is set) the single-row toolbar band.  Used by event routing and layout.
 int titlebar_height(window_t const *win);
 int statusbar_height(window_t const *win);
+int window_screen_x(window_t const *win);
+int window_screen_y(window_t const *win);
 
 // Window management functions
 // Class-based API (preferred): create by registered class name.
@@ -346,6 +417,9 @@ void clear_window_children(window_t *win);
 void clear_toolbar_children(window_t *win);
 void move_window(window_t *win, int x, int y);
 void resize_window(window_t *win, int new_w, int new_h);
+void layout_measure_window(window_t *win, layout_measure_t *m);
+void layout_arrange_window(window_t *win, const irect16_t *rect);
+void window_layout_sync(window_t *win);
 void set_default_window_position(int x, int y);
 
 // Window message functions

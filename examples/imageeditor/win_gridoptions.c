@@ -22,8 +22,8 @@ typedef struct { int x, y; } go_state_t;
 // ──────────────────────────────────────────────────────────────────
 
 static const ctrl_binding_t k_go_bindings[] = {
-  DDX_TEXT(GO_ID_GRIDX, go_state_t, x),
-  DDX_TEXT(GO_ID_GRIDY, go_state_t, y),
+  DDX_TEXT(ID_GRID_OPTIONS_GRIDX, go_state_t, x),
+  DDX_TEXT(ID_GRID_OPTIONS_GRIDY, go_state_t, y),
 };
 
 // ──────────────────────────────────────────────────────────────────
@@ -35,8 +35,8 @@ bool show_grid_options_dialog(window_t *parent, int *out_x, int *out_y) {
   form_def_t form = imageeditor_grid_options_form;
   form.bindings = k_go_bindings;
   form.binding_count = ARRAY_LEN(k_go_bindings);
-  form.ok_id = GO_ID_OK;
-  form.cancel_id = GO_ID_CANCEL;
+  form.ok_id = ID_GRID_OPTIONS_OK;
+  form.cancel_id = ID_GRID_OPTIONS_CANCEL;
   if (!show_ddx_dialog(&form, "Grid Options", parent, &st)) return false;
   if (st.x >= GO_MIN_SPACING && st.x <= GO_MAX_SPACING) *out_x = st.x;
   if (st.y >= GO_MIN_SPACING && st.y <= GO_MAX_SPACING) *out_y = st.y;

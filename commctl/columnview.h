@@ -29,6 +29,7 @@ enum {
   RVM_CLEARCOLUMNS,
   RVM_GETCOLUMNCOUNT,
   RVM_SETREPORTCOLUMNWIDTH, // wparam = col_index; lparam = (void*)(uintptr_t)new_width (0 = auto)
+  RVM_GETREPORTCOLUMNWIDTH, // wparam = col_index; returns current report column width
   RVM_SETREDRAW,            // wparam = 0 suspend redraw; non-zero resume and repaint if dirty
   RVM_SETICONSTRIP,         // lparam = bitmap_strip_t* (NULL to clear); strip owned by caller
   RVM_SETICONSIZE,          // wparam = icon pixel size for RVM_VIEW_LARGE_ICON mode

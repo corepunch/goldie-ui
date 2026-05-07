@@ -22,7 +22,7 @@ typedef struct {
 
 static void bl_sync_amount_label(window_t *win, const bl_state_t *st) {
   if (!win || !st) return;
-  set_window_item_text(win, BL_ID_AMOUNT_LBL, "Blur: %dpx", st->amount);
+  set_window_item_text(win, ID_BLUR_DIALOG_AMOUNT_LABEL, "Blur: %dpx", st->amount);
 }
 
 static void bl_apply_preview(bl_state_t *st) {
@@ -52,8 +52,8 @@ static result_t blur_dlg_proc(window_t *win, uint32_t msg,
       win->userdata = st;
       st->dlg_win = win;
 
-      st->preview_win = get_window_item(win, BL_ID_PREVIEW);
-      st->amount_slider = get_window_item(win, BL_ID_AMOUNT);
+      st->preview_win = get_window_item(win, ID_BLUR_DIALOG_PREVIEW);
+      st->amount_slider = get_window_item(win, ID_BLUR_DIALOG_AMOUNT);
       st->preview_enabled = true;
       if (st->preview_win)
         send_message(st->preview_win, btnSetCheck, btnStateChecked, NULL);
@@ -76,7 +76,7 @@ static result_t blur_dlg_proc(window_t *win, uint32_t msg,
       window_t *src = (window_t *)lparam;
       if (!st || !src) return false;
 
-      if (src->id == BL_ID_AMOUNT &&
+      if (src->id == ID_BLUR_DIALOG_AMOUNT &&
           notif >= sliderValueChanged && notif <= sliderValueChanged4) {
         st->amount = (int)send_message(src, slGetPos, 0, NULL);
         st->amount = CLAMP(st->amount, BLUR_MIN_RADIUS, BLUR_MAX_RADIUS);
@@ -88,13 +88,13 @@ static result_t blur_dlg_proc(window_t *win, uint32_t msg,
 
       if (notif != btnClicked) return false;
 
-      if (src->id == BL_ID_PREVIEW) {
+      if (src->id == ID_BLUR_DIALOG_PREVIEW) {
         st->preview_enabled = (send_message(src, btnGetCheck, 0, NULL) == btnStateChecked);
         bl_sync_preview(st);
         return true;
       }
 
-      if (src->id == BL_ID_OK) {
+      if (src->id == ID_BLUR_DIALOG_OK) {
         if (st->preview_enabled)
           layer_clear_preview_effect(st->doc, st->layer_idx);
         st->accepted = true;
@@ -102,7 +102,7 @@ static result_t blur_dlg_proc(window_t *win, uint32_t msg,
         return true;
       }
 
-      if (src->id == BL_ID_CANCEL) {
+      if (src->id == ID_BLUR_DIALOG_CANCEL) {
         layer_clear_preview_effect(st->doc, st->layer_idx);
         end_dialog(win, 0);
         return true;

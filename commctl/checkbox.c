@@ -20,6 +20,17 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       win->frame.h = MAX(win->frame.h,
                          text_char_height(FONT_SMALL) + 4);
       return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        int desired_w = text_strwidth(FONT_SMALL, win->title) +
+                        CHECKBOX_BOX_SIZE + CHECKBOX_GAP;
+        int desired_h = MAX(text_char_height(FONT_SMALL) + 4, CHECKBOX_BOX_SIZE + 2);
+        m->desired_w = MAX(win->frame.w, desired_w);
+        m->desired_h = MAX(win->frame.h, desired_h);
+      }
+      return true;
+    }
     case evPaint: {
       irect16_t local = {0, 0, win->frame.w, win->frame.h};
       irect16_t box = {

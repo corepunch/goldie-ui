@@ -87,6 +87,50 @@ static char *fe_read_file(const char *path) {
     return buf;
 }
 
+static void fe_write_padding_project(const char *path, const char *padding_attr) {
+    FILE *f = fopen(path, "w");
+    ASSERT_NOT_NULL(f);
+    fprintf(f,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<orion version=\"1\" name=\"padtest\" title=\"Pad Test\" root=\"examples/formeditor\">\n"
+            "  <forms>\n"
+            "    <form id=\"pad\"\n"
+            "          title=\"Pad\"\n"
+            "          frame=\"0 0 120 80\"\n"
+            "          flags=\"0\"\n"
+            "          auto_layout=\"1\"\n"
+            "          padding=\"%s\"\n"
+            "          layout_kind=\"stack\">\n"
+            "      <button id=\"1\" name=\"ok\" text=\"OK\" flags=\"0\" />\n"
+            "    </form>\n"
+            "  </forms>\n"
+            "</orion>\n",
+            padding_attr);
+    fclose(f);
+}
+
+static void fe_write_margin_project(const char *path, const char *margin_attr) {
+    FILE *f = fopen(path, "w");
+    ASSERT_NOT_NULL(f);
+    fprintf(f,
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<orion version=\"1\" name=\"margintest\" title=\"Margin Test\" root=\"examples/formeditor\">\n"
+            "  <forms>\n"
+            "    <form id=\"margin\"\n"
+            "          title=\"Margin\"\n"
+            "          frame=\"0 0 120 80\"\n"
+            "          flags=\"0\"\n"
+            "          auto_layout=\"1\"\n"
+            "          padding=\"8\"\n"
+            "          layout_kind=\"stack\">\n"
+            "      <button id=\"1\" name=\"ok\" text=\"OK\" margin=\"%s\" flags=\"0\" />\n"
+            "    </form>\n"
+            "  </forms>\n"
+            "</orion>\n",
+            margin_attr);
+    fclose(f);
+}
+
 // ── Setup / teardown ───────────────────────────────────────────────────────
 
 static void fe_close_all_docs(void) {
@@ -1025,6 +1069,8 @@ void test_fe_save_load_roundtrip(void) {
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "frame=\"0 0 ") != NULL);
     ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
+    ASSERT_TRUE(strstr(xml, "<button ") != NULL);
     ASSERT_TRUE(strstr(xml, " x=\"") == NULL);
     ASSERT_TRUE(strstr(xml, " y=\"") == NULL);
     ASSERT_TRUE(strstr(xml, " w=\"") == NULL);
@@ -1050,6 +1096,189 @@ void test_fe_save_load_roundtrip(void) {
     }
 
     // Clean up the temp file.
+    unlink(path);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_save_load_auto_layout_roundtrip(void) {
+    TEST("project save/load roundtrip: auto_layout and alignments preserve");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_auto_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->auto_layout = true;
+    doc->padding = (irect16_t){8, 8, 8, 8};
+    snprintf(doc->form_id, sizeof(doc->form_id), "%s", "auto");
+    snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Auto");
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON,   20, 20, 80, 24);
+    fe_place_ctrl(doc, ID_TOOL_TEXTEDIT, 20, 56, 120, 18);
+    fe_place_ctrl(doc, ID_TOOL_LABEL,   20, 86, 96, 13);
+    doc->elements[0].h_align = LAYOUT_ALIGN_CENTER;
+    doc->elements[0].v_align = LAYOUT_ALIGN_END;
+    doc->elements[0].margin = (irect16_t){8, 8, 8, 8};
+    doc->elements[1].h_align = LAYOUT_ALIGN_START;
+    doc->elements[1].v_align = LAYOUT_ALIGN_STRETCH;
+    doc->elements[2].font = FONT_ICON;
+    doc->elements[2].font_set = true;
+    doc->elements[2].color = brTextDisabled;
+    doc->elements[2].color_set = true;
+
+    bool saved = form_project_save(path);
+    ASSERT_TRUE(saved);
+
+    char *xml = fe_read_file(path);
+    ASSERT_NOT_NULL(xml);
+    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "padding=\"8 8 8 8\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "margin=\"8 8 8 8\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "h-align=\"center\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "v-align=\"bottom\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "font=\"icon\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "color=\"text-disabled\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
+    ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") == NULL);
+    free(xml);
+
+    bool loaded = form_project_load(path);
+    ASSERT_TRUE(loaded);
+
+    form_doc_t *ndoc = g_app->docs;
+    ASSERT_NOT_NULL(ndoc);
+    ASSERT_TRUE(ndoc->auto_layout);
+    ASSERT(ndoc->padding.x == 8, "padding.x");
+    ASSERT(ndoc->padding.y == 8, "padding.y");
+    ASSERT(ndoc->padding.w == 8, "padding.w");
+    ASSERT(ndoc->padding.h == 8, "padding.h");
+    ASSERT(ndoc->element_count == 3, "element_count");
+    ASSERT(ndoc->elements[0].h_align == LAYOUT_ALIGN_CENTER, "element0 h_align");
+    ASSERT(ndoc->elements[0].v_align == LAYOUT_ALIGN_END, "element0 v_align");
+    ASSERT(ndoc->elements[0].margin.x == 8, "element0 margin.x");
+    ASSERT(ndoc->elements[0].margin.y == 8, "element0 margin.y");
+    ASSERT(ndoc->elements[0].margin.w == 8, "element0 margin.w");
+    ASSERT(ndoc->elements[0].margin.h == 8, "element0 margin.h");
+    ASSERT(ndoc->elements[1].h_align == LAYOUT_ALIGN_START, "element1 h_align");
+    ASSERT(ndoc->elements[1].v_align == LAYOUT_ALIGN_STRETCH, "element1 v_align");
+    ASSERT(ndoc->elements[2].font == FONT_ICON, "element2 font");
+    ASSERT(ndoc->elements[2].font_set, "element2 font_set");
+    ASSERT(ndoc->elements[2].color == brTextDisabled, "element2 color");
+    ASSERT(ndoc->elements[2].color_set, "element2 color_set");
+
+    unlink(path);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_load_padding_shorthand(void) {
+    TEST("project load: padding shorthand values expand correctly");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_pad_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    fe_write_padding_project(path, "8");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->padding.x, 8);
+    ASSERT_EQUAL(g_app->docs->padding.y, 8);
+    ASSERT_EQUAL(g_app->docs->padding.w, 8);
+    ASSERT_EQUAL(g_app->docs->padding.h, 8);
+    unlink(path);
+    fe_teardown();
+
+    fe_setup();
+    fe_write_padding_project(path, "2 6");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->padding.x, 2);
+    ASSERT_EQUAL(g_app->docs->padding.y, 6);
+    ASSERT_EQUAL(g_app->docs->padding.w, 2);
+    ASSERT_EQUAL(g_app->docs->padding.h, 6);
+    unlink(path);
+    fe_teardown();
+
+    PASS();
+}
+
+void test_fe_load_margin_shorthand(void) {
+    TEST("project load: margin shorthand values expand correctly");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_margin_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    fe_write_margin_project(path, "7");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 7);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 7);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.w, 7);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.h, 7);
+    unlink(path);
+    fe_teardown();
+
+    fe_setup();
+    fe_write_margin_project(path, "3 5");
+    ASSERT_TRUE(form_project_load(path));
+    ASSERT_NOT_NULL(g_app->docs);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 3);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 5);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.w, 3);
+    ASSERT_EQUAL(g_app->docs->elements[0].margin.h, 5);
+    unlink(path);
+    fe_teardown();
+
+    PASS();
+}
+
+void test_fe_save_load_layout_kind_roundtrip(void) {
+    TEST("project save/load roundtrip: layout kind and orientation preserve");
+
+    char path[512];
+    snprintf(path, sizeof(path), "%s/orion_fe_layout_%d.orion",
+             fe_temp_dir(), (int)getpid());
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->auto_layout = true;
+    doc->layout_kind = 2;
+    doc->layout_orientation = WINDOW_STACK_HORIZONTAL;
+    doc->layout_columns = 3;
+    snprintf(doc->form_id, sizeof(doc->form_id), "%s", "layout");
+    snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Layout");
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
+
+    bool saved = form_project_save(path);
+    ASSERT_TRUE(saved);
+
+    char *xml = fe_read_file(path);
+    ASSERT_NOT_NULL(xml);
+    ASSERT_TRUE(strstr(xml, "<form name=\"layout\" title=\"Layout\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_kind=\"grid\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_orientation=\"horizontal\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_columns=\"3\"") != NULL);
+    free(xml);
+
+    bool loaded = form_project_load(path);
+    ASSERT_TRUE(loaded);
+
+    form_doc_t *ndoc = g_app->docs;
+    ASSERT_NOT_NULL(ndoc);
+    ASSERT_TRUE(ndoc->auto_layout);
+    ASSERT_EQUAL(ndoc->layout_kind, 2);
+    ASSERT_EQUAL(ndoc->layout_orientation, WINDOW_STACK_HORIZONTAL);
+    ASSERT_EQUAL(ndoc->layout_columns, 3);
+
     unlink(path);
 
     fe_teardown();
@@ -1118,7 +1347,6 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     TEST("project load: ImageEditor levels keeps sliders and gradient");
 
     fe_setup();
-
     ASSERT_TRUE(form_project_load("examples/imageeditor/imageeditor.orion"));
 
     form_doc_t *levels = NULL;
@@ -1212,7 +1440,6 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
         if (levels->elements[i].type == gradient_type)
             gradients++;
     }
-
     ASSERT_EQUAL(sliders, 2);
     ASSERT_EQUAL(gradients, 1);
 
@@ -1223,10 +1450,16 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "<menus") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"ID_FILE_NEW\" value=\"1\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "var=\"s_view_items\" mutable=\"true\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\" value=\"1\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\" value=\"8\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<item") != NULL);
+    ASSERT_TRUE(strstr(xml, "label=\"New\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "name=\"new\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "<button") != NULL);
+    ASSERT_TRUE(strstr(xml, "<menu name=\"view\" label=\"View\" mutable=\"true\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "name=\"width\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "name=\"size\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"ID_FILE_NEW\"") == NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"NI_ID_WIDTH\"") == NULL);
+    ASSERT_TRUE(strstr(xml, "id=\"TD_ID_SIZE\"") == NULL);
     free(xml);
     unlink(path);
 
@@ -1449,6 +1682,10 @@ int main(void) {
     test_fe_property_browser_edits_caption_in_place();
     test_fe_property_browser_edit_respects_vertical_scrollbar();
     test_fe_save_load_roundtrip();
+    test_fe_save_load_auto_layout_roundtrip();
+    test_fe_load_padding_shorthand();
+    test_fe_load_margin_shorthand();
+    test_fe_save_load_layout_kind_roundtrip();
     test_fe_save_load_form_dimensions();
     test_fe_save_load_form_flags();
     test_fe_load_imageeditor_levels_keeps_slider_and_gradient();

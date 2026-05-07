@@ -40,12 +40,28 @@ result_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
+// Auto-layout container windows.
+typedef struct {
+  const char *layout_kind;   // layout class name: "stack", "grid", or NULL
+  flags_t orientation;       // WINDOW_STACK_HORIZONTAL bit flag; 0 = vertical
+  uint8_t columns;           // grid column count (0 = default)
+  uint8_t spacing;           // spacing between direct children (0 = default)
+  irect16_t padding;         // inner padding for the container
+  irect16_t margin;          // outer margin when nested in a parent layout
+} layout_view_config_t;
+
+result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void layout_flow_horizontal(window_t *first, int start_x, int gap);
 
 // Toolbox — 2-column grid of icon buttons (Photoshop / VB3 / Paint style).
 // See commctl/toolbox.c for the full API and usage examples.

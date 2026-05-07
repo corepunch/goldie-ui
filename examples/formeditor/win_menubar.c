@@ -3,6 +3,8 @@
 
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
+#include "../../user/enum_parse.h"
+#include <ctype.h>
 #include <inttypes.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
@@ -186,6 +188,13 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->form_size.h    = h;
   doc->flags     = 0;
   doc->modified  = false;
+  doc->auto_layout = false;
+  doc->layout_kind = 0;
+  doc->layout_orientation = WINDOW_STACK_VERTICAL;
+  doc->layout_columns = 0;
+  doc->layout_spacing = 4;
+  doc->padding = (irect16_t){0, 0, 0, 0};
+  doc->margin = (irect16_t){0, 0, 0, 0};
   doc->next_id   = CTRL_ID_BASE;
   doc->grid_size    = 8;
   doc->show_grid    = true;
@@ -312,6 +321,125 @@ static int int_attr(xmlNodePtr node, const char *name, int fallback) {
   return out;
 }
 
+static bool attr_is_true(xmlNodePtr node, const char *name) {
+  char *v = xml_attr_dup(node, name);
+  bool yes = v && (!strcmp(v, "true") || !strcmp(v, "1") || !strcmp(v, "yes"));
+  free(v);
+  return yes;
+}
+
+static const enum_token_t kAlignHTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"left",    LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"right",   LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kAlignVTokens[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH},
+  {"top",     LAYOUT_ALIGN_START},
+  {"start",   LAYOUT_ALIGN_START},
+  {"center",  LAYOUT_ALIGN_CENTER},
+  {"bottom",  LAYOUT_ALIGN_END},
+  {"end",     LAYOUT_ALIGN_END},
+};
+
+static const enum_token_t kLayoutKindTokens[] = {
+  {"none",  0},
+  {"stack", 1},
+  {"grid",  2},
+};
+
+static const enum_token_t kLayoutOrientationTokens[] = {
+  {"vertical",   WINDOW_STACK_VERTICAL},
+  {"horizontal", WINDOW_STACK_HORIZONTAL},
+};
+
+static const enum_token_t kFontTokens[] = {
+  {"system", FONT_SYSTEM},
+  {"small",  FONT_SMALL},
+  {"icon",   FONT_ICON},
+};
+
+static const enum_token_t kColorTokens[] = {
+  {"transparent",         brTransparent},
+  {"window-bg",           brWindowBg},
+  {"window-dark-bg",      brWindowDarkBg},
+  {"workspace-bg",        brWorkspaceBg},
+  {"active-titlebar",     brActiveTitlebar},
+  {"active-titlebar-text", brActiveTitlebarText},
+  {"inactive-titlebar",   brInactiveTitlebar},
+  {"inactive-titlebar-text", brInactiveTitlebarText},
+  {"statusbar-bg",        brStatusbarBg},
+  {"light-edge",          brLightEdge},
+  {"dark-edge",           brDarkEdge},
+  {"flare",               brFlare},
+  {"focus-ring",          brFocusRing},
+  {"button-bg",           brButtonBg},
+  {"button-inner",        brButtonInner},
+  {"button-hover",        brButtonHover},
+  {"text-normal",         brTextNormal},
+  {"text-disabled",       brTextDisabled},
+  {"text-error",          brTextError},
+  {"text-success",        brTextSuccess},
+  {"border-focus",        brBorderFocus},
+  {"border-active",       brBorderActive},
+  {"folder-text",         brFolderText},
+  {"column-view-bg",      brColumnViewBg},
+  {"modal-overlay",       brModalOverlay},
+};
+
+static uint8_t align_h_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kAlignHTokens, ARRAY_LEN(kAlignHTokens), fallback);
+}
+
+static uint8_t align_v_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kAlignVTokens, ARRAY_LEN(kAlignVTokens), fallback);
+}
+
+static const char *align_h_token(uint8_t align) {
+  return enum_token_name(align, kAlignHTokens, ARRAY_LEN(kAlignHTokens), "stretch");
+}
+
+static const char *align_v_token(uint8_t align) {
+  return enum_token_name(align, kAlignVTokens, ARRAY_LEN(kAlignVTokens), "stretch");
+}
+
+static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), fallback);
+}
+
+static flags_t layout_orientation_attr(const char *v, flags_t fallback) {
+  return (flags_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), (int)fallback);
+}
+
+static const char *layout_kind_token(uint8_t kind) {
+  return enum_token_name(kind, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), "none");
+}
+
+static const char *layout_orientation_token(flags_t orientation) {
+  return enum_token_name(orientation, kLayoutOrientationTokens,
+                         ARRAY_LEN(kLayoutOrientationTokens), "vertical");
+}
+
+static uint8_t font_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kFontTokens, ARRAY_LEN(kFontTokens), fallback);
+}
+
+static const char *font_token(uint8_t font) {
+  return enum_token_name(font, kFontTokens, ARRAY_LEN(kFontTokens), "small");
+}
+
+static uint8_t color_attr(const char *v, uint8_t fallback) {
+  return (uint8_t)enum_parse_token(v, kColorTokens, ARRAY_LEN(kColorTokens), fallback);
+}
+
+static const char *color_token(uint8_t color) {
+  return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
+}
+
 static bool parse_numeric_expr(const char *s, int *out) {
   if (!s || !*s || !out) return false;
   char *end = NULL;
@@ -319,11 +447,6 @@ static bool parse_numeric_expr(const char *s, int *out) {
   if (!end || *end != '\0') return false;
   *out = (int)n;
   return true;
-}
-
-static bool is_numeric_expr(const char *s) {
-  int ignored = 0;
-  return parse_numeric_expr(s, &ignored);
 }
 
 static uint32_t flag_value(const char *tok) {
@@ -375,14 +498,56 @@ static bool load_component_plugin_named(const char *name) {
   return fe_load_component_plugin(path);
 }
 
-static int project_resolve_control_id(form_doc_t *doc, const char *expr,
-                                      const char *value_expr) {
+static int project_resolve_control_id(form_doc_t *doc, const char *expr) {
   int id = 0;
   if (parse_numeric_expr(expr, &id))
     return id;
-  if (parse_numeric_expr(value_expr, &id))
-    return id;
   return doc ? doc->next_id++ : CTRL_ID_BASE;
+}
+
+static void upper_ident(char *s) {
+  if (!s) return;
+  for (; *s; s++) {
+    if (*s >= 'a' && *s <= 'z')
+      *s = (char)(*s - 'a' + 'A');
+  }
+}
+
+static void make_control_id_expr(char *out, size_t out_sz,
+                                 const char *form_id,
+                                 const char *name,
+                                 const char *class_name,
+                                 int ordinal) {
+  char form_buf[96];
+  char name_buf[96];
+  size_t i = 0;
+
+  if (!out || out_sz == 0) return;
+
+  for (const char *p = form_id && *form_id ? form_id : "form";
+       *p && i + 1 < sizeof(form_buf); p++) {
+    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
+    form_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
+  }
+  if (i == 0) form_buf[i++] = 'F';
+  form_buf[i] = '\0';
+  upper_ident(form_buf);
+
+  i = 0;
+  for (const char *p = name && *name ? name : (class_name && *class_name ? class_name : "control");
+       *p && i + 1 < sizeof(name_buf); p++) {
+    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
+    name_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
+  }
+  if (i == 0) {
+    snprintf(name_buf, sizeof(name_buf), "CONTROL%d", ordinal);
+    upper_ident(name_buf);
+  } else {
+    name_buf[i] = '\0';
+    upper_ident(name_buf);
+  }
+
+  snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
 }
 
 static bool frame_attr(xmlNodePtr node, irect16_t *out) {
@@ -395,6 +560,20 @@ static bool frame_attr(xmlNodePtr node, irect16_t *out) {
   if (!ok) return false;
   *out = (irect16_t){x, y, w, h};
   return true;
+}
+
+static irect16_t rect_attr(xmlNodePtr node, const char *name, irect16_t fallback) {
+  char *v = xml_attr_dup(node, name);
+  if (!v) return fallback;
+  int a = fallback.x, b = fallback.y, c = fallback.w, d = fallback.h;
+  int n = sscanf(v, "%d %d %d %d", &a, &b, &c, &d);
+  free(v);
+  switch (n) {
+    case 1: return (irect16_t){a, a, a, a};
+    case 2: return (irect16_t){a, b, a, b};
+    case 4: return (irect16_t){a, b, c, d};
+    default: return fallback;
+  }
 }
 
 static void project_reset(void) {
@@ -441,47 +620,195 @@ static void project_load_menus(xmlDocPtr xdoc, xmlNodePtr root) {
   }
 }
 
-static void project_load_controls(form_doc_t *doc, xmlNodePtr form_node) {
-  for (xmlNodePtr n = form_node->children; n; n = n->next) {
-    if (n->type != XML_ELEMENT_NODE || xmlStrcmp(n->name, BAD_CAST "controls") != 0)
+static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
+  for (xmlNodePtr n = node ? node->children : NULL; n; n = n->next) {
+    if (n->type != XML_ELEMENT_NODE)
       continue;
-    for (xmlNodePtr c = n->children; c; c = c->next) {
-      if (c->type != XML_ELEMENT_NODE || xmlStrcmp(c->name, BAD_CAST "control") != 0)
-        continue;
-      if (doc->element_count >= MAX_ELEMENTS) break;
+    if (xmlStrcmp(n->name, BAD_CAST "requires") == 0)
+      continue;
+    int type = ctrl_type_from_token((const char *)n->name);
 
-      char *class_name = xml_attr_dup(c, "class");
-      int type = ctrl_type_from_token(class_name);
-      free(class_name);
-      if (type < 0 || type >= FE_MAX_COMPONENTS) continue;
-
+    if (type >= 0 && type < FE_MAX_COMPONENTS && doc->element_count < MAX_ELEMENTS) {
       form_element_t *el = &doc->elements[doc->element_count++];
       memset(el, 0, sizeof(*el));
       el->type = type;
-      copy_attr(c, "id", el->id_expr, sizeof(el->id_expr));
-      char value_expr[32] = {0};
-      copy_attr(c, "value", value_expr, sizeof(value_expr));
-      el->id = project_resolve_control_id(doc, el->id_expr, value_expr);
-      if (!frame_attr(c, &el->frame)) {
-        el->frame.x = int_attr(c, "x", 0);
-        el->frame.y = int_attr(c, "y", 0);
-        el->frame.w = int_attr(c, "w", 10);
-        el->frame.h = int_attr(c, "h", 8);
+      el->h_align = LAYOUT_ALIGN_STRETCH;
+      el->v_align = LAYOUT_ALIGN_STRETCH;
+      el->color = brTextNormal;
+      copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
+      el->id = project_resolve_control_id(doc, el->id_expr);
+      if (!frame_attr(n, &el->frame)) {
+        el->frame.x = int_attr(n, "x", 0);
+        el->frame.y = int_attr(n, "y", 0);
+        el->frame.w = int_attr(n, "w", 10);
+        el->frame.h = int_attr(n, "h", 8);
       }
       el->frame.w = MAX(1, el->frame.w);
       el->frame.h = MAX(1, el->frame.h);
-      copy_attr(c, "flags", el->flags_expr, sizeof(el->flags_expr));
+      copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
       el->flags = parse_flags_expr(el->flags_expr);
-      copy_attr(c, "text", el->text, sizeof(el->text));
-      copy_attr(c, "name", el->name, sizeof(el->name));
-      if (!el->name[0])
-        snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
+      copy_attr(n, "text", el->text, sizeof(el->text));
+      copy_attr(n, "name", el->name, sizeof(el->name));
+      char *font = xml_attr_dup(n, "font");
+      el->font = font_attr(font, FONT_SMALL);
+      el->font_set = (font != NULL);
+      char *color = xml_attr_dup(n, "color");
+      el->color = color_attr(color, brTextNormal);
+      el->color_set = (color != NULL);
+      if (!el->id_expr[0]) {
+        make_control_id_expr(el->id_expr, sizeof(el->id_expr),
+                             doc->form_id, el->name,
+                             ctrl_type_token(el->type), doc->element_count);
+      }
+      char *h_align = xml_attr_dup(n, "h-align");
+      char *v_align = xml_attr_dup(n, "v-align");
+      if (!h_align) h_align = xml_attr_dup(n, "h_align");
+      if (!v_align) v_align = xml_attr_dup(n, "v_align");
+      el->h_align = align_h_attr(h_align, el->h_align);
+      el->v_align = align_v_attr(v_align, el->v_align);
+      el->padding = rect_attr(n, "padding",
+                              rect_attr(n, "layout_padding", (irect16_t){0, 0, 0, 0}));
+      el->margin = rect_attr(n, "margin",
+                              rect_attr(n, "layout_margin", (irect16_t){0, 0, 0, 0}));
+      free(font);
+      free(color);
+      free(h_align);
+      free(v_align);
+      if (doc->auto_layout) {
+        const fe_component_desc_t *desc = fe_component_by_id(type);
+        if (desc) {
+          el->frame.w = MAX(1, desc->default_size.w);
+          el->frame.h = MAX(1, desc->default_size.h);
+        }
+        el->frame.x = 0;
+        el->frame.y = 0;
+    }
+    if (!el->name[0])
+      snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
       if (el->id >= doc->next_id)
         doc->next_id = el->id + 1;
       if (type >= 0 && type < FE_MAX_COMPONENTS)
         doc->type_counters[type]++;
     }
+
+    if (n->children)
+      project_load_controls(doc, n);
   }
+}
+
+static void project_auto_layout_doc(form_doc_t *doc) {
+  if (!doc || !doc->auto_layout) return;
+  const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
+  int count = doc->element_count;
+  int pad_l = doc->padding.x;
+  int pad_t = doc->padding.y;
+  int pad_r = doc->padding.w;
+  int pad_b = doc->padding.h;
+  int max_w = MAX(1, doc->form_size.w - pad_l - pad_r);
+  int max_h = MAX(1, doc->form_size.h - pad_t - pad_b);
+  int content_x = pad_l;
+  int content_y = pad_t;
+
+  if (doc->layout_kind == 2) {
+    int cols = doc->layout_columns > 0 ? doc->layout_columns : 2;
+    if (cols < 1) cols = 1;
+    int rows = (count + cols - 1) / cols;
+    if (rows < 1) rows = 1;
+    int base_w = max_w / cols;
+    int rem_w = max_w % cols;
+    int base_h = max_h / rows;
+    int rem_h = max_h % rows;
+    for (int i = 0; i < count; i++) {
+      form_element_t *el = &doc->elements[i];
+      int row = i / cols;
+      int col = i % cols;
+      irect16_t margin = el->margin;
+      int cell_w = base_w + (col < rem_w ? 1 : 0);
+      int cell_h = base_h + (row < rem_h ? 1 : 0);
+      int ow = el->frame.w > 0 ? el->frame.w + margin.x + margin.w : margin.x + margin.w + 1;
+      int oh = el->frame.h > 0 ? el->frame.h + margin.y + margin.h : margin.y + margin.h + 1;
+      int x = content_x + col * (base_w + gap) + (col < rem_w ? col : rem_w);
+      int y = content_y + row * (base_h + gap) + (row < rem_h ? row : rem_h);
+      int outer_x = x;
+      int outer_y = y;
+      int outer_w = (el->h_align == LAYOUT_ALIGN_STRETCH) ? cell_w : MIN(ow, cell_w);
+      int outer_h = (el->v_align == LAYOUT_ALIGN_STRETCH) ? cell_h : MIN(oh, cell_h);
+      if (el->h_align == LAYOUT_ALIGN_CENTER)
+        outer_x += (cell_w - outer_w) / 2;
+      else if (el->h_align == LAYOUT_ALIGN_END)
+        outer_x += cell_w - outer_w;
+      if (el->v_align == LAYOUT_ALIGN_CENTER)
+        outer_y += (cell_h - outer_h) / 2;
+      else if (el->v_align == LAYOUT_ALIGN_END)
+        outer_y += cell_h - outer_h;
+      el->frame = (irect16_t){
+        outer_x + margin.x,
+        outer_y + margin.y,
+        MAX(1, outer_w - margin.x - margin.w),
+        MAX(1, outer_h - margin.y - margin.h)
+      };
+    }
+    return;
+  }
+
+  if (doc->layout_orientation & WINDOW_STACK_HORIZONTAL) {
+    int x = content_x;
+    for (int i = 0; i < count; i++) {
+      form_element_t *el = &doc->elements[i];
+      irect16_t margin = el->margin;
+      if (i > 0) x += gap;
+      int inner_w = el->frame.w > 0 ? el->frame.w : 1;
+      int inner_h = el->frame.h > 0 ? el->frame.h : 1;
+      int ow = inner_w + margin.x + margin.w;
+      int oh = inner_h + margin.y + margin.h;
+      int outer_y = content_y;
+      if (el->v_align == LAYOUT_ALIGN_STRETCH) {
+        oh = max_h;
+      } else {
+        if (oh > max_h) oh = max_h;
+        if (el->v_align == LAYOUT_ALIGN_CENTER) outer_y = content_y + (max_h - oh) / 2;
+        else if (el->v_align == LAYOUT_ALIGN_END) outer_y = content_y + max_h - oh;
+      }
+      el->frame = (irect16_t){
+        x + margin.x,
+        outer_y + margin.y,
+        MAX(1, ow - margin.x - margin.w),
+        MAX(1, oh - margin.y - margin.h)
+      };
+      x += ow;
+    }
+  } else {
+    int y = content_y;
+    for (int i = 0; i < count; i++) {
+      form_element_t *el = &doc->elements[i];
+      irect16_t margin = el->margin;
+      if (i > 0) y += gap;
+      int inner_w = el->frame.w > 0 ? el->frame.w : 1;
+      int inner_h = el->frame.h > 0 ? el->frame.h : 1;
+      int ow = inner_w + margin.x + margin.w;
+      int oh = inner_h + margin.y + margin.h;
+      int outer_x = content_x;
+      if (el->h_align == LAYOUT_ALIGN_STRETCH) {
+        ow = max_w;
+      } else {
+        if (ow > max_w) ow = max_w;
+        if (el->h_align == LAYOUT_ALIGN_CENTER) outer_x = content_x + (max_w - ow) / 2;
+        else if (el->h_align == LAYOUT_ALIGN_END) outer_x = content_x + max_w - ow;
+      }
+      el->frame = (irect16_t){
+        outer_x + margin.x,
+        y + margin.y,
+        MAX(1, ow - margin.x - margin.w),
+        MAX(1, oh - margin.y - margin.h)
+      };
+      y += oh;
+    }
+  }
+}
+
+void form_doc_auto_layout_reflow(form_doc_t *doc) {
+  project_auto_layout_doc(doc);
+  if (doc) canvas_sync_live_controls(doc);
 }
 
 static void project_load_requires(form_doc_t *doc, xmlNodePtr form_node) {
@@ -504,14 +831,35 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   form_doc_t *doc = create_form_doc(w, h);
   if (!doc) return false;
 
-  copy_attr(form_node, "id", doc->form_id, sizeof(doc->form_id));
+  copy_attr(form_node, "name", doc->form_id, sizeof(doc->form_id));
+  if (!doc->form_id[0])
+    copy_attr(form_node, "id", doc->form_id, sizeof(doc->form_id));
   copy_attr(form_node, "title", doc->form_title, sizeof(doc->form_title));
-  copy_attr(form_node, "owner", doc->owner, sizeof(doc->owner));
   char flags_expr[128] = {0};
   copy_attr(form_node, "flags", flags_expr, sizeof(flags_expr));
   doc->flags = parse_flags_expr(flags_expr);
+  doc->auto_layout = attr_is_true(form_node, "auto_layout");
+  {
+    char *layout_kind = xml_attr_dup(form_node, "layout_kind");
+    char *layout_orientation = xml_attr_dup(form_node, "orientation");
+    if (!layout_orientation)
+      layout_orientation = xml_attr_dup(form_node, "layout_orientation");
+    doc->layout_kind = layout_kind_attr(layout_kind, doc->auto_layout ? 1 : 0);
+    doc->layout_orientation = layout_orientation_attr(layout_orientation,
+                                                      WINDOW_STACK_VERTICAL);
+    free(layout_kind);
+    free(layout_orientation);
+  }
+  doc->layout_columns = (uint8_t)int_attr(form_node, "layout_columns", 0);
+  doc->layout_spacing = (uint8_t)int_attr(form_node, "spacing",
+                                          int_attr(form_node, "layout_spacing", 0));
+  doc->padding = rect_attr(form_node, "padding",
+                           rect_attr(form_node, "layout_padding", (irect16_t){0, 0, 0, 0}));
+  doc->margin = rect_attr(form_node, "margin",
+                          rect_attr(form_node, "layout_margin", (irect16_t){0, 0, 0, 0}));
   project_load_requires(doc, form_node);
   project_load_controls(doc, form_node);
+  project_auto_layout_doc(doc);
 
   form_doc_apply_window_flags_and_size(doc);
   canvas_rebuild_live_controls(doc);
@@ -582,11 +930,28 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   const char *label = doc->form_title[0] ? doc->form_title :
                       (doc->form_id[0] ? doc->form_id : "Untitled");
   fprintf(f, "      <form");
-  xml_attr(f, "id", doc->form_id[0] ? doc->form_id : "form");
+  xml_attr(f, "name", doc->form_id[0] ? doc->form_id : "form");
   xml_attr(f, "title", label);
   fprintf(f, "\n            frame=\"0 0 %d %d\"\n            flags=\"%" PRIu32 "\"",
           doc->form_size.w, doc->form_size.h, doc->flags);
-  if (doc->owner[0]) xml_attr(f, "owner", doc->owner);
+  if (doc->auto_layout)
+    fprintf(f, "\n            auto_layout=\"1\"");
+  if (doc->layout_kind == 2)
+    fprintf(f, "\n            layout_kind=\"%s\"",
+            layout_kind_token(doc->layout_kind));
+  if (doc->auto_layout || doc->layout_orientation != 0)
+    fprintf(f, "\n            layout_orientation=\"%s\"",
+            layout_orientation_token(doc->layout_orientation));
+  if (doc->auto_layout || doc->layout_columns != 0)
+    fprintf(f, "\n            layout_columns=\"%u\"", (unsigned)doc->layout_columns);
+  if (doc->auto_layout || doc->layout_spacing != 0)
+    fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
+  if (doc->auto_layout || doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
+    fprintf(f, "\n            padding=\"%d %d %d %d\"",
+            doc->padding.x, doc->padding.y, doc->padding.w, doc->padding.h);
+  if (doc->margin.x || doc->margin.y || doc->margin.w || doc->margin.h)
+    fprintf(f, "\n            margin=\"%d %d %d %d\"",
+            doc->margin.x, doc->margin.y, doc->margin.w, doc->margin.h);
   fprintf(f, ">\n");
 
   if (doc->required_plugin[0]) {
@@ -594,26 +959,33 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     xml_attr(f, "library", doc->required_plugin);
     fprintf(f, " />\n");
   }
-  fprintf(f, "        <controls>\n");
   for (int i = 0; i < doc->element_count; i++) {
     form_element_t *el = &doc->elements[i];
-    fprintf(f, "          <control");
-    xml_attr(f, "class", ctrl_type_token(el->type));
-    char id_buf[32];
-    snprintf(id_buf, sizeof(id_buf), "%d", el->id);
-    xml_attr(f, "id", el->id_expr[0] ? el->id_expr : id_buf);
-    if (el->id_expr[0] && !is_numeric_expr(el->id_expr))
-      xml_attr(f, "value", id_buf);
+    fprintf(f, "        <%s", ctrl_type_token(el->type));
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
-    fprintf(f, " frame=\"%d %d %d %d\"",
-            el->frame.x, el->frame.y, el->frame.w, el->frame.h);
+    if (el->font_set || el->font != FONT_SMALL)
+      xml_attr(f, "font", font_token(el->font));
+    if (el->color_set || el->color != brTextNormal)
+      xml_attr(f, "color", color_token(el->color));
+    if (doc->auto_layout) {
+      fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
+      fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
+    } else {
+      fprintf(f, " frame=\"%d %d %d %d\"",
+              el->frame.x, el->frame.y, el->frame.w, el->frame.h);
+    }
+    if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
+      fprintf(f, " padding=\"%d %d %d %d\"",
+              el->padding.x, el->padding.y, el->padding.w, el->padding.h);
+    if (el->margin.x || el->margin.y || el->margin.w || el->margin.h)
+      fprintf(f, " margin=\"%d %d %d %d\"",
+              el->margin.x, el->margin.y, el->margin.w, el->margin.h);
     char flags_buf[32];
     snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, el->flags);
     xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);
     fprintf(f, " />\n");
   }
-  fprintf(f, "        </controls>\n");
   fprintf(f, "      </form>\n");
 }
 
@@ -871,6 +1243,153 @@ static const form_def_t kPropsForm = {
   .cancel_id     = PROPS_ID_CANCEL,
 };
 
+// ============================================================
+// Form Properties dialog
+// ============================================================
+
+#define FORM_PROPS_W  220
+#define FORM_PROPS_H   158
+
+#define FORM_PROPS_ID_AUTO   1
+#define FORM_PROPS_ID_KIND    2
+#define FORM_PROPS_ID_ORIENT  3
+#define FORM_PROPS_ID_COLUMNS 4
+#define FORM_PROPS_ID_OK      5
+#define FORM_PROPS_ID_CANCEL  6
+
+#define FORM_PROPS_ROW1_Y      10
+#define FORM_PROPS_ROW2_Y      34
+#define FORM_PROPS_ROW3_Y      58
+#define FORM_PROPS_ROW4_Y      82
+#define FORM_PROPS_BTN_Y       (FORM_PROPS_H - BUTTON_HEIGHT - 6)
+
+typedef struct {
+  bool auto_layout;
+  int  layout_kind;
+  int  layout_orientation;
+  char layout_columns[8];
+  bool accepted;
+} form_props_state_t;
+
+static void form_props_fill_layout_combos(window_t *win) {
+  static const char *const kKindItems[] = { "None", "Stack", "Grid" };
+  static const char *const kOrientItems[] = { "Vertical", "Horizontal" };
+  window_t *kind = get_window_item(win, FORM_PROPS_ID_KIND);
+  window_t *orient = get_window_item(win, FORM_PROPS_ID_ORIENT);
+  if (kind) {
+    send_message(kind, cbClear, 0, NULL);
+    for (size_t i = 0; i < ARRAY_LEN(kKindItems); i++)
+      send_message(kind, cbAddString, 0, (void *)kKindItems[i]);
+  }
+  if (orient) {
+    send_message(orient, cbClear, 0, NULL);
+    for (size_t i = 0; i < ARRAY_LEN(kOrientItems); i++)
+      send_message(orient, cbAddString, 0, (void *)kOrientItems[i]);
+  }
+}
+
+static const ctrl_binding_t k_form_props_bindings[] = {
+  DDX_CHECK(FORM_PROPS_ID_AUTO, form_props_state_t, auto_layout),
+  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_kind, 0),
+  DDX_COMBO(FORM_PROPS_ID_ORIENT, form_props_state_t, layout_orientation, WINDOW_STACK_VERTICAL),
+  DDX_TEXT(FORM_PROPS_ID_COLUMNS, form_props_state_t, layout_columns),
+};
+
+static const form_ctrl_def_t kFormPropsChildren[] = {
+  { "checkbox", FORM_PROPS_ID_AUTO, { 8, FORM_PROPS_ROW1_Y, 140, CONTROL_HEIGHT }, 0, "Use auto layout", "chk_auto", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "label", -1, { 8, FORM_PROPS_ROW2_Y, 72, CONTROL_HEIGHT }, 0, "Layout:", "lbl_kind", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "combobox", FORM_PROPS_ID_KIND, { 84, FORM_PROPS_ROW2_Y - 2, 124, BUTTON_HEIGHT + 2 }, 0, "", "combo_kind", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "label", -1, { 8, FORM_PROPS_ROW3_Y, 72, CONTROL_HEIGHT }, 0, "Orientation:", "lbl_orient", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "combobox", FORM_PROPS_ID_ORIENT, { 84, FORM_PROPS_ROW3_Y - 2, 124, BUTTON_HEIGHT + 2 }, 0, "", "combo_orient", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "label", -1, { 8, FORM_PROPS_ROW4_Y, 72, CONTROL_HEIGHT }, 0, "Columns:", "lbl_columns", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "textedit", FORM_PROPS_ID_COLUMNS, { 84, FORM_PROPS_ROW4_Y - 2, 64, BUTTON_HEIGHT + 2 }, 0, "", "edit_columns", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "button", FORM_PROPS_ID_OK, { FORM_PROPS_W - 108, FORM_PROPS_BTN_Y, 50, BUTTON_HEIGHT }, BUTTON_DEFAULT, "OK", "btn_ok", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { "button", FORM_PROPS_ID_CANCEL, { FORM_PROPS_W - 54, FORM_PROPS_BTN_Y, 50, BUTTON_HEIGHT }, 0, "Cancel", "btn_cancel", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+};
+
+static const form_def_t kFormPropsForm = {
+  .name          = "Form Properties",
+  .width         = FORM_PROPS_W,
+  .height        = FORM_PROPS_H,
+  .flags         = 0,
+  .children      = kFormPropsChildren,
+  .child_count   = ARRAY_LEN(kFormPropsChildren),
+  .bindings      = k_form_props_bindings,
+  .binding_count = ARRAY_LEN(k_form_props_bindings),
+  .ok_id         = FORM_PROPS_ID_OK,
+  .cancel_id     = FORM_PROPS_ID_CANCEL,
+};
+
+static result_t form_props_proc(window_t *win, uint32_t msg,
+                                uint32_t wparam, void *lparam) {
+  form_props_state_t *ps = (form_props_state_t *)win->userdata;
+  switch (msg) {
+    case evCreate:
+      ps = (form_props_state_t *)lparam;
+      win->userdata = ps;
+      if (ps && g_app && g_app->doc) {
+        form_props_fill_layout_combos(win);
+        dialog_push(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
+      }
+      return true;
+    case evCommand: {
+      if (HIWORD(wparam) != btnClicked || !ps) return false;
+      window_t *src = (window_t *)lparam;
+      if (!src) return false;
+      if (src->id == FORM_PROPS_ID_OK) {
+        if (g_app && g_app->doc) {
+          form_doc_t *doc = g_app->doc;
+          bool old_auto_layout = doc->auto_layout;
+          uint8_t old_kind = doc->layout_kind;
+          flags_t old_orient = doc->layout_orientation;
+          uint8_t old_columns = doc->layout_columns;
+          dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
+          {
+            int cols = atoi(ps->layout_columns);
+            if (cols < 0) cols = 0;
+            if (cols > 255) cols = 255;
+            doc->layout_columns = (uint8_t)cols;
+          }
+          if (doc->auto_layout != old_auto_layout ||
+              doc->layout_kind != old_kind ||
+              doc->layout_orientation != old_orient ||
+              doc->layout_columns != old_columns) {
+            doc->modified = true;
+            form_doc_update_title(doc);
+          }
+          if (doc->auto_layout) {
+            form_doc_auto_layout_reflow(doc);
+            canvas_rebuild_live_controls(doc);
+          }
+        }
+        ps->accepted = true;
+        end_dialog(win, 1);
+        return true;
+      }
+      if (src->id == FORM_PROPS_ID_CANCEL) {
+        end_dialog(win, 0);
+        return true;
+      }
+      return false;
+    }
+    default:
+      return false;
+  }
+}
+
+static bool show_form_props_dialog(window_t *parent, form_doc_t *doc) {
+  if (!doc) return false;
+  form_props_state_t st = {
+    .auto_layout = doc->auto_layout,
+    .layout_kind = doc->layout_kind,
+    .layout_orientation = doc->layout_orientation,
+  };
+  snprintf(st.layout_columns, sizeof(st.layout_columns), "%u",
+           (unsigned)doc->layout_columns);
+  show_dialog_from_form(&kFormPropsForm, "Form Properties", parent, form_props_proc, &st);
+  return st.accepted;
+}
+
 typedef struct {
   form_element_t *el;
   bool            accepted;
@@ -1036,14 +1555,17 @@ void handle_menu_command(uint16_t id) {
       window_t *cwin = doc->canvas_win;
       if (!cwin) break;
       canvas_state_t *cs = (canvas_state_t *)cwin->userdata;
-      if (!cs || cs->selected_idx < 0) break;
-      form_element_t *el = &doc->elements[cs->selected_idx];
       window_t *owner = g_app->menubar_win ? g_app->menubar_win : doc->doc_win;
-      if (show_props_dialog(owner, el)) {
-        doc->modified = true;
-        form_doc_update_title(doc);
-        canvas_sync_live_controls(doc);
-        property_browser_refresh(doc);
+      if (!cs || cs->selected_idx < 0) {
+        show_form_props_dialog(owner, doc);
+      } else {
+        form_element_t *el = &doc->elements[cs->selected_idx];
+        if (show_props_dialog(owner, el)) {
+          doc->modified = true;
+          form_doc_update_title(doc);
+          canvas_sync_live_controls(doc);
+          property_browser_refresh(doc);
+        }
       }
       break;
     }

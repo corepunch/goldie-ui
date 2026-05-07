@@ -17,44 +17,81 @@ typedef struct {
   browser_state_t *st;
 } browser_settings_dialog_state_t;
 
+static const form_ctrl_def_t kSettingsUrlRow[] = {
+  { .class_name = "label",   .text = "Home URL:",       .name = "lbl_home",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "textedit", .id = ID_DLG_HOME_EDIT,   .name = "edit_home",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+static const form_ctrl_def_t kSettingsBtnRow[] = {
+  { .class_name = "button", .id = ID_DLG_SAVE,   .flags = BUTTON_DEFAULT, .text = "Save",
+    .name = "btn_save",   .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = ID_DLG_CANCEL, .text = "Cancel",
+    .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
 static const form_ctrl_def_t kSettingsChildren[] = {
-  { "label",    -1,              {8,   9, 80, 13},   0,              "Home URL:", "lbl_home"   },
-  { "textedit", ID_DLG_HOME_EDIT,{68,  7, 268, 16},  0,              "",          "edit_home"  },
-  { "button",   ID_DLG_SAVE,     {218, 34, 50, 18},  BUTTON_DEFAULT, "Save",      "btn_save"   },
-  { "button",   ID_DLG_CANCEL,   {276, 34, 60, 18},  0,              "Cancel",    "btn_cancel" },
+  {
+    .class_name         = "stack",
+    .name               = "url_row",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kSettingsUrlRow,
+    .child_count        = (int)(sizeof(kSettingsUrlRow)/sizeof(kSettingsUrlRow[0])),
+  },
+  {
+    .class_name         = "stack",
+    .name               = "actions",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_END,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kSettingsBtnRow,
+    .child_count        = (int)(sizeof(kSettingsBtnRow)/sizeof(kSettingsBtnRow[0])),
+  },
 };
 
 static const form_def_t kSettingsForm = {
-  .name = "Browser Settings",
-  .width = 344,
-  .height = 62,
-  .children = kSettingsChildren,
-  .child_count = (int)(sizeof(kSettingsChildren) / sizeof(kSettingsChildren[0])),
+  .name           = "Browser Settings",
+  .width          = 344,
+  .height         = 62,
+  .auto_layout    = true,
+  .layout_kind    = "stack",
+  .layout_spacing = 6,
+  .padding        = {8, 8, 8, 8},
+  .children       = kSettingsChildren,
+  .child_count    = (int)(sizeof(kSettingsChildren) / sizeof(kSettingsChildren[0])),
 };
 
 static const form_ctrl_def_t kAboutChildren[] = {
-  { "label",  -1,          {8,  8, 210, 13},  0,              "Orion Browser",            "lbl_title" },
-  { "label",  -1,          {8, 24, 210, 13},  0,              "Version 0.2",              "lbl_version" },
-  { "label",  -1,          {8, 40, 220, 26},  0,              "Minimal HTML browser with local file support.", "lbl_desc" },
-  { "button", ID_ABOUT_OK, {84, 72, 60, 18},  BUTTON_DEFAULT, "OK",                       "btn_ok" },
+  { .class_name = "label",  .text = "Orion Browser",
+    .name = "lbl_title",   .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "label",  .text = "Version 0.2",
+    .name = "lbl_version", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "label",  .text = "Minimal HTML browser with local file support.",
+    .name = "lbl_desc",    .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button", .id = ID_ABOUT_OK, .flags = BUTTON_DEFAULT, .text = "OK",
+    .name = "btn_ok",      .h_align = LAYOUT_ALIGN_CENTER },
 };
 
 static const form_def_t kAboutForm = {
-  .name = "About Browser",
-  .width = 236,
-  .height = 98,
-  .children = kAboutChildren,
-  .child_count = (int)(sizeof(kAboutChildren) / sizeof(kAboutChildren[0])),
-  .ok_id = ID_ABOUT_OK,
+  .name           = "About Browser",
+  .width          = 236,
+  .height         = 98,
+  .auto_layout    = true,
+  .layout_kind    = "stack",
+  .layout_spacing = 6,
+  .padding        = {8, 8, 8, 8},
+  .children       = kAboutChildren,
+  .child_count    = (int)(sizeof(kAboutChildren) / sizeof(kAboutChildren[0])),
+  .ok_id          = ID_ABOUT_OK,
 };
 
-static irect16_t browser_centered_settings_rect(window_t *parent) {
-  flags_t flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE;
-  irect16_t wr = {0, 0, kSettingsForm.width, kSettingsForm.height};
-
-  adjust_window_rect(&wr, flags);
-  return center_window_rect(wr, parent);
-}
 
 static void trim_copy_url(char *dst, size_t dst_sz, const char *src) {
   if (!dst || dst_sz == 0) return;
@@ -212,12 +249,15 @@ bool browser_show_settings_window(window_t *parent, browser_state_t *st) {
   if (!ds) return false;
   ds->st = st;
 
+  // Use create_window_from_form (not show_dialog_from_form) because the settings
+  // window is modeless — it stays open while the user continues browsing.
+  // Manual centering is therefore necessary here.
   form_def_t settings_def = kSettingsForm;
-  irect16_t wr = browser_centered_settings_rect(parent);
-
   settings_def.flags |= WINDOW_DIALOG | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE;
-  settings_def.width = wr.w;
-  settings_def.height = wr.h;
+
+  irect16_t wr = {0, 0, settings_def.width, settings_def.height};
+  adjust_window_rect(&wr, settings_def.flags);
+  wr = center_window_rect(wr, parent);
 
   window_t *win = create_window_from_form(&settings_def, wr.x, wr.y,
                                           NULL, browser_settings_proc,

@@ -36,9 +36,29 @@ static void autoradio_select(window_t *win) {
 result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
-      win->frame.w = MAX(win->frame.w, strwidth(win->title)+6);
+      win->frame.w = MAX(win->frame.w, strwidth(win->title) + BUTTON_PADDING * 2);
       win->frame.h = MAX(win->frame.h, BUTTON_HEIGHT);
       return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        m->desired_w = MAX(win->frame.w, strwidth(win->title) + BUTTON_PADDING * 2);
+        m->desired_h = BUTTON_HEIGHT;
+      }
+      return true;
+    }
+    case evArrange: {
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) {
+        int h = BUTTON_HEIGHT;
+        if (a->rect.h > 0 && a->rect.h < h) h = a->rect.h;
+        win->frame.x = a->rect.x;
+        win->frame.w = MAX(1, a->rect.w);
+        win->frame.h = MAX(1, h);
+        win->frame.y = a->rect.y + MAX(0, (a->rect.h - win->frame.h) / 2);
+      }
+      return true;
+    }
     case evPaint: {
       // BUTTON_PUSHLIKE: render as pressed whenever the button is checked (value==true)
       bool show_pressed = win->pressed ||
@@ -52,7 +72,8 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       irect16_t outer = rect_inset(local, -1);
       fill_rect(bg, outer);
       draw_button(local, 1, 1, show_pressed);
-      irect16_t label = rect_center(local, strwidth(win->title), CHAR_HEIGHT);
+      irect16_t content = rect_inset_xy(local, BUTTON_PADDING, 2);
+      irect16_t label = rect_center(content, strwidth(win->title), CHAR_HEIGHT);
       if (!show_pressed)
         draw_text_small(win->title, label.x + TEXT_SHADOW_OFFSET, label.y + TEXT_SHADOW_OFFSET, get_sys_color(brDarkEdge));
       irect16_t label_draw = rect_offset(label, show_pressed ? 1 : 0, show_pressed ? 1 : 0);
@@ -151,7 +172,7 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
                            UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
       } else {
         // Fallback: draw text label when no image has been set.
-        irect16_t inner = rect_inset(local, BUTTON_TEXT_INSET);
+        irect16_t inner = rect_inset_xy(local, BUTTON_PADDING, 2);
         if (!show_pressed)
           draw_text_small(win->title, inner.x + TEXT_SHADOW_OFFSET, inner.y + TEXT_SHADOW_OFFSET, get_sys_color(brDarkEdge));
         irect16_t inner_draw = rect_offset(inner, px, px);
@@ -227,5 +248,28 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
 }
 
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  return false;
+  (void)wparam;
+  switch (msg) {
+    case evCreate:
+      return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) {
+        m->desired_w = MAX(0, win->frame.w);
+        m->desired_h = MAX(0, win->frame.h);
+      }
+      return true;
+    }
+    case evArrange: {
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) {
+        win->frame = a->rect;
+      }
+      return true;
+    }
+    case evDestroy:
+      return true;
+    default:
+      return false;
+  }
 }

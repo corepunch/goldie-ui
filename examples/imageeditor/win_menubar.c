@@ -2,10 +2,10 @@
 
 #include "imageeditor.h"
 
-#define WINDOW_PREFIX_COUNT ((int)(sizeof(kWindowItems) / sizeof(kWindowItems[0])))
+#define WINDOW_PREFIX_COUNT ((int)(sizeof(MENU_WINDOW_ITEMS) / sizeof(MENU_WINDOW_ITEMS[0])))
 
 #if !IMAGEEDITOR_INDEXED
-#define FILTER_PREFIX_COUNT ((int)(sizeof(kFilterItems) / sizeof(kFilterItems[0])))
+#define FILTER_PREFIX_COUNT ((int)(sizeof(MENU_FILTER_ITEMS) / sizeof(MENU_FILTER_ITEMS[0])))
 static menu_item_t s_filter_items[FILTER_PREFIX_COUNT + 1 + IMAGEEDITOR_MAX_FILTERS];
 static int         s_filter_item_count = FILTER_PREFIX_COUNT;
 static menu_item_t s_filter_photo_items[IMAGEEDITOR_MAX_FILTERS];
@@ -164,8 +164,8 @@ static result_t main_toolbar_proc(window_t *win, uint32_t msg,
   switch (msg) {
     case evCreate:
       send_message(win, tbSetItems,
-                   (uint32_t)kMainToolbarCount,
-                   (void *)kMainToolbar);
+                   (uint32_t)TB_MAIN_COUNT,
+                   (void *)TB_MAIN);
       imageeditor_sync_main_toolbar();
       return true;
     case tbButtonClick:
@@ -229,24 +229,24 @@ void imageeditor_sync_main_toolbar(void) {
 static void view_menu_rebuild(void) {
   if (!g_app) return;
   canvas_doc_t *doc = g_app->active_doc;
-  int n = (int)(sizeof(s_view_items) / sizeof(s_view_items[0]));
+  int n = (int)(sizeof(MENU_VIEW_ITEMS) / sizeof(MENU_VIEW_ITEMS[0]));
   for (int i = 0; i < n; i++) {
-    if (s_view_items[i].id == ID_VIEW_SHOW_GRID)
-      s_view_items[i].label = g_app->grid.visible
-                              ? MENU_CHECK_ON "Show Grid"
-                              : MENU_CHECK_OFF "Show Grid";
-    if (s_view_items[i].id == ID_VIEW_SNAP_GRID)
-      s_view_items[i].label = g_app->grid.snap
-                              ? MENU_CHECK_ON "Snap to Grid"
-                              : MENU_CHECK_OFF "Snap to Grid";
-    if (s_view_items[i].id == ID_VIEW_SHOW_BACKGROUND)
-      s_view_items[i].label = (!doc || doc->background.show)
-                              ? MENU_CHECK_ON "Show Background"
-                              : MENU_CHECK_OFF "Show Background";
-    if (s_view_items[i].id == ID_VIEW_MASK_ONLY)
-      s_view_items[i].label = (doc && doc->layer.mask_only_view)
-                              ? MENU_CHECK_ON "Mask Only View"
-                              : MENU_CHECK_OFF "Mask Only View";
+    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_SHOW_GRID)
+      MENU_VIEW_ITEMS[i].label = g_app->grid.visible
+                                 ? MENU_CHECK_ON "Show Grid"
+                                 : MENU_CHECK_OFF "Show Grid";
+    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_SNAP_GRID)
+      MENU_VIEW_ITEMS[i].label = g_app->grid.snap
+                                 ? MENU_CHECK_ON "Snap to Grid"
+                                 : MENU_CHECK_OFF "Snap to Grid";
+    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_SHOW_BACKGROUND)
+      MENU_VIEW_ITEMS[i].label = (!doc || doc->background.show)
+                                 ? MENU_CHECK_ON "Show Background"
+                                 : MENU_CHECK_OFF "Show Background";
+    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_MASK_ONLY)
+      MENU_VIEW_ITEMS[i].label = (doc && doc->layer.mask_only_view)
+                                 ? MENU_CHECK_ON "Mask Only View"
+                                 : MENU_CHECK_OFF "Mask Only View";
   }
 }
 
@@ -255,7 +255,7 @@ void window_menu_rebuild(void) {
 
   int n = 0;
   for (int i = 0; i < WINDOW_PREFIX_COUNT; i++)
-    s_window_items[n++] = kWindowItems[i];
+    s_window_items[n++] = MENU_WINDOW_ITEMS[i];
 
   int doc_idx = 0;
   for (canvas_doc_t *d = g_app->docs;
@@ -1143,7 +1143,7 @@ void imageeditor_sync_filter_menu(void) {
 
   int n = 0;
   for (int i = 0; i < FILTER_PREFIX_COUNT; i++)
-    s_filter_items[n++] = kFilterItems[i];
+    s_filter_items[n++] = MENU_FILTER_ITEMS[i];
 
   s_filter_photo_item_count = 0;
   for (int i = 0; i < g_app->filter_count &&

@@ -3,27 +3,80 @@
 #include "taskmanager.h"
 
 // ============================================================
-// Form layout
+// Form layout — auto-layout: top-level vertical stack,
+// field rows in a 2-column grid, button row horizontal.
 // ============================================================
 
+static const form_ctrl_def_t kTaskFieldLabels[] = {
+  { .class_name = "label",    .text = "Title:",        .name = "lbl_title",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "label",     .text = "Description:", .name = "lbl_desc",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_START },
+  { .class_name = "label",    .text = "Priority:",     .name = "lbl_prio",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "label",    .text = "Status:",       .name = "lbl_status",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "label",    .text = "Due (epoch):",  .name = "lbl_due",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+static const form_ctrl_def_t kTaskFieldInputs[] = {
+  { .class_name = "textedit", .id = ID_TASK_TITLE_CTRL, .name = "edit_title",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "multiedit", .id = ID_TASK_DESC_CTRL, .name = "edit_desc",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "combobox", .id = ID_TASK_PRIORITY_CTRL, .name = "combo_prio",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "combobox", .id = ID_TASK_STATUS_CTRL, .name = "combo_status",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "textedit", .id = ID_TASK_DUEDATE_CTRL, .name = "edit_due",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+static const form_ctrl_def_t kTaskBtnRow[] = {
+  { .class_name = "button", .id = ID_OK,     .flags = BUTTON_DEFAULT, .text = "OK",
+    .name = "btn_ok",     .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = ID_CANCEL, .text = "Cancel",
+    .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
 static const form_ctrl_def_t kTaskEditChildren[] = {
-  { "label",    -1,                    {8,   8,  60, 13}, 0,             "Title:",       "lbl_title"    },
-  { "textedit", ID_TASK_TITLE_CTRL,    {70,  6, 200, 16}, 0,             "",             "edit_title"   },
-
-  { "label",     -1,                    {8,  28,  60, 13}, 0,             "Description:", "lbl_desc"     },
-  { "multiedit", ID_TASK_DESC_CTRL,     {70, 28, 200, 60}, 0,             "",             "edit_desc"    },
-
-  { "label",    -1,                    {8,  95,  60, 13}, 0,             "Priority:",    "lbl_prio"     },
-  { "combobox", ID_TASK_PRIORITY_CTRL, {70, 95, 100, 18}, 0,             "",             "combo_prio"   },
-
-  { "label",    -1,                    {8, 120,  60, 13}, 0,             "Status:",      "lbl_status"   },
-  { "combobox", ID_TASK_STATUS_CTRL,   {70, 120, 100, 18}, 0,            "",             "combo_status" },
-
-  { "label",    -1,                    {8, 145,  60, 13}, 0,             "Due (epoch):", "lbl_due"      },
-  { "textedit", ID_TASK_DUEDATE_CTRL,  {70, 143, 100, 16}, 0,            "",             "edit_due"     },
-
-  { "button",   ID_OK,                 {80, 170,  60, 18}, BUTTON_DEFAULT, "OK",     "btn_ok"     },
-  { "button",   ID_CANCEL,             {150, 170, 60, 18}, 0,              "Cancel", "btn_cancel" },
+  {
+    .class_name         = "grid",
+    .name               = "fields",
+    .flags              = WINDOW_FLEXSPACE,
+    .layout_spacing     = 4,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .v_align            = LAYOUT_ALIGN_STRETCH,
+    .children           = (const form_ctrl_def_t[]){
+      {
+        .class_name = "column",
+        .name = "labels",
+        .frame = {0, 0, 120, 0},
+        .children = kTaskFieldLabels,
+        .child_count = (int)(sizeof(kTaskFieldLabels)/sizeof(kTaskFieldLabels[0])),
+      },
+      {
+        .class_name = "column",
+        .name = "inputs",
+        .flags = WINDOW_FLEXSPACE,
+        .children = kTaskFieldInputs,
+        .child_count = (int)(sizeof(kTaskFieldInputs)/sizeof(kTaskFieldInputs[0])),
+      },
+    },
+    .child_count        = 2,
+  },
+  {
+    .class_name         = "stack",
+    .name               = "actions",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_CENTER,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kTaskBtnRow,
+    .child_count        = (int)(sizeof(kTaskBtnRow)/sizeof(kTaskBtnRow[0])),
+  },
 };
 
 // ============================================================
@@ -52,16 +105,20 @@ static const ctrl_binding_t k_task_bindings[] = {
 };
 
 static const form_def_t kTaskEditForm = {
-  .name          = "Task",
-  .width         = 280,
-  .height        = 208,
-  .flags         = 0,
-  .children      = kTaskEditChildren,
-  .child_count   = (int)(sizeof(kTaskEditChildren)/sizeof(kTaskEditChildren[0])),
-  .bindings      = k_task_bindings,
-  .binding_count = ARRAY_LEN(k_task_bindings),
-  .ok_id         = ID_OK,
-  .cancel_id     = ID_CANCEL,
+  .name           = "Task",
+  .width          = 300,
+  .height         = 220,
+  .flags          = 0,
+  .auto_layout    = true,
+  .layout_kind    = "stack",
+  .layout_spacing = 6,
+  .padding        = {8, 8, 8, 8},
+  .children       = kTaskEditChildren,
+  .child_count    = (int)(sizeof(kTaskEditChildren)/sizeof(kTaskEditChildren[0])),
+  .bindings       = k_task_bindings,
+  .binding_count  = ARRAY_LEN(k_task_bindings),
+  .ok_id          = ID_OK,
+  .cancel_id      = ID_CANCEL,
 };
 
 // ============================================================

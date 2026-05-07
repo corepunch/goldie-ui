@@ -14,9 +14,9 @@ typedef struct {
 } ir_state_t;
 
 static const ctrl_binding_t k_ir_bindings[] = {
-  DDX_TEXT(IR_ID_WIDTH, ir_state_t, w),
-  DDX_TEXT(IR_ID_HEIGHT, ir_state_t, h),
-  DDX_COMBO(IR_ID_FILTER, ir_state_t, filter, IMAGE_RESIZE_BILINEAR),
+  DDX_TEXT(ID_IMAGE_RESIZE_WIDTH, ir_state_t, w),
+  DDX_TEXT(ID_IMAGE_RESIZE_HEIGHT, ir_state_t, h),
+  DDX_COMBO(ID_IMAGE_RESIZE_FILTER, ir_state_t, filter, IMAGE_RESIZE_BILINEAR),
 };
 
 static result_t image_resize_proc(window_t *win, uint32_t msg,
@@ -26,7 +26,7 @@ static result_t image_resize_proc(window_t *win, uint32_t msg,
     case evCreate: {
       win->userdata = lparam;
       s = (ir_state_t *)lparam;
-      window_t *cb = get_window_item(win, IR_ID_FILTER);
+      window_t *cb = get_window_item(win, ID_IMAGE_RESIZE_FILTER);
       if (cb) {
         send_message(cb, cbAddString, 0, (void *)"Nearest Neighbor");
         send_message(cb, cbAddString, 0, (void *)"Bilinear");
@@ -39,13 +39,13 @@ static result_t image_resize_proc(window_t *win, uint32_t msg,
       if (HIWORD(wparam) == btnClicked) {
         window_t *src = (window_t *)lparam;
         if (!src) return false;
-        if (src->id == IR_ID_OK) {
+        if (src->id == ID_IMAGE_RESIZE_OK) {
           dialog_pull(win, s, k_ir_bindings, ARRAY_LEN(k_ir_bindings));
           s->accepted = true;
           end_dialog(win, 1);
           return true;
         }
-        if (src->id == IR_ID_CANCEL) {
+        if (src->id == ID_IMAGE_RESIZE_CANCEL) {
           end_dialog(win, 0);
           return true;
         }

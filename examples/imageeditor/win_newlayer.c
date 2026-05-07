@@ -21,7 +21,7 @@ typedef struct {
 } nl_state_t;
 
 static const ctrl_binding_t kNewLayerBindings[] = {
-  DDX_COMBO(NL_ID_FILL, nl_state_t, fill_index, 0 /* default: transparent */),
+  DDX_COMBO(ID_NEW_LAYER_COMBO_FILL, nl_state_t, fill_index, 0 /* default: transparent */),
 };
 
 // ──────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ static result_t new_layer_proc(window_t *win, uint32_t msg,
       s = (nl_state_t *)lparam;
 
       // Populate fill options (order matches fill_index values).
-      window_t *cb = get_window_item(win, NL_ID_FILL);
+      window_t *cb = get_window_item(win, ID_NEW_LAYER_COMBO_FILL);
       if (cb) {
         send_message(cb, cbAddString, 0, (void *)"Transparent");
         send_message(cb, cbAddString, 0, (void *)"White");
@@ -53,13 +53,13 @@ static result_t new_layer_proc(window_t *win, uint32_t msg,
       if (HIWORD(wparam) == btnClicked) {
         window_t *src = (window_t *)lparam;
         if (!src) return false;
-        if (src->id == NL_ID_OK) {
+        if (src->id == ID_NEW_LAYER_OK) {
           dialog_pull(win, s, kNewLayerBindings, ARRAY_LEN(kNewLayerBindings));
           s->accepted = true;
           end_dialog(win, 1);
           return true;
         }
-        if (src->id == NL_ID_CANCEL) {
+        if (src->id == ID_NEW_LAYER_CANCEL) {
           end_dialog(win, 0);
           return true;
         }

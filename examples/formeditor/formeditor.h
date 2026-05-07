@@ -121,6 +121,14 @@ typedef struct {
   char     flags_expr[128]; // original flags expression from project XML, if any
   char     text[64];     // control caption / label text
   char     name[32];     // identifier name (e.g. "IDC_BUTTON1")
+  uint8_t  h_align;     // horizontal alignment; 0 = stretch
+  uint8_t  v_align;     // vertical alignment; 0 = stretch
+  irect16_t padding;    // inner padding for nested layout containers
+  irect16_t margin;     // outer margin when auto-layout reflows this element
+  uint8_t  font;        // label font; FONT_SMALL by default
+  bool     font_set;    // font attribute explicitly set in the project
+  uint8_t  color;       // label color palette index; 0 = transparent
+  bool     color_set;   // color attribute explicitly set in the project
   window_t *live_win;    // design-time live control hosted on the canvas
 } form_element_t;
 
@@ -129,10 +137,16 @@ typedef struct form_doc_t {
   int    element_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
+  bool   auto_layout;   // save controls without absolute frames
+  uint8_t layout_kind;  // window_layout_kind_t
+  flags_t layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag; 0 = vertical
+  uint8_t layout_columns; // grid columns (0 = default)
+  uint8_t layout_spacing; // spacing between direct children; 0 = default
+  irect16_t padding;    // inner padding for auto-layout content
+  irect16_t margin;     // outer margin for the form when serialized
   bool   modified;
   char   form_id[64];
   char   form_title[128];
-  char   owner[256];
   char   required_plugin[64];
   int    next_id;                      // next numeric control ID
   int    type_counters[FE_MAX_COMPONENTS]; // per-component name counter
@@ -253,6 +267,7 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam);
 void canvas_rebuild_live_controls(form_doc_t *doc);
 void canvas_sync_live_controls(form_doc_t *doc);
+void form_doc_auto_layout_reflow(form_doc_t *doc);
 void formeditor_rebuild_tool_palette(void);
 window_t *property_browser_create(hinstance_t hinstance);
 void property_browser_refresh(form_doc_t *doc);

@@ -15,7 +15,7 @@
 #include "../../user/icons.h"
 
 // Menu / toolbar IDs and static form definitions are generated from socialfeed.orion.
-// The generated header also defines kMenus, kNumMenus, kFeedToolbar/kFeedToolbarCount
+// The generated header also defines kMenus, kNumMenus, TB_FEED/TB_FEED_COUNT,
 // and the three form_def_t structs used by the dialogs.
 #include "build/generated/examples/socialfeed/socialfeed_forms.h"
 
@@ -92,6 +92,7 @@ typedef struct {
   int          selected_idx;
   window_t    *menubar_win;
   window_t    *main_win;
+  window_t    *content_win;
   window_t    *feed_win;
   hinstance_t  hinstance;
   accel_table_t *accel;

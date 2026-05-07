@@ -60,6 +60,7 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "list") || streq(class_name, "win_list")) return win_list;
   if (streq(class_name, "console") || streq(class_name, "win_console")) return win_console;
   if (streq(class_name, "space") || streq(class_name, "win_space")) return win_space;
+  if (streq(class_name, "separator") || streq(class_name, "win_separator")) return win_separator;
   if (streq(class_name, "filelist") || streq(class_name, "win_filelist")) return win_filelist;
   if (streq(class_name, "terminal") || streq(class_name, "win_terminal")) return win_terminal;
   if (streq(class_name, "menubar") || streq(class_name, "win_menubar")) return win_menubar;
@@ -68,6 +69,9 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "gradient") || streq(class_name, "win_gradient")) return win_gradient;
   if (streq(class_name, "toolbox") || streq(class_name, "win_toolbox")) return win_toolbox;
   if (streq(class_name, "splitter") || streq(class_name, "win_splitter")) return win_splitter;
+  if (streq(class_name, "column") || streq(class_name, "win_column")) return win_column;
+  if (streq(class_name, "stack") || streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
+  if (streq(class_name, "grid") || streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
 
   return NULL;
 }
@@ -112,7 +116,15 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   if (!win) return NULL;
   memset(win, 0, sizeof(window_t));
   win->frame = *frame;
+  win->layout_fixed_w = frame ? frame->w : 0;
+  win->layout_fixed_h = frame ? frame->h : 0;
   win->proc = proc;
+  // Child controls participate in client-area layout, so they should not
+  // reserve a title bar unless a caller explicitly creates a root window.
+  if (parent)
+    flags |= WINDOW_NOTITLE;
+  if (proc == win_space)
+    flags |= WINDOW_FLEXSPACE;
   win->flags = flags;
   // Inherit hinstance from parent for child windows; use supplied value for roots.
   win->hinstance = parent ? parent->hinstance : hinstance;
@@ -163,6 +175,7 @@ window_t* create_window_proc(char const *title,
     .flags       = flags,
     .children    = NULL,
     .child_count = 0,
+    .layout_spacing = 4,
   };
   int x = frame ? frame->x : 0;
   int y = frame ? frame->y : 0;
@@ -240,6 +253,7 @@ void resize_window(window_t *win, int new_w, int new_h) {
   // lag where a child's vertical scrollbar still uses the previous
   // dimensions while the parent's border has already moved.
   send_message(win, evResize, 0, NULL);
+  window_layout_sync(win);
 
   post_message(win, evRefreshStencil, 0, NULL);
 
@@ -376,6 +390,18 @@ window_t *find_window(int x, int y) {
 // Get root window
 window_t *get_root_window(window_t *window) {
   return window->parent ? get_root_window(window->parent) : window;
+}
+
+int window_screen_x(window_t const *win) {
+  if (!win) return 0;
+  if (!win->parent) return win->frame.x;
+  return window_screen_x(win->parent) + win->frame.x;
+}
+
+int window_screen_y(window_t const *win) {
+  if (!win) return 0;
+  if (!win->parent) return win->frame.y;
+  return window_screen_y(win->parent) + titlebar_height(win->parent) + win->frame.y;
 }
 
 irect16_t center_window_rect(irect16_t frame_rect, window_t const *owner) {
@@ -598,6 +624,75 @@ void load_window_children(window_t *win, windef_t const *def) {
 // def->children before firing evCreate on the parent.
 // This allows the window proc to find its children already in place during
 // evCreate, analogous to WinAPI CreateDialogIndirect behaviour.
+static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
+                                 int child_count);
+
+static bool form_children_use_parent_links(const form_ctrl_def_t *children, int child_count) {
+  if (!children || child_count <= 0) return false;
+  for (int i = 0; i < child_count; i++) {
+    if (children[i].parent != 0)
+      return true;
+  }
+  return false;
+}
+
+static bool form_children_have_parent(const form_ctrl_def_t *children, int child_count,
+                                      uint32_t parent_id) {
+  if (!children || child_count <= 0 || parent_id == 0) return false;
+  for (int i = 0; i < child_count; i++) {
+    if (children[i].parent == parent_id)
+      return true;
+  }
+  return false;
+}
+
+static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *children,
+                                      int child_count, uint32_t parent_id) {
+  if (!parent || !children || child_count <= 0) return;
+
+  for (int i = 0; i < child_count; i++) {
+    const form_ctrl_def_t *cd = &children[i];
+    if (cd->parent != parent_id) continue;
+
+    winproc_t cp = find_window_class_proc(cd->class_name);
+    if (!cp) continue;
+
+    void *param = NULL;
+    layout_view_config_t cfg = {
+      .layout_kind = cd->layout_kind,
+      .orientation = cd->layout_orientation,
+      .columns = cd->layout_columns,
+      .spacing = cd->layout_spacing,
+      .padding = cd->padding,
+      .margin = cd->margin,
+    };
+    if (cp == win_stackview || cp == win_gridview || cp == win_column) {
+      param = &cfg;
+    }
+    label_create_params_t label_cfg = {
+      .color_index = cd->color,
+      .font = cd->font_set ? cd->font : FONT_SMALL,
+      .color_set = cd->color_set,
+    };
+    if (cp == win_label)
+      param = &label_cfg;
+
+    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+                                    &cd->frame, parent, cp, 0, param);
+    if (!child) continue;
+    child->id = cd->id;
+    child->h_align = cd->h_align;
+    child->v_align = cd->v_align;
+    child->layout_margin = cd->margin;
+
+    if (form_children_have_parent(children, child_count, child->id))
+      create_form_children_flat(child, children, child_count, child->id);
+
+    if (child->auto_layout)
+      window_layout_sync(child);
+  }
+}
+
 window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
@@ -631,22 +726,29 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Allocate the parent window without sending evCreate yet.
   window_t *win = alloc_window(def->name ? def->name : "", def->flags, &r, parent, proc, hinstance);
   if (!win) return NULL;
+  win->auto_layout       = def->auto_layout;
+  win->layout_kind       = def->layout_kind;
+  win->layout_orientation= def->layout_orientation;
+  win->layout_columns    = def->layout_columns;
+  win->layout_spacing    = def->layout_spacing;
+  win->layout_padding    = def->padding;
+  win->layout_margin     = def->margin;
+  if (win->auto_layout && (!win->layout_kind || !*win->layout_kind))
+    win->layout_kind = "stack";
+  if (win->auto_layout && win->layout_spacing == 0 && streq(win->layout_kind, "stack"))
+    win->layout_spacing = 4;
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).
-  if (def->children && def->child_count > 0) {
-    for (int i = 0; i < def->child_count; i++) {
-      const form_ctrl_def_t *cd = &def->children[i];
-      winproc_t cp = find_window_class_proc(cd->class_name);
-      if (!cp) continue;
-      window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
-                                      &cd->frame, win, cp, 0, NULL);
-      if (child) child->id = cd->id;
-    }
-  }
+  create_form_children(win, def->children, def->child_count);
+
+  if (win->auto_layout)
+    window_layout_sync(win);
 
   // Now notify the parent that creation (with children already present) is complete.
   send_message(win, evCreate, 0, lparam);
+  if (win->auto_layout)
+    window_layout_sync(win);
   // For root windows (no parent), check whether the proc destroyed the window
   // during evCreate (e.g. end_dialog called from within the proc).
   // Child windows are in parent->children, not the global list, so skip the
@@ -654,6 +756,56 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   if (!parent && !is_window(win)) return NULL;
   if (parent) invalidate_window(win);
   return win;
+}
+
+static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
+                                 int child_count) {
+  if (!parent || !children || child_count <= 0) return;
+
+  if (form_children_use_parent_links(children, child_count)) {
+    create_form_children_flat(parent, children, child_count, 0);
+    return;
+  }
+
+  for (int i = 0; i < child_count; i++) {
+    const form_ctrl_def_t *cd = &children[i];
+    winproc_t cp = find_window_class_proc(cd->class_name);
+    if (!cp) continue;
+
+    void *param = NULL;
+    layout_view_config_t cfg = {
+      .layout_kind = cd->layout_kind,
+      .orientation = cd->layout_orientation,
+      .columns = cd->layout_columns,
+      .spacing = cd->layout_spacing,
+      .padding = cd->padding,
+      .margin = cd->margin,
+    };
+    if (cp == win_stackview || cp == win_gridview || cp == win_column) {
+      param = &cfg;
+    }
+    label_create_params_t label_cfg = {
+      .color_index = cd->color,
+      .font = cd->font_set ? cd->font : FONT_SMALL,
+      .color_set = cd->color_set,
+    };
+    if (cp == win_label)
+      param = &label_cfg;
+
+    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+                                    &cd->frame, parent, cp, 0, param);
+    if (!child) continue;
+    child->id = cd->id;
+    child->h_align = cd->h_align;
+    child->v_align = cd->v_align;
+    child->layout_margin = cd->margin;
+
+    if (cd->children && cd->child_count > 0)
+      create_form_children(child, cd->children, cd->child_count);
+
+    if (child->auto_layout)
+      window_layout_sync(child);
+  }
 }
 
 // Show or hide window

@@ -17,9 +17,9 @@ typedef struct {
 } new_post_state_t;
 
 static const ctrl_binding_t kNewPostBindings[] = {
-  DDX_TEXT(ID_POST_AUTHOR_CTRL, new_post_state_t, author),
-  DDX_TEXT(ID_POST_TITLE_CTRL, new_post_state_t, title),
-  DDX_TEXT(ID_POST_BODY_CTRL, new_post_state_t, body),
+  DDX_TEXT(ID_NEW_POST_AUTHOR, new_post_state_t, author),
+  DDX_TEXT(ID_NEW_POST_TITLE, new_post_state_t, title),
+  DDX_TEXT(ID_NEW_POST_BODY, new_post_state_t, body),
 };
 
 static result_t new_post_proc(window_t *win, uint32_t msg,
@@ -37,7 +37,7 @@ static result_t new_post_proc(window_t *win, uint32_t msg,
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
         window_t *src = (window_t *)lparam;
-        if (src->id == ID_OK) {
+        if (src->id == ID_NEW_POST_OK) {
           dialog_pull(win, s, kNewPostBindings,
                       (int)(sizeof(kNewPostBindings)/sizeof(kNewPostBindings[0])));
 
@@ -54,7 +54,7 @@ static result_t new_post_proc(window_t *win, uint32_t msg,
           end_dialog(win, 1);
           return true;
         }
-        if (src->id == ID_CANCEL) {
+        if (src->id == ID_NEW_POST_CANCEL) {
           end_dialog(win, 0);
           return true;
         }
@@ -103,11 +103,11 @@ static result_t new_comment_proc(window_t *win, uint32_t msg,
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
         window_t *src = (window_t *)lparam;
-        if (src->id == ID_OK) {
+        if (src->id == ID_NEW_COMMENT_OK) {
           s = (new_comment_state_t *)win->userdata;
 
-          window_t *ea = get_window_item(win, ID_CMT_AUTHOR_CTRL);
-          window_t *et = get_window_item(win, ID_CMT_TEXT_CTRL);
+          window_t *ea = get_window_item(win, ID_NEW_COMMENT_AUTHOR);
+          window_t *et = get_window_item(win, ID_NEW_COMMENT_TEXT);
 
           if (!ea || ea->title[0] == '\0') {
             message_box(win, "Author is required.", "Validation", MB_OK);
@@ -131,7 +131,7 @@ static result_t new_comment_proc(window_t *win, uint32_t msg,
           end_dialog(win, 1);
           return true;
         }
-        if (src->id == ID_CANCEL) {
+        if (src->id == ID_NEW_COMMENT_CANCEL) {
           end_dialog(win, 0);
           return true;
         }

@@ -47,6 +47,16 @@ static window_t *find_toolbar_child(window_t *win, uint32_t id) {
     return NULL;
 }
 
+static window_t *find_toolbar_space_child(window_t *win) {
+    // Use find_window_class_proc to look up the DLL-internal pointer; a direct
+    // comparison against the win_space symbol would fail on Windows because the
+    // test executable holds an IAT stub while tc->proc holds the real address.
+    winproc_t space_proc = find_window_class_proc("space");
+    for (window_t *tc = win->toolbar_children; tc; tc = tc->next)
+        if (tc->proc == space_proc) return tc;
+    return NULL;
+}
+
 static void dispatch_left_mouse_at(int x, int y, uint32_t msg) {
     ui_event_t ev = {0};
     ev.message = msg;
@@ -91,7 +101,7 @@ void test_toolbar_set_items_creates_children(void) {
 }
 
 void test_toolbar_spacer_skipped(void) {
-    TEST("tbSetItems: TOOLBAR_ITEM_SPACER does not create a child");
+    TEST("tbSetItems: TOOLBAR_ITEM_SPACER creates a space child");
 
     test_env_init();
 
@@ -108,8 +118,11 @@ void test_toolbar_spacer_skipped(void) {
     };
     send_message(win, tbSetItems, 4, items);
 
-    // 4 entries, but the spacer does not create a child.
-    ASSERT_EQUAL(count_toolbar_children(win), 3);
+    // Spacer now creates a real space child, so total = 4.
+    ASSERT_EQUAL(count_toolbar_children(win), 4);
+    window_t *space = find_toolbar_space_child(win);
+    ASSERT_NOT_NULL(space);
+    ASSERT_TRUE(space->flags & WINDOW_FLEXSPACE);
 
     destroy_window(win);
     test_env_shutdown();
@@ -438,7 +451,7 @@ void test_toolbar_set_items_separator(void) {
 }
 
 void test_toolbar_set_items_spacer(void) {
-    TEST("tbSetItems: TOOLBAR_ITEM_SPACER does NOT create a child");
+    TEST("tbSetItems: TOOLBAR_ITEM_SPACER creates a space child");
 
     test_env_init();
 
@@ -454,8 +467,21 @@ void test_toolbar_set_items_spacer(void) {
     };
     send_message(win, tbSetItems, 3, items);
 
-    // Spacer does not create a child; total = 2.
-    ASSERT_EQUAL(count_toolbar_children(win), 2);
+    // Spacer is now a real child window, like a horizontal stack spacer.
+    ASSERT_EQUAL(count_toolbar_children(win), 3);
+    window_t *btn_a = find_toolbar_child(win, 1);
+    window_t *sp = find_toolbar_space_child(win);
+    window_t *btn_b = find_toolbar_child(win, 2);
+    ASSERT_NOT_NULL(btn_a);
+    ASSERT_NOT_NULL(sp);
+    ASSERT_NOT_NULL(btn_b);
+    ASSERT_EQUAL(sp->frame.w, 8);
+    ASSERT_EQUAL(sp->frame.h, TB_SPACING);
+    ASSERT_EQUAL(btn_a->frame.w, TB_SPACING);
+    ASSERT_EQUAL(btn_a->frame.x, TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING);
+    ASSERT_EQUAL(sp->frame.x, TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING + TB_SPACING);
+    ASSERT_EQUAL(btn_b->frame.x,
+                 TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING + TB_SPACING + 8);
 
     destroy_window(win);
     test_env_shutdown();

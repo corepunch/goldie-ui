@@ -15,21 +15,79 @@
 #define CTL_CREATE   4
 #define CTL_CANCEL   5
 
+// Branch name row: label + textedit
+static const form_ctrl_def_t kBranchNameRow[] = {
+  { .class_name = "label",   .text = "Name:", .name = "lbl_name",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "textedit", .id = CTL_NAME, .name = "name",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+// Branch from row: label + combobox
+static const form_ctrl_def_t kBranchFromRow[] = {
+  { .class_name = "label",   .text = "From:", .name = "lbl_from",
+    .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+  { .class_name = "combobox", .id = CTL_FROM, .name = "from",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+};
+
+// Button row
+static const form_ctrl_def_t kBranchBtnRow[] = {
+  { .class_name = "button", .id = CTL_CREATE, .flags = BUTTON_DEFAULT, .text = "Create",
+    .name = "ok",     .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = CTL_CANCEL, .text = "Cancel",
+    .name = "cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
 static const form_ctrl_def_t kNewBranchCtrls[] = {
-  { "textedit",  CTL_NAME,     {50, 8,  170, 13}, 0, "",               "name"     },
-  { "combobox",  CTL_FROM,     {50, 26, 170, 13}, 0, "",               "from"     },
-  { "checkbox",  CTL_CHECKOUT, {8,  46, 160, 13}, 0, "Checkout after creation","co"},
-  { "button",    CTL_CREATE,   {144,64,  60, 14}, BUTTON_DEFAULT, "Create",  "ok"  },
-  { "button",    CTL_CANCEL,   {208,64,  60, 14}, 0, "Cancel",          "cancel"  },
+  {
+    .class_name         = "stack",
+    .name               = "name_row",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kBranchNameRow,
+    .child_count        = 2,
+  },
+  {
+    .class_name         = "stack",
+    .name               = "from_row",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_STRETCH,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kBranchFromRow,
+    .child_count        = 2,
+  },
+  { .class_name = "checkbox", .id = CTL_CHECKOUT, .text = "Checkout after creation",
+    .name = "co", .h_align = LAYOUT_ALIGN_STRETCH },
+  {
+    .class_name         = "stack",
+    .name               = "actions",
+    .layout_kind        = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing     = 6,
+    .h_align            = LAYOUT_ALIGN_END,
+    .v_align            = LAYOUT_ALIGN_START,
+    .children           = kBranchBtnRow,
+    .child_count        = 2,
+  },
 };
 static const form_def_t kNewBranchForm = {
-  .name        = "New Branch",
-  .width       = 276,
-  .height      = 86,
-  .children    = kNewBranchCtrls,
-  .child_count = 5,
-  .ok_id       = CTL_CREATE,
-  .cancel_id   = CTL_CANCEL,
+  .name           = "New Branch",
+  .width          = 276,
+  .height         = 86,
+  .auto_layout    = true,
+  .layout_kind    = "stack",
+  .layout_spacing = 6,
+  .padding        = {8, 8, 8, 8},
+  .children       = kNewBranchCtrls,
+  .child_count    = (int)(sizeof(kNewBranchCtrls)/sizeof(kNewBranchCtrls[0])),
+  .ok_id          = CTL_CREATE,
+  .cancel_id      = CTL_CANCEL,
 };
 
 typedef struct {
@@ -56,11 +114,6 @@ static result_t new_branch_proc(window_t *win, uint32_t msg,
       }
       return true;
     }
-
-    case evPaint:
-      draw_text_small("Name:", 4, 11, get_sys_color(brTextDisabled));
-      draw_text_small("From:", 4, 29, get_sys_color(brTextDisabled));
-      return false;
 
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
