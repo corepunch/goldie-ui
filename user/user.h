@@ -322,6 +322,7 @@ typedef struct {
   int8_t visible_mode;     // SB_VIS_AUTO / SB_VIS_HIDE / SB_VIS_SHOW (see user/messages.h)
   bool dragging;           // thumb drag in progress
   int  drag_start_mouse;   // axis coord (window-local) when drag began
+  int  drag_mouse;         // accumulated axis coord while dragging
   int  drag_start_pos;     // pos value when drag began
 } win_sb_t;
 

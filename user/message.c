@@ -347,12 +347,15 @@ void remove_from_global_queue(window_t *win) {
 //
 // All mouse events are delivered in the receiving window's own client
 // coordinate system (see kernel/event.c), which includes win->scroll[] offset.
-// Scrollbars are painted with the same projection as content (with scroll applied),
-// so we use the coordinates directly without adjusting for scroll.
-static void sb_local_coords(window_t *win, uint32_t wparam, int *cx, int *cy) {
-  (void)win;
-  *cx = (int16_t)LOWORD(wparam);
-  *cy = (int16_t)HIWORD(wparam);
+// The coordinate helpers below keep the click/drag math consistent across
+// both scrollbar orientations and avoid duplicating LOWORD/HIWORD handling.
+static int sb_mouse_axis_coord(uint32_t wparam, bool vertical) {
+  return vertical ? (int16_t)HIWORD(wparam) : (int16_t)LOWORD(wparam);
+}
+
+static int sb_mouse_axis_delta(void *lparam, bool vertical) {
+  uint32_t delta = (uint32_t)(uintptr_t)lparam;
+  return vertical ? (int16_t)HIWORD(delta) : (int16_t)LOWORD(delta);
 }
 
 static int builtin_sb_thumb_len_msg(win_sb_t const *sb, int track) {
@@ -390,15 +393,16 @@ static bool sb_try_scroll(window_t *win, win_sb_t *sb, uint32_t scroll_msg, int 
 }
 
 // Update the scroll position while a thumb drag is in progress.
-// pos   — current mouse position along the scroll axis, relative to the scrollbar strip origin
-//         (i.e. cx - h_x_min for hscroll; cy for vscroll).
-// track — total track length in pixels for this axis.
+// The drag state accumulates raw mouse deltas, so scroll changes triggered by
+// the scrollbar itself cannot feed back into the next move event.
 static void sb_handle_drag_move(window_t *win, win_sb_t *sb, uint32_t scroll_msg,
-                                 int pos, int track) {
+                                 int mouse_delta, int track) {
+  sb->drag_mouse += mouse_delta;
   int eff_track = track - 2 * SCROLLBAR_WIDTH;
-  int pos_eff   = (eff_track > 0) ? pos - SCROLLBAR_WIDTH : pos;
-  int tl        = builtin_sb_thumb_len_msg(sb, eff_track > 0 ? eff_track : track);
-  int tp        = (eff_track > 0 ? eff_track : track) - tl;
+  int track_len  = (eff_track > 0 ? eff_track : track);
+  int pos_eff    = sb->drag_mouse;
+  int tl         = builtin_sb_thumb_len_msg(sb, track_len);
+  int tp         = track_len - tl;
   int tr        = sb->max_val - sb->min_val - sb->page;
   if (tp > 0 && tr > 0) {
     sb_try_scroll(win, sb, scroll_msg,
@@ -427,6 +431,7 @@ static void sb_handle_track_click(window_t *win, win_sb_t *sb, uint32_t scroll_m
       if (pos_eff >= to && pos_eff < to + tl) {
         sb->dragging         = true;
         sb->drag_start_mouse = pos_eff;
+        sb->drag_mouse       = pos_eff;
         sb->drag_start_pos   = sb->pos;
         set_capture(win);
       } else {
@@ -441,6 +446,7 @@ static void sb_handle_track_click(window_t *win, win_sb_t *sb, uint32_t scroll_m
     if (pos >= to && pos < to + tl) {
       sb->dragging         = true;
       sb->drag_start_mouse = pos;
+      sb->drag_mouse       = pos;
       sb->drag_start_pos   = sb->pos;
       set_capture(win);
     } else {
@@ -452,7 +458,7 @@ static void sb_handle_track_click(window_t *win, win_sb_t *sb, uint32_t scroll_m
 
 // Handle mouse events for a window's built-in scrollbars.
 // Returns true if the event was consumed by a scrollbar.
-static bool handle_builtin_scrollbars(window_t *win, uint32_t msg, uint32_t wparam) {
+static bool handle_builtin_scrollbars(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   bool has_h = (win->flags & WINDOW_HSCROLL) && win->hscroll.visible;
   bool has_v = (win->flags & WINDOW_VSCROLL) && win->vscroll.visible;
 
@@ -483,17 +489,17 @@ static bool handle_builtin_scrollbars(window_t *win, uint32_t msg, uint32_t wpar
 
   if (msg == evMouseMove || msg == evLeftButtonUp) {
     if (win->hscroll.dragging) {
-      int cx, cy; sb_local_coords(win, wparam, &cx, &cy); (void)cy;
+      int mouse_delta = sb_mouse_axis_delta(lparam, false);
       if (msg == evMouseMove)
         sb_handle_drag_move(win, &win->hscroll, evHScroll,
-                            cx - h_x_min, h_track);
+                            mouse_delta, h_track);
       else { win->hscroll.dragging = false; set_capture(NULL); }
       return true;
     }
     if (win->vscroll.dragging) {
-      int cx, cy; sb_local_coords(win, wparam, &cx, &cy); (void)cx;
+      int mouse_delta = sb_mouse_axis_delta(lparam, true);
       if (msg == evMouseMove)
-        sb_handle_drag_move(win, &win->vscroll, evVScroll, cy, v_track);
+        sb_handle_drag_move(win, &win->vscroll, evVScroll, mouse_delta, v_track);
       else { win->vscroll.dragging = false; set_capture(NULL); }
       return true;
     }
@@ -504,8 +510,8 @@ static bool handle_builtin_scrollbars(window_t *win, uint32_t msg, uint32_t wpar
       msg != evLeftButtonDoubleClick) return false;
   if (!has_h && !has_v) return false;
 
-  int cx, cy;
-  sb_local_coords(win, wparam, &cx, &cy);
+  int cx = sb_mouse_axis_coord(wparam, false);
+  int cy = sb_mouse_axis_coord(wparam, true);
 
   // Horizontal scrollbar hit — always consume geometry even when disabled
   if (has_h && cy >= h_y_min && cy < h_y_max &&
@@ -748,7 +754,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
        msg == evLeftButtonDoubleClick ||
        msg == evMouseMove ||
        msg == evLeftButtonUp)) {
-    if (handle_builtin_scrollbars(win, msg, wparam)) return true;
+    if (handle_builtin_scrollbars(win, msg, wparam, lparam)) return true;
   }
   if (win->parent && parent_notify_message(msg)) {
     parent_notify_t pn = {
