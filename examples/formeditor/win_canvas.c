@@ -998,8 +998,13 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
           }
           frame = clamp_to_form(doc, frame);
           int insert_index = -1;
-          if (doc->auto_layout && s->hover_layout_idx >= 0)
-            insert_index = s->hover_layout_idx;
+          if (doc->auto_layout && doc->element_count > 0) {
+            int drop_hit = hit_test_elements(s, lx, ly);
+            if (drop_hit >= 0)
+              insert_index = drop_hit;
+            else if (s->hover_layout_idx >= 0)
+              insert_index = s->hover_layout_idx;
+          }
           canvas_add_element(doc, ctrl_type, frame, insert_index);
         }
         // Revert to Select tool after placing
