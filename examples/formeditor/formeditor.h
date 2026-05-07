@@ -13,8 +13,6 @@
 // Layout constants
 // ============================================================
 
-#define FE_TOOLBOX_USE_BUTTON_GRID
-
 #define SCREEN_W          800
 #define SCREEN_H          600
 
@@ -23,19 +21,14 @@
 #define FORM_DEFAULT_H    240
 
 // Tool palette.
-// The button-grid mode uses the shared controls-icons atlas.
 #define FE_TOOLBOX_ICON_W   24   // icon tile size in the shared strip
-#define FE_TOOLBOX_BTN_SIZE 30   // match imageeditor's roomier toolbox buttons
+#define FE_TOOLBOX_BTN_SIZE 42   // icon-grid cell width/height in tool palette
 
 #include "controls-icons.h"
 
 // Palette window dimensions.
 #define PALETTE_WIN_X     4
-#ifdef FE_TOOLBOX_USE_BUTTON_GRID
-#define PALETTE_WIN_W     (TOOLBOX_COLS * FE_TOOLBOX_BTN_SIZE)
-#else
-#define PALETTE_WIN_W     144
-#endif
+#define PALETTE_WIN_W     176
 
 // Property browser window.  This is intentionally a reportview-backed
 // inspector: close to VB1's simple property sheet, without inline editing yet.
@@ -240,6 +233,8 @@ typedef struct {
   int         preview_type;
   ipoint16_t  pan;
   int         selected_idx;   // -1 = no selection
+  int         hover_layout_idx; // auto-layout node under placement drag, -1 = none
+  irect16_t   hover_layout_rc;  // form-space rect for hover highlight
   drag_state_t drag;
 } canvas_state_t;
 

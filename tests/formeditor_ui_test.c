@@ -609,6 +609,66 @@ void test_fe_placement_type_latched_on_mousedown(void) {
     PASS();
 }
 
+void test_fe_auto_layout_drag_hover_marks_layout_node(void) {
+    TEST("auto layout: placement drag tracks hovered layout node");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+    doc->auto_layout = true;
+    doc->layout_kind = 1; // stack
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
+    ASSERT_EQUAL(doc->element_count, 1);
+
+    form_element_t first = doc->elements[0];
+    fe_begin_place_drag(doc, ID_TOOL_LABEL,
+                        first.frame.x + 2, first.frame.y + 2, 2, 2);
+
+    canvas_state_t *s = fe_state(doc);
+    ASSERT_EQUAL(s->hover_layout_idx, 0);
+    ASSERT_EQUAL(s->hover_layout_rc.x, first.frame.x);
+    ASSERT_EQUAL(s->hover_layout_rc.y, first.frame.y);
+    ASSERT_EQUAL(s->hover_layout_rc.w, first.frame.w);
+    ASSERT_EQUAL(s->hover_layout_rc.h, first.frame.h);
+
+    send_message(doc->canvas_win, evLeftButtonUp,
+                 MAKEDWORD(first.frame.x + 4, first.frame.y + 4), NULL);
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_auto_layout_drop_inserts_before_hovered_node(void) {
+    TEST("auto layout: drop inserts component before hovered node");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+    doc->auto_layout = true;
+    doc->layout_kind = 1; // stack
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
+    fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
+    ASSERT_EQUAL(doc->element_count, 2);
+    ASSERT_EQUAL(doc->elements[0].type, CTRL_BUTTON);
+    ASSERT_EQUAL(doc->elements[1].type, CTRL_CHECKBOX);
+
+    form_element_t second = doc->elements[1];
+    fe_begin_place_drag(doc, ID_TOOL_LABEL,
+                        second.frame.x + 2, second.frame.y + 2, 2, 2);
+    send_message(doc->canvas_win, evLeftButtonUp,
+                 MAKEDWORD(second.frame.x + 4, second.frame.y + 4), NULL);
+
+    ASSERT_EQUAL(doc->element_count, 3);
+    ASSERT_EQUAL(doc->elements[0].type, CTRL_BUTTON);
+    ASSERT_EQUAL(doc->elements[1].type, CTRL_LABEL);
+    ASSERT_EQUAL(doc->elements[2].type, CTRL_CHECKBOX);
+    ASSERT_EQUAL(g_app->current_tool, ID_TOOL_SELECT);
+
+    fe_teardown();
+    PASS();
+}
+
 // Each supported control type can be placed and carries the right type enum.
 void test_fe_place_all_types(void) {
     TEST("place all control types: element_count=6, types correct");
@@ -1664,6 +1724,8 @@ int main(void) {
     test_fe_begin_place_drag_deselects_previous_element();
     test_fe_preview_parent_notify_finishes_placement();
     test_fe_placement_type_latched_on_mousedown();
+    test_fe_auto_layout_drag_hover_marks_layout_node();
+    test_fe_auto_layout_drop_inserts_before_hovered_node();
     test_fe_place_all_types();
     test_fe_live_windows_created();
     test_fe_live_button_uses_runtime_minimum_height();

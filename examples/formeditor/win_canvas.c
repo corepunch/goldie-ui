@@ -20,6 +20,8 @@
 
 // Colour of the design-time dot grid.
 #define GRID_DOT_COLOR  0xFFA0A0A0
+#define LAYOUT_HOVER_FILL   0x663A7DFF
+#define LAYOUT_HOVER_BORDER 0xCC3A7DFF
 
 // ============================================================
 // Handle indices
@@ -201,6 +203,7 @@ static irect16_t clamp_to_form(form_doc_t *doc, irect16_t r) {
 
 static void draw_handles(window_t *win, canvas_state_t *s);
 static void draw_rubber_band(window_t *win, canvas_state_t *s);
+static void draw_layout_hover(canvas_state_t *s);
 
 static winproc_t ctrl_type_to_proc(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
@@ -321,6 +324,8 @@ static void canvas_destroy_preview(canvas_state_t *s) {
 static void canvas_reset_drag(canvas_state_t *s) {
   if (!s) return;
   canvas_destroy_preview(s);
+  s->hover_layout_idx = -1;
+  s->hover_layout_rc = (irect16_t){0, 0, 0, 0};
   s->drag = (drag_state_t){.mode = DRAG_NONE};
   set_capture(NULL);
 }
@@ -473,6 +478,17 @@ static void draw_rubber_band(window_t *win, canvas_state_t *s) {
   draw_sel_rect(form_to_canvas_rect(s, R(x0, y0, x1 - x0, y1 - y0)));
 }
 
+static void draw_layout_hover(canvas_state_t *s) {
+  if (!s || s->hover_layout_idx < 0 || s->hover_layout_rc.w <= 0 || s->hover_layout_rc.h <= 0)
+    return;
+  irect16_t r = form_to_canvas_rect(s, s->hover_layout_rc);
+  fill_rect(LAYOUT_HOVER_FILL, r);
+  fill_rect(LAYOUT_HOVER_BORDER, R(r.x, r.y, r.w, 1));
+  fill_rect(LAYOUT_HOVER_BORDER, R(r.x, r.y + r.h - 1, r.w, 1));
+  fill_rect(LAYOUT_HOVER_BORDER, R(r.x, r.y, 1, r.h));
+  fill_rect(LAYOUT_HOVER_BORDER, R(r.x + r.w - 1, r.y, 1, r.h));
+}
+
 static uint32_t g_grid_dot_tex = 0;
 static int      g_grid_dot_tex_size = 0;
 
@@ -562,7 +578,7 @@ static void ctrl_make_caption(int type, int index, char *text, size_t text_sz) {
 // ============================================================
 // Add a new element to the document
 // ============================================================
-static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame) {
+static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame, int insert_index) {
   const fe_component_desc_t *c = fe_component_by_id(type);
   if (doc->element_count >= MAX_ELEMENTS) return -1;
   if (!c || type < 0 || type >= FE_MAX_COMPONENTS) return -1;
@@ -570,7 +586,14 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame) {
   if (frame.h < MIN_ELEM_H) frame.h = MIN_ELEM_H;
 
   int index = doc->element_count;
+  if (insert_index >= 0 && insert_index < doc->element_count)
+    index = insert_index;
+  if (index < doc->element_count) {
+    for (int i = doc->element_count; i > index; i--)
+      doc->elements[i] = doc->elements[i - 1];
+  }
   form_element_t *el = &doc->elements[index];
+  *el = (form_element_t){0};
   el->type  = type;
   el->id    = doc->next_id++;
   el->frame = frame;
@@ -595,6 +618,8 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame) {
   canvas_state_t *s = doc->canvas_win ? (canvas_state_t *)doc->canvas_win->userdata : NULL;
   if (s)
     s->selected_idx = index;
+  if (doc->auto_layout)
+    form_doc_auto_layout_reflow(doc);
   canvas_create_live_element_window(doc, el);
   canvas_sync_live_controls(doc);
   doc->modified = true;
@@ -615,6 +640,15 @@ static irect16_t canvas_rubber_band_rect(canvas_state_t *s, canvas_pt_t pos) {
 
 static void canvas_update_rubber_band(canvas_state_t *s, canvas_pt_t pos) {
   s->drag.place.band = canvas_rubber_band_rect(s, pos);
+  s->hover_layout_idx = -1;
+  s->hover_layout_rc = (irect16_t){0, 0, 0, 0};
+  if (!s->doc || !s->doc->auto_layout || s->doc->element_count <= 0)
+    return;
+  int hit = hit_test_elements(s, pos.x, pos.y);
+  if (hit >= 0 && hit < s->doc->element_count) {
+    s->hover_layout_idx = hit;
+    s->hover_layout_rc = s->doc->elements[hit].frame;
+  }
 }
 
 static void canvas_update_placement_preview(canvas_state_t *s) {
@@ -708,6 +742,8 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       st->doc          = (form_doc_t *)lparam;
       st->preview_type = -1;
       st->selected_idx = -1;
+      st->hover_layout_idx = -1;
+      st->hover_layout_rc = (irect16_t){0, 0, 0, 0};
       st->pan          = (ipoint16_t){0, 0};
       st->drag         = (drag_state_t){.mode = DRAG_NONE};
       canvas_sync_scrollbars(win, st);
@@ -771,6 +807,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       for (window_t *child = win->children; child; child = child->next)
         send_message(child, evPaint, 0, NULL);
       canvas_set_draw_space(win);
+      draw_layout_hover(s);
       draw_handles(win, s);
       draw_rubber_band(win, s);
 
@@ -954,7 +991,10 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
             frame.h = size.h;
           }
           frame = clamp_to_form(doc, frame);
-          canvas_add_element(doc, ctrl_type, frame);
+          int insert_index = -1;
+          if (doc->auto_layout && s->hover_layout_idx >= 0)
+            insert_index = s->hover_layout_idx;
+          canvas_add_element(doc, ctrl_type, frame, insert_index);
         }
         // Revert to Select tool after placing
         canvas_set_select_tool();
