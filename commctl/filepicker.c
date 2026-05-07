@@ -53,6 +53,7 @@ enum {
   FP_ID_TOOL_UP = 1,
   FP_ID_TOOL_NEW_FOLDER,
   FP_ID_LOC_COMBO,
+  FP_ID_FILE_LIST,
   FP_ID_FILE_EDIT,
   FP_ID_FILTER_COMBO,
   FP_ID_OK,
@@ -76,28 +77,199 @@ typedef struct {
   char name[256];
 } fp_newfolder_state_t;
 
+static const form_ctrl_def_t kNewFolderNameRow[] = {
+  {
+    .class_name = "label",
+    .id = FP_ID_NEWFOLDER_EDIT + 1000,
+    .size = {72, CONTROL_HEIGHT},
+    .text = "Folder name:",
+    .name = "label_name",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_CENTER,
+  },
+  {
+    .class_name = "textedit",
+    .id = FP_ID_NEWFOLDER_EDIT,
+    .size = {150, CONTROL_HEIGHT},
+    .text = "",
+    .name = "edit_name",
+    .flags = WINDOW_FLEXSPACE,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_CENTER,
+  },
+};
+
+static const form_ctrl_def_t kNewFolderActions[] = {
+  {
+    .class_name = "space",
+    .name = "flex",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "button",
+    .id = FP_ID_NEWFOLDER_OK,
+    .size = {54, BUTTON_HEIGHT},
+    .flags = BUTTON_DEFAULT,
+    .text = "OK",
+    .name = "ok",
+    .h_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = FP_ID_NEWFOLDER_CANCEL,
+    .size = {60, BUTTON_HEIGHT},
+    .text = "Cancel",
+    .name = "cancel",
+    .h_align = LAYOUT_ALIGN_START,
+  },
+};
+
 static const form_ctrl_def_t kNewFolderChildren[] = {
-  { "label", FP_ID_NEWFOLDER_EDIT + 1000, {8, 10, 72, CONTROL_HEIGHT}, 0, "Folder name:", "label_name" },
-  { "textedit", FP_ID_NEWFOLDER_EDIT, {82, 8, 150, CONTROL_HEIGHT}, 0, "", "edit_name" },
-  { "button", FP_ID_NEWFOLDER_OK, {116, 32, 54, BUTTON_HEIGHT}, BUTTON_DEFAULT, "OK", "ok" },
-  { "button", FP_ID_NEWFOLDER_CANCEL, {176, 32, 60, BUTTON_HEIGHT}, 0, "Cancel", "cancel" },
+  {
+    .class_name = "stack",
+    .name = "name_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kNewFolderNameRow,
+    .child_count = ARRAY_LEN(kNewFolderNameRow),
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kNewFolderActions,
+    .child_count = ARRAY_LEN(kNewFolderActions),
+  },
 };
 
 static const form_def_t kNewFolderForm = {
   .name = "Create Folder",
   .width = 244,
   .height = 58,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = 8,
+  .padding = {8, 8, 8, 8},
   .children = kNewFolderChildren,
-  .child_count = sizeof(kNewFolderChildren) / sizeof(kNewFolderChildren[0]),
+  .child_count = ARRAY_LEN(kNewFolderChildren),
+};
+
+static const form_ctrl_def_t kFilePickerFileRow[] = {
+  {
+    .class_name = "label",
+    .text = "File:",
+    .name = "lbl_file",
+    .size = {FP_LABEL_W, FP_EDIT_H},
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_CENTER,
+  },
+  {
+    .class_name = "textedit",
+    .id = FP_ID_FILE_EDIT,
+    .text = "",
+    .name = "edit_file",
+    .flags = WINDOW_FLEXSPACE,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_CENTER,
+  },
+};
+
+static const form_ctrl_def_t kFilePickerFilterRow[] = {
+  {
+    .class_name = "label",
+    .text = "Filter:",
+    .name = "lbl_filter",
+    .size = {FP_LABEL_W, CONTROL_HEIGHT},
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_CENTER,
+  },
+  {
+    .class_name = "combobox",
+    .id = FP_ID_FILTER_COMBO,
+    .text = "",
+    .name = "combo_filter",
+    .flags = WINDOW_FLEXSPACE,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_CENTER,
+  },
+};
+
+static const form_ctrl_def_t kFilePickerActions[] = {
+  {
+    .class_name = "space",
+    .name = "actions_flex",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "button",
+    .id = FP_ID_OK,
+    .size = {FP_BTN_W, FP_BTN_H},
+    .flags = BUTTON_DEFAULT,
+    .text = "Open",
+    .name = "btn_ok",
+    .h_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = FP_ID_CANCEL,
+    .size = {FP_BTN_W, FP_BTN_H},
+    .text = "Cancel",
+    .name = "btn_cancel",
+    .h_align = LAYOUT_ALIGN_START,
+  },
 };
 
 static const form_ctrl_def_t kFilePickerChildren[] = {
-  { "label", -1, { FP_PAD, FP_FILE_Y, FP_LABEL_W, FP_EDIT_H }, 0, "File:", "lbl_file" },
-  { "textedit", FP_ID_FILE_EDIT, { FP_CTRL_X, FP_FILE_Y, FP_CTRL_W, FP_EDIT_H }, 0, "", "edit_file" },
-  { "label", -1, { FP_PAD, FP_FILTER_Y + (FP_COMBO_H - CONTROL_HEIGHT) / 2, FP_LABEL_W, CONTROL_HEIGHT }, 0, "Filter:", "lbl_filter" },
-  { "combobox", FP_ID_FILTER_COMBO, { FP_CTRL_X, FP_FILTER_Y, FP_CTRL_W, FP_COMBO_H }, 0, "", "combo_filter" },
-  { "button", FP_ID_OK, { FP_WIN_W - (FP_BTN_W + FP_PAD) * 2, FP_BTN_Y, FP_BTN_W, FP_BTN_H }, BUTTON_DEFAULT, "Open", "btn_ok" },
-  { "button", FP_ID_CANCEL, { FP_WIN_W - (FP_BTN_W + FP_PAD), FP_BTN_Y, FP_BTN_W, FP_BTN_H }, 0, "Cancel", "btn_cancel" },
+  {
+    .class_name = "filelist",
+    .id = FP_ID_FILE_LIST,
+    .size = {FP_WIN_W - FP_PAD * 2, FP_LIST_H + FP_PAD},
+    .text = "",
+    .name = "file_list",
+    .flags = WINDOW_NOTITLE | WINDOW_VSCROLL | WINDOW_FLEXSPACE,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "stack",
+    .name = "file_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kFilePickerFileRow,
+    .child_count = ARRAY_LEN(kFilePickerFileRow),
+  },
+  {
+    .class_name = "stack",
+    .name = "filter_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kFilePickerFilterRow,
+    .child_count = ARRAY_LEN(kFilePickerFilterRow),
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 4,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kFilePickerActions,
+    .child_count = ARRAY_LEN(kFilePickerActions),
+  },
 };
 
 static const form_def_t kFilePickerForm = {
@@ -105,8 +277,12 @@ static const form_def_t kFilePickerForm = {
   .width = FP_WIN_W,
   .height = FP_BTN_Y + FP_BTN_H + FP_PAD,
   .flags = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = FP_ROW_GAP,
+  .padding = {FP_PAD, FP_PAD, FP_PAD, FP_PAD},
   .children = kFilePickerChildren,
-  .child_count = sizeof(kFilePickerChildren) / sizeof(kFilePickerChildren[0]),
+  .child_count = ARRAY_LEN(kFilePickerChildren),
 };
 
 // ---------------------------------------------------------------------------
@@ -402,7 +578,8 @@ static void fp_create_folder(window_t *win, fp_state_t *ps) {
 
   if (!axMkDir(full)) {
     char text[320];
-    snprintf(text, sizeof(text), "Could not create folder:\n%s", full);
+    snprintf(text, sizeof(text), "Could not create folder:\n%.*s",
+             (int)(sizeof(text) - strlen("Could not create folder:\n") - 1), full);
     message_box(win, text, "Create Folder", MB_OK);
     return;
   }
@@ -536,6 +713,7 @@ static result_t fp_proc(window_t *win, uint32_t msg,
         }
       }
 
+      ps->list_win = get_window_item(win, FP_ID_FILE_LIST);
       ps->edit_win = get_window_item(win, FP_ID_FILE_EDIT);
       ps->filter_combo = get_window_item(win, FP_ID_FILTER_COMBO);
       ps->ok_win = get_window_item(win, FP_ID_OK);
@@ -560,14 +738,14 @@ static result_t fp_proc(window_t *win, uint32_t msg,
         }
       }
 
-      // File browser list
-      ps->list_win = create_window("", WINDOW_NOTITLE | WINDOW_VSCROLL,
-          MAKERECT(0, 0, FP_LIST_W + FP_PAD * 2, FP_LIST_H + FP_PAD),
-          win, win_filelist, 0, NULL);
       // Set column width so exactly 2 icon-view columns fit within the list
       // width minus the vertical scrollbar strip.
-      send_message(ps->list_win, RVM_SETCOLUMNWIDTH,
-                   (FP_LIST_W + FP_PAD * 2 - SCROLLBAR_WIDTH) / 2, NULL);
+      if (ps->list_win) {
+        irect16_t list_rect = get_client_rect(ps->list_win);
+        int list_w = list_rect.w > 0 ? list_rect.w : (FP_LIST_W + FP_PAD * 2);
+        send_message(ps->list_win, RVM_SETCOLUMNWIDTH,
+                     (uint32_t)MAX(1, (list_w - SCROLLBAR_WIDTH) / 2), NULL);
+      }
 
       // Apply the initial filter
       fp_apply_filter(ps);

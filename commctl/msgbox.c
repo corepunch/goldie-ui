@@ -9,22 +9,143 @@
 #include "msgbox.h"
 #include "commctl.h"
 #include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/text.h"
-#include "../user/theme.h"
 
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
 
 #define MB_WIN_W   240
-#define MB_TEXT_Y    8
 #define MB_TEXT_H   34   // room for two lines of text without touching buttons
 #define MB_PAD       8
-#define MB_BTN_GAP  10
+#define MB_BTN_GAP   8
 #define MB_BTN_W    50
 #define MB_BTN_H   BUTTON_HEIGHT
-#define MB_WIN_H   (TITLEBAR_HEIGHT + MB_TEXT_Y + MB_TEXT_H + MB_BTN_GAP + MB_BTN_H + MB_PAD)
+#define MB_CLIENT_H (MB_PAD + MB_TEXT_H + MB_BTN_GAP + MB_BTN_H + MB_PAD)
+
+enum {
+  MB_ID_TEXT = 1,
+  MB_ID_OK,
+  MB_ID_YES,
+  MB_ID_NO,
+  MB_ID_CANCEL,
+};
+
+static const form_ctrl_def_t kMsgBoxOkActions[] = {
+  { .class_name = "space", .name = "left", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button", .id = MB_ID_OK, .size = {MB_BTN_W, MB_BTN_H},
+    .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok", .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "space", .name = "right", .h_align = LAYOUT_ALIGN_STRETCH },
+};
+
+static const form_ctrl_def_t kMsgBoxOkCancelActions[] = {
+  { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button", .id = MB_ID_OK, .size = {MB_BTN_W, MB_BTN_H},
+    .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok", .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = MB_ID_CANCEL, .size = {MB_BTN_W, MB_BTN_H},
+    .text = "Cancel", .name = "cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
+static const form_ctrl_def_t kMsgBoxYesNoActions[] = {
+  { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button", .id = MB_ID_YES, .size = {MB_BTN_W, MB_BTN_H},
+    .flags = BUTTON_DEFAULT, .text = "Yes", .name = "yes", .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = MB_ID_NO, .size = {MB_BTN_W, MB_BTN_H},
+    .text = "No", .name = "no", .h_align = LAYOUT_ALIGN_START },
+};
+
+static const form_ctrl_def_t kMsgBoxYesNoCancelActions[] = {
+  { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button", .id = MB_ID_YES, .size = {MB_BTN_W, MB_BTN_H},
+    .flags = BUTTON_DEFAULT, .text = "Yes", .name = "yes", .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = MB_ID_NO, .size = {MB_BTN_W, MB_BTN_H},
+    .text = "No", .name = "no", .h_align = LAYOUT_ALIGN_START },
+  { .class_name = "button", .id = MB_ID_CANCEL, .size = {MB_BTN_W, MB_BTN_H},
+    .text = "Cancel", .name = "cancel", .h_align = LAYOUT_ALIGN_START },
+};
+
+static const form_ctrl_def_t kMsgBoxOkChildren[] = {
+  { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
+    .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
+  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
+    .children = kMsgBoxOkActions, .child_count = ARRAY_LEN(kMsgBoxOkActions) },
+};
+
+static const form_ctrl_def_t kMsgBoxOkCancelChildren[] = {
+  { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
+    .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
+  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
+    .children = kMsgBoxOkCancelActions, .child_count = ARRAY_LEN(kMsgBoxOkCancelActions) },
+};
+
+static const form_ctrl_def_t kMsgBoxYesNoChildren[] = {
+  { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
+    .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
+  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
+    .children = kMsgBoxYesNoActions, .child_count = ARRAY_LEN(kMsgBoxYesNoActions) },
+};
+
+static const form_ctrl_def_t kMsgBoxYesNoCancelChildren[] = {
+  { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
+    .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
+  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
+    .children = kMsgBoxYesNoCancelActions, .child_count = ARRAY_LEN(kMsgBoxYesNoCancelActions) },
+};
+
+static const form_def_t kMsgBoxOkForm = {
+  .name = "Message",
+  .width = MB_WIN_W,
+  .height = MB_CLIENT_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = MB_BTN_GAP,
+  .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
+  .children = kMsgBoxOkChildren,
+  .child_count = ARRAY_LEN(kMsgBoxOkChildren),
+};
+
+static const form_def_t kMsgBoxOkCancelForm = {
+  .name = "Message",
+  .width = MB_WIN_W,
+  .height = MB_CLIENT_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = MB_BTN_GAP,
+  .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
+  .children = kMsgBoxOkCancelChildren,
+  .child_count = ARRAY_LEN(kMsgBoxOkCancelChildren),
+};
+
+static const form_def_t kMsgBoxYesNoForm = {
+  .name = "Message",
+  .width = MB_WIN_W,
+  .height = MB_CLIENT_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = MB_BTN_GAP,
+  .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
+  .children = kMsgBoxYesNoChildren,
+  .child_count = ARRAY_LEN(kMsgBoxYesNoChildren),
+};
+
+static const form_def_t kMsgBoxYesNoCancelForm = {
+  .name = "Message",
+  .width = MB_WIN_W,
+  .height = MB_CLIENT_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = MB_BTN_GAP,
+  .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
+  .children = kMsgBoxYesNoCancelChildren,
+  .child_count = ARRAY_LEN(kMsgBoxYesNoCancelChildren),
+};
 
 // ---------------------------------------------------------------------------
 // Internal state
@@ -48,56 +169,9 @@ static result_t mb_proc(window_t *win, uint32_t msg,
     case evCreate: {
       ms = (mb_state_t *)lparam;
       win->userdata = ms;
-
-      // Buttons — positioned flush with the right edge, same style as the
-      // imageeditor's about-dialog and file-picker.
-      int btn_y = MB_TEXT_Y + MB_TEXT_H + MB_BTN_GAP;
-      uint32_t btype = ms->type & 0x0F;
-
-      if (btype == MB_YESNOCANCEL) {
-        create_window("Yes", BUTTON_DEFAULT,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD) * 3, btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-        create_window("No", 0,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD) * 2, btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-        create_window("Cancel", 0,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD), btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-      } else if (btype == MB_YESNO) {
-        create_window("Yes", BUTTON_DEFAULT,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD) * 2, btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-        create_window("No", 0,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD), btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-      } else if (btype == MB_OKCANCEL) {
-        create_window("OK", BUTTON_DEFAULT,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD) * 2, btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-        create_window("Cancel", 0,
-            MAKERECT(MB_WIN_W - (MB_BTN_W + MB_PAD), btn_y,
-                     MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-      } else {
-        /* MB_OK */
-        create_window("OK", BUTTON_DEFAULT,
-            MAKERECT((MB_WIN_W - MB_BTN_W) / 2, btn_y, MB_BTN_W, MB_BTN_H),
-            win, win_button, 0, NULL);
-      }
+      set_window_item_text(win, MB_ID_TEXT, "%s", ms->text ? ms->text : "");
       return true;
     }
-
-    case evPaint:
-      draw_text(FONT_SMALL, ms->text ? ms->text : "",
-                MB_PAD, MB_TEXT_Y, get_sys_color(brTextNormal));
-      return false;
 
     case evCommand: {
       if (HIWORD(wparam) != btnClicked) return false;
@@ -105,10 +179,10 @@ static result_t mb_proc(window_t *win, uint32_t msg,
       if (!btn) return true;
 
       int code = IDCANCEL;
-      if      (strcmp(btn->title, "OK")     == 0) code = IDOK;
-      else if (strcmp(btn->title, "Yes")    == 0) code = IDYES;
-      else if (strcmp(btn->title, "No")     == 0) code = IDNO;
-      else if (strcmp(btn->title, "Cancel") == 0) code = IDCANCEL;
+      if      (btn->id == MB_ID_OK)     code = IDOK;
+      else if (btn->id == MB_ID_YES)    code = IDYES;
+      else if (btn->id == MB_ID_NO)     code = IDNO;
+      else if (btn->id == MB_ID_CANCEL) code = IDCANCEL;
 
       ms->result = code;
       end_dialog(win, (uint32_t)code);
@@ -132,8 +206,13 @@ int message_box(window_t *parent, const char *text,
   ms.result = IDCANCEL;
 
   const char *title = caption ? caption : "Message";
-  show_dialog(title,
-              MB_WIN_W, MB_WIN_H,
-              parent, mb_proc, &ms);
+  const form_def_t *form = &kMsgBoxOkForm;
+  switch (type & 0x0F) {
+    case MB_OKCANCEL:    form = &kMsgBoxOkCancelForm; break;
+    case MB_YESNO:       form = &kMsgBoxYesNoForm; break;
+    case MB_YESNOCANCEL: form = &kMsgBoxYesNoCancelForm; break;
+    default:             form = &kMsgBoxOkForm; break;
+  }
+  show_dialog_from_form(form, title, parent, mb_proc, &ms);
   return ms.result;
 }

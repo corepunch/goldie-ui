@@ -1040,25 +1040,10 @@ bool form_project_save(const char *path) {
 
 static result_t about_proc(window_t *win, uint32_t msg,
                             uint32_t wparam, void *lparam) {
-  (void)lparam;
   switch (msg) {
-    case evCreate: {
-      // Info labels
-      create_window("Orion Form Editor", WINDOW_NOTITLE | WINDOW_NOFILL,
-          MAKERECT(8, 8, ABOUT_W - 16, CONTROL_HEIGHT),
-          win, "label", 0, NULL);
-      create_window("Version 1.0", WINDOW_NOTITLE | WINDOW_NOFILL,
-          MAKERECT(8, 22, ABOUT_W - 16, CONTROL_HEIGHT),
-          win, "label", 0, (void *)(uintptr_t)brTextDisabled);
-      create_window("VB3-inspired form designer", WINDOW_NOTITLE | WINDOW_NOFILL,
-          MAKERECT(8, 36, ABOUT_W - 16, CONTROL_HEIGHT),
-          win, "label", 0, (void *)(uintptr_t)brTextDisabled);
-      // OK button
-      create_window("OK", BUTTON_DEFAULT,
-          MAKERECT(ABOUT_W - 54, ABOUT_H - BUTTON_HEIGHT - 4, 50, BUTTON_HEIGHT),
-          win, "button", 0, NULL);
+    case evCreate:
+      win->userdata = lparam;
       return true;
-    }
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
         end_dialog(win, 1);
@@ -1070,10 +1055,49 @@ static result_t about_proc(window_t *win, uint32_t msg,
   }
 }
 
+enum {
+  ABOUT_ID_OK = 1,
+};
+
+static const form_ctrl_def_t kAboutChildren[] = {
+  { .class_name = "label", .text = "Orion Form Editor", .name = "title",
+    .h_align = LAYOUT_ALIGN_STRETCH, .font = FONT_SYSTEM, .font_set = true },
+  { .class_name = "label", .text = "Version 1.0", .name = "version",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  { .class_name = "label", .text = "VB3-inspired form designer", .name = "desc",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = ABOUT_ID_OK, .size = {50, BUTTON_HEIGHT},
+        .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok", .h_align = LAYOUT_ALIGN_START },
+    },
+    .child_count = 2,
+  },
+};
+
+static const form_def_t kAboutForm = {
+  .name = "About Orion Form Editor",
+  .width = ABOUT_W,
+  .height = ABOUT_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = 6,
+  .padding = {8, 8, 8, 8},
+  .children = kAboutChildren,
+  .child_count = ARRAY_LEN(kAboutChildren),
+  .ok_id = ABOUT_ID_OK,
+};
+
 void show_about_dialog(window_t *parent) {
-  show_dialog("About Orion Form Editor",
-              ABOUT_W, ABOUT_H + TITLEBAR_HEIGHT,
-              parent, about_proc, NULL);
+  show_dialog_from_form(&kAboutForm, "About Orion Form Editor",
+                        parent, about_proc, NULL);
 }
 
 // ============================================================
@@ -1103,12 +1127,41 @@ typedef struct {
 } grid_size_data_t;
 
 static const form_ctrl_def_t kGridChildren[] = {
-  { "checkbox", GRID_ID_SHOW, {4,        GRID_ROW1_Y, GRID_W-8, BUTTON_HEIGHT}, 0,             "Show grid",    "chk_show"   },
-  { "checkbox", GRID_ID_SNAP, {4,        GRID_ROW2_Y, GRID_W-8, BUTTON_HEIGHT}, 0,             "Snap to grid", "chk_snap"   },
-  { "label",    -1,           {4,        GRID_ROW3_Y, 60,       CONTROL_HEIGHT}, 0,             "Grid size:",   "lbl_size"   },
-  { "textedit", GRID_ID_SIZE, {68,       GRID_ROW3_Y, 40,       BUTTON_HEIGHT},  0,             "",             "edit_size"  },
-  { "button",   GRID_ID_OK,     {GRID_W-108, GRID_BTN_Y, 50, BUTTON_HEIGHT}, BUTTON_DEFAULT, "OK",     "btn_ok"     },
-  { "button",   GRID_ID_CANCEL, {GRID_W-54,  GRID_BTN_Y, 50, BUTTON_HEIGHT}, 0,             "Cancel", "btn_cancel" },
+  { .class_name = "checkbox", .id = GRID_ID_SHOW, .text = "Show grid", .name = "chk_show",
+    .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "checkbox", .id = GRID_ID_SNAP, .text = "Snap to grid", .name = "chk_snap",
+    .h_align = LAYOUT_ALIGN_STRETCH },
+  {
+    .class_name = "stack",
+    .name = "size_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "label", .text = "Grid size:", .name = "lbl_size", .size = {60, CONTROL_HEIGHT},
+        .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+      { .class_name = "textedit", .id = GRID_ID_SIZE, .text = "", .name = "edit_size", .size = {40, BUTTON_HEIGHT},
+        .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 4,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = GRID_ID_OK, .size = {50, BUTTON_HEIGHT},
+        .flags = BUTTON_DEFAULT, .text = "OK", .name = "btn_ok", .h_align = LAYOUT_ALIGN_START },
+      { .class_name = "button", .id = GRID_ID_CANCEL, .size = {50, BUTTON_HEIGHT},
+        .text = "Cancel", .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
+    },
+    .child_count = 3,
+  },
 };
 
 static const ctrl_binding_t k_grid_bindings[] = {
@@ -1120,6 +1173,10 @@ static const form_def_t kGridForm = {
   .width         = GRID_W,
   .height        = GRID_H,
   .flags         = 0,
+  .auto_layout   = true,
+  .layout_kind   = "stack",
+  .layout_spacing = 6,
+  .padding       = {8, 8, 8, 8},
   .children      = kGridChildren,
   .child_count   = ARRAY_LEN(kGridChildren),
   .bindings      = k_grid_bindings,
@@ -1216,12 +1273,57 @@ static void show_grid_settings_dialog(window_t *parent, form_doc_t *doc) {
 #define PROPS_BTN_Y        (PROPS_H - BUTTON_HEIGHT - 6)        // 86
 
 static const form_ctrl_def_t kPropsChildren[] = {
-  { "label",    -1,              {4,          PROPS_ROW1_Y, 60,           CONTROL_HEIGHT}, 0,             "Caption:", "lbl_caption" },
-  { "textedit", PROPS_ID_CAPTION,{68,         PROPS_ROW1_Y, PROPS_W - 72, BUTTON_HEIGHT},  0,             "",         "edit_caption"},
-  { "label",    -1,              {4,          PROPS_ROW2_Y, 60,           CONTROL_HEIGHT}, 0,             "Name:",    "lbl_name"    },
-  { "textedit", PROPS_ID_NAME,   {68,         PROPS_ROW2_Y, PROPS_W - 72, BUTTON_HEIGHT},  0,             "",         "edit_name"   },
-  { "button",   PROPS_ID_OK,     {PROPS_W-108, PROPS_BTN_Y, 50,           BUTTON_HEIGHT},  BUTTON_DEFAULT, "OK",      "btn_ok"      },
-  { "button",   PROPS_ID_CANCEL, {PROPS_W-54,  PROPS_BTN_Y, 50,           BUTTON_HEIGHT},  0,             "Cancel",   "btn_cancel"  },
+  {
+    .class_name = "grid",
+    .name = "fields",
+    .flags = WINDOW_FLEXSPACE,
+    .layout_kind = "grid",
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      {
+        .class_name = "column",
+        .name = "labels",
+        .size = {60, 0},
+        .children = (const form_ctrl_def_t[]){
+          { .class_name = "label", .text = "Caption:", .name = "lbl_caption", .size = {60, CONTROL_HEIGHT},
+            .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+          { .class_name = "label", .text = "Name:", .name = "lbl_name", .size = {60, CONTROL_HEIGHT},
+            .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+        },
+        .child_count = 2,
+      },
+      {
+        .class_name = "column",
+        .name = "inputs",
+        .flags = WINDOW_FLEXSPACE,
+        .children = (const form_ctrl_def_t[]){
+          { .class_name = "textedit", .id = PROPS_ID_CAPTION, .text = "", .name = "edit_caption",
+            .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+          { .class_name = "textedit", .id = PROPS_ID_NAME, .text = "", .name = "edit_name",
+            .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+        },
+        .child_count = 2,
+      },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 4,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = PROPS_ID_OK, .size = {50, BUTTON_HEIGHT},
+        .flags = BUTTON_DEFAULT, .text = "OK", .name = "btn_ok", .h_align = LAYOUT_ALIGN_START },
+      { .class_name = "button", .id = PROPS_ID_CANCEL, .size = {50, BUTTON_HEIGHT},
+        .text = "Cancel", .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
+    },
+    .child_count = 3,
+  },
 };
 
 // DDX bindings: caption and name edits ↔ form_element_t.text / .name
@@ -1235,6 +1337,10 @@ static const form_def_t kPropsForm = {
   .width         = PROPS_W,
   .height        = PROPS_H,
   .flags         = 0,
+  .auto_layout   = true,
+  .layout_kind   = "stack",
+  .layout_spacing = 6,
+  .padding       = {8, 8, 8, 8},
   .children      = kPropsChildren,
   .child_count   = ARRAY_LEN(kPropsChildren),
   .bindings      = k_props_bindings,
@@ -1296,15 +1402,69 @@ static const ctrl_binding_t k_form_props_bindings[] = {
 };
 
 static const form_ctrl_def_t kFormPropsChildren[] = {
-  { "checkbox", FORM_PROPS_ID_AUTO, { 8, FORM_PROPS_ROW1_Y, 140, CONTROL_HEIGHT }, 0, "Use auto layout", "chk_auto", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "label", -1, { 8, FORM_PROPS_ROW2_Y, 72, CONTROL_HEIGHT }, 0, "Layout:", "lbl_kind", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "combobox", FORM_PROPS_ID_KIND, { 84, FORM_PROPS_ROW2_Y - 2, 124, BUTTON_HEIGHT + 2 }, 0, "", "combo_kind", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "label", -1, { 8, FORM_PROPS_ROW3_Y, 72, CONTROL_HEIGHT }, 0, "Orientation:", "lbl_orient", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "combobox", FORM_PROPS_ID_ORIENT, { 84, FORM_PROPS_ROW3_Y - 2, 124, BUTTON_HEIGHT + 2 }, 0, "", "combo_orient", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "label", -1, { 8, FORM_PROPS_ROW4_Y, 72, CONTROL_HEIGHT }, 0, "Columns:", "lbl_columns", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "textedit", FORM_PROPS_ID_COLUMNS, { 84, FORM_PROPS_ROW4_Y - 2, 64, BUTTON_HEIGHT + 2 }, 0, "", "edit_columns", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "button", FORM_PROPS_ID_OK, { FORM_PROPS_W - 108, FORM_PROPS_BTN_Y, 50, BUTTON_HEIGHT }, BUTTON_DEFAULT, "OK", "btn_ok", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
-  { "button", FORM_PROPS_ID_CANCEL, { FORM_PROPS_W - 54, FORM_PROPS_BTN_Y, 50, BUTTON_HEIGHT }, 0, "Cancel", "btn_cancel", LAYOUT_ALIGN_STRETCH, LAYOUT_ALIGN_STRETCH },
+  { .class_name = "checkbox", .id = FORM_PROPS_ID_AUTO, .text = "Use auto layout", .name = "chk_auto",
+    .h_align = LAYOUT_ALIGN_STRETCH },
+  {
+    .class_name = "stack",
+    .name = "kind_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "label", .text = "Layout:", .name = "lbl_kind", .size = {72, CONTROL_HEIGHT},
+        .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+      { .class_name = "combobox", .id = FORM_PROPS_ID_KIND, .text = "", .name = "combo_kind", .size = {124, BUTTON_HEIGHT + 2},
+        .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER, .flags = WINDOW_FLEXSPACE },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "orient_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "label", .text = "Orientation:", .name = "lbl_orient", .size = {72, CONTROL_HEIGHT},
+        .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+      { .class_name = "combobox", .id = FORM_PROPS_ID_ORIENT, .text = "", .name = "combo_orient", .size = {124, BUTTON_HEIGHT + 2},
+        .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER, .flags = WINDOW_FLEXSPACE },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "columns_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "label", .text = "Columns:", .name = "lbl_columns", .size = {72, CONTROL_HEIGHT},
+        .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+      { .class_name = "textedit", .id = FORM_PROPS_ID_COLUMNS, .text = "", .name = "edit_columns", .size = {64, BUTTON_HEIGHT + 2},
+        .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 4,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = FORM_PROPS_ID_OK, .size = {50, BUTTON_HEIGHT},
+        .flags = BUTTON_DEFAULT, .text = "OK", .name = "btn_ok", .h_align = LAYOUT_ALIGN_START },
+      { .class_name = "button", .id = FORM_PROPS_ID_CANCEL, .size = {50, BUTTON_HEIGHT},
+        .text = "Cancel", .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
+    },
+    .child_count = 3,
+  },
 };
 
 static const form_def_t kFormPropsForm = {
@@ -1312,6 +1472,10 @@ static const form_def_t kFormPropsForm = {
   .width         = FORM_PROPS_W,
   .height        = FORM_PROPS_H,
   .flags         = 0,
+  .auto_layout   = true,
+  .layout_kind   = "stack",
+  .layout_spacing = 6,
+  .padding       = {8, 8, 8, 8},
   .children      = kFormPropsChildren,
   .child_count   = ARRAY_LEN(kFormPropsChildren),
   .bindings      = k_form_props_bindings,

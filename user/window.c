@@ -677,8 +677,9 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     if (cp == win_label)
       param = &label_cfg;
 
+    irect16_t child_frame = {0, 0, cd->size.w, cd->size.h};
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
-                                    &cd->frame, parent, cp, 0, param);
+                                    &child_frame, parent, cp, 0, param);
     if (!child) continue;
     child->id = cd->id;
     child->h_align = cd->h_align;
@@ -697,6 +698,10 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
   if (!def || !proc) return NULL;
+  if (!def->auto_layout && def->child_count > 0) {
+    fprintf(stderr, "create_window_from_form: forms with children require auto_layout=true\n");
+    return NULL;
+  }
 
   // Resolve CW_USEDEFAULT for root windows: cascade down from the configured
   // default origin.
@@ -792,8 +797,9 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     if (cp == win_label)
       param = &label_cfg;
 
+    irect16_t child_frame = {0, 0, cd->size.w, cd->size.h};
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
-                                    &cd->frame, parent, cp, 0, param);
+                                    &child_frame, parent, cp, 0, param);
     if (!child) continue;
     child->id = cd->id;
     child->h_align = cd->h_align;

@@ -103,37 +103,41 @@ if (state.accepted) { /* … */ }
 
 Any dialog with two or more standard controls should be laid out declaratively
 using `form_ctrl_def_t` + `form_def_t`, analogous to WinAPI's `DLGTEMPLATE`.
+The recommended pattern is the one used by `examples/socialfeed/socialfeed.orion`:
+a top-level auto-layout stack, nested stack/grid rows for fields, and an action
+row driven by `space` / `WINDOW_FLEXSPACE` rather than hard-coded coordinates.
 
 ### Control types
 
 | Constant | Control |
 |----------|---------|
-| `FORM_CTRL_BUTTON` | Push button (`win_button`) |
-| `FORM_CTRL_CHECKBOX` | Checkbox (`win_checkbox`) |
-| `FORM_CTRL_LABEL` | Static text (`win_label`) |
-| `FORM_CTRL_TEXTEDIT` | Single- or multi-line edit box (`win_textedit`) |
-| `FORM_CTRL_LIST` | List control (`win_list`) |
-| `FORM_CTRL_COMBOBOX` | Combo-box / dropdown (`win_combobox`) |
+| `"button"` | Push button (`win_button`) |
+| `"checkbox"` | Checkbox (`win_checkbox`) |
+| `"label"` | Static text (`win_label`) |
+| `"textedit"` / `"multiedit"` | Single- or multi-line edit box |
+| `"list"` | List control (`win_list`) |
+| `"combobox"` | Combo-box / dropdown (`win_combobox`) |
+| `"stack"` / `"grid"` / `"column"` | Auto-layout containers |
 
 ### Structs
 
 ```c
-typedef struct {
-  form_ctrl_type_t  type;   // FORM_CTRL_*
-  uint32_t          id;     // numeric control ID; -1 for decorative controls
-  irect16_t            frame;  // {x, y, w, h} in parent-client coordinates
-  flags_t           flags;  // style flags (e.g. BUTTON_DEFAULT)
-  const char       *text;   // initial caption / label text
-  const char       *name;   // informational identifier (e.g. "edit_title")
+typedef struct form_ctrl_def_s {
+  const char       *class_name; // "button", "label", "textedit", "stack", ...
+  uint32_t          id;         // numeric control ID
+  isize16_t         size;       // fixed size hint {w, h}; 0 = measured
+  flags_t           flags;      // style flags
+  const char       *text;       // initial caption / text
+  const char       *name;       // identifier name
+  uint8_t           h_align;    // LAYOUT_ALIGN_*
+  uint8_t           v_align;    // LAYOUT_ALIGN_*
+  const form_ctrl_def_t *children;
+  int               child_count;
+  const char       *layout_kind;        // "stack", "grid", or NULL
+  flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL or 0
+  uint8_t           layout_spacing;
+  irect16_t         padding;
 } form_ctrl_def_t;
-
-typedef struct {
-  const char            *name;        // window title
-  int                    w, h;        // client area dimensions
-  flags_t                flags;       // WINDOW_* flags
-  const form_ctrl_def_t *children;    // child control array (may be NULL)
-  int                    child_count;
-} form_def_t;
 ```
 
 ### Form definition example
@@ -144,17 +148,45 @@ typedef struct {
 #define ID_CANCEL_BTN  3
 
 static const form_ctrl_def_t kMyChildren[] = {
-  { FORM_CTRL_LABEL,    -1,          {4,  8,  56, 13}, 0,             "Name:",   "lbl_name" },
-  { FORM_CTRL_TEXTEDIT, ID_NAME_EDIT,{64, 8, 120, 13}, 0,             "",        "edit_name"},
-  { FORM_CTRL_BUTTON,   ID_OK_BTN,   {60, 32, 40, 13}, BUTTON_DEFAULT,"OK",      "btn_ok"   },
-  { FORM_CTRL_BUTTON,   ID_CANCEL_BTN,{104,32, 50, 13},0,             "Cancel",  "btn_cancel"},
+  {
+    .class_name = "stack",
+    .name = "name_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "label", .text = "Name:", .name = "lbl_name", .size = {56, 13} },
+      { .class_name = "textedit", .id = ID_NAME_EDIT, .text = "", .name = "edit_name",
+        .h_align = LAYOUT_ALIGN_STRETCH, .flags = WINDOW_FLEXSPACE },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = ID_OK_BTN, .size = {40, 13}, .flags = BUTTON_DEFAULT, .text = "OK", .name = "btn_ok" },
+      { .class_name = "button", .id = ID_CANCEL_BTN, .size = {50, 13}, .text = "Cancel", .name = "btn_cancel" },
+    },
+    .child_count = 3,
+  },
 };
 
 static const form_def_t kMyForm = {
   .name        = "My Dialog",
-  .w           = 164,
-  .h           = 56,
+  .width       = 164,
+  .height      = 56,
   .flags       = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = 6,
+  .padding     = {8, 8, 8, 8},
   .children    = kMyChildren,
   .child_count = ARRAY_LEN(kMyChildren),
 };
@@ -195,6 +227,11 @@ static result_t my_proc(window_t *win, uint32_t msg,
 - Do **not** call `create_window(…, win_button, …)` inside a form's
   `evCreate` when a `form_ctrl_def_t` entry can describe the same
   control.  Children declared in the form already exist when the message fires.
+- Prefer fixed **size hints** (`.size = {w, h}`) only where a control needs a
+  minimum width or height. Let stack/grid layout decide the actual position.
+- Use nested `stack` / `grid` containers to describe rows and columns, following
+  `examples/socialfeed/socialfeed.orion`, instead of manually emulating rows
+  with absolute coordinates.
 - Use `show_dialog_from_form()` for modal dialogs (handles centering +
   `WINDOW_DIALOG` flag automatically).
 - Use `create_window_from_form()` for modeless panels / embedded sub-forms.

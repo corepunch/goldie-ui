@@ -299,5 +299,43 @@
           <button name="ok" value="4" text="OK" frame="92 68 44 19" flags="BUTTON_DEFAULT" />
           <button name="cancel" value="5" text="Cancel" frame="140 68 56 19" flags="0" />
       </form>
+
+      <form name="about"
+            title="About Orion Image Editor"
+            frame="0 0 270 120"
+            flags="0"
+            auto_layout="1"
+            orientation="horizontal"
+            spacing="8">
+        <image name="banner" width="120" height="120" />
+        <stack name="info" flags="WINDOW_FLEXSPACE" spacing="2" padding="0 8 4 4">
+          <label name="title" text="Orion Image Editor" font="system" />
+          <label name="version" text="Version 1.0" color="text-disabled" />
+          <label name="desc1" text="A MacPaint-inspired" color="text-disabled" />
+          <label name="desc2" text="pixel art editor." color="text-disabled" />
+          <label name="desc3" text="Built with the" color="text-disabled" />
+          <label name="desc4" text="Orion UI framework." color="text-disabled" />
+          <space name="spacer" />
+          <stack name="actions" orientation="horizontal" spacing="6">
+            <space name="flex" />
+            <button name="ok" text="OK" width="50" height="19" flags="BUTTON_DEFAULT" />
+          </stack>
+        </stack>
+      </form>
+
+      <form name="color_picker"
+            title="Edit Color"
+            frame="0 0 240 128"
+            flags="0"
+            auto_layout="1"
+            spacing="0">
+        <cp_surface name="surface" width="240" height="104" />
+        <stack name="actions" orientation="horizontal" spacing="2">
+          <button name="ok" text="OK" width="40" height="19" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" width="48" height="19" />
+          <button name="add_palette" text="+ Palette" width="62" height="19" />
+          <space name="flex" />
+        </stack>
+      </form>
     </forms>
 </orion>

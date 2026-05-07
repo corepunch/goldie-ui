@@ -220,26 +220,50 @@ Dialogs and panels with multiple standard controls should be described using
 ```c
 #include "ui.h"
 
-// ── Control type codes ────────────────────────────────────────────
-// FORM_CTRL_BUTTON, FORM_CTRL_CHECKBOX, FORM_CTRL_LABEL,
-// FORM_CTRL_TEXTEDIT, FORM_CTRL_LIST, FORM_CTRL_COMBOBOX
-
-// ── Define children ───────────────────────────────────────────────
+// ── Define children (socialfeed-style auto layout) ───────────────
 static const form_ctrl_def_t kMyDialogChildren[] = {
-  //  type                 id  {x,  y,  w,  h}         flags           text       name
-  { FORM_CTRL_TEXTEDIT,    1,  {60, 8,  80, 13},        0,              "",        "name"   },
-  { FORM_CTRL_BUTTON,      2,  {50, 30, 40, 13},        BUTTON_DEFAULT, "OK",      "ok"     },
-  { FORM_CTRL_BUTTON,      3,  {94, 30, 50, 13},        0,              "Cancel",  "cancel" },
+  {
+    .class_name = "stack",
+    .name = "name_row",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "label", .text = "Name:", .name = "lbl_name", .size = {56, 13} },
+      { .class_name = "textedit", .id = 1, .text = "", .name = "name",
+        .flags = WINDOW_FLEXSPACE, .h_align = LAYOUT_ALIGN_STRETCH },
+    },
+    .child_count = 2,
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = 2, .size = {40, 13}, .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok" },
+      { .class_name = "button", .id = 3, .size = {50, 13}, .text = "Cancel", .name = "cancel" },
+    },
+    .child_count = 3,
+  },
 };
 
 // ── Define the form ───────────────────────────────────────────────
 static const form_def_t kMyDialogForm = {
   .name        = "My Dialog",
-  .w           = 160,
-  .h           = 52,
+  .width       = 160,
+  .height      = 52,
   .flags       = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = 6,
+  .padding     = {8, 8, 8, 8},
   .children    = kMyDialogChildren,
-  .child_count = 3,
+  .child_count = ARRAY_LEN(kMyDialogChildren),
 };
 
 // ── Window procedure ──────────────────────────────────────────────
@@ -288,6 +312,9 @@ void create_my_panel(window_t *parent, int x, int y) {
 
 - Always define a static `form_ctrl_def_t[]` + `form_def_t` for any dialog with
   two or more standard controls.
+- Follow the `examples/socialfeed/socialfeed.orion` pattern: describe the dialog
+  as nested stack/grid rows and columns, using fixed `.size = {w, h}` hints only
+  where a control needs a minimum width or height.
 - Never create child controls imperatively inside `evCreate` when a
   `form_def_t` can express the same layout statically.
 - Use `set_window_item_text(win, id, ...)` in `evCreate` to set

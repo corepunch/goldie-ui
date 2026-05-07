@@ -149,7 +149,25 @@ enum {
   ID_BLUR_DIALOG_AMOUNT,
   ID_BLUR_DIALOG_PREVIEW,
   ID_BLUR_DIALOG_OK,
-  ID_BLUR_DIALOG_CANCEL
+  ID_BLUR_DIALOG_CANCEL,
+  ID_ABOUT_BANNER,
+  ID_ABOUT_INFO,
+  ID_ABOUT_TITLE,
+  ID_ABOUT_VERSION,
+  ID_ABOUT_DESC1,
+  ID_ABOUT_DESC2,
+  ID_ABOUT_DESC3,
+  ID_ABOUT_DESC4,
+  ID_ABOUT_SPACER,
+  ID_ABOUT_ACTIONS,
+  ID_ABOUT_FLEX,
+  ID_ABOUT_OK,
+  ID_COLOR_PICKER_SURFACE,
+  ID_COLOR_PICKER_ACTIONS,
+  ID_COLOR_PICKER_OK,
+  ID_COLOR_PICKER_CANCEL,
+  ID_COLOR_PICKER_ADD_PALETTE,
+  ID_COLOR_PICKER_FLEX
 };
 
 /* Top-level menu indices generated from <menu> order. */
@@ -333,12 +351,12 @@ static const toolbar_item_t TB_MAIN[] = {
 static const int TB_MAIN_COUNT = (int)(sizeof(TB_MAIN) / sizeof(TB_MAIN[0]));
 
 static const form_ctrl_def_t imageeditor_new_image_children[] = {
-  { "label", ID_NEW_IMAGE_LBL_WIDTH, { 4, 8, 56, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_NEW_IMAGE_LBL_HEIGHT, { 4, 29, 56, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_NEW_IMAGE_WIDTH, { 62, 8, 56, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_NEW_IMAGE_HEIGHT, { 62, 29, 56, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_NEW_IMAGE_OK, { 92, 54, 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_NEW_IMAGE_CANCEL, { 136, 54, 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_NEW_IMAGE_LBL_WIDTH, { 56, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_NEW_IMAGE_LBL_HEIGHT, { 56, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_NEW_IMAGE_WIDTH, { 56, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_NEW_IMAGE_HEIGHT, { 56, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_NEW_IMAGE_OK, { 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_NEW_IMAGE_CANCEL, { 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_new_image_form = {
@@ -358,14 +376,14 @@ static const form_def_t imageeditor_new_image_form = {
 };
 
 static const form_ctrl_def_t imageeditor_image_resize_children[] = {
-  { "label", ID_IMAGE_RESIZE_LBL_WIDTH, { 4, 8, 44, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_IMAGE_RESIZE_WIDTH, { 54, 8, 72, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_IMAGE_RESIZE_LBL_HEIGHT, { 4, 29, 44, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_IMAGE_RESIZE_HEIGHT, { 54, 29, 72, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_IMAGE_RESIZE_LBL_FILTER, { 4, 50, 44, 13 }, 0, "Filter:", "lbl_filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "combobox", ID_IMAGE_RESIZE_FILTER, { 54, 50, 150, 13 }, 0, "", "filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_IMAGE_RESIZE_OK, { 112, 79, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_IMAGE_RESIZE_CANCEL, { 160, 79, 46, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_IMAGE_RESIZE_LBL_WIDTH, { 44, 13 }, 0, "Width:", "lbl_width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_IMAGE_RESIZE_WIDTH, { 72, 13 }, 0, "", "width", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_IMAGE_RESIZE_LBL_HEIGHT, { 44, 13 }, 0, "Height:", "lbl_height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_IMAGE_RESIZE_HEIGHT, { 72, 13 }, 0, "", "height", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_IMAGE_RESIZE_LBL_FILTER, { 44, 13 }, 0, "Filter:", "lbl_filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "combobox", ID_IMAGE_RESIZE_FILTER, { 150, 13 }, 0, "", "filter", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_IMAGE_RESIZE_OK, { 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_IMAGE_RESIZE_CANCEL, { 46, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_image_resize_form = {
@@ -385,12 +403,12 @@ static const form_def_t imageeditor_image_resize_form = {
 };
 
 static const form_ctrl_def_t imageeditor_grid_options_children[] = {
-  { "label", ID_GRID_OPTIONS_LBL_H, { 4, 9, 66, 13 }, 0, "Horizontal:", "lbl_h", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_GRID_OPTIONS_LBL_V, { 4, 26, 66, 13 }, 0, "Vertical:", "lbl_v", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_GRID_OPTIONS_GRIDX, { 74, 8, 56, 13 }, 0, "", "gridx", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_GRID_OPTIONS_GRIDY, { 74, 25, 56, 13 }, 0, "", "gridy", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_GRID_OPTIONS_OK, { 92, 44, 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_GRID_OPTIONS_CANCEL, { 136, 44, 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_GRID_OPTIONS_LBL_H, { 66, 13 }, 0, "Horizontal:", "lbl_h", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_GRID_OPTIONS_LBL_V, { 66, 13 }, 0, "Vertical:", "lbl_v", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_GRID_OPTIONS_GRIDX, { 56, 13 }, 0, "", "gridx", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_GRID_OPTIONS_GRIDY, { 56, 13 }, 0, "", "gridy", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_GRID_OPTIONS_OK, { 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_GRID_OPTIONS_CANCEL, { 40, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_grid_options_form = {
@@ -410,11 +428,11 @@ static const form_def_t imageeditor_grid_options_form = {
 };
 
 static const form_ctrl_def_t imageeditor_selection_modify_children[] = {
-  { "label", ID_SELECTION_MODIFY_LBL_AMOUNT, { 8, 10, 34, 13 }, 0, "By:", "lbl_amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_SELECTION_MODIFY_AMOUNT, { 44, 9, 56, 13 }, 0, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_SELECTION_MODIFY_LBL_PIXELS, { 106, 10, 44, 13 }, 0, "pixels", "lbl_pixels", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_SELECTION_MODIFY_OK, { 84, 35, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_SELECTION_MODIFY_CANCEL, { 132, 35, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_SELECTION_MODIFY_LBL_AMOUNT, { 34, 13 }, 0, "By:", "lbl_amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_SELECTION_MODIFY_AMOUNT, { 56, 13 }, 0, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_SELECTION_MODIFY_LBL_PIXELS, { 44, 13 }, 0, "pixels", "lbl_pixels", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_SELECTION_MODIFY_OK, { 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_SELECTION_MODIFY_CANCEL, { 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_selection_modify_form = {
@@ -434,10 +452,10 @@ static const form_def_t imageeditor_selection_modify_form = {
 };
 
 static const form_ctrl_def_t imageeditor_new_layer_children[] = {
-  { "label", ID_NEW_LAYER_LBL_FILL, { 4, 8, 48, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "combobox", ID_NEW_LAYER_COMBO_FILL, { 54, 8, 138, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_NEW_LAYER_OK, { 104, 33, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_NEW_LAYER_CANCEL, { 152, 33, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_NEW_LAYER_LBL_FILL, { 48, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "combobox", ID_NEW_LAYER_COMBO_FILL, { 138, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_NEW_LAYER_OK, { 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_NEW_LAYER_CANCEL, { 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_new_layer_form = {
@@ -457,10 +475,10 @@ static const form_def_t imageeditor_new_layer_form = {
 };
 
 static const form_ctrl_def_t imageeditor_add_mask_children[] = {
-  { "label", ID_ADD_MASK_LBL_FILL, { 4, 10, 64, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "combobox", ID_ADD_MASK_COMBO_FILL, { 70, 10, 140, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_ADD_MASK_OK, { 124, 35, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_ADD_MASK_CANCEL, { 172, 35, 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ADD_MASK_LBL_FILL, { 64, 13 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "combobox", ID_ADD_MASK_COMBO_FILL, { 140, 13 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_ADD_MASK_OK, { 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_ADD_MASK_CANCEL, { 44, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_add_mask_form = {
@@ -480,16 +498,16 @@ static const form_def_t imageeditor_add_mask_form = {
 };
 
 static const form_ctrl_def_t imageeditor_text_tool_children[] = {
-  { "label", ID_TEXT_TOOL_LBL_TEXT, { 2, 3, 36, 13 }, 0, "Text:", "lbl_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_TEXT_TOOL_EDIT_TEXT, { 2, 12, 216, 13 }, 0, "", "edit_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_TEXT_TOOL_LBL_SIZE, { 2, 30, 80, 13 }, 0, "Size: 16px", "lbl_size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "slider", ID_TEXT_TOOL_SIZE, { 2, 36, 216, 17 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_TEXT_TOOL_LBL_COLOR, { 2, 55, 36, 13 }, 0, "Color:", "lbl_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "space", ID_TEXT_TOOL_SWATCH, { 40, 53, 14, 11 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "swatch", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_TEXT_TOOL_BTN_COLOR, { 58, 52, 54, 19 }, 0, "Change...", "btn_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "checkbox", ID_TEXT_TOOL_CHK_AA, { 118, 53, 74, 12 }, 0, "Anti-alias", "chk_aa", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_TEXT_TOOL_BTN_OK, { 2, 71, 38, 19 }, 0, "OK", "btn_ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_TEXT_TOOL_BTN_CANCEL, { 44, 71, 50, 19 }, 0, "Cancel", "btn_cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_TEXT_TOOL_LBL_TEXT, { 36, 13 }, 0, "Text:", "lbl_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_TEXT_TOOL_EDIT_TEXT, { 216, 13 }, 0, "", "edit_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_TEXT_TOOL_LBL_SIZE, { 80, 13 }, 0, "Size: 16px", "lbl_size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "slider", ID_TEXT_TOOL_SIZE, { 216, 17 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_TEXT_TOOL_LBL_COLOR, { 36, 13 }, 0, "Color:", "lbl_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "space", ID_TEXT_TOOL_SWATCH, { 14, 11 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "swatch", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_TEXT_TOOL_BTN_COLOR, { 54, 19 }, 0, "Change...", "btn_color", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "checkbox", ID_TEXT_TOOL_CHK_AA, { 74, 12 }, 0, "Anti-alias", "chk_aa", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_TEXT_TOOL_BTN_OK, { 38, 19 }, 0, "OK", "btn_ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_TEXT_TOOL_BTN_CANCEL, { 50, 19 }, 0, "Cancel", "btn_cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_text_tool_form = {
@@ -509,21 +527,21 @@ static const form_def_t imageeditor_text_tool_form = {
 };
 
 static const form_ctrl_def_t imageeditor_levels_children[] = {
-  { "label", ID_LEVELS_IN_LABEL, { 10, 4, 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Input Levels:", "in_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_LEVELS_IN_BLACK, { 84, 0, 34, 13 }, 0, "0", "in_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_LEVELS_IN_GAMMA, { 122, 0, 34, 13 }, 0, "1.00", "in_gamma", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_LEVELS_IN_WHITE, { 160, 0, 34, 13 }, 0, "255", "in_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "lv_histogram", ID_LEVELS_GRAPH, { 10, 21, 260, 84 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "graph", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "slider", ID_LEVELS_IN_SLIDER, { 10, 107, 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "in_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_LEVELS_OUT_LABEL, { 10, 128, 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Output Levels:", "out_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_LEVELS_OUT_BLACK, { 84, 128, 34, 13 }, 0, "0", "out_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "textedit", ID_LEVELS_OUT_WHITE, { 160, 128, 34, 13 }, 0, "255", "out_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "gradient", ID_LEVELS_OUT_GRAD, { 18, 146, 244, 8 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_grad", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "slider", ID_LEVELS_OUT_SLIDER, { 10, 156, 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "checkbox", ID_LEVELS_PREVIEW, { 10, 178, 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_LEVELS_OK, { 116, 198, 48, 19 }, 0, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_LEVELS_RESET, { 168, 198, 48, 19 }, 0, "Reset", "reset", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_LEVELS_CANCEL, { 220, 198, 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_LEVELS_IN_LABEL, { 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Input Levels:", "in_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_LEVELS_IN_BLACK, { 34, 13 }, 0, "0", "in_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_LEVELS_IN_GAMMA, { 34, 13 }, 0, "1.00", "in_gamma", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_LEVELS_IN_WHITE, { 34, 13 }, 0, "255", "in_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "lv_histogram", ID_LEVELS_GRAPH, { 260, 84 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "graph", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "slider", ID_LEVELS_IN_SLIDER, { 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "in_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_LEVELS_OUT_LABEL, { 0, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Output Levels:", "out_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_LEVELS_OUT_BLACK, { 34, 13 }, 0, "0", "out_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "textedit", ID_LEVELS_OUT_WHITE, { 34, 13 }, 0, "255", "out_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "gradient", ID_LEVELS_OUT_GRAD, { 244, 8 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_grad", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "slider", ID_LEVELS_OUT_SLIDER, { 260, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "checkbox", ID_LEVELS_PREVIEW, { 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_LEVELS_OK, { 48, 19 }, 0, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_LEVELS_RESET, { 48, 19 }, 0, "Reset", "reset", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_LEVELS_CANCEL, { 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_levels_form = {
@@ -543,11 +561,11 @@ static const form_def_t imageeditor_levels_form = {
 };
 
 static const form_ctrl_def_t imageeditor_filter_gallery_children[] = {
-  { "filter_preview", ID_FILTER_GALLERY_PREVIEW, { 14, 18, 248, 248 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "label", ID_FILTER_GALLERY_FILTER_NAME, { 14, 276, 248, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "No filters loaded", "filter_name", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "reportview", ID_FILTER_GALLERY_FILTERS, { 286, 18, 256, 290 }, WINDOW_NOTITLE | WINDOW_NORESIZE, "", "filters", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_FILTER_GALLERY_OK, { 404, 326, 66, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_FILTER_GALLERY_CANCEL, { 478, 326, 66, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "filter_preview", ID_FILTER_GALLERY_PREVIEW, { 248, 248 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_FILTER_GALLERY_FILTER_NAME, { 248, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "No filters loaded", "filter_name", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "reportview", ID_FILTER_GALLERY_FILTERS, { 256, 290 }, WINDOW_NOTITLE | WINDOW_NORESIZE, "", "filters", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_FILTER_GALLERY_OK, { 66, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_FILTER_GALLERY_CANCEL, { 66, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_filter_gallery_form = {
@@ -567,11 +585,11 @@ static const form_def_t imageeditor_filter_gallery_form = {
 };
 
 static const form_ctrl_def_t imageeditor_blur_dialog_children[] = {
-  { "label", ID_BLUR_DIALOG_AMOUNT_LABEL, { 10, 8, 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Blur: 4px", "amount_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "slider", ID_BLUR_DIALOG_AMOUNT, { 10, 26, 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "checkbox", ID_BLUR_DIALOG_PREVIEW, { 10, 48, 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_BLUR_DIALOG_OK, { 92, 68, 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_BLUR_DIALOG_CANCEL, { 140, 68, 56, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_BLUR_DIALOG_AMOUNT_LABEL, { 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Blur: 4px", "amount_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "slider", ID_BLUR_DIALOG_AMOUNT, { 220, 13 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "checkbox", ID_BLUR_DIALOG_PREVIEW, { 74, 12 }, 0, "Preview", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_BLUR_DIALOG_OK, { 44, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_BLUR_DIALOG_CANCEL, { 56, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_blur_dialog_form = {
@@ -588,6 +606,62 @@ static const form_def_t imageeditor_blur_dialog_form = {
   .margin = { 0, 0, 0, 0 },
   .children = imageeditor_blur_dialog_children,
   .child_count = 5,
+};
+
+static const form_ctrl_def_t imageeditor_about_children[] = {
+  { "image", ID_ABOUT_BANNER, { 120, 120 }, 0, "", "banner", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_ABOUT_INFO, { 0, 0 }, WINDOW_FLEXSPACE, "", "info", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 0, 2, { 0, 8, 4, 4 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ABOUT_TITLE, { 0, 0 }, 0, "Orion Image Editor", "title", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 0, true, 16, false },
+  { "label", ID_ABOUT_VERSION, { 0, 0 }, 0, "Version 1.0", "version", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC1, { 0, 0 }, 0, "A MacPaint-inspired", "desc1", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC2, { 0, 0 }, 0, "pixel art editor.", "desc2", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC3, { 0, 0 }, 0, "Built with the", "desc3", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC4, { 0, 0 }, 0, "Orion UI framework.", "desc4", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "space", ID_ABOUT_SPACER, { 0, 0 }, 0, "", "spacer", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 16, false },
+  { "stack", ID_ABOUT_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 0, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 16, false },
+  { "space", ID_ABOUT_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
+  { "button", ID_ABOUT_OK, { 50, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
+};
+
+static const form_def_t imageeditor_about_form = {
+  .name = "About Orion Image Editor",
+  .width = 270,
+  .height = 120,
+  .flags = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_columns = 0,
+  .layout_spacing = 8,
+  .padding = { 0, 0, 0, 0 },
+  .margin = { 0, 0, 0, 0 },
+  .children = imageeditor_about_children,
+  .child_count = 12,
+};
+
+static const form_ctrl_def_t imageeditor_color_picker_children[] = {
+  { "cp_surface", ID_COLOR_PICKER_SURFACE, { 240, 104 }, 0, "", "surface", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_COLOR_PICKER_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 0, 2, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_OK, { 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_CANCEL, { 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_ADD_PALETTE, { 62, 19 }, 0, "+ Palette", "add_palette", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "space", ID_COLOR_PICKER_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+};
+
+static const form_def_t imageeditor_color_picker_form = {
+  .name = "Edit Color",
+  .width = 240,
+  .height = 128,
+  .flags = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_columns = 0,
+  .layout_spacing = 0,
+  .padding = { 0, 0, 0, 0 },
+  .margin = { 0, 0, 0, 0 },
+  .children = imageeditor_color_picker_children,
+  .child_count = 6,
 };
 
 #endif /* BUILD_GENERATED_EXAMPLES_IMAGEEDITOR_IMAGEEDITOR_FORMS_H */
