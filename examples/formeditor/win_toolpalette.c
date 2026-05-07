@@ -132,11 +132,18 @@ static int palette_selected_tool_ident(window_t *win) {
 }
 
 static ipoint16_t window_client_origin(window_t *win) {
-  window_t *root = get_root_window(win);
-  return (ipoint16_t){
-    (int16_t)(root->frame.x + (win->parent ? win->frame.x : 0)),
-    (int16_t)(root->frame.y + titlebar_height(root) + (win->parent ? win->frame.y : 0))
-  };
+  int x = 0;
+  int y = 0;
+  if (!win) return (ipoint16_t){0, 0};
+  for (window_t *it = win; it; it = it->parent) {
+    x += it->frame.x;
+    y += it->frame.y;
+    if (!it->parent) {
+      y += titlebar_height(it);
+      break;
+    }
+  }
+  return (ipoint16_t){(int16_t)x, (int16_t)y};
 }
 
 static bool point_in_window_client(window_t *win, int sx, int sy) {

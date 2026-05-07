@@ -479,9 +479,14 @@ static void draw_rubber_band(window_t *win, canvas_state_t *s) {
 }
 
 static void draw_layout_hover(canvas_state_t *s) {
-  if (!s || s->hover_layout_idx < 0 || s->hover_layout_rc.w <= 0 || s->hover_layout_rc.h <= 0)
+  if (!s || s->hover_layout_idx < 0)
     return;
-  irect16_t r = form_to_canvas_rect(s, s->hover_layout_rc);
+  irect16_t hover_rc = s->hover_layout_rc;
+  if (s->doc && s->hover_layout_idx < s->doc->element_count)
+    hover_rc = s->doc->elements[s->hover_layout_idx].frame;
+  if (hover_rc.w <= 0 || hover_rc.h <= 0)
+    return;
+  irect16_t r = form_to_canvas_rect(s, hover_rc);
   fill_rect(LAYOUT_HOVER_FILL, r);
   fill_rect(LAYOUT_HOVER_BORDER, R(r.x, r.y, r.w, 1));
   fill_rect(LAYOUT_HOVER_BORDER, R(r.x, r.y + r.h - 1, r.w, 1));
@@ -589,8 +594,9 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame, int in
   if (insert_index >= 0 && insert_index < doc->element_count)
     index = insert_index;
   if (index < doc->element_count) {
-    for (int i = doc->element_count; i > index; i--)
-      doc->elements[i] = doc->elements[i - 1];
+    memmove(&doc->elements[index + 1],
+            &doc->elements[index],
+            (size_t)(doc->element_count - index) * sizeof(doc->elements[0]));
   }
   form_element_t *el = &doc->elements[index];
   *el = (form_element_t){0};
