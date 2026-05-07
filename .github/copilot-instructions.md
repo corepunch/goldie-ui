@@ -354,6 +354,56 @@ that contains two or more standard controls.**  Never build children imperativel
 inside `evCreate` when a static form definition can express the
 same layout.
 
+**Prefer `.orion` XML files over in-code form definitions** — the orionc compiler generates clean C headers from declarative XML, making dialogs easier to maintain and preview.
+
+#### Option 1: Declarative .orion Files (Recommended)
+
+Create an `.orion` XML file in your example directory:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<orion version="1" name="myapp" title="My App Dialogs">
+  <forms>
+    <form name="my_dialog"
+          title="My Dialog"
+          frame="0 0 200 100"
+          flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
+          auto_layout="1"
+          layout_kind="stack"
+          layout_spacing="8"
+          padding="8">
+      <grid name="fields" columns="2" spacing="4">
+        <label name="lbl_name" text="Name:" flags="0" />
+        <textedit name="edit_name" value="1" text="" flags="WINDOW_FLEXSPACE" />
+      </grid>
+      <space name="spacer" />
+      <stack name="actions" orientation="horizontal" spacing="6">
+        <space name="flex" />
+        <button name="ok" value="2" text="OK" flags="BUTTON_DEFAULT" />
+        <button name="cancel" value="3" text="Cancel" flags="0" />
+      </stack>
+    </form>
+  </forms>
+</orion>
+```
+
+Compile with orionc:
+```bash
+build/bin/orionc --input examples/myapp/myapp.orion \
+                 --output build/generated/examples/myapp/myapp_forms.h \
+                 --prefix myapp
+```
+
+Use in code:
+```c
+#include "build/generated/examples/myapp/myapp_forms.h"
+
+// Children already exist and are laid out automatically
+show_dialog_from_form(&myapp_form_my_dialog, "My Dialog", parent, my_dlg_proc, &st);
+```
+
+#### Option 2: In-Code Form Definitions (Legacy)
+
 ```c
 // ── 1. Declare children (static, compile-time) ────────────────────
 static const form_ctrl_def_t kMyDlgChildren[] = {
@@ -409,6 +459,155 @@ create_window_from_form(&kMyDlg, x, y, parent, my_dlg_proc, NULL);
   screen/owner centering logic locally.
 - The form editor (see `examples/formeditor/`) can generate the struct literals
   directly in its saved `.h` output.
+
+### Auto-Layout System
+
+Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing and positioning. When `auto_layout="1"` is set on a form or container, children are arranged automatically using stack or grid layouts.
+
+#### Layout Properties
+
+**Window-level properties:**
+- `layout_kind`: `"stack"` (default), `"grid"`, or `"flow"`
+- `layout_spacing`: Gap between children in pixels
+- `layout_padding`: Inner padding as `irect16_t {left, top, right, bottom}`
+- `layout_orientation`: `WINDOW_STACK_HORIZONTAL` or `WINDOW_STACK_VERTICAL` (stack only)
+- `layout_columns`: Number of columns (grid only)
+
+**Child-level properties:**
+- `layout_fixed_w` / `layout_fixed_h`: Fixed width/height (0 = auto)
+- `h_align` / `v_align`: `LAYOUT_ALIGN_STRETCH` (default), `LAYOUT_ALIGN_START`, `LAYOUT_ALIGN_CENTER`, `LAYOUT_ALIGN_END`
+- `WINDOW_FLEXSPACE`: Stack child expands to fill available space along the stack axis
+
+#### Stack Layout
+
+Arranges children in a single row (horizontal) or column (vertical). Use `WINDOW_FLEXSPACE` on children that should expand to fill remaining space.
+
+```xml
+<stack name="toolbar" orientation="horizontal" spacing="4" padding="4">
+  <button name="new" text="New" width="60" />
+  <button name="open" text="Open" width="60" />
+  <space name="flex" />  <!-- Expands to push buttons right -->
+  <button name="quit" text="Quit" width="60" />
+</stack>
+```
+
+**Stack semantics:**
+- Children are measured first to determine their minimum size
+- Fixed-size children keep their specified dimensions
+- `WINDOW_FLEXSPACE` children divide remaining space equally
+- Spacing is added between children (not before first or after last)
+
+#### Grid Layout (WPF Grid Semantics)
+
+Arranges children in rows and columns. **Columns automatically share available width equally** unless given explicit width — no flags needed.
+
+**Two grid modes:**
+
+1. **Fixed columns count** (`columns="2"`): Children fill cells left-to-right, top-to-bottom
+2. **Column-based** (no columns attribute): Direct `<column>` children, each containing rows
+
+```xml
+<!-- Mode 1: Fixed column count -->
+<grid name="fields" columns="2" spacing="4">
+  <label name="lbl_width" text="Width:" />
+  <textedit name="width" value="1" flags="WINDOW_FLEXSPACE" />
+  <label name="lbl_height" text="Height:" />
+  <textedit name="height" value="2" flags="WINDOW_FLEXSPACE" />
+</grid>
+
+<!-- Mode 2: Column-based (auto-width columns) -->
+<grid name="main" spacing="24">
+  <column name="preview_col" spacing="6">
+    <filter_preview name="preview" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+    <label name="filter_name" text="No filters loaded" />
+  </column>
+  <column name="filters_col" spacing="6">
+    <reportview name="filters" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
+  </column>
+</grid>
+```
+
+**Grid star sizing (Width="*" equivalent):**
+- Columns **without** `layout_fixed_w` divide available horizontal space equally
+- Example: Two auto-width columns → each gets 50% of container width (minus spacing)
+- Fixed-width columns are allocated first, then remaining space is distributed to auto-width columns
+- This matches WPF `<ColumnDefinition Width="*" />` behavior
+
+**Common grid patterns:**
+```xml
+<!-- Two equal columns -->
+<grid spacing="12">
+  <column spacing="4">...</column>
+  <column spacing="4">...</column>
+</grid>
+
+<!-- Fixed sidebar + flexible content -->
+<grid spacing="8">
+  <column spacing="4" width="200">...</column>  <!-- Fixed 200px -->
+  <column spacing="4">...</column>              <!-- Gets remaining space -->
+</grid>
+```
+
+**Grid mistakes to avoid:**
+- ❌ Adding `WINDOW_FLEXSPACE` to grid columns (that's for stacks)
+- ❌ Mixing `frame=` attributes on auto-layout children (conflicts with layout system)
+- ✅ Let grid handle column widths automatically
+- ✅ Use `spacing` for consistent gaps between cells
+
+#### .orion XML Reference
+
+**Form attributes:**
+- `name`: Form identifier (becomes `<prefix>_form_<name>` in generated code)
+- `title`: Window title
+- `frame`: Initial client rect as "x y w h" (window size before chrome)
+- `flags`: Window flags (e.g., `WINDOW_DIALOG | WINDOW_NOTRAYBUTTON`)
+- `auto_layout`: `"1"` to enable auto-layout
+- `layout_kind`: `"stack"` or `"grid"`
+- `layout_spacing`: Default gap between children
+- `padding`: Inner padding as "left top right bottom" or single value
+
+**Control elements:**
+```xml
+<button name="id" value="123" text="Label" width="60" height="19" flags="BUTTON_DEFAULT" />
+<label name="id" text="Label" color="text-disabled" font="system" />
+<textedit name="id" value="123" text="initial" flags="WINDOW_FLEXSPACE" />
+<checkbox name="id" value="123" text="Label" flags="0" />
+<combobox name="id" value="123" flags="WINDOW_FLEXSPACE" />
+<reportview name="id" value="123" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
+<space name="id" />  <!-- Spacer that expands in stacks -->
+```
+
+**Layout containers:**
+```xml
+<stack name="id" orientation="horizontal|vertical" spacing="6" padding="4">
+  <!-- Children arranged in a line -->
+</stack>
+
+<grid name="id" columns="2" spacing="4">
+  <!-- Children fill cells row by row -->
+</grid>
+
+<grid name="id" spacing="12">
+  <column name="col1" spacing="4" width="200">
+    <!-- Column children stacked vertically -->
+  </column>
+  <column name="col2" spacing="4">
+    <!-- Auto-width column -->
+  </column>
+</grid>
+```
+
+**Compilation:**
+The `orionc` compiler processes `.orion` files in your Makefile:
+```make
+build/generated/examples/myapp/myapp_forms.h: examples/myapp/myapp.orion
+	build/bin/orionc --input $< --output $@ --prefix myapp
+```
+
+Generated code creates `form_def_t` structures you reference directly:
+```c
+show_dialog_from_form(&myapp_form_my_dialog, "Title", parent, proc, state);
+```
 
 ### Creating Example Programs
 1. Place examples in `examples/` directory
@@ -548,3 +747,22 @@ UI-specific application of the same rule:
 6. **Don't create child controls imperatively in `evCreate` when a `form_def_t` can do it declaratively.** Dialogs and panels with standard controls (buttons, edit boxes, labels, checkboxes, lists, comboboxes) must use `form_ctrl_def_t[]` + `form_def_t`, passed to `create_window_from_form()` or `show_dialog_from_form()`. Writing `create_window(…, win_button, …)` inside a window proc is wrong. The form's children already exist when `evCreate` fires — use `get_window_item()` / `set_window_item_text()` to read or initialise them.
 
 7. **Don't use `win->frame` dimensions for client-space paint/layout/hit-testing.** `win->frame` includes non-client chrome (title/borders), so using it for client math pushes rows and button strips into clipped areas. For widget geometry, always derive from `irect16_t cr = get_client_rect(win)` and use `cr.w` / `cr.h` (plus `rect_*` helpers) in both paint and hit paths. Use `win->frame` only for operations that explicitly need outer-frame metrics.
+
+8. **Don't add `WINDOW_FLEXSPACE` to grid columns expecting them to expand.** Grid columns without explicit `layout_fixed_w` automatically share available width equally (WPF `Width="*"` semantics). `WINDOW_FLEXSPACE` is a **stack concept only** — it tells a stack child to expand along the stack axis. In grids, space distribution is automatic and uniform across auto-width columns.
+
+### Recent Bug Fixes and Lessons
+
+**Grid layout star sizing (May 2026)**
+- **Issue**: Grid columns only expanded when marked with `WINDOW_FLEXSPACE`, leaving other columns at 1px minimum width
+- **Root cause**: Implementation checked `WINDOW_FLEXSPACE` flag instead of absence of explicit width
+- **Fix**: Changed `commctl/layout.c` to distribute space among all columns without `layout_fixed_w > 0`, ignoring flex flags for grids
+- **Semantics**: Now matches WPF Grid where `<ColumnDefinition Width="*" />` columns automatically divide available space evenly
+- **Lesson**: Grid and stack are different layout models — don't conflate their space-allocation flags
+
+**Reportview scrolling in auto-layout containers (May 2026)**
+- **Issue**: Mouse wheel didn't scroll; clicking after scrolling selected wrong items
+- **Root cause**: Used `win->frame.h` directly instead of `get_client_rect()`, which gave wrong dimensions when reportview was inside grid/stack containers
+- **Fix**: Updated `commctl/columnview.c` to consistently use `get_client_rect(win)` for all scroll calculations, paint dimensions, and content sizing
+- **Affected functions**: `rv_content_width()`, `rv_sync_scroll()`, `rv_paint_report_view()`, `evVScroll` handler
+- **Lesson**: Always use `get_client_rect()` for client-space dimensions; `win->frame` includes title bars, scrollbars, and other chrome that varies by context
+

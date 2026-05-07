@@ -71,6 +71,7 @@ winproc_t find_window_class_proc(const char *class_name) {
   if (streq(class_name, "splitter") || streq(class_name, "win_splitter")) return win_splitter;
   if (streq(class_name, "column") || streq(class_name, "win_column")) return win_column;
   if (streq(class_name, "stack") || streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
+  if (streq(class_name, "flow") || streq(class_name, "flowview") || streq(class_name, "win_flowview")) return win_flowview;
   if (streq(class_name, "grid") || streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
 
   return NULL;

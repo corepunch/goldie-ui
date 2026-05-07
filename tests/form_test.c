@@ -13,6 +13,8 @@
 #include "../ui.h"
 #include "../examples/socialfeed/socialfeed.h"
 
+extern bool do_windows_overlap(const window_t *a, const window_t *b);
+
 // ──────────────────────────────────────────────────────────────────────────
 // Shared form definition used by several tests
 // ──────────────────────────────────────────────────────────────────────────
@@ -1413,6 +1415,78 @@ void test_gridview_layout(void) {
   PASS();
 }
 
+void test_gridview_nested_columns_no_overlap(void) {
+  TEST("gridview: nested columns keep preview and list areas separate");
+
+  test_env_init();
+
+  layout_view_config_t cfg = {
+    .layout_kind = "grid",
+    .orientation = WINDOW_STACK_VERTICAL,
+    .columns = 2,
+    .spacing = 24,
+  };
+  window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+                                 MAKERECT(0, 0, 560, 360),
+                                 NULL, "gridview", 0, &cfg);
+  ASSERT_NOT_NULL(root);
+
+  window_t *left = create_window("", 0, MAKERECT(0, 0, 0, 0), root, "stack", 0, NULL);
+  window_t *right = create_window("", 0, MAKERECT(0, 0, 0, 0), root, "stack", 0, NULL);
+  ASSERT_NOT_NULL(left);
+  ASSERT_NOT_NULL(right);
+
+  window_t *preview = create_window("", 0, MAKERECT(0, 0, 248, 248), left, "button", 0, NULL);
+  window_t *label = create_window("No filters loaded", 0, MAKERECT(0, 0, 248, 13), left, "label", 0, NULL);
+  window_t *filters = create_window("", WINDOW_FLEXSPACE, MAKERECT(0, 0, 256, 290), right, "reportview", 0, NULL);
+  window_t *actions = create_window("", 0, MAKERECT(0, 0, 0, 0), right, "stack", 0, NULL);
+  ASSERT_NOT_NULL(preview);
+  ASSERT_NOT_NULL(label);
+  ASSERT_NOT_NULL(filters);
+  ASSERT_NOT_NULL(actions);
+
+  window_layout_sync(root);
+
+  ASSERT_TRUE(left->frame.x < right->frame.x);
+  ASSERT_FALSE(do_windows_overlap(preview, filters));
+  ASSERT_TRUE(actions->frame.y >= filters->frame.y + filters->frame.h);
+
+  destroy_window(root);
+  test_env_shutdown();
+  PASS();
+}
+
+void test_flowview_layout(void) {
+  TEST("flowview: wraps children left-to-right into rows");
+
+  test_env_init();
+
+  window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
+                                 MAKERECT(0, 0, 60, 40),
+                                 NULL, "flowview", 0, NULL);
+  ASSERT_NOT_NULL(root);
+
+  window_t *a = create_window("One", 0, MAKERECT(0, 0, 30, 12), root, "button", 0, NULL);
+  window_t *b = create_window("Two", 0, MAKERECT(0, 0, 30, 12), root, "button", 0, NULL);
+  window_t *c = create_window("Three", 0, MAKERECT(0, 0, 30, 12), root, "button", 0, NULL);
+  ASSERT_NOT_NULL(a);
+  ASSERT_NOT_NULL(b);
+  ASSERT_NOT_NULL(c);
+
+  window_layout_sync(root);
+
+  ASSERT_EQUAL(a->frame.x, 0);
+  ASSERT_EQUAL(a->frame.y, 0);
+  ASSERT_EQUAL(b->frame.x, 30);
+  ASSERT_EQUAL(b->frame.y, 0);
+  ASSERT_EQUAL(c->frame.x, 0);
+  ASSERT_EQUAL(c->frame.y, a->frame.h);
+
+  destroy_window(root);
+  test_env_shutdown();
+  PASS();
+}
+
 void test_auto_layout_padding(void) {
   TEST("auto-layout: padding offsets content inside the client area");
 
@@ -1927,9 +2001,10 @@ int main(int argc, char *argv[]) {
   test_ddx_form_def_fields();
   test_ddx_push_pull_roundtrip();
   test_show_ddx_dialog_form_flags();
-  test_stackview_layout();
-  test_gridview_layout();
-  test_auto_layout_padding();
+    test_stackview_layout();
+    test_gridview_layout();
+    test_flowview_layout();
+    test_auto_layout_padding();
   test_auto_layout_margin();
   test_auto_layout_wrapped_label();
   test_label_font_pack_and_measure();

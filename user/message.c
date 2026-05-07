@@ -347,11 +347,12 @@ void remove_from_global_queue(window_t *win) {
 //
 // All mouse events are delivered in the receiving window's own client
 // coordinate system (see kernel/event.c), which includes win->scroll[] offset.
-// Scrollbar geometry is expressed in *unscrolled* client coords, so we
-// subtract win->scroll[] to get the correct hit position.
+// Scrollbars are painted with the same projection as content (with scroll applied),
+// so we use the coordinates directly without adjusting for scroll.
 static void sb_local_coords(window_t *win, uint32_t wparam, int *cx, int *cy) {
-  *cx = (int16_t)LOWORD(wparam) - win->scroll[0];
-  *cy = (int16_t)HIWORD(wparam) - win->scroll[1];
+  (void)win;
+  *cx = (int16_t)LOWORD(wparam);
+  *cy = (int16_t)HIWORD(wparam);
 }
 
 static int builtin_sb_thumb_len_msg(win_sb_t const *sb, int track) {

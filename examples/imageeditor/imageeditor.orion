@@ -164,140 +164,246 @@
             title="New Image"
             frame="0 0 180 84"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="8"
+            padding="8"
 >
-          <label name="lbl_width" text="Width:" frame="4 8 56 13" flags="0" />
-          <label name="lbl_height" text="Height:" frame="4 29 56 13" flags="0" />
-          <textedit name="width" value="1" text="" frame="62 8 56 13" flags="0" />
-          <textedit name="height" value="2" text="" frame="62 29 56 13" flags="0" />
-          <button name="ok" value="3" text="OK" frame="92 54 40 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="4" text="Cancel" frame="136 54 40 19" flags="0" />
+        <grid name="fields" columns="2" spacing="4">
+          <label name="lbl_width" text="Width:" flags="0" />
+          <textedit name="width" text="" flags="WINDOW_FLEXSPACE" />
+          <label name="lbl_height" text="Height:" flags="0" />
+          <textedit name="height" text="" flags="WINDOW_FLEXSPACE" />
+        </grid>
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="image_resize"
             title="Image Size"
             frame="0 0 210 104"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="8"
+            padding="8"
 >
-          <label name="lbl_width" text="Width:" frame="4 8 44 13" flags="0" />
-          <textedit name="width" value="1" text="" frame="54 8 72 13" flags="0" />
-          <label name="lbl_height" text="Height:" frame="4 29 44 13" flags="0" />
-          <textedit name="height" value="2" text="" frame="54 29 72 13" flags="0" />
-          <label name="lbl_filter" text="Filter:" frame="4 50 44 13" flags="0" />
-          <combobox name="filter" value="3" text="" frame="54 50 150 13" flags="0" />
-          <button name="ok" value="4" text="OK" frame="112 79 44 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="5" text="Cancel" frame="160 79 46 19" flags="0" />
+        <grid name="fields" columns="2" spacing="4">
+          <label name="lbl_width" text="Width:" flags="0" />
+          <textedit name="width" text="" flags="WINDOW_FLEXSPACE" />
+          <label name="lbl_height" text="Height:" flags="0" />
+          <textedit name="height" text="" flags="WINDOW_FLEXSPACE" />
+          <label name="lbl_filter" text="Filter:" flags="0" />
+          <combobox name="filter" text="" flags="WINDOW_FLEXSPACE" />
+        </grid>
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="grid_options"
             title="Grid Options"
             frame="0 0 180 84"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="8"
+            padding="8"
 >
-          <label name="lbl_h" value="5" text="Horizontal:" frame="4 9 66 13" flags="0" />
-          <label name="lbl_v" value="6" text="Vertical:" frame="4 26 66 13" flags="0" />
-          <textedit name="gridx" value="1" text="" frame="74 8 56 13" flags="0" />
-          <textedit name="gridy" value="2" text="" frame="74 25 56 13" flags="0" />
-          <button name="ok" value="3" text="OK" frame="92 44 40 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="4" text="Cancel" frame="136 44 40 19" flags="0" />
+        <grid name="fields" columns="2" spacing="4">
+          <label name="lbl_h" text="Horizontal:" flags="0" />
+          <textedit name="gridx" text="" flags="WINDOW_FLEXSPACE" />
+          <label name="lbl_v" text="Vertical:" flags="0" />
+          <textedit name="gridy" text="" flags="WINDOW_FLEXSPACE" />
+        </grid>
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="selection_modify"
             title="Modify Selection"
             frame="0 0 180 68"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="8"
+            padding="8"
 >
-          <label name="lbl_amount" text="By:" frame="8 10 34 13" flags="0" />
-          <textedit name="amount" value="1" text="" frame="44 9 56 13" flags="0" />
-          <label name="lbl_pixels" text="pixels" frame="106 10 44 13" flags="0" />
-          <button name="ok" value="2" text="OK" frame="84 35 44 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="3" text="Cancel" frame="132 35 44 19" flags="0" />
+        <stack name="amount_row" orientation="horizontal" spacing="6">
+          <label name="lbl_amount" text="By:" flags="0" />
+          <textedit name="amount" text="" flags="WINDOW_FLEXSPACE" />
+          <label name="lbl_pixels" text="pixels" flags="0" />
+        </stack>
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="new_layer"
             title="New Layer"
             frame="0 0 200 68"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="8"
+            padding="8"
 >
-          <label name="lbl_fill" text="Fill with:" frame="4 8 48 13" flags="0" />
-          <combobox name="combo_fill" value="1" text="" frame="54 8 138 13" flags="0" />
-          <button name="ok" value="2" text="OK" frame="104 33 44 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="3" text="Cancel" frame="152 33 44 19" flags="0" />
+        <stack name="fill_row" orientation="horizontal" spacing="6">
+          <label name="lbl_fill" text="Fill with:" flags="0" />
+          <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
+        </stack>
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="add_mask"
             title="Add Mask"
             frame="0 0 220 68"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="8"
+            padding="8"
 >
-          <label name="lbl_fill" text="Fill with:" frame="4 10 64 13" flags="0" />
-          <combobox name="combo_fill" value="1" text="" frame="70 10 140 13" flags="0" />
-          <button name="ok" value="2" text="OK" frame="124 35 44 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="3" text="Cancel" frame="172 35 44 19" flags="0" />
+        <stack name="fill_row" orientation="horizontal" spacing="6">
+          <label name="lbl_fill" text="Fill with:" flags="0" />
+          <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
+        </stack>
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="text_tool"
             title="Insert Text"
             frame="0 0 220 96"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="6"
+            padding="8"
 >
-          <label name="lbl_text" text="Text:" frame="2 3 36 13" flags="0" />
-          <textedit name="edit_text" value="1" text="" frame="2 12 216 13" flags="0" />
-          <label name="lbl_size" value="7" text="Size: 16px" frame="2 30 80 13" flags="0" />
-          <slider name="size" value="8" text="" frame="2 36 216 17" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <label name="lbl_color" text="Color:" frame="2 55 36 13" flags="0" />
-          <space name="swatch" value="6" text="" frame="40 53 14 11" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <button name="btn_color" value="4" text="Change..." frame="58 52 54 19" flags="0" />
-          <checkbox name="chk_aa" value="5" text="Anti-alias" frame="118 53 74 12" flags="0" />
-          <button name="btn_ok" value="2" text="OK" frame="2 71 38 19" flags="0" />
-          <button name="btn_cancel" value="3" text="Cancel" frame="44 71 50 19" flags="0" />
+        <stack name="text_row" orientation="horizontal" spacing="6">
+          <label name="lbl_text" text="Text:" flags="0" />
+          <textedit name="edit_text" text="" flags="WINDOW_FLEXSPACE" />
+        </stack>
+        <stack name="size_row" orientation="vertical" spacing="2">
+          <label name="lbl_size" text="Size: 16px" flags="0" />
+          <slider name="size" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        </stack>
+        <stack name="color_row" orientation="horizontal" spacing="6">
+          <label name="lbl_color" text="Color:" flags="0" />
+          <space name="swatch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <button name="btn_color" text="Change..." flags="0" />
+          <checkbox name="chk_aa" text="Anti-alias" flags="0" />
+        </stack>
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="btn_ok" text="OK" flags="0" />
+          <button name="btn_cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="levels"
             title="Levels"
             frame="0 0 280 222"
             flags="0"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="6"
+            padding="10"
 >
         <requires library="imageeditor_components" />
-          <label name="in_label" text="Input Levels:" frame="10 4 0 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <textedit name="in_black" text="0" frame="84 0 34 13" flags="0" />
-          <textedit name="in_gamma" text="1.00" frame="122 0 34 13" flags="0" />
-          <textedit name="in_white" text="255" frame="160 0 34 13" flags="0" />
-          <lv_histogram name="graph" text="" frame="10 21 260 84" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <slider name="in_slider" text="" frame="10 107 260 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <label name="out_label" text="Output Levels:" frame="10 128 0 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <textedit name="out_black" text="0" frame="84 128 34 13" flags="0" />
-          <textedit name="out_white" text="255" frame="160 128 34 13" flags="0" />
-          <gradient name="out_grad" text="" frame="18 146 244 8" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <slider name="out_slider" text="" frame="10 156 260 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <checkbox name="preview" text="Preview" frame="10 178 74 12" flags="0" />
-          <button name="ok" text="OK" frame="116 198 48 19" flags="0" />
-          <button name="reset" text="Reset" frame="168 198 48 19" flags="0" />
-          <button name="cancel" text="Cancel" frame="220 198 48 19" flags="0" />
+        <grid name="input_row" columns="4" spacing="4">
+          <label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <textedit name="in_black" text="0" flags="0" />
+          <textedit name="in_gamma" text="1.00" flags="0" />
+          <textedit name="in_white" text="255" flags="0" />
+        </grid>
+        <lv_histogram name="graph" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        <slider name="in_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        <grid name="output_row" columns="3" spacing="4">
+          <label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <textedit name="out_black" text="0" flags="0" />
+          <textedit name="out_white" text="255" flags="0" />
+        </grid>
+        <gradient name="out_grad" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        <slider name="out_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        <checkbox name="preview" text="Preview" flags="0" />
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="0" />
+          <button name="reset" text="Reset" flags="0" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="filter_gallery"
             title="Filter Gallery"
             frame="0 0 560 360"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
+            auto_layout="1"
+            padding="8"
 >
         <requires library="imageeditor_components" />
-          <filter_preview name="preview" value="4002" text="" frame="14 18 248 248" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <label name="filter_name" value="4003" text="No filters loaded" frame="14 276 248 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <reportview name="filters" value="4001" text="" frame="286 18 256 290" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
-          <button name="ok" value="5001" text="OK" frame="404 326 66 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="5002" text="Cancel" frame="478 326 66 19" flags="0" />
+        <grid name="main" spacing="8">
+          <column name="preview_col">
+            <filter_preview name="preview" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+            <label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          </column>
+          <column name="filters_col">
+            <reportview name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
+          </column>
+        </grid>
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="blur_dialog"
             title="Blur"
             frame="0 0 240 96"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
+            auto_layout="1"
+            layout_kind="stack"
+            layout_spacing="6"
+            padding="10"
 >
-          <label name="amount_label" value="1" text="Blur: 4px" frame="10 8 220 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <slider name="amount" value="2" text="" frame="10 26 220 13" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <checkbox name="preview" value="3" text="Preview" frame="10 48 74 12" flags="0" />
-          <button name="ok" value="4" text="OK" frame="92 68 44 19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" value="5" text="Cancel" frame="140 68 56 19" flags="0" />
+        <stack name="amount_row" orientation="vertical" spacing="2">
+          <label name="amount_label" text="Blur: 4px" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        </stack>
+        <checkbox name="preview" text="Preview" flags="0" />
+        <space name="spacer" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
       </form>
 
       <form name="about"

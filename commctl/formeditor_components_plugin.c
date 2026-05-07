@@ -103,6 +103,17 @@ static const fe_component_desc_t k_components[] = {
     .proc = win_column,
   },
   {
+    .class_name = "flowview",
+    .display_name = "FlowView",
+    .token = "flow",
+    .name_prefix = "IDC_FLOW",
+    .toolbox_ident = 216,
+    .toolbox_icon = IC_DOCUMENT_STACK,
+    .default_size = {120, 80},
+    .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
+    .proc = win_flowview,
+  },
+  {
     .class_name = "reportview",
     .display_name = "ReportView",
     .token = "reportview",

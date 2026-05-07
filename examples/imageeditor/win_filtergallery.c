@@ -4,6 +4,7 @@
 // texture strip so no shader runs per frame during display.
 
 #include "imageeditor.h"
+#include <assert.h>
 
 #if !IMAGEEDITOR_INDEXED
 
@@ -24,6 +25,8 @@ typedef struct {
   bitmap_strip_t thumb_strip; // strip descriptor pointing at thumb_sheet_tex
   bool accepted;
 } filter_gallery_state_t;
+
+extern bool do_windows_overlap(const window_t *a, const window_t *b);
 
 static uint32_t filter_gallery_make_preview_tex(canvas_doc_t *doc) {
   if (!doc || doc->layer.active < 0 || doc->layer.active >= doc->layer.count)
@@ -166,6 +169,15 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
         send_message(list, RVM_SETREDRAW, 1, NULL);
         if (st->selected >= 0)
           send_message(list, RVM_SETSELECTION, (uint32_t)st->selected, NULL);
+      }
+      // Re-run layout after the report view switches into its real mode.
+      window_layout_sync(win);
+      {
+        window_t *preview = get_window_item(win, ID_FILTER_GALLERY_PREVIEW);
+        window_t *filters = get_window_item(win, ID_FILTER_GALLERY_FILTERS);
+        assert(preview != NULL);
+        assert(filters != NULL);
+        assert(!do_windows_overlap(preview, filters));
       }
       return true;
     }

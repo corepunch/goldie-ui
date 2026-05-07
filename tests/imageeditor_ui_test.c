@@ -257,14 +257,109 @@ void test_ie_palette_windows_created(void) {
     ie_setup();
     ie_create_palette_windows();
 
-    ASSERT_NOT_NULL(g_app->tool_win);
-    ASSERT_NOT_NULL(g_app->tool_options_win);
-    ASSERT_NOT_NULL(g_app->color_win);
+    if (!g_app->tool_win) {
+        FAIL("tool palette window was not created");
+        return;
+    }
+    if (!g_app->tool_options_win) {
+        FAIL("tool options window was not created");
+        return;
+    }
+    if (!g_app->color_win) {
+        FAIL("color palette window was not created");
+        return;
+    }
     ASSERT_TRUE(is_window(g_app->tool_win));
     ASSERT_TRUE(is_window(g_app->tool_options_win));
     ASSERT_TRUE(is_window(g_app->color_win));
+    ASSERT_NOT_NULL(g_app->tool_win->children);
+    ASSERT_NOT_NULL(g_app->tool_win->children->next);
+    ASSERT_NOT_NULL(g_app->tool_win->children->children);
+    ASSERT_NOT_NULL(g_app->tool_win->children->children->next);
+    ASSERT_NOT_NULL(g_app->tool_win->children->children->next->next);
+    ASSERT_TRUE(g_app->tool_win->children->children->frame.y >= 0);
+    if (g_app->tool_win->children->children->frame.x != 0) {
+        FAIL("first tool button was not placed at x=0");
+        return;
+    }
+    if (g_app->tool_win->children->children->next->frame.x != TOOL_PALETTE_BTN_SIZE) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "second tool button x=%d y=%d, expected x=%d",
+                 g_app->tool_win->children->children->next->frame.x,
+                 g_app->tool_win->children->children->next->frame.y,
+                 TOOL_PALETTE_BTN_SIZE);
+        FAIL(msg);
+        return;
+    }
+    if (g_app->tool_win->children->children->next->next->frame.x != 0) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "third tool button x=%d y=%d, expected wrap to x=0",
+                 g_app->tool_win->children->children->next->next->frame.x,
+                 g_app->tool_win->children->children->next->next->frame.y);
+        FAIL(msg);
+        return;
+    }
+    if (g_app->tool_win->children->children->next->next->frame.y != TOOL_PALETTE_BTN_SIZE) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "third tool button y=%d, expected y=%d",
+                 g_app->tool_win->children->children->next->next->frame.y,
+                 TOOL_PALETTE_BTN_SIZE);
+        FAIL(msg);
+        return;
+    }
 
     ie_teardown();
+    PASS();
+}
+
+// Every image editor form that declares children should opt into auto-layout.
+void test_ie_all_forms_use_auto_layout(void) {
+    TEST("imageeditor forms: child-bearing forms use auto-layout");
+
+    const form_def_t *forms[] = {
+        &imageeditor_new_image_form,
+        &imageeditor_image_resize_form,
+        &imageeditor_grid_options_form,
+        &imageeditor_selection_modify_form,
+        &imageeditor_new_layer_form,
+        &imageeditor_add_mask_form,
+        &imageeditor_text_tool_form,
+        &imageeditor_levels_form,
+        &imageeditor_filter_gallery_form,
+        &imageeditor_blur_dialog_form,
+        &imageeditor_about_form,
+        &imageeditor_color_picker_form,
+    };
+
+    for (size_t i = 0; i < ARRAY_LEN(forms); i++) {
+        const form_def_t *form = forms[i];
+        ASSERT_NOT_NULL(form);
+        ASSERT_TRUE(form->child_count > 0);
+        ASSERT_TRUE(form->auto_layout);
+        ASSERT_NOT_NULL(form->layout_kind);
+        ASSERT_TRUE(form->layout_kind[0] != '\0');
+    }
+
+    PASS();
+}
+
+// The filter gallery should keep the preview and report view in separate grid cells.
+void test_ie_filter_gallery_layout_shape(void) {
+    TEST("filter gallery: uses a stacked wrapper with a 2-column grid and actions row");
+
+    ASSERT_TRUE(imageeditor_filter_gallery_form.auto_layout);
+    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.layout_kind, "stack"), 0);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.layout_spacing, 12);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.child_count, 10);
+    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[0].class_name, "grid"), 0);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[0].layout_columns, 2);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[1].parent, ID_FILTER_GALLERY_MAIN);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[4].parent, ID_FILTER_GALLERY_MAIN);
+    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[6].class_name, "stack"), 0);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[7].parent, ID_FILTER_GALLERY_ACTIONS);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[8].parent, ID_FILTER_GALLERY_ACTIONS);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[9].parent, ID_FILTER_GALLERY_ACTIONS);
+
     PASS();
 }
 
@@ -1388,6 +1483,24 @@ void test_ie_layer_add(void) {
     PASS();
 }
 
+// The "New Layer" dialog must be auto-layout so create_window_from_form() accepts it.
+void test_ie_new_layer_form_auto_layout(void) {
+    TEST("imageeditor_new_layer_form: uses auto-layout and nested stacks");
+
+    ASSERT_TRUE(imageeditor_new_layer_form.auto_layout);
+    ASSERT_EQUAL(imageeditor_new_layer_form.child_count, 7);
+    ASSERT_NOT_NULL(imageeditor_new_layer_form.children);
+    ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[0].class_name, "stack"), 0);
+    ASSERT_EQUAL(imageeditor_new_layer_form.children[1].parent, ID_NEW_LAYER_FILL_ROW);
+    ASSERT_EQUAL(imageeditor_new_layer_form.children[2].parent, ID_NEW_LAYER_FILL_ROW);
+    ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[3].class_name, "stack"), 0);
+    ASSERT_EQUAL(imageeditor_new_layer_form.children[4].parent, ID_NEW_LAYER_ACTIONS);
+    ASSERT_EQUAL(imageeditor_new_layer_form.children[5].parent, ID_NEW_LAYER_ACTIONS);
+    ASSERT_EQUAL(imageeditor_new_layer_form.children[6].parent, ID_NEW_LAYER_ACTIONS);
+
+    PASS();
+}
+
 // Deleting a layer reduces layer_count.  Cannot delete the last layer.
 void test_ie_layer_delete(void) {
     TEST("doc_delete_layer: layer_count decreases; last layer cannot be deleted");
@@ -2050,6 +2163,8 @@ int main(int argc, char *argv[]) {
     test_ie_anim_new_frame_selects_inserted_frame();
     test_ie_anim_trace_toggle();
     test_ie_palette_windows_created();
+    test_ie_all_forms_use_auto_layout();
+    test_ie_filter_gallery_layout_shape();
     test_ie_close_tool_window_clears_pointer();
     test_ie_reopen_tool_window();
     test_ie_close_color_window_clears_pointer();
@@ -2094,6 +2209,7 @@ int main(int argc, char *argv[]) {
     // Layer management tests
     test_ie_layer_initial_state();
     test_ie_layer_add();
+    test_ie_new_layer_form_auto_layout();
     test_ie_layer_delete();
     test_ie_layer_duplicate();
     test_ie_layer_set_active();

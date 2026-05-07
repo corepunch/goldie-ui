@@ -1637,6 +1637,22 @@ void test_fe_plugin_components_are_toolbox_placeable(void) {
     PASS();
 }
 
+void test_fe_flow_component_registered(void) {
+    TEST("Components: flow layout control is registered like other stock components");
+
+    fe_setup();
+
+    const fe_component_desc_t *flow = fe_component_by_token("flow");
+    ASSERT_NOT_NULL(flow);
+    ASSERT_STR_EQUAL(flow->class_name, "flowview");
+    ASSERT_TRUE(flow->proc == win_flowview);
+    ASSERT_TRUE((flow->capabilities & FE_COMPONENT_PLACEABLE) != 0);
+    ASSERT_TRUE((flow->capabilities & FE_COMPONENT_SHOW_TOOLBOX) != 0);
+
+    fe_teardown();
+    PASS();
+}
+
 void test_fe_levels_strip_uses_window_width(void) {
     TEST("Plugins: levels strip interaction uses actual window width");
 
@@ -1755,6 +1771,7 @@ int main(void) {
     test_fe_forms_toolbar_new_creates_cascaded_doc();
     test_fe_plugins_browser_lists_project_plugins();
     test_fe_plugin_components_are_toolbox_placeable();
+    test_fe_flow_component_registered();
     test_fe_levels_strip_uses_window_width();
     test_fe_sizeless_level_controls_use_full_frame();
 

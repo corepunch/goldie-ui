@@ -43,8 +43,9 @@ static inline int win_abs_x(window_t *w) {
   return root->frame.x + w->frame.x;
 }
 static inline int win_abs_y(window_t *w) {
+  if (!w->parent) return w->frame.y + titlebar_height(w);
   window_t *root = get_root_window(w);
-  return root->frame.y + titlebar_height(root) + (w->parent ? w->frame.y : 0);
+  return root->frame.y + titlebar_height(root) + w->frame.y;
 }
 
 #define LOCAL_X(px, py, WIN) (SCALE_POINT(px) - win_abs_x(WIN) + (WIN)->scroll[0])
@@ -495,6 +496,9 @@ void dispatch_message(ui_event_t *msg) {
 
         int sx = SCALE_POINT(px);
         int sy = SCALE_POINT(py);
+        int lx = LOCAL_X(px, py, win);
+        int ly = LOCAL_Y(px, py, win);
+        
         int tb_x = 0;
         int tb_y = 0;
         window_t *toolbar_hit = NULL;
@@ -524,8 +528,6 @@ void dispatch_message(ui_event_t *msg) {
           if (root_changing)
             send_message(new_root, evActivate, WA_CLICKACTIVE, old_root);
         }
-        int lx = LOCAL_X(px, py, win);
-        int ly = LOCAL_Y(px, py, win);
         window_t *resize_target = (win == click_root || win->parent) ? click_root : NULL;
         int root_lx = resize_target ? sx - resize_target->frame.x : 0;
         int root_ly = resize_target ? sy - resize_target->frame.y : 0;

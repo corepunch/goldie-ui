@@ -1,8 +1,10 @@
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../user/user.h"
 #include "../user/messages.h"
+#include "../user/rect.h"
 #include "commctl.h"
 
 extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -44,6 +46,10 @@ static bool is_stack_layout(const window_t *win) {
 
 static bool is_grid_layout(const window_t *win) {
   return win && win->layout_kind && strcmp(win->layout_kind, "grid") == 0;
+}
+
+static bool is_flow_layout(const window_t *win) {
+  return win && win->layout_kind && strcmp(win->layout_kind, "flow") == 0;
 }
 
 static layout_measure_t layout_measure_child(window_t *child, int avail_w, int avail_h) {
@@ -104,6 +110,167 @@ static void layout_arrange_child(window_t *child, irect16_t rect) {
   send_message(child, evArrange, 0, &a);
 }
 
+static bool layout_flow_collect(window_t *win, int content_w, int content_h,
+                                int **row_of_out, int **row_w_out, int **row_h_out,
+                                layout_measure_t **cellm_out, int *rows_out) {
+  int count = layout_child_count(win);
+  int *row_of = count > 0 ? calloc((size_t)count, sizeof(int)) : NULL;
+  int *row_w = count > 0 ? calloc((size_t)count, sizeof(int)) : NULL;
+  int *row_h = count > 0 ? calloc((size_t)count, sizeof(int)) : NULL;
+  layout_measure_t *cellm = count > 0 ? calloc((size_t)count, sizeof(layout_measure_t)) : NULL;
+  if ((count > 0) && (!row_of || !row_w || !row_h || !cellm)) {
+    free(row_of);
+    free(row_w);
+    free(row_h);
+    free(cellm);
+    return false;
+  }
+
+  int gap = layout_spacing_for(win);
+  int wrap_w = content_w > 0 ? content_w : INT_MAX;
+  int row = 0;
+  int cur_w = 0;
+  int cur_h = 0;
+  bool row_empty = true;
+
+  for (int i = 0; i < count; i++) {
+    window_t *child = layout_child_at(win, i);
+    if (!child) continue;
+    layout_measure_t cm = layout_measure_child(child, content_w, content_h);
+    if (cellm) cellm[i] = cm;
+    int item_w = cm.desired_w;
+    int item_h = cm.desired_h;
+    if (!row_empty && cur_w + gap + item_w > wrap_w) {
+      row_w[row] = cur_w;
+      row_h[row] = cur_h;
+      row++;
+      cur_w = item_w;
+      cur_h = item_h;
+      row_empty = false;
+    } else {
+      if (!row_empty) cur_w += gap;
+      cur_w += item_w;
+      if (item_h > cur_h) cur_h = item_h;
+      row_empty = false;
+    }
+    if (row_of) row_of[i] = row;
+  }
+
+  if (count > 0) {
+    row_w[row] = cur_w;
+    row_h[row] = cur_h;
+  }
+
+  if (rows_out) *rows_out = count > 0 ? row + 1 : 0;
+  if (row_of_out) *row_of_out = row_of; else free(row_of);
+  if (row_w_out) *row_w_out = row_w; else free(row_w);
+  if (row_h_out) *row_h_out = row_h; else free(row_h);
+  if (cellm_out) *cellm_out = cellm; else free(cellm);
+  return true;
+}
+
+static void layout_measure_flow_window(window_t *win, layout_measure_t *m) {
+  irect16_t cr = get_client_rect(win);
+  if (m) {
+    if (m->avail_w > 0) cr.w = m->avail_w;
+    if (m->avail_h > 0) cr.h = m->avail_h;
+  }
+  irect16_t content = layout_content_rect(win, cr);
+  int *row_w = NULL;
+  int *row_h = NULL;
+  layout_measure_t *cellm = NULL;
+  int rows = 0;
+  if (!layout_flow_collect(win, content.w, content.h, NULL, &row_w, &row_h, &cellm, &rows)) {
+    if (m) {
+      m->desired_w = content.w + layout_padding_for(win).x + layout_padding_for(win).w;
+      m->desired_h = content.h + layout_padding_for(win).y + layout_padding_for(win).h;
+    }
+    return;
+  }
+
+  int total_w = 0;
+  int total_h = 0;
+  int gap = layout_spacing_for(win);
+  for (int row = 0; row < rows; row++) {
+    if (row > 0) total_h += gap;
+    total_h += row_h[row];
+    if (row_w[row] > total_w) total_w = row_w[row];
+  }
+  if (m) {
+    m->desired_w = total_w + layout_padding_for(win).x + layout_padding_for(win).w;
+    m->desired_h = total_h + layout_padding_for(win).y + layout_padding_for(win).h;
+  }
+  free(row_w);
+  free(row_h);
+  free(cellm);
+}
+
+static void layout_arrange_flow_window(window_t *win, const irect16_t *rect) {
+  irect16_t cr = rect ? *rect : get_client_rect(win);
+  irect16_t content = layout_content_rect(win, cr);
+  int *row_of = NULL;
+  int *row_w = NULL;
+  int *row_h = NULL;
+  layout_measure_t *cellm = NULL;
+  int rows = 0;
+  int count = layout_child_count(win);
+  if (!layout_flow_collect(win, content.w, content.h, &row_of, &row_w, &row_h, &cellm, &rows)) {
+    return;
+  }
+
+  int gap = layout_spacing_for(win);
+  int *row_y = rows > 0 ? calloc((size_t)rows, sizeof(int)) : NULL;
+  if (rows > 0 && !row_y) {
+    free(row_of);
+    free(row_w);
+    free(row_h);
+    free(cellm);
+    return;
+  }
+
+  int y = content.y;
+  for (int row = 0; row < rows; row++) {
+    row_y[row] = y;
+    y += row_h[row];
+    if (row + 1 < rows) y += gap;
+  }
+
+  int cur_row = -1;
+  int x = content.x;
+  for (int i = 0; i < count; i++) {
+    window_t *child = layout_child_at(win, i);
+    if (!child) continue;
+    int row = row_of ? row_of[i] : 0;
+    if (row != cur_row) {
+      cur_row = row;
+      x = content.x;
+    } else if (x > content.x) {
+      x += gap;
+    }
+    layout_measure_t cm = cellm[i];
+    int cw = cm.desired_w;
+    int ch = layout_apply_alignment(row_h[row], cm.desired_h, child->v_align);
+    int cx = x;
+    int cy = row_y[row];
+    if (child->h_align == LAYOUT_ALIGN_CENTER)
+      cx += (row_w[row] - cw) / 2;
+    else if (child->h_align == LAYOUT_ALIGN_END)
+      cx += row_w[row] - cw;
+    if (child->v_align == LAYOUT_ALIGN_CENTER)
+      cy += (row_h[row] - ch) / 2;
+    else if (child->v_align == LAYOUT_ALIGN_END)
+      cy += row_h[row] - ch;
+    layout_arrange_child(child, R(cx, cy, cw, ch));
+    x += cw;
+  }
+
+  free(row_of);
+  free(row_w);
+  free(row_h);
+  free(cellm);
+  free(row_y);
+}
+
 static int layout_horizontal_gap_total(window_t *first, int gap) {
   int total = 0;
   bool placed_visual = false;
@@ -128,6 +295,49 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
   int content_w = content.w;
   int content_h = content.h;
   if (is_grid_layout(win)) {
+    if (win->layout_columns > 0) {
+      int count = layout_child_count(win);
+      int cols = win->layout_columns;
+      int rows = (count + cols - 1) / cols;
+      int gap = layout_spacing_for(win);
+      int *col_w = cols > 0 ? calloc((size_t)cols, sizeof(int)) : NULL;
+      int *row_h = rows > 0 ? calloc((size_t)rows, sizeof(int)) : NULL;
+      layout_measure_t *cellm = (count > 0) ? calloc((size_t)count, sizeof(layout_measure_t)) : NULL;
+      if ((cols > 0 && !col_w) || (rows > 0 && !row_h) || (count > 0 && !cellm)) {
+        free(col_w);
+        free(row_h);
+        free(cellm);
+        return;
+      }
+      for (int i = 0; i < count; i++) {
+        window_t *child = layout_child_at(win, i);
+        if (!child) continue;
+        int col = i % cols;
+        int row = i / cols;
+        layout_measure_t cm = layout_measure_child(child, content_w, content_h);
+        cellm[i] = cm;
+        if (cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
+        if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
+      }
+      int total_w = 0;
+      int total_h = 0;
+      for (int col = 0; col < cols; col++) {
+        if (col > 0) total_w += gap;
+        total_w += col_w[col];
+      }
+      for (int row = 0; row < rows; row++) {
+        if (row > 0) total_h += gap;
+        total_h += row_h[row];
+      }
+      if (m) {
+        m->desired_w = total_w + layout_padding_for(win).x + layout_padding_for(win).w;
+        m->desired_h = total_h + layout_padding_for(win).y + layout_padding_for(win).h;
+      }
+      free(col_w);
+      free(row_h);
+      free(cellm);
+      return;
+    }
     int cols = layout_child_count(win);
     if (cols == 0) {
       if (m) {
@@ -139,11 +349,11 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
     int gap = layout_spacing_for(win);
     int *col_w = calloc((size_t)cols, sizeof(int));
     int *col_counts = calloc((size_t)cols, sizeof(int));
-    bool *col_flex = calloc((size_t)cols, sizeof(bool));
-    if (!col_w || !col_counts || !col_flex) {
+    bool *col_auto = calloc((size_t)cols, sizeof(bool));
+    if (!col_w || !col_counts || !col_auto) {
       free(col_w);
       free(col_counts);
-      free(col_flex);
+      free(col_auto);
       if (m) {
         m->desired_w = content.w + layout_padding_for(win).x + layout_padding_for(win).w;
         m->desired_h = content.h + layout_padding_for(win).y + layout_padding_for(win).h;
@@ -156,29 +366,36 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
       int row_count = layout_child_count(column);
       col_counts[col] = row_count;
       if (row_count > rows) rows = row_count;
-      if (column && column->layout_fixed_w > col_w[col]) col_w[col] = column->layout_fixed_w;
-      col_flex[col] = layout_child_is_flex(column);
+      if (column && column->layout_fixed_w > 0) {
+        col_w[col] = column->layout_fixed_w;
+        col_auto[col] = false;
+      } else {
+        col_auto[col] = true;
+      }
       for (int row = 0; row < row_count; row++) {
         window_t *cell = layout_child_at(column, row);
         if (!cell) continue;
         layout_measure_t cm = layout_measure_child(cell, content_w, content_h);
-        if (cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
+        if (col_auto[col] && cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
       }
     }
-    int total_min_w = 0;
-    int flex_cols = 0;
+    int total_fixed_w = 0;
+    int auto_cols = 0;
     for (int col = 0; col < cols; col++) {
-      if (col_flex[col]) flex_cols++;
-      total_min_w += col_w[col];
+      if (col_auto[col]) {
+        auto_cols++;
+      } else {
+        total_fixed_w += col_w[col];
+      }
     }
     int total_gap = (cols > 0) ? gap * (cols - 1) : 0;
-    int remaining_w = content.w - total_min_w - total_gap;
-    if (remaining_w < 0) remaining_w = 0;
-    int flex_share = flex_cols > 0 ? remaining_w / flex_cols : 0;
-    int extra = flex_cols > 0 ? remaining_w % flex_cols : 0;
+    int available_for_auto = content.w - total_fixed_w - total_gap;
+    if (available_for_auto < 0) available_for_auto = 0;
+    int star_width = auto_cols > 0 ? available_for_auto / auto_cols : 0;
+    int extra = auto_cols > 0 ? available_for_auto % auto_cols : 0;
     for (int col = 0; col < cols; col++) {
-      if (!col_flex[col]) continue;
-      col_w[col] += flex_share;
+      if (!col_auto[col]) continue;
+      col_w[col] = star_width;
       if (extra > 0) {
         col_w[col]++;
         extra--;
@@ -189,7 +406,7 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
     if ((rows > 0 && (!row_h || !row_flex))) {
       free(col_w);
       free(col_counts);
-      free(col_flex);
+      free(col_auto);
       free(row_h);
       free(row_flex);
       if (m) {
@@ -248,9 +465,14 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
     }
     free(col_w);
     free(col_counts);
-    free(col_flex);
+    free(col_auto);
     free(row_h);
     free(row_flex);
+    return;
+  }
+
+  if (is_flow_layout(win)) {
+    layout_measure_flow_window(win, m);
     return;
   }
 
@@ -351,16 +573,90 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
   }
 
   if (is_grid_layout(win)) {
+    if (win->layout_columns > 0) {
+      int count = layout_child_count(win);
+      int cols = win->layout_columns;
+      if (count == 0 || cols <= 0) return;
+      int rows = (count + cols - 1) / cols;
+      int *col_w = cols > 0 ? calloc((size_t)cols, sizeof(int)) : NULL;
+      int *row_h = rows > 0 ? calloc((size_t)rows, sizeof(int)) : NULL;
+      layout_measure_t *cellm = (count > 0) ? calloc((size_t)count, sizeof(layout_measure_t)) : NULL;
+      if ((cols > 0 && !col_w) || (rows > 0 && !row_h) || (count > 0 && !cellm)) {
+        free(col_w);
+        free(row_h);
+        free(cellm);
+        return;
+      }
+      for (int i = 0; i < count; i++) {
+        window_t *child = layout_child_at(win, i);
+        if (!child) continue;
+        int col = i % cols;
+        int row = i / cols;
+        layout_measure_t cm = layout_measure_child(child, content.w, content.h);
+        cellm[i] = cm;
+        if (cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
+        if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
+      }
+      for (int col = 0; col < cols; col++) {
+        (void)col_w[col];
+      }
+      int *row_y = rows > 0 ? calloc((size_t)rows, sizeof(int)) : NULL;
+      if (rows > 0 && !row_y) {
+        free(col_w);
+        free(row_h);
+        free(cellm);
+        return;
+      }
+      int y = content.y;
+      for (int row = 0; row < rows; row++) {
+        row_y[row] = y;
+        y += row_h[row];
+        if (row + 1 < rows)
+          y += gap;
+      }
+      int x = content.x;
+      for (int col = 0; col < cols; col++) {
+        int cw = col_w[col];
+        if (col > 0)
+          x += gap;
+        for (int row = 0; row < rows; row++) {
+          int idx = row * cols + col;
+          if (idx >= count) break;
+          window_t *child = layout_child_at(win, idx);
+          if (!child) continue;
+          layout_measure_t cm = cellm[idx];
+          int ch = row_h[row];
+          int cell_w = layout_apply_alignment(cw, cm.desired_w, child->h_align);
+          int cell_h = layout_apply_alignment(ch, cm.desired_h, child->v_align);
+          int cx = x;
+          int cy = row_y[row];
+          if (child->h_align == LAYOUT_ALIGN_CENTER)
+            cx += (cw - cell_w) / 2;
+          else if (child->h_align == LAYOUT_ALIGN_END)
+            cx += cw - cell_w;
+          if (child->v_align == LAYOUT_ALIGN_CENTER)
+            cy += (ch - cell_h) / 2;
+          else if (child->v_align == LAYOUT_ALIGN_END)
+            cy += ch - cell_h;
+          layout_arrange_child(child, R(cx, cy, cell_w, cell_h));
+        }
+      }
+      free(col_w);
+      free(row_h);
+      free(cellm);
+      free(row_y);
+      return;
+    }
     int cols = layout_child_count(win);
     if (cols == 0) return;
     int rows = 0;
     int *col_counts = calloc((size_t)cols, sizeof(int));
     int *col_w = calloc((size_t)cols, sizeof(int));
-    bool *col_flex = calloc((size_t)cols, sizeof(bool));
-    if (!col_counts || !col_w || !col_flex) {
+    bool *col_auto = calloc((size_t)cols, sizeof(bool));
+    if (!col_counts || !col_w || !col_auto) {
       free(col_counts);
       free(col_w);
-      free(col_flex);
+      free(col_auto);
       return;
     }
     for (int col = 0; col < cols; col++) {
@@ -368,29 +664,36 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
       int row_count = layout_child_count(column);
       col_counts[col] = row_count;
       if (row_count > rows) rows = row_count;
-      if (column && column->layout_fixed_w > col_w[col]) col_w[col] = column->layout_fixed_w;
-      col_flex[col] = layout_child_is_flex(column);
+      if (column && column->layout_fixed_w > 0) {
+        col_w[col] = column->layout_fixed_w;
+        col_auto[col] = false;
+      } else {
+        col_auto[col] = true;
+      }
       for (int row = 0; row < row_count; row++) {
         window_t *cell = layout_child_at(column, row);
         if (!cell) continue;
         layout_measure_t cm = layout_measure_child(cell, content.w, content.h);
-        if (cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
+        if (col_auto[col] && cm.desired_w > col_w[col]) col_w[col] = cm.desired_w;
       }
     }
-    int total_min = 0;
-    int flex_count = 0;
+    int total_fixed = 0;
+    int auto_count = 0;
     for (int col = 0; col < cols; col++) {
-      if (col_flex[col]) flex_count++;
-      total_min += col_w[col];
+      if (col_auto[col]) {
+        auto_count++;
+      } else {
+        total_fixed += col_w[col];
+      }
     }
     int total_gap = (cols > 0) ? gap * (cols - 1) : 0;
-    int remaining = content.w - total_min - total_gap;
-    if (remaining < 0) remaining = 0;
-    int flex_share = flex_count > 0 ? remaining / flex_count : 0;
-    int extra = flex_count > 0 ? remaining % flex_count : 0;
+    int available_for_auto = content.w - total_fixed - total_gap;
+    if (available_for_auto < 0) available_for_auto = 0;
+    int star_width = auto_count > 0 ? available_for_auto / auto_count : 0;
+    int extra = auto_count > 0 ? available_for_auto % auto_count : 0;
     for (int col = 0; col < cols; col++) {
-      if (!col_flex[col]) continue;
-      col_w[col] += flex_share;
+      if (!col_auto[col]) continue;
+      col_w[col] = star_width;
       if (extra > 0) {
         col_w[col]++;
         extra--;
@@ -402,7 +705,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
     if ((rows > 0 && (!cellm || !row_h || !row_flex))) {
       free(col_counts);
       free(col_w);
-      free(col_flex);
+      free(col_auto);
       free(cellm);
       free(row_h);
       free(row_flex);
@@ -453,7 +756,7 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
     if (rows > 0 && !row_y) {
       free(col_counts);
       free(col_w);
-      free(col_flex);
+      free(col_auto);
       free(cellm);
       free(row_h);
       free(row_flex);
@@ -498,11 +801,16 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
 
     free(col_counts);
     free(col_w);
-    free(col_flex);
+    free(col_auto);
     free(cellm);
     free(row_h);
     free(row_flex);
     free(row_y);
+  }
+
+  if (is_flow_layout(win)) {
+    layout_arrange_flow_window(win, rect);
+    return;
   }
 }
 
@@ -611,6 +919,54 @@ result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
                                WINDOW_STACK_VERTICAL,
                                0,
                                0);
+}
+
+result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  switch (msg) {
+    case evCreate: {
+      const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
+      win->auto_layout = true;
+      win->layout_kind = "flow";
+      win->layout_orientation = WINDOW_STACK_HORIZONTAL;
+      win->layout_columns = 0;
+      win->layout_spacing = 0;
+      win->layout_padding = (irect16_t){0, 0, 0, 0};
+      win->layout_margin = (irect16_t){0, 0, 0, 0};
+      win->h_align = LAYOUT_ALIGN_STRETCH;
+      win->v_align = LAYOUT_ALIGN_STRETCH;
+      if (cfg) {
+        if (cfg->layout_kind && *cfg->layout_kind)
+          win->layout_kind = cfg->layout_kind;
+        win->layout_orientation = cfg->orientation & WINDOW_STACK_HORIZONTAL;
+        if (cfg->spacing > 0)
+          win->layout_spacing = cfg->spacing;
+        win->layout_padding = cfg->padding;
+        win->layout_margin = cfg->margin;
+      }
+      return true;
+    }
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (m) layout_measure_flow_window(win, m);
+      return true;
+    }
+    case evArrange: {
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) {
+        win->frame = a->rect;
+        window_layout_sync(win);
+      }
+      return true;
+    }
+    case evResize:
+      window_layout_sync(win);
+      return true;
+    case evPaint:
+      layout_paint_children(win);
+      return true;
+    default:
+      return false;
+  }
 }
 
 result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {

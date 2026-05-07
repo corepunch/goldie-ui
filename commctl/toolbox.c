@@ -160,6 +160,18 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
       st->icon_tint_brush = -1;
       return true;
     }
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      toolbox_state_t *st = (toolbox_state_t *)win->userdata;
+      if (m) {
+        int bsz = effective_bsz(st);
+        int count = st ? st->count : 0;
+        int rows = (count > 0) ? ((count + TOOLBOX_COLS - 1) / TOOLBOX_COLS) : 1;
+        m->desired_w = TOOLBOX_COLS * bsz;
+        m->desired_h = rows * bsz;
+      }
+      return true;
+    }
     case evDestroy: {
       toolbox_state_t *st = (toolbox_state_t *)win->userdata;
       if (st) {

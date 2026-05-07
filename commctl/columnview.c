@@ -7,6 +7,8 @@
 #include "../user/draw.h"
 #include "../user/theme.h"
 
+#define COLUMNVIEW_DEBUG 0
+
 #define MAX_COLUMNVIEW_ITEM_NAME 256
 #define MAX_COLUMNVIEW_ITEMS 256
 #define MAX_REPORTVIEW_COLUMNS 16
@@ -151,7 +153,8 @@ static inline int get_column_count(int window_width, int column_width) {
 }
 
 static inline int rv_content_width(window_t *win) {
-  return win->frame.w - (win->vscroll.visible ? SCROLLBAR_WIDTH : 0);
+  irect16_t cr = get_client_rect(win);
+  return cr.w;
 }
 
 static inline int rv_report_header_height(const reportview_data_t *data) {
@@ -236,12 +239,23 @@ static int rv_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam)
   int mx = (int)(int16_t)LOWORD(wparam);
   int my = (int)(int16_t)HIWORD(wparam);
 
+#if COLUMNVIEW_DEBUG
+  fprintf(stderr, "[rv_hit_index] wparam coords: mx=%d, my=%d, scroll[1]=%u, view_mode=%u\n",
+          mx, my, win->scroll[1], data->view_mode);
+  if (data->view_mode == RVM_VIEW_REPORT) {
+    int header_h = rv_report_header_height(data);
+    fprintf(stderr, "[rv_hit_index] header_h=%d, row calc: (%d - %d) / %d = %d\n",
+            header_h, my, header_h, ENTRY_HEIGHT, (my - header_h) / ENTRY_HEIGHT);
+  }
+#endif
+
   if (data->view_mode == RVM_VIEW_REPORT) {
     (void)mx;
     int header_h = rv_report_header_height(data);
     if (my < header_h)
       return -1;
-    int row = (my - header_h) / ENTRY_HEIGHT;
+    int scroll_y = (int)win->scroll[1];
+    int row = (my + scroll_y - header_h) / ENTRY_HEIGHT;
     return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
   }
 
@@ -251,8 +265,9 @@ static int rv_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam)
     int ncol   = rv_large_icon_ncol(eff_w, data->column_width);
     int cell_h = rv_large_icon_cell_h(data);
     int x0     = rv_large_icon_x0(eff_w, ncol, data->column_width);
+    int scroll_y = (int)win->scroll[1];
     int local_x = mx - x0;
-    int local_y = my - RV_LARGE_ICON_PAD;  // content-space coords; no scroll adjustment
+    int local_y = my + scroll_y - RV_LARGE_ICON_PAD;
     if (local_x < 0 || local_y < 0) return RV_INVALID_SELECTION;
     int col = local_x / data->column_width;
     int row = local_y / cell_h;
@@ -262,8 +277,9 @@ static int rv_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam)
   }
 
   int ncol = get_column_count(eff_w, data->column_width);
+  int scroll_y = (int)win->scroll[1];
   int col = mx / data->column_width;
-  int row = (my - WIN_PADDING) / ENTRY_HEIGHT;
+  int row = (my + scroll_y - WIN_PADDING) / ENTRY_HEIGHT;
   int index = row * ncol + col;
   return rv_valid_index(data, index) ? index : RV_INVALID_SELECTION;
 }
@@ -316,11 +332,15 @@ static void rv_scroll_to_item(window_t *win, reportview_data_t *data, int index)
 }
 
 static void rv_sync_scroll(window_t *win, reportview_data_t *data) {
-  if (!win || !data || win->frame.h <= 0)
+  if (!win || !data)
+    return;
+
+  irect16_t cr = get_client_rect(win);
+  if (cr.h <= 0)
     return;
 
   int total_h = rv_content_height(win, data);
-  int max_scroll_px = total_h - win->frame.h;
+  int max_scroll_px = total_h - cr.h;
   if (max_scroll_px < 0) max_scroll_px = 0;
 
   if ((int)win->scroll[1] > max_scroll_px)
@@ -330,7 +350,7 @@ static void rv_sync_scroll(window_t *win, reportview_data_t *data) {
   si.fMask = SIF_ALL;
   si.nMin = 0;
   si.nMax = total_h;
-  si.nPage = (uint32_t)win->frame.h;
+  si.nPage = (uint32_t)cr.h;
   si.nPos = (int)win->scroll[1];
   set_scroll_info(win, SB_VERT, &si, false);
 }
@@ -472,10 +492,11 @@ static void rv_paint_large_icon_view(window_t *win, reportview_data_t *data) {
 }
 
 static void rv_paint_report_view(window_t *win, reportview_data_t *data) {
-  int eff_w = rv_content_width(win);
+  irect16_t cr = get_client_rect(win);
+  int eff_w = cr.w;
   int row_w = rv_report_total_width(data, eff_w);
   int header_h = rv_report_header_height(data);
-  int body_h = win->frame.h - header_h;
+  int body_h = cr.h - header_h;
   int scroll_y = (int)win->scroll[1];
   uint32_t bg_col = get_sys_color(brColumnViewBg);
 
@@ -517,8 +538,8 @@ static void rv_paint_report_view(window_t *win, reportview_data_t *data) {
     }
 
     // Body scissor: column width, everything below the header.
-    int body_h = win->frame.h - header_h;
-    set_clip_rect(NULL, (irect16_t){scr_x + col_x, scr_y + header_h, col_w, body_h});
+    int body_h_local = cr.h - header_h;
+    set_clip_rect(NULL, (irect16_t){scr_x + col_x, scr_y + header_h, col_w, body_h_local});
 
     for (int row = first_row; row < last_row; row++) {
       reportview_item_t *it = &data->items[row];
@@ -543,14 +564,14 @@ static void rv_paint_report_view(window_t *win, reportview_data_t *data) {
 
   // Restore scissor to the window client area before drawing separators,
   // which span the full column height and must not be column-clipped.
-  set_clip_rect(NULL, (irect16_t){scr_x, scr_y, eff_w, win->frame.h});
+  set_clip_rect(NULL, (irect16_t){scr_x, scr_y, eff_w, cr.h});
 
   // Column separator lines.
   col_x = 0;
   for (uint32_t col = 0; col < data->column_count; col++) {
     int col_w = rv_get_report_column_width(data, (int)col, eff_w);
     col_x += col_w;
-    fill_rect(sep_col, R(col_x, header_h, 1, win->frame.h - header_h));
+    fill_rect(sep_col, R(col_x, header_h, 1, cr.h - header_h));
   }
 }
 
@@ -620,6 +641,12 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 
     case evLeftButtonDown: {
       int index = rv_hit_index(win, data, wparam);
+#if COLUMNVIEW_DEBUG
+      fprintf(stderr, "[evLeftButtonDown] hit_index=%d, selected=%d, count=%u\n",
+              index, data->selected, data->count);
+      fprintf(stderr, "[evLeftButtonDown] win->scroll[1]=%u, vscroll.visible=%d, vscroll.enabled=%d\n",
+              win->scroll[1], win->vscroll.visible, win->vscroll.enabled);
+#endif
       if (rv_valid_index(data, index)) {
         uint32_t now = axGetMilliseconds();
         if (data->last_click_index == index && (now - data->last_click_time) < RV_DOUBLE_CLICK_MS) {
@@ -841,11 +868,16 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 
     case evVScroll: {
       int total_h = rv_content_height(win, data);
-      int max_scroll_px = total_h - win->frame.h;
+      irect16_t cr = get_client_rect(win);
+      int max_scroll_px = total_h - cr.h;
       if (max_scroll_px < 0) max_scroll_px = 0;
 
       int new_scroll = (int)wparam;
       if (new_scroll > max_scroll_px) new_scroll = max_scroll_px;
+#if COLUMNVIEW_DEBUG
+      fprintf(stderr, "[evVScroll] wparam=%u, old_scroll=%u, new_scroll=%d, max=%d, total_h=%d, cr.h=%d\n",
+              wparam, win->scroll[1], new_scroll, max_scroll_px, total_h, cr.h);
+#endif
       win->scroll[1] = (uint32_t)new_scroll;
 
       rv_sync_scroll(win, data);

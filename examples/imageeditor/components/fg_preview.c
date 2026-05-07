@@ -19,6 +19,15 @@ result_t fg_preview_component_proc(window_t *win, uint32_t msg,
       win->flags |= WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP;
       return true;
     }
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      if (!m) return true;
+      // Filter preview wants to be square and as large as possible.
+      // Request a large preferred size; the layout system will constrain it.
+      m->desired_w = 248;
+      m->desired_h = 248;
+      return true;
+    }
     case fgPreviewSetData:
       if (!st || !lparam) return false;
       *st = *(const fg_preview_data_t *)lparam;
