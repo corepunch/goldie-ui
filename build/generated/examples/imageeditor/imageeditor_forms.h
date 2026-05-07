@@ -149,7 +149,25 @@ enum {
   ID_BLUR_DIALOG_AMOUNT,
   ID_BLUR_DIALOG_PREVIEW,
   ID_BLUR_DIALOG_OK,
-  ID_BLUR_DIALOG_CANCEL
+  ID_BLUR_DIALOG_CANCEL,
+  ID_ABOUT_BANNER,
+  ID_ABOUT_INFO,
+  ID_ABOUT_TITLE,
+  ID_ABOUT_VERSION,
+  ID_ABOUT_DESC1,
+  ID_ABOUT_DESC2,
+  ID_ABOUT_DESC3,
+  ID_ABOUT_DESC4,
+  ID_ABOUT_SPACER,
+  ID_ABOUT_ACTIONS,
+  ID_ABOUT_FLEX,
+  ID_ABOUT_OK,
+  ID_COLOR_PICKER_SURFACE,
+  ID_COLOR_PICKER_ACTIONS,
+  ID_COLOR_PICKER_OK,
+  ID_COLOR_PICKER_CANCEL,
+  ID_COLOR_PICKER_ADD_PALETTE,
+  ID_COLOR_PICKER_FLEX
 };
 
 /* Top-level menu indices generated from <menu> order. */
@@ -588,6 +606,62 @@ static const form_def_t imageeditor_blur_dialog_form = {
   .margin = { 0, 0, 0, 0 },
   .children = imageeditor_blur_dialog_children,
   .child_count = 5,
+};
+
+static const form_ctrl_def_t imageeditor_about_children[] = {
+  { "image", ID_ABOUT_BANNER, { 120, 120 }, 0, "", "banner", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_ABOUT_INFO, { 0, 0 }, WINDOW_FLEXSPACE, "", "info", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 0, 2, { 0, 8, 4, 4 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ABOUT_TITLE, { 0, 0 }, 0, "Orion Image Editor", "title", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 0, true, 16, false },
+  { "label", ID_ABOUT_VERSION, { 0, 0 }, 0, "Version 1.0", "version", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC1, { 0, 0 }, 0, "A MacPaint-inspired", "desc1", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC2, { 0, 0 }, 0, "pixel art editor.", "desc2", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC3, { 0, 0 }, 0, "Built with the", "desc3", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "label", ID_ABOUT_DESC4, { 0, 0 }, 0, "Orion UI framework.", "desc4", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
+  { "space", ID_ABOUT_SPACER, { 0, 0 }, 0, "", "spacer", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 16, false },
+  { "stack", ID_ABOUT_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 0, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 16, false },
+  { "space", ID_ABOUT_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
+  { "button", ID_ABOUT_OK, { 50, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
+};
+
+static const form_def_t imageeditor_about_form = {
+  .name = "About Orion Image Editor",
+  .width = 270,
+  .height = 120,
+  .flags = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_columns = 0,
+  .layout_spacing = 8,
+  .padding = { 0, 0, 0, 0 },
+  .margin = { 0, 0, 0, 0 },
+  .children = imageeditor_about_children,
+  .child_count = 12,
+};
+
+static const form_ctrl_def_t imageeditor_color_picker_children[] = {
+  { "cp_surface", ID_COLOR_PICKER_SURFACE, { 240, 104 }, 0, "", "surface", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_COLOR_PICKER_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 0, 2, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_OK, { 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_CANCEL, { 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_ADD_PALETTE, { 62, 19 }, 0, "+ Palette", "add_palette", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "space", ID_COLOR_PICKER_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+};
+
+static const form_def_t imageeditor_color_picker_form = {
+  .name = "Edit Color",
+  .width = 240,
+  .height = 128,
+  .flags = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_VERTICAL,
+  .layout_columns = 0,
+  .layout_spacing = 0,
+  .padding = { 0, 0, 0, 0 },
+  .margin = { 0, 0, 0, 0 },
+  .children = imageeditor_color_picker_children,
+  .child_count = 6,
 };
 
 #endif /* BUILD_GENERATED_EXAMPLES_IMAGEEDITOR_IMAGEEDITOR_FORMS_H */

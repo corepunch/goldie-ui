@@ -3,13 +3,6 @@
 
 #include "imageeditor.h"
 
-#define ABOUT_WIN_W    270
-#define ABOUT_WIN_H    120
-#define ABOUT_BANNER_W  ABOUT_WIN_H
-#define ABOUT_BANNER_H  ABOUT_WIN_H
-#define ABOUT_ID_BANNER 1
-#define ABOUT_ID_OK     2
-
 // State
 
 typedef struct {
@@ -51,75 +44,6 @@ static GLuint load_banner_texture(void) {
   return tex;
 }
 
-static const form_ctrl_def_t kAboutInfoActions[] = {
-  { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "button", .id = ABOUT_ID_OK, .size = {50, BUTTON_HEIGHT},
-    .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok", .h_align = LAYOUT_ALIGN_START },
-};
-
-static const form_ctrl_def_t kAboutInfoChildren[] = {
-  { .class_name = "label", .text = "Orion Image Editor", .name = "title",
-    .h_align = LAYOUT_ALIGN_STRETCH, .font = FONT_SYSTEM, .font_set = true },
-  { .class_name = "label", .text = "Version 1.0", .name = "version",
-    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
-  { .class_name = "label", .text = "A MacPaint-inspired", .name = "desc1",
-    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
-  { .class_name = "label", .text = "pixel art editor.", .name = "desc2",
-    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
-  { .class_name = "label", .text = "Built with the", .name = "desc3",
-    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
-  { .class_name = "label", .text = "Orion UI framework.", .name = "desc4",
-    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
-  { .class_name = "space", .name = "spacer", .h_align = LAYOUT_ALIGN_STRETCH },
-  {
-    .class_name = "stack",
-    .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
-    .layout_spacing = 6,
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_START,
-    .children = kAboutInfoActions,
-    .child_count = ARRAY_LEN(kAboutInfoActions),
-  },
-};
-
-static const form_ctrl_def_t kAboutChildren[] = {
-  {
-    .class_name = "image",
-    .id = ABOUT_ID_BANNER,
-    .size = {ABOUT_BANNER_W, ABOUT_BANNER_H},
-    .name = "banner",
-    .h_align = LAYOUT_ALIGN_START,
-    .v_align = LAYOUT_ALIGN_STRETCH,
-  },
-  {
-    .class_name = "stack",
-    .name = "info",
-    .flags = WINDOW_FLEXSPACE,
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_VERTICAL,
-    .layout_spacing = 2,
-    .padding = {0, 8, 4, 4},
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
-    .children = kAboutInfoChildren,
-    .child_count = ARRAY_LEN(kAboutInfoChildren),
-  },
-};
-
-static const form_def_t kAboutForm = {
-  .name = "About Orion Image Editor",
-  .width = ABOUT_WIN_W,
-  .height = ABOUT_WIN_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_HORIZONTAL,
-  .layout_spacing = 8,
-  .children = kAboutChildren,
-  .child_count = ARRAY_LEN(kAboutChildren),
-};
-
 // Dialog window procedure
 
 static result_t about_proc(window_t *win, uint32_t msg,
@@ -130,7 +54,7 @@ static result_t about_proc(window_t *win, uint32_t msg,
     case evCreate: {
       about_state_t *s = allocate_window_data(win, sizeof(about_state_t));
       s->banner_tex = load_banner_texture();
-      window_t *banner = get_window_item(win, ABOUT_ID_BANNER);
+      window_t *banner = get_window_item(win, ID_ABOUT_BANNER);
       if (banner)
         banner->userdata = (void *)(uintptr_t)s->banner_tex;
       return true;
@@ -162,6 +86,6 @@ static result_t about_proc(window_t *win, uint32_t msg,
 // ──────────────────────────────────────────────────────────────────
 
 void show_about_dialog(window_t *parent) {
-  show_dialog_from_form(&kAboutForm, "About Orion Image Editor",
+  show_dialog_from_form(&imageeditor_about_form, "About Orion Image Editor",
                         parent, about_proc, NULL);
 }

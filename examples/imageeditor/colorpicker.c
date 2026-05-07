@@ -9,7 +9,6 @@
 // ──────────────────────────────────────────────────────────────────
 
 #define CP_WIN_W     240
-#define CP_WIN_H     128
 
 // Color preview swatches (left column, x = 0..49)
 #define CP_PREV_X      2
@@ -44,20 +43,12 @@
 
 // Button row
 #define CP_BTN_Y     104
-#define CP_BTN_H      BUTTON_HEIGHT
-// Button X positions
-#define CP_BTN_OK_X    2
-#define CP_BTN_OK_W   40
-#define CP_BTN_CA_X   44
-#define CP_BTN_CA_W   48
-#define CP_BTN_AD_X   94
-#define CP_BTN_AD_W   62
 
-// Button child IDs (matched against btn->id in evCommand)
-#define CP_ID_SURFACE 1
-#define CP_ID_OK      2
-#define CP_ID_CANCEL  3
-#define CP_ID_ADD     4
+// Generated form control IDs.
+#define CP_ID_SURFACE ID_COLOR_PICKER_SURFACE
+#define CP_ID_OK      ID_COLOR_PICKER_OK
+#define CP_ID_CANCEL  ID_COLOR_PICKER_CANCEL
+#define CP_ID_ADD     ID_COLOR_PICKER_ADD_PALETTE
 
 // ──────────────────────────────────────────────────────────────────
 // HSV conversion helpers
@@ -121,72 +112,6 @@ static void sync_rgb(cp_state_t *st) { st->cur = hsv_to_rgb(st->h, st->s, st->v,
 
 static result_t cp_surface_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam);
-
-static const form_ctrl_def_t kColorPickerActions[] = {
-  {
-    .class_name = "button",
-    .id = CP_ID_OK,
-    .size = {CP_BTN_OK_W, CP_BTN_H},
-    .flags = BUTTON_DEFAULT,
-    .text = "OK",
-    .name = "ok",
-    .h_align = LAYOUT_ALIGN_START,
-  },
-  {
-    .class_name = "button",
-    .id = CP_ID_CANCEL,
-    .size = {CP_BTN_CA_W, CP_BTN_H},
-    .text = "Cancel",
-    .name = "cancel",
-    .h_align = LAYOUT_ALIGN_START,
-  },
-  {
-    .class_name = "button",
-    .id = CP_ID_ADD,
-    .size = {CP_BTN_AD_W, CP_BTN_H},
-    .text = "+ Palette",
-    .name = "add_palette",
-    .h_align = LAYOUT_ALIGN_START,
-  },
-  {
-    .class_name = "space",
-    .name = "flex",
-    .h_align = LAYOUT_ALIGN_STRETCH,
-  },
-};
-
-static const form_ctrl_def_t kColorPickerChildren[] = {
-  {
-    .class_name = "cp_surface",
-    .id = CP_ID_SURFACE,
-    .size = {CP_WIN_W, CP_BTN_Y},
-    .name = "surface",
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_START,
-  },
-  {
-    .class_name = "stack",
-    .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
-    .layout_spacing = 2,
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_START,
-    .children = kColorPickerActions,
-    .child_count = ARRAY_LEN(kColorPickerActions),
-  },
-};
-
-static const form_def_t kColorPickerForm = {
-  .name = "Edit Color",
-  .width = CP_WIN_W,
-  .height = CP_WIN_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_spacing = 0,
-  .children = kColorPickerChildren,
-  .child_count = ARRAY_LEN(kColorPickerChildren),
-};
 
 static const fe_component_desc_t kColorPickerSurfaceDesc = {
   .class_name = "cp_surface",
@@ -480,7 +405,7 @@ bool show_color_picker(window_t *parent, uint32_t initial, uint32_t *out) {
 
   register_window_class_once(&kColorPickerSurfaceDesc);
 
-  uint32_t result = show_dialog_from_form(&kColorPickerForm, "Edit Color",
+  uint32_t result = show_dialog_from_form(&imageeditor_color_picker_form, "Edit Color",
                                           parent, cp_proc, &st);
 
   if (result && st.accepted) {
