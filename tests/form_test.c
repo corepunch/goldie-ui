@@ -188,8 +188,6 @@ static const form_ctrl_def_t kBtnTallRowChildren[] = {
     .frame = {0, 0, 80, 0},
     .text = "Center Me",
     .name = "button",
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
   },
 };
 
@@ -201,8 +199,6 @@ static const form_ctrl_def_t kBtnTallChildren[] = {
     .text = "Tall filler",
     .name = "filler",
     .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
   },
   {
     .class_name = "stack",
@@ -210,8 +206,6 @@ static const form_ctrl_def_t kBtnTallChildren[] = {
     .frame = {0, 0, 0, 0},
     .name = "row",
     .flags = WINDOW_FLEXSPACE,
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
     .layout_kind = "stack",
     .layout_orientation = WINDOW_STACK_HORIZONTAL,
     .children = kBtnTallRowChildren,
@@ -822,15 +816,12 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
     .frame = {0, 0, 0, 0},
     .name = "layout",
     .flags = WINDOW_FLEXSPACE,
-    .h_align = LAYOUT_ALIGN_STRETCH,
-    .v_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
       {
         .class_name = "stack",
         .id = PD_FORM_ID_HEADER,
         .frame = {0, 0, 0, 0},
         .name = "header",
-        .h_align = LAYOUT_ALIGN_STRETCH,
         .v_align = LAYOUT_ALIGN_START,
         .children = kPostDetailLikeHeaderChildren,
         .child_count = ARRAY_LEN(kPostDetailLikeHeaderChildren),
@@ -845,15 +836,12 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
         .text = "",
         .name = "comments",
         .flags = WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE,
-        .h_align = LAYOUT_ALIGN_STRETCH,
-        .v_align = LAYOUT_ALIGN_STRETCH,
       },
       {
         .class_name = "stack",
         .id = PD_FORM_ID_ACTIONS,
         .frame = {0, 0, 0, 0},
         .name = "actions",
-        .h_align = LAYOUT_ALIGN_STRETCH,
         .v_align = LAYOUT_ALIGN_START,
         .children = kPostDetailLikeActionsChildren,
         .child_count = ARRAY_LEN(kPostDetailLikeActionsChildren),
@@ -1565,6 +1553,8 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_EQUAL(flex_left->frame.y, 0);
   ASSERT_EQUAL(cancel->frame.y, 0);
   ASSERT_EQUAL(flex_left->frame.x, 0);
+  ASSERT_TRUE(ok->frame.w >= strwidth("Post") + BUTTON_PADDING * 2);
+  ASSERT_TRUE(cancel->frame.w >= strwidth("Cancel") + BUTTON_PADDING * 2);
   ASSERT_EQUAL(ok->frame.x, flex_left->frame.w);
   ASSERT_EQUAL(cancel->frame.x, ok->frame.x + ok->frame.w + 6);
   ASSERT_EQUAL(flex_left->frame.w, flex_right->frame.w);
@@ -1669,11 +1659,13 @@ void test_button_keeps_fixed_height_and_centers_in_tall_row(void) {
   ASSERT_NOT_NULL(row);
   ASSERT_EQUAL(btn->frame.h, BUTTON_HEIGHT);
   ASSERT_TRUE(row->frame.h > BUTTON_HEIGHT);
+  ASSERT_TRUE(btn->frame.w >= strwidth("Center Me") + BUTTON_PADDING * 2);
   ASSERT_EQUAL(btn->frame.y, (row->frame.h - BUTTON_HEIGHT) / 2);
 
   resize_window(win, kBtnTallForm.width, 160);
   ASSERT_EQUAL(btn->frame.h, BUTTON_HEIGHT);
   ASSERT_TRUE(row->frame.h > BUTTON_HEIGHT);
+  ASSERT_TRUE(btn->frame.w >= strwidth("Center Me") + BUTTON_PADDING * 2);
   ASSERT_EQUAL(btn->frame.y, (row->frame.h - BUTTON_HEIGHT) / 2);
 
   destroy_window(win);

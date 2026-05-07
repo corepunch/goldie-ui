@@ -39,9 +39,9 @@ typedef enum {
 // ── Buttons ───────────────────────────────────────────────────────────────
 
 // Pixel inset from the button frame to the text/icon content area.
-// Derived from the two-layer bevel drawn by draw_button() (2 px) plus
-// one pixel of inner padding.
-#define BUTTON_TEXT_INSET    2
+// Small enough to keep the label legible in 19px-tall buttons, but large
+// enough to give text some breathing room inside the bevel.
+#define BUTTON_PADDING    8
 
 #define TEXTEDIT_PADDING_HORZ 4  // horizontal padding inside textedit controls (between frame and text)
 #define TEXTEDIT_PADDING_VERT 1   // vertical padding inside textedit controls (between frame and text)
