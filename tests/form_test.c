@@ -22,9 +22,24 @@
 #define FORM_ID_CANCEL 3
 
 static const form_ctrl_def_t kTestFormChildren[] = {
-  { "textedit", FORM_ID_NAME,   {60,  8, 80, 13}, 0,              "hello", "name"   },
-  { "button",   FORM_ID_OK,     {50, 30, 40, 13}, BUTTON_DEFAULT, "OK",    "ok"     },
-  { "button",   FORM_ID_CANCEL, {94, 30, 50, 13}, 0,              "Cancel","cancel" },
+  { .class_name = "textedit", .id = FORM_ID_NAME, .size = {80, 13}, .text = "hello", .name = "name",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 4,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = FORM_ID_OK, .size = {40, 13}, .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok",
+        .h_align = LAYOUT_ALIGN_START },
+      { .class_name = "button", .id = FORM_ID_CANCEL, .size = {50, 13}, .text = "Cancel", .name = "cancel",
+        .h_align = LAYOUT_ALIGN_START },
+    },
+    .child_count = 3,
+  },
 };
 
 static const form_def_t kTestForm = {
@@ -32,8 +47,12 @@ static const form_def_t kTestForm = {
   .width       = 160,
   .height      = 52,
   .flags       = 0,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = 4,
+  .padding = {8, 8, 8, 8},
   .children    = kTestFormChildren,
-  .child_count = 3,
+  .child_count = ARRAY_LEN(kTestFormChildren),
 };
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -51,9 +70,24 @@ static const ctrl_binding_t kDdxTestBindings[] = {
 };
 
 static const form_ctrl_def_t kDdxFormChildren[] = {
-  { "textedit", DDX_FORM_ID_NAME,   {60,  8, 80, 13}, 0,              "",       "name"   },
-  { "button",   DDX_FORM_ID_OK,     {50, 30, 40, 13}, BUTTON_DEFAULT, "OK",     "ok"     },
-  { "button",   DDX_FORM_ID_CANCEL, {94, 30, 50, 13}, 0,              "Cancel", "cancel" },
+  { .class_name = "textedit", .id = DDX_FORM_ID_NAME, .size = {80, 13}, .text = "", .name = "name",
+    .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 4,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .children = (const form_ctrl_def_t[]){
+      { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+      { .class_name = "button", .id = DDX_FORM_ID_OK, .size = {40, 13}, .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok",
+        .h_align = LAYOUT_ALIGN_START },
+      { .class_name = "button", .id = DDX_FORM_ID_CANCEL, .size = {50, 13}, .text = "Cancel", .name = "cancel",
+        .h_align = LAYOUT_ALIGN_START },
+    },
+    .child_count = 3,
+  },
 };
 
 static const form_def_t kDdxTestForm = {
@@ -61,8 +95,12 @@ static const form_def_t kDdxTestForm = {
   .width         = 160,
   .height        = 52,
   .flags         = 0,
+  .auto_layout   = true,
+  .layout_kind   = "stack",
+  .layout_spacing = 4,
+  .padding       = {8, 8, 8, 8},
   .children      = kDdxFormChildren,
-  .child_count   = 3,
+  .child_count   = ARRAY_LEN(kDdxFormChildren),
   .bindings      = kDdxTestBindings,
   .binding_count = ARRAY_LEN(kDdxTestBindings),
   .ok_id         = DDX_FORM_ID_OK,
@@ -80,7 +118,7 @@ static const form_ctrl_def_t kPadChildren[] = {
   {
     .class_name = "button",
     .id = PAD_FORM_ID_FIRST,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "Alpha",
     .name = "alpha",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -89,7 +127,7 @@ static const form_ctrl_def_t kPadChildren[] = {
   {
     .class_name = "button",
     .id = PAD_FORM_ID_SECOND,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "Beta",
     .name = "beta",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -118,7 +156,7 @@ static const form_ctrl_def_t kMarChildren[] = {
   {
     .class_name = "button",
     .id = MAR_FORM_ID_FIRST,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "Gamma",
     .name = "gamma",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -128,7 +166,7 @@ static const form_ctrl_def_t kMarChildren[] = {
   {
     .class_name = "button",
     .id = MAR_FORM_ID_SECOND,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "Delta",
     .name = "delta",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -156,7 +194,7 @@ static const form_ctrl_def_t kWrapChildren[] = {
   {
     .class_name = "label",
     .id = WRAP_FORM_ID_LABEL,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "This label should wrap when the available width is limited by layout.",
     .name = "wrap",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -185,7 +223,7 @@ static const form_ctrl_def_t kBtnTallRowChildren[] = {
   {
     .class_name = "button",
     .id = BTN_TALL_FORM_ID_BUTTON,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "Center Me",
     .name = "button",
   },
@@ -195,7 +233,7 @@ static const form_ctrl_def_t kBtnTallChildren[] = {
   {
     .class_name = "multiedit",
     .id = BTN_TALL_FORM_ID_FILLER,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "Tall filler",
     .name = "filler",
     .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
@@ -203,7 +241,7 @@ static const form_ctrl_def_t kBtnTallChildren[] = {
   {
     .class_name = "stack",
     .id = BTN_TALL_FORM_ID_ROW,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "row",
     .flags = WINDOW_FLEXSPACE,
     .layout_kind = "stack",
@@ -236,7 +274,7 @@ static const form_ctrl_def_t kGapActionsChildren[] = {
   {
     .class_name = "button",
     .id = GAP_FORM_ID_OK,
-    .frame = {0, 0, 44, 0},
+    .size = {44, 0},
     .text = "Post",
     .name = "ok",
     .h_align = LAYOUT_ALIGN_START,
@@ -245,7 +283,7 @@ static const form_ctrl_def_t kGapActionsChildren[] = {
   {
     .class_name = "button",
     .id = GAP_FORM_ID_CANCEL,
-    .frame = {0, 0, 56, 0},
+    .size = {56, 0},
     .text = "Cancel",
     .name = "cancel",
     .h_align = LAYOUT_ALIGN_START,
@@ -257,7 +295,7 @@ static const form_ctrl_def_t kGapChildrenTop[] = {
   {
     .class_name = "textedit",
     .id = GAP_FORM_ID_TEXT,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "text",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -266,7 +304,7 @@ static const form_ctrl_def_t kGapChildrenTop[] = {
   {
     .class_name = "separator",
     .id = GAP_FORM_ID_SEP,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "sep",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -275,7 +313,7 @@ static const form_ctrl_def_t kGapChildrenTop[] = {
   {
     .class_name = "stack",
     .id = GAP_FORM_ID_ACTIONS,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "actions",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -291,7 +329,7 @@ static const form_ctrl_def_t kGapChildrenStretch[] = {
   {
     .class_name = "textedit",
     .id = GAP_FORM_ID_TEXT,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "text",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -300,7 +338,7 @@ static const form_ctrl_def_t kGapChildrenStretch[] = {
   {
     .class_name = "separator",
     .id = GAP_FORM_ID_SEP,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "sep",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -309,7 +347,7 @@ static const form_ctrl_def_t kGapChildrenStretch[] = {
   {
     .class_name = "stack",
     .id = GAP_FORM_ID_ACTIONS,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "actions",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_STRETCH,
@@ -371,7 +409,7 @@ static const form_ctrl_def_t kNestBodyChildren[] = {
   {
     .class_name = "button",
     .id = NEST_FORM_ID_BODY_BTN1,
-    .frame = {0, 0, 88, 0},
+    .size = {88, 0},
     .text = "Like Post",
     .name = "like",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -380,7 +418,7 @@ static const form_ctrl_def_t kNestBodyChildren[] = {
   {
     .class_name = "button",
     .id = NEST_FORM_ID_BODY_BTN2,
-    .frame = {0, 0, 72, 0},
+    .size = {72, 0},
     .text = "Close",
     .name = "close",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -392,7 +430,7 @@ static const form_ctrl_def_t kNestGridLeftChildren[] = {
   {
     .class_name = "label",
     .id = NEST_FORM_ID_GRID_1,
-    .frame = {0, 0, 40, 0},
+    .size = {40, 0},
     .text = "G1",
     .name = "g1",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -401,7 +439,7 @@ static const form_ctrl_def_t kNestGridLeftChildren[] = {
   {
     .class_name = "label",
     .id = NEST_FORM_ID_GRID_3,
-    .frame = {0, 0, 40, 0},
+    .size = {40, 0},
     .text = "G3",
     .name = "g3",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -413,7 +451,7 @@ static const form_ctrl_def_t kNestGridRightChildren[] = {
   {
     .class_name = "label",
     .id = NEST_FORM_ID_GRID_2,
-    .frame = {0, 0, 40, 0},
+    .size = {40, 0},
     .text = "G2",
     .name = "g2",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -422,7 +460,7 @@ static const form_ctrl_def_t kNestGridRightChildren[] = {
   {
     .class_name = "label",
     .id = NEST_FORM_ID_GRID_4,
-    .frame = {0, 0, 40, 0},
+    .size = {40, 0},
     .text = "G4",
     .name = "g4",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -434,7 +472,7 @@ static const form_ctrl_def_t kNestChildren[] = {
   {
     .class_name = "label",
     .id = NEST_FORM_ID_HEADER,
-    .frame = {0, 0, 120, 0},
+    .size = {120, 0},
     .text = "Post Detail",
     .name = "header",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -443,7 +481,7 @@ static const form_ctrl_def_t kNestChildren[] = {
   {
     .class_name = "stack",
     .id = NEST_FORM_ID_BODY,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "body",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -456,7 +494,7 @@ static const form_ctrl_def_t kNestChildren[] = {
   {
     .class_name = "grid",
     .id = NEST_FORM_ID_GRID,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "grid",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -464,7 +502,7 @@ static const form_ctrl_def_t kNestChildren[] = {
       {
         .class_name = "column",
         .id = NEST_FORM_ID_GRID_LEFT,
-        .frame = {0, 0, 40, 0},
+        .size = {40, 0},
         .name = "left",
         .children = kNestGridLeftChildren,
         .child_count = ARRAY_LEN(kNestGridLeftChildren),
@@ -472,7 +510,7 @@ static const form_ctrl_def_t kNestChildren[] = {
       {
         .class_name = "column",
         .id = NEST_FORM_ID_GRID_RIGHT,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .name = "right",
         .flags = WINDOW_FLEXSPACE,
         .children = kNestGridRightChildren,
@@ -504,7 +542,7 @@ static const form_ctrl_def_t kDefaultStackChildren[] = {
   {
     .class_name = "button",
     .id = 201,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "First",
     .name = "first",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -513,7 +551,7 @@ static const form_ctrl_def_t kDefaultStackChildren[] = {
   {
     .class_name = "button",
     .id = 202,
-    .frame = {0, 0, 80, 0},
+    .size = {80, 0},
     .text = "Second",
     .name = "second",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -552,21 +590,21 @@ static const form_ctrl_def_t kNewPostLabelColumnChildren[] = {
   {
     .class_name = "label",
     .id = NP_FORM_ID_AUTHOR_L,
-    .frame = {0, 0, 56, 0},
+    .size = {56, 0},
     .text = "Author:",
     .name = "author_lbl",
   },
   {
     .class_name = "label",
     .id = NP_FORM_ID_TITLE_L,
-    .frame = {0, 0, 56, 0},
+    .size = {56, 0},
     .text = "Title:",
     .name = "title_lbl",
   },
   {
     .class_name = "label",
     .id = NP_FORM_ID_BODY_L,
-    .frame = {0, 0, 56, 0},
+    .size = {56, 0},
     .text = "Body:",
     .name = "body_lbl",
   },
@@ -576,21 +614,21 @@ static const form_ctrl_def_t kNewPostInputColumnChildren[] = {
   {
     .class_name = "textedit",
     .id = NP_FORM_ID_AUTHOR_E,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "author",
   },
   {
     .class_name = "textedit",
     .id = NP_FORM_ID_TITLE_E,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "title",
   },
   {
     .class_name = "multiedit",
     .id = NP_FORM_ID_BODY_E,
-    .frame = {0, 0, 0, 48},
+    .size = {0, 48},
     .text = "",
     .name = "body",
     .flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
@@ -601,14 +639,14 @@ static const form_ctrl_def_t kNewPostChildren[] = {
   {
     .class_name = "grid",
     .id = NP_FORM_ID_FIELDS,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "fields",
     .flags = WINDOW_FLEXSPACE,
     .children = (const form_ctrl_def_t[]){
       {
         .class_name = "column",
         .id = NP_FORM_ID_LABELS,
-        .frame = {0, 0, 56, 0},
+        .size = {56, 0},
         .name = "labels",
         .children = kNewPostLabelColumnChildren,
         .child_count = ARRAY_LEN(kNewPostLabelColumnChildren),
@@ -616,7 +654,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
       {
         .class_name = "column",
         .id = NP_FORM_ID_INPUTS,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .name = "inputs",
         .flags = WINDOW_FLEXSPACE,
         .children = kNewPostInputColumnChildren,
@@ -630,14 +668,14 @@ static const form_ctrl_def_t kNewPostChildren[] = {
   {
     .class_name = "separator",
     .id = NP_FORM_ID_SECTION_SEP,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "section_sep",
   },
   {
     .class_name = "stack",
     .id = NP_FORM_ID_ACTIONS,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "actions",
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -645,7 +683,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
       {
         .class_name = "space",
         .id = NP_FORM_ID_FLEX_LEFT,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .text = "",
         .name = "flex_left",
         .h_align = LAYOUT_ALIGN_STRETCH,
@@ -654,7 +692,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
       {
         .class_name = "button",
         .id = NP_FORM_ID_OK,
-        .frame = {0, 0, 44, 0},
+        .size = {44, 0},
         .text = "Post",
         .name = "ok",
         .h_align = LAYOUT_ALIGN_START,
@@ -663,7 +701,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
       {
         .class_name = "button",
         .id = NP_FORM_ID_CANCEL,
-        .frame = {0, 0, 56, 0},
+        .size = {56, 0},
         .text = "Cancel",
         .name = "cancel",
         .h_align = LAYOUT_ALIGN_START,
@@ -672,7 +710,7 @@ static const form_ctrl_def_t kNewPostChildren[] = {
       {
         .class_name = "space",
         .id = NP_FORM_ID_FLEX_RIGHT,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .text = "",
         .name = "flex_right",
         .h_align = LAYOUT_ALIGN_STRETCH,
@@ -734,7 +772,7 @@ static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
   {
     .class_name = "label",
     .id = PD_FORM_ID_TITLE,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "lbl_title",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -743,7 +781,7 @@ static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
   {
     .class_name = "label",
     .id = PD_FORM_ID_AUTHOR,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "lbl_author",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -752,7 +790,7 @@ static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
   {
     .class_name = "label",
     .id = PD_FORM_ID_BODY,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "lbl_body",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -761,7 +799,7 @@ static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
   {
     .class_name = "label",
     .id = PD_FORM_ID_LIKES,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "lbl_likes",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -770,7 +808,7 @@ static const form_ctrl_def_t kPostDetailLikeHeaderChildren[] = {
   {
     .class_name = "label",
     .id = PD_FORM_ID_COMMENTS_HDR,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "lbl_cmt_hdr",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -782,7 +820,7 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
   {
     .class_name = "button",
     .id = PD_FORM_ID_LIKE_POST,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "Like Post",
     .name = "like_post",
     .h_align = LAYOUT_ALIGN_START,
@@ -791,7 +829,7 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
   {
     .class_name = "button",
     .id = PD_FORM_ID_ADD_COMMENT,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "Add Comment",
     .name = "add_comment",
     .h_align = LAYOUT_ALIGN_START,
@@ -800,7 +838,7 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
   {
     .class_name = "button",
     .id = PD_FORM_ID_ADD_REPLY,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "Add Reply",
     .name = "add_reply",
     .h_align = LAYOUT_ALIGN_START,
@@ -809,7 +847,7 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
   {
     .class_name = "button",
     .id = PD_FORM_ID_LIKE_COMMENT,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "Like Comment",
     .name = "like_comment",
     .h_align = LAYOUT_ALIGN_START,
@@ -818,7 +856,7 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
   {
     .class_name = "space",
     .id = PD_FORM_ID_FLEX,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "",
     .name = "flex",
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -827,7 +865,7 @@ static const form_ctrl_def_t kPostDetailLikeActionsChildren[] = {
   {
     .class_name = "button",
     .id = PD_FORM_ID_CLOSE,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .text = "Close",
     .name = "close",
     .flags = BUTTON_DEFAULT,
@@ -846,14 +884,14 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
   {
     .class_name = "stack",
     .id = PD_FORM_ID_LAYOUT,
-    .frame = {0, 0, 0, 0},
+    .size = {0, 0},
     .name = "layout",
     .flags = WINDOW_FLEXSPACE,
     .children = (const form_ctrl_def_t[]){
       {
         .class_name = "stack",
         .id = PD_FORM_ID_HEADER,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .name = "header",
         .v_align = LAYOUT_ALIGN_START,
         .children = kPostDetailLikeHeaderChildren,
@@ -865,7 +903,7 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
       {
         .class_name = "reportview",
         .id = PD_FORM_ID_COMMENTS,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .text = "",
         .name = "comments",
         .flags = WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE,
@@ -873,7 +911,7 @@ static const form_ctrl_def_t kPostDetailLikeChildren[] = {
       {
         .class_name = "stack",
         .id = PD_FORM_ID_ACTIONS,
-        .frame = {0, 0, 0, 0},
+        .size = {0, 0},
         .name = "actions",
         .v_align = LAYOUT_ALIGN_START,
         .children = kPostDetailLikeActionsChildren,

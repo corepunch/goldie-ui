@@ -52,7 +52,7 @@ static const form_ctrl_def_t kTaskEditChildren[] = {
       {
         .class_name = "column",
         .name = "labels",
-        .frame = {0, 0, 120, 0},
+        .size = {120, 0},
         .children = kTaskFieldLabels,
         .child_count = (int)(sizeof(kTaskFieldLabels)/sizeof(kTaskFieldLabels[0])),
       },

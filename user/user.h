@@ -195,7 +195,7 @@ void ddx_pull_check(window_t *dlg, const ctrl_binding_t *b, void *state);
 typedef struct form_ctrl_def_s {
   const char       *class_name; // control class name (e.g. "button")
   uint32_t          id;     // numeric control ID
-  irect16_t         frame;  // position and dimensions in parent client coordinates
+  isize16_t         size;   // fixed size hint for auto-layout ({w, h}); 0 = measured
   flags_t           flags;  // style flags passed to create_window
   const char       *text;   // initial caption / label text
   const char       *name;   // identifier name (informational)

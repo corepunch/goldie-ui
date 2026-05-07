@@ -54,9 +54,10 @@
 #define CP_BTN_AD_W   62
 
 // Button child IDs (matched against btn->id in evCommand)
-#define CP_ID_OK      1
-#define CP_ID_CANCEL  2
-#define CP_ID_ADD     3
+#define CP_ID_SURFACE 1
+#define CP_ID_OK      2
+#define CP_ID_CANCEL  3
+#define CP_ID_ADD     4
 
 // ──────────────────────────────────────────────────────────────────
 // HSV conversion helpers
@@ -117,6 +118,87 @@ typedef struct {
 
 static void sync_hsv(cp_state_t *st) { rgb_to_hsv(st->cur, &st->h, &st->s, &st->v); }
 static void sync_rgb(cp_state_t *st) { st->cur = hsv_to_rgb(st->h, st->s, st->v, COLOR_A(st->cur)); }
+
+static result_t cp_surface_proc(window_t *win, uint32_t msg,
+                                uint32_t wparam, void *lparam);
+
+static const form_ctrl_def_t kColorPickerActions[] = {
+  {
+    .class_name = "button",
+    .id = CP_ID_OK,
+    .size = {CP_BTN_OK_W, CP_BTN_H},
+    .flags = BUTTON_DEFAULT,
+    .text = "OK",
+    .name = "ok",
+    .h_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = CP_ID_CANCEL,
+    .size = {CP_BTN_CA_W, CP_BTN_H},
+    .text = "Cancel",
+    .name = "cancel",
+    .h_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "button",
+    .id = CP_ID_ADD,
+    .size = {CP_BTN_AD_W, CP_BTN_H},
+    .text = "+ Palette",
+    .name = "add_palette",
+    .h_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "space",
+    .name = "flex",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+  },
+};
+
+static const form_ctrl_def_t kColorPickerChildren[] = {
+  {
+    .class_name = "cp_surface",
+    .id = CP_ID_SURFACE,
+    .size = {CP_WIN_W, CP_BTN_Y},
+    .name = "surface",
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+  },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 2,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kColorPickerActions,
+    .child_count = ARRAY_LEN(kColorPickerActions),
+  },
+};
+
+static const form_def_t kColorPickerForm = {
+  .name = "Edit Color",
+  .width = CP_WIN_W,
+  .height = CP_WIN_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_spacing = 0,
+  .children = kColorPickerChildren,
+  .child_count = ARRAY_LEN(kColorPickerChildren),
+};
+
+static const fe_component_desc_t kColorPickerSurfaceDesc = {
+  .class_name = "cp_surface",
+  .display_name = "Color Picker Surface",
+  .token = "cp_surface",
+  .name_prefix = "IDC_CPSURF",
+  .toolbox_ident = 0,
+  .toolbox_icon = 0,
+  .default_size = {CP_WIN_W, CP_BTN_Y},
+  .capabilities = 0,
+  .proc = cp_surface_proc,
+};
 
 // ──────────────────────────────────────────────────────────────────
 // Slider helpers
@@ -259,62 +341,19 @@ static void paint_cp(const cp_state_t *st) {
 }
 
 // ──────────────────────────────────────────────────────────────────
-// Dialog window procedure
+// Paint surface window procedure
 // ──────────────────────────────────────────────────────────────────
 
-static result_t cp_proc(window_t *win, uint32_t msg,
-                        uint32_t wparam, void *lparam) {
-  cp_state_t *st = (cp_state_t *)win->userdata;
+static result_t cp_surface_proc(window_t *win, uint32_t msg,
+                                uint32_t wparam, void *lparam) {
+  (void)lparam;
+  cp_state_t *st = (cp_state_t *)get_root_window(win)->userdata;
+  if (!st) return false;
 
   switch (msg) {
-    case evCreate: {
-      st = (cp_state_t *)lparam;
-      win->userdata = st;
-      sync_hsv(st);
-
-      window_t *ok = create_window("OK", 0,
-          MAKERECT(CP_BTN_OK_X, CP_BTN_Y, CP_BTN_OK_W, CP_BTN_H),
-          win, win_button, 0, NULL);
-      ok->id = CP_ID_OK;
-
-      window_t *ca = create_window("Cancel", 0,
-          MAKERECT(CP_BTN_CA_X, CP_BTN_Y, CP_BTN_CA_W, CP_BTN_H),
-          win, win_button, 0, NULL);
-      ca->id = CP_ID_CANCEL;
-
-      window_t *ad = create_window("+ Palette", 0,
-          MAKERECT(CP_BTN_AD_X, CP_BTN_Y, CP_BTN_AD_W, CP_BTN_H),
-          win, win_button, 0, NULL);
-      ad->id = CP_ID_ADD;
-      return true;
-    }
-
     case evPaint:
       paint_cp(st);
-      return false;  // returning false lets child buttons paint themselves
-
-    case evCommand: {
-      if (HIWORD(wparam) != btnClicked) return false;
-      window_t *btn = (window_t *)lparam;
-      if (!btn) return false;
-      if (btn->id == CP_ID_OK) {
-        st->accepted = true;
-        end_dialog(win, 1);
-        return true;
-      }
-      if (btn->id == CP_ID_CANCEL) {
-        end_dialog(win, 0);
-        return true;
-      }
-      if (btn->id == CP_ID_ADD && g_app) {
-        if (g_app->num_user_colors < NUM_USER_COLORS) {
-          g_app->user_palette[g_app->num_user_colors++] = st->cur;
-          invalidate_window(win);
-        }
-        return true;
-      }
-      return false;
-    }
+      return true;
 
     case evLeftButtonDown: {
       int lx = (int16_t)LOWORD(wparam);
@@ -384,6 +423,50 @@ static result_t cp_proc(window_t *win, uint32_t msg,
 }
 
 // ──────────────────────────────────────────────────────────────────
+// Dialog window procedure
+// ──────────────────────────────────────────────────────────────────
+
+static result_t cp_proc(window_t *win, uint32_t msg,
+                        uint32_t wparam, void *lparam) {
+  cp_state_t *st = (cp_state_t *)win->userdata;
+
+  switch (msg) {
+    case evCreate:
+      st = (cp_state_t *)lparam;
+      win->userdata = st;
+      sync_hsv(st);
+      return true;
+
+    case evCommand: {
+      if (HIWORD(wparam) != btnClicked) return false;
+      window_t *btn = (window_t *)lparam;
+      if (!btn || !st) return false;
+      if (btn->id == CP_ID_OK) {
+        st->accepted = true;
+        end_dialog(win, 1);
+        return true;
+      }
+      if (btn->id == CP_ID_CANCEL) {
+        end_dialog(win, 0);
+        return true;
+      }
+      if (btn->id == CP_ID_ADD && g_app) {
+        if (g_app->num_user_colors < NUM_USER_COLORS) {
+          g_app->user_palette[g_app->num_user_colors++] = st->cur;
+          window_t *surface = get_window_item(win, CP_ID_SURFACE);
+          if (surface) invalidate_window(surface);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
 // Public API
 // ──────────────────────────────────────────────────────────────────
 
@@ -395,9 +478,10 @@ bool show_color_picker(window_t *parent, uint32_t initial, uint32_t *out) {
   st.hover_pal = -1;
   sync_hsv(&st);
 
-  uint32_t result = show_dialog("Edit Color",
-      CP_WIN_W, CP_WIN_H + TITLEBAR_HEIGHT,
-      parent, cp_proc, &st);
+  register_window_class_once(&kColorPickerSurfaceDesc);
+
+  uint32_t result = show_dialog_from_form(&kColorPickerForm, "Edit Color",
+                                          parent, cp_proc, &st);
 
   if (result && st.accepted) {
     *out = st.cur;

@@ -487,15 +487,13 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     color_set = true;
   }
 
+  if ((nested && !keep_nested_frame) || !parse_frame(c, &cr))
+    cr = (frame_t){0, 0, 0, 0};
+
   fputs("  { ", f);
   fprint_c_string(f, emit_class);
-  fprintf(f, ", %s, ", nonempty(ident, "0"));
-  if ((nested && !keep_nested_frame) || !parse_frame(c, &cr)) {
-    fprintf(f, "{ 0, 0, 0, 0 }, %s, ", nonempty(cflags, "0"));
-  } else {
-    fprintf(f, "{ %d, %d, %d, %d }, %s, ",
-            cr.x, cr.y, cr.w, cr.h, nonempty(cflags, "0"));
-  }
+  fprintf(f, ", %s, { %d, %d }, %s, ",
+          nonempty(ident, "0"), cr.w, cr.h, nonempty(cflags, "0"));
   fprint_c_string(f, nonempty(text, ""));
   fputs(", ", f);
   fprint_c_string(f, nonempty(name, ""));

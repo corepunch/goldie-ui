@@ -1,26 +1,14 @@
-// About dialog - displays a banner image (conan.png) on the left
-// and application info on the right, with an OK button to close.
+// About dialog - auto-layout form with a banner image on the left and
+// application info on the right.
 
 #include "imageeditor.h"
 
-// Dialog geometry
-
 #define ABOUT_WIN_W    270
 #define ABOUT_WIN_H    120
-
-// Banner panel on the left (maintains conan.png aspect ratio ~1024:1063)
 #define ABOUT_BANNER_W  ABOUT_WIN_H
 #define ABOUT_BANNER_H  ABOUT_WIN_H
-
-// OK button
-#define ABOUT_BTN_W     50
-#define ABOUT_BTN_H     BUTTON_HEIGHT
-
-// Text column starts to the right of the banner + separator
-#define ABOUT_TEXT_X   (ABOUT_BANNER_W + 8)
-
-// Width available for labels in the right column
-#define ABOUT_LABEL_W  (ABOUT_WIN_W - ABOUT_TEXT_X - 4)
+#define ABOUT_ID_BANNER 1
+#define ABOUT_ID_OK     2
 
 // State
 
@@ -63,15 +51,74 @@ static GLuint load_banner_texture(void) {
   return tex;
 }
 
-// Helpers to create labeled sub-windows
+static const form_ctrl_def_t kAboutInfoActions[] = {
+  { .class_name = "space", .name = "flex", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "button", .id = ABOUT_ID_OK, .size = {50, BUTTON_HEIGHT},
+    .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok", .h_align = LAYOUT_ALIGN_START },
+};
 
-#define DIM  ((void *)(uintptr_t)brTextDisabled)
+static const form_ctrl_def_t kAboutInfoChildren[] = {
+  { .class_name = "label", .text = "Orion Image Editor", .name = "title",
+    .h_align = LAYOUT_ALIGN_STRETCH, .font = FONT_SYSTEM, .font_set = true },
+  { .class_name = "label", .text = "Version 1.0", .name = "version",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  { .class_name = "label", .text = "A MacPaint-inspired", .name = "desc1",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  { .class_name = "label", .text = "pixel art editor.", .name = "desc2",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  { .class_name = "label", .text = "Built with the", .name = "desc3",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  { .class_name = "label", .text = "Orion UI framework.", .name = "desc4",
+    .h_align = LAYOUT_ALIGN_STRETCH, .color = brTextDisabled, .color_set = true },
+  { .class_name = "space", .name = "spacer", .h_align = LAYOUT_ALIGN_STRETCH },
+  {
+    .class_name = "stack",
+    .name = "actions",
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .layout_spacing = 6,
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_START,
+    .children = kAboutInfoActions,
+    .child_count = ARRAY_LEN(kAboutInfoActions),
+  },
+};
 
-static void make_label(window_t *parent, const char *text, int y, void *color) {
-  create_window(text, WINDOW_NOTITLE | WINDOW_NOFILL,
-                MAKERECT(ABOUT_TEXT_X, y, ABOUT_LABEL_W, CONTROL_HEIGHT),
-                parent, win_label, 0, color);
-}
+static const form_ctrl_def_t kAboutChildren[] = {
+  {
+    .class_name = "image",
+    .id = ABOUT_ID_BANNER,
+    .size = {ABOUT_BANNER_W, ABOUT_BANNER_H},
+    .name = "banner",
+    .h_align = LAYOUT_ALIGN_START,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+  },
+  {
+    .class_name = "stack",
+    .name = "info",
+    .flags = WINDOW_FLEXSPACE,
+    .layout_kind = "stack",
+    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .layout_spacing = 2,
+    .padding = {0, 8, 4, 4},
+    .h_align = LAYOUT_ALIGN_STRETCH,
+    .v_align = LAYOUT_ALIGN_STRETCH,
+    .children = kAboutInfoChildren,
+    .child_count = ARRAY_LEN(kAboutInfoChildren),
+  },
+};
+
+static const form_def_t kAboutForm = {
+  .name = "About Orion Image Editor",
+  .width = ABOUT_WIN_W,
+  .height = ABOUT_WIN_H,
+  .auto_layout = true,
+  .layout_kind = "stack",
+  .layout_orientation = WINDOW_STACK_HORIZONTAL,
+  .layout_spacing = 8,
+  .children = kAboutChildren,
+  .child_count = ARRAY_LEN(kAboutChildren),
+};
 
 // Dialog window procedure
 
@@ -83,26 +130,9 @@ static result_t about_proc(window_t *win, uint32_t msg,
     case evCreate: {
       about_state_t *s = allocate_window_data(win, sizeof(about_state_t));
       s->banner_tex = load_banner_texture();
-
-      // Banner image (left panel)
-      create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
-                    MAKERECT(0, 0, ABOUT_BANNER_W, ABOUT_BANNER_H),
-                    win, win_image, 0, (void *)(uintptr_t)s->banner_tex);
-
-      // App info labels (right column)
-      make_label(win, "Orion Image Editor",  8, NULL);
-      make_label(win, "Version 1.0",        22, DIM);
-      make_label(win, "A MacPaint-inspired", 40, DIM);
-      make_label(win, "pixel art editor.",   50, DIM);
-      make_label(win, "Built with the",      66, DIM);
-      make_label(win, "Orion UI framework.", 76, DIM);
-
-      // OK button (centered at the bottom)
-      int bx = ABOUT_WIN_W - ABOUT_BTN_W - 4;
-      int by = ABOUT_WIN_H - ABOUT_BTN_H - 4;
-      create_window("OK", 0,
-                    MAKERECT(bx, by, ABOUT_BTN_W, ABOUT_BTN_H),
-                    win, win_button, 0, NULL);
+      window_t *banner = get_window_item(win, ABOUT_ID_BANNER);
+      if (banner)
+        banner->userdata = (void *)(uintptr_t)s->banner_tex;
       return true;
     }
 
@@ -132,7 +162,6 @@ static result_t about_proc(window_t *win, uint32_t msg,
 // ──────────────────────────────────────────────────────────────────
 
 void show_about_dialog(window_t *parent) {
-  show_dialog("About Orion Image Editor",
-              ABOUT_WIN_W, ABOUT_WIN_H + TITLEBAR_HEIGHT,
-              parent, about_proc, NULL);
+  show_dialog_from_form(&kAboutForm, "About Orion Image Editor",
+                        parent, about_proc, NULL);
 }
