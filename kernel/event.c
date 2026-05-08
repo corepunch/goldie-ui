@@ -476,9 +476,9 @@ void dispatch_message(ui_event_t *msg) {
         if (win->disabled) return;
         int16_t dx = msg->dx;
         int16_t dy = msg->dy;
-        // wparam = mouse position, lparam = scroll deltas
+        // wparam = scaled mouse position, lparam = scroll deltas
         send_message(win, evWheel,
-                     MAKEDWORD((uint16_t)px, (uint16_t)py),
+                     MAKEDWORD((uint16_t)SCALE_POINT(px), (uint16_t)SCALE_POINT(py)),
                      (void*)(intptr_t)MAKEDWORD((uint16_t)(-dx * SCROLL_SENSITIVITY),
                                                  (uint16_t)(dy * SCROLL_SENSITIVITY)));
       }

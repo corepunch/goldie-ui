@@ -787,7 +787,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           }
           if ((win->flags & WINDOW_VSCROLL) && win->vscroll.visible &&
               win->vscroll.enabled) {
-            int delta = (int16_t)HIWORD((uintptr_t)lparam);
+            int delta = -(int16_t)HIWORD((uintptr_t)lparam);  // natural scroll
             sb_try_scroll(win, &win->vscroll, evVScroll,
                           win->vscroll.pos + delta);
           }

@@ -57,16 +57,11 @@ void test_reportview_wheel_plain_parent(void) {
     // Trigger resize to sync scrollbars
     send_message(rv, evResize, 0, NULL);
     
-    // Check scrollbar is visible
-    printf("\n    [DEBUG] Before wheel: flags=0x%08x, vscroll.visible=%d, enabled=%d, pos=%d, page=%u, max=%d",
-           rv->flags, rv->vscroll.visible, rv->vscroll.enabled,
-           rv->vscroll.pos, rv->vscroll.page, rv->vscroll.max_val);
-    
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible with 50 items");
     
-    // Send wheel event (scroll down = positive dy in HIWORD of lparam)
+    // Send wheel event - with negation in default handler, negative dy scrolls down
     uint32_t wheel_wparam = MAKEDWORD(0, 0);  // mouse pos (unused in test)
-    void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, 3);  // dy=3 lines down
+    void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // dy=-3 lines down
     int old_scroll = rv->scroll[1];
     send_message(rv, evWheel, wheel_wparam, wheel_lparam);
     
@@ -116,18 +111,11 @@ void test_reportview_wheel_in_stack(void) {
     // Trigger layout (this should send evArrange to reportview)
     window_layout_sync(stack);
     
-    // Check scrollbar is visible after layout
-    printf("\n    [DEBUG] After layout: vscroll.visible=%d, enabled=%d, pos=%d, page=%u, max=%d",
-           rv->vscroll.visible, rv->vscroll.enabled,
-           rv->vscroll.pos, rv->vscroll.page, rv->vscroll.max_val);
-    printf("\n    [DEBUG] rv->frame = {%d,%d,%d,%d}, rv->scroll[1]=%u",
-           rv->frame.x, rv->frame.y, rv->frame.w, rv->frame.h, rv->scroll[1]);
-    
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible after layout");
     
-    // Send wheel event (scroll down = positive dy in HIWORD of lparam)
+    // Send wheel event - with negation in default handler, negative dy scrolls down
     uint32_t wheel_wparam = MAKEDWORD(0, 0);  // mouse pos (unused in test)
-    void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, 3);  // dy=3 lines down
+    void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // dy=-3 lines down
     int old_scroll = rv->scroll[1];
     send_message(rv, evWheel, wheel_wparam, wheel_lparam);
     
@@ -189,18 +177,11 @@ void test_reportview_wheel_in_grid(void) {
     // Trigger layout (this should send evArrange through the hierarchy)
     window_layout_sync(grid);
     
-    // Check scrollbar is visible after layout
-    printf("\n    [DEBUG] After layout: vscroll.visible=%d, enabled=%d, pos=%d, page=%u, max=%d",
-           rv->vscroll.visible, rv->vscroll.enabled,
-           rv->vscroll.pos, rv->vscroll.page, rv->vscroll.max_val);
-    printf("\n    [DEBUG] rv->frame = {%d,%d,%d,%d}, rv->scroll[1]=%u",
-           rv->frame.x, rv->frame.y, rv->frame.w, rv->frame.h, rv->scroll[1]);
-    
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible after layout");
     
-    // Send wheel event (scroll down = positive dy in HIWORD of lparam)
+    // Send wheel event - with negation in default handler, negative dy scrolls down
     uint32_t wheel_wparam3 = MAKEDWORD(0, 0);  // mouse pos (unused in test)
-    void *wheel_lparam3 = (void*)(intptr_t)MAKEDWORD(0, 3);  // dy=3 lines down
+    void *wheel_lparam3 = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // dy=-3 lines down
     int old_scroll3 = rv->scroll[1];
     send_message(rv, evWheel, wheel_wparam3, wheel_lparam3);
     
