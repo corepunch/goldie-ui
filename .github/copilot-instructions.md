@@ -931,6 +931,144 @@ UI-specific application of the same rule:
 
 8. **Don't add `WINDOW_FLEXSPACE` to grid columns expecting them to expand.** Grid columns without explicit `layout_fixed_w` automatically share available width equally (WPF `Width="*"` semantics). `WINDOW_FLEXSPACE` is a **stack concept only** — it tells a stack child to expand along the stack axis. In grids, space distribution is automatic and uniform across auto-width columns.
 
+### Window Class Enhancements (Planned)
+
+**Goal**: Move control defaults (dimensions, flags, behavior) from scattered macros/code into the window class registry, enabling cleaner .orion files and eliminating redundant attributes.
+
+**Architecture**:
+Extend `window_class_t` (already exists in `user/window.c`) with default properties:
+```c
+typedef struct window_class_s {
+  const char *name;           // "button", "textedit", "reportview", etc.
+  winproc_t proc;             // window procedure
+  
+  // NEW: Default properties
+  int16_t default_width;      // -1 = stretch, 0 = measure content, >0 = fixed
+  int16_t default_height;     // natural height for this control type
+  flags_t default_flags;      // WINDOW_FLEXSPACE, WINDOW_VSCROLL, etc.
+  uint8_t default_h_align;    // LAYOUT_ALIGN_STRETCH, etc.
+  uint8_t default_v_align;
+} window_class_t;
+```
+
+**Benefits**:
+1. **Single source of truth**: Button height (19px) defined once in button class, not scattered across macros, paint code, and .orion files
+2. **Cleaner .orion files**: Flags like `WINDOW_VSCROLL` come from `reportview` class automatically
+3. **HTML/CSS-like declarative UI**: Forms specify width, height flows from content; controls use class defaults unless overridden
+4. **Type safety**: Can't accidentally create a button with wrong dimensions
+
+**Form Height Rules** (after implementation):
+- **Fixed-content forms** (no `WINDOW_FLEXSPACE` children): specify `width="X"` only, height auto-calculated from children
+- **Flex-content forms** (has `WINDOW_FLEXSPACE` children): specify both `width="X" height="Y"`, flex layout divides that space
+
+**Example Transformation**:
+```xml
+<!-- BEFORE: Explicit everything -->
+<form name="new_image" frame="0 0 180 84">
+  <grid spacing="4">
+    <column width="48" flags="0">
+      <label text="Width:" flags="0" />
+      <label text="Height:" flags="0" />
+    </column>
+    <column flags="WINDOW_FLEXSPACE">
+      <textedit name="width" flags="0" />
+      <textedit name="height" flags="0" />
+    </column>
+  </grid>
+  <separator flags="0" />
+  <stack orientation="horizontal">
+    <space flags="WINDOW_FLEXSPACE" />
+    <button text="OK" flags="BUTTON_DEFAULT" />
+    <button text="Cancel" flags="0" />
+  </stack>
+</form>
+
+<!-- AFTER: Class defaults + auto-height -->
+<form name="new_image" width="180">  <!-- height auto-calculated -->
+  <grid spacing="4">
+    <column width="48">
+      <label text="Width:" />   <!-- height=13 from label class -->
+      <label text="Height:" />
+    </column>
+    <column>  <!-- auto-expands, no flag needed -->
+      <textedit name="width" />  <!-- height=13 from textedit class -->
+      <textedit name="height" />
+    </column>
+  </grid>
+  <separator />  <!-- height=1 from separator class -->
+  <stack orientation="horizontal">
+    <space />  <!-- WINDOW_FLEXSPACE from space class -->
+    <button text="OK" flags="BUTTON_DEFAULT" />  <!-- height=19 from button class -->
+    <button text="Cancel" />
+  </stack>
+</form>
+```
+
+**Implementation Phases**:
+1. ✅ **Phase 0** (complete): Auto-height measurement for fixed-content forms
+2. **Phase 1**: Extend `window_class_t` with default property fields
+3. **Phase 2**: Register built-in control classes with their defaults (button=19px, textedit=13px, separator=1px, etc.)
+4. **Phase 3**: Update `evMeasure` handlers to use class defaults when instance doesn't override
+5. **Phase 4**: Update `orionc` compiler to omit redundant attributes matching class defaults
+6. **Phase 5**: Gradually migrate .orion files using tool-assisted refactoring
+
+**Control Class Defaults** (to be registered):
+```c
+// commctl/button.c
+window_class_t button_class = {
+  .name = "button",
+  .proc = win_button,
+  .default_height = 19,
+  .default_flags = 0,
+};
+
+// commctl/edit.c  
+window_class_t textedit_class = {
+  .name = "textedit",
+  .proc = win_edit,
+  .default_height = 13,
+  .default_flags = 0,
+};
+
+// commctl/columnview.c
+window_class_t reportview_class = {
+  .name = "reportview",
+  .proc = win_report_view,
+  .default_height = 100,  // ~6 rows
+  .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
+};
+
+// commctl/separator.c
+window_class_t separator_class = {
+  .name = "separator",
+  .proc = win_separator,
+  .default_height = 1,
+  .default_flags = 0,
+};
+
+// Special: space element
+window_class_t space_class = {
+  .name = "space",
+  .proc = win_spacer,  // minimal proc, just handles evMeasure
+  .default_width = 0,
+  .default_height = 0,
+  .default_flags = WINDOW_FLEXSPACE,  // Always flexible
+};
+```
+
+**Override Precedence**:
+```
+Class defaults < Form/parent hints < Instance attributes (.orion)
+```
+
+**Migration Strategy**:
+- Keep backward compatibility: explicit `frame=` and `flags=` continue to work
+- New forms can use cleaner syntax immediately
+- Tool-assisted migration: script to remove redundant attributes from existing .orion files
+- Deprecate (but don't remove) verbose syntax over time
+
+**Status**: Design phase complete. Ready for implementation when prioritized.
+
 ### Recent Bug Fixes and Lessons
 
 **Grid layout star sizing (May 2026)**
