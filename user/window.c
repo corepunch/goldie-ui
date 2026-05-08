@@ -44,34 +44,6 @@ winproc_t find_window_class_proc(const char *class_name) {
     if (streq(g_window_classes[i].desc.class_name, class_name))
       return g_window_classes[i].desc.proc;
   }
-
-  // Built-in control aliases, so most callers do not need explicit registration.
-  if (streq(class_name, "button") || streq(class_name, "win_button")) return win_button;
-  if (streq(class_name, "toolbar_button") || streq(class_name, "win_toolbar_button")) return win_toolbar_button;
-  if (streq(class_name, "checkbox") || streq(class_name, "win_checkbox")) return win_checkbox;
-  if (streq(class_name, "reportview") || streq(class_name, "win_reportview")) return win_reportview;
-  if (streq(class_name, "combobox") || streq(class_name, "win_combobox")) return win_combobox;
-  if (streq(class_name, "textedit") || streq(class_name, "win_textedit")) return win_textedit;
-  if (streq(class_name, "multiedit") || streq(class_name, "win_multiedit")) return win_multiedit;
-  if (streq(class_name, "label") || streq(class_name, "win_label")) return win_label;
-  if (streq(class_name, "image") || streq(class_name, "win_image")) return win_image;
-  if (streq(class_name, "list") || streq(class_name, "win_list")) return win_list;
-  if (streq(class_name, "console") || streq(class_name, "win_console")) return win_console;
-  if (streq(class_name, "space") || streq(class_name, "win_space")) return win_space;
-  if (streq(class_name, "separator") || streq(class_name, "win_separator")) return win_separator;
-  if (streq(class_name, "filelist") || streq(class_name, "win_filelist")) return win_filelist;
-  if (streq(class_name, "terminal") || streq(class_name, "win_terminal")) return win_terminal;
-  if (streq(class_name, "menubar") || streq(class_name, "win_menubar")) return win_menubar;
-  if (streq(class_name, "scrollbar") || streq(class_name, "win_scrollbar")) return win_scrollbar;
-  if (streq(class_name, "slider") || streq(class_name, "win_slider")) return win_slider;
-  if (streq(class_name, "gradient") || streq(class_name, "win_gradient")) return win_gradient;
-  if (streq(class_name, "toolbox") || streq(class_name, "win_toolbox")) return win_toolbox;
-  if (streq(class_name, "splitter") || streq(class_name, "win_splitter")) return win_splitter;
-  if (streq(class_name, "column") || streq(class_name, "win_column")) return win_column;
-  if (streq(class_name, "stack") || streq(class_name, "stackview") || streq(class_name, "win_stackview")) return win_stackview;
-  if (streq(class_name, "flow") || streq(class_name, "flowview") || streq(class_name, "win_flowview")) return win_flowview;
-  if (streq(class_name, "grid") || streq(class_name, "gridview") || streq(class_name, "win_gridview")) return win_gridview;
-
   return NULL;
 }
 
@@ -216,6 +188,171 @@ void register_builtin_window_classes(void) {
     .default_width = 0,     // stretch to fit
     .default_height = 100,  // multiple lines
     .default_flags = WINDOW_VSCROLL,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Toolbar button control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "toolbar_button",
+    .proc = win_toolbar_button,
+    .default_width = 0,
+    .default_height = 19,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Image control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "image",
+    .proc = win_image,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Console control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "console",
+    .proc = win_console,
+    .default_width = 0,
+    .default_height = 100,
+    .default_flags = WINDOW_VSCROLL,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // File list control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "filelist",
+    .proc = win_filelist,
+    .default_width = 0,
+    .default_height = 100,
+    .default_flags = WINDOW_VSCROLL,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Terminal control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "terminal",
+    .proc = win_terminal,
+    .default_width = 0,
+    .default_height = 100,
+    .default_flags = WINDOW_VSCROLL,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Menu bar control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "menubar",
+    .proc = win_menubar,
+    .default_width = 0,
+    .default_height = TITLEBAR_HEIGHT,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Scrollbar control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "scrollbar",
+    .proc = win_scrollbar,
+    .default_width = 8,
+    .default_height = 8,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Slider control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "slider",
+    .proc = win_slider,
+    .default_width = 0,
+    .default_height = 16,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Gradient control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "gradient",
+    .proc = win_gradient,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Toolbox control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "toolbox",
+    .proc = win_toolbox,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Splitter control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "splitter",
+    .proc = win_splitter,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Column layout container
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "column",
+    .proc = win_column,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Stack layout container
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "stack",
+    .proc = win_stackview,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Flow layout container
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "flow",
+    .proc = win_flowview,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Grid layout container
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "grid",
+    .proc = win_gridview,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });

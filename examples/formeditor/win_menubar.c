@@ -321,13 +321,6 @@ static int int_attr(xmlNodePtr node, const char *name, int fallback) {
   return out;
 }
 
-static bool attr_is_true(xmlNodePtr node, const char *name) {
-  char *v = xml_attr_dup(node, name);
-  bool yes = v && (!strcmp(v, "true") || !strcmp(v, "1") || !strcmp(v, "yes"));
-  free(v);
-  return yes;
-}
-
 static const enum_token_t kAlignHTokens[] = {
   {"stretch", LAYOUT_ALIGN_STRETCH},
   {"left",    LAYOUT_ALIGN_START},
@@ -550,18 +543,6 @@ static void make_control_id_expr(char *out, size_t out_sz,
   snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
 }
 
-static bool frame_attr(xmlNodePtr node, irect16_t *out) {
-  if (!out) return false;
-  char *v = xml_attr_dup(node, "frame");
-  if (!v) return false;
-  int x = 0, y = 0, w = 0, h = 0;
-  bool ok = sscanf(v, "%d %d %d %d", &x, &y, &w, &h) == 4;
-  free(v);
-  if (!ok) return false;
-  *out = (irect16_t){x, y, w, h};
-  return true;
-}
-
 static irect16_t rect_attr(xmlNodePtr node, const char *name, irect16_t fallback) {
   char *v = xml_attr_dup(node, name);
   if (!v) return fallback;
@@ -637,12 +618,10 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->color = brTextNormal;
       copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
       el->id = project_resolve_control_id(doc, el->id_expr);
-      if (!frame_attr(n, &el->frame)) {
-        el->frame.x = int_attr(n, "x", 0);
-        el->frame.y = int_attr(n, "y", 0);
-        el->frame.w = int_attr(n, "w", 10);
-        el->frame.h = int_attr(n, "h", 8);
-      }
+      el->frame.x = int_attr(n, "x", 0);
+      el->frame.y = int_attr(n, "y", 0);
+      el->frame.w = int_attr(n, "width", int_attr(n, "w", 10));
+      el->frame.h = int_attr(n, "height", int_attr(n, "h", 8));
       el->frame.w = MAX(1, el->frame.w);
       el->frame.h = MAX(1, el->frame.h);
       copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
@@ -823,11 +802,6 @@ static void project_load_requires(form_doc_t *doc, xmlNodePtr form_node) {
 static bool project_load_form_node(xmlNodePtr form_node) {
   int w = int_attr(form_node, "width", FORM_DEFAULT_W);
   int h = int_attr(form_node, "height", FORM_DEFAULT_H);
-  irect16_t frame = {0};
-  if (frame_attr(form_node, &frame)) {
-    w = MAX(1, frame.w);
-    h = MAX(1, frame.h);
-  }
   form_doc_t *doc = create_form_doc(w, h);
   if (!doc) return false;
 
@@ -838,7 +812,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   char flags_expr[128] = {0};
   copy_attr(form_node, "flags", flags_expr, sizeof(flags_expr));
   doc->flags = parse_flags_expr(flags_expr);
-  doc->auto_layout = attr_is_true(form_node, "auto_layout");
+  doc->auto_layout = true;
   {
     char *layout_kind = xml_attr_dup(form_node, "layout_kind");
     char *layout_orientation = xml_attr_dup(form_node, "orientation");
@@ -932,21 +906,19 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   fprintf(f, "      <form");
   xml_attr(f, "name", doc->form_id[0] ? doc->form_id : "form");
   xml_attr(f, "title", label);
-  fprintf(f, "\n            frame=\"0 0 %d %d\"\n            flags=\"%" PRIu32 "\"",
+  fprintf(f, "\n            width=\"%d\" height=\"%d\"\n            flags=\"%" PRIu32 "\"",
           doc->form_size.w, doc->form_size.h, doc->flags);
-  if (doc->auto_layout)
-    fprintf(f, "\n            auto_layout=\"1\"");
   if (doc->layout_kind == 2)
     fprintf(f, "\n            layout_kind=\"%s\"",
             layout_kind_token(doc->layout_kind));
-  if (doc->auto_layout || doc->layout_orientation != 0)
+  if (doc->layout_orientation != 0)
     fprintf(f, "\n            layout_orientation=\"%s\"",
             layout_orientation_token(doc->layout_orientation));
-  if (doc->auto_layout || doc->layout_columns != 0)
+  if (doc->layout_columns != 0)
     fprintf(f, "\n            layout_columns=\"%u\"", (unsigned)doc->layout_columns);
-  if (doc->auto_layout || doc->layout_spacing != 0)
+  if (doc->layout_spacing != 0)
     fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
-  if (doc->auto_layout || doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
+  if (doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
     fprintf(f, "\n            padding=\"%d %d %d %d\"",
             doc->padding.x, doc->padding.y, doc->padding.w, doc->padding.h);
   if (doc->margin.x || doc->margin.y || doc->margin.w || doc->margin.h)
@@ -968,13 +940,9 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
       xml_attr(f, "font", font_token(el->font));
     if (el->color_set || el->color != brTextNormal)
       xml_attr(f, "color", color_token(el->color));
-    if (doc->auto_layout) {
-      fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
-      fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
-    } else {
-      fprintf(f, " frame=\"%d %d %d %d\"",
-              el->frame.x, el->frame.y, el->frame.w, el->frame.h);
-    }
+    fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
+    fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
+    fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
     if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
       fprintf(f, " padding=\"%d %d %d %d\"",
               el->padding.x, el->padding.y, el->padding.w, el->padding.h);
