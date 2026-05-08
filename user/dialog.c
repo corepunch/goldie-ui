@@ -14,6 +14,46 @@
 #include <string.h>
 #include "../ui.h"
 
+// ── Auto-height calculation helpers ──────────────────────────────────
+
+// Recursively check if any control in the tree has WINDOW_FLEXSPACE
+static bool form_children_have_flexspace(const form_ctrl_def_t *children, int count) {
+  for (int i = 0; i < count; i++) {
+    if (children[i].flags & WINDOW_FLEXSPACE)
+      return true;
+    if (children[i].children && 
+        form_children_have_flexspace(children[i].children, children[i].child_count))
+      return true;
+  }
+  return false;
+}
+
+static bool form_has_flexspace(const form_def_t *def) {
+  if (!def) return false;
+  return form_children_have_flexspace(def->children, def->child_count);
+}
+
+// Calculate the minimum height needed for a fixed-content form
+// This is a simplified calculation - production version would measure actual controls
+static int calculate_form_height(const form_def_t *def) {
+  if (!def || !def->auto_layout) return 0;
+  
+  // For now, use a simple heuristic based on child count and spacing
+  // TODO: Actually measure each control's desired height
+  int padding_v = def->padding.y + def->padding.h;
+  int spacing = def->layout_spacing;
+  
+  // Estimate: each child row is ~19px (button height), separator is 1px
+  int estimated_h = padding_v;
+  for (int i = 0; i < def->child_count; i++) {
+    if (i > 0) estimated_h += spacing;
+    // Simple heuristic: most controls are 13-19px
+    estimated_h += 19;
+  }
+  
+  return estimated_h > 0 ? estimated_h : 84; // Fallback to reasonable default
+}
+
 // Shared modal message loop.  Runs until the dialog window is destroyed or the
 // application exits.  Forces a full repaint after the dialog is gone.
 static uint32_t run_dialog_loop(window_t *dlg, window_t *parent) {
@@ -107,7 +147,12 @@ uint32_t show_dialog_from_form_ex(form_def_t const *def, char const *title,
   dlg_def.flags |= flags;
   if (title) dlg_def.name = title;
 
-  irect16_t wr = {0, 0, def->width, def->height};
+  // Auto-calculate height if not specified and form has only fixed-height controls
+  if (dlg_def.height == 0 && dlg_def.auto_layout && !form_has_flexspace(&dlg_def)) {
+    dlg_def.height = calculate_form_height(&dlg_def);
+  }
+
+  irect16_t wr = {0, 0, dlg_def.width, dlg_def.height};
   adjust_window_rect(&wr, dlg_def.flags);
   dlg_def.width = wr.w;
   dlg_def.height = wr.h;

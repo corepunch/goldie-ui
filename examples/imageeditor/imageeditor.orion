@@ -162,7 +162,7 @@
     <forms>
       <form name="new_image"
             title="New Image"
-            frame="0 0 180 84"
+            width="180"
             flags="0"
             auto_layout="1"
             spacing="8"
