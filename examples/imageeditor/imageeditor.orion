@@ -167,8 +167,7 @@
             auto_layout="1"
             layout_kind="stack"
             layout_spacing="8"
-            padding="8"
->
+            padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
             <label name="lbl_width" text="Width:" flags="0" />
@@ -179,7 +178,7 @@
             <textedit name="height" text="" flags="0" />
           </column>
         </grid>
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
@@ -208,7 +207,7 @@
             <combobox name="filter" text="" flags="0" />
           </column>
         </grid>
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
@@ -218,7 +217,7 @@
 
       <form name="grid_options"
             title="Grid Options"
-            frame="0 0 180 84"
+            frame="0 0 180 94"
             flags="0"
             auto_layout="1"
             layout_kind="stack"
@@ -235,7 +234,7 @@
             <textedit name="height" text="" flags="0" />
           </column>
         </grid>
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
@@ -257,7 +256,7 @@
           <textedit name="amount" text="" flags="WINDOW_FLEXSPACE" />
           <label name="lbl_pixels" text="pixels" flags="0" />
         </stack>
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
@@ -298,7 +297,7 @@
           <label name="lbl_fill" text="Fill with:" flags="0" />
           <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
         </stack>
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
@@ -329,7 +328,7 @@
           <button name="btn_color" text="Change..." flags="0" />
           <checkbox name="chk_aa" text="Anti-alias" flags="0" />
         </stack>
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="btn_ok" text="OK" flags="0" />
@@ -377,7 +376,7 @@
         <gradient name="out_grad" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="out_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <checkbox name="preview" text="Preview" flags="0" />
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="0" />
@@ -424,7 +423,7 @@
           <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         </stack>
         <checkbox name="preview" text="Preview" flags="0" />
-        <space name="spacer" />
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
