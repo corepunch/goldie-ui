@@ -411,8 +411,10 @@
             frame="0 0 270 120"
             flags="0"
             auto_layout="1"
-            orientation="horizontal"
-            spacing="8">
+            layout_kind="stack"
+            layout_orientation="horizontal"
+            layout_spacing="8"
+            padding="0">
         <image name="banner" width="120" height="120" />
         <stack name="info" flags="WINDOW_FLEXSPACE" spacing="2" padding="0 8 4 4">
           <label name="title" text="Orion Image Editor" font="system" />
@@ -434,7 +436,9 @@
             frame="0 0 240 128"
             flags="0"
             auto_layout="1"
-            spacing="0">
+            layout_kind="stack"
+            layout_spacing="0"
+            padding="0">
         <cp_surface name="surface" width="240" height="104" />
         <stack name="actions" orientation="horizontal" spacing="2">
           <button name="ok" text="OK" width="40" height="19" flags="BUTTON_DEFAULT" />
