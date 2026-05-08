@@ -130,6 +130,7 @@
         <item name="play" label="Play" />
         <item name="stop" label="Stop" />
         <item name="loop" label="[ ] Loop" />
+        <item name="onion_skin" label="Onion Skin Settings..." />
         <separator />
         <item name="export_gif" label="Export GIF..." />
         <item name="export_apng" label="Export APNG..." />
@@ -354,7 +355,36 @@
         </stack>
       </form>
 
-      <form name="about" title="About Orion Image Editor" width="270" orientation="horizontal" spacing="8" padding="0">
+      <form name="onion_skin" title="Onion Skin" width="276" height="142" spacing="6" padding="8">
+        <checkbox name="enabled" text="Enable Onion Skin" />
+        <label name="selected_label" text="Selected: Previous 1 (40%)" />
+        <stack name="prev_row" orientation="horizontal" spacing="4">
+          <label name="prev_label" text="Prev" width="30" />
+          <button name="prev1" text="40%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="prev2" text="20%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="prev3" text="10%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="prev4" text="5%" width="44" flags="BUTTON_PUSHLIKE" />
+        </stack>
+        <stack name="next_row" orientation="horizontal" spacing="4">
+          <label name="next_label" text="Next" width="30" />
+          <button name="next1" text="30%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="next2" text="15%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="next3" text="8%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="next4" text="4%" width="44" flags="BUTTON_PUSHLIKE" />
+        </stack>
+        <stack name="value_row" orientation="vertical" spacing="2">
+          <label name="value_label" text="Opacity: 40%" />
+          <slider name="value" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        </stack>
+        <separator name="sep" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" />
+        </stack>
+      </form>
+
+      <form name="about" title="About Orion Image Editor" width="270" height="120" orientation="horizontal" spacing="8" padding="0">
         <image name="banner" width="120" height="120" />
         <stack name="info" spacing="2" padding="0 8 4 4">
           <label name="title" text="Orion Image Editor" font="system" />
