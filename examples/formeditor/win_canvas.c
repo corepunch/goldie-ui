@@ -1031,9 +1031,9 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
 
     case evWheel: {
       if (!s) return false;
-      // lparam = scroll deltas MAKEDWORD(dx, dy)
+      // lparam = scroll deltas MAKEDWORD(dx, dy); values already multiplied by SCROLL_SENSITIVITY
       int delta = (int16_t)HIWORD((uintptr_t)lparam);
-      s->pan.y -= delta * SCROLL_SENSITIVITY;
+      s->pan.y -= delta;
       canvas_clamp_pan(s, win->frame.w, win->frame.h);
       canvas_sync_scrollbars(win, s);
       canvas_sync_live_controls(doc);

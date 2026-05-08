@@ -204,6 +204,7 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
       if (!st || !st->line_count) return false;
       // lparam = scroll deltas MAKEDWORD(dx, dy)
       int delta = (int16_t)HIWORD((uintptr_t)lparam);  // positive = scroll up
+      if (delta == 0) return false;  // ignore horizontal-only gestures
       int lines = delta < 0 ? 3 : -3;
       int max_start = max_scroll_start(win, st);
       int new_pos = CLAMP(st->scroll_y + lines, 0, max_start);

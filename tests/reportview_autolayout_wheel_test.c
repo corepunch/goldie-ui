@@ -36,7 +36,7 @@ void test_reportview_wheel_plain_parent(void) {
     ASSERT(parent != NULL, "Failed to create parent");
     
     // Create reportview child
-    window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL,
+    window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
                                  MAKERECT(10, 10, 280, 380), parent,
                                  win_reportview, 0, NULL);
     ASSERT(rv != NULL, "Failed to create reportview");
@@ -90,7 +90,7 @@ void test_reportview_wheel_in_stack(void) {
     stack->layout_spacing = 8;
     
     // Create reportview child (will be arranged by layout)
-    window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE,
+    window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE | WINDOW_VSCROLL,
                                  MAKERECT(0, 0, 280, 380), stack,
                                  win_reportview, 0, NULL);
     ASSERT(rv != NULL, "Failed to create reportview");
@@ -156,7 +156,7 @@ void test_reportview_wheel_in_grid(void) {
     col2->layout_kind = "stack";
     
     // Create reportview in second column
-    window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE,
+    window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE | WINDOW_VSCROLL,
                                  MAKERECT(0, 0, 180, 300), col2,
                                  win_reportview, 0, NULL);
     ASSERT(rv != NULL, "Failed to create reportview");

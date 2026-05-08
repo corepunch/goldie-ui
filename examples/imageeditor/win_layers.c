@@ -304,6 +304,7 @@ result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       canvas_doc_t *doc = g_app->active_doc;
       // lparam = scroll deltas MAKEDWORD(dx, dy)
       int delta = (int16_t)HIWORD((uintptr_t)lparam);
+      if (delta == 0) return false;  // ignore horizontal-only gestures
       int nvis = visible_rows(win);
       int max_scroll = MAX(0, doc->layer.count - nvis);
       st->scroll_top += (delta > 0) ? -1 : 1;

@@ -793,8 +793,14 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
                           win->vscroll.pos + delta);
           }
         } else if (win->parent) {
-          // Bubble wheel event to parent if this window can't scroll
-          send_message(win->parent, evWheel, wparam, lparam);
+          // Bubble wheel event to parent, translating window-local mouse
+          // coords from the child's client space into the parent's client space.
+          int16_t clx = (int16_t)LOWORD(wparam);
+          int16_t cly = (int16_t)HIWORD(wparam);
+          uint32_t parent_wp = MAKEDWORD(
+            (uint16_t)(clx + win->frame.x - win->scroll[0] + win->parent->scroll[0]),
+            (uint16_t)(cly + win->frame.y - win->scroll[1] + win->parent->scroll[1]));
+          send_message(win->parent, evWheel, parent_wp, lparam);
         }
         break;
       case evPaintStencil:
