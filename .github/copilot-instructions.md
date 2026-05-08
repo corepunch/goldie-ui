@@ -957,9 +957,19 @@ typedef struct window_class_s {
 3. **HTML/CSS-like declarative UI**: Forms specify width, height flows from content; controls use class defaults unless overridden
 4. **Type safety**: Can't accidentally create a button with wrong dimensions
 
-**Form Height Rules** (after implementation):
-- **Fixed-content forms** (no `WINDOW_FLEXSPACE` children): specify `width="X"` only, height auto-calculated from children
-- **Flex-content forms** (has `WINDOW_FLEXSPACE` children): specify both `width="X" height="Y"`, flex layout divides that space
+**Form Height Rules**:
+- **Fixed-content forms**: specify `width="X"` only, omit `height=` — it auto-calculates from children
+  - Forms with only fixed-size controls (labels, buttons, textedit, checkboxes, separators, sliders)
+  - Forms where `<space>` elements only expand **horizontally** (in horizontal stacks to push buttons)
+  - Example: `<form name="new_image" width="180">` (no height needed)
+  
+- **Flex-content forms**: specify both `width="X" height="Y"` when they contain **vertically expanding** flex controls
+  - `<multiedit flags="WINDOW_FLEXSPACE">` — text editor that expands/shrinks vertically
+  - `<reportview flags="WINDOW_FLEXSPACE">` — scrolling list that expands/shrinks vertically  
+  - `<grid flags="WINDOW_FLEXSPACE">` — grid container that expands/shrinks vertically
+  - Example: `<form name="new_post" width="272" height="250">` (multiedit needs space to expand)
+
+- **Key distinction**: horizontal `<space>` elements (used to push buttons left/right) don't count as "flex content" for height calculation — they expand horizontally, not vertically, so form height is still auto-calculable
 
 **Example Transformation**:
 ```xml

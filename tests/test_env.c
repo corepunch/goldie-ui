@@ -31,6 +31,9 @@ void test_env_init(void) {
     memset(&test_env, 0, sizeof(test_env_t));
     test_env.tracking_enabled = false;
     test_env.event_count = 0;
+    
+    // Register built-in window classes so tests can use short class names
+    register_builtin_window_classes();
 }
 
 // Shutdown test environment

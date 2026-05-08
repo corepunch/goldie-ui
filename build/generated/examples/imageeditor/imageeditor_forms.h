@@ -421,20 +421,7 @@ static const form_ctrl_def_t imageeditor_new_image_children[] = {
   { "button", ID_NEW_IMAGE_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_IMAGE_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_new_image_form = {
-  .name = "New Image",
-  .width = 180,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_new_image_children,
-  .child_count = 12,
-};
+static const form_def_t imageeditor_new_image_form = { .name = "New Image", .width = 180, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_new_image_children, .child_count = 12 };
 
 static const form_ctrl_def_t imageeditor_image_resize_children[] = {
   { "grid", ID_IMAGE_RESIZE_FIELDS, { 0, 0 }, 0, "", "fields", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -453,20 +440,7 @@ static const form_ctrl_def_t imageeditor_image_resize_children[] = {
   { "button", ID_IMAGE_RESIZE_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_IMAGE_RESIZE_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_image_resize_form = {
-  .name = "Image Size",
-  .width = 210,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_image_resize_children,
-  .child_count = 14,
-};
+static const form_def_t imageeditor_image_resize_form = { .name = "Image Size", .width = 210, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_image_resize_children, .child_count = 14 };
 
 static const form_ctrl_def_t imageeditor_grid_options_children[] = {
   { "grid", ID_GRID_OPTIONS_FIELDS, { 0, 0 }, 0, "", "fields", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -483,25 +457,12 @@ static const form_ctrl_def_t imageeditor_grid_options_children[] = {
   { "button", ID_GRID_OPTIONS_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_GRID_OPTIONS_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_grid_options_form = {
-  .name = "Grid Options",
-  .width = 180,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_grid_options_children,
-  .child_count = 12,
-};
+static const form_def_t imageeditor_grid_options_form = { .name = "Grid Options", .width = 180, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_grid_options_children, .child_count = 12 };
 
 static const form_ctrl_def_t imageeditor_selection_modify_children[] = {
   { "stack", ID_SELECTION_MODIFY_AMOUNT_ROW, { 0, 0 }, 0, "", "amount_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "label", ID_SELECTION_MODIFY_LBL_AMOUNT, { 0, 0 }, 0, "By:", "lbl_amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_SELECTION_MODIFY_AMOUNT_ROW, 1, false, 16, false },
-  { "textedit", ID_SELECTION_MODIFY_AMOUNT, { 0, 0 }, WINDOW_FLEXSPACE, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_SELECTION_MODIFY_AMOUNT_ROW, 1, false, 16, false },
+  { "textedit", ID_SELECTION_MODIFY_AMOUNT, { 0, 0 }, 0, "", "amount", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_SELECTION_MODIFY_AMOUNT_ROW, 1, false, 16, false },
   { "label", ID_SELECTION_MODIFY_LBL_PIXELS, { 0, 0 }, 0, "pixels", "lbl_pixels", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_SELECTION_MODIFY_AMOUNT_ROW, 1, false, 16, false },
   { "separator", ID_SELECTION_MODIFY_SEP, { 0, 0 }, 0, "", "sep", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "stack", ID_SELECTION_MODIFY_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -510,50 +471,24 @@ static const form_ctrl_def_t imageeditor_selection_modify_children[] = {
   { "button", ID_SELECTION_MODIFY_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_SELECTION_MODIFY_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_selection_modify_form = {
-  .name = "Modify Selection",
-  .width = 180,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_selection_modify_children,
-  .child_count = 9,
-};
+static const form_def_t imageeditor_selection_modify_form = { .name = "Modify Selection", .width = 180, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_selection_modify_children, .child_count = 9 };
 
 static const form_ctrl_def_t imageeditor_new_layer_children[] = {
   { "stack", ID_NEW_LAYER_FILL_ROW, { 0, 0 }, 0, "", "fill_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "label", ID_NEW_LAYER_LBL_FILL, { 0, 0 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_LAYER_FILL_ROW, 1, false, 16, false },
-  { "combobox", ID_NEW_LAYER_COMBO_FILL, { 0, 0 }, WINDOW_FLEXSPACE, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_LAYER_FILL_ROW, 1, false, 16, false },
+  { "combobox", ID_NEW_LAYER_COMBO_FILL, { 0, 0 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_LAYER_FILL_ROW, 1, false, 16, false },
   { "stack", ID_NEW_LAYER_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "space", ID_NEW_LAYER_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_LAYER_ACTIONS, 1, false, 16, false },
   { "button", ID_NEW_LAYER_OK, { 0, 0 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_LAYER_ACTIONS, 1, false, 16, false },
   { "button", ID_NEW_LAYER_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_NEW_LAYER_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_new_layer_form = {
-  .name = "New Layer",
-  .width = 200,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_new_layer_children,
-  .child_count = 7,
-};
+static const form_def_t imageeditor_new_layer_form = { .name = "New Layer", .width = 200, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_new_layer_children, .child_count = 7 };
 
 static const form_ctrl_def_t imageeditor_add_mask_children[] = {
   { "stack", ID_ADD_MASK_FILL_ROW, { 0, 0 }, 0, "", "fill_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "label", ID_ADD_MASK_LBL_FILL, { 0, 0 }, 0, "Fill with:", "lbl_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ADD_MASK_FILL_ROW, 1, false, 16, false },
-  { "combobox", ID_ADD_MASK_COMBO_FILL, { 0, 0 }, WINDOW_FLEXSPACE, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ADD_MASK_FILL_ROW, 1, false, 16, false },
+  { "combobox", ID_ADD_MASK_COMBO_FILL, { 0, 0 }, 0, "", "combo_fill", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ADD_MASK_FILL_ROW, 1, false, 16, false },
   { "separator", ID_ADD_MASK_SEP, { 0, 0 }, 0, "", "sep", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "stack", ID_ADD_MASK_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "space", ID_ADD_MASK_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ADD_MASK_ACTIONS, 1, false, 16, false },
@@ -561,25 +496,12 @@ static const form_ctrl_def_t imageeditor_add_mask_children[] = {
   { "button", ID_ADD_MASK_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ADD_MASK_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_add_mask_form = {
-  .name = "Add Mask",
-  .width = 220,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_add_mask_children,
-  .child_count = 8,
-};
+static const form_def_t imageeditor_add_mask_form = { .name = "Add Mask", .width = 220, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_add_mask_children, .child_count = 8 };
 
 static const form_ctrl_def_t imageeditor_text_tool_children[] = {
   { "stack", ID_TEXT_TOOL_TEXT_ROW, { 0, 0 }, 0, "", "text_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "label", ID_TEXT_TOOL_LBL_TEXT, { 0, 0 }, 0, "Text:", "lbl_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_TEXT_TOOL_TEXT_ROW, 1, false, 16, false },
-  { "textedit", ID_TEXT_TOOL_EDIT_TEXT, { 0, 0 }, WINDOW_FLEXSPACE, "", "edit_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_TEXT_TOOL_TEXT_ROW, 1, false, 16, false },
+  { "textedit", ID_TEXT_TOOL_EDIT_TEXT, { 0, 0 }, 0, "", "edit_text", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_TEXT_TOOL_TEXT_ROW, 1, false, 16, false },
   { "stack", ID_TEXT_TOOL_SIZE_ROW, { 0, 0 }, 0, "", "size_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 2, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "label", ID_TEXT_TOOL_LBL_SIZE, { 0, 0 }, 0, "Size: 16px", "lbl_size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_TEXT_TOOL_SIZE_ROW, 1, false, 16, false },
   { "slider", ID_TEXT_TOOL_SIZE, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "size", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_TEXT_TOOL_SIZE_ROW, 1, false, 16, false },
@@ -595,20 +517,7 @@ static const form_ctrl_def_t imageeditor_text_tool_children[] = {
   { "button", ID_TEXT_TOOL_BTN_CANCEL, { 0, 0 }, 0, "Cancel", "btn_cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_TEXT_TOOL_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_text_tool_form = {
-  .name = "Insert Text",
-  .width = 220,
-  .height = 0,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 6,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_text_tool_children,
-  .child_count = 16,
-};
+static const form_def_t imageeditor_text_tool_form = { .name = "Insert Text", .width = 220, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_text_tool_children, .child_count = 16 };
 
 static const form_ctrl_def_t imageeditor_levels_children[] = {
   { "grid", ID_LEVELS_INPUT_ROW, { 0, 0 }, 0, "", "input_row", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -640,23 +549,10 @@ static const form_ctrl_def_t imageeditor_levels_children[] = {
   { "button", ID_LEVELS_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_levels_form = {
-  .name = "Levels",
-  .width = 280,
-  .height = 222,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 6,
-  .padding = { 10, 10, 10, 10 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_levels_children,
-  .child_count = 27,
-};
+static const form_def_t imageeditor_levels_form = { .name = "Levels", .width = 280, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 10, 10, 10, 10 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_levels_children, .child_count = 27 };
 
 static const form_ctrl_def_t imageeditor_filter_gallery_children[] = {
-  { "grid", ID_FILTER_GALLERY_MAIN, { 0, 0 }, WINDOW_FLEXSPACE, "", "main", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 8, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "grid", ID_FILTER_GALLERY_MAIN, { 0, 0 }, 0, "", "main", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 8, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "column", ID_FILTER_GALLERY_PREVIEW_COL, { 0, 0 }, 0, "", "preview_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_MAIN, 1, false, 16, false },
   { "filter_preview", ID_FILTER_GALLERY_PREVIEW, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_PREVIEW_COL, 1, false, 16, false },
   { "label", ID_FILTER_GALLERY_FILTER_NAME, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL, "No filters loaded", "filter_name", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_PREVIEW_COL, 1, false, 16, false },
@@ -668,20 +564,7 @@ static const form_ctrl_def_t imageeditor_filter_gallery_children[] = {
   { "button", ID_FILTER_GALLERY_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_filter_gallery_form = {
-  .name = "Filter Gallery",
-  .width = 560,
-  .height = 360,
-  .flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 4,
-  .padding = { 8, 8, 8, 8 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_filter_gallery_children,
-  .child_count = 10,
-};
+static const form_def_t imageeditor_filter_gallery_form = { .name = "Filter Gallery", .width = 560, .height = 360, .flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 4, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_filter_gallery_children, .child_count = 10 };
 
 static const form_ctrl_def_t imageeditor_blur_dialog_children[] = {
   { "stack", ID_BLUR_DIALOG_AMOUNT_ROW, { 0, 0 }, 0, "", "amount_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 2, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -695,24 +578,11 @@ static const form_ctrl_def_t imageeditor_blur_dialog_children[] = {
   { "button", ID_BLUR_DIALOG_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_BLUR_DIALOG_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_blur_dialog_form = {
-  .name = "Blur",
-  .width = 240,
-  .height = 0,
-  .flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 6,
-  .padding = { 10, 10, 10, 10 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_blur_dialog_children,
-  .child_count = 9,
-};
+static const form_def_t imageeditor_blur_dialog_form = { .name = "Blur", .width = 240, .height = 0, .flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 10, 10, 10, 10 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_blur_dialog_children, .child_count = 9 };
 
 static const form_ctrl_def_t imageeditor_about_children[] = {
   { "image", ID_ABOUT_BANNER, { 120, 120 }, 0, "", "banner", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "stack", ID_ABOUT_INFO, { 0, 0 }, WINDOW_FLEXSPACE, "", "info", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 2, { 0, 8, 4, 4 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_ABOUT_INFO, { 0, 0 }, 0, "", "info", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 2, { 0, 8, 4, 4 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "label", ID_ABOUT_TITLE, { 0, 0 }, 0, "Orion Image Editor", "title", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 0, true, 16, false },
   { "label", ID_ABOUT_VERSION, { 0, 0 }, 0, "Version 1.0", "version", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
   { "label", ID_ABOUT_DESC1, { 0, 0 }, 0, "A MacPaint-inspired", "desc1", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 17, true },
@@ -725,20 +595,7 @@ static const form_ctrl_def_t imageeditor_about_children[] = {
   { "button", ID_ABOUT_OK, { 50, 0 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_about_form = {
-  .name = "About Orion Image Editor",
-  .width = 270,
-  .height = 120,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 8,
-  .padding = { 0, 0, 0, 0 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_about_children,
-  .child_count = 12,
-};
+static const form_def_t imageeditor_about_form = { .name = "About Orion Image Editor", .width = 270, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 0, 0, 0, 0 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_about_children, .child_count = 12 };
 
 static const form_ctrl_def_t imageeditor_color_picker_children[] = {
   { "cp_surface", ID_COLOR_PICKER_SURFACE, { 240, 104 }, 0, "", "surface", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -749,19 +606,6 @@ static const form_ctrl_def_t imageeditor_color_picker_children[] = {
   { "space", ID_COLOR_PICKER_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_color_picker_form = {
-  .name = "Edit Color",
-  .width = 240,
-  .height = 128,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
-  .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_spacing = 0,
-  .padding = { 0, 0, 0, 0 },
-  .margin = { 0, 0, 0, 0 },
-  .children = imageeditor_color_picker_children,
-  .child_count = 6,
-};
+static const form_def_t imageeditor_color_picker_form = { .name = "Edit Color", .width = 240, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 0, .padding = { 0, 0, 0, 0 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_color_picker_children, .child_count = 6 };
 
 #endif /* BUILD_GENERATED_EXAMPLES_IMAGEEDITOR_IMAGEEDITOR_FORMS_H */

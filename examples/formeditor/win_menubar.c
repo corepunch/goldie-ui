@@ -653,17 +653,10 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       free(color);
       free(h_align);
       free(v_align);
-      if (doc->auto_layout) {
-        const fe_component_desc_t *desc = fe_component_by_id(type);
-        if (desc) {
-          el->frame.w = MAX(1, desc->default_size.w);
-          el->frame.h = MAX(1, desc->default_size.h);
-        }
-        el->frame.x = 0;
-        el->frame.y = 0;
-    }
-    if (!el->name[0])
-      snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
+      // Note: default sizes for auto-layout are applied in project_auto_layout_doc,
+      // not here, so we preserve loaded w/h for fixed-layout forms
+      if (!el->name[0])
+        snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
       if (el->id >= doc->next_id)
         doc->next_id = el->id + 1;
       if (type >= 0 && type < FE_MAX_COMPONENTS)
@@ -677,6 +670,17 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
 
 static void project_auto_layout_doc(form_doc_t *doc) {
   if (!doc || !doc->auto_layout) return;
+  
+  // Apply component default sizes for auto-layout forms
+  for (int i = 0; i < doc->element_count; i++) {
+    form_element_t *el = &doc->elements[i];
+    const fe_component_desc_t *desc = fe_component_by_id(el->type);
+    if (desc) {
+      el->frame.w = MAX(1, desc->default_size.w);
+      el->frame.h = MAX(1, desc->default_size.h);
+    }
+  }
+  
   const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
   int count = doc->element_count;
   int pad_l = doc->padding.x;
@@ -812,6 +816,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   char flags_expr[128] = {0};
   copy_attr(form_node, "flags", flags_expr, sizeof(flags_expr));
   doc->flags = parse_flags_expr(flags_expr);
+  // auto_layout defaults to true, but will be set to false if any element has non-zero x/y
   doc->auto_layout = true;
   {
     char *layout_kind = xml_attr_dup(form_node, "layout_kind");
@@ -833,7 +838,19 @@ static bool project_load_form_node(xmlNodePtr form_node) {
                           rect_attr(form_node, "layout_margin", (irect16_t){0, 0, 0, 0}));
   project_load_requires(doc, form_node);
   project_load_controls(doc, form_node);
-  project_auto_layout_doc(doc);
+  
+  // Detect fixed-layout forms: if any element has non-zero x/y, disable auto-layout
+  for (int i = 0; i < doc->element_count; i++) {
+    if (doc->elements[i].frame.x != 0 || doc->elements[i].frame.y != 0) {
+      doc->auto_layout = false;
+      break;
+    }
+  }
+  
+  // Only run auto-layout if enabled (otherwise preserve loaded x/y coordinates)
+  if (doc->auto_layout) {
+    project_auto_layout_doc(doc);
+  }
 
   form_doc_apply_window_flags_and_size(doc);
   canvas_rebuild_live_controls(doc);
@@ -940,9 +957,13 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
       xml_attr(f, "font", font_token(el->font));
     if (el->color_set || el->color != brTextNormal)
       xml_attr(f, "color", color_token(el->color));
+    // Only emit x/y for fixed-layout forms; auto-layout forms recalculate positions
+    if (!doc->auto_layout) {
+      fprintf(f, " x=\"%d\" y=\"%d\"", el->frame.x, el->frame.y);
+    }
+    fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
     fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
     fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
-    fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
     if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
       fprintf(f, " padding=\"%d %d %d %d\"",
               el->padding.x, el->padding.y, el->padding.w, el->padding.h);

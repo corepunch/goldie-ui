@@ -43,16 +43,16 @@
             width="272" height="250"
             spacing="0"
             padding="8">
-        <grid name="fields" spacing="4" flags="WINDOW_FLEXSPACE">
+        <grid name="fields" spacing="4">
           <column name="labels" width="56">
             <label name="lbl_author" text="Author:" />
             <label name="lbl_title" text="Title:" />
             <label name="lbl_body" text="Body:" />
           </column>
-          <column name="inputs" flags="WINDOW_FLEXSPACE">
+          <column name="inputs">
             <textedit name="author" />
             <textedit name="title" />
-            <multiedit name="body" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+            <multiedit name="body" />
           </column>
         </grid>
         <separator name="section_sep" />
@@ -101,7 +101,7 @@
         </stack>
 
         <!-- Comments reportview -->
-        <reportview name="comments" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+        <reportview name="comments" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
 
         <separator name="section_sep" />
 

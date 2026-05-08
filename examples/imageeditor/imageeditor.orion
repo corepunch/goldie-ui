@@ -160,11 +160,7 @@
     </toolbars>
 
     <forms>
-      <form name="new_image"
-            title="New Image"
-            width="180"
-            spacing="8"
-            padding="8">
+      <form name="new_image" title="New Image" width="180" spacing="8" padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
             <label name="lbl_width" text="Width:" />
@@ -183,11 +179,7 @@
         </stack>
       </form>
 
-      <form name="image_resize"
-            title="Image Size"
-            width="210"
-            spacing="8"
-            padding="8">
+      <form name="image_resize" title="Image Size" width="210" spacing="8" padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
             <label name="lbl_width" text="Width:" />
@@ -208,11 +200,7 @@
         </stack>
       </form>
 
-      <form name="grid_options"
-            title="Grid Options"
-            width="180"
-            spacing="8"
-            padding="8">
+      <form name="grid_options" title="Grid Options" width="180" spacing="8" padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
             <label name="lbl_width" text="Width:" />
@@ -231,14 +219,10 @@
         </stack>
       </form>
 
-      <form name="selection_modify"
-            title="Modify Selection"
-            width="180"
-            spacing="8"
-            padding="8">
+      <form name="selection_modify" title="Modify Selection" width="180" spacing="8" padding="8">
         <stack name="amount_row" orientation="horizontal" spacing="6">
           <label name="lbl_amount" text="By:" />
-          <textedit name="amount" text="" flags="WINDOW_FLEXSPACE" />
+          <textedit name="amount" text="" />
           <label name="lbl_pixels" text="pixels" />
         </stack>
         <separator name="sep" />
@@ -249,14 +233,10 @@
         </stack>
       </form>
 
-      <form name="new_layer"
-            title="New Layer"
-            width="200"
-            spacing="8"
-            padding="8">
+      <form name="new_layer" title="New Layer" width="200" spacing="8" padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
           <label name="lbl_fill" text="Fill with:" />
-          <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
+          <combobox name="combo_fill" text="" />
         </stack>
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
@@ -265,14 +245,10 @@
         </stack>
       </form>
 
-      <form name="add_mask"
-            title="Add Mask"
-            width="220"
-            spacing="8"
-            padding="8">
+      <form name="add_mask" title="Add Mask" width="220" spacing="8" padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
           <label name="lbl_fill" text="Fill with:" />
-          <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
+          <combobox name="combo_fill" text="" />
         </stack>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
@@ -282,14 +258,10 @@
         </stack>
       </form>
 
-      <form name="text_tool"
-            title="Insert Text"
-            width="220"
-            spacing="6"
-            padding="8">
+      <form name="text_tool" title="Insert Text" width="220" spacing="6" padding="8">
         <stack name="text_row" orientation="horizontal" spacing="6">
           <label name="lbl_text" text="Text:" />
-          <textedit name="edit_text" text="" flags="WINDOW_FLEXSPACE" />
+          <textedit name="edit_text" text="" />
         </stack>
         <stack name="size_row" orientation="vertical" spacing="2">
           <label name="lbl_size" text="Size: 16px" />
@@ -309,11 +281,7 @@
         </stack>
       </form>
 
-      <form name="levels"
-            title="Levels"
-            width="280" height="222"
-            spacing="6"
-            padding="10">
+      <form name="levels" title="Levels" width="280" spacing="6" padding="10">
         <requires library="imageeditor_components" />
         <grid name="input_row" spacing="4">
           <column name="in_label_col" width="72">
@@ -354,13 +322,9 @@
         </stack>
       </form>
 
-      <form name="filter_gallery"
-            title="Filter Gallery"
-            width="560" height="360"
-            flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
-            padding="8">
+      <form name="filter_gallery" title="Filter Gallery" width="560" height="360" flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON" padding="8">
         <requires library="imageeditor_components" />
-        <grid name="main" spacing="8" flags="WINDOW_FLEXSPACE">
+        <grid name="main" spacing="8">
           <column name="preview_col">
             <filter_preview name="preview" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
             <label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
@@ -376,12 +340,7 @@
         </stack>
       </form>
 
-      <form name="blur_dialog"
-            title="Blur"
-            width="240"
-            flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
-            spacing="6"
-            padding="10">
+      <form name="blur_dialog" title="Blur" width="240" flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON" spacing="6" padding="10">
         <stack name="amount_row" orientation="vertical" spacing="2">
           <label name="amount_label" text="Blur: 4px" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
@@ -395,14 +354,9 @@
         </stack>
       </form>
 
-      <form name="about"
-            title="About Orion Image Editor"
-            width="270" height="120"
-            orientation="horizontal"
-            spacing="8"
-            padding="0">
+      <form name="about" title="About Orion Image Editor" width="270" orientation="horizontal" spacing="8" padding="0">
         <image name="banner" width="120" height="120" />
-        <stack name="info" flags="WINDOW_FLEXSPACE" spacing="2" padding="0 8 4 4">
+        <stack name="info" spacing="2" padding="0 8 4 4">
           <label name="title" text="Orion Image Editor" font="system" />
           <label name="version" text="Version 1.0" color="text-disabled" />
           <label name="desc1" text="A MacPaint-inspired" color="text-disabled" />
@@ -417,11 +371,7 @@
         </stack>
       </form>
 
-      <form name="color_picker"
-            title="Edit Color"
-            width="240" height="128"
-            spacing="0"
-            padding="0">
+      <form name="color_picker" title="Edit Color" width="240" spacing="0" padding="0">
         <cp_surface name="surface" width="240" height="104" />
         <stack name="actions" orientation="horizontal" spacing="2">
           <button name="ok" text="OK" width="40" flags="BUTTON_DEFAULT" />

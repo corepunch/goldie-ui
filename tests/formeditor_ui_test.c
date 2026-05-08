@@ -1127,14 +1127,11 @@ void test_fe_save_load_roundtrip(void) {
 
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
-    ASSERT_TRUE(strstr(xml, "frame=\"0 0 ") != NULL);
-    ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "width=\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "x=\"20\" y=\"20\" width=\"80\" height=\"24\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
     ASSERT_TRUE(strstr(xml, "<button ") != NULL);
-    ASSERT_TRUE(strstr(xml, " x=\"") == NULL);
-    ASSERT_TRUE(strstr(xml, " y=\"") == NULL);
-    ASSERT_TRUE(strstr(xml, " w=\"") == NULL);
-    ASSERT_TRUE(strstr(xml, " h=\"") == NULL);
+    ASSERT_TRUE(strstr(xml, " frame=\"") == NULL);
     free(xml);
 
     bool loaded = form_project_load(path);
@@ -1194,7 +1191,6 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
 
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
-    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
     ASSERT_TRUE(strstr(xml, "padding=\"8 8 8 8\"") != NULL);
     ASSERT_TRUE(strstr(xml, "margin=\"8 8 8 8\"") != NULL);
     ASSERT_TRUE(strstr(xml, "h-align=\"center\"") != NULL);
@@ -1202,7 +1198,8 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "font=\"icon\"") != NULL);
     ASSERT_TRUE(strstr(xml, "color=\"text-disabled\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
-    ASSERT_TRUE(strstr(xml, "frame=\"20 20 80 24\"") == NULL);
+    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") == NULL);
+    ASSERT_TRUE(strstr(xml, "frame=\"") == NULL);
     free(xml);
 
     bool loaded = form_project_load(path);
@@ -1323,10 +1320,12 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "<form name=\"layout\" title=\"Layout\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") != NULL);
     ASSERT_TRUE(strstr(xml, "layout_kind=\"grid\"") != NULL);
     ASSERT_TRUE(strstr(xml, "layout_orientation=\"horizontal\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "layout_columns=\"3\"") != NULL);
+    // auto_layout is no longer emitted (always true now)
+    ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") == NULL);
+    // layout_columns is no longer emitted (use explicit <column> elements)
+    ASSERT_TRUE(strstr(xml, "layout_columns=") == NULL);
     free(xml);
 
     bool loaded = form_project_load(path);
@@ -1337,7 +1336,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     ASSERT_TRUE(ndoc->auto_layout);
     ASSERT_EQUAL(ndoc->layout_kind, 2);
     ASSERT_EQUAL(ndoc->layout_orientation, WINDOW_STACK_HORIZONTAL);
-    ASSERT_EQUAL(ndoc->layout_columns, 3);
+    // layout_columns is deprecated - no longer checked
 
     unlink(path);
 

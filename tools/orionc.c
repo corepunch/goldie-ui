@@ -57,9 +57,9 @@ static const class_defaults_t kClassDefaults[] = {
   { "combobox",   13, 0 },
   { "separator",   1, 0 },
   { "space",       0, WINDOW_FLEXSPACE },
-  { "reportview", 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE },
+  { "reportview", 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE },
   { "list",       100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE },
-  { "multiedit",  100, WINDOW_VSCROLL },
+  { "multiedit",  100, WINDOW_VSCROLL | WINDOW_FLEXSPACE },
 };
 
 static const class_defaults_t *find_class_defaults(const char *class_name) {
@@ -1071,24 +1071,17 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
     return false;
   }
   fprintf(f, "};\n\n");
-  fprintf(f, "static const form_def_t %s_%s_form = {\n", prefix, id_ident);
-  fputs("  .name = ", f);
+  fprintf(f, "static const form_def_t %s_%s_form = { .name = ", prefix, id_ident);
   fprint_c_string(f, nonempty(title, nonempty(id, "")));
-  fprintf(f, ",\n  .width = %d,\n  .height = %d,\n", fr.w, fr.h);
-  fprintf(f, "  .flags = %s,\n", nonempty(flags, "0"));
-  fprintf(f, "  .auto_layout = true,\n");  /* always true now */
-  fprintf(f, "  .layout_kind = ");
+  fprintf(f, ", .width = %d, .height = %d, .flags = %s, .auto_layout = true, .layout_kind = ",
+          fr.w, fr.h, nonempty(flags, "0"));
   fprint_c_string(f, layout_kind_attr(layout_kind, "stack"));
-  fputs(",\n", f);
-  fprintf(f, "  .layout_orientation = %s,\n",
-          layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)));
-  fprintf(f, "  .layout_spacing = %u,\n",
-          (unsigned)layout_spacing_attr(layout_spacing, 4));
-  fprintf(f, "  .padding = { %d, %d, %d, %d },\n", pad.x, pad.y, pad.w, pad.h);
-  fprintf(f, "  .margin = { %d, %d, %d, %d },\n", mar.x, mar.y, mar.w, mar.h);
-  fprintf(f, "  .children = %s_%s_children,\n", prefix, id_ident);
-  fprintf(f, "  .child_count = %d,\n", child_count);
-  fputs("};\n\n", f);
+  fprintf(f, ", .layout_orientation = %s, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d };\n\n",
+          layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)),
+          (unsigned)layout_spacing_attr(layout_spacing, 4),
+          pad.x, pad.y, pad.w, pad.h,
+          mar.x, mar.y, mar.w, mar.h,
+          prefix, id_ident, child_count);
 
   free(id); free(title); free(flags);
   free(layout_kind); free(layout_orientation); free(layout_spacing);

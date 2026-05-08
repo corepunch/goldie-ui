@@ -1,6 +1,6 @@
 ---
 name: orion-ui-authoring
-description: "**UI AUTHORING SKILL** — Create, review, or debug .orion XML UI definitions (forms, dialogs, windows). Expert in Orion auto-layout (grid/stack), Apple HIG (1987/1995), control usage, and layout patterns. USE FOR: designing new dialogs; converting imperative UI code to declarative .orion; fixing layout issues (column widths, flexspace, scrolling); reviewing .orion files for HIG compliance; explaining layout behavior. DO NOT USE FOR: C code implementation; general framework questions; runtime debugging. INVOKES: Orion UI Designer agent for complex design work; file operations on .orion files; documentation references."
+description: "**UI AUTHORING SKILL** — Create, review, or debug .orion XML UI definitions (forms, dialogs, windows). Expert in WPF layout system (Grid star sizing, StackPanel), Orion auto-layout (WPF-based grid/stack), Apple HIG (1987/1995), control usage, and layout patterns. USE FOR: designing new dialogs; converting imperative UI code to declarative .orion; fixing layout issues (column widths, flexspace, scrolling); reviewing .orion files for HIG compliance; explaining layout behavior; translating WPF concepts to Orion. DO NOT USE FOR: C code implementation; general framework questions; runtime debugging. INVOKES: Orion UI Designer agent for complex design work; file operations on .orion files; documentation references."
 ---
 
 # Orion UI Authoring
@@ -19,9 +19,15 @@ Use this skill when the user needs help with `.orion` XML files:
 
 This skill provides deep expertise in:
 
-### Orion Auto-Layout System
+### Orion Auto-Layout System (WPF-Based)
 
-**Grid Layout (Column-based only):**
+Orion's layout is directly modeled on **WPF (Windows Presentation Foundation)**:
+- Grid with star-sized columns — `<ColumnDefinition Width="*" />` in WPF = omit `width=` in Orion
+- Fixed-width columns — `<ColumnDefinition Width="48" />` in WPF = `width="48"` in Orion
+- StackPanel orientation — `<StackPanel Orientation="Horizontal" />` in WPF = `<stack orientation="horizontal">` in Orion
+- Measure/Arrange pattern — controls report desired size, containers allocate space
+
+**Grid Layout (Column-based, WPF Grid equivalent):**
 ```xml
 <!-- CORRECT: Explicit <column> elements -->
 <grid name="fields" spacing="4">
@@ -73,6 +79,23 @@ This skill provides deep expertise in:
 - Default button (BUTTON_DEFAULT) on right
 - Cancel to its left
 - Separated from content with `<space />` or `<separator />`
+
+### Form Height Rules
+
+**Fixed-content forms** — omit `height=`, specify `width="X"` only:
+- Forms with only fixed-size controls (labels, buttons, textedit, checkboxes, separators, sliders)
+- Forms where `<space>` elements only expand **horizontally** (in horizontal stacks)
+- Height auto-calculates from child measurements
+- Example: `<form name="new_image" width="180">` (no height attribute)
+
+**Flex-content forms** — specify both `width="X" height="Y"`:
+- `<multiedit flags="WINDOW_FLEXSPACE">` — text editor that expands/shrinks **vertically**
+- `<reportview flags="WINDOW_FLEXSPACE">` — scrolling list that expands/shrinks **vertically**
+- `<grid flags="WINDOW_FLEXSPACE">` — grid that expands/shrinks **vertically**
+- Framework divides the specified height among flex children
+- Example: `<form name="new_post" width="272" height="250">` (multiedit needs vertical space)
+
+**Key insight:** Horizontal `<space>` elements (used to push buttons left/right) do NOT require explicit form height. They expand horizontally but don't affect vertical height calculation.
 
 ### Common Dialog Patterns
 

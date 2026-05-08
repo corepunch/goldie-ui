@@ -165,7 +165,7 @@ void register_builtin_window_classes(void) {
     .proc = win_reportview,
     .default_width = 0,     // stretch to fit
     .default_height = 100,  // ~6 rows
-    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
+    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -187,7 +187,7 @@ void register_builtin_window_classes(void) {
     .proc = win_multiedit,
     .default_width = 0,     // stretch to fit
     .default_height = 100,  // multiple lines
-    .default_flags = WINDOW_VSCROLL,
+    .default_flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -335,6 +335,17 @@ void register_builtin_window_classes(void) {
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
   
+  // Stack layout container (alias)
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "stackview",
+    .proc = win_stackview,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
   // Flow layout container
   register_window_class(&(fe_component_desc_t){
     .class_name = "flow",
@@ -346,9 +357,31 @@ void register_builtin_window_classes(void) {
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
   
+  // Flow layout container (alias)
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "flowview",
+    .proc = win_flowview,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
   // Grid layout container
   register_window_class(&(fe_component_desc_t){
     .class_name = "grid",
+    .proc = win_gridview,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Grid layout container (alias)
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "gridview",
     .proc = win_gridview,
     .default_width = 0,
     .default_height = 0,
