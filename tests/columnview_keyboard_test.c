@@ -467,11 +467,11 @@ static window_t *make_report_columnview(window_t *parent, int w, int h) {
 }
 
 // Click after scroll — child window, report mode.
-// rv_hit_index uses the raw wparam coordinates directly (event.c already
-// delivers content-space y to child windows, accounting for the child's
-// scroll before the message is sent).  So clicking at content y =
-// HEADER_HEIGHT + N*ENTRY_HEIGHT must select item N regardless of the
-// current scroll position.
+// Mouse events are delivered in viewport-local coordinates (event.c subtracts
+// only the child's frame.{x,y}, not its scroll).  rv_hit_index adds
+// win->scroll[1] to convert viewport y to content y.
+// With scroll[1] = K*ENTRY_HEIGHT the first visible row is at
+// viewport y = HEADER_HEIGHT, which rv_hit_index maps to item K.
 void test_cv_report_click_after_scroll_child(void) {
     TEST("win_reportview report child: click after scroll selects visual item");
 
@@ -489,18 +489,18 @@ void test_cv_report_click_after_scroll_child(void) {
     const int K = 3;
     cv->scroll[1] = (uint32_t)(K * TEST_RV_ENTRY_HEIGHT);
 
-    // event.c delivers content-space y, so pass y = HEADER_HEIGHT + K*ENTRY_HEIGHT
-    // to select item K.
+    // Viewport y = HEADER_HEIGHT is the first visible content row.
+    // rv_hit_index computes: row = (HEADER_HEIGHT + scroll_y - HEADER_HEIGHT) / ENTRY_HEIGHT = K.
     send_message(cv, evLeftButtonDown,
-                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT + K * TEST_RV_ENTRY_HEIGHT), NULL);
+                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT), NULL);
 
     ASSERT_EQUAL(g_last_notification, RVN_SELCHANGE);
     ASSERT_EQUAL(g_last_index, K);
 
-    // A content-space click one row lower selects K+1.
+    // One row lower in the viewport selects K+1.
     reset_cmd_state();
     send_message(cv, evLeftButtonDown,
-                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT + (K + 1) * TEST_RV_ENTRY_HEIGHT), NULL);
+                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT + TEST_RV_ENTRY_HEIGHT), NULL);
 
     ASSERT_EQUAL(g_last_notification, RVN_SELCHANGE);
     ASSERT_EQUAL(g_last_index, K + 1);
@@ -549,8 +549,9 @@ void test_cv_report_wheel_scrolls_child(void) {
 
     ASSERT_EQUAL((int)cv->scroll[1], 0);
 
-    // Negative HIWORD produces a positive scroll delta in user/message.c.
-    send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-4));
+    // Positive HIWORD(lparam) = positive scroll delta (scroll down).
+    // delta = (int16_t)HIWORD(lparam) = 4 → vscroll.pos increases.
+    send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, 4));
     ASSERT_TRUE((int)cv->scroll[1] > 0);
 
     destroy_window(parent);
