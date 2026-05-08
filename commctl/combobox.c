@@ -7,7 +7,7 @@
 #include "../user/draw.h"
 #include "../user/theme.h"
 
-#define MAX_COMBOBOX_STRINGS 256
+#define MAX_COMBOBOX_STRINGS MAX_LIST_ITEMS
 typedef char combobox_string_t[64];
 
 // Forward declare list control procedure  

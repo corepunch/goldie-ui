@@ -1,6 +1,8 @@
 #ifndef __UI_MESSAGES_H__
 #define __UI_MESSAGES_H__
 
+#include "config.h"  // Tunable framework parameters
+
 // Window messages
 enum {
   evCreate,
@@ -338,9 +340,6 @@ typedef struct {
 // Analogous to WinAPI CW_USEDEFAULT: pass as x or y to create_window() /
 // create_window_from_form() to let the framework auto-position the window.
 #define CW_USEDEFAULT  (-32768)
-
-// Scroll and interaction constants
-#define SCROLL_SENSITIVITY      3
 
 // Icon enumerations for UI controls
 typedef enum {

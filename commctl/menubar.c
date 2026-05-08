@@ -20,12 +20,6 @@
 #include "menubar.h"
 
 #define MENU_ITEM_H      TITLEBAR_HEIGHT  // height of a normal dropdown row (font-size dependent)
-#define MENU_SEP_H        5   // height of a separator row
-#define MENU_SIDE_PAD     4   // horizontal text padding inside dropdown
-#define MENU_MIN_W       90   // minimum popup width
-#define MENU_LABEL_PAD   12   // extra space around each top-level label
-#define MENU_HOTKEY_GAP  12   // minimum gap between label and right-aligned hotkey
-#define MENU_START_Y      1   // vertical padding above the first dropdown item and below the last one
 
 // ---- per-menubar userdata -----------------------------------------------
 

@@ -12,8 +12,6 @@
 #include "draw.h"
 #include "../commctl/commctl.h"
 
-#define MAX_WINDOW_CLASSES 256
-
 typedef struct {
   fe_component_desc_t desc;
 } window_class_t;

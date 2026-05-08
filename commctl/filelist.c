@@ -38,7 +38,7 @@
 #define FL_ICON_FILE    ICON_PAPER_BLANK   // regular file
 #define FL_COLOR_FOLDER 0xffa0d000u
 #define FL_COLOR_GEM    0xff50d050u  // bright green — executable .gem plugin
-#define FL_DUP_DBLCLICK_MS 250u
+#define FL_DUP_DBLCLICK_MS (DOUBLE_CLICK_MS / 2u)
 
 // ---------------------------------------------------------------------------
 // Private state

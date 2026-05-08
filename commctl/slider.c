@@ -8,12 +8,6 @@
 #include "../user/draw.h"
 #include "commctl.h"
 
-#define SLIDER_MAX_HANDLES 4
-#define SLIDER_MIN_THUMB_W 7
-#define SLIDER_TRACK_PAD   8
-#define SLIDER_BAR_Y       4
-#define SLIDER_BAR_H       8
-#define SLIDER_HANDLE_Y    8
 
 typedef struct {
   int min_val;

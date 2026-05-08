@@ -24,15 +24,9 @@
 // Layout constants
 // ---------------------------------------------------------------------------
 
-#define FP_LIST_W    320
-#define FP_LIST_H    160
-#define FP_PAD         4
-#define FP_LABEL_W    38   // "File:" / "Filter:" label column width
-#define FP_BTN_W      50
 #define FP_BTN_H      BUTTON_HEIGHT
 #define FP_EDIT_H     CONTROL_HEIGHT
 #define FP_COMBO_H    BUTTON_HEIGHT
-#define FP_ROW_GAP     4   // vertical gap between rows
 #define FP_WIN_W      (FP_LIST_W + FP_PAD * 2)
 #define FP_CTRL_X     (FP_PAD + FP_LABEL_W + 2)
 #define FP_CTRL_W     (FP_WIN_W - FP_CTRL_X - FP_PAD)
@@ -42,12 +36,6 @@
 // Vertical positions of each row (relative to client-area origin)
 #define FP_LIST_Y     FP_PAD
 #define FP_FILE_Y     (FP_LIST_Y + FP_LIST_H + FP_ROW_GAP)
-
-// ---------------------------------------------------------------------------
-// Maximum number of filter entries parsed from lpstrFilter
-// ---------------------------------------------------------------------------
-#define FP_MAX_FILTERS   16
-#define FP_MAX_LOC_DEPTH 16  // max breadcrumb depth in location combobox
 
 enum {
   FP_ID_TOOL_UP = 1,

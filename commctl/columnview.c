@@ -10,8 +10,7 @@
 #define COLUMNVIEW_DEBUG 0
 
 #define MAX_COLUMNVIEW_ITEM_NAME 256
-#define MAX_COLUMNVIEW_ITEMS 256
-#define MAX_REPORTVIEW_COLUMNS 16
+#define MAX_COLUMNVIEW_ITEMS MAX_LIST_ITEMS
 #define MAX_REPORTVIEW_TITLE 64
 #define ENTRY_HEIGHT  COLUMNVIEW_ENTRY_HEIGHT
 #define HEADER_HEIGHT COLUMNVIEW_HEADER_HEIGHT
@@ -20,14 +19,14 @@
 #define DEFAULT_ICON_TEXT_GAP  0
 #define ICON_OFFSET 16
 #define WIN_PADDING 4
-#define RV_DOUBLE_CLICK_MS 500u
+#define RV_DOUBLE_CLICK_MS DOUBLE_CLICK_MS
 #define RV_INVALID_SELECTION (-1)
 
-// Large-icon view geometry constants (WinAPI LVS_ICON style).
-#define RV_LARGE_ICON_PAD       8   // outer grid margin (left/top/right/bottom)
-#define RV_LARGE_ICON_TOP_PAD   4   // space above the icon inside a cell
-#define RV_LARGE_ICON_LABEL_GAP 4   // gap between icon bottom and label top
-#define RV_LARGE_ICON_BOT_PAD   6   // space below label inside a cell
+// Large icon view dimensions:
+#define RV_LARGE_ICON_PAD       LARGE_ICON_PAD
+#define RV_LARGE_ICON_TOP_PAD   LARGE_ICON_TOP_PAD
+#define RV_LARGE_ICON_LABEL_GAP LARGE_ICON_LABEL_GAP
+#define RV_LARGE_ICON_BOT_PAD   LARGE_ICON_BOT_PAD
 
 // ReportView/ListView/ColumnView shared data structure.
 typedef struct {

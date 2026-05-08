@@ -9,7 +9,7 @@
 
 #define LIST_HEIGHT     (FONT_SIZE_SMALL + 5)
 
-#define MAX_COMBOBOX_STRINGS 256
+#define MAX_COMBOBOX_STRINGS MAX_LIST_ITEMS
 typedef char combobox_string_t[64];
 
 // Helper functions (will be moved to ui/user/window.c later)
