@@ -89,6 +89,29 @@ Use stacks for **linear arrangements** (rows or columns), equivalent to WPF's `<
 - Add `WINDOW_FLEXSPACE` to children that should expand to fill remaining space
 - Use `<space />` as an explicit spacer that expands
 
+### Flex class defaults
+
+Know which window classes are flex by default and which are not:
+
+**Always flex by default**
+- `space`
+- `reportview`
+- `multiedit`
+
+**Not flex by default**
+- `button`
+- `label`
+- `textedit`
+- `checkbox`
+- `combobox`
+- `separator`
+- `list`
+
+**Important nuance**
+- `grid`, `stack`, `flow`, and similar containers are not inherently flex just because they are containers
+- Flex intent should bubble upward through matching nested layout containers
+- A local `<space />` in a horizontal action row should stay local and should not force an orthogonal parent stack to become vertically flexible
+
 ### Grid Layout (WPF Grid equivalent)
 
 Use grids for **forms with labels and inputs**, equivalent to WPF's `<Grid>` with `<ColumnDefinition>` elements:

@@ -62,6 +62,18 @@ Orion's layout is directly modeled on **WPF (Windows Presentation Foundation)**:
 - **Never** on individual controls inside grid columns
 - **Never** on `<column>` elements (star sizing is automatic)
 
+**Built-in class defaults:**
+- `space` -> always flex
+- `reportview` -> always flex
+- `multiedit` -> always flex
+- `list` -> not flex by default
+- `button`, `label`, `textedit`, `checkbox`, `combobox`, `separator` -> not flex by default
+- Layout containers like `stack`, `flow`, and `grid` are not inherently flex just because they are containers; they become flex only when their own layout or descendants require it
+
+**Propagation rule:**
+- If a built-in flex class appears inside nested layout containers, the flex intent should bubble upward through matching container orientation
+- A horizontal action row with a local `<space />` should not make an orthogonal parent stack claim extra vertical room
+
 ### Apple HIG Standards (1987/1995)
 
 **Spacing:**
