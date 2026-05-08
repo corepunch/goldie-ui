@@ -102,22 +102,20 @@ case tbButtonClick:
 
 The `evWheel` message is sent when the user scrolls the mouse wheel. The message uses a WinAPI-style convention:
 
-- **wparam**: Mouse position as `MAKEDWORD(x, y)` in screen coordinates
+- **wparam**: Mouse position as `MAKEDWORD(x, y)` in window-local scaled coordinates
 - **lparam**: Scroll deltas as `MAKEDWORD(dx, dy)` (cast from `void*`)
-  - `dx`: Horizontal scroll amount (positive = scroll right, negative = scroll left)
-  - `dy`: Vertical scroll amount (positive = scroll down, negative = scroll up)
+  - `dx`: Horizontal scroll amount (positive = wheel left, negative = wheel right)
+  - `dy`: Vertical scroll amount (positive = wheel up, negative = wheel down)
   - Values are already multiplied by `SCROLL_SENSITIVITY` (3)
 
 **Extracting scroll deltas from lparam:**
 
 ```c
 case evWheel: {
-    int dx = (int16_t)LOWORD((uintptr_t)lparam);
     int dy = (int16_t)HIWORD((uintptr_t)lparam);
     
-    // Update scroll position
-    scroll_y += dy;  // positive dy scrolls down
-    scroll_x += dx;  // positive dx scrolls right
+    // Negate: positive dy = wheel up = decrease scroll offset
+    scroll_y -= dy;
     
     // Clamp to valid range
     if (scroll_y < 0) scroll_y = 0;

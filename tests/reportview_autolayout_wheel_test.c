@@ -57,11 +57,6 @@ void test_reportview_wheel_plain_parent(void) {
     // Trigger resize to sync scrollbars
     send_message(rv, evResize, 0, NULL);
     
-    // Check scrollbar is visible
-    printf("\n    [DEBUG] Before wheel: flags=0x%08x, vscroll.visible=%d, enabled=%d, pos=%d, page=%u, max=%d",
-           rv->flags, rv->vscroll.visible, rv->vscroll.enabled,
-           rv->vscroll.pos, rv->vscroll.page, rv->vscroll.max_val);
-    
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible with 50 items");
     
     // Send wheel event - with negation in default handler, negative dy scrolls down
@@ -115,13 +110,6 @@ void test_reportview_wheel_in_stack(void) {
     
     // Trigger layout (this should send evArrange to reportview)
     window_layout_sync(stack);
-    
-    // Check scrollbar is visible after layout
-    printf("\n    [DEBUG] After layout: vscroll.visible=%d, enabled=%d, pos=%d, page=%u, max=%d",
-           rv->vscroll.visible, rv->vscroll.enabled,
-           rv->vscroll.pos, rv->vscroll.page, rv->vscroll.max_val);
-    printf("\n    [DEBUG] rv->frame = {%d,%d,%d,%d}, rv->scroll[1]=%u",
-           rv->frame.x, rv->frame.y, rv->frame.w, rv->frame.h, rv->scroll[1]);
     
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible after layout");
     
@@ -188,13 +176,6 @@ void test_reportview_wheel_in_grid(void) {
     
     // Trigger layout (this should send evArrange through the hierarchy)
     window_layout_sync(grid);
-    
-    // Check scrollbar is visible after layout
-    printf("\n    [DEBUG] After layout: vscroll.visible=%d, enabled=%d, pos=%d, page=%u, max=%d",
-           rv->vscroll.visible, rv->vscroll.enabled,
-           rv->vscroll.pos, rv->vscroll.page, rv->vscroll.max_val);
-    printf("\n    [DEBUG] rv->frame = {%d,%d,%d,%d}, rv->scroll[1]=%u",
-           rv->frame.x, rv->frame.y, rv->frame.w, rv->frame.h, rv->scroll[1]);
     
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible after layout");
     
