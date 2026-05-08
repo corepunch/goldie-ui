@@ -351,6 +351,8 @@ bool imageeditor_open_file_path(const char *path) {
 void handle_menu_command(uint16_t id) {
   if (!g_app) return;
   canvas_doc_t *doc = g_app->active_doc;
+  // If no document has focus, fall back to the first available document
+  if (!doc) doc = g_app->docs;
 
   switch (id) {
     case ID_FILE_NEW: {

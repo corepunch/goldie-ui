@@ -73,6 +73,7 @@ enum {
   ID_ANIM_PLAY,
   ID_ANIM_STOP,
   ID_ANIM_LOOP,
+  ID_ANIM_ONION_SKIN,
   ID_ANIM_EXPORT_GIF,
   ID_ANIM_EXPORT_APNG,
   ID_ANIM_EXPORT_SPRITESHEET,
@@ -206,6 +207,28 @@ enum {
   ID_BLUR_DIALOG_FLEX,
   ID_BLUR_DIALOG_OK,
   ID_BLUR_DIALOG_CANCEL,
+  ID_ONION_SKIN_ENABLED,
+  ID_ONION_SKIN_SELECTED_LABEL,
+  ID_ONION_SKIN_PREV_ROW,
+  ID_ONION_SKIN_PREV_LABEL,
+  ID_ONION_SKIN_PREV1,
+  ID_ONION_SKIN_PREV2,
+  ID_ONION_SKIN_PREV3,
+  ID_ONION_SKIN_PREV4,
+  ID_ONION_SKIN_NEXT_ROW,
+  ID_ONION_SKIN_NEXT_LABEL,
+  ID_ONION_SKIN_NEXT1,
+  ID_ONION_SKIN_NEXT2,
+  ID_ONION_SKIN_NEXT3,
+  ID_ONION_SKIN_NEXT4,
+  ID_ONION_SKIN_VALUE_ROW,
+  ID_ONION_SKIN_VALUE_LABEL,
+  ID_ONION_SKIN_VALUE,
+  ID_ONION_SKIN_SEP,
+  ID_ONION_SKIN_ACTIONS,
+  ID_ONION_SKIN_FLEX,
+  ID_ONION_SKIN_OK,
+  ID_ONION_SKIN_CANCEL,
   ID_ABOUT_BANNER,
   ID_ABOUT_INFO,
   ID_ABOUT_TITLE,
@@ -365,6 +388,7 @@ static const menu_item_t MENU_ANIM_ITEMS[] = {
   { "Play", ID_ANIM_PLAY, NULL, 0 },
   { "Stop", ID_ANIM_STOP, NULL, 0 },
   { "[ ] Loop", ID_ANIM_LOOP, NULL, 0 },
+  { "Onion Skin Settings...", ID_ANIM_ONION_SKIN, NULL, 0 },
   { NULL, 0, NULL, 0 },
   { "Export GIF...", ID_ANIM_EXPORT_GIF, NULL, 0 },
   { "Export APNG...", ID_ANIM_EXPORT_APNG, NULL, 0 },
@@ -580,6 +604,33 @@ static const form_ctrl_def_t imageeditor_blur_dialog_children[] = {
 
 static const form_def_t imageeditor_blur_dialog_form = { .name = "Blur", .width = 240, .height = 0, .flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 10, 10, 10, 10 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_blur_dialog_children, .child_count = 9 };
 
+static const form_ctrl_def_t imageeditor_onion_skin_children[] = {
+  { "checkbox", ID_ONION_SKIN_ENABLED, { 0, 0 }, 0, "Enable Onion Skin", "enabled", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ONION_SKIN_SELECTED_LABEL, { 0, 0 }, 0, "Selected: Previous 1 (40%)", "selected_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_ONION_SKIN_PREV_ROW, { 0, 0 }, 0, "", "prev_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ONION_SKIN_PREV_LABEL, { 30, 0 }, 0, "Prev", "prev_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_PREV_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_PREV1, { 44, 0 }, BUTTON_PUSHLIKE, "40%", "prev1", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_PREV_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_PREV2, { 44, 0 }, BUTTON_PUSHLIKE, "20%", "prev2", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_PREV_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_PREV3, { 44, 0 }, BUTTON_PUSHLIKE, "10%", "prev3", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_PREV_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_PREV4, { 44, 0 }, BUTTON_PUSHLIKE, "5%", "prev4", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_PREV_ROW, 1, false, 16, false },
+  { "stack", ID_ONION_SKIN_NEXT_ROW, { 0, 0 }, 0, "", "next_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ONION_SKIN_NEXT_LABEL, { 30, 0 }, 0, "Next", "next_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_NEXT_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_NEXT1, { 44, 0 }, BUTTON_PUSHLIKE, "30%", "next1", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_NEXT_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_NEXT2, { 44, 0 }, BUTTON_PUSHLIKE, "15%", "next2", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_NEXT_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_NEXT3, { 44, 0 }, BUTTON_PUSHLIKE, "8%", "next3", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_NEXT_ROW, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_NEXT4, { 44, 0 }, BUTTON_PUSHLIKE, "4%", "next4", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_NEXT_ROW, 1, false, 16, false },
+  { "stack", ID_ONION_SKIN_VALUE_ROW, { 0, 0 }, 0, "", "value_row", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 2, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "label", ID_ONION_SKIN_VALUE_LABEL, { 0, 0 }, 0, "Opacity: 40%", "value_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_VALUE_ROW, 1, false, 16, false },
+  { "slider", ID_ONION_SKIN_VALUE, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "value", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_VALUE_ROW, 1, false, 16, false },
+  { "separator", ID_ONION_SKIN_SEP, { 0, 0 }, 0, "", "sep", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "stack", ID_ONION_SKIN_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "space", ID_ONION_SKIN_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_ACTIONS, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_OK, { 0, 0 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_ACTIONS, 1, false, 16, false },
+  { "button", ID_ONION_SKIN_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ONION_SKIN_ACTIONS, 1, false, 16, false },
+};
+
+static const form_def_t imageeditor_onion_skin_form = { .name = "Onion Skin", .width = 276, .height = 142, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_onion_skin_children, .child_count = 22 };
+
 static const form_ctrl_def_t imageeditor_about_children[] = {
   { "image", ID_ABOUT_BANNER, { 120, 120 }, 0, "", "banner", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "stack", ID_ABOUT_INFO, { 0, 0 }, 0, "", "info", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 2, { 0, 8, 4, 4 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -595,7 +646,7 @@ static const form_ctrl_def_t imageeditor_about_children[] = {
   { "button", ID_ABOUT_OK, { 50, 0 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_about_form = { .name = "About Orion Image Editor", .width = 270, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 0, 0, 0, 0 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_about_children, .child_count = 12 };
+static const form_def_t imageeditor_about_form = { .name = "About Orion Image Editor", .width = 270, .height = 120, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 8, .padding = { 0, 0, 0, 0 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_about_children, .child_count = 12 };
 
 static const form_ctrl_def_t imageeditor_color_picker_children[] = {
   { "cp_surface", ID_COLOR_PICKER_SURFACE, { 240, 104 }, 0, "", "surface", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
