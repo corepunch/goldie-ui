@@ -634,6 +634,72 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 - Separating flex concerns (grid expansion vs. cell content) eliminates confusion
 - These patterns match macOS HIG and WinAPI dialog conventions
 
+#### Form Sizing Guidelines
+
+**Standard Control Heights:**
+- `button`: 19px (standard button height)
+- `textedit`: 13px (single-line edit box)
+- `label`: 13px (standard text label)
+- `checkbox`: 13px (checkbox with label)
+- `combobox`: 13px (dropdown control)
+- `separator`: 1px (visual divider line)
+- `slider`: 12-16px (depends on style)
+- `reportview`, `multiedit`: Variable (use `WINDOW_FLEXSPACE` for expansion)
+
+**Standard Spacing:**
+- Dialog padding: 8-10px (outer margin around all content)
+- Grid spacing: 4px (gap between label and input columns)
+- Stack spacing (form sections): 6-8px (gap between control groups)
+- Action button spacing: 6px (gap between OK/Cancel buttons)
+
+**Calculating Fixed-Height Dialog Dimensions:**
+
+For dialogs with no scrolling or expandable content, calculate height manually:
+
+```xml
+<!-- Example: "New Image" dialog height calculation -->
+<form frame="0 0 180 84" auto_layout="1" spacing="8" padding="8">
+  <!-- Top padding:        8px -->
+  <grid spacing="4">     <!-- 2 rows: 13px + 4px + 13px = 30px -->
+    <column width="48">
+      <label />          <!-- 13px -->
+      <label />          <!-- 13px -->
+    </column>
+    <column>
+      <textedit />       <!-- 13px -->
+      <textedit />       <!-- 13px -->
+    </column>
+  </grid>
+  <!-- Spacing:            8px -->
+  <separator />          <!-- 1px -->
+  <!-- Spacing:            8px -->
+  <stack>                <!-- 19px -->
+    <button />           <!-- 19px -->
+  </stack>
+  <!-- Bottom padding:     8px -->
+</form>
+<!-- Total: 8 + 30 + 8 + 1 + 8 + 19 + 8 = 82px (rounds to 84px) -->
+```
+
+**When to Use Fixed vs. Flexible Sizing:**
+
+| Dialog Type | Width | Height | Flags |
+|---|---|---|---|
+| Simple forms (2-5 inputs) | Fixed (180-220px) | Fixed (calculated) | None |
+| Label+input grids | Fixed or flexible | Fixed (calculated) | `WINDOW_FLEXSPACE` on input column if width flexible |
+| Scrolling lists | Fixed or flexible | Flexible | `WINDOW_VSCROLL` + `WINDOW_FLEXSPACE` on list |
+| Multi-edit/console | Flexible | Flexible | `WINDOW_VSCROLL` + `WINDOW_FLEXSPACE` on control |
+| Preview + controls | Flexible | Flexible | `WINDOW_FLEXSPACE` on preview/content area |
+
+**Future Enhancement - Auto-Height:**
+For forms with only fixed-height controls and no expandable content, an `auto_height="1"` attribute could automatically calculate the form height based on:
+- Control heights
+- Spacing between controls
+- Padding
+- Separator heights
+
+This would eliminate manual height calculation errors and ensure dialogs are always sized correctly. Currently, height must be specified manually in the `frame` attribute.
+
 #### .orion XML Reference
 
 **Form attributes:**
