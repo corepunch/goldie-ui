@@ -40,7 +40,7 @@ static const toolbar_item_t kTimelineToolbar[] = {
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEXT_FRAME,  sysicon_anim_frame_move_right, 0, 0, "Next Frame" },
   { TOOLBAR_ITEM_SPACER, 0, -1, 6, 0, NULL },
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_PLAY,        sysicon_clock_play,            0, 0, "Play" },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_TRACE,       -1,                            0, BUTTON_PUSHLIKE, "Trace" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_TRACE,       -1,                            0, BUTTON_PUSHLIKE, "Onion" },
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEW_FRAME,   sysicon_anim_frame_add,       0, 0, "New Frame" },
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_DELETE_FRAME,sysicon_anim_frame_delete,    0, 0, "Delete Frame" },
 };

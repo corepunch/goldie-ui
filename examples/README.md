@@ -81,6 +81,7 @@ A MacPaint-inspired raster image editor with a 16-color palette, demonstrating:
 - PNG open/save via the built-in **stb_image** framework API (`load_image` / `save_image_png`)
 - Toolbar with New, Open, and Save actions
 - Status bar showing the current file path
+- Animation timeline with onion-skin overlays configurable for previous/next frame opacity
 
 ### Canvas
 

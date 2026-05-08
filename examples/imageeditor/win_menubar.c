@@ -1055,6 +1055,14 @@ void handle_menu_command(uint16_t id) {
       }
       break;
 
+    case ID_ANIM_ONION_SKIN:
+      if (show_onion_skin_dialog(doc && doc->win ? doc->win : g_app->menubar_win)) {
+        if (doc && doc->canvas_win)
+          invalidate_window(doc->canvas_win);
+        timeline_win_refresh();
+      }
+      break;
+
     case ID_ANIM_EXPORT_GIF: {
       if (!doc || !doc->anim) break;
       char path[512] = {0};

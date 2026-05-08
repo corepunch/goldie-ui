@@ -544,7 +544,6 @@ static const form_def_t kNestForm = {
   .auto_layout = true,
   .layout_kind = "stack",
   .layout_orientation = WINDOW_STACK_VERTICAL,
-  .layout_columns = 0,
   .layout_spacing = 6,
   .children = kNestChildren,
   .child_count = ARRAY_LEN(kNestChildren),

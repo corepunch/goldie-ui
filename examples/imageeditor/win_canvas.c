@@ -507,16 +507,6 @@ static void canvas_draw_animation_trace(window_t *win,
     return;
   if (doc->layer.mask_only_view || doc->anim->frame_count <= 1)
     return;
-  if (doc->anim->active_frame <= 0)
-    return;
-
-  int trace_frames = g_app->anim_trace_frames > 0 ? g_app->anim_trace_frames : 3;
-  if (trace_frames <= 0)
-    return;
-
-  int available = MIN(trace_frames, doc->anim->active_frame);
-  if (available <= 0)
-    return;
 
   if (state->onion_tex_w != doc->canvas_w || state->onion_tex_h != doc->canvas_h) {
     if (state->onion_tex) {
@@ -527,18 +517,33 @@ static void canvas_draw_animation_trace(window_t *win,
     state->onion_tex_h = doc->canvas_h;
   }
 
-  for (int step = available; step >= 1; step--) {
+  int prev_steps = 0;
+  int next_steps = 0;
+  for (int i = 0; i < ONION_SKIN_MAX_STEPS; i++) {
+    if (g_app->anim_trace_prev_opacity[i] > 0) prev_steps = i + 1;
+    if (g_app->anim_trace_next_opacity[i] > 0) next_steps = i + 1;
+  }
+
+  for (int step = prev_steps; step >= 1; step--) {
     int idx = doc->anim->active_frame - step;
-    if (idx < 0) break;
+    if (idx < 0) continue;
+    float alpha = (float)g_app->anim_trace_prev_opacity[step - 1] / 100.0f;
+    if (alpha <= 0.0f) continue;
     const anim_frame_t *frame = doc->anim->frames[idx];
     if (!frame) continue;
-
-    float alpha = 0.18f + 0.12f * (float)(available - step);
-    if (alpha > 0.42f) alpha = 0.42f;
-    if (alpha < 0.05f) alpha = 0.05f;
-
     if (anim_render_frame_thumbnail(frame, doc->canvas_w, doc->canvas_h, &state->onion_tex))
-      draw_rect_ex((int)state->onion_tex, canvas_rect, 0, alpha);
+      draw_rect_ex((int)state->onion_tex, canvas_rect, 0, CLAMP(alpha, 0.0f, 1.0f));
+  }
+
+  for (int step = next_steps; step >= 1; step--) {
+    int idx = doc->anim->active_frame + step;
+    if (idx >= doc->anim->frame_count) continue;
+    float alpha = (float)g_app->anim_trace_next_opacity[step - 1] / 100.0f;
+    if (alpha <= 0.0f) continue;
+    const anim_frame_t *frame = doc->anim->frames[idx];
+    if (!frame) continue;
+    if (anim_render_frame_thumbnail(frame, doc->canvas_w, doc->canvas_h, &state->onion_tex))
+      draw_rect_ex((int)state->onion_tex, canvas_rect, 0, CLAMP(alpha, 0.0f, 1.0f));
   }
 }
 
