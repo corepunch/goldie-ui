@@ -537,8 +537,70 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 **Grid mistakes to avoid:**
 - ❌ Adding `WINDOW_FLEXSPACE` to grid columns (that's for stacks)
 - ❌ Mixing `frame=` attributes on auto-layout children (conflicts with layout system)
+- ❌ Using `columns="N"` attribute (removed - grids must use explicit `<column>` elements)
 - ✅ Let grid handle column widths automatically
 - ✅ Use `spacing` for consistent gaps between cells
+- ✅ Use explicit `<column>` elements for all grid layouts
+
+#### Critical Layout Rules (Lessons Learned)
+
+**Grid Column Layout (REQUIRED):**
+- Grid columns **must** be specified using explicit `<column>` child elements
+- The `columns="N"` attribute is **removed** - attempting to use it will fail compilation
+- Each `<column>` element contains children stacked vertically
+- Columns without `width` attribute share available space equally (WPF star sizing)
+- Columns with explicit `width` get fixed allocation, remaining space divided among auto-width columns
+- Example: Label+Input forms should use `<column width="48">` for labels, `<column>` for inputs
+
+**WINDOW_FLEXSPACE Usage:**
+- Use `WINDOW_FLEXSPACE` on **direct children of stacks** that should expand along the stack axis
+- Use `WINDOW_FLEXSPACE` on the **grid itself** when the grid should expand within its parent stack
+- Do **not** use `WINDOW_FLEXSPACE` on individual controls inside grid columns
+- Do **not** use `WINDOW_FLEXSPACE` on `<column>` elements (star sizing is automatic)
+- For controls that need scrolling (reportview, multiedit), use `WINDOW_VSCROLL` on the control itself
+
+**Common Dialog Patterns:**
+
+*Label-Input Dialog (2 columns):*
+```xml
+<form name="my_dialog" auto_layout="1" layout_kind="stack" layout_spacing="8" padding="8">
+  <grid name="fields" spacing="4">
+    <column name="labels" width="48">
+      <label name="lbl_name" text="Name:" />
+      <label name="lbl_email" text="Email:" />
+    </column>
+    <column name="inputs" flags="WINDOW_FLEXSPACE">
+      <textedit name="name" />
+      <textedit name="email" />
+    </column>
+  </grid>
+  <space name="spacer" />
+  <stack name="actions" orientation="horizontal" spacing="6">
+    <space name="flex" />
+    <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+    <button name="cancel" text="Cancel" />
+  </stack>
+</form>
+```
+
+*Scrolling List Dialog:*
+```xml
+<form name="list_dialog" auto_layout="1" layout_kind="stack" padding="8">
+  <reportview name="list" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+  <separator name="sep" />
+  <stack name="actions" orientation="horizontal" spacing="6">
+    <space />
+    <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+  </stack>
+</form>
+```
+
+**Why These Rules Matter:**
+- Fixed label column widths prevent "10px wide column" layout bugs
+- Column-based grids provide explicit, predictable control over layout
+- `WINDOW_FLEXSPACE` on grids allows them to fill parent containers properly
+- Separating flex concerns (grid expansion vs. cell content) eliminates confusion
+- These patterns match macOS HIG and WinAPI dialog conventions
 
 #### .orion XML Reference
 
@@ -568,10 +630,6 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 <stack name="id" orientation="horizontal|vertical" spacing="6" padding="4">
   <!-- Children arranged in a line -->
 </stack>
-
-<grid name="id" columns="2" spacing="4">
-  <!-- Children fill cells row by row -->
-</grid>
 
 <grid name="id" spacing="12">
   <column name="col1" spacing="4" width="200">
