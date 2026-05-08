@@ -203,7 +203,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (open_startup_documents(argc, argv) == 0)
     create_document(NULL, CANVAS_W, CANVAS_H);
 
-  // Show splash screen if the image is available.
+  /* Splash screen disabled for image editor startup.
 #ifdef SHAREDIR
   {
     char splash_path[4096];
@@ -213,6 +213,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
       show_splash_screen(splash_path, hinstance);
   }
 #endif
+  */
 
   return true;
 }

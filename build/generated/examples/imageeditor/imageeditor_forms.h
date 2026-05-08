@@ -638,7 +638,7 @@ static const form_def_t imageeditor_levels_form = {
 };
 
 static const form_ctrl_def_t imageeditor_filter_gallery_children[] = {
-  { "grid", ID_FILTER_GALLERY_MAIN, { 0, 0 }, 0, "", "main", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 0, 8, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "grid", ID_FILTER_GALLERY_MAIN, { 0, 0 }, WINDOW_FLEXSPACE, "", "main", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 0, 8, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "column", ID_FILTER_GALLERY_PREVIEW_COL, { 0, 0 }, 0, "", "preview_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_MAIN, 1, false, 16, false },
   { "filter_preview", ID_FILTER_GALLERY_PREVIEW, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "preview", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_PREVIEW_COL, 1, false, 16, false },
   { "label", ID_FILTER_GALLERY_FILTER_NAME, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL, "No filters loaded", "filter_name", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 0, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_FILTER_GALLERY_PREVIEW_COL, 1, false, 16, false },

@@ -72,7 +72,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (!project_path || !form_project_load(project_path))
     create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
 
-  // Show splash screen if the image is available.
+  /* Splash screen disabled for form editor startup.
 #ifdef SHAREDIR
   {
     char splash_path[4096];
@@ -82,6 +82,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
       show_splash_screen(splash_path, hinstance);
   }
 #endif
+  */
 
   return true;
 }
