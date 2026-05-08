@@ -368,7 +368,7 @@
             padding="8"
 >
         <requires library="imageeditor_components" />
-        <grid name="main" spacing="8">
+        <grid name="main" spacing="8" flags="WINDOW_FLEXSPACE">
           <column name="preview_col">
             <filter_preview name="preview" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
             <label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
