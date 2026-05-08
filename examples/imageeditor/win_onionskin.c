@@ -105,7 +105,7 @@ static void onion_sync_slider(window_t *win, const onion_skin_state_t *st) {
   if (slider)
     send_message(slider, slSetPos, 0, (void *)(intptr_t)v);
 
-  set_window_item_text(win, ID_ONION_SKIN_VALUE_LABEL, "Gray: %d%%", v);
+  set_window_item_text(win, ID_ONION_SKIN_VALUE_LABEL, "Opacity: %d%%", v);
   set_window_item_text(win, ID_ONION_SKIN_SELECTED_LABEL,
                        "Selected: %s %d (%d%%)",
                        st->sel_is_next ? "Next" : "Previous",

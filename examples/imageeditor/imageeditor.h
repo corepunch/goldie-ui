@@ -358,7 +358,7 @@ typedef struct {
   hinstance_t    hinstance;  // owning app instance
   int            current_tool;
   bool           anim_trace_enabled; // onion-skin overlay toggle for animation frames
-  int            anim_trace_frames;  // number of prior frames shown in trace mode
+  int            anim_trace_frames;  // active onion-skin step span (max non-zero prev/next opacity step)
   uint8_t        anim_trace_prev_opacity[ONION_SKIN_MAX_STEPS];
   uint8_t        anim_trace_next_opacity[ONION_SKIN_MAX_STEPS];
   uint32_t       palette[NUM_COLORS];

@@ -417,7 +417,7 @@
 
       <form name="onion_skin"
             title="Onion Skin"
-            frame="0 0 260 142"
+            frame="0 0 276 142"
             flags="0"
             auto_layout="1"
             spacing="6"
@@ -439,7 +439,7 @@
           <button name="next4" text="4%" width="44" flags="BUTTON_PUSHLIKE" />
         </stack>
         <stack name="value_row" orientation="vertical" spacing="2">
-          <label name="value_label" text="Gray: 40%" flags="0" />
+          <label name="value_label" text="Opacity: 40%" flags="0" />
           <slider name="value" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         </stack>
         <separator name="sep" />
