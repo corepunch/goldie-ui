@@ -692,21 +692,47 @@ For dialogs with no scrolling or expandable content, calculate height manually:
 | Preview + controls | Flexible | Flexible | `WINDOW_FLEXSPACE` on preview/content area |
 
 **Future Enhancement - Automatic Height Calculation:**
-The framework could automatically detect when a form contains only fixed-height controls (no `WINDOW_FLEXSPACE` flags anywhere in the child tree) and auto-calculate the form height:
+The framework could automatically detect when a form contains only fixed-height controls (no `WINDOW_FLEXSPACE` flags anywhere in the child tree) and auto-calculate the form height.
+
+**Key insight**: The form definition (`form_def_t`) contains all child control definitions (`form_ctrl_def_t[]`) as a **static structure** before any windows are created. Each `form_ctrl_def_t` has a `flags` field, so we can scan for `WINDOW_FLEXSPACE` before positioning/creating the window:
 
 ```c
-// During form layout, check all children recursively
-bool has_flexspace = form_has_flexspace_children(form);
-if (!has_flexspace && auto_layout) {
-    // Calculate height from actual layout:
-    int calculated_h = padding_top + control_heights + spacing_sum + padding_bottom;
-    form->frame.h = calculated_h;
+// In show_dialog_from_form_ex, before centering the window:
+form_def_t dlg_def = *def;  // Local copy
+
+// Auto-calculate height if no flexible content exists
+if (dlg_def.auto_layout && !form_has_flexspace(&dlg_def)) {
+    dlg_def.height = calculate_form_height(&dlg_def);
+}
+
+// Now center/create with correct height
+irect16_t dlg_rect = center_window_rect(..., dlg_def.height);
+```
+
+Helper function scans the static definition recursively:
+
+```c
+bool form_has_flexspace(const form_def_t *def) {
+    return form_children_have_flexspace(def->children, def->child_count);
+}
+
+bool form_children_have_flexspace(const form_ctrl_def_t *children, int count) {
+    for (int i = 0; i < count; i++) {
+        if (children[i].flags & WINDOW_FLEXSPACE)
+            return true;
+        // Check nested children recursively
+        if (children[i].children && 
+            form_children_have_flexspace(children[i].children, children[i].child_count))
+            return true;
+    }
+    return false;
 }
 ```
 
 This would mean:
 - ✅ No explicit `auto_height="1"` flag needed
-- ✅ Framework intelligently detects fixed vs. flexible layouts
+- ✅ Framework scans **static form definition** before creating windows
+- ✅ Height calculation happens before positioning/centering
 - ✅ Manual height calculation errors eliminated automatically
 - ✅ Forms with `WINDOW_FLEXSPACE` still use specified height
 - ✅ Simple forms just work: `frame="0 0 180 0"` with height auto-calculated
