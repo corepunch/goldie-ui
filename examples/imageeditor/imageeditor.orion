@@ -417,7 +417,10 @@
 
       <form name="onion_skin"
             title="Onion Skin"
-            frame="0 0 276 142"
+            x="0"
+            y="0"
+            width="276"
+            height="142"
             flags="0"
             auto_layout="1"
             spacing="6"
