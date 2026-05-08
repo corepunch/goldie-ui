@@ -81,19 +81,16 @@ static void onion_sync_buttons(window_t *win, const onion_skin_state_t *st) {
   if (!win || !st) return;
 
   for (int i = 0; i < ONION_SKIN_MAX_STEPS; i++) {
-    char text[16];
     window_t *btn = get_window_item(win, prev_ids[i]);
     if (btn) {
-      snprintf(text, sizeof(text), "%d%%", st->prev[i]);
-      set_window_item_text(win, prev_ids[i], "%s", text);
+      set_window_item_text(win, prev_ids[i], "%d%%", st->prev[i]);
       send_message(btn, btnSetCheck,
                    (!st->sel_is_next && st->sel_idx == i) ? btnStateChecked : btnStateUnchecked,
                    NULL);
     }
     btn = get_window_item(win, next_ids[i]);
     if (btn) {
-      snprintf(text, sizeof(text), "%d%%", st->next[i]);
-      set_window_item_text(win, next_ids[i], "%s", text);
+      set_window_item_text(win, next_ids[i], "%d%%", st->next[i]);
       send_message(btn, btnSetCheck,
                    (st->sel_is_next && st->sel_idx == i) ? btnStateChecked : btnStateUnchecked,
                    NULL);
@@ -149,6 +146,7 @@ static result_t onion_skin_proc(window_t *win, uint32_t msg,
       if (slider) {
         slider_range_t range = {0, 100};
         send_message(slider, slSetRange, 0, &range);
+        // One handle; slider value is directly interpreted as 0..100%.
         send_message(slider, slSetCount, 1, NULL);
       }
 
@@ -164,7 +162,7 @@ static result_t onion_skin_proc(window_t *win, uint32_t msg,
       if (!st || !src) return false;
 
       if (src->id == ID_ONION_SKIN_VALUE &&
-          notif >= sliderValueChanged && notif <= sliderValueChanged4) {
+          notif == sliderValueChanged) {
         onion_set_selected_value(st, (int)send_message(src, slGetPos, 0, NULL));
         onion_sync_ui(win, st);
         onion_apply_runtime(st);
