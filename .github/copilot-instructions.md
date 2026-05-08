@@ -691,14 +691,27 @@ For dialogs with no scrolling or expandable content, calculate height manually:
 | Multi-edit/console | Flexible | Flexible | `WINDOW_VSCROLL` + `WINDOW_FLEXSPACE` on control |
 | Preview + controls | Flexible | Flexible | `WINDOW_FLEXSPACE` on preview/content area |
 
-**Future Enhancement - Auto-Height:**
-For forms with only fixed-height controls and no expandable content, an `auto_height="1"` attribute could automatically calculate the form height based on:
-- Control heights
-- Spacing between controls
-- Padding
-- Separator heights
+**Future Enhancement - Automatic Height Calculation:**
+The framework could automatically detect when a form contains only fixed-height controls (no `WINDOW_FLEXSPACE` flags anywhere in the child tree) and auto-calculate the form height:
 
-This would eliminate manual height calculation errors and ensure dialogs are always sized correctly. Currently, height must be specified manually in the `frame` attribute.
+```c
+// During form layout, check all children recursively
+bool has_flexspace = form_has_flexspace_children(form);
+if (!has_flexspace && auto_layout) {
+    // Calculate height from actual layout:
+    int calculated_h = padding_top + control_heights + spacing_sum + padding_bottom;
+    form->frame.h = calculated_h;
+}
+```
+
+This would mean:
+- ✅ No explicit `auto_height="1"` flag needed
+- ✅ Framework intelligently detects fixed vs. flexible layouts
+- ✅ Manual height calculation errors eliminated automatically
+- ✅ Forms with `WINDOW_FLEXSPACE` still use specified height
+- ✅ Simple forms just work: `frame="0 0 180 0"` with height auto-calculated
+
+Currently, height must be specified manually even for fixed-content forms.
 
 #### .orion XML Reference
 
