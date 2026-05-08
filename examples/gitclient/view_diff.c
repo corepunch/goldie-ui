@@ -202,7 +202,8 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
     case evWheel: {
       diff_state_t *st = (diff_state_t *)win->userdata;
       if (!st || !st->line_count) return false;
-      int delta = (int)(int16_t)HIWORD(wparam);  // positive = scroll up
+      // lparam = scroll deltas MAKEDWORD(dx, dy)
+      int delta = (int16_t)HIWORD((uintptr_t)lparam);  // positive = scroll up
       int lines = delta < 0 ? 3 : -3;
       int max_start = max_scroll_start(win, st);
       int new_pos = CLAMP(st->scroll_y + lines, 0, max_start);

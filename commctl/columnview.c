@@ -885,6 +885,17 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       return true;
     }
 
+    case evArrange: {
+      // Auto-layout containers send evArrange instead of evResize
+      layout_arrange_t const *a = (layout_arrange_t const *)lparam;
+      if (a) {
+        resize_window(win, a->rect.w, a->rect.h);
+        move_window(win, a->rect.x, a->rect.y);
+      }
+      rv_sync_scroll(win, data);
+      return true;
+    }
+
     case evResize:
       rv_sync_scroll(win, data);
       return false;

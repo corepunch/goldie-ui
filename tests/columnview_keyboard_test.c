@@ -31,6 +31,16 @@ static result_t cmd_capture_proc(window_t *win, uint32_t msg,
     return 0;
 }
 
+static result_t wheel_blocking_parent_proc(window_t *win, uint32_t msg,
+                                           uint32_t wparam, void *lparam) {
+    (void)win;
+    (void)wparam;
+    (void)lparam;
+    if (msg == evCreate || msg == evDestroy) return 1;
+    if (msg == evParentNotify) return 1;
+    return 0;
+}
+
 static void reset_cmd_state(void) {
     g_cmd_count        = 0;
     g_last_notification = 0;
@@ -526,6 +536,28 @@ void test_cv_report_click_no_scroll_child(void) {
     PASS();
 }
 
+void test_cv_report_wheel_scrolls_child(void) {
+    TEST("win_reportview report child: mouse wheel scrolls even with noisy parent");
+
+    test_env_init();
+    window_t *parent = test_env_create_window("P", 0, 0, 300, 200,
+                                               wheel_blocking_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cv = make_report_columnview(parent, 300, 200);
+    ASSERT_NOT_NULL(cv);
+    add_items(cv, 20);
+
+    ASSERT_EQUAL((int)cv->scroll[1], 0);
+
+    // Negative HIWORD produces a positive scroll delta in user/message.c.
+    send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-4));
+    ASSERT_TRUE((int)cv->scroll[1] > 0);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 // ---- main ------------------------------------------------------------------ //
 
 // ---- large-icon view tests ------------------------------------------------- //
@@ -704,6 +736,7 @@ int main(int argc, char *argv[]) {
     test_cv_down_scrolls_selection_into_view();
     test_cv_report_click_no_scroll_child();
     test_cv_report_click_after_scroll_child();
+    test_cv_report_wheel_scrolls_child();
     test_cv_large_icon_seticonsize();
     test_cv_large_icon_setviewmode();
     test_cv_large_icon_down_from_no_selection();
