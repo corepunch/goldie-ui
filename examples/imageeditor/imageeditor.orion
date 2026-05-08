@@ -163,7 +163,6 @@
       <form name="new_image"
             title="New Image"
             width="180"
-            auto_layout="1"
             spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
@@ -187,7 +186,6 @@
       <form name="image_resize"
             title="Image Size"
             width="210"
-            auto_layout="1"
             spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
@@ -212,8 +210,7 @@
 
       <form name="grid_options"
             title="Grid Options"
-            frame="0 0 180 94"
-            auto_layout="1"
+            width="180"
             spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
@@ -236,8 +233,7 @@
 
       <form name="selection_modify"
             title="Modify Selection"
-            frame="0 0 180 68"
-            auto_layout="1"
+            width="180"
             spacing="8"
             padding="8">
         <stack name="amount_row" orientation="horizontal" spacing="6">
@@ -255,8 +251,7 @@
 
       <form name="new_layer"
             title="New Layer"
-            frame="0 0 200 68"
-            auto_layout="1"
+            width="200"
             spacing="8"
             padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
@@ -272,8 +267,7 @@
 
       <form name="add_mask"
             title="Add Mask"
-            frame="0 0 220 68"
-            auto_layout="1"
+            width="220"
             spacing="8"
             padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
@@ -290,8 +284,7 @@
 
       <form name="text_tool"
             title="Insert Text"
-            frame="0 0 220 96"
-            auto_layout="1"
+            width="220"
             spacing="6"
             padding="8">
         <stack name="text_row" orientation="horizontal" spacing="6">
@@ -318,8 +311,7 @@
 
       <form name="levels"
             title="Levels"
-            frame="0 0 280 222"
-            auto_layout="1"
+            width="280" height="222"
             spacing="6"
             padding="10">
         <requires library="imageeditor_components" />
@@ -364,11 +356,9 @@
 
       <form name="filter_gallery"
             title="Filter Gallery"
-            frame="0 0 560 360"
+            width="560" height="360"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
-            auto_layout="1"
-            padding="8"
->
+            padding="8">
         <requires library="imageeditor_components" />
         <grid name="main" spacing="8" flags="WINDOW_FLEXSPACE">
           <column name="preview_col">
@@ -388,9 +378,8 @@
 
       <form name="blur_dialog"
             title="Blur"
-            frame="0 0 240 96"
+            width="240"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
-            auto_layout="1"
             spacing="6"
             padding="10">
         <stack name="amount_row" orientation="vertical" spacing="2">
@@ -408,8 +397,7 @@
 
       <form name="about"
             title="About Orion Image Editor"
-            frame="0 0 270 120"
-            auto_layout="1"
+            width="270" height="120"
             orientation="horizontal"
             spacing="8"
             padding="0">
@@ -424,22 +412,21 @@
           <space name="spacer" />
           <stack name="actions" orientation="horizontal" spacing="6">
             <space name="flex" />
-            <button name="ok" text="OK" width="50" height="19" flags="BUTTON_DEFAULT" />
+            <button name="ok" text="OK" width="50" flags="BUTTON_DEFAULT" />
           </stack>
         </stack>
       </form>
 
       <form name="color_picker"
             title="Edit Color"
-            frame="0 0 240 128"
-            auto_layout="1"
+            width="240" height="128"
             spacing="0"
             padding="0">
         <cp_surface name="surface" width="240" height="104" />
         <stack name="actions" orientation="horizontal" spacing="2">
-          <button name="ok" text="OK" width="40" height="19" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" width="48" height="19" />
-          <button name="add_palette" text="+ Palette" width="62" height="19" />
+          <button name="ok" text="OK" width="40" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" width="48" />
+          <button name="add_palette" text="+ Palette" width="62" />
           <space name="flex" />
         </stack>
       </form>

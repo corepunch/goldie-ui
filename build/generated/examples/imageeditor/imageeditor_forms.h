@@ -486,7 +486,7 @@ static const form_ctrl_def_t imageeditor_grid_options_children[] = {
 static const form_def_t imageeditor_grid_options_form = {
   .name = "Grid Options",
   .width = 180,
-  .height = 94,
+  .height = 0,
   .flags = 0,
   .auto_layout = true,
   .layout_kind = "stack",
@@ -513,7 +513,7 @@ static const form_ctrl_def_t imageeditor_selection_modify_children[] = {
 static const form_def_t imageeditor_selection_modify_form = {
   .name = "Modify Selection",
   .width = 180,
-  .height = 68,
+  .height = 0,
   .flags = 0,
   .auto_layout = true,
   .layout_kind = "stack",
@@ -538,7 +538,7 @@ static const form_ctrl_def_t imageeditor_new_layer_children[] = {
 static const form_def_t imageeditor_new_layer_form = {
   .name = "New Layer",
   .width = 200,
-  .height = 68,
+  .height = 0,
   .flags = 0,
   .auto_layout = true,
   .layout_kind = "stack",
@@ -564,7 +564,7 @@ static const form_ctrl_def_t imageeditor_add_mask_children[] = {
 static const form_def_t imageeditor_add_mask_form = {
   .name = "Add Mask",
   .width = 220,
-  .height = 68,
+  .height = 0,
   .flags = 0,
   .auto_layout = true,
   .layout_kind = "stack",
@@ -598,7 +598,7 @@ static const form_ctrl_def_t imageeditor_text_tool_children[] = {
 static const form_def_t imageeditor_text_tool_form = {
   .name = "Insert Text",
   .width = 220,
-  .height = 96,
+  .height = 0,
   .flags = 0,
   .auto_layout = true,
   .layout_kind = "stack",
@@ -698,7 +698,7 @@ static const form_ctrl_def_t imageeditor_blur_dialog_children[] = {
 static const form_def_t imageeditor_blur_dialog_form = {
   .name = "Blur",
   .width = 240,
-  .height = 96,
+  .height = 0,
   .flags = WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
   .auto_layout = true,
   .layout_kind = "stack",
@@ -722,7 +722,7 @@ static const form_ctrl_def_t imageeditor_about_children[] = {
   { "space", ID_ABOUT_SPACER, { 0, 0 }, 0, "", "spacer", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 16, false },
   { "stack", ID_ABOUT_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_INFO, 1, false, 16, false },
   { "space", ID_ABOUT_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
-  { "button", ID_ABOUT_OK, { 50, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
+  { "button", ID_ABOUT_OK, { 50, 0 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_ABOUT_ACTIONS, 1, false, 16, false },
 };
 
 static const form_def_t imageeditor_about_form = {
@@ -743,9 +743,9 @@ static const form_def_t imageeditor_about_form = {
 static const form_ctrl_def_t imageeditor_color_picker_children[] = {
   { "cp_surface", ID_COLOR_PICKER_SURFACE, { 240, 104 }, 0, "", "surface", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "stack", ID_COLOR_PICKER_ACTIONS, { 0, 0 }, 0, "", "actions", 0, 0, NULL, 0, "stack", WINDOW_STACK_HORIZONTAL, 2, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "button", ID_COLOR_PICKER_OK, { 40, 19 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
-  { "button", ID_COLOR_PICKER_CANCEL, { 48, 19 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
-  { "button", ID_COLOR_PICKER_ADD_PALETTE, { 62, 19 }, 0, "+ Palette", "add_palette", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_OK, { 40, 0 }, BUTTON_DEFAULT, "OK", "ok", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_CANCEL, { 48, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
+  { "button", ID_COLOR_PICKER_ADD_PALETTE, { 62, 0 }, 0, "+ Palette", "add_palette", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
   { "space", ID_COLOR_PICKER_FLEX, { 0, 0 }, 0, "", "flex", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_COLOR_PICKER_ACTIONS, 1, false, 16, false },
 };
 

@@ -40,8 +40,7 @@
     <forms>
       <form name="new_post"
             title="New Post"
-            frame="0 0 272 250"
-            auto_layout="1"
+            width="272" height="250"
             spacing="0"
             padding="8">
         <grid name="fields" spacing="4" flags="WINDOW_FLEXSPACE">
@@ -67,10 +66,8 @@
 
       <form name="new_comment"
             title="New Comment"
-            frame="0 0 260 84"
-            auto_layout="1"
-            padding="8"
->
+            width="260"
+            padding="8">
         <stack name="author_row" orientation="horizontal" spacing="6">
           <label name="lbl_author" text="Author:" />
           <textedit name="author" />
@@ -90,10 +87,8 @@
 
       <form name="post_detail"
             title="Post Detail"
-            frame="0 0 520 336"
-            auto_layout="1"
-            padding="8"
->
+            width="520" height="336"
+            padding="8">
         <stack name="header" orientation="vertical" spacing="2">
           <!-- Post header labels (populated in evCreate) -->
           <label name="lbl_title" font="system" color="text-normal" />

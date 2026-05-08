@@ -42,6 +42,35 @@ static bool streq(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
 }
 
+/* Window class defaults for redundant attribute optimization */
+typedef struct {
+  const char *class_name;
+  int default_height;
+  flags_t default_flags;
+} class_defaults_t;
+
+static const class_defaults_t kClassDefaults[] = {
+  { "button",     19, 0 },
+  { "label",      13, 0 },
+  { "textedit",   13, 0 },
+  { "checkbox",   13, 0 },
+  { "combobox",   13, 0 },
+  { "separator",   1, 0 },
+  { "space",       0, WINDOW_FLEXSPACE },
+  { "reportview", 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE },
+  { "list",       100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE },
+  { "multiedit",  100, WINDOW_VSCROLL },
+};
+
+static const class_defaults_t *find_class_defaults(const char *class_name) {
+  if (!class_name) return NULL;
+  for (int i = 0; i < (int)(sizeof(kClassDefaults)/sizeof(kClassDefaults[0])); i++) {
+    if (streq(kClassDefaults[i].class_name, class_name))
+      return &kClassDefaults[i];
+  }
+  return NULL;
+}
+
 static bool is_ident_expr(const char *s) {
   if (!s || !*s) return false;
   unsigned char c = (unsigned char)*s++;
@@ -72,36 +101,22 @@ static const char *nonempty(const char *s, const char *fallback) {
 
 static bool parse_frame(xmlNodePtr node, frame_t *out) {
   if (!node || !out) return false;
-  char *frame = attr_dup(node, "frame");
-  if (frame) {
-    bool ok = sscanf(frame, "%d %d %d %d", &out->x, &out->y, &out->w, &out->h) == 4;
-    free(frame);
-    if (ok) return true;
-  }
-
-  char *x = attr_dup(node, "x");
-  char *y = attr_dup(node, "y");
+  
+  /* frame= attribute is no longer supported - use width= and height= */
   char *w = attr_dup(node, "w");
   char *h = attr_dup(node, "h");
   if (!w) w = attr_dup(node, "width");
   if (!h) h = attr_dup(node, "height");
-  if (x && y && w && h) {
-    out->x = atoi(x);
-    out->y = atoi(y);
-    out->w = atoi(w);
-    out->h = atoi(h);
-    free(x); free(y); free(w); free(h);
-    return true;
-  }
+  
   if (w || h) {
     out->x = 0;
     out->y = 0;
     out->w = w ? atoi(w) : 0;
     out->h = h ? atoi(h) : 0;
-    free(x); free(y); free(w); free(h);
+    free(w); free(h);
     return true;
   }
-  free(x); free(y); free(w); free(h);
+  free(w); free(h);
   return false;
 }
 
@@ -384,11 +399,10 @@ static const char *layout_kind_attr(const char *v, const char *fallback) {
 
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
-                              bool allow_auto_layout, int *out_count);
+                              int *out_count);
 
 static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
-                              const char *ident, const char *parent_expr,
-                              bool allow_auto_layout) {
+                              const char *ident, const char *parent_expr) {
   char *klass = control_class_name(c);
   char *name = attr_dup(c, "name");
   char *text = attr_dup(c, "text");
@@ -419,32 +433,23 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     return false;
   }
 
+  /* All layout is auto now */
   if (!parse_frame(c, &cr)) {
-    if (!allow_auto_layout && !nested) {
-      fprintf(stderr, "orionc: control '%s' in form '%s' has no valid frame\n",
-              nonempty(name, ""), nonempty(scope, ""));
-      free(klass); free(name); free(text); free(cflags);
-      free(h_align); free(v_align); free(layout_kind);
-      free(layout_orientation); free(layout_spacing);
-      free(padding); free(margin); free(font); free(color);
-      return false;
-    }
     cr = (frame_t){0, 0, 0, 0};
   } else if (nested && !keep_nested_frame) {
     cr = (frame_t){0, 0, 0, 0};
   }
 
-  if (allow_auto_layout || nested) {
-    if (!layout_kind || !*layout_kind) {
-      free(layout_kind);
-      layout_kind = strdup(layout_kind_default_for_class(emit_class));
-    }
-    if (!layout_orientation || !*layout_orientation)
-      layout_orientation = strdup("vertical");
-    if (!layout_spacing || !*layout_spacing) {
-      free(layout_spacing);
-      layout_spacing = strdup("4");
-    }
+  /* Set layout defaults */
+  if (!layout_kind || !*layout_kind) {
+    free(layout_kind);
+    layout_kind = strdup(layout_kind_default_for_class(emit_class));
+  }
+  if (!layout_orientation || !*layout_orientation)
+    layout_orientation = strdup("vertical");
+  if (!layout_spacing || !*layout_spacing) {
+    free(layout_spacing);
+    layout_spacing = strdup("4");
   }
 
   if (!parse_rect_attr(c, "padding", &pad))
@@ -496,7 +501,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
 
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
-                              bool allow_auto_layout, int *out_count) {
+                              int *out_count) {
   int count = 0;
   int ordinal = 0;
   for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
@@ -508,7 +513,7 @@ static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
     free(name);
     free(klass);
 
-    if (!emit_control_node(f, c, scope, ident, parent_expr, allow_auto_layout))
+    if (!emit_control_node(f, c, scope, ident, parent_expr))
       return false;
     count++;
     ordinal++;
@@ -524,7 +529,7 @@ static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
       }
       const char *next_parent = next_parent_buf;
       int subcount = 0;
-      if (!emit_control_tree(f, c, scope, form_ident, next_parent, true, &subcount)) {
+      if (!emit_control_tree(f, c, scope, form_ident, next_parent, &subcount)) {
         free(cname);
         free(cclass);
         return false;
@@ -1038,12 +1043,12 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *layout_spacing = attr_dup_first(form, "spacing", "layout_spacing");
   char *padding = attr_dup_first(form, "padding", "layout_padding");
   char *margin = attr_dup_first(form, "margin", "layout_margin");
-  bool auto_layout = attr_is_true(form, "auto_layout");
+  /* auto_layout is always true now */
   frame_t fr = {0, 0, 0, 0};
   frame_t pad = {0, 0, 0, 0};
   frame_t mar = {0, 0, 0, 0};
   if (!parse_frame(form, &fr)) {
-    fprintf(stderr, "orionc: form '%s' has no valid frame\n", nonempty(id, ""));
+    fprintf(stderr, "orionc: form '%s' requires width= attribute\n", nonempty(id, ""));
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_spacing);
     free(padding); free(margin);
@@ -1059,7 +1064,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
           prefix, id_ident);
   int child_count = 0;
-  if (!emit_control_tree(f, form, id_ident, id_ident, "0", auto_layout, &child_count)) {
+  if (!emit_control_tree(f, form, id_ident, id_ident, "0", &child_count)) {
     free(id); free(title); free(flags);
     free(layout_kind); free(layout_orientation); free(layout_spacing);
     free(padding); free(margin);
@@ -1071,9 +1076,9 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprint_c_string(f, nonempty(title, nonempty(id, "")));
   fprintf(f, ",\n  .width = %d,\n  .height = %d,\n", fr.w, fr.h);
   fprintf(f, "  .flags = %s,\n", nonempty(flags, "0"));
-  fprintf(f, "  .auto_layout = %s,\n", auto_layout ? "true" : "false");
+  fprintf(f, "  .auto_layout = true,\n");  /* always true now */
   fprintf(f, "  .layout_kind = ");
-  fprint_c_string(f, layout_kind_attr(layout_kind, auto_layout ? "stack" : "none"));
+  fprint_c_string(f, layout_kind_attr(layout_kind, "stack"));
   fputs(",\n", f);
   fprintf(f, "  .layout_orientation = %s,\n",
           layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)));
