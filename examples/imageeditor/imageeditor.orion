@@ -417,67 +417,31 @@
 
       <form name="onion_skin"
             title="Onion Skin"
-            frame="0 0 240 166"
+            frame="0 0 260 142"
             flags="0"
             auto_layout="1"
             spacing="6"
             padding="8">
         <checkbox name="enabled" text="Enable Onion Skin" flags="0" />
-        <grid name="hdr" spacing="4">
-          <column name="hdr_labels" width="66">
-            <label name="lbl_slot" text="Distance" flags="0" />
-          </column>
-          <column name="hdr_prev">
-            <label name="lbl_prev" text="Previous %" flags="0" />
-          </column>
-          <column name="hdr_next">
-            <label name="lbl_next" text="Next %" flags="0" />
-          </column>
-        </grid>
-        <grid name="row1" spacing="4">
-          <column name="row1_label" width="66">
-            <label name="lbl_prev1" text="1 frame" flags="0" />
-          </column>
-          <column name="row1_prev">
-            <textedit name="prev1" text="40" flags="0" />
-          </column>
-          <column name="row1_next">
-            <textedit name="next1" text="30" flags="0" />
-          </column>
-        </grid>
-        <grid name="row2" spacing="4">
-          <column name="row2_label" width="66">
-            <label name="lbl_prev2" text="2 frames" flags="0" />
-          </column>
-          <column name="row2_prev">
-            <textedit name="prev2" text="20" flags="0" />
-          </column>
-          <column name="row2_next">
-            <textedit name="next2" text="15" flags="0" />
-          </column>
-        </grid>
-        <grid name="row3" spacing="4">
-          <column name="row3_label" width="66">
-            <label name="lbl_prev3" text="3 frames" flags="0" />
-          </column>
-          <column name="row3_prev">
-            <textedit name="prev3" text="10" flags="0" />
-          </column>
-          <column name="row3_next">
-            <textedit name="next3" text="8" flags="0" />
-          </column>
-        </grid>
-        <grid name="row4" spacing="4">
-          <column name="row4_label" width="66">
-            <label name="lbl_prev4" text="4 frames" flags="0" />
-          </column>
-          <column name="row4_prev">
-            <textedit name="prev4" text="5" flags="0" />
-          </column>
-          <column name="row4_next">
-            <textedit name="next4" text="4" flags="0" />
-          </column>
-        </grid>
+        <label name="selected_label" text="Selected: Previous 1 (40%)" flags="0" />
+        <stack name="prev_row" orientation="horizontal" spacing="4">
+          <label name="prev_label" text="Prev" width="30" />
+          <button name="prev1" text="40%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="prev2" text="20%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="prev3" text="10%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="prev4" text="5%" width="44" flags="BUTTON_PUSHLIKE" />
+        </stack>
+        <stack name="next_row" orientation="horizontal" spacing="4">
+          <label name="next_label" text="Next" width="30" />
+          <button name="next1" text="30%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="next2" text="15%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="next3" text="8%" width="44" flags="BUTTON_PUSHLIKE" />
+          <button name="next4" text="4%" width="44" flags="BUTTON_PUSHLIKE" />
+        </stack>
+        <stack name="value_row" orientation="vertical" spacing="2">
+          <label name="value_label" text="Gray: 40%" flags="0" />
+          <slider name="value" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+        </stack>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
