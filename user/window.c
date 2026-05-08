@@ -23,6 +23,40 @@ static bool streq(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
 }
 
+static bool layout_child_flex_affects_parent(const window_t *parent, const window_t *child) {
+  if (!parent || !child || !(child->flags & WINDOW_FLEXSPACE)) return false;
+
+  bool parent_is_stack_like = parent->layout_kind &&
+    (streq(parent->layout_kind, "stack") ||
+     streq(parent->layout_kind, "stackview") ||
+     streq(parent->layout_kind, "flow") ||
+     streq(parent->layout_kind, "flowview"));
+
+  // Horizontal action rows often contain local flex spacers.  If that row is
+  // nested in a vertical container, keep the spacer local to the row instead of
+  // promoting the whole row to a vertically flexible child.
+  if (!child->layout_kind && parent_is_stack_like &&
+      (parent->layout_orientation & WINDOW_STACK_HORIZONTAL) &&
+      parent->parent && parent->parent->layout_kind &&
+      !(parent->parent->layout_orientation & WINDOW_STACK_HORIZONTAL)) {
+    return false;
+  }
+
+  // Horizontal stack/flow rows use flex spacers locally.  They should not make
+  // an orthogonal parent stack claim extra vertical room.
+  if (child->layout_kind &&
+      (streq(child->layout_kind, "stack") ||
+       streq(child->layout_kind, "stackview") ||
+       streq(child->layout_kind, "flow") ||
+       streq(child->layout_kind, "flowview"))) {
+    bool child_horizontal  = (child->layout_orientation & WINDOW_STACK_HORIZONTAL) != 0;
+    bool parent_horizontal = (parent->layout_orientation & WINDOW_STACK_HORIZONTAL) != 0;
+    if (child_horizontal != parent_horizontal) return false;
+  }
+
+  return true;
+}
+
 bool register_window_class(const fe_component_desc_t *desc) {
   if (!desc || !desc->class_name || !*desc->class_name || !desc->proc) return false;
   for (int i = 0; i < g_window_class_count; i++) {
@@ -1008,7 +1042,7 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
       
       // Merge class default flags with instance flags
       child_flags |= class_desc->default_flags;
-      
+
       // Use class default alignment if not explicitly set
       if (child_h_align == 0)
         child_h_align = class_desc->default_h_align;
@@ -1038,7 +1072,7 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
   if (parent && parent->children) {
     bool any_child_flexspace = false;
     for (window_t *child = parent->children; child; child = child->next) {
-      if (child->flags & WINDOW_FLEXSPACE) {
+      if (layout_child_flex_affects_parent(parent, child)) {
         any_child_flexspace = true;
         break;
       }
@@ -1170,7 +1204,7 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
   if (parent && parent->children) {
     bool any_child_flexspace = false;
     for (window_t *child = parent->children; child; child = child->next) {
-      if (child->flags & WINDOW_FLEXSPACE) {
+      if (layout_child_flex_affects_parent(parent, child)) {
         any_child_flexspace = true;
         break;
       }

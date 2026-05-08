@@ -5,6 +5,10 @@
 #include "../user/draw.h"
 #include "commctl.h"
 
+// Separator controls are intended to occupy a visible band, not a 1px hairline.
+// The line itself is drawn centered inside this band.
+#define SEPARATOR_BAND 6
+
 static bool separator_is_vertical(window_t *win) {
   if (!win || !win->parent) return false;
   if (win->parent->flags & WINDOW_TOOLBAR) return true;
@@ -22,11 +26,11 @@ result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
         if (separator_is_vertical(win)) {
-          m->desired_w = 1;
+          m->desired_w = SEPARATOR_BAND;
           m->desired_h = MAX(1, m->avail_h);
         } else {
           m->desired_w = MAX(1, m->avail_w);
-          m->desired_h = 1;
+          m->desired_h = SEPARATOR_BAND;
         }
       }
       return true;
