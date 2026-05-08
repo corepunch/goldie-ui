@@ -165,8 +165,7 @@
             frame="0 0 180 84"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="8"
+            spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
@@ -191,10 +190,8 @@
             frame="0 0 210 104"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="8"
-            padding="8"
->
+            spacing="8"
+            padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
             <label name="lbl_width" text="Width:" flags="0" />
@@ -220,10 +217,8 @@
             frame="0 0 180 94"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="8"
-            padding="8"
->
+            spacing="8"
+            padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
             <label name="lbl_width" text="Width:" flags="0" />
@@ -247,10 +242,8 @@
             frame="0 0 180 68"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="8"
-            padding="8"
->
+            spacing="8"
+            padding="8">
         <stack name="amount_row" orientation="horizontal" spacing="6">
           <label name="lbl_amount" text="By:" flags="0" />
           <textedit name="amount" text="" flags="WINDOW_FLEXSPACE" />
@@ -269,10 +262,8 @@
             frame="0 0 200 68"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="8"
-            padding="8"
->
+            spacing="8"
+            padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
           <label name="lbl_fill" text="Fill with:" flags="0" />
           <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
@@ -289,10 +280,8 @@
             frame="0 0 220 68"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="8"
-            padding="8"
->
+            spacing="8"
+            padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
           <label name="lbl_fill" text="Fill with:" flags="0" />
           <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
@@ -310,10 +299,8 @@
             frame="0 0 220 96"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="6"
-            padding="8"
->
+            spacing="6"
+            padding="8">
         <stack name="text_row" orientation="horizontal" spacing="6">
           <label name="lbl_text" text="Text:" flags="0" />
           <textedit name="edit_text" text="" flags="WINDOW_FLEXSPACE" />
@@ -341,10 +328,8 @@
             frame="0 0 280 222"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="6"
-            padding="10"
->
+            spacing="6"
+            padding="10">
         <requires library="imageeditor_components" />
         <grid name="input_row" spacing="4">
           <column name="in_label_col" width="72">
@@ -414,10 +399,8 @@
             frame="0 0 240 96"
             flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="6"
-            padding="10"
->
+            spacing="6"
+            padding="10">
         <stack name="amount_row" orientation="vertical" spacing="2">
           <label name="amount_label" text="Blur: 4px" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
@@ -436,9 +419,8 @@
             frame="0 0 270 120"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_orientation="horizontal"
-            layout_spacing="8"
+            orientation="horizontal"
+            spacing="8"
             padding="0">
         <image name="banner" width="120" height="120" />
         <stack name="info" flags="WINDOW_FLEXSPACE" spacing="2" padding="0 8 4 4">
@@ -461,8 +443,7 @@
             frame="0 0 240 128"
             flags="0"
             auto_layout="1"
-            layout_kind="stack"
-            layout_spacing="0"
+            spacing="0"
             padding="0">
         <cp_surface name="surface" width="240" height="104" />
         <stack name="actions" orientation="horizontal" spacing="2">
