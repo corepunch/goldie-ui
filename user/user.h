@@ -95,7 +95,6 @@ typedef struct {
   bool auto_layout;
   const char *layout_kind;
   flags_t layout_orientation;
-  uint8_t layout_columns;
   uint8_t layout_spacing;
 } windef_t;
 
@@ -205,7 +204,6 @@ typedef struct form_ctrl_def_s {
   int               child_count; // number of entries in children[]
   const char       *layout_kind; // layout class name for containers
   flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL = bit flag, 0 = vertical
-  uint8_t           layout_columns; // grid columns (0 = default)
   uint8_t           layout_spacing; // spacing between direct children; 0 = default
   irect16_t         padding; // inner padding for layout containers
   irect16_t         margin;  // outer margin when this control is laid out by a parent
@@ -230,7 +228,6 @@ typedef struct {
   bool                    auto_layout; // enable measure/arrange on children
   const char             *layout_kind;  // layout class name: "stack", "grid", or NULL
   flags_t                 layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
-  uint8_t                 layout_columns; // grid columns (0 = default)
   uint8_t                 layout_spacing; // spacing between direct children; 0 = default
   irect16_t               padding;      // inner padding for auto-layout content
   irect16_t               margin;       // outer margin for this form when nested
@@ -353,7 +350,6 @@ struct window_s {
   bool      auto_layout;    // auto layout the direct children
   const char *layout_kind;  // layout class name: "stack", "grid", or NULL
   flags_t   layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
-  uint8_t   layout_columns;  // grid columns (0 = default)
   uint8_t   h_align;        // horizontal alignment; 0 = stretch
   uint8_t   v_align;        // vertical alignment; 0 = stretch
   uint8_t   layout_spacing;  // spacing between direct children; 0 = default

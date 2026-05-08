@@ -101,7 +101,6 @@ result_t main_win_proc(window_t *win, uint32_t msg,
         layout_view_config_t stack_cfg = {
           .layout_kind = "stack",
           .orientation = WINDOW_STACK_VERTICAL,
-          .columns = 0,
         };
         g_app->content_win = create_window(
             "", WINDOW_NOTITLE | WINDOW_NOFILL,

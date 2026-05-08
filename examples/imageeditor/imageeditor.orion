@@ -169,11 +169,15 @@
             layout_spacing="8"
             padding="8"
 >
-        <grid name="fields" columns="2" spacing="4">
-          <label name="lbl_width" text="Width:" flags="0" />
-          <textedit name="width" text="" flags="WINDOW_FLEXSPACE" />
-          <label name="lbl_height" text="Height:" flags="0" />
-          <textedit name="height" text="" flags="WINDOW_FLEXSPACE" />
+        <grid name="fields" spacing="4">
+          <column name="labels" width="48">
+            <label name="lbl_width" text="Width:" flags="0" />
+            <label name="lbl_height" text="Height:" flags="0" />
+          </column>
+          <column name="inputs" flags="WINDOW_FLEXSPACE">
+            <textedit name="width" text="" flags="0" />
+            <textedit name="height" text="" flags="0" />
+          </column>
         </grid>
         <space name="spacer" />
         <stack name="actions" orientation="horizontal" spacing="6">
@@ -192,13 +196,17 @@
             layout_spacing="8"
             padding="8"
 >
-        <grid name="fields" columns="2" spacing="4">
-          <label name="lbl_width" text="Width:" flags="0" />
-          <textedit name="width" text="" flags="WINDOW_FLEXSPACE" />
-          <label name="lbl_height" text="Height:" flags="0" />
-          <textedit name="height" text="" flags="WINDOW_FLEXSPACE" />
-          <label name="lbl_filter" text="Filter:" flags="0" />
-          <combobox name="filter" text="" flags="WINDOW_FLEXSPACE" />
+        <grid name="fields" spacing="4">
+          <column name="labels" width="48">
+            <label name="lbl_width" text="Width:" flags="0" />
+            <label name="lbl_height" text="Height:" flags="0" />
+            <label name="lbl_filter" text="Filter:" flags="0" />
+          </column>
+          <column name="inputs" flags="WINDOW_FLEXSPACE">
+            <textedit name="width" text="" flags="0" />
+            <textedit name="height" text="" flags="0" />
+            <combobox name="filter" text="" flags="0" />
+          </column>
         </grid>
         <space name="spacer" />
         <stack name="actions" orientation="horizontal" spacing="6">
@@ -217,11 +225,15 @@
             layout_spacing="8"
             padding="8"
 >
-        <grid name="fields" columns="2" spacing="4">
-          <label name="lbl_h" text="Horizontal:" flags="0" />
-          <textedit name="gridx" text="" flags="WINDOW_FLEXSPACE" />
-          <label name="lbl_v" text="Vertical:" flags="0" />
-          <textedit name="gridy" text="" flags="WINDOW_FLEXSPACE" />
+        <grid name="fields" spacing="4">
+          <column name="labels" width="48">
+            <label name="lbl_width" text="Width:" flags="0" />
+            <label name="lbl_height" text="Height:" flags="0" />
+          </column>
+          <column name="inputs" flags="WINDOW_FLEXSPACE">
+            <textedit name="width" text="" flags="0" />
+            <textedit name="height" text="" flags="0" />
+          </column>
         </grid>
         <space name="spacer" />
         <stack name="actions" orientation="horizontal" spacing="6">
@@ -335,18 +347,32 @@
             padding="10"
 >
         <requires library="imageeditor_components" />
-        <grid name="input_row" columns="4" spacing="4">
-          <label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <textedit name="in_black" text="0" flags="0" />
-          <textedit name="in_gamma" text="1.00" flags="0" />
-          <textedit name="in_white" text="255" flags="0" />
+        <grid name="input_row" spacing="4">
+          <column name="in_label_col" width="72">
+            <label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          </column>
+          <column name="in_black_col">
+            <textedit name="in_black" text="0" flags="0" />
+          </column>
+          <column name="in_gamma_col">
+            <textedit name="in_gamma" text="1.00" flags="0" />
+          </column>
+          <column name="in_white_col">
+            <textedit name="in_white" text="255" flags="0" />
+          </column>
         </grid>
         <lv_histogram name="graph" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="in_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        <grid name="output_row" columns="3" spacing="4">
-          <label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          <textedit name="out_black" text="0" flags="0" />
-          <textedit name="out_white" text="255" flags="0" />
+        <grid name="output_row" spacing="4">
+          <column name="out_label_col" width="80">
+            <label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          </column>
+          <column name="out_black_col">
+            <textedit name="out_black" text="0" flags="0" />
+          </column>
+          <column name="out_white_col">
+            <textedit name="out_white" text="255" flags="0" />
+          </column>
         </grid>
         <gradient name="out_grad" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="out_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />

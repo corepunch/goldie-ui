@@ -1336,7 +1336,6 @@ void test_stackview_layout(void) {
   layout_view_config_t cfg = {
     .layout_kind = "stack",
     .orientation = WINDOW_STACK_VERTICAL,
-    .columns = 0,
   };
   window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
                                  MAKERECT(0, 0, 200, 100),
@@ -1370,7 +1369,6 @@ void test_gridview_layout(void) {
   layout_view_config_t cfg = {
     .layout_kind = "grid",
     .orientation = WINDOW_STACK_VERTICAL,
-    .columns = 0,
     .spacing = 4,
   };
   window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
@@ -1423,7 +1421,6 @@ void test_gridview_nested_columns_no_overlap(void) {
   layout_view_config_t cfg = {
     .layout_kind = "grid",
     .orientation = WINDOW_STACK_VERTICAL,
-    .columns = 2,
     .spacing = 24,
   };
   window_t *root = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,

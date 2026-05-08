@@ -22,8 +22,8 @@ typedef struct { int x, y; } go_state_t;
 // ──────────────────────────────────────────────────────────────────
 
 static const ctrl_binding_t k_go_bindings[] = {
-  DDX_TEXT(ID_GRID_OPTIONS_GRIDX, go_state_t, x),
-  DDX_TEXT(ID_GRID_OPTIONS_GRIDY, go_state_t, y),
+  DDX_TEXT(ID_GRID_OPTIONS_WIDTH, go_state_t, x),
+  DDX_TEXT(ID_GRID_OPTIONS_HEIGHT, go_state_t, y),
 };
 
 // ──────────────────────────────────────────────────────────────────

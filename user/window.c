@@ -660,7 +660,6 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     layout_view_config_t cfg = {
       .layout_kind = cd->layout_kind,
       .orientation = cd->layout_orientation,
-      .columns = cd->layout_columns,
       .spacing = cd->layout_spacing,
       .padding = cd->padding,
       .margin = cd->margin,
@@ -733,7 +732,6 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   win->auto_layout       = def->auto_layout;
   win->layout_kind       = def->layout_kind;
   win->layout_orientation= def->layout_orientation;
-  win->layout_columns    = def->layout_columns;
   win->layout_spacing    = def->layout_spacing;
   win->layout_padding    = def->padding;
   win->layout_margin     = def->margin;
@@ -780,7 +778,6 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     layout_view_config_t cfg = {
       .layout_kind = cd->layout_kind,
       .orientation = cd->layout_orientation,
-      .columns = cd->layout_columns,
       .spacing = cd->layout_spacing,
       .padding = cd->padding,
       .margin = cd->margin,

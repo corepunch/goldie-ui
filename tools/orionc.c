@@ -325,14 +325,6 @@ static char *attr_dup_first(xmlNodePtr node, const char *a, const char *b) {
   return b ? attr_dup(node, b) : NULL;
 }
 
-static uint8_t layout_columns_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  char *end = NULL;
-  long n = strtol(v, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
-  return fallback;
-}
-
 static uint8_t layout_spacing_attr(const char *v, uint8_t fallback) {
   if (!v || !*v) return fallback;
   char *end = NULL;
@@ -390,13 +382,6 @@ static const char *layout_kind_attr(const char *v, const char *fallback) {
   return fallback;
 }
 
-static uint8_t layout_columns_default_for_class(const char *klass) {
-  if (!klass) return 0;
-  if (!strcmp(klass, "grid") || !strcmp(klass, "gridview"))
-    return 0;
-  return 0;
-}
-
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
                               bool allow_auto_layout, int *out_count);
@@ -414,7 +399,6 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   if (!v_align) v_align = attr_dup(c, "v_align");
   char *layout_kind = attr_dup(c, "layout_kind");
   char *layout_orientation = attr_dup_first(c, "orientation", "layout_orientation");
-  char *layout_columns = attr_dup_first(c, "columns", "layout_columns");
   char *layout_spacing = attr_dup_first(c, "spacing", "layout_spacing");
   char *padding = attr_dup_first(c, "padding", "layout_padding");
   char *margin = attr_dup_first(c, "margin", "layout_margin");
@@ -430,7 +414,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   if (!emit_class || !*emit_class) {
     free(klass); free(name); free(text); free(cflags);
     free(h_align); free(v_align); free(layout_kind);
-    free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(layout_orientation); free(layout_spacing);
     free(padding); free(margin); free(font); free(color);
     return false;
   }
@@ -441,7 +425,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
               nonempty(name, ""), nonempty(scope, ""));
       free(klass); free(name); free(text); free(cflags);
       free(h_align); free(v_align); free(layout_kind);
-      free(layout_orientation); free(layout_columns); free(layout_spacing);
+      free(layout_orientation); free(layout_spacing);
       free(padding); free(margin); free(font); free(color);
       return false;
     }
@@ -457,13 +441,6 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     }
     if (!layout_orientation || !*layout_orientation)
       layout_orientation = strdup("vertical");
-    if (!layout_columns || !*layout_columns) {
-      char buf[16];
-      snprintf(buf, sizeof(buf), "%u",
-               (unsigned)layout_columns_default_for_class(emit_class));
-      free(layout_columns);
-      layout_columns = strdup(buf);
-    }
     if (!layout_spacing || !*layout_spacing) {
       free(layout_spacing);
       layout_spacing = strdup("4");
@@ -499,9 +476,8 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   fprintf(f, ", %u, %u, ", (unsigned)align_h_attr(h_align, 0), (unsigned)align_v_attr(v_align, 0));
   fputs("NULL, 0, ", f);
   fprint_c_string(f, layout_kind_attr(layout_kind, layout_kind_default_for_class(emit_class)));
-  fprintf(f, ", %s, %u, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %u, %s, %u, %s },\n",
+  fprintf(f, ", %s, %u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %u, %s, %u, %s },\n",
           layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)),
-          (unsigned)layout_columns_attr(layout_columns, layout_columns_default_for_class(emit_class)),
           (unsigned)layout_spacing_attr(layout_spacing, 4),
           pad.x, pad.y, pad.w, pad.h,
           mar.x, mar.y, mar.w, mar.h,
@@ -513,7 +489,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
 
   free(klass); free(name); free(text); free(cflags);
   free(h_align); free(v_align); free(layout_kind);
-  free(layout_orientation); free(layout_columns); free(layout_spacing);
+  free(layout_orientation); free(layout_spacing);
   free(padding); free(margin); free(font); free(color);
   return true;
 }
@@ -1059,7 +1035,6 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *flags = attr_dup(form, "flags");
   char *layout_kind = attr_dup(form, "layout_kind");
   char *layout_orientation = attr_dup(form, "layout_orientation");
-  char *layout_columns = attr_dup(form, "layout_columns");
   char *layout_spacing = attr_dup_first(form, "spacing", "layout_spacing");
   char *padding = attr_dup_first(form, "padding", "layout_padding");
   char *margin = attr_dup_first(form, "margin", "layout_margin");
@@ -1070,7 +1045,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   if (!parse_frame(form, &fr)) {
     fprintf(stderr, "orionc: form '%s' has no valid frame\n", nonempty(id, ""));
     free(id); free(title); free(flags);
-    free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(layout_kind); free(layout_orientation); free(layout_spacing);
     free(padding); free(margin);
     return false;
   }
@@ -1086,7 +1061,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   int child_count = 0;
   if (!emit_control_tree(f, form, id_ident, id_ident, "0", auto_layout, &child_count)) {
     free(id); free(title); free(flags);
-    free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+    free(layout_kind); free(layout_orientation); free(layout_spacing);
     free(padding); free(margin);
     return false;
   }
@@ -1102,8 +1077,6 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fputs(",\n", f);
   fprintf(f, "  .layout_orientation = %s,\n",
           layout_orientation_c_token(layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL)));
-  fprintf(f, "  .layout_columns = %u,\n",
-          (unsigned)layout_columns_attr(layout_columns, 0));
   fprintf(f, "  .layout_spacing = %u,\n",
           (unsigned)layout_spacing_attr(layout_spacing, 4));
   fprintf(f, "  .padding = { %d, %d, %d, %d },\n", pad.x, pad.y, pad.w, pad.h);
@@ -1113,7 +1086,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fputs("};\n\n", f);
 
   free(id); free(title); free(flags);
-  free(layout_kind); free(layout_orientation); free(layout_columns); free(layout_spacing);
+  free(layout_kind); free(layout_orientation); free(layout_spacing);
   free(padding); free(margin);
   return true;
 }

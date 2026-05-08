@@ -471,7 +471,6 @@ Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing a
 - `layout_spacing`: Gap between children in pixels
 - `layout_padding`: Inner padding as `irect16_t {left, top, right, bottom}`
 - `layout_orientation`: `WINDOW_STACK_HORIZONTAL` or `WINDOW_STACK_VERTICAL` (stack only)
-- `layout_columns`: Number of columns (grid only)
 
 **Child-level properties:**
 - `layout_fixed_w` / `layout_fixed_h`: Fixed width/height (0 = auto)
@@ -499,23 +498,10 @@ Arranges children in a single row (horizontal) or column (vertical). Use `WINDOW
 
 #### Grid Layout (WPF Grid Semantics)
 
-Arranges children in rows and columns. **Columns automatically share available width equally** unless given explicit width — no flags needed.
-
-**Two grid modes:**
-
-1. **Fixed columns count** (`columns="2"`): Children fill cells left-to-right, top-to-bottom
-2. **Column-based** (no columns attribute): Direct `<column>` children, each containing rows
+Arranges children in rows and columns using explicit `<column>` elements. Each column contains child elements stacked vertically. **Columns automatically share available width equally** unless given explicit width — no flags needed.
 
 ```xml
-<!-- Mode 1: Fixed column count -->
-<grid name="fields" columns="2" spacing="4">
-  <label name="lbl_width" text="Width:" />
-  <textedit name="width" value="1" flags="WINDOW_FLEXSPACE" />
-  <label name="lbl_height" text="Height:" />
-  <textedit name="height" value="2" flags="WINDOW_FLEXSPACE" />
-</grid>
-
-<!-- Mode 2: Column-based (auto-width columns) -->
+<!-- Column-based grid with auto-width columns -->
 <grid name="main" spacing="24">
   <column name="preview_col" spacing="6">
     <filter_preview name="preview" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
