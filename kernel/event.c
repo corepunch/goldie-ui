@@ -81,15 +81,15 @@ static int resize_anchor[2];
 // Handle mouse events on child windows.
 // x, y are in the parent window's client coordinate system.
 // Each child receives coords in its own client coordinate system (WinAPI style).
-static int handle_mouse(int msg, window_t *win, int x, int y) {
+static int handle_mouse(int msg, window_t *win, int x, int y, void *lparam) {
   for (window_t *c = win->children; c; c = c->next) {
     if (!CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h))
       continue;
     int lx = x - c->frame.x;
     int ly = y - c->frame.y;
-    if (handle_mouse(msg, c, lx, ly))
+    if (handle_mouse(msg, c, lx, ly, lparam))
       return true;
-    if (send_message(c, msg, MAKEDWORD(lx, ly), NULL))
+    if (send_message(c, msg, MAKEDWORD(lx, ly), lparam))
       return true;
   }
   return false;
@@ -476,11 +476,16 @@ void dispatch_message(ui_event_t *msg) {
         if (win->disabled) return;
         int16_t dx = msg->dx;
         int16_t dy = msg->dy;
-        // wparam = window-local mouse position, lparam = scroll deltas
-        send_message(win, evWheel,
-                     MAKEDWORD((uint16_t)LOCAL_X(px, py, win), (uint16_t)LOCAL_Y(px, py, win)),
-                     (void*)(intptr_t)MAKEDWORD((uint16_t)(-dx * SCROLL_SENSITIVITY),
-                                                 (uint16_t)(dy * SCROLL_SENSITIVITY)));
+        // Convert to window-local coordinates (same as clicks/moves)
+        int16_t lx = (int16_t)LOCAL_X(px, py, win);
+        int16_t ly = (int16_t)LOCAL_Y(px, py, win);
+        // Use handle_mouse to find deepest child, just like clicks do
+        // lparam contains scroll deltas
+        void *scroll_deltas = (void*)(intptr_t)MAKEDWORD((uint16_t)(-dx * SCROLL_SENSITIVITY),
+                                                          (uint16_t)(dy * SCROLL_SENSITIVITY));
+        if (!handle_mouse(evWheel, win, lx, ly, scroll_deltas)) {
+          send_message(win, evWheel, MAKEDWORD((uint16_t)lx, (uint16_t)ly), scroll_deltas);
+        }
       }
       break;
     }
@@ -559,7 +564,7 @@ void dispatch_message(ui_event_t *msg) {
             int wmsg = (msg->message == kEventLeftButtonDown)
                        ? evLeftButtonDown
                        : evRightButtonDown;
-            if (!handle_mouse(wmsg, win, lx, ly)) {
+            if (!handle_mouse(wmsg, win, lx, ly, NULL)) {
               send_message(win, wmsg, MAKEDWORD(lx, ly), NULL);
             }
           }
@@ -577,7 +582,7 @@ void dispatch_message(ui_event_t *msg) {
         if (win->disabled) return;
         int lx = LOCAL_X(px, py, win);
         int ly = LOCAL_Y(px, py, win);
-        if (!handle_mouse(evLeftButtonDoubleClick, win, lx, ly)) {
+        if (!handle_mouse(evLeftButtonDoubleClick, win, lx, ly, NULL)) {
           send_message(win, evLeftButtonDoubleClick,
                        MAKEDWORD(lx, ly), NULL);
         }
@@ -662,7 +667,7 @@ void dispatch_message(ui_event_t *msg) {
           int wmsg = (msg->message == kEventLeftButtonUp)
                      ? evLeftButtonUp
                      : evRightButtonUp;
-          if (!handle_mouse(wmsg, win, lx, ly)) {
+          if (!handle_mouse(wmsg, win, lx, ly, NULL)) {
             send_message(win, wmsg, MAKEDWORD(lx, ly), NULL);
           }
         } else {
