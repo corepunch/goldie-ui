@@ -219,8 +219,15 @@ Always use **2-column grid** with fixed-width label column:
 - `<checkbox>` - Checkbox with label
 - `<combobox>` - Dropdown list
 - `<reportview>` - List/table view (needs `flags="WINDOW_VSCROLL"`)
-- `<separator>` - Horizontal line divider
-- `<space>` - Flexible spacer (expands in stacks)
+- `<separator>` - Horizontal line divider (**no expansion**)
+- `<space>` - Flexible spacer (**expands** along stack axis)
+
+**CRITICAL: <space> vs <separator>:**
+- `<space />` **expands to fill all available space** along the stack axis
+- `<separator />` draws a visual line **without expansion**
+- In **fixed-height dialogs**, always use `<separator>` before action buttons
+- Using `<space>` in fixed-height forms pushes buttons off-screen
+- Use `<space>` only in horizontal stacks (to push buttons right) or in dynamic-height content
 
 **Layout containers:**
 - `<stack>` - Linear layout (row or column)

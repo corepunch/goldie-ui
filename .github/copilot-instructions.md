@@ -559,6 +559,35 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 - Do **not** use `WINDOW_FLEXSPACE` on `<column>` elements (star sizing is automatic)
 - For controls that need scrolling (reportview, multiedit), use `WINDOW_VSCROLL` on the control itself
 
+**<space> vs <separator> (CRITICAL):**
+- `<space />` **expands to fill all available space** along the stack axis — use only when you want flex expansion
+- `<separator />` draws a visual divider line **without expansion** — use for visual separation between sections
+- **In fixed-height dialogs**, always use `<separator>` before action buttons, never `<space>` (which pushes buttons off-screen)
+- **In dynamic-height layouts**, use `<space>` in stacks with `WINDOW_FLEXSPACE` content to push elements apart
+
+```xml
+<!-- WRONG: <space> in fixed-height dialog pushes buttons too far down -->
+<form frame="0 0 200 100" auto_layout="1" layout_kind="stack">
+  <grid>...</grid>
+  <space name="spacer" />  <!-- Expands infinitely, buttons cut off! -->
+  <stack name="actions">...</stack>
+</form>
+
+<!-- CORRECT: <separator> provides visual break without expansion -->
+<form frame="0 0 200 100" auto_layout="1" layout_kind="stack">
+  <grid>...</grid>
+  <separator name="sep" />  <!-- Just a line, buttons visible -->
+  <stack name="actions">...</stack>
+</form>
+
+<!-- CORRECT: <space> in horizontal stack pushes buttons to edges -->
+<stack name="actions" orientation="horizontal">
+  <button text="Help" />
+  <space />  <!-- Expands horizontally, pushes OK/Cancel right -->
+  <button text="OK" />
+</stack>
+```
+
 **Common Dialog Patterns:**
 
 *Label-Input Dialog (2 columns):*
@@ -574,7 +603,7 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
       <textedit name="email" />
     </column>
   </grid>
-  <space name="spacer" />
+  <separator name="sep" />
   <stack name="actions" orientation="horizontal" spacing="6">
     <space name="flex" />
     <button name="ok" text="OK" flags="BUTTON_DEFAULT" />

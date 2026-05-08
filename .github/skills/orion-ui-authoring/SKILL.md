@@ -134,11 +134,18 @@ This skill provides deep expertise in:
 - `<checkbox>` - Binary toggle
 - `<combobox>` - Dropdown list
 - `<reportview>` - List/table (needs `WINDOW_VSCROLL`)
-- `<separator>` - Horizontal divider
-- `<space>` - Flexible spacer (expands in stacks)
+- `<separator>` - Horizontal divider (**no expansion**)
+- `<space>` - Flexible spacer (**expands** along stack axis)
 - `<stack>` - Linear layout container
 - `<grid>` - Multi-column layout (requires `<column>` children)
 - `<column>` - Grid column (vertical stack)
+
+**CRITICAL: <space> vs <separator> usage:**
+- `<space />` **expands infinitely** along the stack axis — dangerous in fixed-height forms
+- `<separator />` just draws a line **without expansion** — safe for visual division
+- In **fixed-height dialogs**, always use `<separator>` before action buttons
+- Using `<space>` before buttons in fixed-height forms pushes them off-screen
+- Use `<space>` only in horizontal stacks (push buttons right) or flex-height layouts
 
 ## Workflow
 
