@@ -112,9 +112,12 @@ The `evWheel` message is sent when the user scrolls the mouse wheel. The message
 
 ```c
 case evWheel: {
+    int dx = (int16_t)LOWORD((uintptr_t)lparam);
     int dy = (int16_t)HIWORD((uintptr_t)lparam);
     
-    // Negate: positive dy = wheel up = decrease scroll offset
+    // Horizontal: positive dx scrolls right
+    scroll_x += dx;
+    // Vertical: positive dy = wheel up, so subtract for natural content movement
     scroll_y -= dy;
     
     // Clamp to valid range

@@ -59,7 +59,7 @@ void test_reportview_wheel_plain_parent(void) {
     
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible with 50 items");
     
-    // Send wheel event - with negation in default handler, negative dy scrolls down
+    // Send wheel event: dy=-3 so user/message.c negation yields +3 (scroll down).
     uint32_t wheel_wparam = MAKEDWORD(0, 0);  // mouse pos (unused in test)
     void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // dy=-3 lines down
     int old_scroll = rv->scroll[1];
@@ -113,7 +113,7 @@ void test_reportview_wheel_in_stack(void) {
     
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible after layout");
     
-    // Send wheel event - with negation in default handler, negative dy scrolls down
+    // Send wheel event: dy=-3 so user/message.c negation yields +3 (scroll down).
     uint32_t wheel_wparam = MAKEDWORD(0, 0);  // mouse pos (unused in test)
     void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // dy=-3 lines down
     int old_scroll = rv->scroll[1];
@@ -179,7 +179,7 @@ void test_reportview_wheel_in_grid(void) {
     
     ASSERT(rv->vscroll.visible, "Scrollbar should be visible after layout");
     
-    // Send wheel event - with negation in default handler, negative dy scrolls down
+    // Send wheel event: dy=-3 so user/message.c negation yields +3 (scroll down).
     uint32_t wheel_wparam3 = MAKEDWORD(0, 0);  // mouse pos (unused in test)
     void *wheel_lparam3 = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // dy=-3 lines down
     int old_scroll3 = rv->scroll[1];
