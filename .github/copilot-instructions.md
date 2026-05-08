@@ -369,14 +369,17 @@ Create an `.orion` XML file in your example directory:
           frame="0 0 200 100"
           flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON"
           auto_layout="1"
-          layout_kind="stack"
-          layout_spacing="8"
+          spacing="8"
           padding="8">
-      <grid name="fields" columns="2" spacing="4">
-        <label name="lbl_name" text="Name:" flags="0" />
-        <textedit name="edit_name" value="1" text="" flags="WINDOW_FLEXSPACE" />
+      <grid name="fields" spacing="4">
+        <column name="labels" width="48">
+          <label name="lbl_name" text="Name:" flags="0" />
+        </column>
+        <column name="inputs" flags="WINDOW_FLEXSPACE">
+          <textedit name="edit_name" value="1" text="" flags="0" />
+        </column>
       </grid>
-      <space name="spacer" />
+      <separator name="sep" />
       <stack name="actions" orientation="horizontal" spacing="6">
         <space name="flex" />
         <button name="ok" value="2" text="OK" flags="BUTTON_DEFAULT" />
@@ -567,14 +570,14 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 
 ```xml
 <!-- WRONG: <space> in fixed-height dialog pushes buttons too far down -->
-<form frame="0 0 200 100" auto_layout="1" layout_kind="stack">
+<form frame="0 0 200 100" auto_layout="1">
   <grid>...</grid>
   <space name="spacer" />  <!-- Expands infinitely, buttons cut off! -->
   <stack name="actions">...</stack>
 </form>
 
 <!-- CORRECT: <separator> provides visual break without expansion -->
-<form frame="0 0 200 100" auto_layout="1" layout_kind="stack">
+<form frame="0 0 200 100" auto_layout="1">
   <grid>...</grid>
   <separator name="sep" />  <!-- Just a line, buttons visible -->
   <stack name="actions">...</stack>
@@ -592,7 +595,7 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 
 *Label-Input Dialog (2 columns):*
 ```xml
-<form name="my_dialog" auto_layout="1" layout_kind="stack" layout_spacing="8" padding="8">
+<form name="my_dialog" auto_layout="1" spacing="8" padding="8">
   <grid name="fields" spacing="4">
     <column name="labels" width="48">
       <label name="lbl_name" text="Name:" />
@@ -614,7 +617,7 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 
 *Scrolling List Dialog:*
 ```xml
-<form name="list_dialog" auto_layout="1" layout_kind="stack" padding="8">
+<form name="list_dialog" auto_layout="1" padding="8">
   <reportview name="list" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
   <separator name="sep" />
   <stack name="actions" orientation="horizontal" spacing="6">
@@ -639,8 +642,8 @@ Arranges children in rows and columns using explicit `<column>` elements. Each c
 - `frame`: Initial client rect as "x y w h" (window size before chrome)
 - `flags`: Window flags (e.g., `WINDOW_DIALOG | WINDOW_NOTRAYBUTTON`)
 - `auto_layout`: `"1"` to enable auto-layout
-- `layout_kind`: `"stack"` or `"grid"`
-- `layout_spacing`: Default gap between children
+- `layout_kind`: `"stack"` or `"grid"` (default is `"stack"`)
+- `spacing`: Default gap between children in pixels
 - `padding`: Inner padding as "left top right bottom" or single value
 
 **Control elements:**

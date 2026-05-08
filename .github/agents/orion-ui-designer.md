@@ -118,8 +118,7 @@ Use grids for **forms with labels and inputs**:
       frame="0 0 280 160"
       flags="WINDOW_DIALOG"
       auto_layout="1"
-      layout_kind="stack"
-      layout_spacing="8"
+      spacing="8"
       padding="8">
   
   <!-- Label+input grid -->
@@ -172,7 +171,7 @@ Always use **2-column grid** with fixed-width label column:
 ### Scrolling List Dialog
 
 ```xml
-<form name="select_item" auto_layout="1" layout_kind="stack" padding="8">
+<form name="select_item" auto_layout="1" padding="8">
   <reportview name="items" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
   <separator name="sep" />
   <stack name="actions" orientation="horizontal" spacing="6">
@@ -199,7 +198,7 @@ Always use **2-column grid** with fixed-width label column:
 ### Toolbar + Content
 
 ```xml
-<form auto_layout="1" layout_kind="stack">
+<form auto_layout="1">
   <stack name="toolbar" orientation="horizontal" spacing="4" padding="4">
     <button icon="sysicon_add" text="New" />
     <button icon="sysicon_save" text="Save" />

@@ -78,7 +78,7 @@ This skill provides deep expertise in:
 
 **Label+Input Dialog:**
 ```xml
-<form name="edit_item" auto_layout="1" layout_kind="stack" layout_spacing="8" padding="8">
+<form name="edit_item" auto_layout="1" spacing="8" padding="8">
   <grid name="fields" spacing="4">
     <column name="labels" width="48">
       <label text="Name:" />
@@ -100,7 +100,7 @@ This skill provides deep expertise in:
 
 **Scrolling List Dialog:**
 ```xml
-<form name="select_item" auto_layout="1" layout_kind="stack" padding="8">
+<form name="select_item" auto_layout="1" padding="8">
   <reportview name="items" flags="WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
   <separator />
   <stack name="actions" orientation="horizontal" spacing="6">
