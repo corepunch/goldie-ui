@@ -147,23 +147,51 @@ uint32_t show_dialog_from_form_ex(form_def_t const *def, char const *title,
   dlg_def.flags |= flags;
   if (title) dlg_def.name = title;
 
-  // Auto-calculate height if not specified and form has only fixed-height controls
-  if (dlg_def.height == 0 && dlg_def.auto_layout && !form_has_flexspace(&dlg_def)) {
-    dlg_def.height = calculate_form_height(&dlg_def);
-  }
+  // For auto-height: create at 0,0, measure after children exist, then reposition
+  bool need_auto_height = (dlg_def.height == 0 && dlg_def.auto_layout && 
+                           !form_has_flexspace(&dlg_def));
 
-  irect16_t wr = {0, 0, dlg_def.width, dlg_def.height};
+  // Use specified height or a temporary value for initial creation
+  int initial_height = dlg_def.height > 0 ? dlg_def.height : 100;
+
+  // Dialogs inherit their owner's hinstance so they belong to the same app.
+  hinstance_t hinstance = parent ? get_root_window(parent)->hinstance : 0;
+  
+  // Create dialog at 0,0 initially
+  irect16_t wr = {0, 0, dlg_def.width, initial_height};
   adjust_window_rect(&wr, dlg_def.flags);
   dlg_def.width = wr.w;
   dlg_def.height = wr.h;
 
-  irect16_t dlg_rect = center_window_rect((irect16_t){0, 0, wr.w, wr.h}, parent);
-
-  // Dialogs inherit their owner's hinstance so they belong to the same app.
-  hinstance_t hinstance = parent ? get_root_window(parent)->hinstance : 0;
-  window_t *dlg = create_window_from_form(&dlg_def, dlg_rect.x, dlg_rect.y,
+  window_t *dlg = create_window_from_form(&dlg_def, 0, 0,
                                           NULL, proc, hinstance, param);
   if (!dlg) return 0;
+
+  // If auto-height is needed, measure the actual size and reposition
+  if (need_auto_height) {
+    layout_measure_t measure = {0};
+    irect16_t cr = get_client_rect(dlg);
+    measure.avail_w = cr.w;
+    measure.avail_h = 0;  // Unconstrained height
+    send_message(dlg, evMeasure, 0, &measure);
+    
+    // Add chrome (title bar, borders) to get window rect
+    irect16_t new_wr = {0, 0, measure.desired_w, measure.desired_h};
+    adjust_window_rect(&new_wr, dlg->flags);
+    
+    // Update window size
+    dlg->frame.w = new_wr.w;
+    dlg->frame.h = new_wr.h;
+    
+    // Recalculate layout with new size
+    window_layout_sync(dlg);
+  }
+
+  // Center the dialog (now with correct size)
+  irect16_t centered = center_window_rect((irect16_t){0, 0, dlg->frame.w, dlg->frame.h}, parent);
+  dlg->frame.x = centered.x;
+  dlg->frame.y = centered.y;
+
   return run_dialog_loop(dlg, parent);
 }
 
