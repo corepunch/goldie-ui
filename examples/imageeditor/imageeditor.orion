@@ -325,12 +325,12 @@
 
       <form name="filter_gallery" title="Filter Gallery" width="560" height="360" flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON" padding="8">
         <requires library="imageeditor_components" />
-        <grid name="main" spacing="8" flags="WINDOW_FLEXSPACE">
+        <grid name="main" spacing="8">
           <column name="preview_col">
             <filter_preview name="preview" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
             <label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </column>
-          <column name="filters_col" flags="WINDOW_FLEXSPACE">
+          <column name="filters_col">
             <reportview name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL" />
           </column>
         </grid>

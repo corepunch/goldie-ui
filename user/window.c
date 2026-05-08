@@ -1031,6 +1031,22 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     if (child->auto_layout)
       window_layout_sync(child);
   }
+
+  // Propagate WINDOW_FLEXSPACE from children to parent
+  // This allows flexible controls (like reportview/multiedit) to automatically
+  // make their container windows flexible without explicit flags in XML
+  if (parent && parent->children) {
+    bool any_child_flexspace = false;
+    for (window_t *child = parent->children; child; child = child->next) {
+      if (child->flags & WINDOW_FLEXSPACE) {
+        any_child_flexspace = true;
+        break;
+      }
+    }
+    if (any_child_flexspace && !(parent->flags & WINDOW_FLEXSPACE)) {
+      parent->flags |= WINDOW_FLEXSPACE;
+    }
+  }
 }
 
 window_t *create_window_from_form(form_def_t const *def, int x, int y,
@@ -1148,6 +1164,20 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
 
     if (child->auto_layout)
       window_layout_sync(child);
+  }
+
+  // Propagate WINDOW_FLEXSPACE from children to parent
+  if (parent && parent->children) {
+    bool any_child_flexspace = false;
+    for (window_t *child = parent->children; child; child = child->next) {
+      if (child->flags & WINDOW_FLEXSPACE) {
+        any_child_flexspace = true;
+        break;
+      }
+    }
+    if (any_child_flexspace && !(parent->flags & WINDOW_FLEXSPACE)) {
+      parent->flags |= WINDOW_FLEXSPACE;
+    }
   }
 }
 
