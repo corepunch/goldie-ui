@@ -186,7 +186,7 @@
 
       <form name="image_resize"
             title="Image Size"
-            frame="0 0 210 104"
+            width="210"
             auto_layout="1"
             spacing="8"
             padding="8">

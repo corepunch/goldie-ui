@@ -41,7 +41,6 @@
       <form name="new_post"
             title="New Post"
             frame="0 0 272 250"
-            flags="0"
             auto_layout="1"
             spacing="0"
             padding="8">
@@ -61,7 +60,7 @@
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex_left" />
           <button name="ok" text="Post" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
           <space name="flex_right" />
         </stack>
       </form>
@@ -69,7 +68,6 @@
       <form name="new_comment"
             title="New Comment"
             frame="0 0 260 84"
-            flags="0"
             auto_layout="1"
             padding="8"
 >
@@ -86,14 +84,13 @@
         <stack name="actions" orientation="horizontal" spacing="6">
           <button name="ok" text="Submit" flags="BUTTON_DEFAULT" />
           <space name="flex" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="post_detail"
             title="Post Detail"
             frame="0 0 520 336"
-            flags="0"
             auto_layout="1"
             padding="8"
 >
@@ -114,10 +111,10 @@
         <separator name="section_sep" />
 
         <stack name="actions" orientation="horizontal" spacing="4">
-          <button name="like_post" text="Like Post" flags="0" />
-          <button name="add_comment" text="Add Comment" flags="0" />
-          <button name="add_reply" text="Add Reply" flags="0" />
-          <button name="like_comment" text="Like Comment" flags="0" />
+          <button name="like_post" text="Like Post" />
+          <button name="add_comment" text="Add Comment" />
+          <button name="add_reply" text="Add Reply" />
+          <button name="like_comment" text="Like Comment" />
           <space name="flex" />
           <button name="close" text="Close" flags="BUTTON_DEFAULT" />
         </stack>

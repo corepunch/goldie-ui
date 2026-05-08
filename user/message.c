@@ -808,7 +808,11 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         break;
       case evMeasure: {
         layout_measure_t *m = (layout_measure_t *)lparam;
-        if (m) {
+        // If window has auto-layout, measure its children
+        if (m && win->auto_layout) {
+          layout_measure_window(win, m);
+        } else if (m) {
+          // Fallback: use existing frame dimensions
           if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
           if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
         }

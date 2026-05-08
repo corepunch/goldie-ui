@@ -22,11 +22,11 @@ result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
         if (separator_is_vertical(win)) {
-          m->desired_w = 8;
+          m->desired_w = 1;
           m->desired_h = MAX(1, m->avail_h);
         } else {
           m->desired_w = MAX(1, m->avail_w);
-          m->desired_h = 8;
+          m->desired_h = 1;
         }
       }
       return true;
