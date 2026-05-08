@@ -66,7 +66,8 @@ bool show_onion_skin_dialog(window_t *parent) {
   g_app->anim_trace_next_opacity[1] = (uint8_t)onion_clamp_percent(st.next2);
   g_app->anim_trace_next_opacity[2] = (uint8_t)onion_clamp_percent(st.next3);
   g_app->anim_trace_next_opacity[3] = (uint8_t)onion_clamp_percent(st.next4);
-  g_app->anim_trace_frames = onion_count_nonzero(g_app->anim_trace_prev_opacity,
-                                                  ONION_SKIN_MAX_STEPS);
+  g_app->anim_trace_frames = MAX(
+      onion_count_nonzero(g_app->anim_trace_prev_opacity, ONION_SKIN_MAX_STEPS),
+      onion_count_nonzero(g_app->anim_trace_next_opacity, ONION_SKIN_MAX_STEPS));
   return true;
 }

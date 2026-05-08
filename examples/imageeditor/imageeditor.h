@@ -149,7 +149,6 @@ extern const int kZoomMenuIDs[NUM_ZOOM_LEVELS];
 
 // Timeline toolbar-only command IDs.
 #define ID_ANIM_TRACE     413
-#define ONION_SKIN_MAX_STEPS 4
 
 #define ID_FILTER_BASE   1000
 #define IMAGEEDITOR_MAX_FILTERS 64
@@ -342,6 +341,8 @@ typedef struct {
   char     name[64];
   uint32_t program;
 } image_filter_t;
+
+#define ONION_SKIN_MAX_STEPS 4
 
 typedef struct {
   canvas_doc_t  *active_doc;

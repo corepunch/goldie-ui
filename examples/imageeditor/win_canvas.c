@@ -517,7 +517,14 @@ static void canvas_draw_animation_trace(window_t *win,
     state->onion_tex_h = doc->canvas_h;
   }
 
-  for (int step = ONION_SKIN_MAX_STEPS; step >= 1; step--) {
+  int prev_steps = 0;
+  int next_steps = 0;
+  for (int i = 0; i < ONION_SKIN_MAX_STEPS; i++) {
+    if (g_app->anim_trace_prev_opacity[i] > 0) prev_steps = i + 1;
+    if (g_app->anim_trace_next_opacity[i] > 0) next_steps = i + 1;
+  }
+
+  for (int step = prev_steps; step >= 1; step--) {
     int idx = doc->anim->active_frame - step;
     if (idx < 0) continue;
     float alpha = (float)g_app->anim_trace_prev_opacity[step - 1] / 100.0f;
@@ -528,7 +535,7 @@ static void canvas_draw_animation_trace(window_t *win,
       draw_rect_ex((int)state->onion_tex, canvas_rect, 0, CLAMP(alpha, 0.0f, 1.0f));
   }
 
-  for (int step = ONION_SKIN_MAX_STEPS; step >= 1; step--) {
+  for (int step = next_steps; step >= 1; step--) {
     int idx = doc->anim->active_frame + step;
     if (idx >= doc->anim->frame_count) continue;
     float alpha = (float)g_app->anim_trace_next_opacity[step - 1] / 100.0f;
