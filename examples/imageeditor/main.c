@@ -170,6 +170,13 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_app->wand.overlay_color = MAKE_COLOR(0x40, 0xA0, 0xFF, 0x55);
   g_app->grid.spacing.x = 16;
   g_app->grid.spacing.y = 16;
+  g_app->anim_trace_frames = 3;
+  {
+    static const uint8_t kDefaultPrev[ONION_SKIN_MAX_STEPS] = { 40, 20, 10, 5 };
+    static const uint8_t kDefaultNext[ONION_SKIN_MAX_STEPS] = { 30, 15, 8, 4 };
+    memcpy(g_app->anim_trace_prev_opacity, kDefaultPrev, sizeof(kDefaultPrev));
+    memcpy(g_app->anim_trace_next_opacity, kDefaultNext, sizeof(kDefaultNext));
+  }
 
 #ifndef BUILD_AS_GEM
   ui_register_open_file_handler(image_editor_open_file_handler);

@@ -149,6 +149,7 @@ extern const int kZoomMenuIDs[NUM_ZOOM_LEVELS];
 
 // Timeline toolbar-only command IDs.
 #define ID_ANIM_TRACE     413
+#define ONION_SKIN_MAX_STEPS 4
 
 #define ID_FILTER_BASE   1000
 #define IMAGEEDITOR_MAX_FILTERS 64
@@ -357,6 +358,8 @@ typedef struct {
   int            current_tool;
   bool           anim_trace_enabled; // onion-skin overlay toggle for animation frames
   int            anim_trace_frames;  // number of prior frames shown in trace mode
+  uint8_t        anim_trace_prev_opacity[ONION_SKIN_MAX_STEPS];
+  uint8_t        anim_trace_next_opacity[ONION_SKIN_MAX_STEPS];
   uint32_t       palette[NUM_COLORS];
   uint32_t       fg_color;
   uint32_t       bg_color;
@@ -671,6 +674,7 @@ bool show_image_resize_dialog(window_t *parent, int *out_w, int *out_h,
 
 // Grid Options dialog – returns true if accepted.
 bool show_grid_options_dialog(window_t *parent, int *out_x, int *out_y);
+bool show_onion_skin_dialog(window_t *parent);
 
 // Selection Modify dialog – returns true if accepted.
 bool show_selection_modify_dialog(window_t *parent, const char *title, int *out_amount);

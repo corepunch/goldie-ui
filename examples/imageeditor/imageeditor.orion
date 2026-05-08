@@ -130,6 +130,7 @@
         <item name="play" label="Play" />
         <item name="stop" label="Stop" />
         <item name="loop" label="[ ] Loop" />
+        <item name="onion_skin" label="Onion Skin Settings..." />
         <separator />
         <item name="export_gif" label="Export GIF..." />
         <item name="export_apng" label="Export APNG..." />
@@ -406,6 +407,77 @@
           <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         </stack>
         <checkbox name="preview" text="Preview" flags="0" />
+        <separator name="sep" />
+        <stack name="actions" orientation="horizontal" spacing="6">
+          <space name="flex" />
+          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <button name="cancel" text="Cancel" flags="0" />
+        </stack>
+      </form>
+
+      <form name="onion_skin"
+            title="Onion Skin"
+            frame="0 0 240 166"
+            flags="0"
+            auto_layout="1"
+            spacing="6"
+            padding="8">
+        <checkbox name="enabled" text="Enable Onion Skin" flags="0" />
+        <grid name="hdr" spacing="4">
+          <column name="hdr_labels" width="66">
+            <label name="lbl_slot" text="Distance" flags="0" />
+          </column>
+          <column name="hdr_prev">
+            <label name="lbl_prev" text="Previous %" flags="0" />
+          </column>
+          <column name="hdr_next">
+            <label name="lbl_next" text="Next %" flags="0" />
+          </column>
+        </grid>
+        <grid name="row1" spacing="4">
+          <column name="row1_label" width="66">
+            <label name="lbl_prev1" text="1 frame" flags="0" />
+          </column>
+          <column name="row1_prev">
+            <textedit name="prev1" text="40" flags="0" />
+          </column>
+          <column name="row1_next">
+            <textedit name="next1" text="30" flags="0" />
+          </column>
+        </grid>
+        <grid name="row2" spacing="4">
+          <column name="row2_label" width="66">
+            <label name="lbl_prev2" text="2 frames" flags="0" />
+          </column>
+          <column name="row2_prev">
+            <textedit name="prev2" text="20" flags="0" />
+          </column>
+          <column name="row2_next">
+            <textedit name="next2" text="15" flags="0" />
+          </column>
+        </grid>
+        <grid name="row3" spacing="4">
+          <column name="row3_label" width="66">
+            <label name="lbl_prev3" text="3 frames" flags="0" />
+          </column>
+          <column name="row3_prev">
+            <textedit name="prev3" text="10" flags="0" />
+          </column>
+          <column name="row3_next">
+            <textedit name="next3" text="8" flags="0" />
+          </column>
+        </grid>
+        <grid name="row4" spacing="4">
+          <column name="row4_label" width="66">
+            <label name="lbl_prev4" text="4 frames" flags="0" />
+          </column>
+          <column name="row4_prev">
+            <textedit name="prev4" text="5" flags="0" />
+          </column>
+          <column name="row4_next">
+            <textedit name="next4" text="4" flags="0" />
+          </column>
+        </grid>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
