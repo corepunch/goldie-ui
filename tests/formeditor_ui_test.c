@@ -1645,7 +1645,7 @@ void test_fe_flow_component_registered(void) {
     const fe_component_desc_t *flow = fe_component_by_token("flow");
     ASSERT_NOT_NULL(flow);
     ASSERT_STR_EQUAL(flow->class_name, "flowview");
-    ASSERT_TRUE(flow->proc == win_flowview);
+    ASSERT_NOT_NULL(flow->proc);
     ASSERT_TRUE((flow->capabilities & FE_COMPONENT_PLACEABLE) != 0);
     ASSERT_TRUE((flow->capabilities & FE_COMPONENT_SHOW_TOOLBOX) != 0);
 

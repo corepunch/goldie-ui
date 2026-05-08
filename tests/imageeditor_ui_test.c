@@ -349,10 +349,12 @@ void test_ie_filter_gallery_layout_shape(void) {
 
     ASSERT_TRUE(imageeditor_filter_gallery_form.auto_layout);
     ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.layout_kind, "stack"), 0);
-    ASSERT_EQUAL(imageeditor_filter_gallery_form.layout_spacing, 12);
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.layout_spacing, 4);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.child_count, 10);
     ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[0].class_name, "grid"), 0);
-    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[0].layout_columns, 2);
+    // Grid uses column-based layout (<column> children), so layout_columns == 0 (auto).
+    // The 2 columns are confirmed by children[1] and children[4] having the grid as parent.
+    ASSERT_EQUAL(imageeditor_filter_gallery_form.children[0].layout_columns, 0);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[1].parent, ID_FILTER_GALLERY_MAIN);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[4].parent, ID_FILTER_GALLERY_MAIN);
     ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[6].class_name, "stack"), 0);

@@ -34,7 +34,7 @@ void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 | `evKeyDown` | Key pressed | SDL scancode |
 | `evKeyUp` | Key released | SDL scancode |
 | `evTextInput` | Text character input | `lparam` = `const char *` UTF-8 |
-| `evWheel` | Mouse wheel | `LOWORD`=dx, `HIWORD`=dy |
+| `evWheel` | Mouse wheel | `wparam` = MAKEDWORD(x,y) mouse pos; `lparam` = MAKEDWORD(dx,dy) scroll deltas |
 | `evCommand` | Control notification | `LOWORD`=id, `HIWORD`=notification code |
 | `evResize` | Window resized / moved | – |
 | `evStatusBar` | Update status bar text | `lparam` = `(void *)const char *` |
@@ -97,6 +97,43 @@ case tbButtonClick:
     }
     return true;
 ```
+
+## Mouse Wheel Handling
+
+The `evWheel` message is sent when the user scrolls the mouse wheel. The message uses a WinAPI-style convention:
+
+- **wparam**: Mouse position as `MAKEDWORD(x, y)` in window-local scaled coordinates
+- **lparam**: Scroll deltas as `MAKEDWORD(dx, dy)` (cast from `void*`)
+  - `dx`: Horizontal scroll amount (positive = scroll right, negative = scroll left)
+  - `dy`: Vertical scroll amount (positive = wheel up, negative = wheel down)
+  - Values are already multiplied by `SCROLL_SENSITIVITY` (3)
+
+**Extracting scroll deltas from lparam:**
+
+```c
+case evWheel: {
+    int dx = (int16_t)LOWORD((uintptr_t)lparam);
+    int dy = (int16_t)HIWORD((uintptr_t)lparam);
+    
+    // Horizontal: positive dx scrolls right
+    scroll_x += dx;
+    // Vertical: positive dy = wheel up, so subtract for natural content movement
+    scroll_y -= dy;
+    
+    // Clamp to valid range
+    if (scroll_y < 0) scroll_y = 0;
+    if (scroll_y > max_scroll) scroll_y = max_scroll;
+    
+    invalidate_window(win);
+    return true;
+}
+```
+
+**Built-in scrollbar integration:**
+
+Windows with `WINDOW_HSCROLL` or `WINDOW_VSCROLL` flags automatically handle wheel scrolling via their built-in scrollbars. The framework extracts deltas from lparam and calls `sb_try_scroll()` to update the scrollbar position and fire `evHScroll`/`evVScroll` notifications.
+
+If a window cannot handle wheel events (no scrollbars or not enabled), the event bubbles to the parent window, following WinAPI behavior.
 
 ## Keyboard Input
 

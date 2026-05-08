@@ -374,7 +374,7 @@
             <label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </column>
           <column name="filters_col">
-            <reportview name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
+            <reportview name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL" />
           </column>
         </grid>
         <stack name="actions" orientation="horizontal" spacing="6">
