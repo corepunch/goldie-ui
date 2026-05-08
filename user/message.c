@@ -543,7 +543,6 @@ static bool parent_notify_message(uint32_t msg) {
     case evRightButtonDown:
     case evRightButtonUp:
     case evMouseMove:
-    case evWheel:
     case evKeyDown:
     case evKeyUp:
     case evTextInput:
@@ -776,21 +775,25 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         break;
       case evWheel:
         // Only drive built-in scrollbars when they are actually visible.
-        // Windows without visible scrollbars should not respond to wheel events.
+        // If this window can't handle wheel events, bubble to parent (WinAPI behavior).
+        // wparam = mouse position MAKEDWORD(x,y), lparam = scroll deltas MAKEDWORD(dx,dy)
         if ((win->flags & (WINDOW_HSCROLL | WINDOW_VSCROLL)) &&
             (win->hscroll.visible || win->vscroll.visible)) {
           if ((win->flags & WINDOW_HSCROLL) && win->hscroll.visible &&
               win->hscroll.enabled) {
-            int delta = (int16_t)LOWORD(wparam);
+            int delta = (int16_t)LOWORD((uintptr_t)lparam);
             sb_try_scroll(win, &win->hscroll, evHScroll,
                           win->hscroll.pos + delta);
           }
           if ((win->flags & WINDOW_VSCROLL) && win->vscroll.visible &&
               win->vscroll.enabled) {
-            int delta = -(int16_t)HIWORD(wparam);
+            int delta = -(int16_t)HIWORD((uintptr_t)lparam);  // natural scroll
             sb_try_scroll(win, &win->vscroll, evVScroll,
                           win->vscroll.pos + delta);
           }
+        } else if (win->parent) {
+          // Bubble wheel event to parent if this window can't scroll
+          send_message(win->parent, evWheel, wparam, lparam);
         }
         break;
       case evPaintStencil:

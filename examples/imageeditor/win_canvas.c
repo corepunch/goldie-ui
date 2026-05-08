@@ -759,9 +759,9 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       int max_pan_x = MAX(0, canvas_w - view_w);
       int max_pan_y = MAX(0, canvas_h - view_h);
       if (max_pan_x > 0 || max_pan_y > 0) {
-        // LOWORD = -wheel.x * SCROLL_SENSITIVITY; HIWORD = wheel.y * SCROLL_SENSITIVITY
-        int dx = -(int16_t)LOWORD(wparam);  // natural scroll: flip x axis
-        int dy = -(int16_t)HIWORD(wparam);  // natural scroll: flip y axis
+        // lparam = scroll deltas MAKEDWORD(dx, dy)
+        int dx = -(int16_t)LOWORD((uintptr_t)lparam);  // natural scroll: flip x axis
+        int dy = -(int16_t)HIWORD((uintptr_t)lparam);  // natural scroll: flip y axis
         state->pan.x = MIN(MAX(state->pan.x + dx, 0), max_pan_x);
         state->pan.y = MIN(MAX(state->pan.y + dy, 0), max_pan_y);
         canvas_sync_scrollbars(win, state);

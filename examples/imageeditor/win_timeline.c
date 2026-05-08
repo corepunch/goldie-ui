@@ -303,13 +303,13 @@ static result_t timeline_proc(window_t *win, uint32_t msg,
     }
 
     case evWheel: {
-      // Scroll the timeline horizontally.  The wheel delta is packed as
-      // MAKEDWORD(dx * sensitivity, dy * sensitivity) by the platform layer.
+      // Scroll the timeline horizontally.
+      // wparam = mouse pos, lparam = scroll deltas MAKEDWORD(dx, dy)
       // For a horizontal strip, treat vertical scroll (dy) as horizontal too.
       // Wheel-up (dy > 0) decreases scroll_x (scrolls timeline left,
       // revealing earlier frames); wheel-down increases it (later frames).
       if (!st) return true;
-      int16_t dy = (int16_t)(wparam >> 16);
+      int16_t dy = (int16_t)HIWORD((uintptr_t)lparam);
       int delta = -(int)dy; // negate: wheel-up → scroll left (negative offset)
       if (delta == 0) return true;
       irect16_t cr = get_client_rect(win);

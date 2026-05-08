@@ -272,7 +272,8 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (!s) return true;
       int tw, th;
       me_text_dims(win, &tw, &th);
-      int delta = -(int16_t)HIWORD(wparam);
+      // lparam = scroll deltas MAKEDWORD(dx, dy)
+      int delta = -(int16_t)HIWORD((uintptr_t)lparam);
       s->scroll_y += delta;
       if (s->scroll_y < 0) s->scroll_y = 0;
       int total_h = calc_text_height(s->buf, tw);
