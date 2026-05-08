@@ -549,9 +549,9 @@ void test_cv_report_wheel_scrolls_child(void) {
 
     ASSERT_EQUAL((int)cv->scroll[1], 0);
 
-    // Positive HIWORD(lparam) = positive scroll delta (scroll down).
-    // delta = (int16_t)HIWORD(lparam) = 4 → vscroll.pos increases.
-    send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, 4));
+    // With negation in user/message.c, negative delta scrolls down (natural scroll).
+    // delta = -(int16_t)HIWORD(lparam) = -(-4) = 4 → vscroll.pos increases.
+    send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-4));
     ASSERT_TRUE((int)cv->scroll[1] > 0);
 
     destroy_window(parent);
