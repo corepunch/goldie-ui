@@ -373,17 +373,17 @@ Create an `.orion` XML file in your example directory:
           padding="8">
       <grid name="fields" spacing="4">
         <column name="labels" width="48">
-          <label name="lbl_name" text="Name:" flags="0" />
+          <label name="lbl_name" text="Name:" />
         </column>
         <column name="inputs" flags="WINDOW_FLEXSPACE">
-          <textedit name="edit_name" value="1" text="" flags="0" />
+          <textedit name="edit_name" value="1" text="" />
         </column>
       </grid>
       <separator name="sep" />
       <stack name="actions" orientation="horizontal" spacing="6">
         <space name="flex" />
         <button name="ok" value="2" text="OK" flags="BUTTON_DEFAULT" />
-        <button name="cancel" value="3" text="Cancel" flags="0" />
+        <button name="cancel" value="3" text="Cancel" />
       </stack>
     </form>
   </forms>
@@ -686,7 +686,7 @@ For dialogs with no scrolling or expandable content, calculate height manually:
 | Dialog Type | Width | Height | Flags |
 |---|---|---|---|
 | Simple forms (2-5 inputs) | Fixed (180-220px) | Fixed (calculated) | None |
-| Label+input grids | Fixed or flexible | Fixed (calculated) | `WINDOW_FLEXSPACE` on input column if width flexible |
+| Label+input grids | Fixed or flexible | Fixed (calculated) | None on columns (auto star sizing) |
 | Scrolling lists | Fixed or flexible | Flexible | `WINDOW_VSCROLL` + `WINDOW_FLEXSPACE` on list |
 | Multi-edit/console | Flexible | Flexible | `WINDOW_VSCROLL` + `WINDOW_FLEXSPACE` on control |
 | Preview + controls | Flexible | Flexible | `WINDOW_FLEXSPACE` on preview/content area |
@@ -756,7 +756,7 @@ Currently, height must be specified manually even for fixed-content forms.
 <button name="id" value="123" text="Label" width="60" height="19" flags="BUTTON_DEFAULT" />
 <label name="id" text="Label" color="text-disabled" font="system" />
 <textedit name="id" value="123" text="initial" flags="WINDOW_FLEXSPACE" />
-<checkbox name="id" value="123" text="Label" flags="0" />
+<checkbox name="id" value="123" text="Label" />
 <combobox name="id" value="123" flags="WINDOW_FLEXSPACE" />
 <reportview name="id" value="123" flags="WINDOW_NOTITLE | WINDOW_NORESIZE" />
 <space name="id" />  <!-- Spacer that expands in stacks -->

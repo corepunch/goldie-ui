@@ -163,170 +163,162 @@
       <form name="new_image"
             title="New Image"
             width="180"
-            flags="0"
             auto_layout="1"
             spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
-            <label name="lbl_width" text="Width:" flags="0" />
-            <label name="lbl_height" text="Height:" flags="0" />
+            <label name="lbl_width" text="Width:" />
+            <label name="lbl_height" text="Height:" />
           </column>
-          <column name="inputs" flags="WINDOW_FLEXSPACE">
-            <textedit name="width" text="" flags="0" />
-            <textedit name="height" text="" flags="0" />
+          <column name="inputs">
+            <textedit name="width" text="" />
+            <textedit name="height" text="" />
           </column>
         </grid>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="image_resize"
             title="Image Size"
             frame="0 0 210 104"
-            flags="0"
             auto_layout="1"
             spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
-            <label name="lbl_width" text="Width:" flags="0" />
-            <label name="lbl_height" text="Height:" flags="0" />
-            <label name="lbl_filter" text="Filter:" flags="0" />
+            <label name="lbl_width" text="Width:" />
+            <label name="lbl_height" text="Height:" />
+            <label name="lbl_filter" text="Filter:" />
           </column>
-          <column name="inputs" flags="WINDOW_FLEXSPACE">
-            <textedit name="width" text="" flags="0" />
-            <textedit name="height" text="" flags="0" />
-            <combobox name="filter" text="" flags="0" />
+          <column name="inputs">
+            <textedit name="width" text="" />
+            <textedit name="height" text="" />
+            <combobox name="filter" text="" />
           </column>
         </grid>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="grid_options"
             title="Grid Options"
             frame="0 0 180 94"
-            flags="0"
             auto_layout="1"
             spacing="8"
             padding="8">
         <grid name="fields" spacing="4">
           <column name="labels" width="48">
-            <label name="lbl_width" text="Width:" flags="0" />
-            <label name="lbl_height" text="Height:" flags="0" />
+            <label name="lbl_width" text="Width:" />
+            <label name="lbl_height" text="Height:" />
           </column>
-          <column name="inputs" flags="WINDOW_FLEXSPACE">
-            <textedit name="width" text="" flags="0" />
-            <textedit name="height" text="" flags="0" />
+          <column name="inputs">
+            <textedit name="width" text="" />
+            <textedit name="height" text="" />
           </column>
         </grid>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="selection_modify"
             title="Modify Selection"
             frame="0 0 180 68"
-            flags="0"
             auto_layout="1"
             spacing="8"
             padding="8">
         <stack name="amount_row" orientation="horizontal" spacing="6">
-          <label name="lbl_amount" text="By:" flags="0" />
+          <label name="lbl_amount" text="By:" />
           <textedit name="amount" text="" flags="WINDOW_FLEXSPACE" />
-          <label name="lbl_pixels" text="pixels" flags="0" />
+          <label name="lbl_pixels" text="pixels" />
         </stack>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="new_layer"
             title="New Layer"
             frame="0 0 200 68"
-            flags="0"
             auto_layout="1"
             spacing="8"
             padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
-          <label name="lbl_fill" text="Fill with:" flags="0" />
+          <label name="lbl_fill" text="Fill with:" />
           <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
         </stack>
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="add_mask"
             title="Add Mask"
             frame="0 0 220 68"
-            flags="0"
             auto_layout="1"
             spacing="8"
             padding="8">
         <stack name="fill_row" orientation="horizontal" spacing="6">
-          <label name="lbl_fill" text="Fill with:" flags="0" />
+          <label name="lbl_fill" text="Fill with:" />
           <combobox name="combo_fill" text="" flags="WINDOW_FLEXSPACE" />
         </stack>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="text_tool"
             title="Insert Text"
             frame="0 0 220 96"
-            flags="0"
             auto_layout="1"
             spacing="6"
             padding="8">
         <stack name="text_row" orientation="horizontal" spacing="6">
-          <label name="lbl_text" text="Text:" flags="0" />
+          <label name="lbl_text" text="Text:" />
           <textedit name="edit_text" text="" flags="WINDOW_FLEXSPACE" />
         </stack>
         <stack name="size_row" orientation="vertical" spacing="2">
-          <label name="lbl_size" text="Size: 16px" flags="0" />
+          <label name="lbl_size" text="Size: 16px" />
           <slider name="size" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         </stack>
         <stack name="color_row" orientation="horizontal" spacing="6">
-          <label name="lbl_color" text="Color:" flags="0" />
+          <label name="lbl_color" text="Color:" />
           <space name="swatch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <button name="btn_color" text="Change..." flags="0" />
-          <checkbox name="chk_aa" text="Anti-alias" flags="0" />
+          <button name="btn_color" text="Change..." />
+          <checkbox name="chk_aa" text="Anti-alias" />
         </stack>
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
-          <button name="btn_ok" text="OK" flags="0" />
-          <button name="btn_cancel" text="Cancel" flags="0" />
+          <button name="btn_ok" text="OK" />
+          <button name="btn_cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="levels"
             title="Levels"
             frame="0 0 280 222"
-            flags="0"
             auto_layout="1"
             spacing="6"
             padding="10">
@@ -336,13 +328,13 @@
             <label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </column>
           <column name="in_black_col">
-            <textedit name="in_black" text="0" flags="0" />
+            <textedit name="in_black" text="0" />
           </column>
           <column name="in_gamma_col">
-            <textedit name="in_gamma" text="1.00" flags="0" />
+            <textedit name="in_gamma" text="1.00" />
           </column>
           <column name="in_white_col">
-            <textedit name="in_white" text="255" flags="0" />
+            <textedit name="in_white" text="255" />
           </column>
         </grid>
         <lv_histogram name="graph" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
@@ -352,21 +344,21 @@
             <label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </column>
           <column name="out_black_col">
-            <textedit name="out_black" text="0" flags="0" />
+            <textedit name="out_black" text="0" />
           </column>
           <column name="out_white_col">
-            <textedit name="out_white" text="255" flags="0" />
+            <textedit name="out_white" text="255" />
           </column>
         </grid>
         <gradient name="out_grad" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="out_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        <checkbox name="preview" text="Preview" flags="0" />
+        <checkbox name="preview" text="Preview" />
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
-          <button name="ok" text="OK" flags="0" />
-          <button name="reset" text="Reset" flags="0" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="ok" text="OK" />
+          <button name="reset" text="Reset" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
@@ -390,7 +382,7 @@
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
@@ -405,19 +397,18 @@
           <label name="amount_label" text="Blur: 4px" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         </stack>
-        <checkbox name="preview" text="Preview" flags="0" />
+        <checkbox name="preview" text="Preview" />
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex" />
           <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" flags="0" />
+          <button name="cancel" text="Cancel" />
         </stack>
       </form>
 
       <form name="about"
             title="About Orion Image Editor"
             frame="0 0 270 120"
-            flags="0"
             auto_layout="1"
             orientation="horizontal"
             spacing="8"
@@ -441,7 +432,6 @@
       <form name="color_picker"
             title="Edit Color"
             frame="0 0 240 128"
-            flags="0"
             auto_layout="1"
             spacing="0"
             padding="0">
