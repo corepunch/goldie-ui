@@ -104,7 +104,7 @@ The `evWheel` message is sent when the user scrolls the mouse wheel. The message
 
 - **wparam**: Mouse position as `MAKEDWORD(x, y)` in window-local scaled coordinates
 - **lparam**: Scroll deltas as `MAKEDWORD(dx, dy)` (cast from `void*`)
-  - `dx`: Horizontal scroll amount (positive = wheel left, negative = wheel right)
+  - `dx`: Horizontal scroll amount (positive = scroll right, negative = scroll left)
   - `dy`: Vertical scroll amount (positive = wheel up, negative = wheel down)
   - Values are already multiplied by `SCROLL_SENSITIVITY` (3)
 
