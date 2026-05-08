@@ -224,16 +224,14 @@ static int rv_content_height(window_t *win, reportview_data_t *data) {
 }
 
 // Coordinate space notes:
-//   event.c computes LOCAL_X/LOCAL_Y using the active window's scroll and
-//   absolute position.  For the active (root) window those coords are in
-//   content space already.  For child windows event.c adds the child's own
-//   scroll before calling send_message, so the wparam received here is also
-//   in content space.  Draw code uses content-space coords with the same
-//   origin, so no further adjustment is needed.
+//   event.c's handle_mouse() delivers viewport-local coordinates to child
+//   windows: it subtracts only the child's frame.{x,y}, not the child's own
+//   scroll offset.  rv_hit_index must therefore add win->scroll[] to convert
+//   from viewport to content space.  Draw code paints using content-space
+//   coords with the scroll subtracted, so the two coordinate systems match.
 //
-// Common mistake (historical): an older version added win->scroll[] inside
-// this function, which caused double-counting when event.c already included
-// the scroll.  The fix is to use wparam directly.
+// Common mistake: do not remove the win->scroll[] addition below; without it
+// a click after scrolling lands on the wrong item.
 //   See tests/columnview_keyboard_test.c for regression tests.
 static int rv_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {
   int mx = (int)(int16_t)LOWORD(wparam);
