@@ -435,6 +435,12 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
       total_h += row_h[row];
       if (row_flex[row]) flex_rows++;
     }
+    // During measurement, report minimum height needed (don't expand flex rows).
+    // Flex expansion happens during arrange, not measure.
+    // Otherwise a grid with WINDOW_VSCROLL children claims all available height,
+    // starving siblings in the parent stack.
+    int desired_total_h = total_h;
+    
     int remaining_h = content.h - total_h;
     if (remaining_h < 0) remaining_h = 0;
     if (flex_rows > 0 && remaining_h > 0) {
@@ -461,7 +467,8 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
     }
     if (m) {
       m->desired_w = total_w + layout_padding_for(win).x + layout_padding_for(win).w;
-      m->desired_h = total_h + layout_padding_for(win).y + layout_padding_for(win).h;
+      // Use desired_total_h (before flex expansion) for measurement
+      m->desired_h = desired_total_h + layout_padding_for(win).y + layout_padding_for(win).h;
     }
     free(col_w);
     free(col_counts);
