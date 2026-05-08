@@ -75,6 +75,152 @@ winproc_t find_window_class_proc(const char *class_name) {
   return NULL;
 }
 
+const fe_component_desc_t *find_window_class_desc(const char *class_name) {
+  if (!class_name || !*class_name) return NULL;
+  for (int i = 0; i < g_window_class_count; i++) {
+    if (streq(g_window_classes[i].desc.class_name, class_name))
+      return &g_window_classes[i].desc;
+  }
+  return NULL;
+}
+
+int16_t get_class_default_width(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_width : 0;
+}
+
+int16_t get_class_default_height(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_height : 0;
+}
+
+flags_t get_class_default_flags(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_flags : 0;
+}
+
+uint8_t get_class_default_h_align(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_h_align : LAYOUT_ALIGN_STRETCH;
+}
+
+uint8_t get_class_default_v_align(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_v_align : LAYOUT_ALIGN_STRETCH;
+}
+
+void register_builtin_window_classes(void) {
+  // Button control - standard height for buttons
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "button",
+    .proc = win_button,
+    .default_width = 0,    // measure content
+    .default_height = 19,  // standard button height
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Label control - single line of text
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "label",
+    .proc = win_label,
+    .default_width = 0,    // measure content
+    .default_height = 13,  // single line height
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Text edit control - single line input
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "textedit",
+    .proc = win_textedit,
+    .default_width = 0,    // stretch to fit
+    .default_height = 13,  // single line height
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Checkbox control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "checkbox",
+    .proc = win_checkbox,
+    .default_width = 0,    // measure content
+    .default_height = 13,  // single line height
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Combobox control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "combobox",
+    .proc = win_combobox,
+    .default_width = 0,    // stretch to fit
+    .default_height = 13,  // single line height
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Separator - visual divider line (no expansion)
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "separator",
+    .proc = win_separator,
+    .default_width = 0,    // stretch to container width
+    .default_height = 1,   // 1px visual line
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Space element - flexible spacer that expands
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "space",
+    .proc = win_space,
+    .default_width = 0,
+    .default_height = 0,
+    .default_flags = WINDOW_FLEXSPACE,  // Always flexible
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Reportview - scrolling list/grid control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "reportview",
+    .proc = win_reportview,
+    .default_width = 0,     // stretch to fit
+    .default_height = 100,  // ~6 rows
+    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // List control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "list",
+    .proc = win_list,
+    .default_width = 0,     // stretch to fit
+    .default_height = 100,  // ~6 rows
+    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Multi-line edit control
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "multiedit",
+    .proc = win_multiedit,
+    .default_width = 0,     // stretch to fit
+    .default_height = 100,  // multiple lines
+    .default_flags = WINDOW_VSCROLL,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+}
+
 // Global window state
 ui_runtime_state_t g_ui_runtime = {
   .running = false,
@@ -675,13 +821,38 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     if (cp == win_label)
       param = &label_cfg;
 
-    irect16_t child_frame = {0, 0, cd->size.w, cd->size.h};
-    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+    // Apply class defaults for dimensions and flags
+    const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
+    int16_t child_w = cd->size.w;
+    int16_t child_h = cd->size.h;
+    flags_t child_flags = cd->flags;
+    uint8_t child_h_align = cd->h_align;
+    uint8_t child_v_align = cd->v_align;
+    
+    if (class_desc) {
+      // Apply default dimensions if not explicitly specified
+      if (child_w == 0 && class_desc->default_width > 0)
+        child_w = class_desc->default_width;
+      if (child_h == 0 && class_desc->default_height > 0)
+        child_h = class_desc->default_height;
+      
+      // Merge class default flags with instance flags
+      child_flags |= class_desc->default_flags;
+      
+      // Use class default alignment if not explicitly set
+      if (child_h_align == 0)
+        child_h_align = class_desc->default_h_align;
+      if (child_v_align == 0)
+        child_v_align = class_desc->default_v_align;
+    }
+
+    irect16_t child_frame = {0, 0, child_w, child_h};
+    window_t *child = create_window(cd->text ? cd->text : "", child_flags,
                                     &child_frame, parent, cp, 0, param);
     if (!child) continue;
     child->id = cd->id;
-    child->h_align = cd->h_align;
-    child->v_align = cd->v_align;
+    child->h_align = child_h_align;
+    child->v_align = child_v_align;
     child->layout_margin = cd->margin;
 
     if (form_children_have_parent(children, child_count, child->id))

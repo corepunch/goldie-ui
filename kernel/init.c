@@ -246,6 +246,9 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   if (g_graphics_initialized) return true;
 
   axInit();
+  
+  // Register built-in window classes with their default properties
+  register_builtin_window_classes();
 
   if (!axCreateWindow(title, width * UI_WINDOW_SCALE, height * UI_WINDOW_SCALE, 0)) {
     printf("Window could not be created!\n");

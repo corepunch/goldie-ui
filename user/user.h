@@ -270,6 +270,13 @@ typedef struct {
   isize16_t   default_size;   // default size when click-placing
   uint32_t    capabilities;   // FE_COMPONENT_* flags
   winproc_t   proc;           // runtime window proc backing this component
+  
+  // Window class defaults (used by auto-layout measurement system)
+  int16_t     default_width;  // -1 = stretch, 0 = measure content, >0 = fixed
+  int16_t     default_height; // natural height for this control type
+  flags_t     default_flags;  // WINDOW_FLEXSPACE, WINDOW_VSCROLL, etc.
+  uint8_t     default_h_align;// LAYOUT_ALIGN_STRETCH, etc.
+  uint8_t     default_v_align;// LAYOUT_ALIGN_STRETCH, etc.
 } fe_component_desc_t;
 
 // Plugin export function pointer types — 3ds Max-style pull model.
@@ -387,6 +394,15 @@ window_t *create_window_proc(char const *title, flags_t flags, const irect16_t* 
 bool register_window_class(const fe_component_desc_t *desc);
 bool register_window_class_once(const fe_component_desc_t *desc);
 winproc_t find_window_class_proc(const char *class_name);
+const fe_component_desc_t *find_window_class_desc(const char *class_name);
+void register_builtin_window_classes(void);
+
+// Query window class defaults.
+int16_t  get_class_default_width(const char *class_name);
+int16_t  get_class_default_height(const char *class_name);
+flags_t  get_class_default_flags(const char *class_name);
+uint8_t  get_class_default_h_align(const char *class_name);
+uint8_t  get_class_default_v_align(const char *class_name);
 
 #define UI_WNDCLASS(name_sym, proc_sym) \
   ((fe_component_desc_t){ .class_name = (name_sym), .proc = (proc_sym) })
