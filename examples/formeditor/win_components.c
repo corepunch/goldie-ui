@@ -276,7 +276,9 @@ static void components_palette_sync_list(window_t *win) {
   if (!st || !st->list_win)
     return;
   send_message(st->list_win, RVM_SETVIEWMODE, RVM_VIEW_LARGE_ICON, NULL);
-  send_message(st->list_win, RVM_SETLARGEICONCOLS, FE_TOOL_GRID_COLS, NULL);
+  // Let the reportview recalculate the grid from its current width so the
+  // components palette reflows when the window is resized.
+  send_message(st->list_win, RVM_SETLARGEICONCOLS, 0, NULL);
   send_message(st->list_win, RVM_SETCOLUMNWIDTH, FE_TOOLBOX_BTN_SIZE, NULL);
   send_message(st->list_win, RVM_SETICONSIZE, FE_TOOL_ICON_SIZE, NULL);
   components_load_strip();

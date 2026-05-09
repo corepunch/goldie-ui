@@ -1798,6 +1798,39 @@ void test_fe_layout_components_registered(void) {
     PASS();
 }
 
+void test_fe_components_palette_reflows_on_resize(void) {
+    TEST("Components: palette grid reflows when resized wider");
+
+    fe_setup();
+
+    window_t *palette = formeditor_create_components_palette(0);
+    ASSERT_NOT_NULL(palette);
+    window_t *list = palette->children;
+    ASSERT_NOT_NULL(list);
+    ASSERT_TRUE((int)send_message(list, RVM_GETITEMCOUNT, 0, NULL) > 4);
+
+    int hit_x = FE_TOOLBOX_BTN_SIZE * 4 + FE_TOOLBOX_BTN_SIZE / 2;
+    int hit_y = FE_TOOLBOX_BTN_SIZE / 2;
+
+    ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
+                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)hit_y),
+                                   NULL),
+                 -1);
+
+    resize_window(palette, 280, palette->frame.h);
+    list = palette->children;
+    ASSERT_NOT_NULL(list);
+
+    ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
+                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)hit_y),
+                                   NULL),
+                 4);
+
+    destroy_window(palette);
+    fe_teardown();
+    PASS();
+}
+
 void test_fe_grid_creates_default_columns_and_columns_restrict_parent(void) {
     TEST("Components: grid seeds two columns and columns only allow grid parents");
 
@@ -2010,6 +2043,7 @@ int main(void) {
     test_fe_plugins_browser_lists_project_plugins();
     test_fe_plugin_components_are_toolbox_placeable();
     test_fe_layout_components_registered();
+    test_fe_components_palette_reflows_on_resize();
     test_fe_grid_creates_default_columns_and_columns_restrict_parent();
     test_fe_levels_strip_uses_window_width();
     test_fe_sizeless_level_controls_use_full_frame();
