@@ -12,7 +12,7 @@
 #include "../../user/icons.h"
 
 #define FE_TOOL_GRID_COLS 4
-#define FE_TOOL_ICON_SIZE FE_TOOLBOX_ICON_W
+#define FE_TOOL_ICON_SIZE FE_COMPONENTS_ICON_W
 #define FE_DRAG_THRESHOLD 2
 
 static reportview_item_t g_comp_tools[FE_MAX_COMPONENTS + 1];
@@ -63,8 +63,8 @@ static int components_item_count(void) {
 
 static int components_win_h(void) {
   int rows = (components_item_count() + FE_TOOL_GRID_COLS - 1) / FE_TOOL_GRID_COLS;
-  if (rows < 2) rows = 2;
-  return TITLEBAR_HEIGHT + rows * FE_TOOLBOX_BTN_SIZE + 4;
+  if (rows < FE_COMPONENTS_MIN_ROWS) rows = FE_COMPONENTS_MIN_ROWS;
+  return TITLEBAR_HEIGHT + rows * FE_COMPONENTS_BTN_SIZE + 4;
 }
 
 #ifndef SHAREDIR
@@ -180,7 +180,7 @@ static void components_load_strip(void) {
   if (g_tool_strip_loaded)
     return;
   char icon_path[512];
-  int n = snprintf(icon_path, sizeof(icon_path), "%s/" SHAREDIR "/controls-icons.png",
+  int n = snprintf(icon_path, sizeof(icon_path), "%s/" SHAREDIR "/controls-icons-48.png",
                    ui_get_exe_dir());
   if (n <= 0 || (size_t)n >= sizeof(icon_path))
     return;
@@ -278,7 +278,7 @@ static void components_palette_sync_list(window_t *win) {
   // Let the large-icon view recalculate the grid from its current width so the
   // components palette reflows when the window is resized.
   send_message(st->list_win, RVM_SETLARGEICONCOLS, 0, NULL);
-  send_message(st->list_win, RVM_SETCOLUMNWIDTH, FE_TOOLBOX_BTN_SIZE, NULL);
+  send_message(st->list_win, RVM_SETCOLUMNWIDTH, FE_COMPONENTS_BTN_SIZE, NULL);
   send_message(st->list_win, RVM_SETICONSIZE, FE_TOOL_ICON_SIZE, NULL);
   components_load_strip();
 #ifdef SHAREDIR

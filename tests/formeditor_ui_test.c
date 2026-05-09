@@ -994,13 +994,13 @@ void test_fe_components_icon_grid_hit_test_scrolled(void) {
     window_t *list = palette->children;
     ASSERT_NOT_NULL(list);
 
-    int icon_h = FE_TOOLBOX_ICON_W;
+    int icon_h = FE_COMPONENTS_ICON_W;
     int cell_h = icon_h + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
                  text_char_height(FONT_ICON) + LARGE_ICON_BOT_PAD;
     list->scroll[1] = (uint32_t)cell_h;
-    int ncol = MAX(1, (list->frame.w - 2 * LARGE_ICON_PAD) / FE_TOOLBOX_BTN_SIZE);
+    int ncol = MAX(1, (list->frame.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
     int x0 = LARGE_ICON_PAD +
-             MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_TOOLBOX_BTN_SIZE) / 2);
+             MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
 
     int hit = (int)send_message(list, RVM_HITTEST,
                                 MAKEDWORD((uint16_t)(x0 + 4),
@@ -1026,13 +1026,13 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
     window_t *list = palette->children;
     ASSERT_NOT_NULL(list);
 
-    int cell_h = FE_TOOLBOX_ICON_W + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
+    int cell_h = FE_COMPONENTS_ICON_W + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
                  text_char_height(FONT_ICON) + LARGE_ICON_BOT_PAD;
     list->scroll[1] = (uint32_t)cell_h;
 
-    int ncol = MAX(1, (list->frame.w - 2 * LARGE_ICON_PAD) / FE_TOOLBOX_BTN_SIZE);
+    int ncol = MAX(1, (list->frame.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
     int x0 = LARGE_ICON_PAD +
-             MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_TOOLBOX_BTN_SIZE) / 2);
+             MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
 
     int press_local_x = x0 + 4;
     int press_local_y = LARGE_ICON_PAD + 4;
@@ -2217,8 +2217,8 @@ void test_fe_components_palette_reflows_on_resize(void) {
     ASSERT_NOT_NULL(list);
     ASSERT_TRUE((int)send_message(list, RVM_GETITEMCOUNT, 0, NULL) > 4);
 
-    int hit_x = FE_TOOLBOX_BTN_SIZE * 4 + FE_TOOLBOX_BTN_SIZE / 2;
-    int hit_y = FE_TOOLBOX_BTN_SIZE / 2;
+    int hit_x = FE_COMPONENTS_BTN_SIZE * 4 + FE_COMPONENTS_BTN_SIZE / 2;
+    int hit_y = FE_COMPONENTS_BTN_SIZE / 2;
 
     ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
                                    MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->scroll[1])),

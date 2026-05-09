@@ -38,16 +38,21 @@ static inline bool fe_default_auto_layout_enabled(void) {
   return FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT;
 }
 
-// Tool palette.
-#define FE_TOOLBOX_ICON_W   24   // icon tile size in the shared strip
-#define FE_TOOLBOX_BTN_SIZE 42   // icon-grid cell width/height in tool palette
+// Tool palettes.
+// Legacy VB-style toolbox keeps the original 24px strip.
+#define FE_TOOLBOX_ICON_W   24   // icon tile size in the legacy shared strip
 #define FE_VB_TOOLBOX_BTN_SIZE (FE_TOOLBOX_ICON_W + 6)  // legacy toolbox button size
+
+// The new auto-layout components palette uses the 48px strip.
+#define FE_COMPONENTS_ICON_W 48   // icon tile size in the new shared strip
+#define FE_COMPONENTS_BTN_SIZE 48  // large-icon grid cell width/height
+#define FE_COMPONENTS_MIN_ROWS 5   // default palette height shows a little over 4.5 icons
 
 #include "controls-icons.h"
 
 // Palette window dimensions.
 #define PALETTE_WIN_X     4
-#define PALETTE_WIN_W     176
+#define PALETTE_WIN_W     184
 
 // Property browser window.  This is intentionally a reportview-backed
 // inspector: close to VB1's simple property sheet, without inline editing yet.
