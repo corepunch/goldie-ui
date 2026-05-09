@@ -9,9 +9,7 @@ irect16_t imageeditor_document_workspace_rect(void) {
   if (screen_h <= 0) screen_h = SCREEN_H;
 
   int left_palette_right = PALETTE_WIN_X + PALETTE_WIN_W;
-  int tool_opts_right = TOOL_OPTIONS_WIN_X + TOOL_OPTIONS_WIN_W;
-  int left = MAX(DOC_START_X,
-                 MAX(left_palette_right, tool_opts_right) + DOC_PALETTE_GAP);
+  int left = MAX(DOC_START_X, left_palette_right + DOC_PALETTE_GAP);
 
   int right_palette_left = MIN(COLOR_WIN_X, LAYERS_WIN_X);
   int right = MIN(screen_w - DOC_WORKSPACE_MARGIN,

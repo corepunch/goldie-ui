@@ -319,7 +319,7 @@ void register_builtin_window_classes(void) {
     .class_name = "gradient",
     .proc = win_gradient,
     .default_width = 0,
-    .default_height = 0,
+    .default_height = 8,
     .default_flags = 0,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,

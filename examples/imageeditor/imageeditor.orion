@@ -284,31 +284,39 @@
 
       <form name="levels" title="Levels" width="280" spacing="6" padding="10">
         <requires library="imageeditor_components" />
-        <grid name="input_row" spacing="4">
-          <column name="in_label_col" width="72">
+        <grid name="input_row" spacing="6">
+          <column name="in_label_col" width="88">
             <label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </column>
-          <column name="in_black_col">
-            <textedit name="in_black" text="0" />
-          </column>
-          <column name="in_gamma_col">
-            <textedit name="in_gamma" text="1.00" />
-          </column>
-          <column name="in_white_col">
-            <textedit name="in_white" text="255" />
+          <column name="in_fields_col">
+            <grid name="in_fields" spacing="4">
+              <column name="in_black_col">
+                <textedit name="in_black" text="0" />
+              </column>
+              <column name="in_gamma_col">
+                <textedit name="in_gamma" text="1.00" />
+              </column>
+              <column name="in_white_col">
+                <textedit name="in_white" text="255" />
+              </column>
+            </grid>
           </column>
         </grid>
         <lv_histogram name="graph" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="in_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        <grid name="output_row" spacing="4">
-          <column name="out_label_col" width="80">
+        <grid name="output_row" spacing="6">
+          <column name="out_label_col" width="88">
             <label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </column>
-          <column name="out_black_col">
-            <textedit name="out_black" text="0" />
-          </column>
-          <column name="out_white_col">
-            <textedit name="out_white" text="255" />
+          <column name="out_fields_col">
+            <grid name="out_fields" spacing="4">
+              <column name="out_black_col">
+                <textedit name="out_black" text="0" />
+              </column>
+              <column name="out_white_col">
+                <textedit name="out_white" text="255" />
+              </column>
+            </grid>
           </column>
         </grid>
         <gradient name="out_grad" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />

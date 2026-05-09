@@ -97,14 +97,14 @@
 #define SWATCH_CLIENT_H TOOL_SWATCH_BOX_H
 #define TOOL_WIN_H    (TITLEBAR_HEIGHT + TOOL_TOOLBAR_H + SWATCH_CLIENT_H)
 
-// Tool options palette — sits below the tool palette.
+// Tool options palette — docked under the Layers palette in the right pane.
 // Content height accommodates brush, shape, and magic-wand option panels.
 #define OPTS_BRUSH_CELL_H      12
 #define TOOL_OPTIONS_PANEL_H   76
-#define TOOL_OPTIONS_WIN_W     112
+#define TOOL_OPTIONS_WIN_W     RIGHT_PANE_WIN_W
 #define TOOL_OPTIONS_WIN_H     (TITLEBAR_HEIGHT + TOOL_OPTIONS_PANEL_H)
-#define TOOL_OPTIONS_WIN_X     PALETTE_WIN_X
-#define TOOL_OPTIONS_WIN_Y     (PALETTE_WIN_Y + TOOL_WIN_H + 4)
+#define TOOL_OPTIONS_WIN_X     LAYERS_WIN_X
+#define TOOL_OPTIONS_WIN_Y     (LAYERS_WIN_Y + LAYERS_WIN_H + 4)
 
 // Brush size selector: 5 MacPaint-style sizes (radii: 0, 1, 2, 3, 4).
 #define NUM_BRUSH_SIZES   5

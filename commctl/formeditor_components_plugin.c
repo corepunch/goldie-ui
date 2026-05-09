@@ -88,6 +88,7 @@ static const fe_component_desc_t k_components[] = {
     .toolbox_ident = 211,
     .toolbox_icon = IC_PROGRESS_BAR,
     .default_size = {121, 8},
+    .default_height = 8,
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
     .proc = win_gradient,
   },

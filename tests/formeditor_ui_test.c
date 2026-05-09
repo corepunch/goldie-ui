@@ -1631,6 +1631,12 @@ void test_fe_plugin_components_are_toolbox_placeable(void) {
     ASSERT_TRUE(fe_component_by_tool_ident(strip->toolbox_ident) == strip);
     ASSERT_EQUAL(hist->toolbox_icon, sysicon_page_data);
     ASSERT_EQUAL(strip->toolbox_icon, sysicon_palette);
+    ASSERT_EQUAL(hist->default_height, 84);
+    ASSERT_EQUAL(strip->default_height, 13);
+
+    const fe_component_desc_t *gradient = fe_component_by_token("gradient");
+    ASSERT_NOT_NULL(gradient);
+    ASSERT_EQUAL(gradient->default_height, 8);
 
     fe_teardown();
     PASS();

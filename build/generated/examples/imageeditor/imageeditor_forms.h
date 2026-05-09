@@ -164,6 +164,8 @@ enum {
   ID_LEVELS_INPUT_ROW,
   ID_LEVELS_IN_LABEL_COL,
   ID_LEVELS_IN_LABEL,
+  ID_LEVELS_IN_FIELDS_COL,
+  ID_LEVELS_IN_FIELDS,
   ID_LEVELS_IN_BLACK_COL,
   ID_LEVELS_IN_BLACK,
   ID_LEVELS_IN_GAMMA_COL,
@@ -175,6 +177,8 @@ enum {
   ID_LEVELS_OUTPUT_ROW,
   ID_LEVELS_OUT_LABEL_COL,
   ID_LEVELS_OUT_LABEL,
+  ID_LEVELS_OUT_FIELDS_COL,
+  ID_LEVELS_OUT_FIELDS,
   ID_LEVELS_OUT_BLACK_COL,
   ID_LEVELS_OUT_BLACK,
   ID_LEVELS_OUT_WHITE_COL,
@@ -544,23 +548,27 @@ static const form_ctrl_def_t imageeditor_text_tool_children[] = {
 static const form_def_t imageeditor_text_tool_form = { .name = "Insert Text", .width = 220, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 8, 8, 8, 8 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_text_tool_children, .child_count = 16 };
 
 static const form_ctrl_def_t imageeditor_levels_children[] = {
-  { "grid", ID_LEVELS_INPUT_ROW, { 0, 0 }, 0, "", "input_row", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "column", ID_LEVELS_IN_LABEL_COL, { 72, 0 }, 0, "", "in_label_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_INPUT_ROW, 1, false, 16, false },
+  { "grid", ID_LEVELS_INPUT_ROW, { 0, 0 }, 0, "", "input_row", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "column", ID_LEVELS_IN_LABEL_COL, { 88, 0 }, 0, "", "in_label_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_INPUT_ROW, 1, false, 16, false },
   { "label", ID_LEVELS_IN_LABEL, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Input Levels:", "in_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_LABEL_COL, 1, false, 16, false },
-  { "column", ID_LEVELS_IN_BLACK_COL, { 0, 0 }, 0, "", "in_black_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_INPUT_ROW, 1, false, 16, false },
+  { "column", ID_LEVELS_IN_FIELDS_COL, { 0, 0 }, 0, "", "in_fields_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_INPUT_ROW, 1, false, 16, false },
+  { "grid", ID_LEVELS_IN_FIELDS, { 0, 0 }, 0, "", "in_fields", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_FIELDS_COL, 1, false, 16, false },
+  { "column", ID_LEVELS_IN_BLACK_COL, { 0, 0 }, 0, "", "in_black_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_FIELDS, 1, false, 16, false },
   { "textedit", ID_LEVELS_IN_BLACK, { 0, 0 }, 0, "0", "in_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_BLACK_COL, 1, false, 16, false },
-  { "column", ID_LEVELS_IN_GAMMA_COL, { 0, 0 }, 0, "", "in_gamma_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_INPUT_ROW, 1, false, 16, false },
+  { "column", ID_LEVELS_IN_GAMMA_COL, { 0, 0 }, 0, "", "in_gamma_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_FIELDS, 1, false, 16, false },
   { "textedit", ID_LEVELS_IN_GAMMA, { 0, 0 }, 0, "1.00", "in_gamma", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_GAMMA_COL, 1, false, 16, false },
-  { "column", ID_LEVELS_IN_WHITE_COL, { 0, 0 }, 0, "", "in_white_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_INPUT_ROW, 1, false, 16, false },
+  { "column", ID_LEVELS_IN_WHITE_COL, { 0, 0 }, 0, "", "in_white_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_FIELDS, 1, false, 16, false },
   { "textedit", ID_LEVELS_IN_WHITE, { 0, 0 }, 0, "255", "in_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_IN_WHITE_COL, 1, false, 16, false },
   { "lv_histogram", ID_LEVELS_GRAPH, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "graph", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "slider", ID_LEVELS_IN_SLIDER, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "in_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "grid", ID_LEVELS_OUTPUT_ROW, { 0, 0 }, 0, "", "output_row", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
-  { "column", ID_LEVELS_OUT_LABEL_COL, { 80, 0 }, 0, "", "out_label_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUTPUT_ROW, 1, false, 16, false },
+  { "grid", ID_LEVELS_OUTPUT_ROW, { 0, 0 }, 0, "", "output_row", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 6, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
+  { "column", ID_LEVELS_OUT_LABEL_COL, { 88, 0 }, 0, "", "out_label_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUTPUT_ROW, 1, false, 16, false },
   { "label", ID_LEVELS_OUT_LABEL, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL, "Output Levels:", "out_label", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUT_LABEL_COL, 1, false, 16, false },
-  { "column", ID_LEVELS_OUT_BLACK_COL, { 0, 0 }, 0, "", "out_black_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUTPUT_ROW, 1, false, 16, false },
+  { "column", ID_LEVELS_OUT_FIELDS_COL, { 0, 0 }, 0, "", "out_fields_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUTPUT_ROW, 1, false, 16, false },
+  { "grid", ID_LEVELS_OUT_FIELDS, { 0, 0 }, 0, "", "out_fields", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUT_FIELDS_COL, 1, false, 16, false },
+  { "column", ID_LEVELS_OUT_BLACK_COL, { 0, 0 }, 0, "", "out_black_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUT_FIELDS, 1, false, 16, false },
   { "textedit", ID_LEVELS_OUT_BLACK, { 0, 0 }, 0, "0", "out_black", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUT_BLACK_COL, 1, false, 16, false },
-  { "column", ID_LEVELS_OUT_WHITE_COL, { 0, 0 }, 0, "", "out_white_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUTPUT_ROW, 1, false, 16, false },
+  { "column", ID_LEVELS_OUT_WHITE_COL, { 0, 0 }, 0, "", "out_white_col", 0, 0, NULL, 0, "stack", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUT_FIELDS, 1, false, 16, false },
   { "textedit", ID_LEVELS_OUT_WHITE, { 0, 0 }, 0, "255", "out_white", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_OUT_WHITE_COL, 1, false, 16, false },
   { "gradient", ID_LEVELS_OUT_GRAD, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_grad", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
   { "slider", ID_LEVELS_OUT_SLIDER, { 0, 0 }, WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP, "", "out_slider", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },
@@ -573,7 +581,7 @@ static const form_ctrl_def_t imageeditor_levels_children[] = {
   { "button", ID_LEVELS_CANCEL, { 0, 0 }, 0, "Cancel", "cancel", 0, 0, NULL, 0, "none", WINDOW_STACK_VERTICAL, 4, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, ID_LEVELS_ACTIONS, 1, false, 16, false },
 };
 
-static const form_def_t imageeditor_levels_form = { .name = "Levels", .width = 280, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 10, 10, 10, 10 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_levels_children, .child_count = 27 };
+static const form_def_t imageeditor_levels_form = { .name = "Levels", .width = 280, .height = 0, .flags = 0, .auto_layout = true, .layout_kind = "stack", .layout_orientation = WINDOW_STACK_VERTICAL, .layout_spacing = 6, .padding = { 10, 10, 10, 10 }, .margin = { 0, 0, 0, 0 }, .children = imageeditor_levels_children, .child_count = 31 };
 
 static const form_ctrl_def_t imageeditor_filter_gallery_children[] = {
   { "grid", ID_FILTER_GALLERY_MAIN, { 0, 0 }, 0, "", "main", 0, 0, NULL, 0, "grid", WINDOW_STACK_VERTICAL, 8, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0, 1, false, 16, false },

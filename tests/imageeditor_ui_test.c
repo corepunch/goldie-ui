@@ -821,6 +821,25 @@ void test_ie_tool_options_window_created(void) {
     PASS();
 }
 
+// Tool options should dock directly under the layers palette with matching width.
+void test_ie_tool_options_dock_under_layers(void) {
+    TEST("create_tool_options_window: docks under layers with the same width");
+
+    ie_setup();
+    create_layers_window();
+    create_tool_options_window();
+
+    ASSERT_NOT_NULL(g_app->layers_win);
+    ASSERT_NOT_NULL(g_app->tool_options_win);
+    ASSERT_EQUAL(g_app->tool_options_win->frame.x, g_app->layers_win->frame.x);
+    ASSERT_EQUAL(g_app->tool_options_win->frame.w, g_app->layers_win->frame.w);
+    ASSERT_EQUAL(g_app->tool_options_win->frame.y,
+                 g_app->layers_win->frame.y + g_app->layers_win->frame.h + 4);
+
+    ie_teardown();
+    PASS();
+}
+
 // Closing the tool options window must null g_app->tool_options_win.
 void test_ie_close_tool_options_window_clears_pointer(void) {
     TEST("close tool options window: g_app->tool_options_win becomes NULL");
@@ -2186,6 +2205,7 @@ int main(int argc, char *argv[]) {
     test_ie_image_resize_dialog_headless();
     test_ie_image_resize_bilinear_scales_pixels();
     test_ie_tool_options_window_created();
+    test_ie_tool_options_dock_under_layers();
     test_ie_close_tool_options_window_clears_pointer();
     test_ie_brush_size_valid_range();
     test_ie_brush_sizes_array();
