@@ -41,6 +41,7 @@ static void ie_setup(void) {
     g_app->current_tool = ID_TOOL_SELECT;
     g_app->fg_color     = MAKE_COLOR(0xFF,0x00,0x00,0xFF);
     g_app->bg_color     = MAKE_COLOR(0xFF,0xFF,0xFF,0xFF);
+    g_app->anim_trace_enabled = true;
     g_app->wand.antialias = true;
     g_app->wand.spread = 24;
     g_app->wand.overlay_color = MAKE_COLOR(0x40, 0xA0, 0xFF, 0x55);
@@ -71,6 +72,10 @@ static void ie_teardown(void) {
     if (g_app->color_win) {
         destroy_window(g_app->color_win);
         g_app->color_win = NULL;
+    }
+    if (g_app->timeline_win) {
+        destroy_window(g_app->timeline_win);
+        g_app->timeline_win = NULL;
     }
     // close_document properly unlinks, frees undo stack, and destroys the
     // window.  It is safe headlessly because canvas_tex / float_tex stay 0.
@@ -238,13 +243,57 @@ void test_ie_anim_trace_toggle(void) {
     TEST("Anim: trace toggle flips the onion-skin overlay state");
 
     ie_setup();
+    ASSERT_TRUE(g_app->anim_trace_enabled);
+
+    handle_menu_command(ID_ANIM_TRACE);
     ASSERT_FALSE(g_app->anim_trace_enabled);
 
     handle_menu_command(ID_ANIM_TRACE);
     ASSERT_TRUE(g_app->anim_trace_enabled);
 
-    handle_menu_command(ID_ANIM_TRACE);
-    ASSERT_FALSE(g_app->anim_trace_enabled);
+    ie_teardown();
+    PASS();
+}
+
+void test_ie_timeline_keyboard_navigation(void) {
+    TEST("Timeline: arrow keys and Home/End navigate frames");
+
+    ie_setup();
+
+    canvas_doc_t *doc = create_document(NULL, 320, 200);
+    ASSERT_NOT_NULL(doc);
+    g_app->active_doc = doc;
+
+    canvas_set_pixel(doc, 0, 0, MAKE_COLOR(0x11, 0x22, 0x33, 0xFF));
+    handle_menu_command(ID_ANIM_NEW_FRAME);
+
+    canvas_set_pixel(doc, 0, 0, MAKE_COLOR(0x44, 0x55, 0x66, 0xFF));
+    handle_menu_command(ID_ANIM_NEW_FRAME);
+
+    canvas_set_pixel(doc, 0, 0, MAKE_COLOR(0x77, 0x88, 0x99, 0xFF));
+
+    create_timeline_window();
+    ASSERT_NOT_NULL(g_app->timeline_win);
+
+    ASSERT_TRUE(send_message(g_app->timeline_win, evKeyDown, AX_KEY_LEFTARROW, NULL));
+    ASSERT_EQUAL(doc->anim->active_frame, 1);
+    ASSERT_EQUAL(canvas_get_pixel(doc, 0, 0), MAKE_COLOR(0x44, 0x55, 0x66, 0xFF));
+
+    ASSERT_TRUE(send_message(g_app->timeline_win, evKeyDown, AX_KEY_LEFTARROW, NULL));
+    ASSERT_EQUAL(doc->anim->active_frame, 0);
+    ASSERT_EQUAL(canvas_get_pixel(doc, 0, 0), MAKE_COLOR(0x11, 0x22, 0x33, 0xFF));
+
+    ASSERT_TRUE(send_message(g_app->timeline_win, evKeyDown, AX_KEY_RIGHTARROW, NULL));
+    ASSERT_EQUAL(doc->anim->active_frame, 1);
+    ASSERT_EQUAL(canvas_get_pixel(doc, 0, 0), MAKE_COLOR(0x44, 0x55, 0x66, 0xFF));
+
+    ASSERT_TRUE(send_message(g_app->timeline_win, evKeyDown, AX_KEY_HOME, NULL));
+    ASSERT_EQUAL(doc->anim->active_frame, 0);
+    ASSERT_EQUAL(canvas_get_pixel(doc, 0, 0), MAKE_COLOR(0x11, 0x22, 0x33, 0xFF));
+
+    ASSERT_TRUE(send_message(g_app->timeline_win, evKeyDown, AX_KEY_END, NULL));
+    ASSERT_EQUAL(doc->anim->active_frame, 2);
+    ASSERT_EQUAL(canvas_get_pixel(doc, 0, 0), MAKE_COLOR(0x77, 0x88, 0x99, 0xFF));
 
     ie_teardown();
     PASS();
@@ -2182,6 +2231,7 @@ int main(int argc, char *argv[]) {
     test_ie_large_document_windows_cascade();
     test_ie_anim_new_frame_selects_inserted_frame();
     test_ie_anim_trace_toggle();
+    test_ie_timeline_keyboard_navigation();
     test_ie_palette_windows_created();
     test_ie_all_forms_use_auto_layout();
     test_ie_filter_gallery_layout_shape();

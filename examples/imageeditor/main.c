@@ -173,6 +173,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   {
     static const uint8_t kDefaultPrev[ONION_SKIN_MAX_STEPS] = { 40, 20, 10, 5 };
     static const uint8_t kDefaultNext[ONION_SKIN_MAX_STEPS] = { 30, 15, 8, 4 };
+    g_app->anim_trace_enabled = true;
     memcpy(g_app->anim_trace_prev_opacity, kDefaultPrev, sizeof(kDefaultPrev));
     memcpy(g_app->anim_trace_next_opacity, kDefaultNext, sizeof(kDefaultNext));
     g_app->anim_trace_frames = 0;

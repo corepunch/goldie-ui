@@ -134,6 +134,75 @@ static void update_trace_button_state(window_t *win) {
                NULL);
 }
 
+static void timeline_ensure_frame_visible(timeline_state_t *st, window_t *win,
+                                          int frame_idx) {
+  canvas_doc_t *doc = tl_doc();
+  if (!st || !win || !doc || !doc->anim || frame_idx < 0 ||
+      frame_idx >= doc->anim->frame_count) {
+    return;
+  }
+
+  irect16_t cr = get_client_rect(win);
+  int view_w = cr.w;
+  int content_w = doc->anim->frame_count * TIMELINE_THUMB_W;
+  int max_scroll = content_w - view_w;
+  if (max_scroll < 0) max_scroll = 0;
+
+  int left = frame_idx * TIMELINE_THUMB_W;
+  int right = left + TIMELINE_THUMB_W;
+
+  if (left < st->scroll_x)
+    st->scroll_x = left;
+  else if (right > st->scroll_x + view_w)
+    st->scroll_x = right - view_w;
+
+  if (st->scroll_x < 0) st->scroll_x = 0;
+  if (st->scroll_x > max_scroll) st->scroll_x = max_scroll;
+}
+
+static void timeline_stop_playback(canvas_doc_t *doc) {
+  if (!doc || !doc->anim || !doc->anim->playing) return;
+  doc->anim->playing = false;
+  if (g_app && g_app->anim_timer_id) {
+    axCancelTimer(g_app->anim_timer_id);
+    g_app->anim_timer_id = 0;
+  }
+  timeline_toolbar_sync();
+}
+
+static bool timeline_select_frame(window_t *win, timeline_state_t *st,
+                                  int target_idx) {
+  canvas_doc_t *doc = tl_doc();
+  if (!win || !st || !doc || !doc->anim) return false;
+  if (target_idx < 0 || target_idx >= doc->anim->frame_count) return false;
+
+  timeline_stop_playback(doc);
+
+  if (doc->anim->active_frame == target_idx) {
+    timeline_ensure_frame_visible(st, win, target_idx);
+    invalidate_window(win);
+    return true;
+  }
+
+  doc_push_undo(doc);
+  if (!anim_timeline_switch_frame(doc->anim, target_idx,
+                                  &doc->pixels,
+                                  doc->canvas_w, doc->canvas_h,
+                                  FRAME_FORMAT_RGBA)) {
+    doc_discard_undo(doc);
+    return false;
+  }
+
+  if (doc->layer.count > 0)
+    doc->layer.stack[doc->layer.active]->pixels = doc->pixels;
+  doc->canvas_dirty = true;
+  if (doc->canvas_win) invalidate_window(doc->canvas_win);
+  st->thumbs_dirty = true;
+  timeline_ensure_frame_visible(st, win, target_idx);
+  invalidate_window(win);
+  return true;
+}
+
 // Draw a single frame cell at position cx in client space.
 static void draw_cell(const timeline_state_t *st, canvas_doc_t *doc, int idx,
                       bool active, bool hover, int h) {
@@ -188,7 +257,6 @@ static result_t timeline_proc(window_t *win, uint32_t msg,
                    (void *)kTimelineToolbar);
       update_play_button_icon(win);
       update_trace_button_state(win);
-      anim_render_init();
       return true;
     }
 
@@ -244,24 +312,7 @@ static result_t timeline_proc(window_t *win, uint32_t msg,
       int cell = hit_cell(st, mx, cr.w);
       if (cell >= 0) {
         // Activate the selected frame.
-        canvas_doc_t *doc = tl_doc();
-        if (doc && doc->anim && cell != doc->anim->active_frame) {
-          doc_push_undo(doc);
-          if (anim_timeline_switch_frame(doc->anim, cell,
-                                         &doc->pixels,
-                                         doc->canvas_w, doc->canvas_h,
-                                         FRAME_FORMAT_RGBA)) {
-            // Sync the active layer's pixel pointer.
-            if (doc->layer.count > 0)
-              doc->layer.stack[doc->layer.active]->pixels = doc->pixels;
-            doc->canvas_dirty = true;
-            if (doc->canvas_win) invalidate_window(doc->canvas_win);
-            st->thumbs_dirty = true;
-            invalidate_window(win);
-          } else {
-            doc_discard_undo(doc);
-          }
-        }
+        timeline_select_frame(win, st, cell);
         // Begin drag.
         st->drag_active = true;
         st->drag_from   = cell;
@@ -333,6 +384,42 @@ static result_t timeline_proc(window_t *win, uint32_t msg,
       if (doc && doc->anim && doc->anim->playing)
         anim_tick(doc);
       return true;
+    }
+
+    case evKeyDown: {
+      if (!st) return false;
+      canvas_doc_t *doc = tl_doc();
+      if (!doc || !doc->anim) return false;
+
+      int target = doc->anim->active_frame;
+      switch (wparam) {
+        case AX_KEY_LEFTARROW:
+        case AX_KEY_UPARROW:
+          target--;
+          break;
+        case AX_KEY_RIGHTARROW:
+        case AX_KEY_DOWNARROW:
+          target++;
+          break;
+        case AX_KEY_HOME:
+          target = 0;
+          break;
+        case AX_KEY_END:
+          target = doc->anim->frame_count - 1;
+          break;
+        case AX_KEY_ENTER:
+        case AX_KEY_KP_ENTER:
+        case AX_KEY_SPACE:
+          handle_menu_command(doc->anim->playing ? ID_ANIM_STOP : ID_ANIM_PLAY);
+          return true;
+        default:
+          return false;
+      }
+
+      if (target < 0) target = 0;
+      if (target >= doc->anim->frame_count)
+        target = doc->anim->frame_count - 1;
+      return timeline_select_frame(win, st, target);
     }
 
     case tbButtonClick:
