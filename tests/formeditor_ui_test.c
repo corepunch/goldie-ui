@@ -755,6 +755,7 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     ASSERT_TRUE(column_type >= 0);
     int grid_idx = fe_first_element_index_of_type(doc, grid_type);
     ASSERT_TRUE(grid_idx >= 0);
+    uint32_t grid_id = doc->elements[grid_idx].id;
     int first_col = fe_first_element_index_of_type(doc, column_type);
     ASSERT_TRUE(first_col >= 0);
     int second_col = -1;
@@ -765,8 +766,8 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
         }
     }
     ASSERT_TRUE(second_col >= 0);
-    ASSERT_EQUAL((int)doc->elements[first_col].parent, doc->elements[grid_idx].id);
-    ASSERT_EQUAL((int)doc->elements[second_col].parent, doc->elements[grid_idx].id);
+    ASSERT_EQUAL((uint32_t)doc->elements[first_col].parent, grid_id);
+    ASSERT_EQUAL((uint32_t)doc->elements[second_col].parent, grid_id);
     ASSERT_TRUE(doc->elements[first_col].live_win != NULL);
     ASSERT_TRUE(doc->elements[second_col].live_win != NULL);
     ASSERT_TRUE(doc->elements[first_col].live_win->frame.w > 0);
@@ -778,7 +779,7 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     ASSERT_EQUAL(doc->element_count, 4);
     int button_idx = fe_first_element_index_of_type(doc, CTRL_BUTTON);
     ASSERT_TRUE(button_idx >= 0);
-    ASSERT_EQUAL((int)doc->elements[button_idx].parent, doc->elements[grid_idx].id);
+    ASSERT_EQUAL((int)doc->elements[button_idx].parent, (int)grid_id);
     ASSERT_TRUE(doc->elements[button_idx].parent != 0);
 
     fe_teardown();
@@ -1811,6 +1812,7 @@ void test_fe_grid_creates_default_columns_and_columns_restrict_parent(void) {
                                    MAKERECT(0, 0, 120, 80),
                                    root, win_gridview, 0, NULL);
     ASSERT_NOT_NULL(grid);
+    send_message(grid, evInitChildren, 0, NULL);
     ASSERT_NOT_NULL(grid->children);
     ASSERT_NOT_NULL(grid->children->next);
     ASSERT_TRUE(grid->children->next->next == NULL);
@@ -1825,6 +1827,61 @@ void test_fe_grid_creates_default_columns_and_columns_restrict_parent(void) {
     ASSERT_NOT_NULL(column);
     ASSERT_TRUE(fe_component_rejects_parent(column, root));
     ASSERT_TRUE(!fe_component_rejects_parent(column, grid));
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_drop_grid_layouts_seeded_columns_across_full_width(void) {
+    TEST("auto layout: dropped grid lays out seeded columns across its width");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+    doc->auto_layout = true;
+    doc->layout_kind = 2;
+    doc->layout_columns = 2;
+
+    int grid_type = fe_component_id_for_token("grid");
+    ASSERT_TRUE(grid_type >= 0);
+
+    ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
+    int grid_idx = fe_first_element_index_of_type(doc, grid_type);
+    ASSERT_TRUE(grid_idx >= 0);
+    ASSERT_NOT_NULL(doc->elements[grid_idx].live_win);
+
+    int column_type = fe_component_id_for_token("column");
+    ASSERT_TRUE(column_type >= 0);
+    int first_col = -1;
+    int second_col = -1;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].type != column_type)
+            continue;
+        if (first_col < 0)
+            first_col = i;
+        else {
+            second_col = i;
+            break;
+        }
+    }
+    ASSERT_TRUE(first_col >= 0);
+    ASSERT_TRUE(second_col >= 0);
+    ASSERT_NOT_NULL(doc->elements[first_col].live_win);
+    ASSERT_NOT_NULL(doc->elements[second_col].live_win);
+
+    window_t *grid_win = doc->elements[grid_idx].live_win;
+    window_t *col1 = doc->elements[first_col].live_win;
+    window_t *col2 = doc->elements[second_col].live_win;
+
+    ASSERT_EQUAL(col1->frame.x, 0);
+    ASSERT_EQUAL(col1->frame.y, 0);
+    ASSERT_EQUAL(col2->frame.y, 0);
+    ASSERT_EQUAL(col2->frame.x, col1->frame.w);
+    ASSERT_EQUAL(col1->frame.w + col2->frame.w, grid_win->frame.w);
+    ASSERT_EQUAL(col1->frame.h, grid_win->frame.h);
+    ASSERT_EQUAL(col2->frame.h, grid_win->frame.h);
+    ASSERT_TRUE(col1->frame.w > 20);
+    ASSERT_TRUE(col2->frame.w > 20);
 
     fe_teardown();
     PASS();
@@ -1922,6 +1979,7 @@ int main(void) {
     test_fe_auto_layout_drop_inserts_before_hovered_node();
     test_fe_auto_layout_drop_honors_canvas_pan();
     test_fe_auto_layout_drop_uses_grid_as_parent();
+    test_fe_drop_grid_layouts_seeded_columns_across_full_width();
     test_fe_place_all_types();
     test_fe_live_windows_created();
     test_fe_live_button_uses_runtime_minimum_height();

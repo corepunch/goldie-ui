@@ -388,7 +388,6 @@ result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       win->layout_margin = (irect16_t){0, 0, 0, 0};
       win->layout_measure_fn = layout_grid_measure_window;
       win->layout_arrange_fn = layout_grid_arrange_window;
-      send_message(win, evInitChildren, 0, NULL);
       return true;
     }
     case evInitChildren:

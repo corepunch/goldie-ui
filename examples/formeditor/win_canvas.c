@@ -115,8 +115,13 @@ static void canvas_clamp_pan(canvas_state_t *s, int win_w, int win_h) {
 static bool canvas_child_window_alive(window_t *root, window_t *target);
 static form_element_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id);
 static bool canvas_doc_has_children(form_doc_t *doc, uint32_t parent_id);
+static bool canvas_parent_is_layout_managed(form_doc_t *doc, uint32_t parent_id);
+static bool canvas_element_parent_is_layout_managed(form_doc_t *doc,
+                                                    const form_element_t *el);
 static irect16_t canvas_element_canvas_rect(form_doc_t *doc, canvas_state_t *s,
                                             const form_element_t *el);
+window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
+                                            int canvas_x, int canvas_y);
 
 // ============================================================
 // Hit testing
@@ -244,6 +249,7 @@ static winproc_t ctrl_type_to_proc(int type) {
 
 static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
                               int insert_index, uint32_t parent_id);
+static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id);
 
 static form_element_t *canvas_find_element_for_live_window(window_t *win) {
   canvas_state_t *s;
@@ -297,10 +303,15 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
     }
     case evDestroy:
     case evPaint:
+    case evMeasure:
+    case evArrange:
     case evResize:
-    case evInitChildren:
     case evCanParent:
       return real_proc ? real_proc(win, msg, wparam, lparam) : false;
+    case evInitChildren:
+      if (el && ctrl_type_to_proc(el->type) == win_gridview && el->parent == 0)
+        return true;
+      return real_proc ? real_proc(win, msg, wparam, lparam) : true;
     case evLeftButtonDown:
     case evLeftButtonDoubleClick:
     case evLeftButtonUp:
@@ -424,10 +435,11 @@ static void canvas_sync_live_element_window(form_doc_t *doc, form_element_t *el)
   if (el->parent == 0) {
     irect16_t r = form_to_canvas_rect(s, el->frame);
     move_window(el->live_win, r.x, r.y);
-  } else {
+    resize_window(el->live_win, el->frame.w, el->frame.h);
+  } else if (!canvas_element_parent_is_layout_managed(doc, el)) {
     move_window(el->live_win, el->frame.x, el->frame.y);
+    resize_window(el->live_win, el->frame.w, el->frame.h);
   }
-  resize_window(el->live_win, el->frame.w, el->frame.h);
   if (el->live_win->proc == win_label) {
     uint32_t packed = label_pack_userdata(el->color,
                                           el->font_set ? (ui_font_t)el->font : FONT_SMALL,
@@ -641,6 +653,30 @@ static form_element_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id) {
   return NULL;
 }
 
+static bool canvas_element_parent_is_layout_managed(form_doc_t *doc,
+                                                    const form_element_t *el) {
+  if (!doc || !el || el->parent == 0)
+    return false;
+  form_element_t *parent = canvas_find_element_by_id(doc, el->parent);
+  return parent && parent->live_win && parent->live_win->auto_layout;
+}
+
+static bool canvas_parent_is_layout_managed(form_doc_t *doc, uint32_t parent_id) {
+  if (!doc || parent_id == 0)
+    return false;
+  form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
+  return parent && parent->live_win && parent->live_win->auto_layout;
+}
+
+static canvas_pt_t canvas_screen_to_canvas_pt(form_doc_t *doc, int screen_x, int screen_y) {
+  if (!doc || !doc->canvas_win)
+    return (canvas_pt_t){screen_x, screen_y};
+  return (canvas_pt_t){
+    (int16_t)(screen_x - window_screen_x(doc->canvas_win) + doc->canvas_win->scroll[0]),
+    (int16_t)(screen_y - window_screen_y(doc->canvas_win) + doc->canvas_win->scroll[1]),
+  };
+}
+
 // Default dimensions for newly placed controls.
 static isize16_t default_ctrl_size(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
@@ -680,6 +716,51 @@ static bool canvas_doc_has_children(form_doc_t *doc, uint32_t parent_id) {
   return false;
 }
 
+window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
+                                            int canvas_x, int canvas_y) {
+  canvas_state_t *s;
+  const fe_component_desc_t *c;
+  int hit;
+
+  if (!doc || !doc->canvas_win)
+    return NULL;
+  c = fe_component_by_id(type);
+  if (!c)
+    c = fe_component_by_tool_ident(type);
+  if (!c)
+    return NULL;
+
+  s = (canvas_state_t *)doc->canvas_win->userdata;
+  if (!s)
+    return NULL;
+
+  canvas_pt_t canvas_pt = canvas_screen_to_canvas_pt(doc, canvas_x, canvas_y);
+  canvas_x = canvas_pt.x;
+  canvas_y = canvas_pt.y;
+  hit = hit_test_elements(s, canvas_x, canvas_y);
+  if (hit < 0) {
+    if (canvas_x >= 0 && canvas_y >= 0 &&
+        canvas_x < doc->form_size.w && canvas_y < doc->form_size.h)
+      return doc->canvas_win;
+    return NULL;
+  }
+
+  for (form_element_t *el = &doc->elements[hit]; el; el = canvas_find_element_by_id(doc, el->parent)) {
+    window_t *target = el->live_win;
+    if (!target)
+      continue;
+    if (!fe_component_rejects_parent(c, target))
+      return target;
+  }
+
+  if (canvas_x >= 0 && canvas_y >= 0 &&
+      canvas_x < doc->form_size.w && canvas_y < doc->form_size.h &&
+      !fe_component_rejects_parent(c, doc->canvas_win))
+    return doc->canvas_win;
+
+  return NULL;
+}
+
 static bool canvas_seed_grid_children(form_doc_t *doc, int grid_index) {
   if (!doc || grid_index < 0 || grid_index >= doc->element_count)
     return false;
@@ -702,6 +783,15 @@ static bool canvas_seed_grid_children(form_doc_t *doc, int grid_index) {
   return true;
 }
 
+static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id) {
+  if (!doc || parent_id == 0)
+    return;
+  form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
+  if (!parent || !parent->live_win || !parent->live_win->auto_layout)
+    return;
+  window_layout_sync(parent->live_win);
+}
+
 // ============================================================
 // Add a new element to the document
 // ============================================================
@@ -710,8 +800,10 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   const fe_component_desc_t *c = fe_component_by_id(type);
   if (doc->element_count >= MAX_ELEMENTS) return -1;
   if (!c || type < 0 || type >= FE_MAX_COMPONENTS) return -1;
-  if (frame.w < MIN_ELEM_W) frame.w = MIN_ELEM_W;
-  if (frame.h < MIN_ELEM_H) frame.h = MIN_ELEM_H;
+  if (!canvas_parent_is_layout_managed(doc, parent_id)) {
+    if (frame.w < MIN_ELEM_W) frame.w = MIN_ELEM_W;
+    if (frame.h < MIN_ELEM_H) frame.h = MIN_ELEM_H;
+  }
 
   int index = doc->element_count;
   if (insert_index >= 0 && insert_index < doc->element_count)
@@ -751,10 +843,12 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   canvas_create_live_element_window(doc, el);
   if (c->proc == win_gridview)
     canvas_seed_grid_children(doc, index);
+  canvas_sync_live_parent_layout(doc, parent_id);
   if (doc->auto_layout)
     form_doc_auto_layout_reflow(doc);
   else
     canvas_sync_live_controls(doc);
+  canvas_sync_live_parent_layout(doc, parent_id);
   doc->modified = true;
   form_doc_update_title(doc);
   return index;
@@ -812,6 +906,10 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
     }
     canvas_x = screen_x - origin.x + target->scroll[0];
     canvas_y = screen_y - origin.y + target->scroll[1];
+  } else if (target == doc->canvas_win) {
+    canvas_pt_t pt = canvas_screen_to_canvas_pt(doc, screen_x, screen_y);
+    canvas_x = pt.x;
+    canvas_y = pt.y;
   }
 
   parent_id = canvas_target_parent_id(doc, target ? target : doc->canvas_win);

@@ -288,6 +288,8 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
 void canvas_rebuild_live_controls(form_doc_t *doc);
 void canvas_sync_live_controls(form_doc_t *doc);
 void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *target);
+window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
+                                            int canvas_x, int canvas_y);
 void form_doc_auto_layout_reflow(form_doc_t *doc);
 bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y);
 bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,

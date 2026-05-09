@@ -290,115 +290,13 @@ static void components_palette_sync_list(window_t *win) {
   populate_tool_list(st->list_win);
 }
 
-static ipoint16_t window_client_origin(window_t *win) {
-  int x = 0;
-  int y = 0;
-  if (!win) return (ipoint16_t){0, 0};
-  for (window_t *it = win; it; it = it->parent) {
-    x += it->frame.x;
-    y += it->frame.y;
-    if (!it->parent) {
-      y += titlebar_height(it);
-      break;
-    }
-  }
-  return (ipoint16_t){(int16_t)x, (int16_t)y};
-}
-
 static ipoint16_t window_local_point_to_screen(window_t *win, int lx, int ly) {
-  ipoint16_t o = window_client_origin(win);
-  int sx = o.x + lx - win->scroll[0];
-  int sy = o.y + ly - win->scroll[1];
-  return (ipoint16_t){(int16_t)sx, (int16_t)sy};
-}
-
-static bool point_in_window_client(window_t *win, int sx, int sy) {
-  if (!win) return false;
-  irect16_t cr = get_client_rect(win);
-  ipoint16_t o = window_client_origin(win);
-  int lx = sx - o.x;
-  int ly = sy - o.y;
-  return lx >= cr.x && ly >= cr.y && lx < cr.x + cr.w && ly < cr.y + cr.h;
-}
-
-static bool components_window_is_descendant(window_t *win, window_t *ancestor) {
-  for (window_t *it = win; it; it = it->parent) {
-    if (it == ancestor)
-      return true;
-  }
-  return false;
-}
-
-static window_t *components_hit_test_canvas_subtree(window_t *root, int sx, int sy) {
-  window_t *hit = NULL;
-  if (!root)
-    return NULL;
-  for (window_t *child = root->children; child; child = child->next) {
-    if (!point_in_window_client(child, sx, sy))
-      continue;
-    window_t *nested = components_hit_test_canvas_subtree(child, sx, sy);
-    hit = nested ? nested : child;
-  }
-  return hit;
-}
-
-static form_element_t *components_window_element(window_t *win) {
-  if (!win || !g_app || !g_app->doc)
-    return NULL;
-  for (int i = 0; i < g_app->doc->element_count; i++) {
-    form_element_t *el = &g_app->doc->elements[i];
-    if (el->live_win == win || el->id == (int)win->id)
-      return el;
-  }
-  return NULL;
-}
-
-static const fe_component_desc_t *components_window_desc(window_t *win) {
-  form_element_t *el = components_window_element(win);
-  return el ? fe_component_by_id(el->type) : NULL;
-}
-
-static bool components_window_is_drop_target(window_t *win) {
-  if (!win || !g_app || !g_app->doc || !g_app->doc->canvas_win)
-    return false;
-  if (win == g_app->doc->canvas_win)
-    return true;
-  if (win->proc == win_scrollbar)
-    return false;
-  const fe_component_desc_t *desc = components_window_desc(win);
-  if (!desc || !desc->proc)
-    return false;
-  if (desc->proc == win_gridview || desc->proc == win_stackview || desc->proc == win_flowview)
-    return true;
-  return false;
-}
-
-static window_t *components_find_drop_target(const fe_component_desc_t *desc,
-                                             int sx, int sy) {
-  window_t *canvas = g_app && g_app->doc ? g_app->doc->canvas_win : NULL;
-  window_t *hit = components_hit_test_canvas_subtree(canvas, sx, sy);
-  if (!canvas || !desc)
-    return NULL;
-  if (!hit) {
-    if (point_in_window_client(canvas, sx, sy))
-      hit = canvas;
-    else
-      return NULL;
-  }
-  for (window_t *candidate = hit; candidate; candidate = candidate->parent) {
-    if (!components_window_is_descendant(candidate, canvas))
-      break;
-    if (!components_window_is_drop_target(candidate))
-      continue;
-    if (!fe_component_rejects_parent(desc, candidate))
-      return candidate;
-    if (candidate == canvas)
-      break;
-  }
-  if (point_in_window_client(canvas, sx, sy) &&
-      !fe_component_rejects_parent(desc, canvas))
-    return canvas;
-  return NULL;
+  if (!win)
+    return (ipoint16_t){0, 0};
+  return (ipoint16_t){
+      (int16_t)(window_screen_x(win) + lx - win->scroll[0]),
+      (int16_t)(window_screen_y(win) + ly - win->scroll[1]),
+  };
 }
 
 window_t *formeditor_create_components_palette(hinstance_t hinstance) {
@@ -515,8 +413,9 @@ result_t win_components_list_proc(window_t *win, uint32_t msg,
       {
         ipoint16_t screen = window_local_point_to_screen(
             win, (int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam));
-        const fe_component_desc_t *desc = fe_component_by_tool_ident(g_drag.tool_ident);
-        window_t *target = desc ? components_find_drop_target(desc, screen.x, screen.y) : NULL;
+        window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
+                                                             g_drag.tool_ident,
+                                                             screen.x, screen.y);
         if (g_app && g_app->doc) {
           canvas_set_component_drag_hover(g_app->doc, target != NULL, target);
         }
@@ -531,8 +430,9 @@ result_t win_components_list_proc(window_t *win, uint32_t msg,
           win, (int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam));
       int sx = screen.x;
       int sy = screen.y;
-      const fe_component_desc_t *desc = fe_component_by_tool_ident(g_drag.tool_ident);
-      window_t *target = desc ? components_find_drop_target(desc, sx, sy) : NULL;
+      window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
+                                                           g_drag.tool_ident,
+                                                           sx, sy);
       if (g_drag.dragging && g_app && g_app->doc && target)
         canvas_drop_component_to_target(g_app->doc, g_drag.tool_ident, target, sx, sy);
       if (g_app && g_app->doc)
