@@ -61,6 +61,12 @@ result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void layout_stack_measure_window(window_t *win, layout_measure_t *m);
+void layout_stack_arrange_window(window_t *win, const irect16_t *rect);
+void layout_grid_measure_window(window_t *win, layout_measure_t *m);
+void layout_grid_arrange_window(window_t *win, const irect16_t *rect);
+void layout_flow_measure_window(window_t *win, layout_measure_t *m);
+void layout_flow_arrange_window(window_t *win, const irect16_t *rect);
 void layout_flow_horizontal(window_t *first, int start_x, int gap);
 
 // Toolbox — 2-column grid of icon buttons (Photoshop / VB3 / Paint style).

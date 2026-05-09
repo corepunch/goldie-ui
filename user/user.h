@@ -365,6 +365,8 @@ struct window_s {
   int16_t   layout_fixed_h;  // declarative height hint used by auto-layout
   irect16_t layout_padding;  // inner padding for auto-layout containers
   irect16_t layout_margin;   // outer margin when nested inside a layout container
+  void (*layout_measure_fn)(struct window_s *win, layout_measure_t *m);
+  void (*layout_arrange_fn)(struct window_s *win, const irect16_t *rect);
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)
