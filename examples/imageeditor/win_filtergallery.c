@@ -1,5 +1,5 @@
 // Filter gallery dialog: one-shot browser for the Photo menu shader presets.
-// The thumbnail grid is rendered by win_reportview in RVM_VIEW_LARGE_ICON mode.
+// The thumbnail grid is rendered by the large-icon columnview control.
 // Each thumbnail is baked once at dialog-open time and stored in a single GPU
 // texture strip so no shader runs per frame during display.
 
@@ -67,7 +67,7 @@ static uint32_t filter_gallery_make_preview_tex(canvas_doc_t *doc) {
 // Bake a 64x64 thumbnail for every filter by rendering the preview texture
 // through each filter's GL program once, reading the pixels back, and packing
 // them into a single vertical strip texture.  The strip is stored in st and
-// fed to win_reportview via RVM_SETICONSTRIP.
+// fed to the large-icon view via RVM_SETICONSTRIP.
 static void filter_gallery_bake_thumbnails(filter_gallery_state_t *st) {
   int count = g_app ? g_app->filter_count : 0;
   if (count <= 0 || !st->preview_tex) return;
@@ -170,7 +170,7 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
         if (st->selected >= 0)
           send_message(list, RVM_SETSELECTION, (uint32_t)st->selected, NULL);
       }
-      // Re-run layout after the report view switches into its real mode.
+      // Re-run layout after the thumbnail list finishes configuring itself.
       window_layout_sync(win);
       {
         window_t *preview = get_window_item(win, ID_FILTER_GALLERY_PREVIEW);

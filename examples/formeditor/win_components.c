@@ -1,7 +1,7 @@
 // Auto-layout tool palette for the form editor.
 // The top-level "Components" window is a wrapper; the actual icon grid lives
-// in a child reportview so the reportview owns scrolling and hit-testing the
-// same way Filter Gallery does in ImageEditor.
+// in a child icongrid control so scrolling and hit-testing stay inside the
+// grid view, the same way Filter Gallery does in ImageEditor.
 
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
@@ -275,8 +275,7 @@ static void components_palette_sync_list(window_t *win) {
   components_palette_state_t *st = win ? (components_palette_state_t *)win->userdata : NULL;
   if (!st || !st->list_win)
     return;
-  send_message(st->list_win, RVM_SETVIEWMODE, RVM_VIEW_LARGE_ICON, NULL);
-  // Let the reportview recalculate the grid from its current width so the
+  // Let the large-icon view recalculate the grid from its current width so the
   // components palette reflows when the window is resized.
   send_message(st->list_win, RVM_SETLARGEICONCOLS, 0, NULL);
   send_message(st->list_win, RVM_SETCOLUMNWIDTH, FE_TOOLBOX_BTN_SIZE, NULL);
@@ -341,7 +340,7 @@ result_t win_components_proc(window_t *win, uint32_t msg,
         st->list_win = create_window(
             "", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NORESIZE | WINDOW_VSCROLL,
             MAKERECT(0, 0, cr.w, cr.h),
-            win, win_components_list_proc, win->hinstance, NULL);
+            win, win_icongrid, win->hinstance, NULL);
         if (!st->list_win)
           return false;
       }
@@ -369,7 +368,7 @@ result_t win_components_list_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
-      win_reportview(win, msg, wparam, lparam);
+      win_icongrid(win, msg, wparam, lparam);
       components_palette_sync_list(win->parent);
       return true;
 
@@ -451,6 +450,6 @@ result_t win_components_list_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return win_reportview(win, msg, wparam, lparam);
+      return win_icongrid(win, msg, wparam, lparam);
   }
 }

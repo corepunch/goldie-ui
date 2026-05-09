@@ -563,15 +563,14 @@ void test_cv_report_wheel_scrolls_child(void) {
 
 // ---- large-icon view tests ------------------------------------------------- //
 
-// Helper: create a win_reportview in RVM_VIEW_LARGE_ICON mode with a fixed
-// cell width so ncol is predictable.
+// Helper: create a win_icongrid with a fixed cell width so ncol is
+// predictable.
 static window_t *make_large_icon_columnview(window_t *parent, int w, int h,
                                              int cell_w, int icon_sz) {
     irect16_t fr = {0, 0, w, h};
     window_t *cv = create_window("li", WINDOW_NOTITLE | WINDOW_NOFILL,
-                                 &fr, parent, win_reportview, 0, NULL);
+                                 &fr, parent, win_icongrid, 0, NULL);
     if (!cv) return NULL;
-    send_message(cv, RVM_SETVIEWMODE,   RVM_VIEW_LARGE_ICON, NULL);
     send_message(cv, RVM_SETCOLUMNWIDTH, (uint32_t)cell_w,   NULL);
     send_message(cv, RVM_SETICONSIZE,   (uint32_t)icon_sz,   NULL);
     return cv;
@@ -610,7 +609,7 @@ void test_cv_large_icon_seticonsize(void) {
     PASS();
 }
 
-// RVM_SETVIEWMODE accepts RVM_VIEW_LARGE_ICON and rejects invalid values.
+// RVM_SETVIEWMODE accepts the large-icon mode and rejects invalid values.
 void test_cv_large_icon_setviewmode(void) {
     TEST("win_reportview large-icon: RVM_SETVIEWMODE accepts large-icon mode");
 
@@ -621,7 +620,7 @@ void test_cv_large_icon_setviewmode(void) {
     ASSERT_NOT_NULL(parent);
     irect16_t fr = {0, 0, 300, 200};
     window_t *cv = create_window("cv", WINDOW_NOTITLE | WINDOW_NOFILL,
-                                 &fr, parent, win_reportview, 0, NULL);
+                                 &fr, parent, win_icongrid, 0, NULL);
     ASSERT_NOT_NULL(cv);
 
     result_t r = send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_LARGE_ICON, NULL);

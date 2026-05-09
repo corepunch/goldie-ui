@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "../user/user.h"
 
-// Layout constants (exported for controls that extend win_reportview).
+// Layout constants shared by the columnview-style controls.
 // FONT_SIZE       — chrome font (ChiKareGo2), from kernel/kernel.h.
 // FONT_SIZE_SMALL — content font (Geneva9/SmallFont), from kernel/kernel.h.
 #define COLUMNVIEW_ENTRY_HEIGHT  (FONT_SIZE_SMALL + 5)  // data rows use FONT_SMALL
@@ -69,5 +69,7 @@ enum {
 };
 
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #endif // __UI_COLUMNVIEW_H__

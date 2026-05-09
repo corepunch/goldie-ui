@@ -32,6 +32,8 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
