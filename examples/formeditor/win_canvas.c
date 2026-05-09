@@ -252,18 +252,35 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
 static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id);
 
 static form_element_t *canvas_find_element_for_live_window(window_t *win) {
-  canvas_state_t *s;
   form_doc_t *doc;
-  if (!win || !win->parent) return NULL;
-  s = (canvas_state_t *)win->parent->userdata;
-  if (!s) return NULL;
-  doc = s->doc;
-  if (!doc) return NULL;
-  for (int i = 0; i < doc->element_count; i++) {
-    if (doc->elements[i].live_win == win)
-      return &doc->elements[i];
+  if (!win) return NULL;
+
+  /*
+   * Live controls can be nested under layout containers (for example a grid
+   * column), so the canvas state is not always on the immediate parent. Walk
+   * the ancestor chain until we reach the canvas window that owns the
+   * document.
+   */
+  for (window_t *ancestor = win->parent; ancestor; ancestor = ancestor->parent) {
+    canvas_state_t *s = (canvas_state_t *)ancestor->userdata;
+    if (!s || !s->doc)
+      continue;
+    doc = s->doc;
+    for (int i = 0; i < doc->element_count; i++) {
+      if (doc->elements[i].live_win == win)
+        return &doc->elements[i];
+    }
+    return NULL;
   }
   return NULL;
+}
+
+static bool canvas_window_is_descendant(window_t *win, window_t *ancestor) {
+  for (window_t *it = win; it; it = it->parent) {
+    if (it == ancestor)
+      return true;
+  }
+  return false;
 }
 
 static bool canvas_child_window_alive(window_t *root, window_t *target) {
@@ -324,6 +341,11 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
     case evCommand:
     case evSetFocus:
       return true;
+    case evParentNotify:
+      // Layout containers are often nested under the canvas, so forward child
+      // notifications up the chain until the canvas can decide selection and
+      // drag handling.
+      return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
     default:
       return false;
   }
@@ -861,8 +883,17 @@ bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y
 static uint32_t canvas_target_parent_id(form_doc_t *doc, window_t *target) {
   if (!doc || !target || target == doc->canvas_win)
     return 0;
-  form_element_t *el = canvas_find_element_for_live_window(target);
-  return el ? el->id : 0;
+
+  for (window_t *it = target; it; it = it->parent) {
+    for (int i = 0; i < doc->element_count; i++) {
+      if (doc->elements[i].live_win == it || doc->elements[i].id == (int)it->id)
+        return (uint32_t)doc->elements[i].id;
+    }
+    if (it == doc->canvas_win)
+      break;
+  }
+
+  return 0;
 }
 
 bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,
@@ -928,11 +959,18 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
   frame = clamp_to_form(doc, frame);
 
   if (doc->auto_layout && doc->element_count > 0) {
-    int hit = hit_test_elements(s, canvas_x, canvas_y);
-    if (hit >= 0)
-      insert_index = hit;
-    else if (s->hover_layout_idx >= 0)
+    if (s->external_component_drag && s->hover_layout_idx >= 0) {
+      // Palette drags already tracked the hovered layout target during motion.
+      // Prefer that target directly so mouse-up cannot re-hit a different
+      // element because of target-local coordinate conversion.
       insert_index = s->hover_layout_idx;
+    } else {
+      int hit = hit_test_elements(s, canvas_x, canvas_y);
+      if (hit >= 0)
+        insert_index = hit;
+      else if (s->hover_layout_idx >= 0)
+        insert_index = s->hover_layout_idx;
+    }
   }
 
   return canvas_add_element(doc, ctrl_type, frame, insert_index, parent_id) >= 0;
@@ -1164,7 +1202,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
     case evParentNotify: {
       if (!s || !doc || !lparam) return false;
       parent_notify_t *pn = (parent_notify_t *)lparam;
-      if (!pn->child || pn->child->parent != win)
+      if (!pn->child || !canvas_window_is_descendant(pn->child, win))
         return false;
 
       uint32_t child_msg = pn->child_msg;

@@ -210,6 +210,8 @@ result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evPaint:
       layout_paint_children(win);
       return true;
+    case evParentNotify:
+      return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
     default:
       return false;
   }

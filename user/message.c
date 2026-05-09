@@ -1,7 +1,6 @@
 // Message queue and dispatch implementation
 // Extracted from mapview/window.c
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -832,6 +831,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       case evHitTest:
         {
           uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
+          x += (uint16_t)win->scroll[0];
+          y += (uint16_t)win->scroll[1];
           if (win->parent) {
             x += win->frame.x;
             y += win->frame.y;
@@ -840,7 +841,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
             irect16_t r = item->frame;
             if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
               *(window_t **)lparam = item;
-              send_message(item, evHitTest, MAKEDWORD(x - r.x, y - r.y), lparam);
+              send_message(item, evHitTest,
+                           MAKEDWORD((uint16_t)(x - r.x + item->scroll[0]),
+                                     (uint16_t)(y - r.y + item->scroll[1])),
+                           lparam);
             }
           }
         }

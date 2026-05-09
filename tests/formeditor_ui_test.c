@@ -63,6 +63,67 @@ static int fe_component_id_for_desc(const fe_component_desc_t *desc) {
     return -1;
 }
 
+typedef struct {
+    int paint_count;
+    irect16_t last_paint_frame;
+} fe_paint_probe_state_t;
+
+static fe_paint_probe_state_t g_paint_probe = {0};
+
+static result_t fe_paint_probe_proc(window_t *win, uint32_t msg,
+                                    uint32_t wparam, void *lparam) {
+    (void)wparam;
+    (void)lparam;
+    switch (msg) {
+        case evCreate:
+          win->flags |= WINDOW_NOTABSTOP;
+          return true;
+        case evMeasure: {
+          layout_measure_t *m = (layout_measure_t *)lparam;
+          if (m) {
+              m->desired_w = MAX(m->desired_w, 36);
+              m->desired_h = MAX(m->desired_h, 18);
+          }
+          return true;
+        }
+        case evPaint:
+          g_paint_probe.paint_count++;
+          g_paint_probe.last_paint_frame = win->frame;
+          return true;
+        default:
+          return false;
+    }
+}
+
+static int fe_paint_probe_component_type(void) {
+    static bool registered = false;
+    static int type = -1;
+    if (!registered) {
+        fe_component_desc_t desc = {
+            .class_name = "paintprobe",
+            .display_name = "PaintProbe",
+            .token = "paintprobe",
+            .name_prefix = "IDC_PB",
+            .toolbox_ident = 299,
+            .toolbox_icon = sysicon_puzzle,
+            .default_size = {36, 18},
+            .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
+            .proc = fe_paint_probe_proc,
+            .default_width = 36,
+            .default_height = 18,
+            .default_flags = 0,
+            .default_h_align = LAYOUT_ALIGN_STRETCH,
+            .default_v_align = LAYOUT_ALIGN_STRETCH,
+        };
+        if (fe_register_component(&desc)) {
+            const fe_component_desc_t *resolved = fe_component_by_token("paintprobe");
+            type = fe_component_id_for_desc(resolved);
+        }
+        registered = true;
+    }
+    return type;
+}
+
 // ── Temp directory helper ──────────────────────────────────────────────────
 static const char *fe_temp_dir(void) {
     const char *d = getenv("TEMP");
@@ -1081,6 +1142,72 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
     ASSERT_EQUAL(doc->elements[before].type, expected_type);
 
     destroy_window(palette);
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_column_nested_child_paints_with_expected_coords(void) {
+    TEST("Components: nested child paints at expected coordinates in a column");
+
+    fe_setup();
+    g_paint_probe.paint_count = 0;
+    g_paint_probe.last_paint_frame = (irect16_t){0, 0, 0, 0};
+
+    form_doc_t *doc = g_app->doc;
+    doc->auto_layout = true;
+    doc->layout_kind = 2;
+    doc->layout_columns = 2;
+    doc->show_grid = false;
+
+    int grid_type = fe_component_id_for_token("grid");
+    int column_type = fe_component_id_for_token("column");
+    int probe_type = fe_paint_probe_component_type();
+    ASSERT_TRUE(grid_type >= 0);
+    ASSERT_TRUE(column_type >= 0);
+    ASSERT_TRUE(probe_type >= 0);
+
+    ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
+    int grid_idx = fe_first_element_index_of_type(doc, grid_type);
+    ASSERT_TRUE(grid_idx >= 0);
+
+    int first_col = -1;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].type == column_type) {
+            first_col = i;
+            break;
+        }
+    }
+    ASSERT_TRUE(first_col >= 0);
+    window_t *column_win = doc->elements[first_col].live_win;
+    ASSERT_NOT_NULL(column_win);
+    uint32_t column_id = 0;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].live_win == column_win) {
+            column_id = doc->elements[i].id;
+            break;
+        }
+    }
+    ASSERT_TRUE(column_id != 0);
+
+    int sx = window_screen_x(column_win) + 8;
+    int sy = window_screen_y(column_win) + 8;
+    bool dropped = canvas_drop_component_to_target(doc, probe_type, column_win, sx, sy);
+    ASSERT_TRUE(dropped);
+
+    int probe_idx = -1;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].type == probe_type && doc->elements[i].parent == column_id) {
+            probe_idx = i;
+            break;
+        }
+    }
+    ASSERT_TRUE(probe_idx >= 0);
+
+    column_win->scroll[1] = 12;
+    g_ui_runtime.running = false;
+    send_message(doc->canvas_win, evPaint, 0, NULL);
+    ASSERT_TRUE(g_paint_probe.paint_count > 0);
+
     fe_teardown();
     PASS();
 }
@@ -2316,6 +2443,8 @@ int main(void) {
     test_fe_auto_layout_drop_uses_grid_column_as_parent();
     test_fe_components_icon_grid_hit_test_scrolled();
     test_fe_components_icon_grid_scrolled_drag_creates_expected_item();
+    test_fe_column_nested_child_paints_with_expected_coords();
+    test_fe_scrolled_grid_column_click_selects_visible_child();
     test_fe_drop_grid_layouts_seeded_columns_across_full_width();
     test_fe_place_all_types();
     test_fe_live_windows_created();
@@ -2323,7 +2452,6 @@ int main(void) {
     test_fe_select_element();
     test_fe_live_button_parent_notify_selects_on_click();
     test_fe_deselect_on_empty_click();
-    test_fe_scrolled_grid_column_click_selects_visible_child();
     test_fe_panned_canvas_click_selects_visible_grid_child();
     test_fe_resize_element();
     test_fe_resize_clamped_to_minimum();
