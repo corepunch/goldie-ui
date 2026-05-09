@@ -739,7 +739,7 @@ void layout_flow_horizontal(window_t *first, int start_x, int gap) {
   }
 }
 
-static result_t layout_container_proc(window_t *win, uint32_t msg,
+result_t layout_container_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam,
                                       const char *default_layout_kind,
                                       flags_t default_orientation,
@@ -791,69 +791,15 @@ static result_t layout_container_proc(window_t *win, uint32_t msg,
   }
 }
 
-result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  return layout_container_proc(win, msg, wparam, lparam,
-                               "stack",
-                               WINDOW_STACK_VERTICAL,
-                               4);
-}
-
-result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  return layout_container_proc(win, msg, wparam, lparam,
-                               "grid",
-                               WINDOW_STACK_VERTICAL,
-                               0);
-}
-
-result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  switch (msg) {
-    case evCreate: {
-      const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
-      win->auto_layout = true;
-      win->layout_kind = "flow";
-      win->layout_orientation = WINDOW_STACK_HORIZONTAL;
-      win->layout_spacing = 0;
-      win->layout_padding = (irect16_t){0, 0, 0, 0};
-      win->layout_margin = (irect16_t){0, 0, 0, 0};
-      win->h_align = LAYOUT_ALIGN_STRETCH;
-      win->v_align = LAYOUT_ALIGN_STRETCH;
-      if (cfg) {
-        if (cfg->layout_kind && *cfg->layout_kind)
-          win->layout_kind = cfg->layout_kind;
-        win->layout_orientation = cfg->orientation & WINDOW_STACK_HORIZONTAL;
-        if (cfg->spacing > 0)
-          win->layout_spacing = cfg->spacing;
-        win->layout_padding = cfg->padding;
-        win->layout_margin = cfg->margin;
-      }
-      return true;
-    }
-    case evMeasure: {
-      layout_measure_t *m = (layout_measure_t *)lparam;
-      if (m) layout_measure_flow_window(win, m);
-      return true;
-    }
-    case evArrange: {
-      layout_arrange_t *a = (layout_arrange_t *)lparam;
-      if (a) {
-        win->frame = a->rect;
-        window_layout_sync(win);
-      }
-      return true;
-    }
-    case evResize:
-      window_layout_sync(win);
-      return true;
-    case evPaint:
-      layout_paint_children(win);
-      return true;
-    default:
-      return false;
-  }
-}
-
 result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
+    case evCanParent: {
+      (void)wparam;
+      window_t *target = (window_t *)lparam;
+      if (!target) return true;
+      return !(target->layout_kind &&
+               strcmp(target->layout_kind, "grid") == 0);
+    }
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       result_t r = layout_container_proc(win, msg, wparam, lparam,

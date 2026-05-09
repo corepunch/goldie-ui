@@ -61,6 +61,13 @@ enum {
   // lparam = char[256] output buffer — write the NUL-terminated tooltip text
   //          here and return true; return false if no tooltip at that position.
   evGetTooltipText,
+  // Query whether a component can be parented to a target window.
+  // wparam = 0; lparam = window_t *target_parent.
+  // Return true to reject the target parent; false to allow it.
+  evCanParent = 1560,
+  // Ask a container to create its default child structure.
+  // wparam = 0; lparam = NULL.
+  evInitChildren = 1561,
   // Measure / arrange messages for auto-layout containers.
   // Appended here (rather than inserted mid-enum) to preserve the numeric
   // values of all existing messages and avoid breaking compiled ABI.

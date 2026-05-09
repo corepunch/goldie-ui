@@ -184,7 +184,8 @@ GEM_BINS = $(GEM_DIR)/imageeditor.gem \
            $(GEM_DIR)/filemanager.gem \
            $(GEM_DIR)/helloworld.gem \
            $(GEM_DIR)/terminal.gem \
-           $(GEM_DIR)/formeditor.gem
+           $(GEM_DIR)/formeditor.gem \
+           $(GEM_DIR)/formeditor_vb.gem
 
 # Shell binary
 SHELL_BIN  = $(BIN_DIR)/orion-shell$(EXE_EXT)
@@ -229,12 +230,13 @@ endif
 ifneq ($(strip $(LIBXML2_LIBS)),)
 TOOLS_BINS += $(ORIONC_BIN)
 FORMEDITOR_EXAMPLE_BIN = $(BIN_DIR)/formeditor$(EXE_EXT)
+FORMEDITOR_VB_EXAMPLE_BIN = $(BIN_DIR)/formeditor_vb$(EXE_EXT)
 IMAGEEDITOR_EXAMPLE_BIN = $(BIN_DIR)/imageeditor$(EXE_EXT)
 IMAGEEDITOR256_EXAMPLE_BIN = $(BIN_DIR)/imageeditor256$(EXE_EXT)
 SOCIALFEED_EXAMPLE_BIN = $(BIN_DIR)/socialfeed$(EXE_EXT)
 LIBXML_UI_TEST_BINS = $(IMAGEEDITOR_UI_TEST_BIN) $(FORMEDITOR_UI_TEST_BIN)
 else
-$(info NOTE: libxml2 not found; skipping orionc, formeditor, imageeditor, imageeditor256 and socialfeed examples.)
+$(info NOTE: libxml2 not found; skipping orionc, formeditor, formeditor_vb, imageeditor, imageeditor256 and socialfeed examples.)
 endif
 
 # Gitclient tests require custom build rules because they compile gitclient
@@ -258,6 +260,7 @@ FORMEDITOR_UI_TEST_BIN  = $(BIN_DIR)/test_formeditor_ui_test$(EXE_EXT)
 FORMEDITOR_SRCS_NO_MAIN = $(filter-out examples/formeditor/main.c,$(wildcard examples/formeditor/*.c))
 FORMEDITOR_COMPONENT_PLUGIN_SRC = commctl/formeditor_components_plugin.c
 FORMEDITOR_COMPONENT_PLUGIN = $(LIB_DIR)/formeditor_components$(LIB_EXT)
+FORMEDITOR_BIN_SRCS = $(wildcard examples/formeditor/*.c)
 IE_COMPONENTS_PLUGIN_SRCS = \
 	examples/imageeditor/components/lv_plug.c \
 	examples/imageeditor/components/lv_hist.c \
@@ -398,7 +401,7 @@ $(SHARED_LIB): $(USER_SRCS) $(KERNEL_SRCS) $(COMMCTL_SRCS) $(PLATFORM_LIB) | $(L
 
 # Examples
 .PHONY: examples
-examples: share $(EXAMPLE_BINS) $(EXTRA_EXAMPLE_BINS) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) $(FORMEDITOR_EXAMPLE_BIN) $(IMAGEEDITOR_EXAMPLE_BIN) $(IMAGEEDITOR256_EXAMPLE_BIN) $(SOCIALFEED_EXAMPLE_BIN)
+examples: share $(EXAMPLE_BINS) $(EXTRA_EXAMPLE_BINS) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) $(FORMEDITOR_EXAMPLE_BIN) $(FORMEDITOR_VB_EXAMPLE_BIN) $(IMAGEEDITOR_EXAMPLE_BIN) $(IMAGEEDITOR256_EXAMPLE_BIN) $(SOCIALFEED_EXAMPLE_BIN)
 
 .PHONY: plugins
 plugins: $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN)
@@ -413,11 +416,18 @@ $(IE_COMPONENTS_PLUGIN): $(IE_COMPONENTS_PLUGIN_SRCS) $(SHARED_LIB) | $(LIB_DIR)
 	$(CC) $(CFLAGS) $(FE_PLUGIN_LFLAGS) -I. -Iexamples/imageeditor -o $@ $(IE_COMPONENTS_PLUGIN_SRCS) \
 		$(LDFLAGS) $(FE_PLUGIN_LDLIBS)
 
-$(BIN_DIR)/formeditor$(EXE_EXT): $(wildcard examples/formeditor/*.c) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) | $(BIN_DIR) share
+$(BIN_DIR)/formeditor$(EXE_EXT): $(FORMEDITOR_BIN_SRCS) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) | $(BIN_DIR) share
 	@echo "Building example: $@"
 	@(find examples/formeditor -maxdepth 1 -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/formeditor/main.c"') | \
-		$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
+		$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_AUTO_LAYOUT -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
+		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
+
+$(BIN_DIR)/formeditor_vb$(EXE_EXT): $(FORMEDITOR_BIN_SRCS) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) | $(BIN_DIR) share
+	@echo "Building example: $@"
+	@(find examples/formeditor -maxdepth 1 -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "examples/formeditor/main.c"') | \
+		$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_VB_STYLE -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
 
 $(BIN_DIR)/imageeditor$(EXE_EXT): $(wildcard examples/imageeditor/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR) share
@@ -488,12 +498,21 @@ $(GEM_DIR)/%.gem: $$(wildcard examples/%/*.c) $(SHARED_LIB) | $(GEM_DIR)
 		$(LDFLAGS) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
 
-$(GEM_DIR)/formeditor.gem: $(wildcard examples/formeditor/*.c) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) | $(GEM_DIR)
+$(GEM_DIR)/formeditor.gem: $(FORMEDITOR_BIN_SRCS) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) | $(GEM_DIR)
 	@echo "Building .gem: $@"
 	@(echo '#include "gem_magic.h"'; \
 	 find examples/formeditor -maxdepth 1 -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/formeditor/main.c"') | \
-		$(CC) $(GEM_CFLAGS) $(LIBXML2_CFLAGS) $(GEM_LFLAGS) -I. -Iexamples/formeditor -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
+		$(CC) $(GEM_CFLAGS) $(LIBXML2_CFLAGS) $(GEM_LFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_AUTO_LAYOUT -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
+		$(LDFLAGS) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
+	@$(MAKE) --no-print-directory validate-gem GEM=$@
+
+$(GEM_DIR)/formeditor_vb.gem: $(FORMEDITOR_BIN_SRCS) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) | $(GEM_DIR)
+	@echo "Building .gem: $@"
+	@(echo '#include "gem_magic.h"'; \
+	 find examples/formeditor -maxdepth 1 -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "examples/formeditor/main.c"') | \
+		$(CC) $(GEM_CFLAGS) $(LIBXML2_CFLAGS) $(GEM_LFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_VB_STYLE -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
 		$(LDFLAGS) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
 
@@ -589,7 +608,7 @@ $(IMAGEEDITOR_UI_TEST_BIN): $(IMAGEEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(
 # Formeditor UI test — needs all formeditor sources except main.c + test_env.c.
 $(FORMEDITOR_UI_TEST_BIN): $(FORMEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(FORMEDITOR_SRCS_NO_MAIN) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR)
 	@echo "Building formeditor UI test: $@"
-	$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -o $@ \
+	$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_VB_STYLE -o $@ \
 		$(FORMEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c \
 		$(FORMEDITOR_SRCS_NO_MAIN) \
 		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)

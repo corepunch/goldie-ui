@@ -188,8 +188,8 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->form_size.h    = h;
   doc->flags     = 0;
   doc->modified  = false;
-  doc->auto_layout = false;
-  doc->layout_kind = 0;
+  doc->auto_layout = fe_default_auto_layout_enabled();
+  doc->layout_kind = doc->auto_layout ? 1 : 0;
   doc->layout_orientation = WINDOW_STACK_VERTICAL;
   doc->layout_columns = 0;
   doc->layout_spacing = 4;
@@ -624,6 +624,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->frame.h = int_attr(n, "height", int_attr(n, "h", 8));
       el->frame.w = MAX(1, el->frame.w);
       el->frame.h = MAX(1, el->frame.h);
+      el->parent = (uint32_t)int_attr(n, "parent", 0);
       copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
       el->flags = parse_flags_expr(el->flags_expr);
       copy_attr(n, "text", el->text, sizeof(el->text));
@@ -680,9 +681,15 @@ static void project_auto_layout_doc(form_doc_t *doc) {
       el->frame.h = MAX(1, desc->default_size.h);
     }
   }
+  form_element_t *roots[MAX_ELEMENTS];
+  int root_count = 0;
+  for (int i = 0; i < doc->element_count; i++) {
+    if (doc->elements[i].parent == 0)
+      roots[root_count++] = &doc->elements[i];
+  }
   
   const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
-  int count = doc->element_count;
+  int count = root_count;
   int pad_l = doc->padding.x;
   int pad_t = doc->padding.y;
   int pad_r = doc->padding.w;
@@ -702,7 +709,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
     int base_h = max_h / rows;
     int rem_h = max_h % rows;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = &doc->elements[i];
+      form_element_t *el = roots[i];
       int row = i / cols;
       int col = i % cols;
       irect16_t margin = el->margin;
@@ -737,7 +744,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   if (doc->layout_orientation & WINDOW_STACK_HORIZONTAL) {
     int x = content_x;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = &doc->elements[i];
+      form_element_t *el = roots[i];
       irect16_t margin = el->margin;
       if (i > 0) x += gap;
       int inner_w = el->frame.w > 0 ? el->frame.w : 1;
@@ -763,7 +770,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   } else {
     int y = content_y;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = &doc->elements[i];
+      form_element_t *el = roots[i];
       irect16_t margin = el->margin;
       if (i > 0) y += gap;
       int inner_w = el->frame.w > 0 ? el->frame.w : 1;
@@ -931,8 +938,6 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   if (doc->layout_orientation != 0)
     fprintf(f, "\n            layout_orientation=\"%s\"",
             layout_orientation_token(doc->layout_orientation));
-  if (doc->layout_columns != 0)
-    fprintf(f, "\n            layout_columns=\"%u\"", (unsigned)doc->layout_columns);
   if (doc->layout_spacing != 0)
     fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
   if (doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
@@ -953,6 +958,8 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     fprintf(f, "        <%s", ctrl_type_token(el->type));
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
+    if (el->parent != 0)
+      fprintf(f, " parent=\"%u\"", (unsigned)el->parent);
     if (el->font_set || el->font != FONT_SMALL)
       xml_attr(f, "font", font_token(el->font));
     if (el->color_set || el->color != brTextNormal)

@@ -20,9 +20,28 @@
 #define FORM_DEFAULT_W    320
 #define FORM_DEFAULT_H    240
 
+// Editing mode:
+//   - FE_EDIT_MODE_VB_STYLE     = fixed layout with absolute x/y placement
+//   - FE_EDIT_MODE_AUTO_LAYOUT  = layout-managed forms with drop targeting
+//
+// Override FE_DEFAULT_EDIT_MODE at build time to switch the editor's default
+// behaviour for new documents.
+#define FE_EDIT_MODE_VB_STYLE     0
+#define FE_EDIT_MODE_AUTO_LAYOUT   1
+typedef uint8_t fe_edit_mode_t;
+
+#ifndef FE_DEFAULT_EDIT_MODE
+#define FE_DEFAULT_EDIT_MODE FE_EDIT_MODE_AUTO_LAYOUT
+#endif
+
+static inline bool fe_default_auto_layout_enabled(void) {
+  return FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT;
+}
+
 // Tool palette.
 #define FE_TOOLBOX_ICON_W   24   // icon tile size in the shared strip
 #define FE_TOOLBOX_BTN_SIZE 42   // icon-grid cell width/height in tool palette
+#define FE_VB_TOOLBOX_BTN_SIZE (FE_TOOLBOX_ICON_W + 6)  // legacy toolbox button size
 
 #include "controls-icons.h"
 
@@ -74,7 +93,7 @@
 
 // Tool command IDs (VB3 toolbox slot numbers map to strip indices)
 // Strip order: 0=Pointer, 1=Picture(skip), 2=Label, 3=TextBox,
-//              4=Frame(skip), 5=CommandButton, 6=CheckBox, 7=Option(skip),
+//              4=Frame(skip), 5=Button, 6=CheckBox, 7=Option(skip),
 //              8=ComboBox, 9=ListBox, ...
 #define ID_TOOL_SELECT    200
 #define ID_TOOL_LABEL     202
@@ -108,6 +127,7 @@
 typedef struct {
   int      type;        // registered component ID
   int      id;          // numeric control ID (e.g. 1001)
+  uint32_t parent;      // parent control ID; 0 = form root
   char     id_expr[32]; // original ID expression from project XML, if any
   irect16_t frame;      // position and size in form coordinates
   uint32_t flags;        // reserved for future style flags
@@ -233,8 +253,9 @@ typedef struct {
   int         preview_type;
   ipoint16_t  pan;
   int         selected_idx;   // -1 = no selection
-  int         hover_layout_idx; // auto-layout node under placement drag, -1 = none
+  int         hover_layout_idx; // auto-layout node under placement drag, -1 = form itself
   irect16_t   hover_layout_rc;  // form-space rect for hover highlight
+  bool        external_component_drag; // true while toolbox drag hovers the canvas
   drag_state_t drag;
 } canvas_state_t;
 
@@ -252,8 +273,12 @@ result_t editor_menubar_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam);
 result_t win_canvas_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam);
+result_t win_components_proc(window_t *win, uint32_t msg,
+                              uint32_t wparam, void *lparam);
+result_t win_components_list_proc(window_t *win, uint32_t msg,
+                                  uint32_t wparam, void *lparam);
 result_t win_tool_palette_proc(window_t *win, uint32_t msg,
-                                uint32_t wparam, void *lparam);
+                               uint32_t wparam, void *lparam);
 result_t win_property_browser_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam);
 result_t win_forms_browser_proc(window_t *win, uint32_t msg,
@@ -262,8 +287,14 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam);
 void canvas_rebuild_live_controls(form_doc_t *doc);
 void canvas_sync_live_controls(form_doc_t *doc);
+void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *target);
 void form_doc_auto_layout_reflow(form_doc_t *doc);
+bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y);
+bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,
+                                     int screen_x, int screen_y);
 void formeditor_rebuild_tool_palette(void);
+window_t *formeditor_create_components_palette(hinstance_t hinstance);
+window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance);
 window_t *property_browser_create(hinstance_t hinstance);
 void property_browser_refresh(form_doc_t *doc);
 window_t *forms_browser_create(hinstance_t hinstance);

@@ -49,6 +49,7 @@ typedef struct {
   uint32_t column_count;
   int icon_size;    // tile size (px) used in RVM_VIEW_LARGE_ICON mode
   int icon_text_gap; // gap between icon slot and text in RVM_VIEW_ICON mode
+  int fixed_large_icon_cols; // >0 = fixed column count for large-icon mode
   bool redraw_enabled;
   bool redraw_dirty;
   bool column_titles_visible;
@@ -191,7 +192,9 @@ static inline int rv_large_icon_cell_h(const reportview_data_t *data) {
 }
 
 // Number of columns that fit in the available width (outer padding excluded).
-static inline int rv_large_icon_ncol(int eff_w, int cell_w) {
+static inline int rv_large_icon_ncol(const reportview_data_t *data, int eff_w, int cell_w) {
+  if (data && data->fixed_large_icon_cols > 0)
+    return data->fixed_large_icon_cols;
   int usable = MAX(1, eff_w - 2 * RV_LARGE_ICON_PAD);
   return MAX(1, usable / cell_w);
 }
@@ -210,7 +213,7 @@ static int rv_content_height(window_t *win, reportview_data_t *data) {
   }
 
   if (data->view_mode == RVM_VIEW_LARGE_ICON) {
-    int ncol = rv_large_icon_ncol(eff_w, data->column_width);
+    int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
     int rows = (data->count == 0) ? 0
              : ((int)data->count + ncol - 1) / ncol;
     return 2 * RV_LARGE_ICON_PAD + rows * rv_large_icon_cell_h(data);
@@ -259,7 +262,7 @@ static int rv_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam)
   int eff_w = rv_content_width(win);
 
   if (data->view_mode == RVM_VIEW_LARGE_ICON) {
-    int ncol   = rv_large_icon_ncol(eff_w, data->column_width);
+    int ncol   = rv_large_icon_ncol(data, eff_w, data->column_width);
     int cell_h = rv_large_icon_cell_h(data);
     int x0     = rv_large_icon_x0(eff_w, ncol, data->column_width);
     int scroll_y = (int)win->scroll[1];
@@ -286,7 +289,7 @@ static void rv_scroll_to_item(window_t *win, reportview_data_t *data, int index)
     return;
 
   int scroll_y = (int)win->scroll[1];
-  int visible_h = win->frame.h;
+  int visible_h = get_client_rect(win).h;
 
   if (data->view_mode == RVM_VIEW_REPORT) {
     int header_h = rv_report_header_height(data);
@@ -304,7 +307,7 @@ static void rv_scroll_to_item(window_t *win, reportview_data_t *data, int index)
   int eff_w = rv_content_width(win);
 
   if (data->view_mode == RVM_VIEW_LARGE_ICON) {
-    int ncol   = rv_large_icon_ncol(eff_w, data->column_width);
+    int ncol   = rv_large_icon_ncol(data, eff_w, data->column_width);
     int cell_h = rv_large_icon_cell_h(data);
     int row    = index / ncol;
     int item_y_top    = RV_LARGE_ICON_PAD + row * cell_h;
@@ -387,18 +390,19 @@ static void rv_draw_item_icon(bitmap_strip_t *strip, int icon_id,
 }
 
 static void rv_paint_icon_view(window_t *win, reportview_data_t *data) {
+  irect16_t cr = get_client_rect(win);
   int eff_w = rv_content_width(win);
   int ncol = get_column_count(eff_w, data->column_width);
   int scroll_y = (int)win->scroll[1];
   uint32_t bg_col = get_sys_color(brColumnViewBg);
 
-  fill_rect(bg_col, R(0, 0, win->frame.w, win->frame.h));
+  fill_rect(bg_col, R(0, 0, cr.w, cr.h));
 
   // With the child-relative projection applied by send_message before evPaint,
   // y=0 in draw space is always the window's own client top regardless of whether
   // this is a root or child window.  Clip items to [0, frame.h].
   int clip_top = 0;
-  int clip_bottom = win->frame.h;
+  int clip_bottom = cr.h;
 
   bitmap_strip_t *strip = data->icon_strip;
 
@@ -439,19 +443,20 @@ static void rv_paint_icon_view(window_t *win, reportview_data_t *data) {
 // strip is absent.  Selection is highlighted with brActiveTitlebar, matching
 // the macOS Finder / Explorer LVS_ICON style.
 static void rv_paint_large_icon_view(window_t *win, reportview_data_t *data) {
+  irect16_t cr = get_client_rect(win);
   int eff_w    = rv_content_width(win);
   int scroll_y = (int)win->scroll[1];
-  int ncol     = rv_large_icon_ncol(eff_w, data->column_width);
+  int ncol     = rv_large_icon_ncol(data, eff_w, data->column_width);
   int cell_w   = data->column_width;
   int cell_h   = rv_large_icon_cell_h(data);
   int icon_sz  = data->icon_size;
   int x0       = rv_large_icon_x0(eff_w, ncol, cell_w);
   int label_h  = text_char_height(FONT_ICON) + 2;
-  int clip_bot = win->frame.h;
+  int clip_bot = cr.h;
   bitmap_strip_t *strip = data->icon_strip;
   uint32_t bg_col = get_sys_color(brColumnViewBg);
 
-  fill_rect(bg_col, R(0, 0, win->frame.w, win->frame.h));
+  fill_rect(bg_col, R(0, 0, cr.w, cr.h));
 
   for (uint32_t i = 0; i < data->count; i++) {
     int icol = (int)i % ncol;
@@ -618,7 +623,9 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
             if (cols_w > 0) min_w = MAX(min_w, cols_w);
           }
         } else if (data->view_mode == RVM_VIEW_LARGE_ICON) {
+          int ncol = rv_large_icon_ncol(data, rv_content_width(win), data->column_width);
           min_h = 2 * RV_LARGE_ICON_PAD + rv_large_icon_cell_h(data);
+          min_w = MAX(min_w, 2 * RV_LARGE_ICON_PAD + ncol * data->column_width);
         }
       }
 
@@ -751,6 +758,9 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       }
       return false;
 
+    case RVM_HITTEST:
+      return (result_t)rv_hit_index(win, data, wparam);
+
     case RVM_SETITEMDATA: {
       reportview_item_t *item = (reportview_item_t *)lparam;
       if (!item || wparam >= data->count)
@@ -828,6 +838,15 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data->icon_strip = (bitmap_strip_t *)lparam;
       rv_invalidate(win, data);
       return true;
+
+    case RVM_SETLARGEICONCOLS:
+      if ((int)wparam >= 0) {
+        data->fixed_large_icon_cols = (int)wparam;
+        rv_sync_scroll(win, data);
+        rv_invalidate(win, data);
+        return true;
+      }
+      return false;
 
     case RVM_SETICONSIZE:
       if ((int)wparam > 0) {
@@ -930,7 +949,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       } else {
         int eff_w = rv_content_width(win);
         int ncol = (data->view_mode == RVM_VIEW_LARGE_ICON)
-                 ? rv_large_icon_ncol(eff_w, data->column_width)
+                 ? rv_large_icon_ncol(data, eff_w, data->column_width)
                  : get_column_count(eff_w, data->column_width);
 
         switch (wparam) {

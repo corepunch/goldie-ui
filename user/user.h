@@ -312,6 +312,7 @@ const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
 const fe_component_desc_t *fe_component_by_tool_ident(int ident);
 const fe_component_desc_t *fe_component_by_token(const char *token);
+bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target);
 
 bool fe_load_component_plugin(const char *path);
 void fe_unload_component_plugins(void);

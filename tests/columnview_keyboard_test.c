@@ -577,6 +577,14 @@ static window_t *make_large_icon_columnview(window_t *parent, int w, int h,
     return cv;
 }
 
+static window_t *make_fixed_large_icon_columnview(window_t *parent, int w, int h,
+                                                  int cell_w, int icon_sz, int cols) {
+    window_t *cv = make_large_icon_columnview(parent, w, h, cell_w, icon_sz);
+    if (!cv) return NULL;
+    send_message(cv, RVM_SETLARGEICONCOLS, (uint32_t)cols, NULL);
+    return cv;
+}
+
 // RVM_SETICONSIZE accepts a positive value and rejects zero.
 void test_cv_large_icon_seticonsize(void) {
     TEST("win_reportview large-icon: RVM_SETICONSIZE accepts positive, rejects zero");
@@ -718,6 +726,37 @@ void test_cv_large_icon_left_right(void) {
     PASS();
 }
 
+// With a fixed column count, shrinking the width must not change the vertical
+// scroll position.  This guards against the scrollbar-width feedback loop that
+// used to reflow the grid when the scrollbar appeared.
+void test_cv_large_icon_fixed_columns_stable_scroll(void) {
+    TEST("win_reportview large-icon: fixed columns keep scroll stable across width changes");
+
+    test_env_init();
+    reset_cmd_state();
+
+    window_t *parent = test_env_create_window("P", 0, 0, 320, 220,
+                                               cmd_capture_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cv = make_fixed_large_icon_columnview(parent, 168, 72, 40, 24, 4);
+    ASSERT_NOT_NULL(cv);
+    add_items(cv, 17);
+
+    send_message(cv, RVM_SETSELECTION, 16, NULL);
+    int before = (int)cv->scroll[1];
+    ASSERT_TRUE(before > 0);
+
+    resize_window(cv, 152, 72);
+    int after = (int)cv->scroll[1];
+
+    ASSERT_EQUAL(after, before);
+    ASSERT_EQUAL((int)send_message(cv, RVM_GETSELECTION, 0, NULL), 16);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 int main(int argc, char *argv[]) {
     (void)argc; (void)argv;
     TEST_START("win_reportview keyboard navigation");
@@ -743,6 +782,7 @@ int main(int argc, char *argv[]) {
     test_cv_large_icon_down_from_no_selection();
     test_cv_large_icon_down_advances_row();
     test_cv_large_icon_left_right();
+    test_cv_large_icon_fixed_columns_stable_scroll();
 
     TEST_END();
 }

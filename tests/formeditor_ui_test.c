@@ -192,6 +192,10 @@ static void fe_teardown(void) {
 // caller for predictable geometry (doc->snap_to_grid = false).
 static void fe_place_ctrl(form_doc_t *doc, int tool,
                            int fx, int fy, int fw, int fh) {
+    if (doc->auto_layout) {
+        (void)canvas_drop_component(doc, tool, fx + fw / 2, fy + fh / 2);
+        return;
+    }
     window_t *cwin = doc->canvas_win;
     int sx0 = fx;
     int sy0 = fy;
@@ -216,6 +220,25 @@ static void fe_begin_place_drag(form_doc_t *doc, int tool,
     g_app->current_tool = tool;
     send_message(cwin, evLeftButtonDown, MAKEDWORD(sx0, sy0), NULL);
     send_message(cwin, evMouseMove,      MAKEDWORD(sx1, sy1), NULL);
+}
+
+static int fe_component_id_for_token(const char *token) {
+    const fe_component_desc_t *desc = fe_component_by_token(token);
+    if (!desc) return -1;
+    for (int i = 0; i < fe_component_count(); i++) {
+        if (fe_component_at(i) == desc)
+            return i;
+    }
+    return -1;
+}
+
+static int fe_first_element_index_of_type(const form_doc_t *doc, int type) {
+    if (!doc) return -1;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].type == type)
+            return i;
+    }
+    return -1;
 }
 
 // Click on an element to select it (DOWN then UP with ID_TOOL_SELECT).
@@ -609,8 +632,8 @@ void test_fe_placement_type_latched_on_mousedown(void) {
     PASS();
 }
 
-void test_fe_auto_layout_drag_hover_marks_layout_node(void) {
-    TEST("auto layout: placement drag tracks hovered layout node");
+void test_fe_auto_layout_drop_inserts_before_target_node(void) {
+    TEST("auto layout: drop inserts component before target node");
 
     fe_setup();
     form_doc_t *doc = g_app->doc;
@@ -622,18 +645,29 @@ void test_fe_auto_layout_drag_hover_marks_layout_node(void) {
     ASSERT_EQUAL(doc->element_count, 1);
 
     form_element_t first = doc->elements[0];
-    fe_begin_place_drag(doc, ID_TOOL_LABEL,
-                        first.frame.x + 2, first.frame.y + 2, 2, 2);
+    ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_LABEL,
+                                      first.frame.x + 2, first.frame.y + 2));
 
-    canvas_state_t *s = fe_state(doc);
-    ASSERT_EQUAL(s->hover_layout_idx, 0);
-    ASSERT_EQUAL(s->hover_layout_rc.x, first.frame.x);
-    ASSERT_EQUAL(s->hover_layout_rc.y, first.frame.y);
-    ASSERT_EQUAL(s->hover_layout_rc.w, first.frame.w);
-    ASSERT_EQUAL(s->hover_layout_rc.h, first.frame.h);
+    ASSERT_EQUAL(doc->element_count, 2);
+    ASSERT_EQUAL(doc->elements[0].type, CTRL_LABEL);
+    ASSERT_EQUAL(doc->elements[1].type, CTRL_BUTTON);
+    fe_teardown();
+    PASS();
+}
 
-    send_message(doc->canvas_win, evLeftButtonUp,
-                 MAKEDWORD(first.frame.x + 4, first.frame.y + 4), NULL);
+void test_fe_auto_layout_drop_on_empty_form(void) {
+    TEST("auto layout: drop on empty form creates the first component");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+    doc->auto_layout = true;
+    doc->layout_kind = 1; // stack
+
+    ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_BUTTON, 22, 22));
+    ASSERT_EQUAL(doc->element_count, 1);
+    ASSERT_EQUAL(doc->elements[0].type, CTRL_BUTTON);
+    ASSERT_TRUE(doc->auto_layout);
     fe_teardown();
     PASS();
 }
@@ -654,16 +688,98 @@ void test_fe_auto_layout_drop_inserts_before_hovered_node(void) {
     ASSERT_EQUAL(doc->elements[1].type, CTRL_CHECKBOX);
 
     form_element_t second = doc->elements[1];
-    fe_begin_place_drag(doc, ID_TOOL_LABEL,
-                        second.frame.x + 2, second.frame.y + 2, 2, 2);
-    send_message(doc->canvas_win, evLeftButtonUp,
-                 MAKEDWORD(second.frame.x + 4, second.frame.y + 4), NULL);
+    ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_LABEL,
+                                      second.frame.x + 2, second.frame.y + 2));
 
     ASSERT_EQUAL(doc->element_count, 3);
     ASSERT_EQUAL(doc->elements[0].type, CTRL_BUTTON);
     ASSERT_EQUAL(doc->elements[1].type, CTRL_LABEL);
     ASSERT_EQUAL(doc->elements[2].type, CTRL_CHECKBOX);
     ASSERT_EQUAL(g_app->current_tool, ID_TOOL_SELECT);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_auto_layout_drop_honors_canvas_pan(void) {
+    TEST("auto layout: drop honors canvas pan when choosing the drop target");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+    doc->auto_layout = true;
+    doc->layout_kind = 1; // stack
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
+    fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
+    ASSERT_EQUAL(doc->element_count, 2);
+
+    canvas_state_t *s = fe_state(doc);
+    s->pan.y = 40;
+
+    form_element_t second = doc->elements[1];
+    ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_LABEL,
+                                      second.frame.x + 2,
+                                      second.frame.y + 2 - s->pan.y));
+
+    ASSERT_EQUAL(doc->element_count, 3);
+    ASSERT_EQUAL(doc->elements[0].type, CTRL_BUTTON);
+    ASSERT_EQUAL(doc->elements[1].type, CTRL_LABEL);
+    ASSERT_EQUAL(doc->elements[2].type, CTRL_CHECKBOX);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
+    TEST("auto layout: dropping onto a grid records the grid as the parent");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+    doc->auto_layout = true;
+    doc->layout_kind = 2;
+    doc->layout_columns = 2;
+
+    int grid_type = fe_component_id_for_token("grid");
+    int button_type = fe_component_id_for_token("button");
+    ASSERT_TRUE(grid_type >= 0);
+    ASSERT_TRUE(button_type >= 0);
+
+    ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
+    ASSERT_EQUAL(doc->element_count, 3);
+    ASSERT_NOT_NULL(doc->elements[0].live_win);
+    window_t *grid_win = doc->elements[0].live_win;
+    ASSERT_NOT_NULL(grid_win->children);
+    int column_type = fe_component_id_for_token("column");
+    ASSERT_TRUE(column_type >= 0);
+    int grid_idx = fe_first_element_index_of_type(doc, grid_type);
+    ASSERT_TRUE(grid_idx >= 0);
+    int first_col = fe_first_element_index_of_type(doc, column_type);
+    ASSERT_TRUE(first_col >= 0);
+    int second_col = -1;
+    for (int i = first_col + 1; i < doc->element_count; i++) {
+        if (doc->elements[i].type == column_type) {
+            second_col = i;
+            break;
+        }
+    }
+    ASSERT_TRUE(second_col >= 0);
+    ASSERT_EQUAL((int)doc->elements[first_col].parent, doc->elements[grid_idx].id);
+    ASSERT_EQUAL((int)doc->elements[second_col].parent, doc->elements[grid_idx].id);
+    ASSERT_TRUE(doc->elements[first_col].live_win != NULL);
+    ASSERT_TRUE(doc->elements[second_col].live_win != NULL);
+    ASSERT_TRUE(doc->elements[first_col].live_win->frame.w > 0);
+    ASSERT_TRUE(doc->elements[second_col].live_win->frame.w > 0);
+
+    int sx = window_screen_x(grid_win) + 10;
+    int sy = window_screen_y(grid_win) + 10;
+    ASSERT_TRUE(canvas_drop_component_to_target(doc, button_type, grid_win, sx, sy));
+    ASSERT_EQUAL(doc->element_count, 4);
+    int button_idx = fe_first_element_index_of_type(doc, CTRL_BUTTON);
+    ASSERT_TRUE(button_idx >= 0);
+    ASSERT_EQUAL((int)doc->elements[button_idx].parent, doc->elements[grid_idx].id);
+    ASSERT_TRUE(doc->elements[button_idx].parent != 0);
 
     fe_teardown();
     PASS();
@@ -1423,7 +1539,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
             filter_gallery = doc;
         }
     }
-    ASSERT_EQUAL(doc_count, 12);
+    ASSERT_EQUAL(doc_count, 13);
     ASSERT_EQUAL(visible_docs, 1);
     ASSERT_NOT_NULL(g_app->doc);
     ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
@@ -1471,8 +1587,9 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     doc_count = 0;
     for (form_doc_t *doc = g_app->docs; doc; doc = doc->next)
         doc_count++;
-    ASSERT_EQUAL(doc_count, 12);
-    ASSERT_TRUE(g_app->doc && !g_app->doc->doc_win->visible);
+    ASSERT_EQUAL(doc_count, 13);
+    ASSERT_TRUE(g_app->doc == levels);
+    ASSERT_TRUE(g_app->doc->doc_win && !g_app->doc->doc_win->visible);
 
     const fe_component_desc_t *slider = fe_component_by_token("slider");
     const fe_component_desc_t *gradient = fe_component_by_token("gradient");
@@ -1642,10 +1759,26 @@ void test_fe_plugin_components_are_toolbox_placeable(void) {
     PASS();
 }
 
-void test_fe_flow_component_registered(void) {
-    TEST("Components: flow layout control is registered like other stock components");
+void test_fe_layout_components_registered(void) {
+    TEST("Components: layout controls are registered like other stock components");
 
     fe_setup();
+
+    const fe_component_desc_t *stack = fe_component_by_token("stack");
+    ASSERT_NOT_NULL(stack);
+    ASSERT_STR_EQUAL(stack->class_name, "stack");
+    ASSERT_STR_EQUAL(stack->display_name, "StackView");
+    ASSERT_NOT_NULL(stack->proc);
+    ASSERT_TRUE((stack->capabilities & FE_COMPONENT_PLACEABLE) != 0);
+    ASSERT_TRUE((stack->capabilities & FE_COMPONENT_SHOW_TOOLBOX) != 0);
+
+    const fe_component_desc_t *grid = fe_component_by_token("grid");
+    ASSERT_NOT_NULL(grid);
+    ASSERT_STR_EQUAL(grid->class_name, "grid");
+    ASSERT_STR_EQUAL(grid->display_name, "GridView");
+    ASSERT_NOT_NULL(grid->proc);
+    ASSERT_TRUE((grid->capabilities & FE_COMPONENT_PLACEABLE) != 0);
+    ASSERT_TRUE((grid->capabilities & FE_COMPONENT_SHOW_TOOLBOX) != 0);
 
     const fe_component_desc_t *flow = fe_component_by_token("flow");
     ASSERT_NOT_NULL(flow);
@@ -1653,6 +1786,45 @@ void test_fe_flow_component_registered(void) {
     ASSERT_NOT_NULL(flow->proc);
     ASSERT_TRUE((flow->capabilities & FE_COMPONENT_PLACEABLE) != 0);
     ASSERT_TRUE((flow->capabilities & FE_COMPONENT_SHOW_TOOLBOX) != 0);
+
+    const fe_component_desc_t *column = fe_component_by_token("column");
+    ASSERT_NOT_NULL(column);
+    ASSERT_STR_EQUAL(column->class_name, "column");
+    ASSERT_STR_EQUAL(column->display_name, "Column");
+    ASSERT_NOT_NULL(column->proc);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_grid_creates_default_columns_and_columns_restrict_parent(void) {
+    TEST("Components: grid seeds two columns and columns only allow grid parents");
+
+    fe_setup();
+
+    window_t *root = create_window("Root", 0, MAKERECT(0, 0, 200, 120),
+                                    NULL, fe_noop_proc, 0, NULL);
+    ASSERT_NOT_NULL(root);
+
+    window_t *grid = create_window("",
+                                   WINDOW_NOTITLE | WINDOW_NOFILL,
+                                   MAKERECT(0, 0, 120, 80),
+                                   root, win_gridview, 0, NULL);
+    ASSERT_NOT_NULL(grid);
+    ASSERT_NOT_NULL(grid->children);
+    ASSERT_NOT_NULL(grid->children->next);
+    ASSERT_TRUE(grid->children->next->next == NULL);
+    ASSERT_TRUE(grid->children->proc == win_column);
+    ASSERT_TRUE(grid->children->next->proc == win_column);
+    ASSERT_TRUE(grid->children->frame.w > 0);
+    ASSERT_TRUE(grid->children->frame.h > 0);
+    ASSERT_TRUE(grid->children->next->frame.w > 0);
+    ASSERT_TRUE(grid->children->next->frame.h > 0);
+
+    const fe_component_desc_t *column = fe_component_by_token("column");
+    ASSERT_NOT_NULL(column);
+    ASSERT_TRUE(fe_component_rejects_parent(column, root));
+    ASSERT_TRUE(!fe_component_rejects_parent(column, grid));
 
     fe_teardown();
     PASS();
@@ -1745,8 +1917,11 @@ int main(void) {
     test_fe_begin_place_drag_deselects_previous_element();
     test_fe_preview_parent_notify_finishes_placement();
     test_fe_placement_type_latched_on_mousedown();
-    test_fe_auto_layout_drag_hover_marks_layout_node();
+    test_fe_auto_layout_drop_inserts_before_target_node();
+    test_fe_auto_layout_drop_on_empty_form();
     test_fe_auto_layout_drop_inserts_before_hovered_node();
+    test_fe_auto_layout_drop_honors_canvas_pan();
+    test_fe_auto_layout_drop_uses_grid_as_parent();
     test_fe_place_all_types();
     test_fe_live_windows_created();
     test_fe_live_button_uses_runtime_minimum_height();
@@ -1776,7 +1951,8 @@ int main(void) {
     test_fe_forms_toolbar_new_creates_cascaded_doc();
     test_fe_plugins_browser_lists_project_plugins();
     test_fe_plugin_components_are_toolbox_placeable();
-    test_fe_flow_component_registered();
+    test_fe_layout_components_registered();
+    test_fe_grid_creates_default_columns_and_columns_restrict_parent();
     test_fe_levels_strip_uses_window_width();
     test_fe_sizeless_level_controls_use_full_frame();
 

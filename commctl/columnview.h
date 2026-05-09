@@ -33,10 +33,12 @@ enum {
   RVM_SETREDRAW,            // wparam = 0 suspend redraw; non-zero resume and repaint if dirty
   RVM_SETICONSTRIP,         // lparam = bitmap_strip_t* (NULL to clear); strip owned by caller
   RVM_SETICONSIZE,          // wparam = icon pixel size for RVM_VIEW_LARGE_ICON mode
+  RVM_SETLARGEICONCOLS,     // wparam = fixed column count for RVM_VIEW_LARGE_ICON (0 = auto)
   RVM_SETCOLUMNTITLESVISIBLE, // wparam = 0 hide report headers; non-zero show
   RVM_GETCOLUMNTITLESVISIBLE,
   RVM_SETPRESERVEICONCOLORS, // wparam = 0 tint icons with row color; non-zero draw strip colors
   RVM_SETICONTEXTGAP,      // wparam = pixels between icon slot and item text in icon-list mode
+  RVM_HITTEST,             // wparam = MAKEDWORD(client_x, client_y); returns item index or -1
 };
 
 enum {
