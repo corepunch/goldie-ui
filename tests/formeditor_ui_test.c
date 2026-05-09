@@ -999,8 +999,8 @@ void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     PASS();
 }
 
-void test_fe_components_palette_hit_test_scrolled_large_icon(void) {
-    TEST("Components: scrolled large-icon palette hits the visible item");
+void test_fe_components_icon_grid_hit_test_scrolled(void) {
+    TEST("Components: scrolled icon grid palette hits the visible item");
 
     fe_setup();
 
@@ -1019,7 +1019,7 @@ void test_fe_components_palette_hit_test_scrolled_large_icon(void) {
 
     int hit = (int)send_message(list, RVM_HITTEST,
                                 MAKEDWORD((uint16_t)(x0 + 4),
-                                          (uint16_t)(LARGE_ICON_PAD + 4)),
+                                          (uint16_t)(LARGE_ICON_PAD + 4 + list->scroll[1])),
                                 NULL);
     ASSERT_EQUAL(hit, 3);
 
@@ -1028,8 +1028,8 @@ void test_fe_components_palette_hit_test_scrolled_large_icon(void) {
     PASS();
 }
 
-void test_fe_components_palette_scrolled_drag_creates_visible_item(void) {
-    TEST("Components: scrolled large-icon drag creates the visible item");
+void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
+    TEST("Components: scrolled icon grid drag creates the expected item");
 
     fe_setup();
     form_doc_t *doc = g_app->doc;
@@ -1049,18 +1049,31 @@ void test_fe_components_palette_scrolled_drag_creates_visible_item(void) {
     int x0 = LARGE_ICON_PAD +
              MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_TOOLBOX_BTN_SIZE) / 2);
 
-    int press_x = window_screen_x(list) + x0 + 4;
-    int press_y = window_screen_y(list) + LARGE_ICON_PAD + 4;
+    int press_local_x = x0 + 4;
+    int press_local_y = LARGE_ICON_PAD + 4;
+    int press_x = window_screen_x(list) + press_local_x;
+    int press_y = window_screen_y(list) + press_local_y;
     int drop_x = window_screen_x(doc->canvas_win) + 20;
     int drop_y = window_screen_y(doc->canvas_win) + 20;
     int before = doc->element_count;
 
-    fe_dispatch_mouse_at(press_x, press_y, kEventLeftButtonDown);
-    int dragged_tool = g_app->current_tool;
-    const fe_component_desc_t *expected_desc = fe_component_by_tool_ident(dragged_tool);
+    int hit = (int)send_message(list, RVM_HITTEST,
+                                MAKEDWORD((uint16_t)(x0 + 4),
+                                          (uint16_t)(LARGE_ICON_PAD + 4 + list->scroll[1])),
+                                NULL);
+    ASSERT_EQUAL(hit, 3);
+
+    reportview_item_t hit_item = {0};
+    ASSERT_TRUE(send_message(list, RVM_GETITEMDATA, (uint32_t)hit, &hit_item));
+    int expected_tool = (int)hit_item.userdata;
+    const fe_component_desc_t *expected_desc = fe_component_by_tool_ident(expected_tool);
     ASSERT_NOT_NULL(expected_desc);
     int expected_type = fe_component_id_for_desc(expected_desc);
     ASSERT_TRUE(expected_type >= 0);
+
+    fe_dispatch_mouse_at(press_x, press_y, kEventLeftButtonDown);
+    int dragged_tool = g_app->current_tool;
+    ASSERT_EQUAL(dragged_tool, expected_tool);
     fe_dispatch_mouse_at(press_x + 10, press_y + 10, kEventLeftButtonDragged);
     fe_dispatch_mouse_at(drop_x, drop_y, kEventLeftButtonDragged);
     fe_dispatch_mouse_at(drop_x, drop_y, kEventLeftButtonUp);
@@ -2099,7 +2112,7 @@ void test_fe_components_palette_reflows_on_resize(void) {
     int hit_y = FE_TOOLBOX_BTN_SIZE / 2;
 
     ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
-                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)hit_y),
+                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->scroll[1])),
                                    NULL),
                  -1);
 
@@ -2108,7 +2121,7 @@ void test_fe_components_palette_reflows_on_resize(void) {
     ASSERT_NOT_NULL(list);
 
     ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
-                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)hit_y),
+                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->scroll[1])),
                                    NULL),
                  4);
 
@@ -2301,8 +2314,8 @@ int main(void) {
     test_fe_auto_layout_drop_honors_canvas_pan();
     test_fe_auto_layout_drop_uses_grid_as_parent();
     test_fe_auto_layout_drop_uses_grid_column_as_parent();
-    test_fe_components_palette_hit_test_scrolled_large_icon();
-    test_fe_components_palette_scrolled_drag_creates_visible_item();
+    test_fe_components_icon_grid_hit_test_scrolled();
+    test_fe_components_icon_grid_scrolled_drag_creates_expected_item();
     test_fe_drop_grid_layouts_seeded_columns_across_full_width();
     test_fe_place_all_types();
     test_fe_live_windows_created();

@@ -359,97 +359,98 @@ result_t win_components_proc(window_t *win, uint32_t msg,
         g_app->tool_win = NULL;
       return false;
 
-    default:
-      return false;
-  }
-}
-
-result_t win_components_list_proc(window_t *win, uint32_t msg,
-                                  uint32_t wparam, void *lparam) {
-  switch (msg) {
-    case evCreate:
-      win_icongrid(win, msg, wparam, lparam);
-      components_palette_sync_list(win->parent);
-      return true;
-
     case evCommand:
-      if ((lparam == win) &&
+      if ((lparam == st->list_win) &&
           (HIWORD(wparam) == RVN_SELCHANGE || HIWORD(wparam) == RVN_DBLCLK)) {
         reportview_item_t item = {0};
-        if (send_message(win, RVM_GETITEMDATA, LOWORD(wparam), &item))
+        if (send_message(st->list_win, RVM_GETITEMDATA, LOWORD(wparam), &item)) {
           comp_select_tool_by_ident(win, (int)item.userdata);
-        return true;
+          return true;
+        }
       }
       return false;
 
-    case evLeftButtonDown: {
-      int ident = components_tool_ident_at(win, wparam);
-      if (ident < 0)
-        return true;
-      g_drag = (palette_drag_state_t){
-        .pending = true,
-        .dragging = false,
-        .tool_ident = ident,
-        .start_local = {(int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam)},
-      };
-      if (g_app)
-        g_app->current_tool = ident;
-      set_capture(win);
-      return true;
-    }
+    case evParentNotify: {
+      if (!st || !st->list_win || !lparam)
+        return false;
+      parent_notify_t *pn = (parent_notify_t *)lparam;
+      if (pn->child != st->list_win)
+        return false;
 
-    case evMouseMove:
-      if (!g_drag.pending)
-        return true;
-      if (!g_drag.dragging) {
-        int lx = (int16_t)LOWORD(wparam);
-        int ly = (int16_t)HIWORD(wparam);
-        int dx = lx - g_drag.start_local.x;
-        int dy = ly - g_drag.start_local.y;
-        if ((dx < 0 ? -dx : dx) < FE_DRAG_THRESHOLD &&
-            (dy < 0 ? -dy : dy) < FE_DRAG_THRESHOLD)
-          return true;
-        g_drag.dragging = true;
-      }
-      {
-        ipoint16_t screen = window_local_point_to_screen(
-            win, (int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam));
-        window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
-                                                             g_drag.tool_ident,
-                                                             screen.x, screen.y);
-        if (g_app && g_app->doc) {
-          canvas_set_component_drag_hover(g_app->doc, target != NULL, target);
+      switch (pn->child_msg) {
+        case evLeftButtonDown: {
+          int ident = components_tool_ident_at(st->list_win, pn->child_wparam);
+          if (ident < 0)
+            return false;
+          g_drag = (palette_drag_state_t){
+            .pending = true,
+            .dragging = false,
+            .tool_ident = ident,
+            .start_local = {(int16_t)LOWORD(pn->child_wparam), (int16_t)HIWORD(pn->child_wparam)},
+          };
+          if (g_app)
+            g_app->current_tool = ident;
+          set_capture(st->list_win);
+          return false;
         }
-        components_update_ghost(g_drag.tool_ident, screen.x, screen.y);
+        case evMouseMove:
+          if (!g_drag.pending)
+            return false;
+          if (!g_drag.dragging) {
+            int lx = (int16_t)LOWORD(pn->child_wparam);
+            int ly = (int16_t)HIWORD(pn->child_wparam);
+            int dx = lx - g_drag.start_local.x;
+            int dy = ly - g_drag.start_local.y;
+            if ((dx < 0 ? -dx : dx) < FE_DRAG_THRESHOLD &&
+                (dy < 0 ? -dy : dy) < FE_DRAG_THRESHOLD)
+              return false;
+            g_drag.dragging = true;
+          }
+          {
+            int lx = (int16_t)LOWORD(pn->child_wparam);
+            int ly = (int16_t)HIWORD(pn->child_wparam);
+            ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
+            window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
+                                                                 g_drag.tool_ident,
+                                                                 screen.x, screen.y);
+            if (g_app && g_app->doc) {
+              canvas_set_component_drag_hover(g_app->doc, target != NULL, target);
+            }
+            components_update_ghost(g_drag.tool_ident, screen.x, screen.y);
+          }
+          return false;
+        case evLeftButtonUp:
+          if (!g_drag.pending)
+            return false;
+          if (g_drag.dragging) {
+            int lx = (int16_t)LOWORD(pn->child_wparam);
+            int ly = (int16_t)HIWORD(pn->child_wparam);
+            ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
+            int sx = screen.x;
+            int sy = screen.y;
+            window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
+                                                                 g_drag.tool_ident,
+                                                                 sx, sy);
+            if (g_app && g_app->doc && target)
+              canvas_drop_component_to_target(g_app->doc, g_drag.tool_ident, target, sx, sy);
+            if (g_app && g_app->doc)
+              canvas_set_component_drag_hover(g_app->doc, false, NULL);
+            if (g_app) {
+              g_app->current_tool = ID_TOOL_SELECT;
+              if (g_app->tool_win)
+                send_message(g_app->tool_win, bxSetActiveItem, (uint32_t)ID_TOOL_SELECT, NULL);
+            }
+          }
+          components_hide_ghost();
+          g_drag = (palette_drag_state_t){0};
+          set_capture(NULL);
+          return false;
+        default:
+          return false;
       }
-      return true;
-
-    case evLeftButtonUp: {
-      if (!g_drag.pending)
-        return true;
-      ipoint16_t screen = window_local_point_to_screen(
-          win, (int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam));
-      int sx = screen.x;
-      int sy = screen.y;
-      window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
-                                                           g_drag.tool_ident,
-                                                           sx, sy);
-      if (g_drag.dragging && g_app && g_app->doc && target)
-        canvas_drop_component_to_target(g_app->doc, g_drag.tool_ident, target, sx, sy);
-      if (g_app && g_app->doc)
-        canvas_set_component_drag_hover(g_app->doc, false, NULL);
-      if (g_app) {
-        g_app->current_tool = ID_TOOL_SELECT;
-        if (g_app->tool_win)
-          send_message(g_app->tool_win, bxSetActiveItem, (uint32_t)ID_TOOL_SELECT, NULL);
-      }
-      components_hide_ghost();
-      g_drag = (palette_drag_state_t){0};
-      set_capture(NULL);
-      return true;
     }
 
     default:
-      return win_icongrid(win, msg, wparam, lparam);
+      return false;
   }
 }

@@ -275,8 +275,6 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam);
 result_t win_components_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam);
-result_t win_components_list_proc(window_t *win, uint32_t msg,
-                                  uint32_t wparam, void *lparam);
 result_t win_tool_palette_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam);
 result_t win_property_browser_proc(window_t *win, uint32_t msg,

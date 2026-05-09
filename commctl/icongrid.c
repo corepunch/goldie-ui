@@ -40,9 +40,8 @@ static int grid_hit_index(window_t *win, reportview_data_t *data, uint32_t wpara
   int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
   int cell_h = rv_large_icon_cell_h(data);
   int x0 = rv_large_icon_x0(eff_w, ncol, data->column_width);
-  int scroll_y = (int)win->scroll[1];
   int local_x = mx - x0;
-  int local_y = my + scroll_y - RV_LARGE_ICON_PAD;
+  int local_y = my - RV_LARGE_ICON_PAD;
   if (local_x < 0 || local_y < 0)
     return RV_INVALID_SELECTION;
   int col = local_x / data->column_width;
@@ -158,6 +157,7 @@ result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return false;
     case evLeftButtonDown: {
       int index = grid_hit_index(win, data, wparam);
+      printf("index hit: %d\n", index);
       if (rv_valid_index(data, index)) {
         uint32_t now = axGetMilliseconds();
         if (data->last_click_index == index && (now - data->last_click_time) < RV_DOUBLE_CLICK_MS) {

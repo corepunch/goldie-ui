@@ -39,8 +39,7 @@ static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wpa
   int header_h = rv_report_header_height(data);
   if (my < header_h)
     return -1;
-  int scroll_y = (int)win->scroll[1];
-  int row = (my + scroll_y - header_h) / ENTRY_HEIGHT;
+  int row = (my - header_h) / ENTRY_HEIGHT;
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 

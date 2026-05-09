@@ -33,8 +33,7 @@ static void icon_sync_scroll(window_t *win, reportview_data_t *data) {
 
 static int icon_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {
   int my = (int)(int16_t)HIWORD(wparam);
-  int scroll_y = (int)win->scroll[1];
-  int row = (my + scroll_y - WIN_PADDING) / ENTRY_HEIGHT;
+  int row = (my - WIN_PADDING) / ENTRY_HEIGHT;
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 
