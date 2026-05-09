@@ -382,6 +382,7 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
+      const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
       win->auto_layout = true;
       win->layout_kind = "grid";
       win->layout_orientation = WINDOW_STACK_VERTICAL;
@@ -390,6 +391,12 @@ result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       win->layout_margin = (irect16_t){0, 0, 0, 0};
       win->layout_measure_fn = layout_grid_measure_window;
       win->layout_arrange_fn = layout_grid_arrange_window;
+      if (cfg) {
+        if (cfg->spacing > 0)
+          win->layout_spacing = cfg->spacing;
+        win->layout_padding = cfg->padding;
+        win->layout_margin = cfg->margin;
+      }
       return true;
     }
     case evInitChildren:

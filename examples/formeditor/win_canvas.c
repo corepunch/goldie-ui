@@ -140,6 +140,34 @@ static int hit_test_elements(canvas_state_t *s, int lx, int ly) {
   return -1;
 }
 
+// Like hit_test_elements(), but clicking the current selection cycles to the
+// next element underneath it at the same point.  If there is nothing lower,
+// wrap back to the topmost hit so repeated clicks keep cycling.
+static int hit_test_elements_cycle(canvas_state_t *s, int lx, int ly) {
+  if (!s || !s->doc)
+    return -1;
+
+  int topmost = hit_test_elements(s, lx, ly);
+  if (topmost < 0)
+    return -1;
+
+  if (s->selected_idx >= 0 && s->selected_idx < s->doc->element_count) {
+    form_element_t *selected = &s->doc->elements[s->selected_idx];
+    irect16_t selected_rc = canvas_element_canvas_rect(s->doc, s, selected);
+    if (lx >= selected_rc.x && lx < selected_rc.x + selected_rc.w &&
+        ly >= selected_rc.y && ly < selected_rc.y + selected_rc.h) {
+      for (int i = s->selected_idx - 1; i >= 0; i--) {
+        form_element_t *el = &s->doc->elements[i];
+        irect16_t r = canvas_element_canvas_rect(s->doc, s, el);
+        if (lx >= r.x && lx < r.x + r.w && ly >= r.y && ly < r.y + r.h)
+          return i;
+      }
+    }
+  }
+
+  return topmost;
+}
+
 static irect16_t canvas_element_canvas_rect(form_doc_t *doc, canvas_state_t *s,
                                             const form_element_t *el) {
   if (!doc || !s || !el)
@@ -1260,8 +1288,9 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
           set_capture(win);
           return true;
         }
-        // Hit test elements
-        int hit = hit_test_elements(s, lx, ly);
+        // Hit test elements; clicking the current selection cycles to the next
+        // lower overlapping element at the same point.
+        int hit = hit_test_elements_cycle(s, lx, ly);
         s->selected_idx = hit;
         property_browser_refresh(doc);
         if (hit >= 0) {

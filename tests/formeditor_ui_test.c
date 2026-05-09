@@ -1278,6 +1278,36 @@ void test_fe_select_element(void) {
     PASS();
 }
 
+// Repeated clicks on the same overlapping area cycle through the stacked
+// elements underneath the cursor.
+void test_fe_select_cycles_through_overlapping_elements(void) {
+    TEST("select element: overlapping clicks cycle through lower elements");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->snap_to_grid = false;
+
+    fe_place_ctrl(doc, ID_TOOL_BUTTON, 30, 30, 80, 24);
+    fe_place_ctrl(doc, ID_TOOL_LABEL, 30, 30, 80, 24);
+
+    fe_state(doc)->selected_idx = -1;
+    g_app->current_tool = ID_TOOL_SELECT;
+    send_message(doc->canvas_win, evLeftButtonDown, MAKEDWORD(40, 40), NULL);
+    send_message(doc->canvas_win, evLeftButtonUp,   MAKEDWORD(40, 40), NULL);
+    ASSERT_EQUAL(fe_state(doc)->selected_idx, 1);
+
+    send_message(doc->canvas_win, evLeftButtonDown, MAKEDWORD(40, 40), NULL);
+    send_message(doc->canvas_win, evLeftButtonUp,   MAKEDWORD(40, 40), NULL);
+    ASSERT_EQUAL(fe_state(doc)->selected_idx, 0);
+
+    send_message(doc->canvas_win, evLeftButtonDown, MAKEDWORD(40, 40), NULL);
+    send_message(doc->canvas_win, evLeftButtonUp,   MAKEDWORD(40, 40), NULL);
+    ASSERT_EQUAL(fe_state(doc)->selected_idx, 1);
+
+    fe_teardown();
+    PASS();
+}
+
 // If the live design-time control receives the click first, parent notification
 // lets the canvas select it before the control can handle the event.
 void test_fe_live_button_parent_notify_selects_on_click(void) {
@@ -2432,6 +2462,7 @@ int main(void) {
     test_fe_live_windows_created();
     test_fe_live_button_uses_runtime_minimum_height();
     test_fe_select_element();
+    test_fe_select_cycles_through_overlapping_elements();
     test_fe_live_button_parent_notify_selects_on_click();
     test_fe_deselect_on_empty_click();
     test_fe_panned_canvas_click_selects_visible_grid_child();

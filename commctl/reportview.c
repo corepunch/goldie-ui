@@ -37,9 +37,10 @@ static void report_sync_scroll(window_t *win, reportview_data_t *data) {
 static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {
   int my = (int)(int16_t)HIWORD(wparam);
   int header_h = rv_report_header_height(data);
+  int scroll_y = (int)win->scroll[1];
   if (my < header_h)
     return -1;
-  int row = (my - header_h) / ENTRY_HEIGHT;
+  int row = (my + scroll_y - header_h) / ENTRY_HEIGHT;
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 
