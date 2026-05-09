@@ -886,7 +886,7 @@ static uint32_t canvas_target_parent_id(form_doc_t *doc, window_t *target) {
 
   for (window_t *it = target; it; it = it->parent) {
     for (int i = 0; i < doc->element_count; i++) {
-      if (doc->elements[i].live_win == it || doc->elements[i].id == (int)it->id)
+      if (doc->elements[i].live_win == it)
         return (uint32_t)doc->elements[i].id;
     }
     if (it == doc->canvas_win)
@@ -999,7 +999,7 @@ void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *tar
     for (window_t *it = target; it; it = it->parent) {
       form_element_t *el = NULL;
       for (int i = 0; i < doc->element_count; i++) {
-        if (doc->elements[i].live_win == it || doc->elements[i].id == (int)it->id) {
+        if (doc->elements[i].live_win == it) {
           el = &doc->elements[i];
           break;
         }
@@ -1216,8 +1216,9 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         case evMouseMove: {
           int lx = (int16_t)LOWORD(child_wp);
           int ly = (int16_t)HIWORD(child_wp);
-          uint32_t parent_wp = MAKEDWORD(pn->child->frame.x + lx,
-                                         pn->child->frame.y + ly);
+          int cx = window_screen_x(pn->child) - window_screen_x(doc->canvas_win) + lx;
+          int cy = window_screen_y(pn->child) - window_screen_y(doc->canvas_win) + ly;
+          uint32_t parent_wp = MAKEDWORD((uint16_t)cx, (uint16_t)cy);
           return win_canvas_proc(win, child_msg, parent_wp, pn->child_lparam);
         }
         case evWheel:

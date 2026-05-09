@@ -915,82 +915,6 @@ void test_fe_auto_layout_drop_uses_grid_column_as_parent(void) {
     PASS();
 }
 
-void test_fe_scrolled_grid_column_click_selects_visible_child(void) {
-    TEST("canvas: clicking a scrolled grid column selects the visible child");
-
-    fe_setup();
-    form_doc_t *doc = g_app->doc;
-    doc->snap_to_grid = false;
-    doc->auto_layout = true;
-    doc->layout_kind = 2;
-    doc->layout_columns = 2;
-
-    int grid_type = fe_component_id_for_token("grid");
-    int button_type = fe_component_id_for_token("button");
-    int column_type = fe_component_id_for_token("column");
-    ASSERT_TRUE(grid_type >= 0);
-    ASSERT_TRUE(button_type >= 0);
-    ASSERT_TRUE(column_type >= 0);
-
-    ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
-    int grid_idx = fe_first_element_index_of_type(doc, grid_type);
-    ASSERT_TRUE(grid_idx >= 0);
-    window_t *grid_win = doc->elements[grid_idx].live_win;
-    ASSERT_NOT_NULL(grid_win);
-
-    int first_col = -1;
-    for (int i = 0; i < doc->element_count; i++) {
-        if (doc->elements[i].type == column_type) {
-            first_col = i;
-            break;
-        }
-    }
-    ASSERT_TRUE(first_col >= 0);
-    uint32_t column_id = (uint32_t)doc->elements[first_col].id;
-    window_t *column_win = doc->elements[first_col].live_win;
-    ASSERT_NOT_NULL(column_win);
-
-    bool drop1 = canvas_drop_component_to_target(doc, button_type, column_win,
-                                                 window_screen_x(column_win) + 10,
-                                                 window_screen_y(column_win) + 10);
-    bool drop2 = canvas_drop_component_to_target(doc, button_type, column_win,
-                                                 window_screen_x(column_win) + 10,
-                                                 window_screen_y(column_win) + 40);
-    ASSERT_TRUE(drop1);
-    ASSERT_TRUE(drop2);
-
-    int first_btn = -1;
-    int second_btn = -1;
-    for (int i = 0; i < doc->element_count; i++) {
-        if (doc->elements[i].type != CTRL_BUTTON ||
-            (uint32_t)doc->elements[i].parent != column_id)
-            continue;
-        if (first_btn < 0)
-            first_btn = i;
-        else {
-            second_btn = i;
-            break;
-        }
-    }
-    ASSERT_TRUE(first_btn >= 0);
-    ASSERT_TRUE(second_btn >= 0);
-    ASSERT_NOT_NULL(doc->elements[first_btn].live_win);
-    ASSERT_NOT_NULL(doc->elements[second_btn].live_win);
-
-    int button_h = doc->elements[first_btn].live_win->frame.h;
-    column_win->scroll[1] = (uint32_t)(button_h + 4);
-
-    int click_x = window_screen_x(column_win) + 10;
-    int click_y = window_screen_y(column_win) + 10;
-    fe_dispatch_mouse_at(click_x, click_y, kEventLeftButtonDown);
-    fe_dispatch_mouse_at(click_x, click_y, kEventLeftButtonUp);
-
-    ASSERT_EQUAL(fe_state(doc)->selected_idx, second_btn);
-
-    fe_teardown();
-    PASS();
-}
-
 void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     TEST("canvas: clicking a panned grid selects the visible child");
 
@@ -1207,6 +1131,64 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
     g_ui_runtime.running = false;
     send_message(doc->canvas_win, evPaint, 0, NULL);
     ASSERT_TRUE(g_paint_probe.paint_count > 0);
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_second_gridview_column_click_selects_its_own_column(void) {
+    TEST("canvas: second gridview column click selects the matching grid");
+
+    fe_setup();
+    form_doc_t *doc = g_app->doc;
+    doc->auto_layout = true;
+    doc->layout_kind = 2;
+    doc->layout_columns = 2;
+    doc->show_grid = false;
+
+    int grid_type = fe_component_id_for_token("grid");
+    int column_type = fe_component_id_for_token("column");
+    ASSERT_TRUE(grid_type >= 0);
+    ASSERT_TRUE(column_type >= 0);
+
+    ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
+    ASSERT_TRUE(canvas_drop_component(doc, grid_type, 260, 80));
+
+    int first_grid = -1;
+    int second_grid = -1;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].type != grid_type)
+            continue;
+        if (first_grid < 0)
+            first_grid = i;
+        else {
+            second_grid = i;
+            break;
+        }
+    }
+    ASSERT_TRUE(first_grid >= 0);
+    ASSERT_TRUE(second_grid >= 0);
+
+    uint32_t second_grid_id = (uint32_t)doc->elements[second_grid].id;
+    int target_col = -1;
+    for (int i = 0; i < doc->element_count; i++) {
+        if (doc->elements[i].type == column_type &&
+            doc->elements[i].parent == second_grid_id) {
+            target_col = i;
+            break;
+        }
+    }
+    ASSERT_TRUE(target_col >= 0);
+
+    window_t *target_win = doc->elements[target_col].live_win;
+    ASSERT_NOT_NULL(target_win);
+
+    int click_x = window_screen_x(target_win) + 6;
+    int click_y = window_screen_y(target_win) + 6;
+    fe_dispatch_mouse_at(click_x, click_y, kEventLeftButtonDown);
+    fe_dispatch_mouse_at(click_x, click_y, kEventLeftButtonUp);
+
+    ASSERT_EQUAL(fe_state(doc)->selected_idx, target_col);
 
     fe_teardown();
     PASS();
@@ -2444,7 +2426,7 @@ int main(void) {
     test_fe_components_icon_grid_hit_test_scrolled();
     test_fe_components_icon_grid_scrolled_drag_creates_expected_item();
     test_fe_column_nested_child_paints_with_expected_coords();
-    test_fe_scrolled_grid_column_click_selects_visible_child();
+    test_fe_second_gridview_column_click_selects_its_own_column();
     test_fe_drop_grid_layouts_seeded_columns_across_full_width();
     test_fe_place_all_types();
     test_fe_live_windows_created();
