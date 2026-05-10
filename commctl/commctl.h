@@ -32,6 +32,8 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -50,17 +52,26 @@ result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 
 // Auto-layout container windows.
 typedef struct {
-  const char *layout_kind;   // layout class name: "stack", "grid", or NULL
   flags_t orientation;       // WINDOW_STACK_HORIZONTAL bit flag; 0 = vertical
   uint8_t spacing;           // spacing between direct children (0 = default)
   irect16_t padding;         // inner padding for the container
   irect16_t margin;          // outer margin when nested in a parent layout
 } layout_view_config_t;
 
+result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+// Backward-compatible aliases for legacy call sites.
 result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void layout_stack_measure_window(window_t *win, layout_measure_t *m);
+void layout_stack_arrange_window(window_t *win, const irect16_t *rect);
+void layout_grid_measure_window(window_t *win, layout_measure_t *m);
+void layout_grid_arrange_window(window_t *win, const irect16_t *rect);
+void layout_flow_measure_window(window_t *win, layout_measure_t *m);
+void layout_flow_arrange_window(window_t *win, const irect16_t *rect);
 void layout_flow_horizontal(window_t *first, int start_x, int gap);
 
 // Toolbox — 2-column grid of icon buttons (Photoshop / VB3 / Paint style).

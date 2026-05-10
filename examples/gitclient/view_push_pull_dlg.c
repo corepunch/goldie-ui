@@ -46,8 +46,7 @@ static const form_ctrl_def_t kPPFCtrls[] = {
   {
     .class_name         = "stack",
     .name               = "remote_row",
-    .layout_kind        = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
     .h_align            = LAYOUT_ALIGN_STRETCH,
     .children           = kPPFRemoteRow,
@@ -56,8 +55,7 @@ static const form_ctrl_def_t kPPFCtrls[] = {
   {
     .class_name         = "stack",
     .name               = "branch_row",
-    .layout_kind        = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
     .h_align            = LAYOUT_ALIGN_STRETCH,
     .children           = kPPFBranchRow,
@@ -70,8 +68,7 @@ static const form_ctrl_def_t kPPFCtrls[] = {
   {
     .class_name         = "stack",
     .name               = "actions",
-    .layout_kind        = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
     .h_align            = LAYOUT_ALIGN_END,
     .children           = kPPFBtnRow,
@@ -80,10 +77,9 @@ static const form_ctrl_def_t kPPFCtrls[] = {
 };
 static const form_def_t kPPFForm = {
   .name           = "Remote Operation",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 262,
   .height         = 104,
-  .auto_layout    = true,
-  .layout_kind    = "stack",
   .layout_spacing = 6,
   .padding        = {8, 8, 8, 8},
   .children       = kPPFCtrls,

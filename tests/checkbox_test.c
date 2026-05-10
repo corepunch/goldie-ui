@@ -186,11 +186,11 @@ void test_checkbox_keyboard_space_toggles(void) {
 
     // SPACE down: just sets pressed flag
     send_message(cb, evKeyDown, AX_KEY_SPACE, NULL);
-    ASSERT_TRUE(cb->pressed);
+    ASSERT_TRUE(window_has_state(cb, WINDOW_STATE_PRESSED));
 
     // SPACE up: toggles, notifies
     send_message(cb, evKeyUp, AX_KEY_SPACE, NULL);
-    ASSERT_FALSE(cb->pressed);
+    ASSERT_FALSE(window_has_state(cb, WINDOW_STATE_PRESSED));
     ASSERT_EQUAL((int)send_message(cb, btnGetCheck, 0, NULL),
                  (int)btnStateChecked);
     ASSERT_EQUAL(g_cmd_count, 1);

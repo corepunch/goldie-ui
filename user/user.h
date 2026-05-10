@@ -73,6 +73,16 @@ typedef struct {
   uint8_t   v_align;  // LAYOUT_ALIGN_*; 0 = stretch
 } layout_arrange_t;
 
+typedef struct layout_s {
+  uint8_t   h_align;        // horizontal alignment; 0 = stretch
+  uint8_t   v_align;        // vertical alignment; 0 = stretch
+  uint8_t   layout_spacing;  // spacing between direct children; 0 = default
+  int16_t   layout_fixed_w;  // declarative width hint used by auto-layout
+  int16_t   layout_fixed_h;  // declarative height hint used by auto-layout
+  irect16_t layout_padding;  // inner padding for auto-layout containers
+  irect16_t layout_margin;   // outer margin when nested inside a layout container
+} layout_t;
+
 // A fixed-size-tile bitmap strip, analogous to WinAPI HIMAGELIST / TB_ADDBITMAP.
 // Icons are indexed 0..N left-to-right then top-to-bottom.
 // Used with btnSetImage and tbSetStrip.
@@ -85,6 +95,13 @@ typedef struct bitmap_strip_s {
   int      sheet_h; // total texture height in pixels (for UV calculation)
 } bitmap_strip_t;
 
+typedef struct toolbar_state_s {
+  window_t *children;      // toolbar child windows (toolbar-band-relative frames)
+  bitmap_strip_t strip;    // optional custom strip set via tbSetStrip/tbLoadStrip
+  uint32_t strip_tex;      // GL texture owned by toolbar host (freed on destroy)
+  int btn_size;            // 0 = TB_SPACING default; >0 = custom square size in px
+} toolbar_state_t;
+
 // Window definition structure (for declarative window creation)
 typedef struct {
   const char *class_name;
@@ -92,9 +109,6 @@ typedef struct {
   uint32_t id;
   int w, h;
   flags_t flags;
-  bool auto_layout;
-  const char *layout_kind;
-  flags_t layout_orientation;
   uint8_t layout_spacing;
 } windef_t;
 
@@ -202,8 +216,6 @@ typedef struct form_ctrl_def_s {
   uint8_t           v_align; // vertical alignment; 0 = stretch
   const struct form_ctrl_def_s *children; // nested child controls
   int               child_count; // number of entries in children[]
-  const char       *layout_kind; // layout class name for containers
-  flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL = bit flag, 0 = vertical
   uint8_t           layout_spacing; // spacing between direct children; 0 = default
   irect16_t         padding; // inner padding for layout containers
   irect16_t         margin;  // outer margin when this control is laid out by a parent
@@ -225,9 +237,6 @@ typedef struct {
   const char             *name;        // window title
   int                     width, height; // client area dimensions
   flags_t                 flags;       // window flags
-  bool                    auto_layout; // enable measure/arrange on children
-  const char             *layout_kind;  // layout class name: "stack", "grid", or NULL
-  flags_t                 layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
   uint8_t                 layout_spacing; // spacing between direct children; 0 = default
   irect16_t               padding;      // inner padding for auto-layout content
   irect16_t               margin;       // outer margin for this form when nested
@@ -289,20 +298,28 @@ typedef uint32_t                   (*fe_plugin_version_fn)(void);
 
 #define FE_PLUGIN_VERSION 1u
 
+// On Windows, DLL symbols must be explicitly exported; other platforms export
+// all global symbols from shared libraries by default.
+#if defined(_WIN32)
+#  define GEM_EXPORT __declspec(dllexport)
+#else
+#  define GEM_EXPORT
+#endif
+
 // Declares the standard FormEditor plugin exports from a static descriptor
 // array, human-readable description, and ABI version value.
 #define GEM_CLASSES(ARRAY, NAME, VERSION) \
-  int fe_plugin_class_count(void) { \
+  GEM_EXPORT int fe_plugin_class_count(void) { \
     return (int)ARRAY_LEN(ARRAY); \
   } \
-  const fe_component_desc_t *fe_plugin_class_desc(int i) { \
+  GEM_EXPORT const fe_component_desc_t *fe_plugin_class_desc(int i) { \
     if (i < 0 || i >= (int)ARRAY_LEN(ARRAY)) return NULL; \
     return &(ARRAY)[i]; \
   } \
-  const char *fe_plugin_description(void) { \
+  GEM_EXPORT const char *fe_plugin_description(void) { \
     return (NAME); \
   } \
-  uint32_t fe_plugin_version(void) { \
+  GEM_EXPORT uint32_t fe_plugin_version(void) { \
     return (uint32_t)(VERSION); \
   }
 
@@ -312,6 +329,7 @@ const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
 const fe_component_desc_t *fe_component_by_tool_ident(int ident);
 const fe_component_desc_t *fe_component_by_token(const char *token);
+bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target);
 
 bool fe_load_component_plugin(const char *path);
 void fe_unload_component_plugins(void);
@@ -334,36 +352,16 @@ typedef struct {
 struct window_s {
   irect16_t frame;
   uint32_t id;
-  uint16_t scroll[2];
+  // Runtime style/state flags share one 32-bit word.
+  // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;
   hinstance_t hinstance;  // owning app instance (0 = system/unowned)
   winproc_t proc;
-  uint32_t child_id;
-  bool hovered;
-  bool editing;
-  bool pressed;
-  bool value;
-  bool visible;
-  bool disabled;
+  uint32_t value;
   char title[512];
   char statusbar_text[64];
   uint32_t cursor_pos;
-  window_t *toolbar_children; // real child windows in the toolbar band (toolbar-band-relative frames)
-  bitmap_strip_t toolbar_strip;
-  uint32_t toolbar_strip_tex;  // GL texture owned by tbLoadStrip (freed on destroy)
-  int    toolbar_btn_size;   // 0 = use TB_SPACING default; >0 = custom square button size in pixels
-  window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
-  int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
-  bool      auto_layout;    // auto layout the direct children
-  const char *layout_kind;  // layout class name: "stack", "grid", or NULL
-  flags_t   layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
-  uint8_t   h_align;        // horizontal alignment; 0 = stretch
-  uint8_t   v_align;        // vertical alignment; 0 = stretch
-  uint8_t   layout_spacing;  // spacing between direct children; 0 = default
-  int16_t   layout_fixed_w;  // declarative width hint used by auto-layout
-  int16_t   layout_fixed_h;  // declarative height hint used by auto-layout
-  irect16_t layout_padding;  // inner padding for auto-layout containers
-  irect16_t layout_margin;   // outer margin when nested inside a layout container
+  layout_t layout;
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)
@@ -371,7 +369,26 @@ struct window_s {
   struct window_s *next;
   struct window_s *children;
   struct window_s *parent;
+  struct window_s *toolbar; // toolbar host window (win_toolbar); state lives in toolbar->userdata
+  struct window_s *sidebar; // WINDOW_SIDEBAR: the single child that fills the left panel
 };
+
+static inline bool window_has_state(const window_t *win, uint32_t state_flag) {
+  return win && ((win->flags & state_flag) != 0u);
+}
+
+static inline void window_set_state(window_t *win, uint32_t state_flag, bool enabled) {
+  if (!win) return;
+  if (enabled)
+    win->flags |= state_flag;
+  else
+    win->flags &= ~state_flag;
+}
+
+static inline toolbar_state_t *window_toolbar_state(window_t *win) {
+  if (!win || !win->toolbar) return NULL;
+  return (toolbar_state_t *)win->toolbar->userdata;
+}
 
 // Returns the combined height of the non-client title bar and (if WINDOW_TOOLBAR
 // is set) the single-row toolbar band.  Used by event routing and layout.

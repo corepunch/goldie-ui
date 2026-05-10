@@ -26,6 +26,14 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - For plugin-provided **UI controls/windows**, use WinAPI-style integration only: register classes, instantiate by class name (`create_window(..., "class_name", ...)`), pass creation state via `lparam`, and communicate through messages/notifications (`evCommand`, control-specific messages). Do **not** design C function-table APIs for window controls unless the feature is explicitly non-window service logic.
 - **Always search the existing framework before inventing new mechanisms.** Orion already has toolbars (`WINDOW_TOOLBAR`), toolbar buttons (`tbAddButtons`), bitmap strips (`bitmap_strip_t`), accelerators, dialogs, status bars, etc. If you need something that sounds like it belongs in a UI framework, look for it first.
 
+### Reuse-First Architecture Rule (Required)
+
+- **Add new primitives only when reuse is truly impossible.** If existing windows, classes, messages, flags, or layout metadata can express the behavior, use them.
+- **Do not create parallel configuration models.** If orientation/state already exists in flags or class semantics, do not add duplicate fields like separate `layout_orientation` state.
+- **Do not add duplicate declarative knobs for existing behavior.** If layout type is already represented by class/proc (`stack`, `grid`, `column`), do not add another independent selector that encodes the same thing.
+- **Prefer class/proc-driven behavior over global mode switches.** In WinAPI style, behavior belongs to window classes and message handlers, not to app-wide enum dispatchers.
+- **For layout engines, split by responsibility.** Avoid one monolithic layout function with long `if (stack)`, `if (grid)`, `if (column)` chains. Keep shared math in helpers, but keep container-specific measure/arrange logic in focused functions tied to each container type.
+
 ### Scrollbars — Built-in vs. Standalone
 
 **`WINDOW_HSCROLL` / `WINDOW_VSCROLL` — built-in scrollbars on a window**
@@ -465,20 +473,27 @@ create_window_from_form(&kMyDlg, x, y, parent, my_dlg_proc, NULL);
 
 ### Auto-Layout System
 
-Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing and positioning. When `auto_layout="1"` is set on a form or container, children are arranged automatically using stack or grid layouts.
+Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing and positioning. Enable it on a form or container by including `WINDOW_AUTO_LAYOUT` in the window flags; children are then arranged automatically using stack or grid layouts.
 
 #### Layout Properties
 
-**Window-level properties:**
-- `layout_kind`: `"stack"` (default), `"grid"`, or `"flow"`
-- `layout_spacing`: Gap between children in pixels
-- `layout_padding`: Inner padding as `irect16_t {left, top, right, bottom}`
-- `layout_orientation`: `WINDOW_STACK_HORIZONTAL` or `WINDOW_STACK_VERTICAL` (stack only)
+**Container type** is determined by `class_name` (or the element tag in `.orion` XML):
+- `"stack"` — arranges children in a row or column
+- `"grid"` — arranges children using explicit `<column>` elements (star sizing)
+- `"column"` — single column of a grid container
 
-**Child-level properties:**
-- `layout_fixed_w` / `layout_fixed_h`: Fixed width/height (0 = auto)
-- `h_align` / `v_align`: `LAYOUT_ALIGN_STRETCH` (default), `LAYOUT_ALIGN_START`, `LAYOUT_ALIGN_CENTER`, `LAYOUT_ALIGN_END`
-- `WINDOW_FLEXSPACE`: Stack child expands to fill available space along the stack axis
+**Orientation and flags on a stack control:**
+- `WINDOW_STACK_HORIZONTAL` in `flags` — horizontal (left-to-right) layout
+- Without `WINDOW_STACK_HORIZONTAL` — vertical (top-to-bottom) layout (default)
+- `WINDOW_FLEXSPACE` — child expands to fill remaining space along the stack axis
+
+**Per-window layout state** (`win->layout.*`):
+- `win->layout.layout_spacing` — gap between direct children (pixels)
+- `win->layout.layout_padding` — inner padding `irect16_t {l, t, r, b}`
+- `win->layout.layout_margin` — outer margin when inside a layout container
+- `win->layout.layout_fixed_w` / `win->layout.layout_fixed_h` — declarative size hints
+
+**Child alignment** (`win->layout.h_align` / `win->layout.v_align`): `LAYOUT_ALIGN_STRETCH` (default), `LAYOUT_ALIGN_START`, `LAYOUT_ALIGN_CENTER`, `LAYOUT_ALIGN_END`
 
 #### Stack Layout
 
@@ -701,7 +716,7 @@ The framework could automatically detect when a form contains only fixed-height 
 form_def_t dlg_def = *def;  // Local copy
 
 // Auto-calculate height if no flexible content exists
-if (dlg_def.auto_layout && !form_has_flexspace(&dlg_def)) {
+if ((dlg_def.flags & WINDOW_AUTO_LAYOUT) && !form_has_flexspace(&dlg_def)) {
     dlg_def.height = calculate_form_height(&dlg_def);
 }
 
@@ -746,10 +761,11 @@ Currently, height must be specified manually even for fixed-content forms.
 - `title`: Window title
 - `frame`: Initial client rect as "x y w h" (window size before chrome)
 - `flags`: Window flags (e.g., `WINDOW_DIALOG | WINDOW_NOTRAYBUTTON`)
-- `auto_layout`: `"1"` to enable auto-layout
-- `layout_kind`: `"stack"` or `"grid"` (default is `"stack"`)
 - `spacing`: Default gap between children in pixels
 - `padding`: Inner padding as "left top right bottom" or single value
+
+> **Note:** Auto-layout is always enabled for forms. The layout container type is set by
+> the child element tag (`<stack>`, `<grid>`, `<column>`), not by a form-level `layout=` attribute.
 
 **Control elements:**
 ```xml
@@ -931,6 +947,10 @@ UI-specific application of the same rule:
 
 8. **Don't add `WINDOW_FLEXSPACE` to grid columns expecting them to expand.** Grid columns without explicit `layout_fixed_w` automatically share available width equally (WPF `Width="*"` semantics). `WINDOW_FLEXSPACE` is a **stack concept only** — it tells a stack child to expand along the stack axis. In grids, space distribution is automatic and uniform across auto-width columns.
 
+9. **Don't add duplicate layout state when existing flags/classes already encode it.** For example, do not introduce separate `layout_orientation` fields if `WINDOW_STACK_HORIZONTAL` (plus class/proc identity) already defines orientation semantics.
+
+10. **Don't centralize all layout kinds into one giant dispatcher function.** A large `layout.c` function with repeated `if (stack/grid/...)` branches is hard to extend and easy to break. Prefer small, type-specific measure/arrange helpers wired through each container's window procedure, with shared utilities only for common math.
+
 ### Window Class Enhancements (Planned)
 
 **Goal**: Move control defaults (dimensions, flags, behavior) from scattered macros/code into the window class registry, enabling cleaner .orion files and eliminating redundant attributes.
@@ -1094,4 +1114,20 @@ Class defaults < Form/parent hints < Instance attributes (.orion)
 - **Fix**: Updated `commctl/columnview.c` to consistently use `get_client_rect(win)` for all scroll calculations, paint dimensions, and content sizing
 - **Affected functions**: `rv_content_width()`, `rv_sync_scroll()`, `rv_paint_report_view()`, `evVScroll` handler
 - **Lesson**: Always use `get_client_rect()` for client-space dimensions; `win->frame` includes title bars, scrollbars, and other chrome that varies by context
+
+**Toolbar internals moved to toolbar host userdata (May 2026)**
+- **Issue**: `window_s` carried toolbar internals (`toolbar_children`, strip state, button size), coupling unrelated window logic to toolbar implementation details.
+- **Fix**: Added a dedicated toolbar host window (`win_toolbar`) and moved toolbar runtime state to `toolbar_state_t` stored in `win->toolbar->userdata`.
+- **How to access**: Use `window_toolbar_state(win)` and read toolbar children from `tb->children`; do not add fields back onto `window_s`.
+- **Lesson**: Keep control/container internals in control-owned userdata, not in generic window core structs.
+
+**Sidebar width ownership moved to sidebar child (May 2026)**
+- **Issue**: Parent windows stored separate sidebar width state (`sidebar_width`) that drifted from child layout/frame state.
+- **Fix**: Sidebar width now lives on the sidebar child (`win->sidebar`): desired width in `win->sidebar->layout.layout_fixed_w`, effective fallback from `win->sidebar->frame.w`.
+- **Lesson**: Prefer child-owned layout state over duplicating parallel width fields on the parent.
+
+**Child ID counter removed from window_s (May 2026)**
+- **Issue**: `window_s.child_id` was mutable parent state used only as an incrementing allocator.
+- **Fix**: Replaced with computed allocation (`next_child_id(parent)`) scanning existing `children` and toolbar children.
+- **Lesson**: Avoid storing redundant counters when IDs can be derived from the live tree safely.
 

@@ -48,8 +48,8 @@ static inline int win_abs_y(window_t *w) {
   return root->frame.y + titlebar_height(root) + w->frame.y;
 }
 
-#define LOCAL_X(px, py, WIN) (SCALE_POINT(px) - win_abs_x(WIN) + (WIN)->scroll[0])
-#define LOCAL_Y(px, py, WIN) (SCALE_POINT(py) - win_abs_y(WIN) + (WIN)->scroll[1])
+#define LOCAL_X(px, py, WIN) (SCALE_POINT(px) - win_abs_x(WIN) + (WIN)->hscroll.pos)
+#define LOCAL_Y(px, py, WIN) (SCALE_POINT(py) - win_abs_y(WIN) + (WIN)->vscroll.pos)
 #define CONTAINS(x, y, x1, y1, w1, h1) \
 ((x1) <= (x) && (y1) <= (y) && (x1) + (w1) > (x) && (y1) + (h1) > (y))
 
@@ -108,7 +108,8 @@ static window_t *find_toolbar_child_at(window_t *parent, int sx, int sy,
   if (tb_x_out) *tb_x_out = tb_x;
   if (tb_y_out) *tb_y_out = tb_y;
 
-  for (window_t *tc = parent->toolbar_children; tc; tc = tc->next) {
+  toolbar_state_t *tb = window_toolbar_state(parent);
+  for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
     if (CONTAINS(tb_x, tb_y, tc->frame.x, tc->frame.y, tc->frame.w, tc->frame.h)) {
       return tc;
     }
@@ -121,7 +122,9 @@ window_t* find_next_tab_stop(window_t *win, bool allow_current) {
   if (!win) return false;
   window_t *next;
   if ((next = find_next_tab_stop(win->children, true))) return next;
-  if (!(win->flags & WINDOW_NOTABSTOP) && (win->parent || win->visible) && allow_current) return win;
+  if (!(win->flags & WINDOW_NOTABSTOP) &&
+      (win->parent || window_has_state(win, WINDOW_STATE_VISIBLE)) &&
+      allow_current) return win;
   if ((next = find_next_tab_stop(win->next, true))) return next;
   return allow_current ? NULL : find_next_tab_stop(win->parent, false);
 }
@@ -337,7 +340,7 @@ void dispatch_message(ui_event_t *msg) {
       }
       post_message((window_t *)1, evRefreshStencil, 0, NULL);
       for (win = g_ui_runtime.windows; win; win = win->next) {
-        if (win->visible) {
+        if (window_has_state(win, WINDOW_STATE_VISIBLE)) {
           invalidate_window(win);
         }
       }
@@ -422,7 +425,7 @@ void dispatch_message(ui_event_t *msg) {
       } else if (((win = g_ui_runtime.captured) ||
                   (win = find_window(SCALE_POINT(px), SCALE_POINT(py)))))
       {
-        if (win->disabled) return;
+        if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
         int16_t lx = (int16_t)LOCAL_X(px, py, win);
         int16_t ly = (int16_t)LOCAL_Y(px, py, win);
         if (win == g_ui_runtime.captured || (ly >= 0 && win == g_ui_runtime.focused)) {
@@ -443,7 +446,7 @@ void dispatch_message(ui_event_t *msg) {
       {
         int sx = SCALE_POINT(px), sy = SCALE_POINT(py);
         window_t *hover = find_window(sx, sy);
-        if (hover && !hover->disabled) {
+        if (hover && !window_has_state(hover, WINDOW_STATE_DISABLED)) {
           int tb_x, tb_y;
           window_t *tc = find_toolbar_child_at(hover, sx, sy, &tb_x, &tb_y);
           if (tc && tc->title[0]) {
@@ -473,7 +476,7 @@ void dispatch_message(ui_event_t *msg) {
         if ((win = g_ui_runtime.captured) ||
           (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
-        if (win->disabled) return;
+        if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
         int16_t dx = msg->dx;
         int16_t dy = msg->dy;
         // Convert to window-local coordinates (same as clicks/moves)
@@ -499,7 +502,7 @@ void dispatch_message(ui_event_t *msg) {
           (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
         window_t *click_root = get_root_window(win);
-        if (win->disabled) return;
+        if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
 
         int sx = SCALE_POINT(px);
         int sy = SCALE_POINT(py);
@@ -579,7 +582,7 @@ void dispatch_message(ui_event_t *msg) {
         if ((win = g_ui_runtime.captured) ||
           (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
-        if (win->disabled) return;
+        if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
         int lx = LOCAL_X(px, py, win);
         int ly = LOCAL_Y(px, py, win);
         if (!handle_mouse(evLeftButtonDoubleClick, win, lx, ly, NULL)) {
@@ -621,7 +624,7 @@ void dispatch_message(ui_event_t *msg) {
           // Release outside: clear the pressed visual without firing a click.
           // This matches the previous hit-tested behaviour where releasing off
           // the button was a no-op.
-          tc->pressed = false;
+          window_set_state(tc, WINDOW_STATE_PRESSED, false);
           invalidate_window(tc);
         }
         break;
@@ -659,7 +662,7 @@ void dispatch_message(ui_event_t *msg) {
       } else if ((win = g_ui_runtime.captured) ||
                  (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
-        if (win->disabled) return;
+        if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
         // Deliver to client area only if mouse is at or below the title bar / toolbar.
         if (SCALE_POINT(py) >= win->frame.y + titlebar_height(win) || win == g_ui_runtime.captured) {
           int lx = LOCAL_X(px, py, win);

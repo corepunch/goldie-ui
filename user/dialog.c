@@ -36,7 +36,7 @@ static bool form_has_flexspace(const form_def_t *def) {
 // Calculate the minimum height needed for a fixed-content form
 // This is a simplified calculation - production version would measure actual controls
 static int calculate_form_height(const form_def_t *def) {
-  if (!def || !def->auto_layout) return 0;
+  if (!def || !(def->flags & WINDOW_AUTO_LAYOUT)) return 0;
   
   // For now, use a simple heuristic based on child count and spacing
   // TODO: Actually measure each control's desired height
@@ -95,7 +95,7 @@ static uint32_t run_dialog_loop(window_t *dlg, window_t *parent) {
   if (g_ui_runtime.running) {
     post_message((window_t*)1, evRefreshStencil, 0, NULL);
     for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
-      if (w->visible) invalidate_window(w);
+      if (window_has_state(w, WINDOW_STATE_VISIBLE)) invalidate_window(w);
     }
     repost_messages();
   }
@@ -148,7 +148,7 @@ uint32_t show_dialog_from_form_ex(form_def_t const *def, char const *title,
   if (title) dlg_def.name = title;
 
   // For auto-height: create at 0,0, measure after children exist, then reposition
-  bool need_auto_height = (dlg_def.height == 0 && dlg_def.auto_layout && 
+  bool need_auto_height = (dlg_def.height == 0 && (dlg_def.flags & WINDOW_AUTO_LAYOUT) && 
                            !form_has_flexspace(&dlg_def));
 
   // Use specified height or a temporary value for initial creation

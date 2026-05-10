@@ -67,7 +67,7 @@ static result_t tooltip_win_proc(window_t *win, uint32_t msg,
       // One-shot timer fired — validate it is our pending timer before showing.
       if ((uint32_t)wparam != g_tooltip_timer_id) return true;
       g_tooltip_timer_id = 0;
-      if (!win->visible && g_tooltip_pending[0]) {
+      if (!window_has_state(win, WINDOW_STATE_VISIBLE) && g_tooltip_pending[0]) {
         int tw = text_strwidth(FONT_SMALL, g_tooltip_pending);
         int th = text_char_height(FONT_SMALL);
         int w  = tw + TOOLTIP_PAD_L + TOOLTIP_PAD_R;
@@ -120,7 +120,7 @@ void tooltip_cancel(void) {
     axCancelTimer(g_tooltip_timer_id);
     g_tooltip_timer_id = 0;
   }
-  if (g_tooltip_win && g_tooltip_win->visible)
+  if (g_tooltip_win && window_has_state(g_tooltip_win, WINDOW_STATE_VISIBLE))
     show_window(g_tooltip_win, false);
   g_tooltip_pending[0] = '\0';
   g_tooltip_src = NULL;
@@ -154,7 +154,7 @@ void tooltip_update(window_t *src_win, const char *text, int sx, int sy) {
       g_tooltip_sy = sy;
       return;
     }
-    if (g_tooltip_win && g_tooltip_win->visible &&
+    if (g_tooltip_win && window_has_state(g_tooltip_win, WINDOW_STATE_VISIBLE) &&
         strcmp(g_tooltip_win->title, text) == 0) {
       return;
     }

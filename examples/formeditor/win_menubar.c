@@ -96,7 +96,7 @@ static result_t doc_win_proc(window_t *win, uint32_t msg,
     case evCreate:
       return true;
     case evSetFocus:
-      if (doc && win->visible) form_doc_activate(doc);
+      if (doc && window_has_state(win, WINDOW_STATE_VISIBLE)) form_doc_activate(doc);
       return false;
     case evPaint:
       fill_rect(get_sys_color(brWorkspaceBg), R(0, 0, win->frame.w, win->frame.h));
@@ -188,9 +188,10 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->form_size.h    = h;
   doc->flags     = 0;
   doc->modified  = false;
-  doc->auto_layout = false;
-  doc->layout_kind = 0;
-  doc->layout_orientation = WINDOW_STACK_VERTICAL;
+  if (fe_default_auto_layout_enabled())
+    doc->flags |= WINDOW_AUTO_LAYOUT;
+  doc->layout_mode = (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0;
+  doc->flags &= ~WINDOW_STACK_HORIZONTAL;
   doc->layout_columns = 0;
   doc->layout_spacing = 4;
   doc->padding = (irect16_t){0, 0, 0, 0};
@@ -400,7 +401,7 @@ static const char *align_v_token(uint8_t align) {
   return enum_token_name(align, kAlignVTokens, ARRAY_LEN(kAlignVTokens), "stretch");
 }
 
-static uint8_t layout_kind_attr(const char *v, uint8_t fallback) {
+static uint8_t layout_mode_attr(const char *v, uint8_t fallback) {
   return (uint8_t)enum_parse_token(v, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), fallback);
 }
 
@@ -408,7 +409,7 @@ static flags_t layout_orientation_attr(const char *v, flags_t fallback) {
   return (flags_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), (int)fallback);
 }
 
-static const char *layout_kind_token(uint8_t kind) {
+static const char *layout_mode_token(uint8_t kind) {
   return enum_token_name(kind, kLayoutKindTokens, ARRAY_LEN(kLayoutKindTokens), "none");
 }
 
@@ -624,6 +625,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->frame.h = int_attr(n, "height", int_attr(n, "h", 8));
       el->frame.w = MAX(1, el->frame.w);
       el->frame.h = MAX(1, el->frame.h);
+      el->parent = (uint32_t)int_attr(n, "parent", 0);
       copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
       el->flags = parse_flags_expr(el->flags_expr);
       copy_attr(n, "text", el->text, sizeof(el->text));
@@ -669,7 +671,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
 }
 
 static void project_auto_layout_doc(form_doc_t *doc) {
-  if (!doc || !doc->auto_layout) return;
+  if (!doc || !(doc->flags & WINDOW_AUTO_LAYOUT)) return;
   
   // Apply component default sizes for auto-layout forms
   for (int i = 0; i < doc->element_count; i++) {
@@ -680,9 +682,15 @@ static void project_auto_layout_doc(form_doc_t *doc) {
       el->frame.h = MAX(1, desc->default_size.h);
     }
   }
+  form_element_t *roots[MAX_ELEMENTS];
+  int root_count = 0;
+  for (int i = 0; i < doc->element_count; i++) {
+    if (doc->elements[i].parent == 0)
+      roots[root_count++] = &doc->elements[i];
+  }
   
   const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
-  int count = doc->element_count;
+  int count = root_count;
   int pad_l = doc->padding.x;
   int pad_t = doc->padding.y;
   int pad_r = doc->padding.w;
@@ -692,7 +700,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   int content_x = pad_l;
   int content_y = pad_t;
 
-  if (doc->layout_kind == 2) {
+  if (doc->layout_mode == 2) {
     int cols = doc->layout_columns > 0 ? doc->layout_columns : 2;
     if (cols < 1) cols = 1;
     int rows = (count + cols - 1) / cols;
@@ -702,7 +710,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
     int base_h = max_h / rows;
     int rem_h = max_h % rows;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = &doc->elements[i];
+      form_element_t *el = roots[i];
       int row = i / cols;
       int col = i % cols;
       irect16_t margin = el->margin;
@@ -734,10 +742,10 @@ static void project_auto_layout_doc(form_doc_t *doc) {
     return;
   }
 
-  if (doc->layout_orientation & WINDOW_STACK_HORIZONTAL) {
+  if (doc->flags & WINDOW_STACK_HORIZONTAL) {
     int x = content_x;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = &doc->elements[i];
+      form_element_t *el = roots[i];
       irect16_t margin = el->margin;
       if (i > 0) x += gap;
       int inner_w = el->frame.w > 0 ? el->frame.w : 1;
@@ -763,7 +771,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   } else {
     int y = content_y;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = &doc->elements[i];
+      form_element_t *el = roots[i];
       irect16_t margin = el->margin;
       if (i > 0) y += gap;
       int inner_w = el->frame.w > 0 ? el->frame.w : 1;
@@ -817,16 +825,19 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   copy_attr(form_node, "flags", flags_expr, sizeof(flags_expr));
   doc->flags = parse_flags_expr(flags_expr);
   // auto_layout defaults to true, but will be set to false if any element has non-zero x/y
-  doc->auto_layout = true;
+  doc->flags |= WINDOW_AUTO_LAYOUT;
   {
-    char *layout_kind = xml_attr_dup(form_node, "layout_kind");
+    char *layout_mode = xml_attr_dup(form_node, "layout_mode");
     char *layout_orientation = xml_attr_dup(form_node, "orientation");
     if (!layout_orientation)
       layout_orientation = xml_attr_dup(form_node, "layout_orientation");
-    doc->layout_kind = layout_kind_attr(layout_kind, doc->auto_layout ? 1 : 0);
-    doc->layout_orientation = layout_orientation_attr(layout_orientation,
-                                                      WINDOW_STACK_VERTICAL);
-    free(layout_kind);
+    doc->layout_mode = layout_mode_attr(layout_mode,
+                                        (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0);
+    if (layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL)
+      doc->flags |= WINDOW_STACK_HORIZONTAL;
+    else
+      doc->flags &= ~WINDOW_STACK_HORIZONTAL;
+    free(layout_mode);
     free(layout_orientation);
   }
   doc->layout_columns = (uint8_t)int_attr(form_node, "layout_columns", 0);
@@ -842,13 +853,13 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   // Detect fixed-layout forms: if any element has non-zero x/y, disable auto-layout
   for (int i = 0; i < doc->element_count; i++) {
     if (doc->elements[i].frame.x != 0 || doc->elements[i].frame.y != 0) {
-      doc->auto_layout = false;
+      doc->flags &= ~WINDOW_AUTO_LAYOUT;
       break;
     }
   }
   
   // Only run auto-layout if enabled (otherwise preserve loaded x/y coordinates)
-  if (doc->auto_layout) {
+  if (doc->flags & WINDOW_AUTO_LAYOUT) {
     project_auto_layout_doc(doc);
   }
 
@@ -925,14 +936,12 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   xml_attr(f, "title", label);
   fprintf(f, "\n            width=\"%d\" height=\"%d\"\n            flags=\"%" PRIu32 "\"",
           doc->form_size.w, doc->form_size.h, doc->flags);
-  if (doc->layout_kind == 2)
-    fprintf(f, "\n            layout_kind=\"%s\"",
-            layout_kind_token(doc->layout_kind));
-  if (doc->layout_orientation != 0)
+  if (doc->layout_mode == 2)
+    fprintf(f, "\n            layout_mode=\"%s\"",
+            layout_mode_token(doc->layout_mode));
+    if (doc->flags & WINDOW_STACK_HORIZONTAL)
     fprintf(f, "\n            layout_orientation=\"%s\"",
-            layout_orientation_token(doc->layout_orientation));
-  if (doc->layout_columns != 0)
-    fprintf(f, "\n            layout_columns=\"%u\"", (unsigned)doc->layout_columns);
+        layout_orientation_token(doc->flags & WINDOW_STACK_HORIZONTAL));
   if (doc->layout_spacing != 0)
     fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
   if (doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
@@ -953,12 +962,14 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     fprintf(f, "        <%s", ctrl_type_token(el->type));
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
+    if (el->parent != 0)
+      fprintf(f, " parent=\"%u\"", (unsigned)el->parent);
     if (el->font_set || el->font != FONT_SMALL)
       xml_attr(f, "font", font_token(el->font));
     if (el->color_set || el->color != brTextNormal)
       xml_attr(f, "color", color_token(el->color));
     // Only emit x/y for fixed-layout forms; auto-layout forms recalculate positions
-    if (!doc->auto_layout) {
+    if (!(doc->flags & WINDOW_AUTO_LAYOUT)) {
       fprintf(f, " x=\"%d\" y=\"%d\"", el->frame.x, el->frame.y);
     }
     fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
@@ -1058,8 +1069,7 @@ static const form_ctrl_def_t kAboutChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1073,10 +1083,9 @@ static const form_ctrl_def_t kAboutChildren[] = {
 
 static const form_def_t kAboutForm = {
   .name = "About Orion Form Editor",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = ABOUT_W,
   .height = ABOUT_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
   .layout_spacing = 6,
   .padding = {8, 8, 8, 8},
   .children = kAboutChildren,
@@ -1123,8 +1132,7 @@ static const form_ctrl_def_t kGridChildren[] = {
   {
     .class_name = "stack",
     .name = "size_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1138,8 +1146,7 @@ static const form_ctrl_def_t kGridChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 4,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1161,9 +1168,7 @@ static const form_def_t kGridForm = {
   .name          = "Grid Settings",
   .width         = GRID_W,
   .height        = GRID_H,
-  .flags         = 0,
-  .auto_layout   = true,
-  .layout_kind   = "stack",
+  .flags = (0) | WINDOW_AUTO_LAYOUT,
   .layout_spacing = 6,
   .padding       = {8, 8, 8, 8},
   .children      = kGridChildren,
@@ -1266,7 +1271,6 @@ static const form_ctrl_def_t kPropsChildren[] = {
     .class_name = "grid",
     .name = "fields",
     .flags = WINDOW_FLEXSPACE,
-    .layout_kind = "grid",
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1300,8 +1304,7 @@ static const form_ctrl_def_t kPropsChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 4,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1325,9 +1328,7 @@ static const form_def_t kPropsForm = {
   .name          = "Element Properties",
   .width         = PROPS_W,
   .height        = PROPS_H,
-  .flags         = 0,
-  .auto_layout   = true,
-  .layout_kind   = "stack",
+  .flags = (0) | WINDOW_AUTO_LAYOUT,
   .layout_spacing = 6,
   .padding       = {8, 8, 8, 8},
   .children      = kPropsChildren,
@@ -1359,8 +1360,8 @@ static const form_def_t kPropsForm = {
 #define FORM_PROPS_BTN_Y       (FORM_PROPS_H - BUTTON_HEIGHT - 6)
 
 typedef struct {
-  bool auto_layout;
-  int  layout_kind;
+  bool auto_layout_enabled;
+  int  layout_mode;
   int  layout_orientation;
   char layout_columns[8];
   bool accepted;
@@ -1384,8 +1385,8 @@ static void form_props_fill_layout_combos(window_t *win) {
 }
 
 static const ctrl_binding_t k_form_props_bindings[] = {
-  DDX_CHECK(FORM_PROPS_ID_AUTO, form_props_state_t, auto_layout),
-  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_kind, 0),
+  DDX_CHECK(FORM_PROPS_ID_AUTO, form_props_state_t, auto_layout_enabled),
+  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_mode, 0),
   DDX_COMBO(FORM_PROPS_ID_ORIENT, form_props_state_t, layout_orientation, WINDOW_STACK_VERTICAL),
   DDX_TEXT(FORM_PROPS_ID_COLUMNS, form_props_state_t, layout_columns),
 };
@@ -1396,8 +1397,7 @@ static const form_ctrl_def_t kFormPropsChildren[] = {
   {
     .class_name = "stack",
     .name = "kind_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1411,8 +1411,7 @@ static const form_ctrl_def_t kFormPropsChildren[] = {
   {
     .class_name = "stack",
     .name = "orient_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1426,8 +1425,7 @@ static const form_ctrl_def_t kFormPropsChildren[] = {
   {
     .class_name = "stack",
     .name = "columns_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1441,8 +1439,7 @@ static const form_ctrl_def_t kFormPropsChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 4,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -1460,9 +1457,7 @@ static const form_def_t kFormPropsForm = {
   .name          = "Form Properties",
   .width         = FORM_PROPS_W,
   .height        = FORM_PROPS_H,
-  .flags         = 0,
-  .auto_layout   = true,
-  .layout_kind   = "stack",
+  .flags = (0) | WINDOW_AUTO_LAYOUT,
   .layout_spacing = 6,
   .padding       = {8, 8, 8, 8},
   .children      = kFormPropsChildren,
@@ -1492,25 +1487,34 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
       if (src->id == FORM_PROPS_ID_OK) {
         if (g_app && g_app->doc) {
           form_doc_t *doc = g_app->doc;
-          bool old_auto_layout = doc->auto_layout;
-          uint8_t old_kind = doc->layout_kind;
-          flags_t old_orient = doc->layout_orientation;
+          bool old_auto_layout = (doc->flags & WINDOW_AUTO_LAYOUT) != 0;
+          uint8_t old_kind = doc->layout_mode;
+          flags_t old_orient = doc->flags & WINDOW_STACK_HORIZONTAL;
           uint8_t old_columns = doc->layout_columns;
           dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
+          if (ps->auto_layout_enabled)
+            doc->flags |= WINDOW_AUTO_LAYOUT;
+          else
+            doc->flags &= ~WINDOW_AUTO_LAYOUT;
+          doc->layout_mode = (uint8_t)ps->layout_mode;
+          if (ps->layout_orientation & WINDOW_STACK_HORIZONTAL)
+            doc->flags |= WINDOW_STACK_HORIZONTAL;
+          else
+            doc->flags &= ~WINDOW_STACK_HORIZONTAL;
           {
             int cols = atoi(ps->layout_columns);
             if (cols < 0) cols = 0;
             if (cols > 255) cols = 255;
             doc->layout_columns = (uint8_t)cols;
           }
-          if (doc->auto_layout != old_auto_layout ||
-              doc->layout_kind != old_kind ||
-              doc->layout_orientation != old_orient ||
+          if (((doc->flags & WINDOW_AUTO_LAYOUT) != 0) != old_auto_layout ||
+              doc->layout_mode != old_kind ||
+              (doc->flags & WINDOW_STACK_HORIZONTAL) != old_orient ||
               doc->layout_columns != old_columns) {
             doc->modified = true;
             form_doc_update_title(doc);
           }
-          if (doc->auto_layout) {
+          if (doc->flags & WINDOW_AUTO_LAYOUT) {
             form_doc_auto_layout_reflow(doc);
             canvas_rebuild_live_controls(doc);
           }
@@ -1533,9 +1537,9 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
 static bool show_form_props_dialog(window_t *parent, form_doc_t *doc) {
   if (!doc) return false;
   form_props_state_t st = {
-    .auto_layout = doc->auto_layout,
-    .layout_kind = doc->layout_kind,
-    .layout_orientation = doc->layout_orientation,
+    .auto_layout_enabled = (doc->flags & WINDOW_AUTO_LAYOUT) != 0,
+    .layout_mode = doc->layout_mode,
+    .layout_orientation = (doc->flags & WINDOW_STACK_HORIZONTAL) ? WINDOW_STACK_HORIZONTAL : WINDOW_STACK_VERTICAL,
   };
   snprintf(st.layout_columns, sizeof(st.layout_columns), "%u",
            (unsigned)doc->layout_columns);

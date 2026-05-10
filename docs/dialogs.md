@@ -126,17 +126,16 @@ typedef struct form_ctrl_def_s {
   const char       *class_name; // "button", "label", "textedit", "stack", ...
   uint32_t          id;         // numeric control ID
   isize16_t         size;       // fixed size hint {w, h}; 0 = measured
-  flags_t           flags;      // style flags
+  flags_t           flags;      // style flags (e.g. WINDOW_STACK_HORIZONTAL for stacks)
   const char       *text;       // initial caption / text
   const char       *name;       // identifier name
   uint8_t           h_align;    // LAYOUT_ALIGN_*
   uint8_t           v_align;    // LAYOUT_ALIGN_*
   const form_ctrl_def_t *children;
   int               child_count;
-  const char       *layout_kind;        // "stack", "grid", or NULL
-  flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL or 0
   uint8_t           layout_spacing;
   irect16_t         padding;
+  irect16_t         margin;
 } form_ctrl_def_t;
 ```
 
@@ -151,8 +150,7 @@ static const form_ctrl_def_t kMyChildren[] = {
   {
     .class_name = "stack",
     .name = "name_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,  // horizontal stack
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -165,8 +163,7 @@ static const form_ctrl_def_t kMyChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,  // horizontal stack
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .children = (const form_ctrl_def_t[]){
@@ -182,9 +179,7 @@ static const form_def_t kMyForm = {
   .name        = "My Dialog",
   .width       = 164,
   .height      = 56,
-  .flags       = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
+  .flags       = WINDOW_AUTO_LAYOUT,   // enables auto-layout for this form
   .layout_spacing = 6,
   .padding     = {8, 8, 8, 8},
   .children    = kMyChildren,

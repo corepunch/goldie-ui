@@ -116,8 +116,7 @@ static const form_ctrl_def_t kNewFolderChildren[] = {
   {
     .class_name = "stack",
     .name = "name_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -127,8 +126,7 @@ static const form_ctrl_def_t kNewFolderChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -139,10 +137,9 @@ static const form_ctrl_def_t kNewFolderChildren[] = {
 
 static const form_def_t kNewFolderForm = {
   .name = "Create Folder",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = 244,
   .height = 58,
-  .auto_layout = true,
-  .layout_kind = "stack",
   .layout_spacing = 8,
   .padding = {8, 8, 8, 8},
   .children = kNewFolderChildren,
@@ -228,8 +225,7 @@ static const form_ctrl_def_t kFilePickerChildren[] = {
   {
     .class_name = "stack",
     .name = "file_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -239,8 +235,7 @@ static const form_ctrl_def_t kFilePickerChildren[] = {
   {
     .class_name = "stack",
     .name = "filter_row",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -250,8 +245,7 @@ static const form_ctrl_def_t kFilePickerChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 4,
     .h_align = LAYOUT_ALIGN_STRETCH,
     .v_align = LAYOUT_ALIGN_START,
@@ -264,9 +258,7 @@ static const form_def_t kFilePickerForm = {
   .name = "File Picker",
   .width = FP_WIN_W,
   .height = FP_BTN_Y + FP_BTN_H + FP_PAD,
-  .flags = 0,
-  .auto_layout = true,
-  .layout_kind = "stack",
+  .flags = (0) | WINDOW_AUTO_LAYOUT,
   .layout_spacing = FP_ROW_GAP,
   .padding = {FP_PAD, FP_PAD, FP_PAD, FP_PAD},
   .children = kFilePickerChildren,
@@ -694,7 +686,8 @@ static result_t fp_proc(window_t *win, uint32_t msg,
                    (void *)kFilePickerItems);
 
       // Locate the path combobox in the newly-created toolbar children
-      for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
+      toolbar_state_t *tb = window_toolbar_state(win);
+      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
         if ((int)tc->id == FP_ID_LOC_COMBO) {
           ps->location_combo = tc;
           break;

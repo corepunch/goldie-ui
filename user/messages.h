@@ -62,14 +62,24 @@ enum {
   //          here and return true; return false if no tooltip at that position.
   evGetTooltipText,
   // Measure / arrange messages for auto-layout containers.
-  // Appended here (rather than inserted mid-enum) to preserve the numeric
-  // values of all existing messages and avoid breaking compiled ABI.
-  // evMeasure: lparam = layout_measure_t*; child writes desired size.
-  // evArrange: lparam = layout_arrange_t*; child adopts the assigned rect.
+  // evMeasure: lparam = layout_measure_t*; handler writes desired_w/desired_h
+  //            into the struct and returns true. Return value is ignored.
+  // evArrange: lparam = layout_arrange_t*; handler positions itself according
+  //            to the provided rect.
   evMeasure,
   evArrange,
+  // Query whether a component can be parented to a target window.
+  // wparam = 0; lparam = window_t *target_parent.
+  // Return true to reject the target parent; false to allow it.
+  evCanParent,
+  // Ask a container to create its default child structure.
+  // wparam = 0; lparam = NULL.
+  evInitChildren,
   evUser = 1000
 };
+
+// Compatibility alias: callers that use evLayout map to evArrange.
+#define evLayout evArrange
 
 // Control messages
 enum {
@@ -133,7 +143,7 @@ enum {
   // wparam = sidebar width in pixels (0 uses SIDEBAR_DEFAULT_WIDTH).
   // lparam = winproc_t — the window procedure for the sidebar content window.
   // The framework creates a WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL |
-  // WINDOW_NOTRAYBUTTON child at (0, 0) and stores it in win->sidebar_child.
+  // WINDOW_NOTRAYBUTTON child at (0, 0) and stores it in win->sidebar.
   sbSetContent,
 };
 
@@ -237,7 +247,16 @@ typedef struct {
 #define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab-key focus cycle (WS_TABSTOP equivalent)
 #define WINDOW_STACK_HORIZONTAL (1 << 19)  // auto-layout stack flows left-to-right
 #define WINDOW_FLEXSPACE    (1 << 20)  // space/spring child that absorbs leftover horizontal room
+#define WINDOW_AUTO_LAYOUT  (1 << 21)  // enable automatic measure/arrange for children
 #define WINDOW_STACK_VERTICAL   0
+
+// Runtime window state bits stored in window_t.flags.
+// Keep style bits in the low 24-bit range; reserve upper bits for transient state.
+#define WINDOW_STATE_HOVERED   (1u << 24)
+#define WINDOW_STATE_EDITING   (1u << 25)
+#define WINDOW_STATE_PRESSED   (1u << 26)
+#define WINDOW_STATE_VISIBLE   (1u << 27)
+#define WINDOW_STATE_DISABLED  (1u << 28)
 
 // Auto-layout alignment values used by layout_measure_t / layout_arrange_t.
 // 0 = stretch (default), matching WPF/SwiftUI "fill available space".

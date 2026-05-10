@@ -12,7 +12,7 @@ static result_t scrolling_window_proc(window_t *win, uint32_t msg,
   (void)lparam;
   if (msg == evCreate || msg == evDestroy || msg == evPaint) return 1;
   if (msg == evVScroll) {
-    win->scroll[1] = (uint16_t)wparam;
+    win->vscroll.pos = (uint16_t)wparam;
     return 1;
   }
   return 0;
@@ -74,14 +74,14 @@ void test_builtin_vscroll_drag_ignores_scroll_feedback(void) {
   // Move the mouse by 1 px. The scrollbar changes its position by 2.
   send_message(win, evMouseMove, MAKEDWORD(95, 23), (void *)(intptr_t)MAKEDWORD(0, 1));
   ASSERT_EQUAL((int)win->vscroll.pos, 22);
-  ASSERT_EQUAL((int)win->scroll[1], 22);
+  ASSERT_EQUAL((int)win->vscroll.pos, 22);
 
   // The window's scroll position changed, so the next LOCAL_Y reported by the
   // framework would also shift by +2 even if the cursor stayed still.
   // A correct drag handler must ignore that feedback and leave the thumb at 22.
   send_message(win, evMouseMove, MAKEDWORD(95, 25), (void *)(intptr_t)MAKEDWORD(0, 0));
   ASSERT_EQUAL((int)win->vscroll.pos, 22);
-  ASSERT_EQUAL((int)win->scroll[1], 22);
+  ASSERT_EQUAL((int)win->vscroll.pos, 22);
 
   send_message(win, evLeftButtonUp, MAKEDWORD(95, 25), NULL);
   destroy_window(win);

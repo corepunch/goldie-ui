@@ -62,10 +62,10 @@ void test_reportview_wheel_plain_parent(void) {
     // Send wheel event: dy=-3 so user/message.c negation yields +3 (scroll down).
     uint32_t wheel_wparam = MAKEDWORD(0, 0);  // mouse pos (unused in test)
     void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // raw dy=-3; negation makes +3 (scroll down)
-    int old_scroll = rv->scroll[1];
+    int old_scroll = rv->vscroll.pos;
     send_message(rv, evWheel, wheel_wparam, wheel_lparam);
     
-    ASSERT((int)rv->scroll[1] > old_scroll, "Scroll position should have moved down");
+    ASSERT((int)rv->vscroll.pos > old_scroll, "Scroll position should have moved down");
     
     destroy_window(parent);
     test_env_shutdown();
@@ -84,10 +84,9 @@ void test_reportview_wheel_in_stack(void) {
                                     reportview_parent_proc, 0, NULL);
     ASSERT(stack != NULL, "Failed to create stack");
     
-    stack->auto_layout = true;
-    stack->layout_kind = "stack";
-    stack->layout_orientation = WINDOW_STACK_VERTICAL;
-    stack->layout_spacing = 8;
+    stack->flags |= WINDOW_AUTO_LAYOUT;
+    stack->flags &= ~WINDOW_STACK_HORIZONTAL;
+    stack->layout.layout_spacing = 8;
     
     // Create reportview child (will be arranged by layout)
     window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE | WINDOW_VSCROLL,
@@ -116,10 +115,10 @@ void test_reportview_wheel_in_stack(void) {
     // Send wheel event: dy=-3 so user/message.c negation yields +3 (scroll down).
     uint32_t wheel_wparam = MAKEDWORD(0, 0);  // mouse pos (unused in test)
     void *wheel_lparam = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // raw dy=-3; negation makes +3 (scroll down)
-    int old_scroll = rv->scroll[1];
+    int old_scroll = rv->vscroll.pos;
     send_message(rv, evWheel, wheel_wparam, wheel_lparam);
     
-    ASSERT((int)rv->scroll[1] > old_scroll, "Scroll position should have moved down");
+    ASSERT((int)rv->vscroll.pos > old_scroll, "Scroll position should have moved down");
     
     destroy_window(stack);
     test_env_shutdown();
@@ -138,22 +137,19 @@ void test_reportview_wheel_in_grid(void) {
                                    reportview_parent_proc, 0, NULL);
     ASSERT(grid != NULL, "Failed to create grid");
     
-    grid->auto_layout = true;
-    grid->layout_kind = "grid";
-    grid->layout_spacing = 12;
+    grid->flags |= WINDOW_AUTO_LAYOUT;
+    grid->layout.layout_spacing = 12;
     
     // Create two columns: preview + reportview (simulating filter gallery)
     window_t *col1 = create_window("col1", WINDOW_NOTITLE | WINDOW_NOFILL,
                                    MAKERECT(0, 0, 180, 300), grid,
-                                   win_column, 0, NULL);
-    col1->auto_layout = true;
-    col1->layout_kind = "stack";
+                                   "column", 0, NULL);
+    col1->flags |= WINDOW_AUTO_LAYOUT;
     
     window_t *col2 = create_window("col2", WINDOW_NOTITLE | WINDOW_NOFILL,
                                    MAKERECT(0, 0, 180, 300), grid,
-                                   win_column, 0, NULL);
-    col2->auto_layout = true;
-    col2->layout_kind = "stack";
+                                   "column", 0, NULL);
+    col2->flags |= WINDOW_AUTO_LAYOUT;
     
     // Create reportview in second column
     window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE | WINDOW_VSCROLL,
@@ -182,10 +178,10 @@ void test_reportview_wheel_in_grid(void) {
     // Send wheel event: dy=-3 so user/message.c negation yields +3 (scroll down).
     uint32_t wheel_wparam3 = MAKEDWORD(0, 0);  // mouse pos (unused in test)
     void *wheel_lparam3 = (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-3);  // raw dy=-3; negation makes +3 (scroll down)
-    int old_scroll3 = rv->scroll[1];
+    int old_scroll3 = rv->vscroll.pos;
     send_message(rv, evWheel, wheel_wparam3, wheel_lparam3);
     
-    ASSERT((int)rv->scroll[1] > old_scroll3, "Scroll position should have moved down");
+    ASSERT((int)rv->vscroll.pos > old_scroll3, "Scroll position should have moved down");
     test_env_shutdown();
     PASS();
 }

@@ -78,7 +78,8 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
         window_t *button = lparam;
-        show_window(button->userdata, !((window_t *)button->userdata)->visible);
+        show_window(button->userdata,
+                    !window_has_state((window_t *)button->userdata, WINDOW_STATE_VISIBLE));
       }
       return true;
     case evDestroy:

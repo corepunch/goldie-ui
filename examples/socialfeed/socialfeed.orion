@@ -78,6 +78,7 @@
           <textedit name="text" />
         </stack>
 
+        <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <button name="ok" text="Submit" flags="BUTTON_DEFAULT" />
           <space name="flex" />
@@ -101,7 +102,7 @@
         </stack>
 
         <!-- Comments reportview -->
-        <reportview name="comments" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL" />
+        <reportview name="comments" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
 
         <separator name="section_sep" />
 

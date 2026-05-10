@@ -1,7 +1,7 @@
 // Tests for the child-window-based toolbar implementation.
 //
 // These tests are headless (no SDL/OpenGL rendering). The new toolbar
-// creates real child windows in parent->toolbar_children using
+// creates real child windows in toolbar state using
 // toolbar_item_t and tbSetItems.
 
 #include "test_framework.h"
@@ -35,14 +35,16 @@ static result_t click_capture_proc(window_t *win, uint32_t msg,
 
 // Count the children in a window's toolbar_children list.
 static int count_toolbar_children(window_t *win) {
+    toolbar_state_t *tb = window_toolbar_state(win);
     int n = 0;
-    for (window_t *tc = win->toolbar_children; tc; tc = tc->next) n++;
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) n++;
     return n;
 }
 
 // Find a toolbar child by id.
 static window_t *find_toolbar_child(window_t *win, uint32_t id) {
-    for (window_t *tc = win->toolbar_children; tc; tc = tc->next)
+    toolbar_state_t *tb = window_toolbar_state(win);
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next)
         if (tc->id == id) return tc;
     return NULL;
 }
@@ -52,7 +54,8 @@ static window_t *find_toolbar_space_child(window_t *win) {
     // comparison against the win_space symbol would fail on Windows because the
     // test executable holds an IAT stub while tc->proc holds the real address.
     winproc_t space_proc = find_window_class_proc("space");
-    for (window_t *tc = win->toolbar_children; tc; tc = tc->next)
+    toolbar_state_t *tb = window_toolbar_state(win);
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next)
         if (tc->proc == space_proc) return tc;
     return NULL;
 }
@@ -92,8 +95,10 @@ void test_toolbar_set_items_creates_children(void) {
     ASSERT_NOT_NULL(find_toolbar_child(win, 11));
     ASSERT_NOT_NULL(find_toolbar_child(win, 12));
 
-    // Children must NOT appear in the regular children list.
-    ASSERT_NULL(win->children);
+    // Toolbar items are not in win->children, but the toolbar host window is.
+    ASSERT_NOT_NULL(win->toolbar);
+    ASSERT_EQUAL(win->children, win->toolbar);
+    ASSERT_NULL(win->toolbar->next);
 
     destroy_window(win);
     test_env_shutdown();
@@ -221,24 +226,27 @@ void test_toolbar_set_strip(void) {
     test_env_init();
 
     irect16_t frame = {0, 0, 200, 60};
-    window_t *win = create_window("W", 0, &frame, NULL, noop_proc, 0, NULL);
+    window_t *win = create_window("W", WINDOW_TOOLBAR, &frame, NULL, noop_proc, 0, NULL);
     ASSERT_NOT_NULL(win);
 
-    ASSERT_EQUAL((int)win->toolbar_strip.tex, 0);
+    toolbar_state_t *tb = window_toolbar_state(win);
+    ASSERT_NULL(tb);
 
     bitmap_strip_t strip = {
         .tex=42, .icon_w=16, .icon_h=16,
         .cols=2, .sheet_w=32, .sheet_h=160,
     };
     send_message(win, tbSetStrip, 0, &strip);
-    ASSERT_EQUAL((int)win->toolbar_strip.tex, 42);
-    ASSERT_EQUAL(win->toolbar_strip.icon_w, 16);
-    ASSERT_EQUAL(win->toolbar_strip.cols, 2);
-    ASSERT_EQUAL(win->toolbar_strip.sheet_w, 32);
-    ASSERT_EQUAL(win->toolbar_strip.sheet_h, 160);
+    tb = window_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL((int)tb->strip.tex, 42);
+    ASSERT_EQUAL(tb->strip.icon_w, 16);
+    ASSERT_EQUAL(tb->strip.cols, 2);
+    ASSERT_EQUAL(tb->strip.sheet_w, 32);
+    ASSERT_EQUAL(tb->strip.sheet_h, 160);
 
     send_message(win, tbSetStrip, 0, NULL);
-    ASSERT_EQUAL((int)win->toolbar_strip.tex, 0);
+    ASSERT_EQUAL((int)tb->strip.tex, 0);
 
     destroy_window(win);
     test_env_shutdown();
@@ -343,10 +351,10 @@ void test_toolbar_textedit_click_focuses_and_enters_editing(void) {
     window_t *edit = find_toolbar_child(win, 42);
     ASSERT_NOT_NULL(edit);
 
-    win->visible = true;
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
     set_focus(NULL);
     ASSERT_NULL(g_ui_runtime.focused);
-    ASSERT_FALSE(edit->editing);
+    ASSERT_FALSE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     int hit_x = win->frame.x + edit->frame.x + 6;
     int hit_y = win->frame.y + TITLEBAR_HEIGHT + edit->frame.y + edit->frame.h / 2;
@@ -356,7 +364,7 @@ void test_toolbar_textedit_click_focuses_and_enters_editing(void) {
 
     dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonUp);
     ASSERT_EQUAL(g_ui_runtime.focused, edit);
-    ASSERT_TRUE(edit->editing);
+    ASSERT_TRUE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     destroy_window(win);
     test_env_shutdown();
@@ -381,7 +389,7 @@ void test_titlebar_click_does_not_focus_toolbar_textedit(void) {
     window_t *edit = find_toolbar_child(win, 43);
     ASSERT_NOT_NULL(edit);
 
-    win->visible = true;
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
 
     int hit_x = win->frame.x + 10;
     int hit_y = win->frame.y + 4;
@@ -391,7 +399,7 @@ void test_titlebar_click_does_not_focus_toolbar_textedit(void) {
 
     ASSERT_EQUAL(g_ui_runtime.focused, win);
     ASSERT_NOT_EQUAL(g_ui_runtime.focused, edit);
-    ASSERT_FALSE(edit->editing);
+    ASSERT_FALSE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     destroy_window(win);
     test_env_shutdown();
@@ -670,7 +678,7 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     ASSERT_NOT_NULL(btn);
 
     // Make the window visible so dispatch_message can find it via find_window().
-    win->visible = true;
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
 
     // btn->frame.x/y are toolbar-band-relative (not screen-absolute).
     // Screen position = win->frame.{x,y} + TITLEBAR_HEIGHT + btn->frame.{x,y}.
@@ -686,7 +694,7 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     ev.x = (uint16_t)((win->frame.x + btn->frame.x + 4) * UI_WINDOW_SCALE);
     ev.y = (uint16_t)((win->frame.y + title_h + btn->frame.y + 4) * UI_WINDOW_SCALE);
     dispatch_message(&ev);
-    ASSERT_TRUE(btn->pressed);
+    ASSERT_TRUE(window_has_state(btn, WINDOW_STATE_PRESSED));
 
     // Release well outside the button (to the right of it, same toolbar row).
     ev.message = kEventLeftButtonUp;
@@ -694,7 +702,7 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     ev.y = (uint16_t)((win->frame.y + title_h + btn->frame.y + 4) * UI_WINDOW_SCALE);
     dispatch_message(&ev);
 
-    ASSERT_FALSE(btn->pressed);
+    ASSERT_FALSE(window_has_state(btn, WINDOW_STATE_PRESSED));
     ASSERT_EQUAL(g_click_count, 0);
     ASSERT_EQUAL(g_last_click_ident, -1);
 

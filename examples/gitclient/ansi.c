@@ -135,9 +135,12 @@ void ansi_apply_sgr_codes(const int *codes, int n,
         int r = codes[i + 2];
         int g = codes[i + 3];
         int b = codes[i + 4];
-        if (r < 0) r = 0; if (r > 255) r = 255;
-        if (g < 0) g = 0; if (g > 255) g = 255;
-        if (b < 0) b = 0; if (b > 255) b = 255;
+        if (r < 0) r = 0;
+        if (r > 255) r = 255;
+        if (g < 0) g = 0;
+        if (g > 255) g = 255;
+        if (b < 0) b = 0;
+        if (b > 255) b = 255;
         uint32_t rgba = 0xFF000000u | ((uint32_t)r << 16) |
                         ((uint32_t)g << 8) | (uint32_t)b;
         int pal_idx = nearest_ansi_index(rgba);

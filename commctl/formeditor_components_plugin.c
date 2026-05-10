@@ -5,7 +5,7 @@
 static const fe_component_desc_t k_components[] = {
   {
     .class_name = "button",
-    .display_name = "CommandButton",
+    .display_name = "Button",
     .token = "button",
     .name_prefix = "IDC_BTN",
     .toolbox_ident = 205,
@@ -104,6 +104,28 @@ static const fe_component_desc_t k_components[] = {
     .proc = win_column,
   },
   {
+    .class_name = "stack",
+    .display_name = "StackView",
+    .token = "stack",
+    .name_prefix = "IDC_STK",
+    .toolbox_ident = 217,
+    .toolbox_icon = IC_DOCUMENT_STACK,
+    .default_size = {120, 80},
+    .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
+    .proc = win_stack,
+  },
+  {
+    .class_name = "grid",
+    .display_name = "GridView",
+    .token = "grid",
+    .name_prefix = "IDC_GRD",
+    .toolbox_ident = 218,
+    .toolbox_icon = IC_GRID_LAYOUT,
+    .default_size = {120, 80},
+    .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
+    .proc = win_grid,
+  },
+  {
     .class_name = "flowview",
     .display_name = "FlowView",
     .token = "flow",
@@ -112,7 +134,7 @@ static const fe_component_desc_t k_components[] = {
     .toolbox_icon = IC_DOCUMENT_STACK,
     .default_size = {120, 80},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
-    .proc = win_flowview,
+    .proc = win_flow,
   },
   {
     .class_name = "reportview",

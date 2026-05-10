@@ -35,8 +35,7 @@ static const form_ctrl_def_t kSettingsChildren[] = {
   {
     .class_name         = "stack",
     .name               = "url_row",
-    .layout_kind        = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
     .h_align            = LAYOUT_ALIGN_STRETCH,
     .v_align            = LAYOUT_ALIGN_START,
@@ -46,8 +45,7 @@ static const form_ctrl_def_t kSettingsChildren[] = {
   {
     .class_name         = "stack",
     .name               = "actions",
-    .layout_kind        = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL,
+    .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
     .h_align            = LAYOUT_ALIGN_END,
     .v_align            = LAYOUT_ALIGN_START,
@@ -58,10 +56,9 @@ static const form_ctrl_def_t kSettingsChildren[] = {
 
 static const form_def_t kSettingsForm = {
   .name           = "Browser Settings",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 344,
   .height         = 62,
-  .auto_layout    = true,
-  .layout_kind    = "stack",
   .layout_spacing = 6,
   .padding        = {8, 8, 8, 8},
   .children       = kSettingsChildren,
@@ -81,10 +78,9 @@ static const form_ctrl_def_t kAboutChildren[] = {
 
 static const form_def_t kAboutForm = {
   .name           = "About Browser",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 236,
   .height         = 98,
-  .auto_layout    = true,
-  .layout_kind    = "stack",
   .layout_spacing = 6,
   .padding        = {8, 8, 8, 8},
   .children       = kAboutChildren,

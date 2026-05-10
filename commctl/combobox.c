@@ -34,7 +34,8 @@ static void open_dropdown(window_t *win) {
   int abs_x, abs_y;
   bool is_toolbar_child = false;
   if (win->parent) {
-    for (window_t *tc = win->parent->toolbar_children; tc; tc = tc->next) {
+    toolbar_state_t *tb = window_toolbar_state(win->parent);
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
       if (tc == win) { is_toolbar_child = true; break; }
     }
   }
@@ -88,7 +89,7 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         irect16_t local = {0, 0, win->frame.w, win->frame.h};
         irect16_t arrow = rect_split_right(local, MIN(win->frame.h, 16));
         irect16_t text_rect = {2, 0, arrow.x - 4, win->frame.h};
-        bool show_pressed = win->pressed ||
+        bool show_pressed = window_has_state(win, WINDOW_STATE_PRESSED) ||
                             ((win->flags & BUTTON_PUSHLIKE) && win->value);
         draw_button(local, 1, 1, show_pressed);
         draw_text_clipped(FONT_SYSTEM, win->title, &text_rect,
@@ -100,7 +101,7 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evLeftButtonUp:
       // Do not forward button-up to win_button() to avoid sending btnClicked
       // to the parent when opening a dropdown.
-      win->pressed = false;
+      window_set_state(win, WINDOW_STATE_PRESSED, false);
       invalidate_window(win);
       open_dropdown(win);
       return true;

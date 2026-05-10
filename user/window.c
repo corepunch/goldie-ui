@@ -23,34 +23,36 @@ static bool streq(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
 }
 
+static bool is_stack_or_flow_proc(const window_t *win) {
+  return win && (win->proc == win_stack || win->proc == win_stackview ||
+                 win->proc == win_flow || win->proc == win_flowview);
+}
+
+static bool is_layout_container_proc(const window_t *win) {
+  return win && (is_stack_or_flow_proc(win) || win->proc == win_grid ||
+                 win->proc == win_gridview || win->proc == win_column);
+}
+
 static bool layout_child_flex_affects_parent(const window_t *parent, const window_t *child) {
   if (!parent || !child || !(child->flags & WINDOW_FLEXSPACE)) return false;
 
-  bool parent_is_stack_like = parent->layout_kind &&
-    (streq(parent->layout_kind, "stack") ||
-     streq(parent->layout_kind, "stackview") ||
-     streq(parent->layout_kind, "flow") ||
-     streq(parent->layout_kind, "flowview"));
+  bool parent_is_stack_like = is_stack_or_flow_proc(parent);
 
   // Horizontal action rows often contain local flex spacers.  If that row is
   // nested in a vertical container, keep the spacer local to the row instead of
   // promoting the whole row to a vertically flexible child.
-  if (!child->layout_kind && parent_is_stack_like &&
-      (parent->layout_orientation & WINDOW_STACK_HORIZONTAL) &&
-      parent->parent && parent->parent->layout_kind &&
-      !(parent->parent->layout_orientation & WINDOW_STACK_HORIZONTAL)) {
+  if (!is_layout_container_proc(child) && parent_is_stack_like &&
+      (parent->flags & WINDOW_STACK_HORIZONTAL) &&
+      parent->parent && is_layout_container_proc(parent->parent) &&
+      !(parent->parent->flags & WINDOW_STACK_HORIZONTAL)) {
     return false;
   }
 
   // Horizontal stack/flow rows use flex spacers locally.  They should not make
   // an orthogonal parent stack claim extra vertical room.
-  if (child->layout_kind &&
-      (streq(child->layout_kind, "stack") ||
-       streq(child->layout_kind, "stackview") ||
-       streq(child->layout_kind, "flow") ||
-       streq(child->layout_kind, "flowview"))) {
-    bool child_horizontal  = (child->layout_orientation & WINDOW_STACK_HORIZONTAL) != 0;
-    bool parent_horizontal = (parent->layout_orientation & WINDOW_STACK_HORIZONTAL) != 0;
+  if (is_stack_or_flow_proc(child)) {
+    bool child_horizontal  = (child->flags & WINDOW_STACK_HORIZONTAL) != 0;
+    bool parent_horizontal = (parent->flags & WINDOW_STACK_HORIZONTAL) != 0;
     if (child_horizontal != parent_horizontal) return false;
   }
 
@@ -61,7 +63,7 @@ bool register_window_class(const fe_component_desc_t *desc) {
   if (!desc || !desc->class_name || !*desc->class_name || !desc->proc) return false;
   for (int i = 0; i < g_window_class_count; i++) {
     if (streq(g_window_classes[i].desc.class_name, desc->class_name))
-      return g_window_classes[i].desc.proc == desc->proc;
+      return true;  // already registered — idempotent on all platforms
   }
   if (g_window_class_count >= MAX_WINDOW_CLASSES) return false;
   g_window_classes[g_window_class_count++].desc = *desc;
@@ -361,7 +363,7 @@ void register_builtin_window_classes(void) {
   // Stack layout container
   register_window_class(&(fe_component_desc_t){
     .class_name = "stack",
-    .proc = win_stackview,
+    .proc = win_stack,
     .default_width = 0,
     .default_height = 0,
     .default_flags = 0,
@@ -372,7 +374,7 @@ void register_builtin_window_classes(void) {
   // Stack layout container (alias)
   register_window_class(&(fe_component_desc_t){
     .class_name = "stackview",
-    .proc = win_stackview,
+    .proc = win_stack,
     .default_width = 0,
     .default_height = 0,
     .default_flags = 0,
@@ -383,7 +385,7 @@ void register_builtin_window_classes(void) {
   // Flow layout container
   register_window_class(&(fe_component_desc_t){
     .class_name = "flow",
-    .proc = win_flowview,
+    .proc = win_flow,
     .default_width = 0,
     .default_height = 0,
     .default_flags = 0,
@@ -394,7 +396,7 @@ void register_builtin_window_classes(void) {
   // Flow layout container (alias)
   register_window_class(&(fe_component_desc_t){
     .class_name = "flowview",
-    .proc = win_flowview,
+    .proc = win_flow,
     .default_width = 0,
     .default_height = 0,
     .default_flags = 0,
@@ -405,7 +407,7 @@ void register_builtin_window_classes(void) {
   // Grid layout container
   register_window_class(&(fe_component_desc_t){
     .class_name = "grid",
-    .proc = win_gridview,
+    .proc = win_grid,
     .default_width = 0,
     .default_height = 0,
     .default_flags = 0,
@@ -416,7 +418,7 @@ void register_builtin_window_classes(void) {
   // Grid layout container (alias)
   register_window_class(&(fe_component_desc_t){
     .class_name = "gridview",
-    .proc = win_gridview,
+    .proc = win_grid,
     .default_width = 0,
     .default_height = 0,
     .default_flags = 0,
@@ -457,6 +459,23 @@ void push_window(window_t *win, window_t **windows) {
   }
 }
 
+static uint32_t next_child_id(window_t const *parent) {
+  if (!parent) return 0;
+  uint32_t max_id = 0;
+  for (window_t *c = parent->children; c; c = c->next) {
+    if (c->id > max_id)
+      max_id = c->id;
+  }
+  toolbar_state_t *tb = window_toolbar_state((window_t *)parent);
+  for (window_t *c = tb ? tb->children : NULL; c; c = c->next) {
+    if (c->id > max_id)
+      max_id = c->id;
+  }
+  if (max_id == UINT32_MAX)
+    return UINT32_MAX;
+  return max_id + 1;
+}
+
 // Internal: allocate and register a window without sending evCreate.
 // Callers are responsible for sending evCreate (and invalidating if needed).
 static window_t *alloc_window(char const *title, flags_t flags, irect16_t const *frame,
@@ -465,8 +484,8 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   if (!win) return NULL;
   memset(win, 0, sizeof(window_t));
   win->frame = *frame;
-  win->layout_fixed_w = frame ? frame->w : 0;
-  win->layout_fixed_h = frame ? frame->h : 0;
+  win->layout.layout_fixed_w = frame ? frame->w : 0;
+  win->layout.layout_fixed_h = frame ? frame->h : 0;
   win->proc = proc;
   // Child controls participate in client-area layout, so they should not
   // reserve a title bar unless a caller explicitly creates a root window.
@@ -475,10 +494,15 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   if (proc == win_space)
     flags |= WINDOW_FLEXSPACE;
   win->flags = flags;
+  window_set_state(win, WINDOW_STATE_VISIBLE, (flags & WINDOW_HIDDEN) == 0);
+  window_set_state(win, WINDOW_STATE_DISABLED, false);
+  window_set_state(win, WINDOW_STATE_EDITING, false);
+  window_set_state(win, WINDOW_STATE_PRESSED, false);
+  window_set_state(win, WINDOW_STATE_HOVERED, false);
   // Inherit hinstance from parent for child windows; use supplied value for roots.
   win->hinstance = parent ? parent->hinstance : hinstance;
   if (parent) {
-    win->id = ++parent->child_id;
+    win->id = next_child_id(parent);
   } else {
     bool used[256]={0};
     for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
@@ -556,7 +580,8 @@ void *allocate_window_data(window_t *win, size_t size) {
 
 // Check if two windows overlap, including their non-client areas (title bar, status bar)
 bool do_windows_overlap(const window_t *a, const window_t *b) {
-  if (!a->visible || !b->visible)
+  if (!window_has_state(a, WINDOW_STATE_VISIBLE) ||
+      !window_has_state(b, WINDOW_STATE_VISIBLE))
     return false;
   int border = 1;
   int a_x1 = a->frame.x - border,              a_y1 = a->frame.y - border;
@@ -632,9 +657,11 @@ static void remove_from_global_list(window_t *win) {
 static void remove_from_parent_child_list(window_t *win) {
   if (!win || !win->parent) return;
 
+  toolbar_state_t *parent_tb = window_toolbar_state(win->parent);
+
   window_t **lists[] = {
     &win->parent->children,
-    &win->parent->toolbar_children,
+    parent_tb ? &parent_tb->children : NULL,
   };
 
   for (size_t i = 0; i < sizeof(lists) / sizeof(lists[0]); i++) {
@@ -658,12 +685,13 @@ extern void remove_from_global_queue(window_t *win);
 
 // Clear all toolbar child windows
 void clear_toolbar_children(window_t *win) {
-  while (win->toolbar_children) {
-    window_t *tc   = win->toolbar_children;
+  toolbar_state_t *tb = window_toolbar_state(win);
+  while (tb && tb->children) {
+    window_t *tc   = tb->children;
     window_t *next = tc->next;
     // Detach from parent list before destroy so that any re-entrant traversal
     // (e.g. is_valid_window_ptr, evDestroy) sees only still-live nodes.
-    win->toolbar_children = next;
+    tb->children = next;
     tc->next = NULL;
     destroy_window(tc);
   }
@@ -690,10 +718,8 @@ void destroy_window(window_t *win) {
   if (g_ui_runtime.dragging == win) g_ui_runtime.dragging = NULL;
   if (g_ui_runtime.resizing == win) g_ui_runtime.resizing = NULL;
   if (g_ui_runtime.toolbar_down_win == win) g_ui_runtime.toolbar_down_win = NULL;
-  if (win->toolbar_strip_tex) {
-    R_DeleteTexture(win->toolbar_strip_tex);
-    win->toolbar_strip_tex = 0;
-  }
+  if (win->parent && win->parent->toolbar == win)
+    win->parent->toolbar = NULL;
   if (win->parent)
     remove_from_parent_child_list(win);
   else
@@ -705,11 +731,11 @@ void destroy_window(window_t *win) {
   free(win);
 
   post_message((window_t*)1, evRefreshStencil, 0, NULL);
-  if (root && root != win && is_window(root) && root->visible) {
+  if (root && root != win && is_window(root) && window_has_state(root, WINDOW_STATE_VISIBLE)) {
     invalidate_window(root);
   }
   for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
-    if (w->visible)
+    if (window_has_state(w, WINDOW_STATE_VISIBLE))
       invalidate_window(w);
   }
 }
@@ -724,11 +750,11 @@ extern int statusbar_height(window_t const *win);
 window_t *find_window(int x, int y) {
   window_t *last = NULL;
   for (window_t *win = g_ui_runtime.windows; win; win = win->next) {
-    if (!win->visible) continue;
+    if (!window_has_state(win, WINDOW_STATE_VISIBLE)) continue;
     if (CONTAINS(x, y, win->frame.x, win->frame.y, win->frame.w, win->frame.h)) {
       last = win;
       int t = titlebar_height(win);
-      if (!win->disabled) {
+      if (!window_has_state(win, WINDOW_STATE_DISABLED)) {
         send_message(win, evHitTest, MAKEDWORD(x - win->frame.x, y - win->frame.y - t), &last);
       }
     }
@@ -819,7 +845,7 @@ void set_focus(window_t* win) {
   if (win == g_ui_runtime.focused)
     return;
   if (g_ui_runtime.focused) {
-    g_ui_runtime.focused->editing = false;
+    window_set_state(g_ui_runtime.focused, WINDOW_STATE_EDITING, false);
     post_message(g_ui_runtime.focused, evKillFocus, 0, win);
     invalidate_window(g_ui_runtime.focused);
   }
@@ -871,6 +897,7 @@ bool window_in_drag_area(window_t const *win, int sy) {
 
 // Get child window by ID
 window_t *get_window_item(window_t const *win, uint32_t id) {
+  toolbar_state_t *tb = window_toolbar_state((window_t *)win);
   for (window_t *item = win->children; item; item = item->next) {
     if (item->id == id) {
       return item;
@@ -878,7 +905,7 @@ window_t *get_window_item(window_t const *win, uint32_t id) {
     window_t *child = get_window_item(item, id);
     if (child) return child;
   }
-  for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
+  for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
     if (tc->id == id) return tc;
   }
   return NULL;
@@ -1008,13 +1035,14 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
 
     void *param = NULL;
     layout_view_config_t cfg = {
-      .layout_kind = cd->layout_kind,
-      .orientation = cd->layout_orientation,
+      .orientation = cd->flags & WINDOW_STACK_HORIZONTAL,
       .spacing = cd->layout_spacing,
       .padding = cd->padding,
       .margin = cd->margin,
     };
-    if (cp == win_stackview || cp == win_gridview || cp == win_column) {
+    if (cp == win_stack || cp == win_grid || cp == win_flow ||
+        cp == win_stackview || cp == win_gridview || cp == win_flowview ||
+        cp == win_column) {
       param = &cfg;
     }
     label_create_params_t label_cfg = {
@@ -1055,14 +1083,14 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
                                     &child_frame, parent, cp, 0, param);
     if (!child) continue;
     child->id = cd->id;
-    child->h_align = child_h_align;
-    child->v_align = child_v_align;
-    child->layout_margin = cd->margin;
+    child->layout.h_align = child_h_align;
+    child->layout.v_align = child_v_align;
+    child->layout.layout_margin = cd->margin;
 
     if (form_children_have_parent(children, child_count, child->id))
       create_form_children_flat(child, children, child_count, child->id);
 
-    if (child->auto_layout)
+    if (child->flags & WINDOW_AUTO_LAYOUT)
       window_layout_sync(child);
   }
 
@@ -1087,7 +1115,7 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
   if (!def || !proc) return NULL;
-  if (!def->auto_layout && def->child_count > 0) {
+  if (!(def->flags & WINDOW_AUTO_LAYOUT) && def->child_count > 0) {
     fprintf(stderr, "create_window_from_form: forms with children require auto_layout=true\n");
     return NULL;
   }
@@ -1120,27 +1148,25 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Allocate the parent window without sending evCreate yet.
   window_t *win = alloc_window(def->name ? def->name : "", def->flags, &r, parent, proc, hinstance);
   if (!win) return NULL;
-  win->auto_layout       = def->auto_layout;
-  win->layout_kind       = def->layout_kind;
-  win->layout_orientation= def->layout_orientation;
-  win->layout_spacing    = def->layout_spacing;
-  win->layout_padding    = def->padding;
-  win->layout_margin     = def->margin;
-  if (win->auto_layout && (!win->layout_kind || !*win->layout_kind))
-    win->layout_kind = "stack";
-  if (win->auto_layout && win->layout_spacing == 0 && streq(win->layout_kind, "stack"))
-    win->layout_spacing = 4;
+  if (def->flags & WINDOW_AUTO_LAYOUT)
+    win->flags |= WINDOW_AUTO_LAYOUT;
+  win->flags &= ~WINDOW_STACK_HORIZONTAL;
+  win->layout.layout_spacing    = def->layout_spacing;
+  win->layout.layout_padding    = def->padding;
+  win->layout.layout_margin     = def->margin;
+  if ((win->flags & WINDOW_AUTO_LAYOUT) && win->layout.layout_spacing == 0)
+    win->layout.layout_spacing = 4;
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).
   create_form_children(win, def->children, def->child_count);
 
-  if (win->auto_layout)
+  if (win->flags & WINDOW_AUTO_LAYOUT)
     window_layout_sync(win);
 
   // Now notify the parent that creation (with children already present) is complete.
   send_message(win, evCreate, 0, lparam);
-  if (win->auto_layout)
+  if (win->flags & WINDOW_AUTO_LAYOUT)
     window_layout_sync(win);
   // For root windows (no parent), check whether the proc destroyed the window
   // during evCreate (e.g. end_dialog called from within the proc).
@@ -1167,13 +1193,14 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
 
     void *param = NULL;
     layout_view_config_t cfg = {
-      .layout_kind = cd->layout_kind,
-      .orientation = cd->layout_orientation,
+      .orientation = cd->flags & WINDOW_STACK_HORIZONTAL,
       .spacing = cd->layout_spacing,
       .padding = cd->padding,
       .margin = cd->margin,
     };
-    if (cp == win_stackview || cp == win_gridview || cp == win_column) {
+    if (cp == win_stack || cp == win_grid || cp == win_flow ||
+        cp == win_stackview || cp == win_gridview || cp == win_flowview ||
+        cp == win_column) {
       param = &cfg;
     }
     label_create_params_t label_cfg = {
@@ -1189,14 +1216,14 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
                                     &child_frame, parent, cp, 0, param);
     if (!child) continue;
     child->id = cd->id;
-    child->h_align = cd->h_align;
-    child->v_align = cd->v_align;
-    child->layout_margin = cd->margin;
+    child->layout.h_align = cd->h_align;
+    child->layout.v_align = cd->v_align;
+    child->layout.layout_margin = cd->margin;
 
     if (cd->children && cd->child_count > 0)
       create_form_children(child, cd->children, cd->child_count);
 
-    if (child->auto_layout)
+    if (child->flags & WINDOW_AUTO_LAYOUT)
       window_layout_sync(child);
   }
 
@@ -1228,7 +1255,7 @@ void show_window(window_t *win, bool visible) {
     if (!(win->flags & WINDOW_NOACTIVATE))
       set_focus(win);
   }
-  win->visible = visible;
+  window_set_state(win, WINDOW_STATE_VISIBLE, visible);
   post_message(win, evShowWindow, visible, NULL);
 }
 
@@ -1245,7 +1272,7 @@ void enable_window(window_t *win, bool enable) {
   if (!enable && g_ui_runtime.focused == win) {
     set_focus(NULL);
   }
-  win->disabled = !enable;
+  window_set_state(win, WINDOW_STATE_DISABLED, !enable);
   invalidate_window(win);
 }
 

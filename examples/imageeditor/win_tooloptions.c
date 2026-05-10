@@ -209,7 +209,7 @@ static void wand_sync_controls(window_t *win) {
                        g_app->wand.antialias ? btnStateChecked : btnStateUnchecked,
                        NULL);
   window_t *spread = get_window_item(win, WAND_OPT_ID_SPREAD);
-  if (spread && !spread->editing) {
+    if (spread && !window_has_state(spread, WINDOW_STATE_EDITING)) {
     char buf[16];
     snprintf(buf, sizeof(buf), "%d", g_app->wand.spread);
     send_message(spread, edSetText, 0, buf);

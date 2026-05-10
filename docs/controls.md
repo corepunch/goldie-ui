@@ -105,8 +105,14 @@ case evCommand:
 
 ## ColumnView
 
-A multi-column item list with single-click selection and double-click
-activation.  Used by the file manager and file-picker dialog.
+A family of item-list controls with shared `RVM_*` messages and `RVN_*`
+notifications:
+
+* `win_iconview` for the small-icon list
+* `win_reportview` for the multi-column report view
+* `win_icongrid` for the thumbnail grid
+
+Used by the file manager, file-picker dialog, and several editor palettes.
 
 ```c
 #include "commctl/columnview.h"

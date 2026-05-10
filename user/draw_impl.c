@@ -74,7 +74,8 @@ int titlebar_height(window_t const *win) {
   if (win->flags & WINDOW_TOOLBAR) {
     // Toolbar children are always laid out in a single row (no wrapping).
     // The band height = bevel (top) + padding + bsz + padding + bevel (bottom).
-    int bsz = (win->toolbar_btn_size > 0) ? win->toolbar_btn_size : TB_SPACING;
+    toolbar_state_t *tb = window_toolbar_state((window_t *)win);
+    int bsz = (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
     t += bsz + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
   }
   return t;
@@ -256,7 +257,7 @@ void repaint_stencil(void) {
   glClear(GL_STENCIL_BUFFER_BIT);
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
-    if (!w->visible)
+    if (!window_has_state(w, WINDOW_STATE_VISIBLE))
       continue;
     send_message(w, evPaintStencil, 0, NULL);
   }

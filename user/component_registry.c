@@ -87,6 +87,14 @@ const fe_component_desc_t *fe_component_by_token(const char *token) {
   return NULL;
 }
 
+bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target) {
+  if (!desc || !desc->proc)
+    return false;
+  // Pass a zeroed dummy window so procs that guard on win != NULL don't crash.
+  window_t dummy = {0};
+  return desc->proc(&dummy, evCanParent, 0, target);
+}
+
 bool fe_load_component_plugin(const char *path) {
   if (!path || !*path)
     return false;

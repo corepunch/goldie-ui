@@ -166,6 +166,8 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     case evCreate: {
       s = (me_state_t *)allocate_window_data(win, sizeof(me_state_t));
       if (!s) return true;
+      // Multiedit participates in auto-layout as a flexible child.
+      win->flags |= WINDOW_FLEXSPACE;
       strncpy(s->buf, win->title, ME_BUF_SIZE - 1);
       s->buf[ME_BUF_SIZE - 1] = '\0';
       s->len      = (int)strlen(s->buf);
