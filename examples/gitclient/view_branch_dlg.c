@@ -75,6 +75,7 @@ static const form_ctrl_def_t kNewBranchCtrls[] = {
 };
 static const form_def_t kNewBranchForm = {
   .name           = "New Branch",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 276,
   .height         = 86,
   .layout_spacing = 6,

@@ -1083,6 +1083,7 @@ static const form_ctrl_def_t kAboutChildren[] = {
 
 static const form_def_t kAboutForm = {
   .name = "About Orion Form Editor",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = ABOUT_W,
   .height = ABOUT_H,
   .layout_spacing = 6,

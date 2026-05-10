@@ -56,6 +56,7 @@ static const form_ctrl_def_t kSettingsChildren[] = {
 
 static const form_def_t kSettingsForm = {
   .name           = "Browser Settings",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 344,
   .height         = 62,
   .layout_spacing = 6,
@@ -77,6 +78,7 @@ static const form_ctrl_def_t kAboutChildren[] = {
 
 static const form_def_t kAboutForm = {
   .name           = "About Browser",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 236,
   .height         = 98,
   .layout_spacing = 6,

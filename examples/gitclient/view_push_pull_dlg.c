@@ -77,6 +77,7 @@ static const form_ctrl_def_t kPPFCtrls[] = {
 };
 static const form_def_t kPPFForm = {
   .name           = "Remote Operation",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 262,
   .height         = 104,
   .layout_spacing = 6,

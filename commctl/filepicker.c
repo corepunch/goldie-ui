@@ -137,6 +137,7 @@ static const form_ctrl_def_t kNewFolderChildren[] = {
 
 static const form_def_t kNewFolderForm = {
   .name = "Create Folder",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = 244,
   .height = 58,
   .layout_spacing = 8,

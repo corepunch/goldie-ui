@@ -75,11 +75,7 @@ static inline layout_measure_t layout_measure_child(window_t *child, int avail_w
     .desired_h = child && child->layout.layout_fixed_h > 0 ? child->layout.layout_fixed_h : 1,
   };
   if (child) {
-    uint32_t packed = (uint32_t)send_message(child, evMeasure, 0, &m);
-    int rw = (int)LOWORD(packed);
-    int rh = (int)HIWORD(packed);
-    if (rw > 0) m.desired_w = rw;
-    if (rh > 0) m.desired_h = rh;
+    send_message(child, evMeasure, 0, &m);
     m.desired_w += margin.x + margin.w;
     m.desired_h += margin.y + margin.h;
     if (m.desired_w < 1) m.desired_w = 1;

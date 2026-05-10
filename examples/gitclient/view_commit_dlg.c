@@ -47,6 +47,7 @@ static const form_ctrl_def_t kCommitCtrls[] = {
 };
 static const form_def_t kCommitForm = {
   .name           = "Commit",
+  .flags          = WINDOW_AUTO_LAYOUT,
   .width          = 324,
   .height         = 128,
   .layout_spacing = 6,

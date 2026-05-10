@@ -101,6 +101,7 @@ static const form_ctrl_def_t kMsgBoxYesNoCancelChildren[] = {
 
 static const form_def_t kMsgBoxOkForm = {
   .name = "Message",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
   .layout_spacing = MB_BTN_GAP,
@@ -111,6 +112,7 @@ static const form_def_t kMsgBoxOkForm = {
 
 static const form_def_t kMsgBoxOkCancelForm = {
   .name = "Message",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
   .layout_spacing = MB_BTN_GAP,
@@ -121,6 +123,7 @@ static const form_def_t kMsgBoxOkCancelForm = {
 
 static const form_def_t kMsgBoxYesNoForm = {
   .name = "Message",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
   .layout_spacing = MB_BTN_GAP,
@@ -131,6 +134,7 @@ static const form_def_t kMsgBoxYesNoForm = {
 
 static const form_def_t kMsgBoxYesNoCancelForm = {
   .name = "Message",
+  .flags = WINDOW_AUTO_LAYOUT,
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
   .layout_spacing = MB_BTN_GAP,

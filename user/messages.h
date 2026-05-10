@@ -61,22 +61,20 @@ enum {
   // lparam = char[256] output buffer — write the NUL-terminated tooltip text
   //          here and return true; return false if no tooltip at that position.
   evGetTooltipText,
+  // Measure / arrange messages for auto-layout containers.
+  // evMeasure: lparam = layout_measure_t*; handler writes desired_w/desired_h
+  //            into the struct and returns true. Return value is ignored.
+  // evArrange: lparam = layout_arrange_t*; handler positions itself according
+  //            to the provided rect.
+  evMeasure,
+  evArrange,
   // Query whether a component can be parented to a target window.
   // wparam = 0; lparam = window_t *target_parent.
   // Return true to reject the target parent; false to allow it.
-  evCanParent = 1560,
+  evCanParent,
   // Ask a container to create its default child structure.
   // wparam = 0; lparam = NULL.
-  evInitChildren = 1561,
-  // Measure / arrange messages for auto-layout containers.
-  // Appended here (rather than inserted mid-enum) to preserve the numeric
-  // values of all existing messages and avoid breaking compiled ABI.
-  // evMeasure: return MAKEDWORD(desired_w, desired_h).
-  //            lparam may be layout_measure_t* for compatibility.
-  // evArrange: return MAKEDWORD(final_w, final_h).
-  //            lparam may be layout_arrange_t* for compatibility.
-  evMeasure,
-  evArrange,
+  evInitChildren,
   evUser = 1000
 };
 
