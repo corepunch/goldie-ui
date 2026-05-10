@@ -340,6 +340,18 @@ static char *attr_dup_first(xmlNodePtr node, const char *a, const char *b) {
   return b ? attr_dup(node, b) : NULL;
 }
 
+static bool require_nonempty_attr(xmlNodePtr node, const char *elem_name,
+                                  const char *attr_name, char **out) {
+  char *v = attr_dup(node, attr_name);
+  if (!v || !*v) {
+    fprintf(stderr, "orionc: <%s> requires non-empty %s=\n", elem_name, attr_name);
+    free(v);
+    return false;
+  }
+  *out = v;
+  return true;
+}
+
 static uint8_t layout_spacing_attr(const char *v, uint8_t fallback) {
   if (!v || !*v) return fallback;
   char *end = NULL;
@@ -1043,10 +1055,10 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
     fprintf(f, "static const db_source_def_t %s_db_sources[] = {\n", prefix);
     for (xmlNodePtr n = database->children; n; n = n->next) {
       if (!is_element(n, "source")) continue;
-      char *name = attr_dup(n, "name");
-      char *model = attr_dup(n, "model");
-      if (!name || !*name || !model || !*model) {
-        fprintf(stderr, "orionc: <source> requires non-empty name= and model=\n");
+      char *name = NULL;
+      char *model = NULL;
+      if (!require_nonempty_attr(n, "source", "name", &name) ||
+          !require_nonempty_attr(n, "source", "model", &model)) {
         free(name);
         free(model);
         return false;
@@ -1074,11 +1086,12 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
         continue;
       }
 
-      char *bname = attr_dup(n, "name");
-      char *source = attr_dup(n, "source");
-      char *view = attr_dup(n, "view");
-      if (!bname || !*bname || !source || !*source || !view || !*view) {
-        fprintf(stderr, "orionc: <binding> requires non-empty name=, source=, and view=\n");
+      char *bname = NULL;
+      char *source = NULL;
+      char *view = NULL;
+      if (!require_nonempty_attr(n, "binding", "name", &bname) ||
+          !require_nonempty_attr(n, "binding", "source", &source) ||
+          !require_nonempty_attr(n, "binding", "view", &view)) {
         free(bname);
         free(source);
         free(view);
@@ -1088,20 +1101,17 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
       make_ident(bident, sizeof(bident), bname);
       fprintf(f, "static const db_binding_column_t %s_db_bind_%s_%d_cols[] = {\n",
               prefix, bident, binding_index);
+      bool ok = true;
       for (xmlNodePtr c = n->children; c; c = c->next) {
         if (!is_element(c, "column")) continue;
-        char *field = attr_dup(c, "field");
+        char *field = NULL;
         char *title = attr_dup(c, "title");
         char *width = attr_dup(c, "width");
-        if (!field || !*field) {
-          fprintf(stderr, "orionc: <column> requires non-empty field=\n");
-          free(field);
+        if (!require_nonempty_attr(c, "column", "field", &field)) {
           free(title);
           free(width);
-          free(bname);
-          free(source);
-          free(view);
-          return false;
+          ok = false;
+          break;
         }
         fputs("  { ", f);
         fprint_c_string(f, field);
@@ -1116,6 +1126,7 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
       free(bname);
       free(source);
       free(view);
+      if (!ok) return false;
       binding_index++;
     }
 
@@ -1126,11 +1137,12 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
       int col_count = 0;
       for (xmlNodePtr c = n->children; c; c = c->next)
         if (is_element(c, "column")) col_count++;
-      char *name = attr_dup(n, "name");
-      char *source = attr_dup(n, "source");
-      char *view = attr_dup(n, "view");
-      if (!name || !*name || !source || !*source || !view || !*view) {
-        fprintf(stderr, "orionc: <binding> requires non-empty name=, source=, and view=\n");
+      char *name = NULL;
+      char *source = NULL;
+      char *view = NULL;
+      if (!require_nonempty_attr(n, "binding", "name", &name) ||
+          !require_nonempty_attr(n, "binding", "source", &source) ||
+          !require_nonempty_attr(n, "binding", "view", &view)) {
         free(name);
         free(source);
         free(view);
@@ -1162,12 +1174,13 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
     fprintf(f, "static const db_action_def_t %s_db_actions[] = {\n", prefix);
     for (xmlNodePtr n = database->children; n; n = n->next) {
       if (!is_element(n, "action")) continue;
-      char *name = attr_dup(n, "name");
+      char *name = NULL;
       char *kind = attr_dup_first(n, "kind", "type");
-      char *source = attr_dup(n, "source");
-      char *target = attr_dup(n, "target");
-      if (!name || !*name || !source || !*source || !target || !*target) {
-        fprintf(stderr, "orionc: <action> requires non-empty name=, source=, and target=\n");
+      char *source = NULL;
+      char *target = NULL;
+      if (!require_nonempty_attr(n, "action", "name", &name) ||
+          !require_nonempty_attr(n, "action", "source", &source) ||
+          !require_nonempty_attr(n, "action", "target", &target)) {
         free(name);
         free(kind);
         free(source);
