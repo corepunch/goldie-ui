@@ -270,10 +270,17 @@ static void draw_element_outlines(window_t *win, canvas_state_t *s);
 static void draw_rubber_band(window_t *win, canvas_state_t *s);
 static void draw_layout_hover(canvas_state_t *s);
 static void canvas_update_layout_hover(canvas_state_t *s, canvas_pt_t pos);
+static int canvas_component_id_for_token(const char *token);
 
 static winproc_t ctrl_type_to_proc(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
   return c ? c->proc : NULL;
+}
+
+static bool canvas_type_is_grid(int type) {
+  int g = canvas_component_id_for_token("grid");
+  int gv = canvas_component_id_for_token("gridview");
+  return (g >= 0 && type == g) || (gv >= 0 && type == gv);
 }
 
 static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
@@ -356,8 +363,7 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
     case evCanParent:
       return real_proc ? real_proc(win, msg, wparam, lparam) : false;
     case evInitChildren:
-      if (el && (ctrl_type_to_proc(el->type) == win_grid ||
-             ctrl_type_to_proc(el->type) == win_gridview) && el->parent == 0)
+      if (el && canvas_type_is_grid(el->type) && el->parent == 0)
         return true;
       return real_proc ? real_proc(win, msg, wparam, lparam) : true;
     case evLeftButtonDown:
@@ -527,8 +533,7 @@ static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *e
   if (!el->live_win) return;
   el->live_win->id = el->id;
   el->live_win->flags |= WINDOW_NOTABSTOP;
-    if ((ctrl_type_to_proc(el->type) == win_grid ||
-      ctrl_type_to_proc(el->type) == win_gridview) &&
+    if (canvas_type_is_grid(el->type) &&
       !canvas_doc_has_children(doc, el->id))
     send_message(el->live_win, evInitChildren, 0, NULL);
   if (el->live_win->frame.w > el->frame.w ||
@@ -915,7 +920,7 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   if (s)
     s->selected_idx = index;
   canvas_create_live_element_window(doc, el);
-  if (c->proc == win_grid || c->proc == win_gridview)
+  if (canvas_type_is_grid(type))
     canvas_seed_grid_children(doc, index);
   canvas_sync_live_parent_layout(doc, parent_id);
   if ((doc->flags & WINDOW_AUTO_LAYOUT))
