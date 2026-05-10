@@ -59,8 +59,8 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   
   dialog->flags |= WINDOW_AUTO_LAYOUT;
   dialog->flags &= ~WINDOW_STACK_HORIZONTAL;
-  dialog->layout_spacing = 4;
-  dialog->layout_padding = (irect16_t){8, 8, 8, 8};
+  dialog->layout.layout_spacing = 4;
+  dialog->layout.layout_padding = (irect16_t){8, 8, 8, 8};
   
   // Create grid container (two columns)
   window_t *grid = create_window("",
@@ -68,7 +68,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
     MAKERECT(0, 0, 1, 1),
     dialog, win_gridview, 0, NULL);
   ASSERT_NOT_NULL(grid);
-  grid->layout_spacing = 8;
+  grid->layout.layout_spacing = 8;
   
   // Column 1: preview area
   window_t *col1 = create_window("",
@@ -82,8 +82,8 @@ void test_dialog_grid_buttons_not_cutoff(void) {
     MAKERECT(0, 0, 200, 200),
     col1, win_button, 0, NULL);
   ASSERT_NOT_NULL(preview);
-  preview->layout_fixed_w = 200;
-  preview->layout_fixed_h = 200;
+  preview->layout.layout_fixed_w = 200;
+  preview->layout.layout_fixed_h = 200;
   
   // Column 2: reportview with scrollbar
   window_t *col2 = create_window("",
@@ -105,23 +105,23 @@ void test_dialog_grid_buttons_not_cutoff(void) {
     dialog, win_stackview, 0, NULL);
   ASSERT_NOT_NULL(btn_stack);
   btn_stack->flags |= WINDOW_STACK_HORIZONTAL;
-  btn_stack->layout_spacing = 6;
+  btn_stack->layout.layout_spacing = 6;
   
   window_t *ok_btn = create_window("OK",
     BUTTON_DEFAULT,
     MAKERECT(0, 0, 60, 19),
     btn_stack, win_button, 0, NULL);
   ASSERT_NOT_NULL(ok_btn);
-  ok_btn->layout_fixed_w = 60;
-  ok_btn->layout_fixed_h = 19;
+  ok_btn->layout.layout_fixed_w = 60;
+  ok_btn->layout.layout_fixed_h = 19;
   
   window_t *cancel_btn = create_window("Cancel",
     0,
     MAKERECT(0, 0, 60, 19),
     btn_stack, win_button, 0, NULL);
   ASSERT_NOT_NULL(cancel_btn);
-  cancel_btn->layout_fixed_w = 60;
-  cancel_btn->layout_fixed_h = 19;
+  cancel_btn->layout.layout_fixed_w = 60;
+  cancel_btn->layout.layout_fixed_h = 19;
   
   // Sync layout
   window_layout_sync(dialog);
@@ -160,7 +160,9 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   PASS();
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  (void)argc; (void)argv;
+  TEST_START("dialog layout: buttons not cut off by grid");
   test_dialog_grid_buttons_not_cutoff();
-  return 0;
+  TEST_END();
 }
