@@ -11,7 +11,6 @@
 #include "../../user/image.h"
 #include "../../user/icons.h"
 
-#define FE_TOOL_GRID_COLS 4
 #define FE_TOOL_ICON_SIZE FE_COMPONENTS_ICON_W
 #define FE_DRAG_THRESHOLD 2
 
@@ -62,7 +61,7 @@ static int components_item_count(void) {
 }
 
 static int components_win_h(void) {
-  int rows = (components_item_count() + FE_TOOL_GRID_COLS - 1) / FE_TOOL_GRID_COLS;
+  int rows = (components_item_count() + FE_COMPONENTS_GRID_COLS - 1) / FE_COMPONENTS_GRID_COLS;
   if (rows < FE_COMPONENTS_MIN_ROWS) rows = FE_COMPONENTS_MIN_ROWS;
   return TITLEBAR_HEIGHT + rows * FE_COMPONENTS_BTN_SIZE + 4;
 }

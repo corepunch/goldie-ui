@@ -266,6 +266,7 @@ static irect16_t clamp_to_form(form_doc_t *doc, irect16_t r) {
 }
 
 static void draw_handles(window_t *win, canvas_state_t *s);
+static void draw_element_outlines(window_t *win, canvas_state_t *s);
 static void draw_rubber_band(window_t *win, canvas_state_t *s);
 static void draw_layout_hover(canvas_state_t *s);
 static void canvas_update_layout_hover(canvas_state_t *s, canvas_pt_t pos);
@@ -576,6 +577,26 @@ static void draw_handles(window_t *win, canvas_state_t *s) {
   uint32_t hcol = 0xFFFFFFFF;
   for (int i = 0; i < HANDLE_COUNT; i++)
     fill_rect(hcol, R(hx[i], hy[i], HANDLE_SIZE, HANDLE_SIZE));
+}
+
+// Soft outline for every element on the canvas so the design-time bounds are
+// visible even when the live control itself has a flat interior.
+static void draw_element_outlines(window_t *win, canvas_state_t *s) {
+  (void)win;
+  if (!s || !s->doc)
+    return;
+
+  const uint32_t outline = 0x40808080u;  // semi-transparent grey
+  for (int i = 0; i < s->doc->element_count; i++) {
+    form_element_t *el = &s->doc->elements[i];
+    irect16_t r = canvas_element_canvas_rect(s->doc, s, el);
+    if (r.w <= 0 || r.h <= 0)
+      continue;
+    fill_rect(outline, R(r.x - 1, r.y - 1, r.w + 2, 1));
+    fill_rect(outline, R(r.x - 1, r.y - 1, 1, r.h + 2));
+    fill_rect(outline, R(r.x + r.w, r.y - 1, 1, r.h + 2));
+    fill_rect(outline, R(r.x - 1, r.y + r.h, r.w + 2, 1));
+  }
 }
 
 // Draw a rubber-band rectangle (for placement drag) in form coords.
@@ -1220,6 +1241,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       for (window_t *child = win->children; child; child = child->next)
         send_message(child, evPaint, 0, NULL);
       canvas_set_draw_space(win);
+      draw_element_outlines(win, s);
       draw_layout_hover(s);
       draw_handles(win, s);
       draw_rubber_band(win, s);

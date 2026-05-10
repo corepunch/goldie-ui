@@ -997,16 +997,18 @@ void test_fe_components_icon_grid_hit_test_scrolled(void) {
     int icon_h = FE_COMPONENTS_ICON_W;
     int cell_h = icon_h + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
                  text_char_height(FONT_ICON) + LARGE_ICON_BOT_PAD;
+    irect16_t cr = get_client_rect(list);
     list->scroll[1] = (uint32_t)cell_h;
-    int ncol = MAX(1, (list->frame.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
+    int ncol = MAX(1, (cr.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
     int x0 = LARGE_ICON_PAD +
-             MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
+             MAX(0, (cr.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
+    int expected_hit = ncol;
 
     int hit = (int)send_message(list, RVM_HITTEST,
                                 MAKEDWORD((uint16_t)(x0 + 4),
                                           (uint16_t)(LARGE_ICON_PAD + 4 + list->scroll[1])),
                                 NULL);
-    ASSERT_EQUAL(hit, 3);
+    ASSERT_EQUAL(hit, expected_hit);
 
     destroy_window(palette);
     fe_teardown();
@@ -1028,11 +1030,13 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
 
     int cell_h = FE_COMPONENTS_ICON_W + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
                  text_char_height(FONT_ICON) + LARGE_ICON_BOT_PAD;
+    irect16_t cr = get_client_rect(list);
     list->scroll[1] = (uint32_t)cell_h;
 
-    int ncol = MAX(1, (list->frame.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
+    int ncol = MAX(1, (cr.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
     int x0 = LARGE_ICON_PAD +
-             MAX(0, (list->frame.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
+             MAX(0, (cr.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
+    int expected_hit = ncol;
 
     int press_local_x = x0 + 4;
     int press_local_y = LARGE_ICON_PAD + 4;
@@ -1046,7 +1050,7 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
                                 MAKEDWORD((uint16_t)(x0 + 4),
                                           (uint16_t)(LARGE_ICON_PAD + 4 + list->scroll[1])),
                                 NULL);
-    ASSERT_EQUAL(hit, 3);
+    ASSERT_EQUAL(hit, expected_hit);
 
     reportview_item_t hit_item = {0};
     ASSERT_TRUE(send_message(list, RVM_GETITEMDATA, (uint32_t)hit, &hit_item));
@@ -2255,7 +2259,7 @@ void test_fe_components_palette_reflows_on_resize(void) {
                                    NULL),
                  -1);
 
-    resize_window(palette, 280, palette->frame.h);
+    resize_window(palette, 320, palette->frame.h);
     list = palette->children;
     ASSERT_NOT_NULL(list);
 
