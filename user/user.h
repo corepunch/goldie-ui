@@ -298,20 +298,28 @@ typedef uint32_t                   (*fe_plugin_version_fn)(void);
 
 #define FE_PLUGIN_VERSION 1u
 
+// On Windows, DLL symbols must be explicitly exported; other platforms export
+// all global symbols from shared libraries by default.
+#if defined(_WIN32)
+#  define GEM_EXPORT __declspec(dllexport)
+#else
+#  define GEM_EXPORT
+#endif
+
 // Declares the standard FormEditor plugin exports from a static descriptor
 // array, human-readable description, and ABI version value.
 #define GEM_CLASSES(ARRAY, NAME, VERSION) \
-  int fe_plugin_class_count(void) { \
+  GEM_EXPORT int fe_plugin_class_count(void) { \
     return (int)ARRAY_LEN(ARRAY); \
   } \
-  const fe_component_desc_t *fe_plugin_class_desc(int i) { \
+  GEM_EXPORT const fe_component_desc_t *fe_plugin_class_desc(int i) { \
     if (i < 0 || i >= (int)ARRAY_LEN(ARRAY)) return NULL; \
     return &(ARRAY)[i]; \
   } \
-  const char *fe_plugin_description(void) { \
+  GEM_EXPORT const char *fe_plugin_description(void) { \
     return (NAME); \
   } \
-  uint32_t fe_plugin_version(void) { \
+  GEM_EXPORT uint32_t fe_plugin_version(void) { \
     return (uint32_t)(VERSION); \
   }
 

@@ -22,7 +22,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-// ── Application global – defined in main.c (excluded from this build) ─────
+// Forward declarations for the plugin entry points compiled directly into this
+// test binary from commctl/formeditor_components_plugin.c (see Makefile rule
+// for FORMEDITOR_UI_TEST_BIN).  These declarations are only valid here because
+// the plugin source is compiled as part of this binary; calling them does NOT
+// involve dlopen/LoadLibrary.  They are used as a fallback when the dynamic
+// plugin path is unavailable (e.g. Windows CI runners where LoadLibrary may
+// silently fail even for a successfully built DLL).
+int fe_plugin_class_count(void);
+const fe_component_desc_t *fe_plugin_class_desc(int i);
+
 app_state_t *g_app = NULL;
 
 static int fe_next_message_box_result = IDCANCEL;
@@ -229,7 +238,20 @@ static void fe_setup(void) {
         char path[512];
         snprintf(path, sizeof(path), "build/lib/formeditor_components%s",
                  AX_DYNLIB_EXT);
-        fe_load_component_plugin(path);
+        if (!fe_load_component_plugin(path)) {
+            // Fallback: dynamic loading of the plugin DLL failed (common on
+            // Windows CI where LoadLibrary / GetProcAddress can silently fail).
+            // Register components directly via the entry points compiled into
+            // this binary from commctl/formeditor_components_plugin.c.
+            fprintf(stderr,
+                    "NOTE: dynamic plugin load failed ('%s'); "
+                    "using static fallback registration.\n", path);
+            int n = fe_plugin_class_count();
+            for (int i = 0; i < n; i++) {
+                const fe_component_desc_t *d = fe_plugin_class_desc(i);
+                if (d) fe_register_component(d);
+            }
+        }
     }
     g_app = calloc(1, sizeof(app_state_t));
     g_app->current_tool = ID_TOOL_SELECT;

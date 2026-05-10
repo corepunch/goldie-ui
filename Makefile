@@ -606,11 +606,14 @@ $(IMAGEEDITOR_UI_TEST_BIN): $(IMAGEEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(
 		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 # Formeditor UI test — needs all formeditor sources except main.c + test_env.c.
-$(FORMEDITOR_UI_TEST_BIN): $(FORMEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(FORMEDITOR_SRCS_NO_MAIN) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR)
+# The plugin source (formeditor_components_plugin.c) is compiled directly into
+# the test binary so that fe_setup can fall back to static registration when
+# dynamic plugin loading is unreliable (e.g. on Windows CI runners).
+$(FORMEDITOR_UI_TEST_BIN): $(FORMEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(FORMEDITOR_SRCS_NO_MAIN) $(FORMEDITOR_COMPONENT_PLUGIN_SRC) $(SHARED_LIB) $(FORMEDITOR_COMPONENT_PLUGIN) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR)
 	@echo "Building formeditor UI test: $@"
 	$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_VB_STYLE -o $@ \
 		$(FORMEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c \
-		$(FORMEDITOR_SRCS_NO_MAIN) \
+		$(FORMEDITOR_SRCS_NO_MAIN) $(FORMEDITOR_COMPONENT_PLUGIN_SRC) \
 		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
 
 # Build tests that need test_env (auto-detected by include)
