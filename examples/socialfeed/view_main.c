@@ -5,7 +5,7 @@
 
 #include "socialfeed.h"
 
-#define FEED_CELL_TEXT_MAX 128
+#define FEED_CELL_TEXT_MAX 256
 
 // ============================================================
 // feed_list_proc — thin wrapper that adjusts the Title column
