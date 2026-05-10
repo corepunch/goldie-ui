@@ -256,7 +256,7 @@ void repaint_stencil(void) {
   glClear(GL_STENCIL_BUFFER_BIT);
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
-    if (!w->visible)
+    if (!window_has_state(w, WINDOW_STATE_VISIBLE))
       continue;
     send_message(w, evPaintStencil, 0, NULL);
   }

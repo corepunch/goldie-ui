@@ -63,10 +63,10 @@ static void canvas_set_draw_space(window_t *win) {
   int cy = win->parent ? win->frame.y : 0;
 
   set_viewport(root->frame);
-  set_projection(root->scroll[0] - cx,
-                 -t - cy + root->scroll[1],
-                 root->frame.w + root->scroll[0] - cx,
-                 root->frame.h - t - cy + root->scroll[1]);
+  set_projection(root->hscroll.pos - cx,
+                 -t - cy + root->vscroll.pos,
+                 root->frame.w + root->hscroll.pos - cx,
+                 root->frame.h - t - cy + root->vscroll.pos);
 }
 
 // ============================================================
@@ -355,7 +355,8 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
     case evCanParent:
       return real_proc ? real_proc(win, msg, wparam, lparam) : false;
     case evInitChildren:
-      if (el && ctrl_type_to_proc(el->type) == win_gridview && el->parent == 0)
+      if (el && (ctrl_type_to_proc(el->type) == win_grid ||
+             ctrl_type_to_proc(el->type) == win_gridview) && el->parent == 0)
         return true;
       return real_proc ? real_proc(win, msg, wparam, lparam) : true;
     case evLeftButtonDown:
@@ -525,7 +526,8 @@ static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *e
   if (!el->live_win) return;
   el->live_win->id = el->id;
   el->live_win->flags |= WINDOW_NOTABSTOP;
-  if (ctrl_type_to_proc(el->type) == win_gridview &&
+    if ((ctrl_type_to_proc(el->type) == win_grid ||
+      ctrl_type_to_proc(el->type) == win_gridview) &&
       !canvas_doc_has_children(doc, el->id))
     send_message(el->live_win, evInitChildren, 0, NULL);
   if (el->live_win->frame.w > el->frame.w ||
@@ -615,7 +617,7 @@ static void draw_rubber_band(window_t *win, canvas_state_t *s) {
 }
 
 static void draw_layout_hover(canvas_state_t *s) {
-  if (!s || !s->doc || !s->doc->auto_layout)
+  if (!s || !s->doc || !(s->doc->flags & WINDOW_AUTO_LAYOUT))
     return;
   if (s->drag.mode != DRAG_RUBBERBND && !s->external_component_drag)
     return;
@@ -636,7 +638,7 @@ static void draw_layout_hover(canvas_state_t *s) {
 }
 
 static void canvas_update_layout_hover(canvas_state_t *s, canvas_pt_t pos) {
-  if (!s || !s->doc || !s->doc->auto_layout) return;
+  if (!s || !s->doc || !(s->doc->flags & WINDOW_AUTO_LAYOUT)) return;
   s->hover_layout_idx = -1;
   s->hover_layout_rc = R(0, 0, s->doc->form_size.w, s->doc->form_size.h);
   if (s->doc->element_count <= 0)
@@ -729,22 +731,22 @@ static bool canvas_element_parent_is_layout_managed(form_doc_t *doc,
   if (!doc || !el || el->parent == 0)
     return false;
   form_element_t *parent = canvas_find_element_by_id(doc, el->parent);
-  return parent && parent->live_win && parent->live_win->auto_layout;
+  return parent && parent->live_win && (parent->live_win->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static bool canvas_parent_is_layout_managed(form_doc_t *doc, uint32_t parent_id) {
   if (!doc || parent_id == 0)
     return false;
   form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
-  return parent && parent->live_win && parent->live_win->auto_layout;
+  return parent && parent->live_win && (parent->live_win->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static canvas_pt_t canvas_screen_to_canvas_pt(form_doc_t *doc, int screen_x, int screen_y) {
   if (!doc || !doc->canvas_win)
     return (canvas_pt_t){screen_x, screen_y};
   return (canvas_pt_t){
-    (int16_t)(screen_x - window_screen_x(doc->canvas_win) + doc->canvas_win->scroll[0]),
-    (int16_t)(screen_y - window_screen_y(doc->canvas_win) + doc->canvas_win->scroll[1]),
+    (int16_t)(screen_x - window_screen_x(doc->canvas_win) + doc->canvas_win->hscroll.pos),
+    (int16_t)(screen_y - window_screen_y(doc->canvas_win) + doc->canvas_win->vscroll.pos),
   };
 }
 
@@ -858,7 +860,7 @@ static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id) 
   if (!doc || parent_id == 0)
     return;
   form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
-  if (!parent || !parent->live_win || !parent->live_win->auto_layout)
+  if (!parent || !parent->live_win || !(parent->live_win->flags & WINDOW_AUTO_LAYOUT))
     return;
   window_layout_sync(parent->live_win);
 }
@@ -912,10 +914,10 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   if (s)
     s->selected_idx = index;
   canvas_create_live_element_window(doc, el);
-  if (c->proc == win_gridview)
+  if (c->proc == win_grid || c->proc == win_gridview)
     canvas_seed_grid_children(doc, index);
   canvas_sync_live_parent_layout(doc, parent_id);
-  if (doc->auto_layout)
+  if ((doc->flags & WINDOW_AUTO_LAYOUT))
     form_doc_auto_layout_reflow(doc);
   else
     canvas_sync_live_controls(doc);
@@ -957,7 +959,7 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
   int canvas_x = screen_x;
   int canvas_y = screen_y;
 
-  if (!doc || !doc->auto_layout || !doc->canvas_win)
+  if (!doc || !(doc->flags & WINDOW_AUTO_LAYOUT) || !doc->canvas_win)
     return false;
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s)
@@ -984,8 +986,8 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
         break;
       }
     }
-    canvas_x = screen_x - origin.x + target->scroll[0];
-    canvas_y = screen_y - origin.y + target->scroll[1];
+    canvas_x = screen_x - origin.x + target->hscroll.pos;
+    canvas_y = screen_y - origin.y + target->vscroll.pos;
   } else if (target == doc->canvas_win) {
     canvas_pt_t pt = canvas_screen_to_canvas_pt(doc, screen_x, screen_y);
     canvas_x = pt.x;
@@ -1007,7 +1009,7 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
   };
   frame = clamp_to_form(doc, frame);
 
-  if (doc->auto_layout && doc->element_count > 0) {
+  if ((doc->flags & WINDOW_AUTO_LAYOUT) && doc->element_count > 0) {
     if (s->external_component_drag && s->hover_layout_idx >= 0) {
       // Palette drags already tracked the hovered layout target during motion.
       // Prefer that target directly so mouse-up cannot re-hit a different
@@ -1030,7 +1032,7 @@ void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *tar
   if (!doc || !doc->canvas_win) return;
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s) return;
-  s->external_component_drag = active && doc->auto_layout;
+  s->external_component_drag = active && (doc->flags & WINDOW_AUTO_LAYOUT);
   if (!s->external_component_drag) {
     s->hover_layout_idx = -1;
     s->hover_layout_rc = (irect16_t){0, 0, 0, 0};
@@ -1332,7 +1334,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         return true;
       }
 
-      if (doc->auto_layout)
+      if ((doc->flags & WINDOW_AUTO_LAYOUT))
         return false;
 
       // Placement tools: start rubber-band drag
@@ -1432,7 +1434,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
           }
           frame = clamp_to_form(doc, frame);
           int insert_index = -1;
-          if (doc->auto_layout && doc->element_count > 0) {
+          if ((doc->flags & WINDOW_AUTO_LAYOUT) && doc->element_count > 0) {
             int drop_hit = hit_test_elements(s, lx, ly);
             if (drop_hit >= 0)
               insert_index = drop_hit;

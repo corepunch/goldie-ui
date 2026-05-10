@@ -52,13 +52,16 @@ result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 
 // Auto-layout container windows.
 typedef struct {
-  const char *layout_kind;   // layout class name: "stack", "grid", or NULL
   flags_t orientation;       // WINDOW_STACK_HORIZONTAL bit flag; 0 = vertical
   uint8_t spacing;           // spacing between direct children (0 = default)
   irect16_t padding;         // inner padding for the container
   irect16_t margin;          // outer margin when nested in a parent layout
 } layout_view_config_t;
 
+result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+// Backward-compatible aliases for legacy call sites.
 result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

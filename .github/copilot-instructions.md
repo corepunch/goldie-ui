@@ -470,7 +470,7 @@ Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing a
 #### Layout Properties
 
 **Window-level properties:**
-- `layout_kind`: `"stack"` (default), `"grid"`, or `"flow"`
+- `layout`: `"stack"` (default), `"grid"`, or `"flow"`
 - `layout_spacing`: Gap between children in pixels
 - `layout_padding`: Inner padding as `irect16_t {left, top, right, bottom}`
 - `layout_orientation`: `WINDOW_STACK_HORIZONTAL` or `WINDOW_STACK_VERTICAL` (stack only)
@@ -747,7 +747,7 @@ Currently, height must be specified manually even for fixed-content forms.
 - `frame`: Initial client rect as "x y w h" (window size before chrome)
 - `flags`: Window flags (e.g., `WINDOW_DIALOG | WINDOW_NOTRAYBUTTON`)
 - `auto_layout`: `"1"` to enable auto-layout
-- `layout_kind`: `"stack"` or `"grid"` (default is `"stack"`)
+- `layout`: `"stack"` or `"grid"` (default is `"stack"`)
 - `spacing`: Default gap between children in pixels
 - `padding`: Inner padding as "left top right bottom" or single value
 

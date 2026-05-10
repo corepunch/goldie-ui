@@ -343,10 +343,10 @@ void test_toolbar_textedit_click_focuses_and_enters_editing(void) {
     window_t *edit = find_toolbar_child(win, 42);
     ASSERT_NOT_NULL(edit);
 
-    win->visible = true;
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
     set_focus(NULL);
     ASSERT_NULL(g_ui_runtime.focused);
-    ASSERT_FALSE(edit->editing);
+    ASSERT_FALSE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     int hit_x = win->frame.x + edit->frame.x + 6;
     int hit_y = win->frame.y + TITLEBAR_HEIGHT + edit->frame.y + edit->frame.h / 2;
@@ -356,7 +356,7 @@ void test_toolbar_textedit_click_focuses_and_enters_editing(void) {
 
     dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonUp);
     ASSERT_EQUAL(g_ui_runtime.focused, edit);
-    ASSERT_TRUE(edit->editing);
+    ASSERT_TRUE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     destroy_window(win);
     test_env_shutdown();
@@ -381,7 +381,7 @@ void test_titlebar_click_does_not_focus_toolbar_textedit(void) {
     window_t *edit = find_toolbar_child(win, 43);
     ASSERT_NOT_NULL(edit);
 
-    win->visible = true;
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
 
     int hit_x = win->frame.x + 10;
     int hit_y = win->frame.y + 4;
@@ -391,7 +391,7 @@ void test_titlebar_click_does_not_focus_toolbar_textedit(void) {
 
     ASSERT_EQUAL(g_ui_runtime.focused, win);
     ASSERT_NOT_EQUAL(g_ui_runtime.focused, edit);
-    ASSERT_FALSE(edit->editing);
+    ASSERT_FALSE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     destroy_window(win);
     test_env_shutdown();
@@ -670,7 +670,7 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     ASSERT_NOT_NULL(btn);
 
     // Make the window visible so dispatch_message can find it via find_window().
-    win->visible = true;
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
 
     // btn->frame.x/y are toolbar-band-relative (not screen-absolute).
     // Screen position = win->frame.{x,y} + TITLEBAR_HEIGHT + btn->frame.{x,y}.
@@ -686,7 +686,7 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     ev.x = (uint16_t)((win->frame.x + btn->frame.x + 4) * UI_WINDOW_SCALE);
     ev.y = (uint16_t)((win->frame.y + title_h + btn->frame.y + 4) * UI_WINDOW_SCALE);
     dispatch_message(&ev);
-    ASSERT_TRUE(btn->pressed);
+    ASSERT_TRUE(window_has_state(btn, WINDOW_STATE_PRESSED));
 
     // Release well outside the button (to the right of it, same toolbar row).
     ev.message = kEventLeftButtonUp;
@@ -694,7 +694,7 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     ev.y = (uint16_t)((win->frame.y + title_h + btn->frame.y + 4) * UI_WINDOW_SCALE);
     dispatch_message(&ev);
 
-    ASSERT_FALSE(btn->pressed);
+    ASSERT_FALSE(window_has_state(btn, WINDOW_STATE_PRESSED));
     ASSERT_EQUAL(g_click_count, 0);
     ASSERT_EQUAL(g_last_click_ident, -1);
 

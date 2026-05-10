@@ -73,6 +73,16 @@ typedef struct {
   uint8_t   v_align;  // LAYOUT_ALIGN_*; 0 = stretch
 } layout_arrange_t;
 
+typedef struct layout_s {
+  uint8_t   h_align;        // horizontal alignment; 0 = stretch
+  uint8_t   v_align;        // vertical alignment; 0 = stretch
+  uint8_t   layout_spacing;  // spacing between direct children; 0 = default
+  int16_t   layout_fixed_w;  // declarative width hint used by auto-layout
+  int16_t   layout_fixed_h;  // declarative height hint used by auto-layout
+  irect16_t layout_padding;  // inner padding for auto-layout containers
+  irect16_t layout_margin;   // outer margin when nested inside a layout container
+} layout_t;
+
 // A fixed-size-tile bitmap strip, analogous to WinAPI HIMAGELIST / TB_ADDBITMAP.
 // Icons are indexed 0..N left-to-right then top-to-bottom.
 // Used with btnSetImage and tbSetStrip.
@@ -92,9 +102,6 @@ typedef struct {
   uint32_t id;
   int w, h;
   flags_t flags;
-  bool auto_layout;
-  const char *layout_kind;
-  flags_t layout_orientation;
   uint8_t layout_spacing;
 } windef_t;
 
@@ -202,8 +209,6 @@ typedef struct form_ctrl_def_s {
   uint8_t           v_align; // vertical alignment; 0 = stretch
   const struct form_ctrl_def_s *children; // nested child controls
   int               child_count; // number of entries in children[]
-  const char       *layout_kind; // layout class name for containers
-  flags_t           layout_orientation; // WINDOW_STACK_HORIZONTAL = bit flag, 0 = vertical
   uint8_t           layout_spacing; // spacing between direct children; 0 = default
   irect16_t         padding; // inner padding for layout containers
   irect16_t         margin;  // outer margin when this control is laid out by a parent
@@ -225,9 +230,6 @@ typedef struct {
   const char             *name;        // window title
   int                     width, height; // client area dimensions
   flags_t                 flags;       // window flags
-  bool                    auto_layout; // enable measure/arrange on children
-  const char             *layout_kind;  // layout class name: "stack", "grid", or NULL
-  flags_t                 layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
   uint8_t                 layout_spacing; // spacing between direct children; 0 = default
   irect16_t               padding;      // inner padding for auto-layout content
   irect16_t               margin;       // outer margin for this form when nested
@@ -335,17 +337,13 @@ typedef struct {
 struct window_s {
   irect16_t frame;
   uint32_t id;
-  uint16_t scroll[2];
+  // Runtime style/state flags share one 32-bit word.
+  // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;
   hinstance_t hinstance;  // owning app instance (0 = system/unowned)
   winproc_t proc;
   uint32_t child_id;
-  bool hovered;
-  bool editing;
-  bool pressed;
-  bool value;
-  bool visible;
-  bool disabled;
+  uint32_t value;
   char title[512];
   char statusbar_text[64];
   uint32_t cursor_pos;
@@ -355,18 +353,7 @@ struct window_s {
   int    toolbar_btn_size;   // 0 = use TB_SPACING default; >0 = custom square button size in pixels
   window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
   int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
-  bool      auto_layout;    // auto layout the direct children
-  const char *layout_kind;  // layout class name: "stack", "grid", or NULL
-  flags_t   layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag, 0 = vertical
-  uint8_t   h_align;        // horizontal alignment; 0 = stretch
-  uint8_t   v_align;        // vertical alignment; 0 = stretch
-  uint8_t   layout_spacing;  // spacing between direct children; 0 = default
-  int16_t   layout_fixed_w;  // declarative width hint used by auto-layout
-  int16_t   layout_fixed_h;  // declarative height hint used by auto-layout
-  irect16_t layout_padding;  // inner padding for auto-layout containers
-  irect16_t layout_margin;   // outer margin when nested inside a layout container
-  void (*layout_measure_fn)(struct window_s *win, layout_measure_t *m);
-  void (*layout_arrange_fn)(struct window_s *win, const irect16_t *rect);
+  layout_t layout;
   void *userdata;
   void *userdata2;
   win_sb_t hscroll;   // built-in horizontal scrollbar state (WINDOW_HSCROLL)
@@ -375,6 +362,18 @@ struct window_s {
   struct window_s *children;
   struct window_s *parent;
 };
+
+static inline bool window_has_state(const window_t *win, uint32_t state_flag) {
+  return win && ((win->flags & state_flag) != 0u);
+}
+
+static inline void window_set_state(window_t *win, uint32_t state_flag, bool enabled) {
+  if (!win) return;
+  if (enabled)
+    win->flags |= state_flag;
+  else
+    win->flags &= ~state_flag;
+}
 
 // Returns the combined height of the non-client title bar and (if WINDOW_TOOLBAR
 // is set) the single-row toolbar band.  Used by event routing and layout.

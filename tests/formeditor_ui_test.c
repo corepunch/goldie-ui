@@ -170,7 +170,7 @@ static void fe_write_padding_project(const char *path, const char *padding_attr)
             "          flags=\"0\"\n"
             "          auto_layout=\"1\"\n"
             "          padding=\"%s\"\n"
-            "          layout_kind=\"stack\">\n"
+            "          layout_mode=\"stack\">\n"
             "      <button id=\"1\" name=\"ok\" text=\"OK\" flags=\"0\" />\n"
             "    </form>\n"
             "  </forms>\n"
@@ -192,7 +192,7 @@ static void fe_write_margin_project(const char *path, const char *margin_attr) {
             "          flags=\"0\"\n"
             "          auto_layout=\"1\"\n"
             "          padding=\"8\"\n"
-            "          layout_kind=\"stack\">\n"
+            "          layout_mode=\"stack\">\n"
             "      <button id=\"1\" name=\"ok\" text=\"OK\" margin=\"%s\" flags=\"0\" />\n"
             "    </form>\n"
             "  </forms>\n"
@@ -373,7 +373,7 @@ void test_fe_create_doc(void) {
     fe_setup();
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
-    doc->layout_kind = 1; // stack
+    doc->layout_mode = 1; // stack
 
     ASSERT_NOT_NULL(doc);
     ASSERT_TRUE(is_window(doc->doc_win));     // root window — is_window works
@@ -519,7 +519,7 @@ void test_fe_close_modified_doc_no_keeps_window(void) {
     ASSERT_EQUAL(fe_last_message_box_type, 0);
     ASSERT_TRUE(g_app->doc == doc);
     ASSERT_TRUE(is_window(dwin));
-    ASSERT_TRUE(!dwin->visible);
+    ASSERT_TRUE(!window_has_state(dwin, WINDOW_STATE_VISIBLE));
     ASSERT_TRUE(doc->modified);
 
     fe_next_message_box_result = IDCANCEL;
@@ -711,7 +711,7 @@ void test_fe_auto_layout_drop_inserts_before_target_node(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 1; // stack
+    doc->layout_mode = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
     ASSERT_EQUAL(doc->element_count, 1);
@@ -734,7 +734,7 @@ void test_fe_auto_layout_drop_on_empty_form(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 1; // stack
+    doc->layout_mode = 1; // stack
 
     ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_BUTTON, 22, 22));
     ASSERT_EQUAL(doc->element_count, 1);
@@ -751,7 +751,7 @@ void test_fe_auto_layout_drop_inserts_before_hovered_node(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 1; // stack
+    doc->layout_mode = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
@@ -780,7 +780,7 @@ void test_fe_auto_layout_drop_honors_canvas_pan(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 1; // stack
+    doc->layout_mode = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
@@ -810,7 +810,7 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -865,7 +865,7 @@ void test_fe_auto_layout_drop_uses_grid_column_as_parent(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -922,7 +922,7 @@ void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -998,7 +998,7 @@ void test_fe_components_icon_grid_hit_test_scrolled(void) {
     int cell_h = icon_h + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
                  text_char_height(FONT_ICON) + LARGE_ICON_BOT_PAD;
     irect16_t cr = get_client_rect(list);
-    list->scroll[1] = (uint32_t)cell_h;
+    list->vscroll.pos = (uint32_t)cell_h;
     int ncol = MAX(1, (cr.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
     int x0 = LARGE_ICON_PAD +
              MAX(0, (cr.w - 2 * LARGE_ICON_PAD - ncol * FE_COMPONENTS_BTN_SIZE) / 2);
@@ -1006,7 +1006,7 @@ void test_fe_components_icon_grid_hit_test_scrolled(void) {
 
     int hit = (int)send_message(list, RVM_HITTEST,
                                 MAKEDWORD((uint16_t)(x0 + 4),
-                                          (uint16_t)(LARGE_ICON_PAD + 4 + list->scroll[1])),
+                                          (uint16_t)(LARGE_ICON_PAD + 4 + list->vscroll.pos)),
                                 NULL);
     ASSERT_EQUAL(hit, expected_hit);
 
@@ -1021,7 +1021,7 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
     fe_setup();
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
-    doc->layout_kind = 1; // stack
+    doc->layout_mode = 1; // stack
 
     window_t *palette = formeditor_create_components_palette(0);
     ASSERT_NOT_NULL(palette);
@@ -1031,7 +1031,7 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
     int cell_h = FE_COMPONENTS_ICON_W + LARGE_ICON_TOP_PAD + LARGE_ICON_LABEL_GAP +
                  text_char_height(FONT_ICON) + LARGE_ICON_BOT_PAD;
     irect16_t cr = get_client_rect(list);
-    list->scroll[1] = (uint32_t)cell_h;
+    list->vscroll.pos = (uint32_t)cell_h;
 
     int ncol = MAX(1, (cr.w - 2 * LARGE_ICON_PAD) / FE_COMPONENTS_BTN_SIZE);
     int x0 = LARGE_ICON_PAD +
@@ -1048,7 +1048,7 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
 
     int hit = (int)send_message(list, RVM_HITTEST,
                                 MAKEDWORD((uint16_t)(x0 + 4),
-                                          (uint16_t)(LARGE_ICON_PAD + 4 + list->scroll[1])),
+                                          (uint16_t)(LARGE_ICON_PAD + 4 + list->vscroll.pos)),
                                 NULL);
     ASSERT_EQUAL(hit, expected_hit);
 
@@ -1083,7 +1083,7 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
 
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_columns = 2;
     doc->show_grid = false;
 
@@ -1131,7 +1131,7 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
     }
     ASSERT_TRUE(probe_idx >= 0);
 
-    column_win->scroll[1] = 12;
+    column_win->vscroll.pos = 12;
     g_ui_runtime.running = false;
     send_message(doc->canvas_win, evPaint, 0, NULL);
     ASSERT_TRUE(g_paint_probe.paint_count > 0);
@@ -1146,7 +1146,7 @@ void test_fe_second_gridview_column_click_selects_its_own_column(void) {
     fe_setup();
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_columns = 2;
     doc->show_grid = false;
 
@@ -1855,7 +1855,7 @@ void test_fe_load_margin_shorthand(void) {
     PASS();
 }
 
-void test_fe_save_load_layout_kind_roundtrip(void) {
+void test_fe_save_load_layout_mode_roundtrip(void) {
     TEST("project save/load roundtrip: layout kind and orientation preserve");
 
     char path[512];
@@ -1865,7 +1865,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     fe_setup();
     form_doc_t *doc = g_app->doc;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_orientation = WINDOW_STACK_HORIZONTAL;
     doc->layout_columns = 3;
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "layout");
@@ -1879,7 +1879,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "<form name=\"layout\" title=\"Layout\"") != NULL);
-    ASSERT_TRUE(strstr(xml, "layout_kind=\"grid\"") != NULL);
+    ASSERT_TRUE(strstr(xml, "layout_mode=\"grid\"") != NULL);
     ASSERT_TRUE(strstr(xml, "layout_orientation=\"horizontal\"") != NULL);
     // auto_layout is no longer emitted (always true now)
     ASSERT_TRUE(strstr(xml, "auto_layout=\"1\"") == NULL);
@@ -1893,7 +1893,7 @@ void test_fe_save_load_layout_kind_roundtrip(void) {
     form_doc_t *ndoc = g_app->docs;
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->auto_layout);
-    ASSERT_EQUAL(ndoc->layout_kind, 2);
+    ASSERT_EQUAL(ndoc->layout_mode, 2);
     ASSERT_EQUAL(ndoc->layout_orientation, WINDOW_STACK_HORIZONTAL);
     // layout_columns is deprecated - no longer checked
 
@@ -1973,7 +1973,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     int visible_docs = 0;
     for (form_doc_t *doc = g_app->docs; doc; doc = doc->next) {
         doc_count++;
-        if (doc->doc_win && doc->doc_win->visible)
+        if (doc->doc_win && window_has_state(doc->doc_win, WINDOW_STATE_VISIBLE))
             visible_docs++;
         if (strcmp(doc->form_id, "levels") == 0) {
             levels = doc;
@@ -1986,11 +1986,11 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     ASSERT_EQUAL(visible_docs, 1);
     ASSERT_NOT_NULL(g_app->doc);
     ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
-    ASSERT_TRUE(g_app->doc->doc_win && g_app->doc->doc_win->visible);
+    ASSERT_TRUE(g_app->doc->doc_win && window_has_state(g_app->doc->doc_win, WINDOW_STATE_VISIBLE));
     ASSERT_TRUE(!g_app->doc->modified);
     ASSERT_NOT_NULL(levels);
     ASSERT_NOT_NULL(filter_gallery);
-    ASSERT_TRUE(levels->doc_win && !levels->doc_win->visible);
+    ASSERT_TRUE(levels->doc_win && !window_has_state(levels->doc_win, WINDOW_STATE_VISIBLE));
 
     send_message(levels->doc_win, evSetFocus, 0, NULL);
     ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
@@ -2018,13 +2018,13 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     send_message(g_app->forms_win, evCommand,
                  MAKEWPARAM(levels_index, RVN_SELCHANGE), forms_list);
     ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
-    ASSERT_TRUE(levels->doc_win && !levels->doc_win->visible);
+    ASSERT_TRUE(levels->doc_win && !window_has_state(levels->doc_win, WINDOW_STATE_VISIBLE));
 
     send_message(g_app->forms_win, evCommand,
                  MAKEWPARAM(levels_index, RVN_DBLCLK), forms_list);
     ASSERT_STR_EQUAL(g_app->doc->form_id, "levels");
-    ASSERT_TRUE(levels->doc_win && levels->doc_win->visible);
-    ASSERT_TRUE(new_image->doc_win && new_image->doc_win->visible);
+    ASSERT_TRUE(levels->doc_win && window_has_state(levels->doc_win, WINDOW_STATE_VISIBLE));
+    ASSERT_TRUE(new_image->doc_win && window_has_state(new_image->doc_win, WINDOW_STATE_VISIBLE));
 
     ASSERT_TRUE(send_message(g_app->doc->doc_win, evClose, 0, NULL));
     doc_count = 0;
@@ -2032,7 +2032,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
         doc_count++;
     ASSERT_EQUAL(doc_count, 13);
     ASSERT_TRUE(g_app->doc == levels);
-    ASSERT_TRUE(g_app->doc->doc_win && !g_app->doc->doc_win->visible);
+    ASSERT_TRUE(g_app->doc->doc_win && !window_has_state(g_app->doc->doc_win, WINDOW_STATE_VISIBLE));
 
     const fe_component_desc_t *slider = fe_component_by_token("slider");
     const fe_component_desc_t *gradient = fe_component_by_token("gradient");
@@ -2255,7 +2255,7 @@ void test_fe_components_palette_reflows_on_resize(void) {
     int hit_y = FE_COMPONENTS_BTN_SIZE / 2;
 
     ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
-                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->scroll[1])),
+                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->vscroll.pos)),
                                    NULL),
                  -1);
 
@@ -2264,7 +2264,7 @@ void test_fe_components_palette_reflows_on_resize(void) {
     ASSERT_NOT_NULL(list);
 
     ASSERT_EQUAL((int)send_message(list, RVM_HITTEST,
-                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->scroll[1])),
+                                   MAKEDWORD((uint16_t)hit_x, (uint16_t)(hit_y + list->vscroll.pos)),
                                    NULL),
                  4);
 
@@ -2314,7 +2314,7 @@ void test_fe_drop_grid_layouts_seeded_columns_across_full_width(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
     doc->auto_layout = true;
-    doc->layout_kind = 2;
+    doc->layout_mode = 2;
     doc->layout_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -2485,7 +2485,7 @@ int main(void) {
     test_fe_save_load_auto_layout_roundtrip();
     test_fe_load_padding_shorthand();
     test_fe_load_margin_shorthand();
-    test_fe_save_load_layout_kind_roundtrip();
+    test_fe_save_load_layout_mode_roundtrip();
     test_fe_save_load_form_dimensions();
     test_fe_save_load_form_flags();
     test_fe_load_imageeditor_levels_keeps_slider_and_gradient();

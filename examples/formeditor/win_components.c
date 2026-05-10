@@ -87,7 +87,7 @@ static const reportview_item_t *components_item_by_ident(int ident) {
 
 static void components_hide_ghost(void) {
 #if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
-  if (g_ghost.win && g_ghost.win->visible)
+  if (g_ghost.win && window_has_state(g_ghost.win, WINDOW_STATE_VISIBLE))
     show_window(g_ghost.win, false);
 #endif
 }
@@ -294,8 +294,8 @@ static ipoint16_t window_local_point_to_screen(window_t *win, int lx, int ly) {
   if (!win)
     return (ipoint16_t){0, 0};
   return (ipoint16_t){
-      (int16_t)(window_screen_x(win) + lx - win->scroll[0]),
-      (int16_t)(window_screen_y(win) + ly - win->scroll[1]),
+      (int16_t)(window_screen_x(win) + lx - win->hscroll.pos),
+      (int16_t)(window_screen_y(win) + ly - win->vscroll.pos),
   };
 }
 

@@ -225,7 +225,7 @@ static const form_ctrl_def_t kMyDialogChildren[] = {
   {
     .class_name = "stack",
     .name = "name_row",
-    .layout_kind = "stack",
+    .layout = "stack",
     .layout_orientation = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -239,7 +239,7 @@ static const form_ctrl_def_t kMyDialogChildren[] = {
   {
     .class_name = "stack",
     .name = "actions",
-    .layout_kind = "stack",
+    .layout = "stack",
     .layout_orientation = WINDOW_STACK_HORIZONTAL,
     .layout_spacing = 6,
     .h_align = LAYOUT_ALIGN_STRETCH,
@@ -259,7 +259,7 @@ static const form_def_t kMyDialogForm = {
   .height      = 52,
   .flags       = 0,
   .auto_layout = true,
-  .layout_kind = "stack",
+  .layout = "stack",
   .layout_spacing = 6,
   .padding     = {8, 8, 8, 8},
   .children    = kMyDialogChildren,

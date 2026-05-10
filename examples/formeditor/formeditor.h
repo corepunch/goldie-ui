@@ -156,9 +156,7 @@ typedef struct form_doc_t {
   int    element_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
-  bool   auto_layout;   // save controls without absolute frames
-  uint8_t layout_kind;  // window_layout_kind_t
-  flags_t layout_orientation; // WINDOW_STACK_HORIZONTAL bit flag; 0 = vertical
+  uint8_t layout_mode;  // window_layout_mode_t
   uint8_t layout_columns; // grid columns (0 = default)
   uint8_t layout_spacing; // spacing between direct children; 0 = default
   irect16_t padding;    // inner padding for auto-layout content

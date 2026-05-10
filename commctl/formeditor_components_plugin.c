@@ -112,7 +112,7 @@ static const fe_component_desc_t k_components[] = {
     .toolbox_icon = IC_DOCUMENT_STACK,
     .default_size = {120, 80},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
-    .proc = win_stackview,
+    .proc = win_stack,
   },
   {
     .class_name = "grid",
@@ -123,7 +123,7 @@ static const fe_component_desc_t k_components[] = {
     .toolbox_icon = IC_GRID_LAYOUT,
     .default_size = {120, 80},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
-    .proc = win_gridview,
+    .proc = win_grid,
   },
   {
     .class_name = "flowview",
@@ -134,7 +134,7 @@ static const fe_component_desc_t k_components[] = {
     .toolbox_icon = IC_DOCUMENT_STACK,
     .default_size = {120, 80},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
-    .proc = win_flowview,
+    .proc = win_flow,
   },
   {
     .class_name = "reportview",

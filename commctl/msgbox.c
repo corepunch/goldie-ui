@@ -66,8 +66,8 @@ static const form_ctrl_def_t kMsgBoxYesNoCancelActions[] = {
 static const form_ctrl_def_t kMsgBoxOkChildren[] = {
   { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
     .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
-  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+  { .class_name = "stack", .name = "actions",
+    .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
     .children = kMsgBoxOkActions, .child_count = ARRAY_LEN(kMsgBoxOkActions) },
 };
@@ -75,8 +75,8 @@ static const form_ctrl_def_t kMsgBoxOkChildren[] = {
 static const form_ctrl_def_t kMsgBoxOkCancelChildren[] = {
   { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
     .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
-  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+  { .class_name = "stack", .name = "actions",
+    .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
     .children = kMsgBoxOkCancelActions, .child_count = ARRAY_LEN(kMsgBoxOkCancelActions) },
 };
@@ -84,8 +84,8 @@ static const form_ctrl_def_t kMsgBoxOkCancelChildren[] = {
 static const form_ctrl_def_t kMsgBoxYesNoChildren[] = {
   { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
     .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
-  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+  { .class_name = "stack", .name = "actions",
+    .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
     .children = kMsgBoxYesNoActions, .child_count = ARRAY_LEN(kMsgBoxYesNoActions) },
 };
@@ -93,8 +93,8 @@ static const form_ctrl_def_t kMsgBoxYesNoChildren[] = {
 static const form_ctrl_def_t kMsgBoxYesNoCancelChildren[] = {
   { .class_name = "label", .id = MB_ID_TEXT, .size = {0, MB_TEXT_H},
     .text = "", .name = "message", .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START },
-  { .class_name = "stack", .name = "actions", .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
+  { .class_name = "stack", .name = "actions",
+    .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = MB_BTN_GAP,
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_START,
     .children = kMsgBoxYesNoCancelActions, .child_count = ARRAY_LEN(kMsgBoxYesNoCancelActions) },
 };
@@ -103,8 +103,6 @@ static const form_def_t kMsgBoxOkForm = {
   .name = "Message",
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
   .layout_spacing = MB_BTN_GAP,
   .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
   .children = kMsgBoxOkChildren,
@@ -115,8 +113,6 @@ static const form_def_t kMsgBoxOkCancelForm = {
   .name = "Message",
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
   .layout_spacing = MB_BTN_GAP,
   .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
   .children = kMsgBoxOkCancelChildren,
@@ -127,8 +123,6 @@ static const form_def_t kMsgBoxYesNoForm = {
   .name = "Message",
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
   .layout_spacing = MB_BTN_GAP,
   .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
   .children = kMsgBoxYesNoChildren,
@@ -139,8 +133,6 @@ static const form_def_t kMsgBoxYesNoCancelForm = {
   .name = "Message",
   .width = MB_WIN_W,
   .height = MB_CLIENT_H,
-  .auto_layout = true,
-  .layout_kind = "stack",
   .layout_spacing = MB_BTN_GAP,
   .padding = {MB_PAD, MB_PAD, MB_PAD, MB_PAD},
   .children = kMsgBoxYesNoCancelChildren,

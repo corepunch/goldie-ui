@@ -71,12 +71,17 @@ enum {
   // Measure / arrange messages for auto-layout containers.
   // Appended here (rather than inserted mid-enum) to preserve the numeric
   // values of all existing messages and avoid breaking compiled ABI.
-  // evMeasure: lparam = layout_measure_t*; child writes desired size.
-  // evArrange: lparam = layout_arrange_t*; child adopts the assigned rect.
+  // evMeasure: return MAKEDWORD(desired_w, desired_h).
+  //            lparam may be layout_measure_t* for compatibility.
+  // evArrange: return MAKEDWORD(final_w, final_h).
+  //            lparam may be layout_arrange_t* for compatibility.
   evMeasure,
   evArrange,
   evUser = 1000
 };
+
+// Compatibility alias: callers that use evLayout map to evArrange.
+#define evLayout evArrange
 
 // Control messages
 enum {
@@ -244,7 +249,16 @@ typedef struct {
 #define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab-key focus cycle (WS_TABSTOP equivalent)
 #define WINDOW_STACK_HORIZONTAL (1 << 19)  // auto-layout stack flows left-to-right
 #define WINDOW_FLEXSPACE    (1 << 20)  // space/spring child that absorbs leftover horizontal room
+#define WINDOW_AUTO_LAYOUT  (1 << 21)  // enable automatic measure/arrange for children
 #define WINDOW_STACK_VERTICAL   0
+
+// Runtime window state bits stored in window_t.flags.
+// Keep style bits in the low 24-bit range; reserve upper bits for transient state.
+#define WINDOW_STATE_HOVERED   (1u << 24)
+#define WINDOW_STATE_EDITING   (1u << 25)
+#define WINDOW_STATE_PRESSED   (1u << 26)
+#define WINDOW_STATE_VISIBLE   (1u << 27)
+#define WINDOW_STATE_DISABLED  (1u << 28)
 
 // Auto-layout alignment values used by layout_measure_t / layout_arrange_t.
 // 0 = stretch (default), matching WPF/SwiftUI "fill available space".

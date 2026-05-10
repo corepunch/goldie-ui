@@ -230,7 +230,7 @@ static void prop_begin_edit(prop_browser_state_t *pbs, int row) {
   int value_x = PROP_VALUE_X;
   int y = PROP_HEADER_H
         + row * COLUMNVIEW_ENTRY_HEIGHT
-        - (int)pbs->list_win->scroll[1];
+        - (int)pbs->list_win->vscroll.pos;
   int value_w = pbs->list_win->frame.w - value_x
               - (pbs->list_win->vscroll.visible ? SCROLLBAR_WIDTH : 0);
   if (value_w < 20) value_w = 20;
@@ -269,7 +269,7 @@ static void prop_begin_edit(prop_browser_state_t *pbs, int row) {
   pbs->edit_win->id = 1;
   pbs->edit_win->userdata = pbs;
   resize_window(pbs->edit_win, value_w, COLUMNVIEW_ENTRY_HEIGHT);
-  pbs->edit_win->editing = true;
+  window_set_state(pbs->edit_win, WINDOW_STATE_EDITING, true);
   pbs->edit_win->cursor_pos = (int)strlen(pbs->edit_win->title);
   set_focus(pbs->edit_win);
 }
@@ -285,7 +285,7 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
-  if (g_app && g_app->doc && g_app->doc->auto_layout) {
+  if (g_app && g_app->doc && (g_app->doc->flags & WINDOW_AUTO_LAYOUT)) {
     prop_add_row(list, "Horizontal alignment", prop_h_align_name(el->h_align), PROP_ROW_H_ALIGN);
     prop_add_row(list, "Vertical alignment", prop_v_align_name(el->v_align), PROP_ROW_V_ALIGN);
   } else {

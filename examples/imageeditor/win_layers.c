@@ -114,17 +114,17 @@ static void sync_blend_combo(window_t *win, layers_win_state_t *st) {
   if (!win || !st || !st->blend_cb) return;
   canvas_doc_t *doc = g_app ? g_app->active_doc : NULL;
   if (!doc) {
-    st->blend_cb->disabled = true;
+    window_set_state(st->blend_cb, WINDOW_STATE_DISABLED, true);
     return;
   }
   if (doc->layer.active < 0 || doc->layer.active >= doc->layer.count) {
-    st->blend_cb->disabled = true;
+    window_set_state(st->blend_cb, WINDOW_STATE_DISABLED, true);
     return;
   }
   const layer_t *lay = doc->layer.stack[doc->layer.active];
   if (!lay) return;
 
-  st->blend_cb->disabled = false;
+  window_set_state(st->blend_cb, WINDOW_STATE_DISABLED, false);
   send_message(st->blend_cb, cbSetCurrentSelection, lay->blend_mode, NULL);
   invalidate_window(st->blend_cb);
 }
@@ -209,7 +209,7 @@ result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       s->blend_cb = get_window_item(win, ID_LAYER_BLEND_COMBO);
       if (s->blend_cb) {
         blend_combo_fill(s->blend_cb);
-        s->blend_cb->visible = true;
+        window_set_state(s->blend_cb, WINDOW_STATE_VISIBLE, true);
       }
       return true;
     }

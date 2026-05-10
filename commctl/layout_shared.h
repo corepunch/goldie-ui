@@ -14,7 +14,7 @@ static inline int layout_apply_alignment(int avail, int desired, uint8_t align) 
 }
 
 static inline bool layout_is_horizontal(const window_t *win) {
-  return win && (win->layout_orientation & WINDOW_STACK_HORIZONTAL) != 0;
+  return win && (win->flags & WINDOW_STACK_HORIZONTAL) != 0;
 }
 
 static inline bool layout_child_is_flex(const window_t *child) {
@@ -37,15 +37,15 @@ static inline window_t *layout_child_at(window_t *win, int index) {
 }
 
 static inline int layout_spacing_for(window_t *win) {
-  return win ? (int)win->layout_spacing : 0;
+  return win ? (int)win->layout.layout_spacing : 0;
 }
 
 static inline irect16_t layout_padding_for(window_t *win) {
-  return win ? win->layout_padding : (irect16_t){0, 0, 0, 0};
+  return win ? win->layout.layout_padding : (irect16_t){0, 0, 0, 0};
 }
 
 static inline irect16_t layout_margin_for(window_t *win) {
-  return win ? win->layout_margin : (irect16_t){0, 0, 0, 0};
+  return win ? win->layout.layout_margin : (irect16_t){0, 0, 0, 0};
 }
 
 static inline irect16_t layout_inset_rect(irect16_t r, irect16_t inset) {
@@ -63,7 +63,7 @@ static inline irect16_t layout_content_rect(window_t *win, irect16_t r) {
 }
 
 static inline layout_measure_t layout_measure_child(window_t *child, int avail_w, int avail_h) {
-  irect16_t margin = child ? child->layout_margin : (irect16_t){0, 0, 0, 0};
+  irect16_t margin = child ? child->layout.layout_margin : (irect16_t){0, 0, 0, 0};
   avail_w -= margin.x + margin.w;
   avail_h -= margin.y + margin.h;
   if (avail_w < 0) avail_w = 0;
@@ -71,11 +71,15 @@ static inline layout_measure_t layout_measure_child(window_t *child, int avail_w
   layout_measure_t m = {
     .avail_w = avail_w,
     .avail_h = avail_h,
-    .desired_w = child && child->layout_fixed_w > 0 ? child->layout_fixed_w : 1,
-    .desired_h = child && child->layout_fixed_h > 0 ? child->layout_fixed_h : 1,
+    .desired_w = child && child->layout.layout_fixed_w > 0 ? child->layout.layout_fixed_w : 1,
+    .desired_h = child && child->layout.layout_fixed_h > 0 ? child->layout.layout_fixed_h : 1,
   };
   if (child) {
-    send_message(child, evMeasure, 0, &m);
+    uint32_t packed = (uint32_t)send_message(child, evMeasure, 0, &m);
+    int rw = (int)LOWORD(packed);
+    int rh = (int)HIWORD(packed);
+    if (rw > 0) m.desired_w = rw;
+    if (rh > 0) m.desired_h = rh;
     m.desired_w += margin.x + margin.w;
     m.desired_h += margin.y + margin.h;
     if (m.desired_w < 1) m.desired_w = 1;
@@ -88,8 +92,8 @@ static inline void layout_arrange_child(window_t *child, irect16_t rect) {
   rect = layout_inset_rect(rect, layout_margin_for(child));
   layout_arrange_t a = {
     .rect = rect,
-    .h_align = child ? child->h_align : LAYOUT_ALIGN_STRETCH,
-    .v_align = child ? child->v_align : LAYOUT_ALIGN_STRETCH,
+    .h_align = child ? child->layout.h_align : LAYOUT_ALIGN_STRETCH,
+    .v_align = child ? child->layout.v_align : LAYOUT_ALIGN_STRETCH,
   };
   send_message(child, evArrange, 0, &a);
 }
@@ -110,8 +114,8 @@ static inline int layout_horizontal_gap_total(window_t *first, int gap) {
 
 static inline void layout_paint_children(window_t *win) {
   if (!win) return;
-  int origin_x = win->frame.x - win->scroll[0];
-  int origin_y = win->frame.y + titlebar_height(win) - win->scroll[1];
+  int origin_x = win->frame.x - win->hscroll.pos;
+  int origin_y = win->frame.y + titlebar_height(win) - win->vscroll.pos;
   for (window_t *child = win->children; child; child = child->next) {
     irect16_t saved = child->frame;
     child->frame.x = origin_x + saved.x;

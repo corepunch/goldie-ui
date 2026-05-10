@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "../user/user.h"
 #include "../user/messages.h"
 #include "commctl.h"
@@ -10,8 +8,16 @@ extern void layout_grid_arrange_window(window_t *win, const irect16_t *rect);
 extern void layout_flow_measure_window(window_t *win, layout_measure_t *m);
 extern void layout_flow_arrange_window(window_t *win, const irect16_t *rect);
 
-static bool layout_kind_is(const window_t *win, const char *kind) {
-  return win && win->layout_kind && kind && strcmp(win->layout_kind, kind) == 0;
+static bool is_stack_proc(const window_t *win) {
+  return win && (win->proc == win_stack || win->proc == win_stackview || win->proc == win_column);
+}
+
+static bool is_grid_proc(const window_t *win) {
+  return win && (win->proc == win_grid || win->proc == win_gridview);
+}
+
+static bool is_flow_proc(const window_t *win) {
+  return win && (win->proc == win_flow || win->proc == win_flowview);
 }
 
 void layout_stack_measure_window(window_t *win, layout_measure_t *m) {
@@ -81,11 +87,11 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
       bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
       int cw = stretchable ? stretch_share : cm.desired_w;
-      int ch = layout_apply_alignment(content.h, cm.desired_h, child->v_align);
+      int ch = layout_apply_alignment(content.h, cm.desired_h, child->layout.v_align);
       int cy = content.y;
-      if (child->v_align == LAYOUT_ALIGN_CENTER)
+      if (child->layout.v_align == LAYOUT_ALIGN_CENTER)
         cy += (content.h - ch) / 2;
-      else if (child->v_align == LAYOUT_ALIGN_END)
+      else if (child->layout.v_align == LAYOUT_ALIGN_END)
         cy += content.h - ch;
       layout_arrange_child(child, R(x, cy, cw, ch));
       x += cw;
@@ -111,13 +117,13 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       if (y > content.y) y += gap;
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-      int cw = layout_apply_alignment(content.w, cm.desired_w, child->h_align);
+      int cw = layout_apply_alignment(content.w, cm.desired_w, child->layout.h_align);
       bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
       int ch = stretchable ? stretch_share : cm.desired_h;
       int cx = content.x;
-      if (child->h_align == LAYOUT_ALIGN_CENTER)
+      if (child->layout.h_align == LAYOUT_ALIGN_CENTER)
         cx += (content.w - cw) / 2;
-      else if (child->h_align == LAYOUT_ALIGN_END)
+      else if (child->layout.h_align == LAYOUT_ALIGN_END)
         cx += content.w - cw;
       layout_arrange_child(child, R(cx, y, cw, ch));
       y += ch;
@@ -142,20 +148,16 @@ void layout_flow_horizontal(window_t *first, int start_x, int gap) {
 
 void layout_measure_window(window_t *win, layout_measure_t *m) {
   if (!win || !m) return;
-  if (win->layout_measure_fn) {
-    win->layout_measure_fn(win, m);
-    return;
-  }
-  if (layout_kind_is(win, "stack") || layout_kind_is(win, "stackview")) {
-    layout_stack_measure_window(win, m);
-    return;
-  }
-  if (layout_kind_is(win, "grid")) {
+  if (is_grid_proc(win)) {
     layout_grid_measure_window(win, m);
     return;
   }
-  if (layout_kind_is(win, "flow") || layout_kind_is(win, "flowview")) {
+  if (is_flow_proc(win)) {
     layout_flow_measure_window(win, m);
+    return;
+  }
+  if (is_stack_proc(win) || (win->flags & WINDOW_AUTO_LAYOUT)) {
+    layout_stack_measure_window(win, m);
     return;
   }
   irect16_t cr = get_client_rect(win);
@@ -165,59 +167,57 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
 
 void layout_arrange_window(window_t *win, const irect16_t *rect) {
   if (!win) return;
-  if (win->layout_arrange_fn) {
-    win->layout_arrange_fn(win, rect);
-    return;
-  }
-  if (layout_kind_is(win, "stack") || layout_kind_is(win, "stackview")) {
-    layout_stack_arrange_window(win, rect);
-    return;
-  }
-  if (layout_kind_is(win, "grid")) {
+  if (is_grid_proc(win)) {
     layout_grid_arrange_window(win, rect);
     return;
   }
-  if (layout_kind_is(win, "flow") || layout_kind_is(win, "flowview")) {
+  if (is_flow_proc(win)) {
     layout_flow_arrange_window(win, rect);
+    return;
+  }
+  if (is_stack_proc(win) || (win->flags & WINDOW_AUTO_LAYOUT)) {
+    layout_stack_arrange_window(win, rect);
   }
 }
 
 void window_layout_sync(window_t *win) {
-  if (!win || !win->auto_layout || !win->layout_kind || !*win->layout_kind)
+  if (!win || !(win->flags & WINDOW_AUTO_LAYOUT))
     return;
   irect16_t cr = get_client_rect(win);
   layout_arrange_window(win, &cr);
 }
 
-result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
-      win->auto_layout = true;
-      win->layout_kind = "stack";
-      win->layout_orientation = WINDOW_STACK_VERTICAL;
-      win->layout_spacing = 4;
-      win->layout_padding = (irect16_t){0, 0, 0, 0};
-      win->layout_margin = (irect16_t){0, 0, 0, 0};
-      win->layout_measure_fn = layout_stack_measure_window;
-      win->layout_arrange_fn = layout_stack_arrange_window;
-      win->h_align = LAYOUT_ALIGN_STRETCH;
-      win->v_align = LAYOUT_ALIGN_STRETCH;
+      win->flags |= WINDOW_AUTO_LAYOUT;
+      win->flags &= ~WINDOW_STACK_HORIZONTAL;
+      win->layout.layout_spacing = 4;
+      win->layout.layout_padding = (irect16_t){0, 0, 0, 0};
+      win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
+      win->layout.h_align = LAYOUT_ALIGN_STRETCH;
+      win->layout.v_align = LAYOUT_ALIGN_STRETCH;
       if (cfg) {
-        if (cfg->layout_kind && *cfg->layout_kind)
-          win->layout_kind = cfg->layout_kind;
-        win->layout_orientation = cfg->orientation & WINDOW_STACK_HORIZONTAL;
+        if (cfg->orientation & WINDOW_STACK_HORIZONTAL)
+          win->flags |= WINDOW_STACK_HORIZONTAL;
+        else
+          win->flags &= ~WINDOW_STACK_HORIZONTAL;
         if (cfg->spacing > 0)
-          win->layout_spacing = cfg->spacing;
-        win->layout_padding = cfg->padding;
-        win->layout_margin = cfg->margin;
+          win->layout.layout_spacing = cfg->spacing;
+        win->layout.layout_padding = cfg->padding;
+        win->layout.layout_margin = cfg->margin;
       }
       return true;
     }
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
-      if (m) layout_measure_window(win, m);
-      return true;
+      if (!m)
+        return MAKEDWORD(1, 1);
+      layout_measure_window(win, m);
+      if (m->desired_w < 1) m->desired_w = 1;
+      if (m->desired_h < 1) m->desired_h = 1;
+      return MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
     }
     case evArrange: {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
@@ -225,7 +225,8 @@ result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         win->frame = a->rect;
         window_layout_sync(win);
       }
-      return true;
+      return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                       (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
       window_layout_sync(win);
@@ -238,4 +239,8 @@ result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     default:
       return false;
   }
+}
+
+result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  return win_stack(win, msg, wparam, lparam);
 }

@@ -44,8 +44,8 @@ void layout_grid_measure_window(window_t *win, layout_measure_t *m) {
     int row_count = layout_child_count(column);
     col_counts[col] = row_count;
     if (row_count > rows) rows = row_count;
-    if (column && column->layout_fixed_w > 0) {
-      col_w[col] = column->layout_fixed_w;
+    if (column && column->layout.layout_fixed_w > 0) {
+      col_w[col] = column->layout.layout_fixed_w;
       col_auto[col] = false;
     } else {
       col_auto[col] = true;
@@ -97,7 +97,7 @@ void layout_grid_measure_window(window_t *win, layout_measure_t *m) {
       if (!cell) continue;
       layout_measure_t cm = layout_measure_child(cell, col_w[col], content_h);
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
-      if (cell->layout_fixed_h > row_h[row]) row_h[row] = cell->layout_fixed_h;
+      if (cell->layout.layout_fixed_h > row_h[row]) row_h[row] = cell->layout.layout_fixed_h;
       if (layout_child_is_flex(cell) || (cell->flags & WINDOW_VSCROLL))
         row_flex[row] = true;
     }
@@ -166,8 +166,8 @@ void layout_grid_arrange_window(window_t *win, const irect16_t *rect) {
     int row_count = layout_child_count(column);
     col_counts[col] = row_count;
     if (row_count > rows) rows = row_count;
-    if (column && column->layout_fixed_w > 0) {
-      col_w[col] = column->layout_fixed_w;
+    if (column && column->layout.layout_fixed_w > 0) {
+      col_w[col] = column->layout.layout_fixed_w;
       col_auto[col] = false;
     } else {
       col_auto[col] = true;
@@ -219,7 +219,7 @@ void layout_grid_arrange_window(window_t *win, const irect16_t *rect) {
       layout_measure_t cm = layout_measure_child(cell, col_w[col], content.h);
       cellm[(size_t)col * (size_t)rows + (size_t)row] = cm;
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
-      if (cell->layout_fixed_h > row_h[row]) row_h[row] = cell->layout_fixed_h;
+      if (cell->layout.layout_fixed_h > row_h[row]) row_h[row] = cell->layout.layout_fixed_h;
       if (layout_child_is_flex(cell) || (cell->flags & WINDOW_VSCROLL))
         row_flex[row] = true;
     }
@@ -278,17 +278,17 @@ void layout_grid_arrange_window(window_t *win, const irect16_t *rect) {
       if (!cell) continue;
       layout_measure_t cm = cellm[(size_t)col * (size_t)rows + (size_t)row];
       int ch = row_h[row];
-      int cell_w = layout_apply_alignment(cw, cm.desired_w, cell->h_align);
-      int cell_h = layout_apply_alignment(ch, cm.desired_h, cell->v_align);
+      int cell_w = layout_apply_alignment(cw, cm.desired_w, cell->layout.h_align);
+      int cell_h = layout_apply_alignment(ch, cm.desired_h, cell->layout.v_align);
       int cx = x;
       int cy = row_y[row];
-      if (cell->h_align == LAYOUT_ALIGN_CENTER)
+      if (cell->layout.h_align == LAYOUT_ALIGN_CENTER)
         cx += (cw - cell_w) / 2;
-      else if (cell->h_align == LAYOUT_ALIGN_END)
+      else if (cell->layout.h_align == LAYOUT_ALIGN_END)
         cx += cw - cell_w;
-      if (cell->v_align == LAYOUT_ALIGN_CENTER)
+      if (cell->layout.v_align == LAYOUT_ALIGN_CENTER)
         cy += (ch - cell_h) / 2;
-      else if (cell->v_align == LAYOUT_ALIGN_END)
+      else if (cell->layout.v_align == LAYOUT_ALIGN_END)
         cy += ch - cell_h;
       layout_arrange_child(cell, R(cx - x, cy - content.y, cell_w, cell_h));
     }
@@ -310,7 +310,6 @@ static result_t layout_init_default_grid_columns(window_t *win) {
     return true;
   if (!win->children) {
     layout_view_config_t cfg = {
-      .layout_kind = "stack",
       .orientation = WINDOW_STACK_VERTICAL,
       .spacing = 4,
       .padding = (irect16_t){0, 0, 0, 0},
@@ -336,28 +335,26 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       (void)wparam;
       window_t *target = (window_t *)lparam;
       if (!target) return true;
-      return !(target->layout_kind &&
-               strcmp(target->layout_kind, "grid") == 0);
+      return !(target->proc == win_grid || target->proc == win_gridview);
     }
     case evCreate: {
-      win->auto_layout = true;
-      win->layout_kind = "stack";
-      win->layout_orientation = WINDOW_STACK_VERTICAL;
-      win->layout_spacing = 4;
-      win->layout_padding = (irect16_t){0, 0, 0, 0};
-      win->layout_margin = (irect16_t){0, 0, 0, 0};
-      win->layout_measure_fn = layout_stack_measure_window;
-      win->layout_arrange_fn = layout_stack_arrange_window;
+      win->flags |= WINDOW_AUTO_LAYOUT;
+      win->flags &= ~WINDOW_STACK_HORIZONTAL;
+      win->layout.layout_spacing = 4;
+      win->layout.layout_padding = (irect16_t){0, 0, 0, 0};
+      win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
       return true;
     }
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
-      if (m) {
-        layout_stack_measure_window(win, m);
-        if (win->layout_fixed_w > m->desired_w) m->desired_w = win->layout_fixed_w;
-        if (win->layout_fixed_h > m->desired_h) m->desired_h = win->layout_fixed_h;
-      }
-      return true;
+      if (!m)
+        return MAKEDWORD(1, 1);
+      layout_stack_measure_window(win, m);
+      if (win->layout.layout_fixed_w > m->desired_w) m->desired_w = win->layout.layout_fixed_w;
+      if (win->layout.layout_fixed_h > m->desired_h) m->desired_h = win->layout.layout_fixed_h;
+      if (m->desired_w < 1) m->desired_w = 1;
+      if (m->desired_h < 1) m->desired_h = 1;
+      return MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
     }
     case evArrange: {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
@@ -365,7 +362,8 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
         win->frame = a->rect;
         window_layout_sync(win);
       }
-      return true;
+      return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                       (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
       window_layout_sync(win);
@@ -380,23 +378,20 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
   }
 }
 
-result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
-      win->auto_layout = true;
-      win->layout_kind = "grid";
-      win->layout_orientation = WINDOW_STACK_VERTICAL;
-      win->layout_spacing = 0;
-      win->layout_padding = (irect16_t){0, 0, 0, 0};
-      win->layout_margin = (irect16_t){0, 0, 0, 0};
-      win->layout_measure_fn = layout_grid_measure_window;
-      win->layout_arrange_fn = layout_grid_arrange_window;
+      win->flags |= WINDOW_AUTO_LAYOUT;
+      win->flags &= ~WINDOW_STACK_HORIZONTAL;
+      win->layout.layout_spacing = 0;
+      win->layout.layout_padding = (irect16_t){0, 0, 0, 0};
+      win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
       if (cfg) {
         if (cfg->spacing > 0)
-          win->layout_spacing = cfg->spacing;
-        win->layout_padding = cfg->padding;
-        win->layout_margin = cfg->margin;
+          win->layout.layout_spacing = cfg->spacing;
+        win->layout.layout_padding = cfg->padding;
+        win->layout.layout_margin = cfg->margin;
       }
       return true;
     }
@@ -404,8 +399,12 @@ result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return layout_init_default_grid_columns(win);
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
-      if (m) layout_grid_measure_window(win, m);
-      return true;
+      if (!m)
+        return MAKEDWORD(1, 1);
+      layout_grid_measure_window(win, m);
+      if (m->desired_w < 1) m->desired_w = 1;
+      if (m->desired_h < 1) m->desired_h = 1;
+      return MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
     }
     case evArrange: {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
@@ -413,7 +412,8 @@ result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         win->frame = a->rect;
         window_layout_sync(win);
       }
-      return true;
+      return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                       (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
       window_layout_sync(win);
@@ -424,4 +424,8 @@ result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     default:
       return false;
   }
+}
+
+result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  return win_grid(win, msg, wparam, lparam);
 }

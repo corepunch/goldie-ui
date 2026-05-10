@@ -395,7 +395,7 @@ void test_cv_keys_on_empty_list_return_false(void) {
     PASS();
 }
 
-// Navigating Down past the visible area updates win->scroll[1] so the newly
+// Navigating Down past the visible area updates win->vscroll.pos so the newly
 // selected item is scrolled into view.
 void test_cv_down_scrolls_selection_into_view(void) {
     TEST("win_reportview: Down past visible area updates scroll position");
@@ -420,7 +420,7 @@ void test_cv_down_scrolls_selection_into_view(void) {
 
     ASSERT_EQUAL((int)send_message(cv, RVM_GETSELECTION, 0, NULL), 2);
     // Scroll must have advanced so item 2 is visible.
-    ASSERT_TRUE((int)cv->scroll[1] > 0);
+    ASSERT_TRUE((int)cv->vscroll.pos > 0);
 
     destroy_window(parent);
     test_env_shutdown();
@@ -442,7 +442,7 @@ void test_cv_down_scrolls_selection_into_view(void) {
 // If that addition is accidentally removed, clicks after scrolling will land
 // on a row offset by the scroll distance.
 //
-// These tests guard against that regression: they set cv->scroll[1] directly
+// These tests guard against that regression: they set cv->vscroll.pos directly
 // and simulate a left-button click at a known viewport position, then assert
 // that the selected index matches the item that is VISUALLY at that position,
 // not the item whose natural (unscrolled) position is there.
@@ -469,7 +469,7 @@ static window_t *make_report_columnview(window_t *parent, int w, int h) {
 // Click after scroll — child window, report mode.
 // Mouse events are delivered in viewport-local coordinates (event.c subtracts
 // only the child's frame.{x,y}, not its scroll).  rv_hit_index adds
-// win->scroll[1] to convert viewport y to content y.
+// win->vscroll.pos to convert viewport y to content y.
 // With scroll[1] = K*ENTRY_HEIGHT the first visible row is at
 // viewport y = HEADER_HEIGHT, which rv_hit_index maps to item K.
 void test_cv_report_click_after_scroll_child(void) {
@@ -487,7 +487,7 @@ void test_cv_report_click_after_scroll_child(void) {
 
     // Simulate a scrolled state (item K is at the top of the visible area).
     const int K = 3;
-    cv->scroll[1] = (uint32_t)(K * TEST_RV_ENTRY_HEIGHT);
+    cv->vscroll.pos = (uint32_t)(K * TEST_RV_ENTRY_HEIGHT);
 
     // Viewport y = HEADER_HEIGHT is the first visible content row.
     // rv_hit_index computes: row = (HEADER_HEIGHT + scroll_y - HEADER_HEIGHT) / ENTRY_HEIGHT = K.
@@ -547,12 +547,12 @@ void test_cv_report_wheel_scrolls_child(void) {
     ASSERT_NOT_NULL(cv);
     add_items(cv, 20);
 
-    ASSERT_EQUAL((int)cv->scroll[1], 0);
+    ASSERT_EQUAL((int)cv->vscroll.pos, 0);
 
     // Wheel-down gives dy=-4 in this test input.
     // user/message.c negates HIWORD(lparam), so delta becomes +4 and vscroll.pos increases.
     send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-4));
-    ASSERT_TRUE((int)cv->scroll[1] > 0);
+    ASSERT_TRUE((int)cv->vscroll.pos > 0);
 
     destroy_window(parent);
     test_env_shutdown();
@@ -742,11 +742,11 @@ void test_cv_large_icon_fixed_columns_stable_scroll(void) {
     add_items(cv, 17);
 
     send_message(cv, RVM_SETSELECTION, 16, NULL);
-    int before = (int)cv->scroll[1];
+    int before = (int)cv->vscroll.pos;
     ASSERT_TRUE(before > 0);
 
     resize_window(cv, 152, 72);
-    int after = (int)cv->scroll[1];
+    int after = (int)cv->vscroll.pos;
 
     ASSERT_EQUAL(after, before);
     ASSERT_EQUAL((int)send_message(cv, RVM_GETSELECTION, 0, NULL), 16);

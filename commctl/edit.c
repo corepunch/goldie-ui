@@ -38,7 +38,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       int text_x = TEXTEDIT_PADDING_HORZ;
       int text_y = (win->frame.h - th) / 2;
       draw_text(FONT_SMALL, win->title, text_x, text_y, get_sys_color(brTextNormal));
-      if (g_ui_runtime.focused == win && win->editing) {
+      if (g_ui_runtime.focused == win && window_has_state(win, WINDOW_STATE_EDITING)) {
         fill_rect(get_sys_color(brTextNormal),
                   R(text_x + text_strnwidth(FONT_SMALL, win->title, win->cursor_pos),
                     text_y,
@@ -49,7 +49,7 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evLeftButtonUp:
       if (g_ui_runtime.focused == win) {
         invalidate_window(win);
-        win->editing = true;
+        window_set_state(win, WINDOW_STATE_EDITING, true);
         int text_x = TEXTEDIT_PADDING_HORZ;
         win->cursor_pos = 0;
         for (int i = 0; i <= (int)strlen(win->title); i++) {
@@ -74,25 +74,25 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evKeyDown:
       switch (wparam) {
         case AX_KEY_TAB:
-          if (win->editing) {
+          if (window_has_state(win, WINDOW_STATE_EDITING)) {
             send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, edUpdate), win);
-            win->editing = false;
+            window_set_state(win, WINDOW_STATE_EDITING, false);
           }
           return false;
         case AX_KEY_ENTER:
-          if (!win->editing) {
+          if (!window_has_state(win, WINDOW_STATE_EDITING)) {
             win->cursor_pos = (int)strlen(win->title);
-            win->editing = true;
+            window_set_state(win, WINDOW_STATE_EDITING, true);
           } else {
             send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, edUpdate), win);
-            win->editing = false;
+            window_set_state(win, WINDOW_STATE_EDITING, false);
           }
           break;
         case AX_KEY_ESCAPE:
-          win->editing = false;
+          window_set_state(win, WINDOW_STATE_EDITING, false);
           break;
         case AX_KEY_BACKSPACE:
-          if (win->cursor_pos > 0 && win->editing) {
+          if (win->cursor_pos > 0 && window_has_state(win, WINDOW_STATE_EDITING)) {
             memmove(win->title + win->cursor_pos - 1,
                     win->title + win->cursor_pos,
                     strlen(win->title + win->cursor_pos) + 1);
@@ -100,17 +100,17 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           }
           break;
         case AX_KEY_LEFTARROW:
-          if (win->cursor_pos > 0 && win->editing) {
+          if (win->cursor_pos > 0 && window_has_state(win, WINDOW_STATE_EDITING)) {
             win->cursor_pos--;
           }
           break;
         case AX_KEY_RIGHTARROW:
-          if (win->cursor_pos < strlen(win->title) && win->editing) {
+          if (win->cursor_pos < strlen(win->title) && window_has_state(win, WINDOW_STATE_EDITING)) {
             win->cursor_pos++;
           }
           break;
         default:
-          return win->editing;
+          return window_has_state(win, WINDOW_STATE_EDITING);
       }
       invalidate_window(win);
       return true;

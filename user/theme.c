@@ -43,7 +43,7 @@ void set_sys_colors(int count, const int *indices, const uint32_t *colors) {
   if (g_ui_runtime.running) {
     post_message((window_t*)1, evRefreshStencil, 0, NULL);
     for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
-      if (w->visible) invalidate_window(w);
+      if (window_has_state(w, WINDOW_STATE_VISIBLE)) invalidate_window(w);
     }
   }
 }

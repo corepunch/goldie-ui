@@ -41,7 +41,7 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       };
       irect16_t focus_bg = rect_inset(box, -CHECKBOX_FOCUS_PAD);
       fill_rect(g_ui_runtime.focused == win ? get_sys_color(brFocusRing) : get_sys_color(brWindowBg), focus_bg);
-      draw_button(box, 1, 1, win->pressed);
+      draw_button(box, 1, 1, window_has_state(win, WINDOW_STATE_PRESSED));
       irect16_t text_rect = {
         box.x + box.w + CHECKBOX_GAP,
         0,
@@ -57,11 +57,11 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return true;
     }
     case evLeftButtonDown:
-      win->pressed = true;
+      window_set_state(win, WINDOW_STATE_PRESSED, true);
       invalidate_window(win);
       return true;
     case evLeftButtonUp:
-      win->pressed = false;
+      window_set_state(win, WINDOW_STATE_PRESSED, false);
       send_message(win, btnSetCheck, !send_message(win, btnGetCheck, 0, NULL), NULL);
       send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, btnClicked), win);
       invalidate_window(win);
@@ -73,14 +73,14 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return win->value ? btnStateChecked : btnStateUnchecked;
     case evKeyDown:
       if (wparam == AX_KEY_ENTER || wparam == AX_KEY_SPACE) {
-        win->pressed = true;
+        window_set_state(win, WINDOW_STATE_PRESSED, true);
         invalidate_window(win);
         return true;
       }
       return false;
     case evKeyUp:
       if (wparam == AX_KEY_ENTER || wparam == AX_KEY_SPACE) {
-        win->pressed = false;
+        window_set_state(win, WINDOW_STATE_PRESSED, false);
         send_message(win, btnSetCheck, !send_message(win, btnGetCheck, 0, NULL), NULL);
         send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, btnClicked), win);
         invalidate_window(win);

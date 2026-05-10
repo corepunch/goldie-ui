@@ -196,8 +196,8 @@ static bool fl_push_item(filelist_data_t *data,
 static void fl_load_directory(window_t *win, filelist_data_t *data) {
   fl_free_items(data);
   send_message(win, RVM_CLEAR, 0, NULL);
-  win->scroll[0] = 0;
-  win->scroll[1] = 0;
+  win->hscroll.pos = 0;
+  win->vscroll.pos = 0;
 
   // ".." is always the first entry.  Store the sentinel string ".." as its
   // path; fl_navigate handles the actual parent-path computation when the user

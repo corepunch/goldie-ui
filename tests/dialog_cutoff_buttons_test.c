@@ -57,9 +57,8 @@ void test_dialog_grid_buttons_not_cutoff(void) {
     NULL, win_button, 0, NULL);  // Use dummy proc for now
   ASSERT_NOT_NULL(dialog);
   
-  dialog->auto_layout = true;
-  dialog->layout_kind = "stack";
-  dialog->layout_orientation = WINDOW_STACK_VERTICAL;
+  dialog->flags |= WINDOW_AUTO_LAYOUT;
+  dialog->flags &= ~WINDOW_STACK_HORIZONTAL;
   dialog->layout_spacing = 4;
   dialog->layout_padding = (irect16_t){8, 8, 8, 8};
   
@@ -105,7 +104,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
     MAKERECT(0, 0, 1, 1),
     dialog, win_stackview, 0, NULL);
   ASSERT_NOT_NULL(btn_stack);
-  btn_stack->layout_orientation = WINDOW_STACK_HORIZONTAL;
+  btn_stack->flags |= WINDOW_STACK_HORIZONTAL;
   btn_stack->layout_spacing = 6;
   
   window_t *ok_btn = create_window("OK",

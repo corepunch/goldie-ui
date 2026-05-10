@@ -22,14 +22,14 @@ static void grid_sync_scroll(window_t *win, reportview_data_t *data) {
   int max_scroll_px = total_h - cr.h;
   if (max_scroll_px < 0)
     max_scroll_px = 0;
-  if ((int)win->scroll[1] > max_scroll_px)
-    win->scroll[1] = (uint32_t)max_scroll_px;
+  if ((int)win->vscroll.pos > max_scroll_px)
+    win->vscroll.pos = (uint32_t)max_scroll_px;
   scroll_info_t si;
   si.fMask = SIF_ALL;
   si.nMin = 0;
   si.nMax = total_h;
   si.nPage = (uint32_t)cr.h;
-  si.nPos = (int)win->scroll[1];
+  si.nPos = (int)win->vscroll.pos;
   set_scroll_info(win, SB_VERT, &si, false);
 }
 
@@ -53,7 +53,7 @@ static int grid_hit_index(window_t *win, reportview_data_t *data, uint32_t wpara
 }
 
 static void grid_scroll_to_item(window_t *win, reportview_data_t *data, int index) {
-  int scroll_y = (int)win->scroll[1];
+  int scroll_y = (int)win->vscroll.pos;
   int visible_h = get_client_rect(win).h;
   int eff_w = rv_content_width(win);
   int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
@@ -63,15 +63,15 @@ static void grid_scroll_to_item(window_t *win, reportview_data_t *data, int inde
   int item_y_bottom = item_y_top + cell_h;
 
   if (item_y_top - scroll_y < 0)
-    win->scroll[1] = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
+    win->vscroll.pos = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
   else if (item_y_bottom - scroll_y > visible_h)
-    win->scroll[1] = (uint32_t)(item_y_bottom - visible_h);
+    win->vscroll.pos = (uint32_t)(item_y_bottom - visible_h);
 }
 
 static void grid_paint(window_t *win, reportview_data_t *data) {
   irect16_t cr = get_client_rect(win);
   int eff_w = rv_content_width(win);
-  int scroll_y = (int)win->scroll[1];
+  int scroll_y = (int)win->vscroll.pos;
   int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
   int cell_w = data->column_width;
   int cell_h = rv_large_icon_cell_h(data);
@@ -301,7 +301,7 @@ result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       rv_invalidate(win, data);
       return true;
     case evVScroll:
-      win->scroll[1] = (uint32_t)wparam;
+      win->vscroll.pos = (uint32_t)wparam;
       grid_sync_scroll(win, data);
       rv_invalidate(win, data);
       return true;

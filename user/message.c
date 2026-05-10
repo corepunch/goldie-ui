@@ -630,10 +630,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // client origin.
         int cx = win->parent ? win->frame.x : 0;
         int cy = win->parent ? win->frame.y : 0;
-        set_projection(root->scroll[0] - cx,
-                       -t - cy + root->scroll[1],
-                       root->frame.w + root->scroll[0] - cx,
-                       root->frame.h - t - cy + root->scroll[1]);
+        set_projection(root->hscroll.pos - cx,
+                       -t - cy + root->vscroll.pos,
+                       root->frame.w + root->hscroll.pos - cx,
+                       root->frame.h - t - cy + root->vscroll.pos);
         // For scrollable windows, tighten the scissor to the client area so
         // that scrolled content cannot bleed into non-client areas (title bar,
         // toolbar, status bar).  Only applied when a window actually has
@@ -797,8 +797,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           int16_t clx = (int16_t)LOWORD(wparam);
           int16_t cly = (int16_t)HIWORD(wparam);
           uint32_t parent_wp = MAKEDWORD(
-            (uint16_t)(clx + win->frame.x - win->scroll[0] + win->parent->scroll[0]),
-            (uint16_t)(cly + win->frame.y - win->scroll[1] + win->parent->scroll[1]));
+            (uint16_t)(clx + win->frame.x - win->hscroll.pos + win->parent->hscroll.pos),
+            (uint16_t)(cly + win->frame.y - win->vscroll.pos + win->parent->vscroll.pos));
           send_message(win->parent, evWheel, parent_wp, lparam);
         }
         break;
@@ -808,12 +808,17 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       case evMeasure: {
         layout_measure_t *m = (layout_measure_t *)lparam;
         // If window has auto-layout, measure its children
-        if (m && win->auto_layout) {
+        if (m && (win->flags & WINDOW_AUTO_LAYOUT)) {
           layout_measure_window(win, m);
         } else if (m) {
           // Fallback: use existing frame dimensions
           if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
           if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
+        }
+        if (m) {
+          if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
+          if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
+          value = MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
         }
         break;
       }
@@ -826,13 +831,15 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           win->frame = r;
           send_message(win, evResize, 0, NULL);
         }
+        value = MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                          (uint16_t)MAX(1, win->frame.h));
         break;
       }
       case evHitTest:
         {
           uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
-          x += (uint16_t)win->scroll[0];
-          y += (uint16_t)win->scroll[1];
+          x += (uint16_t)win->hscroll.pos;
+          y += (uint16_t)win->vscroll.pos;
           if (win->parent) {
             x += win->frame.x;
             y += win->frame.y;
@@ -864,7 +871,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           int tb_y = sy - (win->frame.y + title_h);
           for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
             if (CONTAINS(tb_x, tb_y, tc->frame.x, tc->frame.y, tc->frame.w, tc->frame.h)) {
-              tc->pressed = true;
+              window_set_state(tc, WINDOW_STATE_PRESSED, true);
               send_message(tc, evLeftButtonUp,
                            MAKEDWORD(tb_x - tc->frame.x, tb_y - tc->frame.y), NULL);
               break;
@@ -877,8 +884,38 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         break;
     }
   }
+  if (msg == evMeasure) {
+    layout_measure_t *m = (layout_measure_t *)lparam;
+    if (value == true)
+      value = 0;
+    if (m && m->desired_w > 0 && m->desired_h > 0) {
+      value = MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
+    } else if (value) {
+      int w = (int)LOWORD((uint32_t)value);
+      int h = (int)HIWORD((uint32_t)value);
+      if (w < 1) w = 1;
+      if (h < 1) h = 1;
+      if (m) {
+        m->desired_w = w;
+        m->desired_h = h;
+      }
+      value = MAKEDWORD((uint16_t)w, (uint16_t)h);
+    } else {
+      int w = frame->w > 0 ? frame->w : 1;
+      int h = frame->h > 0 ? frame->h : 1;
+      if (m) {
+        m->desired_w = w;
+        m->desired_h = h;
+      }
+      value = MAKEDWORD((uint16_t)w, (uint16_t)h);
+    }
+  } else if (msg == evArrange) {
+    value = MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                      (uint16_t)MAX(1, win->frame.h));
+  }
   // Draw disabled overlay
-  if (win->disabled && msg == evPaint && win != g_ui_runtime.modal_overlay_parent) {
+  if (window_has_state(win, WINDOW_STATE_DISABLED) &&
+      msg == evPaint && win != g_ui_runtime.modal_overlay_parent) {
     uint32_t col = (get_sys_color(brWindowBg) & 0x00FFFFFF) | 0x80000000;
     int root_t = titlebar_height(root);
     irect16_t wf = win_frame_in_screen(win, root, root_t);
@@ -905,10 +942,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     irect16_t wf = win_frame_in_screen(win, root, root_t);
     irect16_t rootf = root->frame;
     set_viewport(rootf);
-    set_projection(root->scroll[0],
-                   -root_t + root->scroll[1],
-                   root->frame.w + root->scroll[0],
-                   root->frame.h - root_t + root->scroll[1]);
+    set_projection(root->hscroll.pos,
+                   -root_t + root->vscroll.pos,
+                   root->frame.w + root->hscroll.pos,
+                   root->frame.h - root_t + root->vscroll.pos);
     set_clip_rect(NULL, wf);
     draw_builtin_scrollbars(win);
   }

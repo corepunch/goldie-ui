@@ -146,16 +146,16 @@ void layout_flow_arrange_window(window_t *win, const irect16_t *rect) {
     }
     layout_measure_t cm = cellm[i];
     int cw = cm.desired_w;
-    int ch = layout_apply_alignment(row_h[row], cm.desired_h, child->v_align);
+    int ch = layout_apply_alignment(row_h[row], cm.desired_h, child->layout.v_align);
     int cx = x;
     int cy = row_y[row];
-    if (child->h_align == LAYOUT_ALIGN_CENTER)
+    if (child->layout.h_align == LAYOUT_ALIGN_CENTER)
       cx += (row_w[row] - cw) / 2;
-    else if (child->h_align == LAYOUT_ALIGN_END)
+    else if (child->layout.h_align == LAYOUT_ALIGN_END)
       cx += row_w[row] - cw;
-    if (child->v_align == LAYOUT_ALIGN_CENTER)
+    if (child->layout.v_align == LAYOUT_ALIGN_CENTER)
       cy += (row_h[row] - ch) / 2;
-    else if (child->v_align == LAYOUT_ALIGN_END)
+    else if (child->layout.v_align == LAYOUT_ALIGN_END)
       cy += row_h[row] - ch;
     layout_arrange_child(child, R(cx, cy, cw, ch));
     x += cw;
@@ -168,33 +168,35 @@ void layout_flow_arrange_window(window_t *win, const irect16_t *rect) {
   free(row_y);
 }
 
-result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
-      win->auto_layout = true;
-      win->layout_kind = "flow";
-      win->layout_orientation = WINDOW_STACK_HORIZONTAL;
-      win->layout_spacing = 0;
-      win->layout_padding = (irect16_t){0, 0, 0, 0};
-      win->layout_margin = (irect16_t){0, 0, 0, 0};
-      win->layout_measure_fn = layout_flow_measure_window;
-      win->layout_arrange_fn = layout_flow_arrange_window;
+      win->flags |= WINDOW_AUTO_LAYOUT;
+      win->flags |= WINDOW_STACK_HORIZONTAL;
+      win->layout.layout_spacing = 0;
+      win->layout.layout_padding = (irect16_t){0, 0, 0, 0};
+      win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
       if (cfg) {
-        if (cfg->layout_kind && *cfg->layout_kind)
-          win->layout_kind = cfg->layout_kind;
-        win->layout_orientation = cfg->orientation & WINDOW_STACK_HORIZONTAL;
+        if (cfg->orientation & WINDOW_STACK_HORIZONTAL)
+          win->flags |= WINDOW_STACK_HORIZONTAL;
+        else
+          win->flags &= ~WINDOW_STACK_HORIZONTAL;
         if (cfg->spacing > 0)
-          win->layout_spacing = cfg->spacing;
-        win->layout_padding = cfg->padding;
-        win->layout_margin = cfg->margin;
+          win->layout.layout_spacing = cfg->spacing;
+        win->layout.layout_padding = cfg->padding;
+        win->layout.layout_margin = cfg->margin;
       }
       return true;
     }
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
-      if (m) layout_flow_measure_window(win, m);
-      return true;
+      if (!m)
+        return MAKEDWORD(1, 1);
+      layout_flow_measure_window(win, m);
+      if (m->desired_w < 1) m->desired_w = 1;
+      if (m->desired_h < 1) m->desired_h = 1;
+      return MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
     }
     case evArrange: {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
@@ -202,7 +204,8 @@ result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         win->frame = a->rect;
         window_layout_sync(win);
       }
-      return true;
+      return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                       (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
       window_layout_sync(win);
@@ -215,4 +218,8 @@ result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     default:
       return false;
   }
+}
+
+result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  return win_flow(win, msg, wparam, lparam);
 }

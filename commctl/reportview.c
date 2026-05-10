@@ -22,22 +22,22 @@ static void report_sync_scroll(window_t *win, reportview_data_t *data) {
   int max_scroll_px = total_h - cr.h;
   if (max_scroll_px < 0)
     max_scroll_px = 0;
-  if ((int)win->scroll[1] > max_scroll_px)
-    win->scroll[1] = (uint32_t)max_scroll_px;
+  if ((int)win->vscroll.pos > max_scroll_px)
+    win->vscroll.pos = (uint32_t)max_scroll_px;
 
   scroll_info_t si;
   si.fMask = SIF_ALL;
   si.nMin = 0;
   si.nMax = total_h;
   si.nPage = (uint32_t)cr.h;
-  si.nPos = (int)win->scroll[1];
+  si.nPos = (int)win->vscroll.pos;
   set_scroll_info(win, SB_VERT, &si, false);
 }
 
 static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {
   int my = (int)(int16_t)HIWORD(wparam);
   int header_h = rv_report_header_height(data);
-  int scroll_y = (int)win->scroll[1];
+  int scroll_y = (int)win->vscroll.pos;
   if (my < header_h)
     return -1;
   int row = (my + scroll_y - header_h) / ENTRY_HEIGHT;
@@ -45,16 +45,16 @@ static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wpa
 }
 
 static void report_scroll_to_item(window_t *win, reportview_data_t *data, int index) {
-  int scroll_y = (int)win->scroll[1];
+  int scroll_y = (int)win->vscroll.pos;
   int visible_h = get_client_rect(win).h;
   int header_h = rv_report_header_height(data);
   int item_y_top = header_h + index * ENTRY_HEIGHT;
   int item_y_bottom = item_y_top + ENTRY_HEIGHT;
 
   if (item_y_top - scroll_y < header_h)
-    win->scroll[1] = (uint32_t)(item_y_top - header_h);
+    win->vscroll.pos = (uint32_t)(item_y_top - header_h);
   else if (item_y_bottom - scroll_y > visible_h)
-    win->scroll[1] = (uint32_t)(item_y_bottom - visible_h);
+    win->vscroll.pos = (uint32_t)(item_y_bottom - visible_h);
 }
 
 static void report_paint(window_t *win, reportview_data_t *data) {
@@ -63,7 +63,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   int row_w = rv_report_total_width(data, eff_w);
   int header_h = rv_report_header_height(data);
   int body_h = cr.h - header_h;
-  int scroll_y = (int)win->scroll[1];
+  int scroll_y = (int)win->vscroll.pos;
   uint32_t bg_col = get_sys_color(brColumnViewBg);
 
   int first_row = (body_h > 0) ? (scroll_y / ENTRY_HEIGHT) : 0;
@@ -344,7 +344,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       rv_invalidate(win, data);
       return true;
     case evVScroll:
-      win->scroll[1] = (uint32_t)wparam;
+      win->vscroll.pos = (uint32_t)wparam;
       report_sync_scroll(win, data);
       rv_invalidate(win, data);
       return true;

@@ -61,7 +61,7 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
     }
     case evPaint: {
       // BUTTON_PUSHLIKE: render as pressed whenever the button is checked (value==true)
-      bool show_pressed = win->pressed ||
+      bool show_pressed = window_has_state(win, WINDOW_STATE_PRESSED) ||
                           ((win->flags & BUTTON_PUSHLIKE) && win->value);
       // BUTTON_DEFAULT (BS_DEFPUSHBUTTON analogue): use black for the outer 1-px
       // gap so a thin black outline is visible around the button bevel.
@@ -81,11 +81,11 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       return true;
     }
     case evLeftButtonDown:
-      win->pressed = true;
+      window_set_state(win, WINDOW_STATE_PRESSED, true);
       invalidate_window(win);
       return true;
     case evLeftButtonUp:
-      win->pressed = false;
+      window_set_state(win, WINDOW_STATE_PRESSED, false);
       if (win->flags & BUTTON_AUTORADIO)
         autoradio_select(win);
       // Invalidate BEFORE sending the command: send_message may trigger
@@ -96,14 +96,14 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       return true;
     case evKeyDown:
       if (wparam == AX_KEY_ENTER || wparam == AX_KEY_SPACE) {
-        win->pressed = true;
+        window_set_state(win, WINDOW_STATE_PRESSED, true);
         invalidate_window(win);
         return true;
       }
       return false;
     case evKeyUp:
       if (wparam == AX_KEY_ENTER || wparam == AX_KEY_SPACE) {
-        win->pressed = false;
+        window_set_state(win, WINDOW_STATE_PRESSED, false);
         if (win->flags & BUTTON_AUTORADIO)
           autoradio_select(win);
         // Same ordering fix as evLeftButtonUp.
@@ -152,7 +152,7 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
       }
       return true;
     case evPaint: {
-      bool show_pressed = win->pressed ||
+      bool show_pressed = window_has_state(win, WINDOW_STATE_PRESSED) ||
                           ((win->flags & BUTTON_PUSHLIKE) && win->value);
       irect16_t local = {0, 0, win->frame.w, win->frame.h};
       draw_button(local, 1, 1, show_pressed);
@@ -181,11 +181,11 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
       return true;
     }
     case evLeftButtonDown:
-      win->pressed = true;
+      window_set_state(win, WINDOW_STATE_PRESSED, true);
       invalidate_window(win);
       return true;
     case evLeftButtonUp:
-      win->pressed = false;
+      window_set_state(win, WINDOW_STATE_PRESSED, false);
       if (win->flags & BUTTON_AUTORADIO)
         autoradio_select(win);
       // Invalidate BEFORE sending the command: send_message may trigger
@@ -196,14 +196,14 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
       return true;
     case evKeyDown:
       if (wparam == AX_KEY_ENTER || wparam == AX_KEY_SPACE) {
-        win->pressed = true;
+        window_set_state(win, WINDOW_STATE_PRESSED, true);
         invalidate_window(win);
         return true;
       }
       return false;
     case evKeyUp:
       if (wparam == AX_KEY_ENTER || wparam == AX_KEY_SPACE) {
-        win->pressed = false;
+        window_set_state(win, WINDOW_STATE_PRESSED, false);
         if (win->flags & BUTTON_AUTORADIO)
           autoradio_select(win);
         // Same ordering fix as evLeftButtonUp.

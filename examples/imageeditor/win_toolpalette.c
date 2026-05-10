@@ -166,15 +166,13 @@ static result_t palette_root_proc(window_t *win, uint32_t msg,
       st = allocate_window_data(win, sizeof(palette_state_t));
       if (!st) return false;
 
-      win->auto_layout = true;
-      win->layout_kind = "stack";
-      win->layout_spacing = 4;
-      win->layout_padding = (irect16_t){0, 0, 0, 0};
-      win->layout_margin = (irect16_t){0, 0, 0, 0};
-      win->layout_orientation = 0;
+      win->flags |= WINDOW_AUTO_LAYOUT;
+        win->layout.layout_spacing = 4;
+        win->layout.layout_padding = (irect16_t){0, 0, 0, 0};
+        win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
+      win->flags &= ~WINDOW_STACK_HORIZONTAL;
 
       layout_view_config_t flow_cfg = {
-        .layout_kind = "flow",
         .orientation = 0,
         .spacing = 0,
         .padding = (irect16_t){0, 0, 0, 0},

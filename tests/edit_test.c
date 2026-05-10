@@ -251,11 +251,11 @@ void test_edit_enter_commits_editing(void) {
     ASSERT_NOT_NULL(ed);
 
     begin_editing(ed);
-    ASSERT_TRUE(ed->editing);
+    ASSERT_TRUE(window_has_state(ed, WINDOW_STATE_EDITING));
 
     send_message(ed, evKeyDown, AX_KEY_ENTER, NULL);
 
-    ASSERT_FALSE(ed->editing);
+    ASSERT_FALSE(window_has_state(ed, WINDOW_STATE_EDITING));
     ASSERT_EQUAL(g_update_count, 1);
     ASSERT_EQUAL(g_last_edit, ed);
 
@@ -276,11 +276,11 @@ void test_edit_enter_starts_editing_if_not_editing(void) {
     ASSERT_NOT_NULL(ed);
 
     // Edit box is not in editing mode yet
-    ASSERT_FALSE(ed->editing);
+    ASSERT_FALSE(window_has_state(ed, WINDOW_STATE_EDITING));
 
     send_message(ed, evKeyDown, AX_KEY_ENTER, NULL);
 
-    ASSERT_TRUE(ed->editing);
+    ASSERT_TRUE(window_has_state(ed, WINDOW_STATE_EDITING));
     ASSERT_EQUAL(ed->cursor_pos, (int)strlen("foo"));
 
     destroy_window(parent);
@@ -301,11 +301,11 @@ void test_edit_escape_exits_editing(void) {
     ASSERT_NOT_NULL(ed);
 
     begin_editing(ed);
-    ASSERT_TRUE(ed->editing);
+    ASSERT_TRUE(window_has_state(ed, WINDOW_STATE_EDITING));
 
     send_message(ed, evKeyDown, AX_KEY_ESCAPE, NULL);
 
-    ASSERT_FALSE(ed->editing);
+    ASSERT_FALSE(window_has_state(ed, WINDOW_STATE_EDITING));
     ASSERT_EQUAL(g_update_count, 0); // no edUpdate on Escape
 
     destroy_window(parent);
@@ -326,14 +326,14 @@ void test_edit_tab_commits_editing(void) {
     ASSERT_NOT_NULL(ed);
 
     begin_editing(ed);
-    ASSERT_TRUE(ed->editing);
+    ASSERT_TRUE(window_has_state(ed, WINDOW_STATE_EDITING));
 
     // Tab while editing: must commit (editing=false) and fire edUpdate.
     // Note: win_textedit returns false for Tab even when it handles it,
     // so we only verify the side-effects, not the return value.
     send_message(ed, evKeyDown, AX_KEY_TAB, NULL);
 
-    ASSERT_FALSE(ed->editing);
+    ASSERT_FALSE(window_has_state(ed, WINDOW_STATE_EDITING));
     ASSERT_EQUAL(g_update_count, 1);
     ASSERT_EQUAL(g_last_edit, ed);
 
@@ -354,11 +354,11 @@ void test_edit_tab_noop_when_not_editing(void) {
     window_t *ed = make_edit(parent, 13, "noedit");
     ASSERT_NOT_NULL(ed);
 
-    ASSERT_FALSE(ed->editing);
+    ASSERT_FALSE(window_has_state(ed, WINDOW_STATE_EDITING));
 
     send_message(ed, evKeyDown, AX_KEY_TAB, NULL);
 
-    ASSERT_FALSE(ed->editing);
+    ASSERT_FALSE(window_has_state(ed, WINDOW_STATE_EDITING));
     ASSERT_EQUAL(g_update_count, 0);
 
     destroy_window(parent);

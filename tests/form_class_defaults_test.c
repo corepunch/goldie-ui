@@ -26,10 +26,7 @@ static void test_reportview_class_flags_not_overrideable(void) {
     .name = "Test Class Defaults",
     .width = 300,
     .height = 200,
-    .flags = 0,
-    .auto_layout = true,
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .flags = (0) | WINDOW_AUTO_LAYOUT,
     .children = &reportview_form,
     .child_count = 1,
   };
@@ -67,10 +64,7 @@ static void test_space_class_has_flexspace(void) {
     .name = "Test Space",
     .width = 300,
     .height = 100,
-    .flags = 0,
-    .auto_layout = true,
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .flags = (0) | WINDOW_AUTO_LAYOUT,
     .children = &space_form,
     .child_count = 1,
   };
@@ -104,10 +98,7 @@ static void test_multiedit_class_has_flexspace(void) {
     .name = "Test Multiedit",
     .width = 300,
     .height = 200,
-    .flags = 0,
-    .auto_layout = true,
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .flags = (0) | WINDOW_AUTO_LAYOUT,
     .children = &multiedit_form,
     .child_count = 1,
   };
@@ -148,8 +139,6 @@ static void test_flexspace_propagates_up(void) {
     .name = "col",
     .children = &reportview_form,
     .child_count = 1,
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_VERTICAL,
   };
   form_ctrl_def_t grid_form = {
     .class_name = "grid",
@@ -160,16 +149,12 @@ static void test_flexspace_propagates_up(void) {
     .name = "main",
     .children = &column_form,
     .child_count = 1,
-    .layout_kind = "grid",
   };
   form_def_t def = {
     .name = "Test Propagation",
     .width = 400,
     .height = 300,
-    .flags = 0,
-    .auto_layout = true,
-    .layout_kind = "stack",
-    .layout_orientation = WINDOW_STACK_VERTICAL,
+    .flags = (0) | WINDOW_AUTO_LAYOUT,
     .children = &grid_form,
     .child_count = 1,
   };

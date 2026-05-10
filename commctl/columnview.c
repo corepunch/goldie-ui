@@ -90,7 +90,7 @@ void rv_rebind_item_refs(reportview_data_t *data, uint32_t start) {
 void rv_reset_view_state(window_t *win, reportview_data_t *data) {
   data->selected = RV_INVALID_SELECTION;
   rv_reset_click_state(data);
-  win->scroll[1] = 0;
+  win->vscroll.pos = 0;
 }
 
 int rv_content_width(window_t *win) {

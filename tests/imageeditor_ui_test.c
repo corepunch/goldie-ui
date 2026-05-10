@@ -384,9 +384,7 @@ void test_ie_all_forms_use_auto_layout(void) {
         const form_def_t *form = forms[i];
         ASSERT_NOT_NULL(form);
         ASSERT_TRUE(form->child_count > 0);
-        ASSERT_TRUE(form->auto_layout);
-        ASSERT_NOT_NULL(form->layout_kind);
-        ASSERT_TRUE(form->layout_kind[0] != '\0');
+        ASSERT_TRUE((form->flags & WINDOW_AUTO_LAYOUT) != 0);
     }
 
     PASS();
@@ -396,8 +394,7 @@ void test_ie_all_forms_use_auto_layout(void) {
 void test_ie_filter_gallery_layout_shape(void) {
     TEST("filter gallery: uses a stacked wrapper with a 2-column grid and actions row");
 
-    ASSERT_TRUE(imageeditor_filter_gallery_form.auto_layout);
-    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.layout_kind, "stack"), 0);
+    ASSERT_TRUE((imageeditor_filter_gallery_form.flags & WINDOW_AUTO_LAYOUT) != 0);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.layout_spacing, 4);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.child_count, 10);
     ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[0].class_name, "grid"), 0);
@@ -1556,7 +1553,7 @@ void test_ie_layer_add(void) {
 void test_ie_new_layer_form_auto_layout(void) {
     TEST("imageeditor_new_layer_form: uses auto-layout and nested stacks");
 
-    ASSERT_TRUE(imageeditor_new_layer_form.auto_layout);
+    ASSERT_TRUE((imageeditor_new_layer_form.flags & WINDOW_AUTO_LAYOUT) != 0);
     ASSERT_EQUAL(imageeditor_new_layer_form.child_count, 7);
     ASSERT_NOT_NULL(imageeditor_new_layer_form.children);
     ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[0].class_name, "stack"), 0);

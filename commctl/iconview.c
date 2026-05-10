@@ -20,14 +20,14 @@ static void icon_sync_scroll(window_t *win, reportview_data_t *data) {
   int max_scroll_px = total_h - cr.h;
   if (max_scroll_px < 0)
     max_scroll_px = 0;
-  if ((int)win->scroll[1] > max_scroll_px)
-    win->scroll[1] = (uint32_t)max_scroll_px;
+  if ((int)win->vscroll.pos > max_scroll_px)
+    win->vscroll.pos = (uint32_t)max_scroll_px;
   scroll_info_t si;
   si.fMask = SIF_ALL;
   si.nMin = 0;
   si.nMax = total_h;
   si.nPage = (uint32_t)cr.h;
-  si.nPos = (int)win->scroll[1];
+  si.nPos = (int)win->vscroll.pos;
   set_scroll_info(win, SB_VERT, &si, false);
 }
 
@@ -39,7 +39,7 @@ static int icon_hit_index(window_t *win, reportview_data_t *data, uint32_t wpara
 
 static void icon_paint(window_t *win, reportview_data_t *data) {
   irect16_t cr = get_client_rect(win);
-  int scroll_y = (int)win->scroll[1];
+  int scroll_y = (int)win->vscroll.pos;
   uint32_t bg_col = get_sys_color(brColumnViewBg);
   fill_rect(bg_col, R(0, 0, cr.w, cr.h));
 
@@ -166,13 +166,13 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if ((int)wparam >= 0 && wparam < data->count) {
         int selected = (int)wparam;
         data->selected = (int)wparam;
-        int scroll_y = (int)win->scroll[1];
+        int scroll_y = (int)win->vscroll.pos;
         int item_y_top = selected * ENTRY_HEIGHT + WIN_PADDING;
         int item_y_bottom = item_y_top + ENTRY_HEIGHT;
         if (item_y_top - scroll_y < 0)
-          win->scroll[1] = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
+          win->vscroll.pos = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
         else if (item_y_bottom - scroll_y > get_client_rect(win).h)
-          win->scroll[1] = (uint32_t)(item_y_bottom - get_client_rect(win).h);
+          win->vscroll.pos = (uint32_t)(item_y_bottom - get_client_rect(win).h);
         icon_sync_scroll(win, data);
         rv_invalidate(win, data);
         return true;
@@ -238,7 +238,7 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       rv_invalidate(win, data);
       return true;
     case evVScroll:
-      win->scroll[1] = (uint32_t)wparam;
+      win->vscroll.pos = (uint32_t)wparam;
       icon_sync_scroll(win, data);
       rv_invalidate(win, data);
       return true;
@@ -288,13 +288,13 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       if (next != cur && next >= 0) {
         data->selected = next;
-        int scroll_y = (int)win->scroll[1];
+        int scroll_y = (int)win->vscroll.pos;
         int item_y_top = next * ENTRY_HEIGHT + WIN_PADDING;
         int item_y_bottom = item_y_top + ENTRY_HEIGHT;
         if (item_y_top - scroll_y < 0)
-          win->scroll[1] = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
+          win->vscroll.pos = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
         else if (item_y_bottom - scroll_y > get_client_rect(win).h)
-          win->scroll[1] = (uint32_t)(item_y_bottom - get_client_rect(win).h);
+          win->vscroll.pos = (uint32_t)(item_y_bottom - get_client_rect(win).h);
         icon_sync_scroll(win, data);
         rv_notify(win, data, next, RVN_SELCHANGE);
         rv_invalidate(win, data);
