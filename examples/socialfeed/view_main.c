@@ -5,6 +5,8 @@
 
 #include "socialfeed.h"
 
+#define FEED_CELL_TEXT_MAX 128
+
 // ============================================================
 // feed_list_proc — thin wrapper that adjusts the Title column
 //                  width on resize
@@ -93,12 +95,14 @@ void feed_refresh(void) {
     post_t *p = g_app->posts[i];
     if (!p) continue;
 
-    char cell_buf[REPORTVIEW_MAX_SUBITEMS + 1][128];
+    char cell_buf[REPORTVIEW_MAX_SUBITEMS + 1][FEED_CELL_TEXT_MAX];
     for (int c = 0; c < col_count; c++) {
       const char *field = binding->columns[c].field;
       if (!socialfeed_post_field_text(p, field, cell_buf[c], sizeof(cell_buf[c]))) {
         cell_buf[c][0] = '\0';
-        SF_DEBUG("feed binding missing field mapping: '%s'", field ? field : "");
+        SF_DEBUG("binding '%s' references unmapped field '%s' (add it to socialfeed_post_field_text)",
+                 binding->name ? binding->name : "",
+                 field ? field : "");
       }
     }
 
