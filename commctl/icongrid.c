@@ -157,7 +157,6 @@ result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return false;
     case evLeftButtonDown: {
       int index = grid_hit_index(win, data, wparam);
-      printf("index hit: %d\n", index);
       if (rv_valid_index(data, index)) {
         uint32_t now = axGetMilliseconds();
         if (data->last_click_index == index && (now - data->last_click_time) < RV_DOUBLE_CLICK_MS) {

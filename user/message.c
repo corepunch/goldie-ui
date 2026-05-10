@@ -842,8 +842,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
             if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
               *(window_t **)lparam = item;
               send_message(item, evHitTest,
-                           MAKEDWORD((uint16_t)(x - r.x + item->scroll[0]),
-                                     (uint16_t)(y - r.y + item->scroll[1])),
+                           MAKEDWORD((uint16_t)(x - r.x),
+                                     (uint16_t)(y - r.y)),
                            lparam);
             }
           }
