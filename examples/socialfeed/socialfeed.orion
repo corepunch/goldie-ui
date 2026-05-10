@@ -37,6 +37,17 @@
       </toolbar>
     </toolbars>
 
+    <database>
+      <source name="feed_posts" model="post" />
+      <binding name="feed_posts_report" source="feed_posts" view="feed">
+        <column field="title" title="Title" width="0" />
+        <column field="author" title="Author" width="80" />
+        <column field="like_count" title="Likes" width="50" />
+        <column field="comment_count" title="Comments" width="55" />
+      </binding>
+      <action name="fetch_feed" type="fetch" source="feed_posts" target="feed" />
+    </database>
+
     <forms>
       <form name="new_post"
             title="New Post"

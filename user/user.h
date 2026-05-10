@@ -249,6 +249,56 @@ typedef struct {
   uint32_t                cancel_id;       // child ID of the Cancel button (0 = none)
 } form_def_t;
 
+// Declarative database API metadata emitted from .orion documents.
+// This metadata is model/view-agnostic and can be consumed by applications to
+// drive fetch actions and view bindings without hard-coded column setup.
+typedef struct {
+  const char *name;   // source name, e.g. "feed_posts"
+  const char *model;  // logical model name, e.g. "post"
+} db_source_def_t;
+
+typedef struct {
+  const char *field;  // model field key, e.g. "title"
+  const char *title;  // view column title
+  int         width;  // preferred column width; <=0 means auto/flex
+} db_binding_column_t;
+
+typedef struct {
+  const char               *name;   // binding identifier
+  const char               *source; // source name this binding reads from
+  const char               *view;   // target view/control name
+  const db_binding_column_t *columns;
+  int                       column_count;
+} db_view_binding_t;
+
+typedef enum {
+  DB_ACTION_FETCH = 1,
+  DB_ACTION_INSERT,
+  DB_ACTION_UPDATE,
+  DB_ACTION_DELETE,
+  DB_ACTION_CUSTOM,
+} db_action_kind_t;
+
+typedef struct {
+  const char       *name;   // action identifier
+  db_action_kind_t  kind;   // fetch/insert/update/delete/custom
+  const char       *source; // source name this action targets
+  const char       *target; // target view/control or route name
+} db_action_def_t;
+
+typedef struct {
+  const db_source_def_t  *sources;
+  int                     source_count;
+  const db_view_binding_t *bindings;
+  int                     binding_count;
+  const db_action_def_t  *actions;
+  int                     action_count;
+} db_api_def_t;
+
+const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
+const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
+const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
+
 typedef struct {
   uint32_t color_index;   // palette index for label text color; 0 = transparent
   ui_font_t font;         // prepared font role for labels
