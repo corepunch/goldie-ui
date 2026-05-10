@@ -349,14 +349,10 @@ struct window_s {
   uint32_t flags;
   hinstance_t hinstance;  // owning app instance (0 = system/unowned)
   winproc_t proc;
-  uint32_t child_id;
   uint32_t value;
   char title[512];
   char statusbar_text[64];
   uint32_t cursor_pos;
-  window_t *toolbar;       // toolbar host window (win_toolbar); state lives in toolbar->userdata
-  window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
-  int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
   layout_t layout;
   void *userdata;
   void *userdata2;
@@ -365,6 +361,8 @@ struct window_s {
   struct window_s *next;
   struct window_s *children;
   struct window_s *parent;
+  struct window_s *toolbar; // toolbar host window (win_toolbar); state lives in toolbar->userdata
+  struct window_s *sidebar; // WINDOW_SIDEBAR: the single child that fills the left panel
 };
 
 static inline bool window_has_state(const window_t *win, uint32_t state_flag) {

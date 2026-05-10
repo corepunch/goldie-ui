@@ -110,6 +110,14 @@ static toolbar_state_t *get_toolbar_state(window_t *win) {
   return window_toolbar_state(win);
 }
 
+static int sidebar_effective_width(window_t const *win) {
+  if (!win || !win->sidebar) return 0;
+  int w = win->sidebar->layout.layout_fixed_w;
+  if (w <= 0) w = win->sidebar->frame.w;
+  if (w <= 0) w = SIDEBAR_DEFAULT_WIDTH;
+  return w;
+}
+
 // Returns the effective toolbar button size for win.
 static int toolbar_effective_bsz(window_t const *win) {
   toolbar_state_t *tb = window_toolbar_state((window_t *)win);
@@ -646,12 +654,14 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         if (win->flags&WINDOW_STATUSBAR) {
           draw_statusbar(win, win->statusbar_text);
         }
-        if ((win->flags & WINDOW_SIDEBAR) && win->sidebar_child && win->sidebar_width > 0) {
+        if ((win->flags & WINDOW_SIDEBAR) && win->sidebar) {
           // Draw a 1-pixel vertical separator between the sidebar and the content area.
           // Uses screen-absolute coordinates (set_fullscreen projection is active).
+          int sb_w = sidebar_effective_width(win);
+          if (sb_w <= 0) break;
           int t_bar = titlebar_height(win);
           int s_bar = statusbar_height(win);
-          irect16_t sep = {win->frame.x + win->sidebar_width,
+          irect16_t sep = {win->frame.x + sb_w,
                         win->frame.y + t_bar,
                         1,
                         win->frame.h - t_bar - s_bar};
@@ -706,12 +716,14 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       if (!lparam) break;
       winproc_t proc = (winproc_t)lparam;
       int sb_w = (int)wparam > 0 ? (int)wparam : SIDEBAR_DEFAULT_WIDTH;
-      win->sidebar_width = sb_w;
       irect16_t cr = get_client_rect(win);
-      win->sidebar_child = create_window("",
+      win->sidebar = create_window("",
           WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL | WINDOW_NOTRAYBUTTON,
           MAKERECT(0, 0, sb_w, cr.h),
           win, proc, win->hinstance, NULL);
+      if (win->sidebar) {
+        win->sidebar->layout.layout_fixed_w = (int16_t)sb_w;
+      }
       invalidate_window(win);
       break;
     }

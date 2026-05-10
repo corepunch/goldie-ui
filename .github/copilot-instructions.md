@@ -708,7 +708,7 @@ The framework could automatically detect when a form contains only fixed-height 
 form_def_t dlg_def = *def;  // Local copy
 
 // Auto-calculate height if no flexible content exists
-if (dlg_def.auto_layout && !form_has_flexspace(&dlg_def)) {
+if ((dlg_def.flags & WINDOW_AUTO_LAYOUT) && !form_has_flexspace(&dlg_def)) {
     dlg_def.height = calculate_form_height(&dlg_def);
 }
 
@@ -1102,4 +1102,20 @@ Class defaults < Form/parent hints < Instance attributes (.orion)
 - **Fix**: Updated `commctl/columnview.c` to consistently use `get_client_rect(win)` for all scroll calculations, paint dimensions, and content sizing
 - **Affected functions**: `rv_content_width()`, `rv_sync_scroll()`, `rv_paint_report_view()`, `evVScroll` handler
 - **Lesson**: Always use `get_client_rect()` for client-space dimensions; `win->frame` includes title bars, scrollbars, and other chrome that varies by context
+
+**Toolbar internals moved to toolbar host userdata (May 2026)**
+- **Issue**: `window_s` carried toolbar internals (`toolbar_children`, strip state, button size), coupling unrelated window logic to toolbar implementation details.
+- **Fix**: Added a dedicated toolbar host window (`win_toolbar`) and moved toolbar runtime state to `toolbar_state_t` stored in `win->toolbar->userdata`.
+- **How to access**: Use `window_toolbar_state(win)` and read toolbar children from `tb->children`; do not add fields back onto `window_s`.
+- **Lesson**: Keep control/container internals in control-owned userdata, not in generic window core structs.
+
+**Sidebar width ownership moved to sidebar child (May 2026)**
+- **Issue**: Parent windows stored separate sidebar width state (`sidebar_width`) that drifted from child layout/frame state.
+- **Fix**: Sidebar width now lives on the sidebar child (`win->sidebar`): desired width in `win->sidebar->layout.layout_fixed_w`, effective fallback from `win->sidebar->frame.w`.
+- **Lesson**: Prefer child-owned layout state over duplicating parallel width fields on the parent.
+
+**Child ID counter removed from window_s (May 2026)**
+- **Issue**: `window_s.child_id` was mutable parent state used only as an incrementing allocator.
+- **Fix**: Replaced with computed allocation (`next_child_id(parent)`) scanning existing `children` and toolbar children.
+- **Lesson**: Avoid storing redundant counters when IDs can be derived from the live tree safely.
 

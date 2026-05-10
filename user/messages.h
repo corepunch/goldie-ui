@@ -145,7 +145,7 @@ enum {
   // wparam = sidebar width in pixels (0 uses SIDEBAR_DEFAULT_WIDTH).
   // lparam = winproc_t — the window procedure for the sidebar content window.
   // The framework creates a WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL |
-  // WINDOW_NOTRAYBUTTON child at (0, 0) and stores it in win->sidebar_child.
+  // WINDOW_NOTRAYBUTTON child at (0, 0) and stores it in win->sidebar.
   sbSetContent,
 };
 

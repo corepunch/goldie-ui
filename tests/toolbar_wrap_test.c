@@ -95,8 +95,10 @@ void test_toolbar_set_items_creates_children(void) {
     ASSERT_NOT_NULL(find_toolbar_child(win, 11));
     ASSERT_NOT_NULL(find_toolbar_child(win, 12));
 
-    // Children must NOT appear in the regular children list.
-    ASSERT_NULL(win->children);
+    // Toolbar items are not in win->children, but the toolbar host window is.
+    ASSERT_NOT_NULL(win->toolbar);
+    ASSERT_EQUAL(win->children, win->toolbar);
+    ASSERT_NULL(win->toolbar->next);
 
     destroy_window(win);
     test_env_shutdown();
@@ -224,7 +226,7 @@ void test_toolbar_set_strip(void) {
     test_env_init();
 
     irect16_t frame = {0, 0, 200, 60};
-    window_t *win = create_window("W", 0, &frame, NULL, noop_proc, 0, NULL);
+    window_t *win = create_window("W", WINDOW_TOOLBAR, &frame, NULL, noop_proc, 0, NULL);
     ASSERT_NOT_NULL(win);
 
     toolbar_state_t *tb = window_toolbar_state(win);

@@ -81,9 +81,12 @@ void gc_layout_panels(window_t *win) {
   compute_layout(gc, &cr, &rl, &rf, &rd);
 
   // Resize sidebar child to fill the full client height.
-  if (win->sidebar_child) {
-    move_window(win->sidebar_child, 0, 0);
-    resize_window(win->sidebar_child, win->sidebar_width, cr.h);
+  if (win->sidebar) {
+    int sb_w = win->sidebar->layout.layout_fixed_w;
+    if (sb_w <= 0) sb_w = win->sidebar->frame.w;
+    if (sb_w <= 0) sb_w = SIDEBAR_DEFAULT_WIDTH;
+    move_window(win->sidebar, 0, 0);
+    resize_window(win->sidebar, sb_w, cr.h);
   }
   if (gc->log_win) {
     move_window(gc->log_win, rl.x, rl.y);
@@ -222,7 +225,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       send_message(win, sbSetContent,
                    (uint32_t)PANEL_LEFT_W_DEFAULT,
                    gc_branches_proc);
-      gc->branches_win = win->sidebar_child;
+      gc->branches_win = win->sidebar;
 
       irect16_t cr = get_client_rect(win);
       int lx = PANEL_LEFT_W_DEFAULT + PANEL_SPLITTER;

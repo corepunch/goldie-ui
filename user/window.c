@@ -459,6 +459,23 @@ void push_window(window_t *win, window_t **windows) {
   }
 }
 
+static uint32_t next_child_id(window_t const *parent) {
+  if (!parent) return 0;
+  uint32_t max_id = 0;
+  for (window_t *c = parent->children; c; c = c->next) {
+    if (c->id > max_id)
+      max_id = c->id;
+  }
+  toolbar_state_t *tb = window_toolbar_state((window_t *)parent);
+  for (window_t *c = tb ? tb->children : NULL; c; c = c->next) {
+    if (c->id > max_id)
+      max_id = c->id;
+  }
+  if (max_id == UINT32_MAX)
+    return UINT32_MAX;
+  return max_id + 1;
+}
+
 // Internal: allocate and register a window without sending evCreate.
 // Callers are responsible for sending evCreate (and invalidating if needed).
 static window_t *alloc_window(char const *title, flags_t flags, irect16_t const *frame,
@@ -485,7 +502,7 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   // Inherit hinstance from parent for child windows; use supplied value for roots.
   win->hinstance = parent ? parent->hinstance : hinstance;
   if (parent) {
-    win->id = ++parent->child_id;
+    win->id = next_child_id(parent);
   } else {
     bool used[256]={0};
     for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
