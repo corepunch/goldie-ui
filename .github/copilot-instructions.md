@@ -465,20 +465,27 @@ create_window_from_form(&kMyDlg, x, y, parent, my_dlg_proc, NULL);
 
 ### Auto-Layout System
 
-Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing and positioning. When `auto_layout="1"` is set on a form or container, children are arranged automatically using stack or grid layouts.
+Orion provides a **WPF-inspired auto-layout system** for dynamic window sizing and positioning. Enable it on a form or container by including `WINDOW_AUTO_LAYOUT` in the window flags; children are then arranged automatically using stack or grid layouts.
 
 #### Layout Properties
 
-**Window-level properties:**
-- `layout`: `"stack"` (default), `"grid"`, or `"flow"`
-- `layout_spacing`: Gap between children in pixels
-- `layout_padding`: Inner padding as `irect16_t {left, top, right, bottom}`
-- `layout_orientation`: `WINDOW_STACK_HORIZONTAL` or `WINDOW_STACK_VERTICAL` (stack only)
+**Container type** is determined by `class_name` (or the element tag in `.orion` XML):
+- `"stack"` — arranges children in a row or column
+- `"grid"` — arranges children using explicit `<column>` elements (star sizing)
+- `"column"` — single column of a grid container
 
-**Child-level properties:**
-- `layout_fixed_w` / `layout_fixed_h`: Fixed width/height (0 = auto)
-- `h_align` / `v_align`: `LAYOUT_ALIGN_STRETCH` (default), `LAYOUT_ALIGN_START`, `LAYOUT_ALIGN_CENTER`, `LAYOUT_ALIGN_END`
-- `WINDOW_FLEXSPACE`: Stack child expands to fill available space along the stack axis
+**Orientation and flags on a stack control:**
+- `WINDOW_STACK_HORIZONTAL` in `flags` — horizontal (left-to-right) layout
+- Without `WINDOW_STACK_HORIZONTAL` — vertical (top-to-bottom) layout (default)
+- `WINDOW_FLEXSPACE` — child expands to fill remaining space along the stack axis
+
+**Per-window layout state** (`win->layout.*`):
+- `win->layout.layout_spacing` — gap between direct children (pixels)
+- `win->layout.layout_padding` — inner padding `irect16_t {l, t, r, b}`
+- `win->layout.layout_margin` — outer margin when inside a layout container
+- `win->layout.layout_fixed_w` / `win->layout.layout_fixed_h` — declarative size hints
+
+**Child alignment** (`win->layout.h_align` / `win->layout.v_align`): `LAYOUT_ALIGN_STRETCH` (default), `LAYOUT_ALIGN_START`, `LAYOUT_ALIGN_CENTER`, `LAYOUT_ALIGN_END`
 
 #### Stack Layout
 
@@ -746,10 +753,11 @@ Currently, height must be specified manually even for fixed-content forms.
 - `title`: Window title
 - `frame`: Initial client rect as "x y w h" (window size before chrome)
 - `flags`: Window flags (e.g., `WINDOW_DIALOG | WINDOW_NOTRAYBUTTON`)
-- `auto_layout`: `"1"` to enable auto-layout
-- `layout`: `"stack"` or `"grid"` (default is `"stack"`)
 - `spacing`: Default gap between children in pixels
 - `padding`: Inner padding as "left top right bottom" or single value
+
+> **Note:** Auto-layout is always enabled for forms. The layout container type is set by
+> the child element tag (`<stack>`, `<grid>`, `<column>`), not by a form-level `layout=` attribute.
 
 **Control elements:**
 ```xml

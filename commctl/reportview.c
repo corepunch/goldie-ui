@@ -82,10 +82,8 @@ static void report_paint(window_t *win, reportview_data_t *data) {
     fill_rect(get_sys_color(brTextNormal), R(0, y, row_w, ENTRY_HEIGHT - 1));
   }
 
-  window_t *root = get_root_window(win);
-  int root_t = titlebar_height(root);
-  int scr_x = (win == root) ? win->frame.x : root->frame.x + win->frame.x;
-  int scr_y = (win == root) ? win->frame.y : root->frame.y + root_t + win->frame.y;
+  int scr_x = window_screen_x(win);
+  int scr_y = window_screen_y(win);
 
   int col_x = 0;
   for (uint32_t col = 0; col < data->column_count; col++) {

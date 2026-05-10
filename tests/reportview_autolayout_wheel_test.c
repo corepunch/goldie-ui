@@ -86,7 +86,7 @@ void test_reportview_wheel_in_stack(void) {
     
     stack->flags |= WINDOW_AUTO_LAYOUT;
     stack->flags &= ~WINDOW_STACK_HORIZONTAL;
-    stack->layout_spacing = 8;
+    stack->layout.layout_spacing = 8;
     
     // Create reportview child (will be arranged by layout)
     window_t *rv = create_window("rv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_FLEXSPACE | WINDOW_VSCROLL,
@@ -138,7 +138,7 @@ void test_reportview_wheel_in_grid(void) {
     ASSERT(grid != NULL, "Failed to create grid");
     
     grid->flags |= WINDOW_AUTO_LAYOUT;
-    grid->layout_spacing = 12;
+    grid->layout.layout_spacing = 12;
     
     // Create two columns: preview + reportview (simulating filter gallery)
     window_t *col1 = create_window("col1", WINDOW_NOTITLE | WINDOW_NOFILL,
