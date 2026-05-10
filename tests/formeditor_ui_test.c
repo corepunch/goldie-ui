@@ -2313,8 +2313,13 @@ void test_fe_grid_creates_default_columns_and_columns_restrict_parent(void) {
     ASSERT_NOT_NULL(grid->children);
     ASSERT_NOT_NULL(grid->children->next);
     ASSERT_TRUE(grid->children->next->next == NULL);
-    ASSERT_TRUE(grid->children->proc == win_column);
-    ASSERT_TRUE(grid->children->next->proc == win_column);
+    // Use find_window_class_proc so the comparison works on Windows too:
+    // grid->children->proc is the DLL-internal address while a plain
+    // win_column reference in the test binary is an IAT thunk (different
+    // value).  find_window_class_proc returns the DLL-internal address.
+    winproc_t col_proc = find_window_class_proc("column");
+    ASSERT_TRUE(grid->children->proc == col_proc);
+    ASSERT_TRUE(grid->children->next->proc == col_proc);
     ASSERT_TRUE(grid->children->frame.w > 0);
     ASSERT_TRUE(grid->children->frame.h > 0);
     ASSERT_TRUE(grid->children->next->frame.w > 0);

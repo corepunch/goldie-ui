@@ -63,7 +63,7 @@ bool register_window_class(const fe_component_desc_t *desc) {
   if (!desc || !desc->class_name || !*desc->class_name || !desc->proc) return false;
   for (int i = 0; i < g_window_class_count; i++) {
     if (streq(g_window_classes[i].desc.class_name, desc->class_name))
-      return g_window_classes[i].desc.proc == desc->proc;
+      return true;  // already registered — idempotent on all platforms
   }
   if (g_window_class_count >= MAX_WINDOW_CLASSES) return false;
   g_window_classes[g_window_class_count++].desc = *desc;
