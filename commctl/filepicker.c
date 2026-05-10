@@ -685,7 +685,8 @@ static result_t fp_proc(window_t *win, uint32_t msg,
                    (void *)kFilePickerItems);
 
       // Locate the path combobox in the newly-created toolbar children
-      for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
+      toolbar_state_t *tb = window_toolbar_state(win);
+      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
         if ((int)tc->id == FP_ID_LOC_COMBO) {
           ps->location_combo = tc;
           break;

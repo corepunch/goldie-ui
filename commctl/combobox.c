@@ -34,7 +34,8 @@ static void open_dropdown(window_t *win) {
   int abs_x, abs_y;
   bool is_toolbar_child = false;
   if (win->parent) {
-    for (window_t *tc = win->parent->toolbar_children; tc; tc = tc->next) {
+    toolbar_state_t *tb = window_toolbar_state(win->parent);
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
       if (tc == win) { is_toolbar_child = true; break; }
     }
   }

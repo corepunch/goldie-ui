@@ -1,7 +1,7 @@
 // Tests for the child-window-based toolbar implementation.
 //
 // These tests are headless (no SDL/OpenGL rendering). The new toolbar
-// creates real child windows in parent->toolbar_children using
+// creates real child windows in toolbar state using
 // toolbar_item_t and tbSetItems.
 
 #include "test_framework.h"
@@ -35,14 +35,16 @@ static result_t click_capture_proc(window_t *win, uint32_t msg,
 
 // Count the children in a window's toolbar_children list.
 static int count_toolbar_children(window_t *win) {
+    toolbar_state_t *tb = window_toolbar_state(win);
     int n = 0;
-    for (window_t *tc = win->toolbar_children; tc; tc = tc->next) n++;
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) n++;
     return n;
 }
 
 // Find a toolbar child by id.
 static window_t *find_toolbar_child(window_t *win, uint32_t id) {
-    for (window_t *tc = win->toolbar_children; tc; tc = tc->next)
+    toolbar_state_t *tb = window_toolbar_state(win);
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next)
         if (tc->id == id) return tc;
     return NULL;
 }
@@ -52,7 +54,8 @@ static window_t *find_toolbar_space_child(window_t *win) {
     // comparison against the win_space symbol would fail on Windows because the
     // test executable holds an IAT stub while tc->proc holds the real address.
     winproc_t space_proc = find_window_class_proc("space");
-    for (window_t *tc = win->toolbar_children; tc; tc = tc->next)
+    toolbar_state_t *tb = window_toolbar_state(win);
+    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next)
         if (tc->proc == space_proc) return tc;
     return NULL;
 }
@@ -224,21 +227,24 @@ void test_toolbar_set_strip(void) {
     window_t *win = create_window("W", 0, &frame, NULL, noop_proc, 0, NULL);
     ASSERT_NOT_NULL(win);
 
-    ASSERT_EQUAL((int)win->toolbar_strip.tex, 0);
+    toolbar_state_t *tb = window_toolbar_state(win);
+    ASSERT_NULL(tb);
 
     bitmap_strip_t strip = {
         .tex=42, .icon_w=16, .icon_h=16,
         .cols=2, .sheet_w=32, .sheet_h=160,
     };
     send_message(win, tbSetStrip, 0, &strip);
-    ASSERT_EQUAL((int)win->toolbar_strip.tex, 42);
-    ASSERT_EQUAL(win->toolbar_strip.icon_w, 16);
-    ASSERT_EQUAL(win->toolbar_strip.cols, 2);
-    ASSERT_EQUAL(win->toolbar_strip.sheet_w, 32);
-    ASSERT_EQUAL(win->toolbar_strip.sheet_h, 160);
+    tb = window_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL((int)tb->strip.tex, 42);
+    ASSERT_EQUAL(tb->strip.icon_w, 16);
+    ASSERT_EQUAL(tb->strip.cols, 2);
+    ASSERT_EQUAL(tb->strip.sheet_w, 32);
+    ASSERT_EQUAL(tb->strip.sheet_h, 160);
 
     send_message(win, tbSetStrip, 0, NULL);
-    ASSERT_EQUAL((int)win->toolbar_strip.tex, 0);
+    ASSERT_EQUAL((int)tb->strip.tex, 0);
 
     destroy_window(win);
     test_env_shutdown();

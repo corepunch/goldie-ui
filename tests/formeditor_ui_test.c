@@ -2124,7 +2124,8 @@ void test_fe_forms_toolbar_new_creates_cascaded_doc(void) {
     int first_x = first_win->frame.x;
     int first_y = first_win->frame.y;
 
-    window_t *new_btn = g_app->forms_win->toolbar_children;
+    toolbar_state_t *tb = window_toolbar_state(g_app->forms_win);
+    window_t *new_btn = tb ? tb->children : NULL;
     ASSERT_NOT_NULL(new_btn);
     send_message(new_btn, evLeftButtonUp, 0, NULL);
 

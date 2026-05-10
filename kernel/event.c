@@ -108,7 +108,8 @@ static window_t *find_toolbar_child_at(window_t *parent, int sx, int sy,
   if (tb_x_out) *tb_x_out = tb_x;
   if (tb_y_out) *tb_y_out = tb_y;
 
-  for (window_t *tc = parent->toolbar_children; tc; tc = tc->next) {
+  toolbar_state_t *tb = window_toolbar_state(parent);
+  for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
     if (CONTAINS(tb_x, tb_y, tc->frame.x, tc->frame.y, tc->frame.w, tc->frame.h)) {
       return tc;
     }

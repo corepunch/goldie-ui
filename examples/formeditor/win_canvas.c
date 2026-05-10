@@ -315,11 +315,12 @@ static bool canvas_window_is_descendant(window_t *win, window_t *ancestor) {
 static bool canvas_child_window_alive(window_t *root, window_t *target) {
   if (!root || !target) return false;
   if (root == target) return true;
+  toolbar_state_t *tb = window_toolbar_state(root);
   for (window_t *child = root->children; child; child = child->next) {
     if (canvas_child_window_alive(child, target))
       return true;
   }
-  for (window_t *child = root->toolbar_children; child; child = child->next) {
+  for (window_t *child = tb ? tb->children : NULL; child; child = child->next) {
     if (canvas_child_window_alive(child, target))
       return true;
   }

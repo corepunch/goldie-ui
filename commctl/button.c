@@ -15,13 +15,14 @@ extern window_t *get_root_window(window_t *window);
 // For BUTTON_AUTORADIO: clear all checked siblings then mark this one checked.
 static void autoradio_select(window_t *win) {
   if (win->parent) {
+    toolbar_state_t *tb = window_toolbar_state(win->parent);
     for (window_t *sib = win->parent->children; sib; sib = sib->next) {
       if (sib != win && (sib->flags & BUTTON_AUTORADIO) && sib->value) {
         sib->value = false;
         invalidate_window(sib);
       }
     }
-    for (window_t *sib = win->parent->toolbar_children; sib; sib = sib->next) {
+    for (window_t *sib = tb ? tb->children : NULL; sib; sib = sib->next) {
       if (sib != win && (sib->flags & BUTTON_AUTORADIO) && sib->value) {
         sib->value = false;
         invalidate_window(sib);

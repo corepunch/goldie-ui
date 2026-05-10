@@ -95,6 +95,13 @@ typedef struct bitmap_strip_s {
   int      sheet_h; // total texture height in pixels (for UV calculation)
 } bitmap_strip_t;
 
+typedef struct toolbar_state_s {
+  window_t *children;      // toolbar child windows (toolbar-band-relative frames)
+  bitmap_strip_t strip;    // optional custom strip set via tbSetStrip/tbLoadStrip
+  uint32_t strip_tex;      // GL texture owned by toolbar host (freed on destroy)
+  int btn_size;            // 0 = TB_SPACING default; >0 = custom square size in px
+} toolbar_state_t;
+
 // Window definition structure (for declarative window creation)
 typedef struct {
   const char *class_name;
@@ -347,10 +354,7 @@ struct window_s {
   char title[512];
   char statusbar_text[64];
   uint32_t cursor_pos;
-  window_t *toolbar_children; // real child windows in the toolbar band (toolbar-band-relative frames)
-  bitmap_strip_t toolbar_strip;
-  uint32_t toolbar_strip_tex;  // GL texture owned by tbLoadStrip (freed on destroy)
-  int    toolbar_btn_size;   // 0 = use TB_SPACING default; >0 = custom square button size in pixels
+  window_t *toolbar;       // toolbar host window (win_toolbar); state lives in toolbar->userdata
   window_t *sidebar_child;  // WINDOW_SIDEBAR: the single child that fills the left panel
   int       sidebar_width;  // WINDOW_SIDEBAR: width of the sidebar panel (0 = SIDEBAR_DEFAULT_WIDTH)
   layout_t layout;
@@ -373,6 +377,11 @@ static inline void window_set_state(window_t *win, uint32_t state_flag, bool ena
     win->flags |= state_flag;
   else
     win->flags &= ~state_flag;
+}
+
+static inline toolbar_state_t *window_toolbar_state(window_t *win) {
+  if (!win || !win->toolbar) return NULL;
+  return (toolbar_state_t *)win->toolbar->userdata;
 }
 
 // Returns the combined height of the non-client title bar and (if WINDOW_TOOLBAR

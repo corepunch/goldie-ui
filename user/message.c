@@ -67,19 +67,58 @@ static result_t win_toolbar_sep(window_t *win, uint32_t msg,
   return 0;
 }
 
+static result_t win_toolbar(window_t *win, uint32_t msg,
+                            uint32_t wparam, void *lparam) {
+  (void)wparam;
+  switch (msg) {
+    case evCreate:
+      if (!win->userdata) {
+        allocate_window_data(win, sizeof(toolbar_state_t));
+      }
+      return true;
+    case evDestroy: {
+      toolbar_state_t *tb = (toolbar_state_t *)win->userdata;
+      if (tb && tb->strip_tex) {
+        R_DeleteTexture(tb->strip_tex);
+        tb->strip_tex = 0;
+      }
+      return true;
+    }
+    default:
+      (void)lparam;
+      return false;
+  }
+}
+
 // Destroy all toolbar children of win.
-// Must be called before the toolbar_children pointer is repurposed or the
-// window is freed, since each child's evDestroy frees its state.
+// Must be called before window teardown so each child's evDestroy can run.
 void clear_toolbar_children(window_t *win);  // defined in window.c
+
+static toolbar_state_t *ensure_toolbar_state(window_t *win) {
+  if (!win || !(win->flags & WINDOW_TOOLBAR)) return NULL;
+  if (!win->toolbar) {
+    irect16_t r = {0, 0, 0, 0};
+    win->toolbar = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL |
+                                      WINDOW_NOTABSTOP | WINDOW_HIDDEN,
+                                 &r, win, win_toolbar, win->hinstance, NULL);
+    if (!win->toolbar) return NULL;
+  }
+  return window_toolbar_state(win);
+}
+
+static toolbar_state_t *get_toolbar_state(window_t *win) {
+  return window_toolbar_state(win);
+}
 
 // Returns the effective toolbar button size for win.
 static int toolbar_effective_bsz(window_t const *win) {
-  return (win->toolbar_btn_size > 0) ? win->toolbar_btn_size : TB_SPACING;
+  toolbar_state_t *tb = window_toolbar_state((window_t *)win);
+  return (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
 }
 
 // Create one toolbar child window at the given toolbar-band-relative position,
 // then remove it from parent->children (where create_window puts it) so the
-// caller can add it to parent->toolbar_children.
+// caller can add it to toolbar state children.
 // Frames are relative to the toolbar band top-left (not screen-absolute).
 // For BUTTON items: sets btnSetImage if a sysicon or custom strip.
 static window_t *create_toolbar_child(window_t *parent, winproc_t proc,
@@ -127,15 +166,16 @@ static window_t *create_toolbar_child(window_t *parent, winproc_t proc,
   tc->frame.h = h;
   // Wire up icon image for button children.
   if (proc == win_toolbar_button && icon >= 0) {
+    toolbar_state_t *tb = get_toolbar_state(parent);
     if (icon >= SYSICON_BASE) {
       bitmap_strip_t *sys = ui_get_sysicon_strip();
       if (sys) {
         send_message(tc, btnSetImage,
                      (uint32_t)(icon - SYSICON_BASE), sys);
       }
-    } else if (parent->toolbar_strip.tex != 0) {
+    } else if (tb && tb->strip.tex != 0) {
       send_message(tc, btnSetImage,
-                   (uint32_t)icon, &parent->toolbar_strip);
+                   (uint32_t)icon, &tb->strip);
     }
   }
   return tc;
@@ -145,12 +185,14 @@ static window_t *create_toolbar_child(window_t *parent, winproc_t proc,
 static void layout_toolbar_items(window_t *parent,
                                   const toolbar_item_t *items,
                                   uint32_t n) {
+  toolbar_state_t *tb = ensure_toolbar_state(parent);
+  if (!tb) return;
   int bsz     = toolbar_effective_bsz(parent);
   int base_x  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
   int base_y  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
   int field_y = base_y + 2;
   int field_h = bsz > 4 ? (bsz - 4) : bsz;
-  window_t **tail = &parent->toolbar_children;
+  window_t **tail = &tb->children;
   while (*tail) tail = &(*tail)->next;
   for (uint32_t i = 0; i < n; i++) {
     const toolbar_item_t *item = &items[i];
@@ -226,7 +268,7 @@ static void layout_toolbar_items(window_t *parent,
       }
     }
   }
-  layout_flow_horizontal(parent->toolbar_children, base_x, TOOLBAR_SPACING);
+  layout_flow_horizontal(tb->children, base_x, TOOLBAR_SPACING);
 }
 
 // Window hooks
@@ -581,6 +623,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
                           TEXT_PADDING_LEFT);
         }
         if (win->flags&WINDOW_TOOLBAR) {
+          toolbar_state_t *tb = ensure_toolbar_state(win);
           int bsz      = toolbar_effective_bsz(win);
           int title_h  = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
           int total_h  = bsz + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
@@ -593,7 +636,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           // top-left corner (consistent with how send_message dispatches evPaint
           // for regular child windows).  tc->frame.x/y are toolbar-band-relative.
           set_viewport(tb_rect);
-          for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
+          for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
             set_projection(-tc->frame.x, -tc->frame.y,
                            win->frame.w - tc->frame.x, total_h - tc->frame.y);
             tc->proc(tc, evPaint, 0, NULL);
@@ -649,6 +692,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       break;
     case tbSetItems:
       // Replace existing toolbar children with new mixed-type item children.
+      ensure_toolbar_state(win);
       clear_toolbar_children(win);
       if (wparam > 0 && lparam) {
         layout_toolbar_items(win, (const toolbar_item_t *)lparam, wparam);
@@ -672,18 +716,23 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       break;
     }
     case tbSetStrip:
+      {
+      toolbar_state_t *tb = ensure_toolbar_state(win);
+      if (!tb) break;
       if (lparam) {
-        memcpy(&win->toolbar_strip, lparam, sizeof(bitmap_strip_t));
+        memcpy(&tb->strip, lparam, sizeof(bitmap_strip_t));
       } else {
-        memset(&win->toolbar_strip, 0, sizeof(bitmap_strip_t));
+        memset(&tb->strip, 0, sizeof(bitmap_strip_t));
       }
       invalidate_window(win);
       break;
+      }
     case tbSetActiveButton: {
       // Mark the toolbar child whose id == wparam as active (value=true);
       // clear all others.
+      toolbar_state_t *tb = get_toolbar_state(win);
       uint32_t ident = wparam;
-      for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
+      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
         bool active = (tc->id == ident);
         if (tc->value != active) {
           tc->value = active;
@@ -693,7 +742,9 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       break;
     }
     case tbSetButtonSize: {
-      int old_btn_size = win->toolbar_btn_size;
+      toolbar_state_t *tb = ensure_toolbar_state(win);
+      if (!tb) break;
+      int old_btn_size = tb->btn_size;
       // Accept 0 (reset to default TB_SPACING) or a positive value >= 8.
       // Values in [1,7] are rejected: bsz is used as a divisor in toolbar
       // column-count calculations (win->frame.w / bsz) and very small sizes
@@ -701,7 +752,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       int new_btn_size = (int)wparam;
       if (new_btn_size != 0 && new_btn_size < 8) new_btn_size = 8;
       if (old_btn_size != new_btn_size) {
-        win->toolbar_btn_size = new_btn_size;
+        tb->btn_size = new_btn_size;
         post_message(win, evRefreshStencil, 0, NULL);
         invalidate_window(get_root_window(win));
       }
@@ -710,11 +761,13 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case tbLoadStrip: {
       // wparam = icon tile size (square, pixels); lparam = const char* path
       // Loads a PNG (with native RGBA transparency) and stores it as a GL
-      // texture in win->toolbar_strip.  The window owns the texture; freed on
-      // destroy.  Requires graphics to be initialized.
+      // texture in toolbar state strip. The toolbar host owns the texture;
+      // freed on toolbar destroy. Requires graphics to be initialized.
       const char *path = (const char *)lparam;
       int tile_sz = (int)wparam;
       if (!path || tile_sz <= 0 || !g_ui_runtime.running) break;
+      toolbar_state_t *tb = ensure_toolbar_state(win);
+      if (!tb) break;
       int w = 0, h = 0;
       uint8_t *src = load_image(path, &w, &h);
       if (!src) break;
@@ -725,16 +778,16 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
       // Use the PNG's native RGBA data: real artist colors and PNG alpha channel.
       // Free any previously framework-owned texture via the renderer.
-      R_DeleteTexture(win->toolbar_strip_tex);
+      R_DeleteTexture(tb->strip_tex);
       uint32_t tex = R_CreateTextureRGBA(w, h, src, R_FILTER_NEAREST, R_WRAP_CLAMP);
       image_free(src);
-      win->toolbar_strip_tex    = tex;
-      win->toolbar_strip.tex    = tex;
-      win->toolbar_strip.icon_w = tile_sz;
-      win->toolbar_strip.icon_h = tile_sz;
-      win->toolbar_strip.cols   = w / tile_sz;
-      win->toolbar_strip.sheet_w = w;
-      win->toolbar_strip.sheet_h = h;
+      tb->strip_tex = tex;
+      tb->strip.tex = tex;
+      tb->strip.icon_w = tile_sz;
+      tb->strip.icon_h = tile_sz;
+      tb->strip.cols = w / tile_sz;
+      tb->strip.sheet_w = w;
+      tb->strip.sheet_h = h;
       invalidate_window(win);
       break;
     }
@@ -863,13 +916,14 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // release: find the child under the cursor, pre-set pressed, and send
         // LeftButtonUp so win_toolbar_button fires its command normally.
         if ((win->flags & WINDOW_TOOLBAR) && (win->flags & WINDOW_NOTITLE)) {
+          toolbar_state_t *tb = get_toolbar_state(win);
           int sx = (int)(int16_t)LOWORD(wparam);
           int sy = (int)(int16_t)HIWORD(wparam);
           // Convert screen-absolute coords to toolbar-band-relative.
           int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
           int tb_x = sx - win->frame.x;
           int tb_y = sy - (win->frame.y + title_h);
-          for (window_t *tc = win->toolbar_children; tc; tc = tc->next) {
+          for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
             if (CONTAINS(tb_x, tb_y, tc->frame.x, tc->frame.y, tc->frame.w, tc->frame.h)) {
               window_set_state(tc, WINDOW_STATE_PRESSED, true);
               send_message(tc, evLeftButtonUp,
@@ -991,9 +1045,10 @@ void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
 // (typically < 50).
 bool is_valid_window_ptr(window_t *target, window_t *list) {
   for (window_t *w = list; w; w = w->next) {
+    toolbar_state_t *tb = get_toolbar_state(w);
     if (w == target) return true;
     if (is_valid_window_ptr(target, w->children)) return true;
-    if (is_valid_window_ptr(target, w->toolbar_children)) return true;
+    if (is_valid_window_ptr(target, tb ? tb->children : NULL)) return true;
   }
   return false;
 }
