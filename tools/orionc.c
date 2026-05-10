@@ -1015,6 +1015,147 @@ static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
   return true;
 }
 
+static const char *db_action_kind_c_token(const char *kind) {
+  if (!kind || !*kind || !strcmp(kind, "fetch")) return "DB_ACTION_FETCH";
+  if (!strcmp(kind, "insert")) return "DB_ACTION_INSERT";
+  if (!strcmp(kind, "update")) return "DB_ACTION_UPDATE";
+  if (!strcmp(kind, "delete")) return "DB_ACTION_DELETE";
+  return "DB_ACTION_CUSTOM";
+}
+
+static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *prefix) {
+  int source_count = 0;
+  int binding_count = 0;
+  int action_count = 0;
+
+  for (xmlNodePtr n = database ? database->children : NULL; n; n = n->next) {
+    if (is_element(n, "source")) source_count++;
+    else if (is_element(n, "binding")) binding_count++;
+    else if (is_element(n, "action")) action_count++;
+  }
+
+  if (source_count > 0) {
+    fprintf(f, "static const db_source_def_t %s_db_sources[] = {\n", prefix);
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "source")) continue;
+      char *name = attr_dup(n, "name");
+      char *model = attr_dup(n, "model");
+      fputs("  { ", f);
+      fprint_c_string(f, nonempty(name, ""));
+      fputs(", ", f);
+      fprint_c_string(f, nonempty(model, ""));
+      fputs(" },\n", f);
+      free(name);
+      free(model);
+    }
+    fputs("};\n\n", f);
+  }
+
+  if (binding_count > 0) {
+    int binding_index = 0;
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "binding")) continue;
+      int col_count = 0;
+      for (xmlNodePtr c = n->children; c; c = c->next)
+        if (is_element(c, "column")) col_count++;
+      if (col_count <= 0) {
+        binding_index++;
+        continue;
+      }
+
+      char *bname = attr_dup(n, "name");
+      char bident[128];
+      make_ident(bident, sizeof(bident), nonempty(bname, "binding"));
+      fprintf(f, "static const db_binding_column_t %s_db_bind_%s_%d_cols[] = {\n",
+              prefix, bident, binding_index);
+      for (xmlNodePtr c = n->children; c; c = c->next) {
+        if (!is_element(c, "column")) continue;
+        char *field = attr_dup(c, "field");
+        char *title = attr_dup(c, "title");
+        char *width = attr_dup(c, "width");
+        fputs("  { ", f);
+        fprint_c_string(f, nonempty(field, ""));
+        fputs(", ", f);
+        fprint_c_string(f, nonempty(title, nonempty(field, "")));
+        fprintf(f, ", %d },\n", width ? atoi(width) : 0);
+        free(field);
+        free(title);
+        free(width);
+      }
+      fputs("};\n\n", f);
+      free(bname);
+      binding_index++;
+    }
+
+    fprintf(f, "static const db_view_binding_t %s_db_bindings[] = {\n", prefix);
+    binding_index = 0;
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "binding")) continue;
+      int col_count = 0;
+      for (xmlNodePtr c = n->children; c; c = c->next)
+        if (is_element(c, "column")) col_count++;
+      char *name = attr_dup(n, "name");
+      char *source = attr_dup(n, "source");
+      char *view = attr_dup(n, "view");
+      char bident[128];
+      make_ident(bident, sizeof(bident), nonempty(name, "binding"));
+      fputs("  { ", f);
+      fprint_c_string(f, nonempty(name, ""));
+      fputs(", ", f);
+      fprint_c_string(f, nonempty(source, ""));
+      fputs(", ", f);
+      fprint_c_string(f, nonempty(view, ""));
+      if (col_count > 0) {
+        fprintf(f, ", %s_db_bind_%s_%d_cols, %d },\n",
+                prefix, bident, binding_index, col_count);
+      } else {
+        fputs(", NULL, 0 },\n", f);
+      }
+      free(name);
+      free(source);
+      free(view);
+      binding_index++;
+    }
+    fputs("};\n\n", f);
+  }
+
+  if (action_count > 0) {
+    fprintf(f, "static const db_action_def_t %s_db_actions[] = {\n", prefix);
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "action")) continue;
+      char *name = attr_dup(n, "name");
+      char *kind = attr_dup_first(n, "kind", "type");
+      char *source = attr_dup(n, "source");
+      char *target = attr_dup(n, "target");
+      fputs("  { ", f);
+      fprint_c_string(f, nonempty(name, ""));
+      fprintf(f, ", %s, ", db_action_kind_c_token(kind));
+      fprint_c_string(f, nonempty(source, ""));
+      fputs(", ", f);
+      fprint_c_string(f, nonempty(target, ""));
+      fputs(" },\n", f);
+      free(name);
+      free(kind);
+      free(source);
+      free(target);
+    }
+    fputs("};\n\n", f);
+  }
+
+  fprintf(f, "static const db_api_def_t %s_database_api = { ", prefix);
+  if (source_count > 0) fprintf(f, ".sources = %s_db_sources, ", prefix);
+  else fputs(".sources = NULL, ", f);
+  fprintf(f, ".source_count = %d, ", source_count);
+  if (binding_count > 0) fprintf(f, ".bindings = %s_db_bindings, ", prefix);
+  else fputs(".bindings = NULL, ", f);
+  fprintf(f, ".binding_count = %d, ", binding_count);
+  if (action_count > 0) fprintf(f, ".actions = %s_db_actions, ", prefix);
+  else fputs(".actions = NULL, ", f);
+  fprintf(f, ".action_count = %d };\n\n", action_count);
+
+  return true;
+}
+
 static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *id = attr_dup(form, "name");
   char *title = attr_dup(form, "title");
@@ -1129,6 +1270,7 @@ int main(int argc, char **argv) {
   ident_list_t command_ids = {0};
   xmlNodePtr menus = first_child_element(root, "menus");
   xmlNodePtr toolbars = first_child_element(root, "toolbars");
+  xmlNodePtr database = first_child_element(root, "database");
   xmlNodePtr forms = first_child_element(root, "forms");
 
   if (!collect_menu_idents(&command_ids, menus)) {
@@ -1168,6 +1310,11 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (!emit_toolbar_resources(f, toolbars)) {
+    fclose(f);
+    xmlFreeDoc(doc);
+    return 1;
+  }
+  if (!emit_database_resources(f, database, prefix_ident)) {
     fclose(f);
     xmlFreeDoc(doc);
     return 1;

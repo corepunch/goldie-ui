@@ -115,6 +115,8 @@ post_t    *post_create(const char *author, const char *title, const char *body);
 void       post_free(post_t *p);
 bool       post_add_comment(post_t *p, comment_t *c);
 void       post_like(post_t *p);
+bool       socialfeed_post_field_text(const post_t *p, const char *field,
+                                      char *buf, size_t buf_sz);
 
 // ============================================================
 // Controller functions (controller_app.c)

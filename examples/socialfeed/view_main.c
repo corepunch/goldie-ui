@@ -10,10 +10,38 @@
 //                  width on resize
 // ============================================================
 
-static int feed_title_width(window_t *win) {
-  irect16_t cr  = get_client_rect(win);
-  int fixed  = FEED_AUTHOR_W + FEED_LIKES_W + FEED_COMMENTS_W;
-  int avail  = cr.w - fixed;
+static const db_binding_column_t kFeedFallbackCols[] = {
+  { "title", "Title", 0 },
+  { "author", "Author", FEED_AUTHOR_W },
+  { "like_count", "Likes", FEED_LIKES_W },
+  { "comment_count", "Comments", FEED_COMMENTS_W },
+};
+
+static const db_view_binding_t kFeedFallbackBinding = {
+  .name = "feed_posts_report",
+  .source = "feed_posts",
+  .view = "feed",
+  .columns = kFeedFallbackCols,
+  .column_count = (int)(sizeof(kFeedFallbackCols) / sizeof(kFeedFallbackCols[0])),
+};
+
+static const db_view_binding_t *feed_binding(void) {
+  const db_view_binding_t *binding =
+      db_api_find_binding(&socialfeed_database_api, "feed_posts_report");
+  if (!binding || !binding->columns || binding->column_count <= 0)
+    return &kFeedFallbackBinding;
+  return binding;
+}
+
+static int feed_primary_width(window_t *win, const db_view_binding_t *binding) {
+  irect16_t cr = get_client_rect(win);
+  int fixed = 0;
+  int cols = binding ? binding->column_count : 0;
+  for (int i = 1; i < cols; i++) {
+    if (binding->columns[i].width > 0)
+      fixed += binding->columns[i].width;
+  }
+  int avail = cr.w - fixed;
   return (avail < 20) ? 20 : avail;
 }
 
@@ -21,8 +49,11 @@ result_t feed_list_proc(window_t *win, uint32_t msg,
                         uint32_t wparam, void *lparam) {
   result_t r = win_reportview(win, msg, wparam, lparam);
   if (msg == evResize) {
-    send_message(win, RVM_SETREPORTCOLUMNWIDTH, 0,
-                 (void *)(uintptr_t)feed_title_width(win));
+    const db_view_binding_t *binding = feed_binding();
+    if (binding && binding->column_count > 0 && binding->columns[0].width <= 0) {
+      send_message(win, RVM_SETREPORTCOLUMNWIDTH, 0,
+                   (void *)(uintptr_t)feed_primary_width(win, binding));
+    }
   }
   return r;
 }
@@ -39,44 +70,55 @@ void feed_refresh(void) {
   send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
   send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
 
-  reportview_column_t col_title    = { "Title",    0                };
-  reportview_column_t col_author   = { "Author",   FEED_AUTHOR_W    };
-  reportview_column_t col_likes    = { "Likes",    FEED_LIKES_W     };
-  reportview_column_t col_comments = { "Comments", FEED_COMMENTS_W  };
+  const db_view_binding_t *binding = feed_binding();
+  int col_count = binding ? binding->column_count : 0;
+  if (col_count > REPORTVIEW_MAX_SUBITEMS + 1)
+    col_count = REPORTVIEW_MAX_SUBITEMS + 1;
+  if (col_count <= 0) col_count = 1;
 
-  send_message(win, RVM_ADDCOLUMN, 0, &col_title);
-  send_message(win, RVM_ADDCOLUMN, 0, &col_author);
-  send_message(win, RVM_ADDCOLUMN, 0, &col_likes);
-  send_message(win, RVM_ADDCOLUMN, 0, &col_comments);
+  for (int i = 0; i < col_count; i++) {
+    int width = binding->columns[i].width;
+    if (i == 0 && width <= 0)
+      width = feed_primary_width(win, binding);
+    reportview_column_t col = {
+      .title = binding->columns[i].title,
+      .width = (uint32_t)((width > 0) ? width : 0),
+    };
+    send_message(win, RVM_ADDCOLUMN, 0, &col);
+  }
 
   send_message(win, RVM_CLEAR, 0, NULL);
-
-  char likes_buf[16];
-  char cmts_buf[16];
 
   for (int i = 0; i < g_app->post_count; i++) {
     post_t *p = g_app->posts[i];
     if (!p) continue;
 
-    snprintf(likes_buf, sizeof(likes_buf), "%d", p->like_count);
-    snprintf(cmts_buf,  sizeof(cmts_buf),  "%d", p->comment_count);
+    char cell_buf[REPORTVIEW_MAX_SUBITEMS + 1][128];
+    for (int c = 0; c < col_count; c++) {
+      const char *field = binding->columns[c].field;
+      if (!socialfeed_post_field_text(p, field, cell_buf[c], sizeof(cell_buf[c])))
+        cell_buf[c][0] = '\0';
+    }
 
     reportview_item_t item = {
-      .text          = p->title,
+      .text          = cell_buf[0],
       .icon          = icon8_editor_helmet,
       .color         = get_sys_color(brTextNormal),
       .userdata      = (uint32_t)i,
-      .subitems      = { p->author, likes_buf, cmts_buf },
-      .subitem_count = 3,
+      .subitem_count = (uint32_t)((col_count > 0) ? (col_count - 1) : 0),
     };
+    for (int c = 1; c < col_count; c++)
+      item.subitems[c - 1] = cell_buf[c];
     send_message(win, RVM_ADDITEM, 0, &item);
   }
 
   if (g_app->selected_idx >= 0 && g_app->selected_idx < g_app->post_count)
     send_message(win, RVM_SETSELECTION, (uint32_t)g_app->selected_idx, NULL);
 
-  send_message(win, RVM_SETREPORTCOLUMNWIDTH, 0,
-               (void *)(uintptr_t)feed_title_width(win));
+  if (binding->column_count > 0 && binding->columns[0].width <= 0) {
+    send_message(win, RVM_SETREPORTCOLUMNWIDTH, 0,
+                 (void *)(uintptr_t)feed_primary_width(win, binding));
+  }
 
   send_message(win, RVM_SETREDRAW, 1, NULL);
 }

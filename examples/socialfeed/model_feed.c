@@ -121,3 +121,26 @@ bool post_add_comment(post_t *p, comment_t *c) {
 void post_like(post_t *p) {
   if (p) p->like_count++;
 }
+
+bool socialfeed_post_field_text(const post_t *p, const char *field,
+                                char *buf, size_t buf_sz) {
+  if (!p || !field || !buf || buf_sz == 0) return false;
+
+  if (!strcmp(field, "title")) {
+    snprintf(buf, buf_sz, "%s", p->title ? p->title : "");
+    return true;
+  }
+  if (!strcmp(field, "author")) {
+    snprintf(buf, buf_sz, "%s", p->author ? p->author : "");
+    return true;
+  }
+  if (!strcmp(field, "like_count")) {
+    snprintf(buf, buf_sz, "%d", p->like_count);
+    return true;
+  }
+  if (!strcmp(field, "comment_count")) {
+    snprintf(buf, buf_sz, "%d", p->comment_count);
+    return true;
+  }
+  return false;
+}
