@@ -35,10 +35,19 @@ static const db_view_binding_t *feed_binding(void) {
   return binding;
 }
 
+static int feed_visible_column_count(const db_view_binding_t *binding) {
+  int cols = binding ? binding->column_count : 0;
+  if (cols > REPORTVIEW_MAX_SUBITEMS + 1)
+    cols = REPORTVIEW_MAX_SUBITEMS + 1;
+  if (cols <= 0)
+    cols = 1;
+  return cols;
+}
+
 static int feed_primary_width(window_t *win, const db_view_binding_t *binding) {
   irect16_t cr = get_client_rect(win);
   int fixed = 0;
-  int cols = binding ? binding->column_count : 0;
+  int cols = feed_visible_column_count(binding);
   for (int i = 1; i < cols; i++) {
     if (binding->columns[i].width > 0)
       fixed += binding->columns[i].width;
@@ -73,10 +82,7 @@ void feed_refresh(void) {
   send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
 
   const db_view_binding_t *binding = feed_binding();
-  int col_count = binding ? binding->column_count : 0;
-  if (col_count > REPORTVIEW_MAX_SUBITEMS + 1)
-    col_count = REPORTVIEW_MAX_SUBITEMS + 1;
-  if (col_count <= 0) col_count = 1;
+  int col_count = feed_visible_column_count(binding);
 
   for (int i = 0; i < col_count; i++) {
     int width = binding->columns[i].width;
