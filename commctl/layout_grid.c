@@ -98,7 +98,7 @@ void layout_grid_measure_window(window_t *win, layout_measure_t *m) {
       layout_measure_t cm = layout_measure_child(cell, col_w[col], content_h);
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
       if (cell->layout.layout_fixed_h > row_h[row]) row_h[row] = cell->layout.layout_fixed_h;
-      if (layout_child_is_flex(cell) || (cell->flags & WINDOW_VSCROLL))
+      if (layout_child_is_flex(cell))
         row_flex[row] = true;
     }
   }
@@ -220,7 +220,7 @@ void layout_grid_arrange_window(window_t *win, const irect16_t *rect) {
       cellm[(size_t)col * (size_t)rows + (size_t)row] = cm;
       if (cm.desired_h > row_h[row]) row_h[row] = cm.desired_h;
       if (cell->layout.layout_fixed_h > row_h[row]) row_h[row] = cell->layout.layout_fixed_h;
-      if (layout_child_is_flex(cell) || (cell->flags & WINDOW_VSCROLL))
+      if (layout_child_is_flex(cell))
         row_flex[row] = true;
     }
   }

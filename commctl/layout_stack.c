@@ -69,7 +69,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     int stretch_count = 0;
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-      bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
+      bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
       if (stretchable) stretch_count++;
       else total_fixed += cm.desired_w;
     }
@@ -85,7 +85,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
       if (placed_visual && !prev_was_space && !is_space)
         x += gap;
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-      bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
+      bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
       int cw = stretchable ? stretch_share : cm.desired_w;
       int ch = layout_apply_alignment(content.h, cm.desired_h, child->layout.v_align);
       int cy = content.y;
@@ -104,7 +104,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     int count = 0;
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
-      bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
+      bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
       if (stretchable) stretch_count++;
       else total_fixed += cm.desired_h;
       count++;
@@ -118,7 +118,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
       if (y > content.y) y += gap;
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
       int cw = layout_apply_alignment(content.w, cm.desired_w, child->layout.h_align);
-      bool stretchable = (child->flags & (WINDOW_FLEXSPACE | WINDOW_VSCROLL)) != 0;
+      bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
       int ch = stretchable ? stretch_share : cm.desired_h;
       int cx = content.x;
       if (child->layout.h_align == LAYOUT_ALIGN_CENTER)
