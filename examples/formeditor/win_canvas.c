@@ -760,8 +760,6 @@ static isize16_t default_ctrl_size(int type) {
 // Control type display names for use in caption and name generation.
 static const char *ctrl_type_name(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
-  if (c && c->class_name && strcmp(c->class_name, "button") == 0)
-    return "Button";
   return c ? c->display_name : "Control";
 }
 

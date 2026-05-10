@@ -110,7 +110,7 @@ result_t main_win_proc(window_t *win, uint32_t msg,
 
         g_app->feed_win = create_window(
             "feed",
-            WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
+            WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE,
             MAKERECT(0, 0, cr.w, cr.h),
             g_app->content_win, feed_list_proc, 0, NULL);
       }
