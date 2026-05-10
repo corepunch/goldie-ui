@@ -26,6 +26,14 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - For plugin-provided **UI controls/windows**, use WinAPI-style integration only: register classes, instantiate by class name (`create_window(..., "class_name", ...)`), pass creation state via `lparam`, and communicate through messages/notifications (`evCommand`, control-specific messages). Do **not** design C function-table APIs for window controls unless the feature is explicitly non-window service logic.
 - **Always search the existing framework before inventing new mechanisms.** Orion already has toolbars (`WINDOW_TOOLBAR`), toolbar buttons (`tbAddButtons`), bitmap strips (`bitmap_strip_t`), accelerators, dialogs, status bars, etc. If you need something that sounds like it belongs in a UI framework, look for it first.
 
+### Reuse-First Architecture Rule (Required)
+
+- **Add new primitives only when reuse is truly impossible.** If existing windows, classes, messages, flags, or layout metadata can express the behavior, use them.
+- **Do not create parallel configuration models.** If orientation/state already exists in flags or class semantics, do not add duplicate fields like separate `layout_orientation` state.
+- **Do not add duplicate declarative knobs for existing behavior.** If layout type is already represented by class/proc (`stack`, `grid`, `column`), do not add another independent selector that encodes the same thing.
+- **Prefer class/proc-driven behavior over global mode switches.** In WinAPI style, behavior belongs to window classes and message handlers, not to app-wide enum dispatchers.
+- **For layout engines, split by responsibility.** Avoid one monolithic layout function with long `if (stack)`, `if (grid)`, `if (column)` chains. Keep shared math in helpers, but keep container-specific measure/arrange logic in focused functions tied to each container type.
+
 ### Scrollbars — Built-in vs. Standalone
 
 **`WINDOW_HSCROLL` / `WINDOW_VSCROLL` — built-in scrollbars on a window**
@@ -938,6 +946,10 @@ UI-specific application of the same rule:
 7. **Don't use `win->frame` dimensions for client-space paint/layout/hit-testing.** `win->frame` includes non-client chrome (title/borders), so using it for client math pushes rows and button strips into clipped areas. For widget geometry, always derive from `irect16_t cr = get_client_rect(win)` and use `cr.w` / `cr.h` (plus `rect_*` helpers) in both paint and hit paths. Use `win->frame` only for operations that explicitly need outer-frame metrics.
 
 8. **Don't add `WINDOW_FLEXSPACE` to grid columns expecting them to expand.** Grid columns without explicit `layout_fixed_w` automatically share available width equally (WPF `Width="*"` semantics). `WINDOW_FLEXSPACE` is a **stack concept only** — it tells a stack child to expand along the stack axis. In grids, space distribution is automatic and uniform across auto-width columns.
+
+9. **Don't add duplicate layout state when existing flags/classes already encode it.** For example, do not introduce separate `layout_orientation` fields if `WINDOW_STACK_HORIZONTAL` (plus class/proc identity) already defines orientation semantics.
+
+10. **Don't centralize all layout kinds into one giant dispatcher function.** A large `layout.c` function with repeated `if (stack/grid/...)` branches is hard to extend and easy to break. Prefer small, type-specific measure/arrange helpers wired through each container's window procedure, with shared utilities only for common math.
 
 ### Window Class Enhancements (Planned)
 
