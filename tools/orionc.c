@@ -1016,7 +1016,8 @@ static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
 }
 
 static const char *db_action_kind_c_token(const char *kind) {
-  if (!kind || !*kind || !strcmp(kind, "fetch")) return "DB_ACTION_FETCH";
+  if (!kind || !*kind) return "DB_ACTION_CUSTOM";
+  if (!strcmp(kind, "fetch")) return "DB_ACTION_FETCH";
   if (!strcmp(kind, "insert")) return "DB_ACTION_INSERT";
   if (!strcmp(kind, "update")) return "DB_ACTION_UPDATE";
   if (!strcmp(kind, "delete")) return "DB_ACTION_DELETE";

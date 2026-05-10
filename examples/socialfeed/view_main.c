@@ -96,8 +96,10 @@ void feed_refresh(void) {
     char cell_buf[REPORTVIEW_MAX_SUBITEMS + 1][128];
     for (int c = 0; c < col_count; c++) {
       const char *field = binding->columns[c].field;
-      if (!socialfeed_post_field_text(p, field, cell_buf[c], sizeof(cell_buf[c])))
+      if (!socialfeed_post_field_text(p, field, cell_buf[c], sizeof(cell_buf[c]))) {
         cell_buf[c][0] = '\0';
+        SF_DEBUG("feed binding missing field mapping: '%s'", field ? field : "");
+      }
     }
 
     reportview_item_t item = {
