@@ -143,12 +143,12 @@ void test_reportview_wheel_in_grid(void) {
     // Create two columns: preview + reportview (simulating filter gallery)
     window_t *col1 = create_window("col1", WINDOW_NOTITLE | WINDOW_NOFILL,
                                    MAKERECT(0, 0, 180, 300), grid,
-                                   win_column, 0, NULL);
+                                   "column", 0, NULL);
     col1->flags |= WINDOW_AUTO_LAYOUT;
     
     window_t *col2 = create_window("col2", WINDOW_NOTITLE | WINDOW_NOFILL,
                                    MAKERECT(0, 0, 180, 300), grid,
-                                   win_column, 0, NULL);
+                                   "column", 0, NULL);
     col2->flags |= WINDOW_AUTO_LAYOUT;
     
     // Create reportview in second column

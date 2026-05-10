@@ -2307,7 +2307,7 @@ void test_fe_grid_creates_default_columns_and_columns_restrict_parent(void) {
     window_t *grid = create_window("",
                                    WINDOW_NOTITLE | WINDOW_NOFILL,
                                    MAKERECT(0, 0, 120, 80),
-                                   root, win_gridview, 0, NULL);
+                                   root, "gridview", 0, NULL);
     ASSERT_NOT_NULL(grid);
     send_message(grid, evInitChildren, 0, NULL);
     ASSERT_NOT_NULL(grid->children);

@@ -66,7 +66,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   window_t *grid = create_window("",
     WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, 0, 1, 1),
-    dialog, win_gridview, 0, NULL);
+    dialog, "gridview", 0, NULL);
   ASSERT_NOT_NULL(grid);
   grid->layout.layout_spacing = 8;
   
@@ -74,7 +74,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   window_t *col1 = create_window("",
     WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, 0, 1, 1),
-    grid, win_column, 0, NULL);
+    grid, "column", 0, NULL);
   ASSERT_NOT_NULL(col1);
   
   window_t *preview = create_window("Preview",
@@ -89,7 +89,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   window_t *col2 = create_window("",
     WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, 0, 1, 1),
-    grid, win_column, 0, NULL);
+    grid, "column", 0, NULL);
   ASSERT_NOT_NULL(col2);
   
   window_t *reportview = create_window("",
@@ -102,7 +102,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   window_t *btn_stack = create_window("",
     WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, 0, 1, 1),
-    dialog, win_stackview, 0, NULL);
+    dialog, "stackview", 0, NULL);
   ASSERT_NOT_NULL(btn_stack);
   btn_stack->flags |= WINDOW_STACK_HORIZONTAL;
   btn_stack->layout.layout_spacing = 6;
