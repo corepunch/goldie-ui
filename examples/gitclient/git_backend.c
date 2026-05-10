@@ -465,7 +465,10 @@ static GIT_THREAD_RET git_async_worker(void *arg) {
 
   git_async_result_t *result =
       (git_async_result_t *)calloc(1, sizeof(git_async_result_t));
-  if (!result) { free(a); return (GIT_THREAD_RET)(intptr_t)0; }
+  if (!result) {
+    free(a);
+    return 0;
+  }
 
   result->op = a->op;
 
@@ -477,7 +480,7 @@ static GIT_THREAD_RET git_async_worker(void *arg) {
   post_message(a->notify_win, evGitOpDone, (uint32_t)a->op, result);
 
   free(a);
-  return (GIT_THREAD_RET)(intptr_t)0;
+  return 0;
 }
 
 bool git_run_async(git_repo_t *repo, git_op_t op,
