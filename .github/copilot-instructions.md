@@ -921,6 +921,8 @@ Apply this to **all Orion code**, not only palettes/widgets.
 6. **Prefer configuration tables over if/else chains for field/action dispatch.**
   When mapping identifiers (field names, commands, actions) to behavior, use static arrays
   of structs plus shared dispatch helpers (DDX-style) so new mappings are data changes, not logic forks.
+7. **Use Action-Message DDX for data object handlers.**
+  Keep `msg` as the action verb (for example, get/set field data) and pass field identity + payload length in packed `wparam` (`MAKEDWORD(column_id, len)`). This keeps object handlers aligned with WinAPI-style message contracts and allows one proc to serve multiple models/tables.
 
 Why this is now the standard:
 - Improves readability by making control flow and intent obvious from function names.

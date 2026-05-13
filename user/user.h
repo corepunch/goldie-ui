@@ -298,9 +298,18 @@ typedef struct {
 typedef result_t (*db_object_proc_t)(const void *object, uint32_t msg,
                                      uint32_t wparam, void *lparam);
 
+// Action verbs for database object handlers (Action-Message DDX pattern).
+// msg carries the verb; wparam carries packed payload metadata.
+typedef enum {
+  dbObjGetFieldText = 1,
+  dbObjSetFieldText,
+} db_object_action_t;
+
+// Field-to-column lookup used by db_object_get_field_text().
+// The mapped column_id is packed into LOWORD(wparam).
 typedef struct {
   const char *field;
-  uint32_t    msg;
+  uint16_t    column_id;
 } db_field_msg_binding_t;
 
 const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
