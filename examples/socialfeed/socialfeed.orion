@@ -38,14 +38,22 @@
     </toolbars>
 
     <database>
+      <!-- NeXTSTEP-style master/detail shape: one source+binding per table view -->
       <source name="feed_posts" model="post" />
+      <source name="feed_comments" model="comment" />
       <binding name="feed_posts_report" source="feed_posts" view="feed">
         <column field="title" title="Title" width="0" />
         <column field="author" title="Author" width="80" />
         <column field="like_count" title="Likes" width="50" />
         <column field="comment_count" title="Comments" width="55" />
       </binding>
+      <binding name="post_comments_report" source="feed_comments" view="comments">
+        <column field="author" title="Author" width="70" />
+        <column field="text" title="Text" width="0" />
+        <column field="like_count" title="Likes" width="45" />
+      </binding>
       <action name="fetch_feed" type="fetch" source="feed_posts" target="feed" />
+      <action name="fetch_comments" type="fetch" source="feed_comments" target="comments" />
     </database>
 
     <forms>

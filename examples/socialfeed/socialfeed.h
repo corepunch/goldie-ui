@@ -117,6 +117,8 @@ bool       post_add_comment(post_t *p, comment_t *c);
 void       post_like(post_t *p);
 bool       socialfeed_post_field_text(const post_t *p, const char *field,
                                       char *buf, size_t buf_sz);
+bool       socialfeed_comment_field_text(const comment_t *c, const char *field,
+                                         char *buf, size_t buf_sz);
 
 // ============================================================
 // Controller functions (controller_app.c)
