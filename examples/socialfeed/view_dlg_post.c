@@ -14,6 +14,8 @@
 
 #include "socialfeed.h"
 
+#define COMMENT_CELL_TEXT_MAX 256
+
 // ============================================================
 // Flat comment item — represents one row in the comment list
 // (either a top-level comment or a reply)
@@ -47,6 +49,58 @@ typedef struct {
   flat_sel_t   selection;   // stable identity; resolved to flat index on demand
   window_t    *comments_win;
 } post_detail_t;
+
+static const db_binding_column_t kCommentFallbackCols[] = {
+  { "author", "Author", 70 },
+  { "text", "Text", 0 },
+  { "like_count", "Likes", 45 },
+};
+
+static const db_view_binding_t kCommentFallbackBinding = {
+  .name = "post_comments_report",
+  .source = "feed_comments",
+  .view = "comments",
+  .columns = kCommentFallbackCols,
+  .column_count = (int)(sizeof(kCommentFallbackCols) / sizeof(kCommentFallbackCols[0])),
+};
+
+static const db_view_binding_t *comment_binding(void) {
+  const db_view_binding_t *binding =
+      db_api_find_binding_for_view(&socialfeed_database_api, "comments");
+  if (!binding || !binding->columns || binding->column_count <= 0)
+    return &kCommentFallbackBinding;
+  return binding;
+}
+
+static int comment_visible_column_count(const db_view_binding_t *binding) {
+  int cols = binding ? binding->column_count : 0;
+  if (cols > REPORTVIEW_MAX_SUBITEMS + 1)
+    cols = REPORTVIEW_MAX_SUBITEMS + 1;
+  if (cols <= 0)
+    cols = 1;
+  return cols;
+}
+
+static int comment_primary_width(window_t *win, const db_view_binding_t *binding) {
+  irect16_t cr = get_client_rect(win);
+  int fixed = 0;
+  int cols = comment_visible_column_count(binding);
+  for (int i = 1; i < cols; i++) {
+    if (binding->columns[i].width > 0)
+      fixed += binding->columns[i].width;
+  }
+  int avail = cr.w - fixed;
+  return (avail < 20) ? 20 : avail;
+}
+
+static int comment_author_column_index(const db_view_binding_t *binding, int col_count) {
+  if (!binding || !binding->columns) return -1;
+  for (int i = 0; i < col_count; i++) {
+    if (binding->columns[i].field && !strcmp(binding->columns[i].field, "author"))
+      return i;
+  }
+  return -1;
+}
 
 // ============================================================
 // build_flat — flatten comments+replies into the flat[] array
@@ -115,6 +169,9 @@ static comment_t *flat_to_comment(post_detail_t *s, int fi) {
 static void refresh_comments(post_detail_t *s) {
   if (!s || !s->comments_win) return;
   window_t *cv = s->comments_win;
+  const db_view_binding_t *binding = comment_binding();
+  int col_count = comment_visible_column_count(binding);
+  int author_col = comment_author_column_index(binding, col_count);
 
   build_flat(s);
 
@@ -122,48 +179,50 @@ static void refresh_comments(post_detail_t *s) {
   send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
   send_message(cv, RVM_CLEARCOLUMNS, 0, NULL);
 
-  irect16_t cr  = get_client_rect(cv);
-  int cv_w   = cr.w;
-  int auth_w  = 70;
-  int like_w  = 45;
-  int text_w  = cv_w - auth_w - like_w;
-  if (text_w < 20) text_w = 20;
-
-  reportview_column_t col_author = { "Author",  (uint32_t)auth_w };
-  reportview_column_t col_text   = { "Text",    (uint32_t)text_w };
-  reportview_column_t col_likes  = { "Likes",   (uint32_t)like_w };
-
-  send_message(cv, RVM_ADDCOLUMN, 0, &col_author);
-  send_message(cv, RVM_ADDCOLUMN, 0, &col_text);
-  send_message(cv, RVM_ADDCOLUMN, 0, &col_likes);
+  for (int i = 0; i < col_count; i++) {
+    int width = binding->columns[i].width;
+    if (i == 0 && width <= 0)
+      width = comment_primary_width(cv, binding);
+    reportview_column_t col = {
+      .title = binding->columns[i].title,
+      .width = (uint32_t)((width > 0) ? width : 0),
+    };
+    send_message(cv, RVM_ADDCOLUMN, 0, &col);
+  }
 
   send_message(cv, RVM_CLEAR, 0, NULL);
-
-  char author_buf[128];
-  char likes_buf[16];
 
   for (int i = 0; i < s->flat_count; i++) {
     flat_item_t *f    = &s->flat[i];
     comment_t   *item = flat_to_comment(s, i);
     if (!item) continue;
 
-    snprintf(likes_buf, sizeof(likes_buf), "%d", item->like_count);
-
-    if (f->is_reply) {
-      snprintf(author_buf, sizeof(author_buf), "→ %s", item->author);
-    } else {
-      strncpy(author_buf, item->author, sizeof(author_buf) - 1);
-      author_buf[sizeof(author_buf) - 1] = '\0';
+    char cell_buf[REPORTVIEW_MAX_SUBITEMS + 1][COMMENT_CELL_TEXT_MAX];
+    for (int c = 0; c < col_count; c++) {
+      const char *field = binding->columns[c].field;
+      if (!socialfeed_comment_field_text(item, field, cell_buf[c], sizeof(cell_buf[c]))) {
+        cell_buf[c][0] = '\0';
+        SF_DEBUG("binding '%s' references unmapped comment field '%s' (add it to socialfeed_comment_field_text)",
+                 binding->name ? binding->name : "",
+                 field ? field : "");
+      }
+    }
+    if (f->is_reply && author_col >= 0) {
+      char author_buf[COMMENT_CELL_TEXT_MAX];
+      snprintf(author_buf, sizeof(author_buf), "→ %s", cell_buf[author_col]);
+      strncpy(cell_buf[author_col], author_buf, sizeof(cell_buf[author_col]) - 1);
+      cell_buf[author_col][sizeof(cell_buf[author_col]) - 1] = '\0';
     }
 
     reportview_item_t row = {
-      .text          = author_buf,
+      .text          = cell_buf[0],
       .icon          = f->is_reply ? -1 : icon8_editor_helmet,
       .color         = get_sys_color(f->is_reply ? brTextDisabled : brTextNormal),
       .userdata      = (uint32_t)i,
-      .subitems      = { item->text, likes_buf },
-      .subitem_count = 2,
+      .subitem_count = (uint32_t)((col_count > 0) ? (col_count - 1) : 0),
     };
+    for (int c = 1; c < col_count; c++)
+      row.subitems[c - 1] = cell_buf[c];
     send_message(cv, RVM_ADDITEM, 0, &row);
   }
 

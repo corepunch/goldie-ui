@@ -166,3 +166,43 @@ bool socialfeed_post_field_text(const post_t *p, const char *field,
   return db_object_get_field_text(kPostFieldBindings, ARRAY_LEN(kPostFieldBindings),
                                   socialfeed_post_proc, p, field, buf, buf_sz);
 }
+
+enum {
+  sfCommentFieldAuthor = 1,
+  sfCommentFieldText,
+  sfCommentFieldLikeCount,
+};
+
+static result_t socialfeed_comment_proc(const void *object, uint32_t msg,
+                                        uint32_t wparam, void *lparam) {
+  const comment_t *c = (const comment_t *)object;
+  char *buf = (char *)lparam;
+  size_t buf_sz = (size_t)wparam;
+  if (!c || !buf || buf_sz == 0) return false;
+
+  switch (msg) {
+    case sfCommentFieldAuthor:
+      snprintf(buf, buf_sz, "%s", c->author ? c->author : "");
+      return true;
+    case sfCommentFieldText:
+      snprintf(buf, buf_sz, "%s", c->text ? c->text : "");
+      return true;
+    case sfCommentFieldLikeCount:
+      snprintf(buf, buf_sz, "%d", c->like_count);
+      return true;
+    default:
+      return false;
+  }
+}
+
+static const db_field_msg_binding_t kCommentFieldBindings[] = {
+  { "author", sfCommentFieldAuthor },
+  { "text", sfCommentFieldText },
+  { "like_count", sfCommentFieldLikeCount },
+};
+
+bool socialfeed_comment_field_text(const comment_t *c, const char *field,
+                                   char *buf, size_t buf_sz) {
+  return db_object_get_field_text(kCommentFieldBindings, ARRAY_LEN(kCommentFieldBindings),
+                                  socialfeed_comment_proc, c, field, buf, buf_sz);
+}
