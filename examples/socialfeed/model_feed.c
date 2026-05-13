@@ -132,65 +132,62 @@ enum {
   sfDbColCommentLikeCount,
 };
 
-typedef enum {
-  sfDbObjectPost = 1,
-  sfDbObjectComment,
-} sf_db_object_kind_t;
-
-typedef struct {
-  sf_db_object_kind_t kind;
-  const void         *ptr;
-} sf_db_object_t;
-
-static result_t socialfeed_db_proc(const void *object, uint32_t msg,
-                                   uint32_t wparam, void *lparam) {
-  // Wrapper lets one proc route both post/comment payloads by kind.
-  const sf_db_object_t *obj = (const sf_db_object_t *)object;
+static result_t socialfeed_post_db_proc(const void *object, uint32_t msg,
+                                        uint32_t wparam, void *lparam) {
+  const post_t *p = (const post_t *)object;
   char *buf = (char *)lparam;
   // Contract from db_object_get_field_text: LOWORD=column_id, HIWORD=buf length.
   uint16_t column_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
-  if (!obj || !obj->ptr || !buf || buf_sz == 0) return false;
+  if (!p || !buf || buf_sz == 0) return false;
 
   switch (msg) {
     case dbObjGetFieldText:
-      if (obj->kind == sfDbObjectPost) {
-        const post_t *p = (const post_t *)obj->ptr;
-        switch (column_id) {
-          case sfDbColPostTitle:
-            snprintf(buf, buf_sz, "%s", p->title ? p->title : "");
-            return true;
-          case sfDbColPostAuthor:
-            snprintf(buf, buf_sz, "%s", p->author ? p->author : "");
-            return true;
-          case sfDbColPostLikeCount:
-            snprintf(buf, buf_sz, "%d", p->like_count);
-            return true;
-          case sfDbColPostCommentCount:
-            snprintf(buf, buf_sz, "%d", p->comment_count);
-            return true;
-          default:
-            return false;
-        }
+      switch (column_id) {
+        case sfDbColPostTitle:
+          snprintf(buf, buf_sz, "%s", p->title ? p->title : "");
+          return true;
+        case sfDbColPostAuthor:
+          snprintf(buf, buf_sz, "%s", p->author ? p->author : "");
+          return true;
+        case sfDbColPostLikeCount:
+          snprintf(buf, buf_sz, "%d", p->like_count);
+          return true;
+        case sfDbColPostCommentCount:
+          snprintf(buf, buf_sz, "%d", p->comment_count);
+          return true;
+        default:
+          return false;
       }
-      if (obj->kind == sfDbObjectComment) {
-        const comment_t *c = (const comment_t *)obj->ptr;
-        switch (column_id) {
-          case sfDbColCommentAuthor:
-            snprintf(buf, buf_sz, "%s", c->author ? c->author : "");
-            return true;
-          case sfDbColCommentText:
-            snprintf(buf, buf_sz, "%s", c->text ? c->text : "");
-            return true;
-          case sfDbColCommentLikeCount:
-            snprintf(buf, buf_sz, "%d", c->like_count);
-            return true;
-          default:
-            return false;
-        }
-      }
-      return false;
 
+    default:
+      return false;
+  }
+}
+
+static result_t socialfeed_comment_db_proc(const void *object, uint32_t msg,
+                                           uint32_t wparam, void *lparam) {
+  const comment_t *c = (const comment_t *)object;
+  char *buf = (char *)lparam;
+  uint16_t column_id = LOWORD(wparam);
+  size_t buf_sz = (size_t)HIWORD(wparam);
+  if (!c || !buf || buf_sz == 0) return false;
+
+  switch (msg) {
+    case dbObjGetFieldText:
+      switch (column_id) {
+        case sfDbColCommentAuthor:
+          snprintf(buf, buf_sz, "%s", c->author ? c->author : "");
+          return true;
+        case sfDbColCommentText:
+          snprintf(buf, buf_sz, "%s", c->text ? c->text : "");
+          return true;
+        case sfDbColCommentLikeCount:
+          snprintf(buf, buf_sz, "%d", c->like_count);
+          return true;
+        default:
+          return false;
+      }
     default:
       return false;
   }
@@ -205,9 +202,8 @@ static const db_field_msg_binding_t kPostFieldBindings[] = {
 
 bool socialfeed_post_field_text(const post_t *p, const char *field,
                                 char *buf, size_t buf_sz) {
-  sf_db_object_t obj = { sfDbObjectPost, p };
   return db_object_get_field_text(kPostFieldBindings, ARRAY_LEN(kPostFieldBindings),
-                                  socialfeed_db_proc, &obj, field, buf, buf_sz);
+                                  socialfeed_post_db_proc, p, field, buf, buf_sz);
 }
 
 static const db_field_msg_binding_t kCommentFieldBindings[] = {
@@ -218,9 +214,8 @@ static const db_field_msg_binding_t kCommentFieldBindings[] = {
 
 bool socialfeed_comment_field_text(const comment_t *c, const char *field,
                                    char *buf, size_t buf_sz) {
-  sf_db_object_t obj = { sfDbObjectComment, c };
   return db_object_get_field_text(kCommentFieldBindings, ARRAY_LEN(kCommentFieldBindings),
-                                  socialfeed_db_proc, &obj, field, buf, buf_sz);
+                                  socialfeed_comment_db_proc, c, field, buf, buf_sz);
 }
 
 bool socialfeed_comment_has_field(const char *field) {
