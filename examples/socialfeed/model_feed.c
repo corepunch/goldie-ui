@@ -133,6 +133,7 @@ static result_t socialfeed_post_proc(const void *object, uint32_t msg,
                                      uint32_t wparam, void *lparam) {
   const post_t *p = (const post_t *)object;
   char *buf = (char *)lparam;
+  // db_object_get_field_text passes buffer size through uint32_t wparam.
   size_t buf_sz = (size_t)wparam;
   if (!p || !buf || buf_sz == 0) return false;
 
@@ -177,6 +178,7 @@ static result_t socialfeed_comment_proc(const void *object, uint32_t msg,
                                         uint32_t wparam, void *lparam) {
   const comment_t *c = (const comment_t *)object;
   char *buf = (char *)lparam;
+  // db_object_get_field_text passes buffer size through uint32_t wparam.
   size_t buf_sz = (size_t)wparam;
   if (!c || !buf || buf_sz == 0) return false;
 
@@ -205,4 +207,14 @@ bool socialfeed_comment_field_text(const comment_t *c, const char *field,
                                    char *buf, size_t buf_sz) {
   return db_object_get_field_text(kCommentFieldBindings, ARRAY_LEN(kCommentFieldBindings),
                                   socialfeed_comment_proc, c, field, buf, buf_sz);
+}
+
+bool socialfeed_comment_has_field(const char *field) {
+  if (!field || !*field) return false;
+  for (int i = 0; i < ARRAY_LEN(kCommentFieldBindings); i++) {
+    if (kCommentFieldBindings[i].field &&
+        !strcmp(kCommentFieldBindings[i].field, field))
+      return true;
+  }
+  return false;
 }

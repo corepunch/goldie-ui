@@ -119,6 +119,7 @@ bool       socialfeed_post_field_text(const post_t *p, const char *field,
                                       char *buf, size_t buf_sz);
 bool       socialfeed_comment_field_text(const comment_t *c, const char *field,
                                          char *buf, size_t buf_sz);
+bool       socialfeed_comment_has_field(const char *field);
 
 // ============================================================
 // Controller functions (controller_app.c)
