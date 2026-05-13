@@ -918,6 +918,9 @@ Apply this to **all Orion code**, not only palettes/widgets.
   details locally where they are used.
 5. **Single-source behavior for each concern.**
   Paint, hit-test, and state transitions should share the same derived logic to avoid drift.
+6. **Prefer configuration tables over if/else chains for field/action dispatch.**
+  When mapping identifiers (field names, commands, actions) to behavior, use static arrays
+  of structs plus shared dispatch helpers (DDX-style) so new mappings are data changes, not logic forks.
 
 Why this is now the standard:
 - Improves readability by making control flow and intent obvious from function names.
@@ -1130,4 +1133,3 @@ Class defaults < Form/parent hints < Instance attributes (.orion)
 - **Issue**: `window_s.child_id` was mutable parent state used only as an incrementing allocator.
 - **Fix**: Replaced with computed allocation (`next_child_id(parent)`) scanning existing `children` and toolbar children.
 - **Lesson**: Avoid storing redundant counters when IDs can be derived from the live tree safely.
-

@@ -295,9 +295,21 @@ typedef struct {
   int                     action_count;
 } db_api_def_t;
 
+typedef result_t (*db_object_proc_t)(const void *object, uint32_t msg,
+                                     uint32_t wparam, void *lparam);
+
+typedef struct {
+  const char *field;
+  uint32_t    msg;
+} db_field_msg_binding_t;
+
 const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
 const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
+const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
 const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
+bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
+                              db_object_proc_t proc, const void *object,
+                              const char *field, char *buf, size_t buf_sz);
 
 typedef struct {
   uint32_t color_index;   // palette index for label text color; 0 = transparent
