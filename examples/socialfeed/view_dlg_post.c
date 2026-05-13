@@ -15,6 +15,7 @@
 #include "socialfeed.h"
 
 #define COMMENT_CELL_TEXT_MAX 256
+static const char kReplyPrefix[] = "-> ";
 
 // ============================================================
 // Flat comment item — represents one row in the comment list
@@ -172,6 +173,7 @@ static void refresh_comments(post_detail_t *s) {
   const db_view_binding_t *binding = comment_binding();
   int col_count = comment_visible_column_count(binding);
   int author_col = comment_author_column_index(binding, col_count);
+  bool mapped_cols[REPORTVIEW_MAX_SUBITEMS + 1] = {0};
 
   build_flat(s);
 
@@ -179,7 +181,23 @@ static void refresh_comments(post_detail_t *s) {
   send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
   send_message(cv, RVM_CLEARCOLUMNS, 0, NULL);
 
+  char (*cell_buf)[COMMENT_CELL_TEXT_MAX] =
+      calloc((size_t)col_count, sizeof(*cell_buf));
+  if (!cell_buf) {
+    SF_DEBUG("comments refresh skipped: OOM allocating %d column text buffers", col_count);
+    send_message(cv, RVM_CLEAR, 0, NULL);
+    send_message(cv, RVM_SETREDRAW, 1, NULL);
+    return;
+  }
+
   for (int i = 0; i < col_count; i++) {
+    const char *field = binding->columns[i].field;
+    mapped_cols[i] = socialfeed_comment_has_field(field);
+    if (!mapped_cols[i]) {
+      SF_DEBUG("binding '%s' references unmapped comment field '%s' (add it to socialfeed_comment_field_text)",
+               binding->name ? binding->name : "",
+               field ? field : "");
+    }
     int width = binding->columns[i].width;
     if (i == 0 && width <= 0)
       width = comment_primary_width(cv, binding);
@@ -197,21 +215,21 @@ static void refresh_comments(post_detail_t *s) {
     comment_t   *item = flat_to_comment(s, i);
     if (!item) continue;
 
-    char cell_buf[REPORTVIEW_MAX_SUBITEMS + 1][COMMENT_CELL_TEXT_MAX];
     for (int c = 0; c < col_count; c++) {
       const char *field = binding->columns[c].field;
-      if (!socialfeed_comment_field_text(item, field, cell_buf[c], sizeof(cell_buf[c]))) {
+      if (!mapped_cols[c] ||
+          !socialfeed_comment_field_text(item, field, cell_buf[c], sizeof(cell_buf[c]))) {
         cell_buf[c][0] = '\0';
-        SF_DEBUG("binding '%s' references unmapped comment field '%s' (add it to socialfeed_comment_field_text)",
-                 binding->name ? binding->name : "",
-                 field ? field : "");
       }
     }
     if (f->is_reply && author_col >= 0) {
-      char author_buf[COMMENT_CELL_TEXT_MAX];
-      snprintf(author_buf, sizeof(author_buf), "→ %s", cell_buf[author_col]);
-      strncpy(cell_buf[author_col], author_buf, sizeof(cell_buf[author_col]) - 1);
-      cell_buf[author_col][sizeof(cell_buf[author_col]) - 1] = '\0';
+      char *author = cell_buf[author_col];
+      size_t len = strlen(author);
+      size_t prefix_len = sizeof(kReplyPrefix) - 1;
+      if (len > COMMENT_CELL_TEXT_MAX - prefix_len - 1)
+        len = COMMENT_CELL_TEXT_MAX - prefix_len - 1;
+      memmove(author + prefix_len, author, len + 1);
+      memcpy(author, kReplyPrefix, prefix_len);
     }
 
     reportview_item_t row = {
@@ -225,6 +243,8 @@ static void refresh_comments(post_detail_t *s) {
       row.subitems[c - 1] = cell_buf[c];
     send_message(cv, RVM_ADDITEM, 0, &row);
   }
+
+  free(cell_buf);
 
   int sel = selection_to_flat(s);
   if (sel >= 0 && sel < s->flat_count)
