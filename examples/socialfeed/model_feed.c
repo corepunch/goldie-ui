@@ -122,25 +122,47 @@ void post_like(post_t *p) {
   if (p) p->like_count++;
 }
 
+enum {
+  sfPostFieldTitle = 1,
+  sfPostFieldAuthor,
+  sfPostFieldLikeCount,
+  sfPostFieldCommentCount,
+};
+
+static result_t socialfeed_post_proc(const void *object, uint32_t msg,
+                                     uint32_t wparam, void *lparam) {
+  const post_t *p = (const post_t *)object;
+  char *buf = (char *)lparam;
+  size_t buf_sz = (size_t)wparam;
+  if (!p || !buf || buf_sz == 0) return false;
+
+  switch (msg) {
+    case sfPostFieldTitle:
+      snprintf(buf, buf_sz, "%s", p->title ? p->title : "");
+      return true;
+    case sfPostFieldAuthor:
+      snprintf(buf, buf_sz, "%s", p->author ? p->author : "");
+      return true;
+    case sfPostFieldLikeCount:
+      snprintf(buf, buf_sz, "%d", p->like_count);
+      return true;
+    case sfPostFieldCommentCount:
+      snprintf(buf, buf_sz, "%d", p->comment_count);
+      return true;
+    default:
+      return false;
+  }
+}
+
+static const db_field_msg_binding_t kPostFieldBindings[] = {
+  { "title", sfPostFieldTitle },
+  { "author", sfPostFieldAuthor },
+  { "like_count", sfPostFieldLikeCount },
+  { "comment_count", sfPostFieldCommentCount },
+};
+
 bool socialfeed_post_field_text(const post_t *p, const char *field,
                                 char *buf, size_t buf_sz) {
-  if (!p || !field || !buf || buf_sz == 0) return false;
-
-  if (!strcmp(field, "title")) {
-    snprintf(buf, buf_sz, "%s", p->title ? p->title : "");
-    return true;
-  }
-  if (!strcmp(field, "author")) {
-    snprintf(buf, buf_sz, "%s", p->author ? p->author : "");
-    return true;
-  }
-  if (!strcmp(field, "like_count")) {
-    snprintf(buf, buf_sz, "%d", p->like_count);
-    return true;
-  }
-  if (!strcmp(field, "comment_count")) {
-    snprintf(buf, buf_sz, "%d", p->comment_count);
-    return true;
-  }
-  return false;
+  return db_object_get_field_text(kPostFieldBindings, ARRAY_LEN(kPostFieldBindings),
+                                  socialfeed_post_proc, p, field, buf, buf_sz);
 }

@@ -27,9 +27,10 @@ static const db_view_binding_t kFeedFallbackBinding = {
   .column_count = (int)(sizeof(kFeedFallbackCols) / sizeof(kFeedFallbackCols[0])),
 };
 
-static const db_view_binding_t *feed_binding(void) {
+static const db_view_binding_t *feed_binding(window_t *view) {
+  const char *view_name = (view && view->title[0]) ? view->title : "feed";
   const db_view_binding_t *binding =
-      db_api_find_binding(&socialfeed_database_api, "feed_posts_report");
+      db_api_find_binding_for_view(&socialfeed_database_api, view_name);
   if (!binding || !binding->columns || binding->column_count <= 0)
     return &kFeedFallbackBinding;
   return binding;
@@ -60,7 +61,7 @@ result_t feed_list_proc(window_t *win, uint32_t msg,
                         uint32_t wparam, void *lparam) {
   result_t r = win_reportview(win, msg, wparam, lparam);
   if (msg == evResize) {
-    const db_view_binding_t *binding = feed_binding();
+    const db_view_binding_t *binding = feed_binding(win);
     if (binding && binding->column_count > 0 && binding->columns[0].width <= 0) {
       send_message(win, RVM_SETREPORTCOLUMNWIDTH, 0,
                    (void *)(uintptr_t)feed_primary_width(win, binding));
@@ -81,7 +82,7 @@ void feed_refresh(void) {
   send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
   send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
 
-  const db_view_binding_t *binding = feed_binding();
+  const db_view_binding_t *binding = feed_binding(win);
   int col_count = feed_visible_column_count(binding);
 
   for (int i = 0; i < col_count; i++) {
