@@ -1,14 +1,6 @@
 #include "../ui.h"
 #include "../user/gl_compat.h"
-
-#if __has_include(<cglm/cglm.h>)
-#  include <cglm/cglm.h>
-#  if __has_include(<cglm/struct.h>)
-#    include <cglm/struct.h>
-#  endif
-#else
-#  include "cglm_compat.h"
-#endif
+#include "fmat16.h"
 
 #define OFFSET_OF(type, field) (void*)((size_t)&(((type *)0)->field))
 
@@ -51,11 +43,11 @@ typedef struct {
   sprite_program_t sprite[UI_RENDER_EFFECT_COUNT];
   GLuint vga_program;    // VGA text renderer program
   R_Mesh mesh;           // Sprite mesh for drawing quads
-  mat4 projection;       // Orthographic projection matrix
+  fmat16_t projection;   // Orthographic projection matrix
 } renderer_system_t;
 
 renderer_system_t g_ref = {0};
-static mat4 g_active_projection;
+static fmat16_t g_active_projection;
 
 typedef struct {
   GLuint program;
@@ -161,14 +153,14 @@ static const sprite_program_t *sprite_program_for_effect(ui_render_effect_t effe
   return &g_ref.sprite[(int)effect];
 }
 
-static void update_sprite_projection_uniforms(const mat4 projection) {
+static void update_sprite_projection_uniforms(const fmat16_t *projection) {
   GLint prev_prog = 0;
   glGetIntegerv(GL_CURRENT_PROGRAM, &prev_prog);
   for (int i = 0; i < UI_RENDER_EFFECT_COUNT; i++) {
     if (!g_ref.sprite[i].program || g_ref.sprite[i].projection_u < 0)
       continue;
     glUseProgram(g_ref.sprite[i].program);
-    glUniformMatrix4fv(g_ref.sprite[i].projection_u, 1, GL_FALSE, projection[0]);
+    glUniformMatrix4fv(g_ref.sprite[i].projection_u, 1, GL_FALSE, fmat16_data(projection));
   }
   glUseProgram((GLuint)prev_prog);
 }
@@ -333,15 +325,15 @@ bool ui_init_prog(void) {
   //  float render_width = DOOM_WIDTH * scale;
   //  float offset_x = (width - render_width) / (2.0f * scale);
   //  black_bars = offset_x;
-  //  glm_ortho(-offset_x, DOOM_WIDTH+offset_x, DOOM_HEIGHT, 0, -1, 1, g_ref.projection);
+  //  fmat16_ortho(-offset_x, DOOM_WIDTH+offset_x, DOOM_HEIGHT, 0, -1, 1, &g_ref.projection);
   screen_width = width / UI_WINDOW_SCALE;
   screen_height = height / UI_WINDOW_SCALE;
-  glm_ortho(0, screen_width, ui_get_system_metrics(kSystemMetricScreenHeight), 0, -1, 1, g_ref.projection);
-  glm_mat4_copy(g_ref.projection, g_active_projection);
+  fmat16_ortho(0, screen_width, ui_get_system_metrics(kSystemMetricScreenHeight), 0, -1, 1, &g_ref.projection);
+  fmat16_copy(&g_ref.projection, &g_active_projection);
 
-  update_sprite_projection_uniforms(g_ref.projection);
+  update_sprite_projection_uniforms(&g_ref.projection);
   glUseProgram(g_ref.vga_program);
-  glUniformMatrix4fv(g_vga.projection, 1, GL_FALSE, g_ref.projection[0]);
+  glUniformMatrix4fv(g_vga.projection, 1, GL_FALSE, fmat16_data(&g_ref.projection));
 
   return true;
 }
@@ -382,15 +374,15 @@ void push_sprite_effect_args(int tex, int x, int y, int w, int h, float alpha,
 
 void set_projection(int x, int y, int w, int h) {
   if (!g_ui_runtime.running) return;
-  mat4 projection;
-  glm_ortho(x, w, h, y, -1, 1, projection);
-  glm_mat4_copy(projection, g_active_projection);
-  glm_mat4_copy(projection, g_ref.projection);
-  update_sprite_projection_uniforms(projection);
+  fmat16_t projection;
+  fmat16_ortho(x, w, h, y, -1, 1, &projection);
+  fmat16_copy(&projection, &g_active_projection);
+  fmat16_copy(&projection, &g_ref.projection);
+  update_sprite_projection_uniforms(&projection);
 }
 
 float *get_sprite_matrix(void) {
-  return (float*)&g_ref.projection;
+  return (float*)fmat16_data(&g_ref.projection);
 }
 
 // Draw a sprite at the specified screen position
@@ -617,8 +609,8 @@ static bool bake_texture_program_common(int src_tex, int w, int h,
   GLint prev_view[4] = {0};
   GLint prev_scissor[4] = {0};
   GLint prev_prog = 0;
-  mat4 prev_proj;
-  memcpy(prev_proj, get_sprite_matrix(), sizeof(prev_proj));
+  fmat16_t prev_proj;
+  memcpy(&prev_proj, get_sprite_matrix(), sizeof(prev_proj));
   glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
   glGetIntegerv(GL_VIEWPORT, prev_view);
   glGetIntegerv(GL_SCISSOR_BOX, prev_scissor);
@@ -644,9 +636,9 @@ static bool bake_texture_program_common(int src_tex, int w, int h,
   glUseProgram((GLuint)prev_prog);
   glViewport(prev_view[0], prev_view[1], prev_view[2], prev_view[3]);
   glScissor(prev_scissor[0], prev_scissor[1], prev_scissor[2], prev_scissor[3]);
-  glm_mat4_copy(prev_proj, g_active_projection);
-  glm_mat4_copy(prev_proj, g_ref.projection);
-  update_sprite_projection_uniforms(prev_proj);
+  fmat16_copy(&prev_proj, &g_active_projection);
+  fmat16_copy(&prev_proj, &g_ref.projection);
+  update_sprite_projection_uniforms(&prev_proj);
   *out_tex = tex;
   return true;
 }
@@ -692,8 +684,8 @@ bool bake_texture_effect(int src_tex, int w, int h,
   GLfloat prev_clear[4] = {0};
   GLboolean prev_blend = glIsEnabled(GL_BLEND);
   GLboolean prev_depth = glIsEnabled(GL_DEPTH_TEST);
-  mat4 prev_proj;
-  memcpy(prev_proj, get_sprite_matrix(), sizeof(prev_proj));
+  fmat16_t prev_proj;
+  memcpy(&prev_proj, get_sprite_matrix(), sizeof(prev_proj));
 
   glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
   glGetIntegerv(GL_CURRENT_PROGRAM, &prev_prog);
@@ -721,7 +713,7 @@ bool bake_texture_effect(int src_tex, int w, int h,
     glUseProgram((GLuint)prev_prog);
     glViewport(prev_view[0], prev_view[1], prev_view[2], prev_view[3]);
     glScissor(prev_scissor[0], prev_scissor[1], prev_scissor[2], prev_scissor[3]);
-    update_sprite_projection_uniforms(prev_proj);
+    update_sprite_projection_uniforms(&prev_proj);
     glUseProgram((GLuint)prev_prog);
     return false;
   }
@@ -747,9 +739,9 @@ bool bake_texture_effect(int src_tex, int w, int h,
   glClearColor(prev_clear[0], prev_clear[1], prev_clear[2], prev_clear[3]);
   if (prev_blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
   if (prev_depth) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
-  glm_mat4_copy(prev_proj, g_active_projection);
-  glm_mat4_copy(prev_proj, g_ref.projection);
-  update_sprite_projection_uniforms(prev_proj);
+  fmat16_copy(&prev_proj, &g_active_projection);
+  fmat16_copy(&prev_proj, &g_ref.projection);
+  update_sprite_projection_uniforms(&prev_proj);
   glUseProgram((GLuint)prev_prog);
 
   *out_tex = tex;
@@ -864,9 +856,9 @@ int ui_get_system_metrics(ui_system_metrics_t metric) {
 void ui_update_screen_size(int width, int height) {
   screen_width = width / UI_WINDOW_SCALE;
   screen_height = height / UI_WINDOW_SCALE;
-  glm_ortho(0, screen_width, screen_height, 0, -1, 1, g_ref.projection);
-  glm_mat4_copy(g_ref.projection, g_active_projection);
-  update_sprite_projection_uniforms(g_ref.projection);
+  fmat16_ortho(0, screen_width, screen_height, 0, -1, 1, &g_ref.projection);
+  fmat16_copy(&g_ref.projection, &g_active_projection);
+  update_sprite_projection_uniforms(&g_ref.projection);
 }
 uint32_t R_CreateTextureRGBA(int w, int h, const void *rgba,
                               R_TextureFilter filter, R_TextureWrap wrap) {
@@ -944,7 +936,7 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   }
 
   glUseProgram(g_ref.vga_program);
-  glUniformMatrix4fv(g_vga.projection, 1, GL_FALSE, g_active_projection[0]);
+  glUniformMatrix4fv(g_vga.projection, 1, GL_FALSE, fmat16_data(&g_active_projection));
   glUniform2f(g_vga.offset, (float)x, (float)y);
   glUniform2f(g_vga.scale, (float)dst_w_px, (float)dst_h_px);
   glUniform2f(g_vga.grid_size, (float)buf->width, (float)buf->height);

@@ -10,9 +10,9 @@ nav_order: 2
 
 | Platform | Packages |
 |---|---|
-| Linux (Ubuntu/Debian) | `libsdl2-dev libgl1-mesa-dev libcglm-dev liblua5.4-dev` |
-| macOS | `brew install sdl2 cglm lua` |
-| Windows (MSYS2/MinGW) | `mingw-w64-x86_64-SDL2 mingw-w64-x86_64-cglm` |
+| Linux (Ubuntu/Debian) | `libsdl2-dev libgl1-mesa-dev liblua5.4-dev` |
+| macOS | `brew install sdl2 lua` |
+| Windows (MSYS2/MinGW) | `mingw-w64-x86_64-SDL2` |
 
 ## Building
 
