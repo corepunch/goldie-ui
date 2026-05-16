@@ -37,26 +37,36 @@
       </toolbar>
     </toolbars>
 
-    <database>
-      <!-- NeXTSTEP-style master/detail shape: one source+binding per table view -->
-      <source name="feed_posts" model="post" />
-      <source name="feed_comments" model="comment" />
-      <binding name="feed_posts_report" source="feed_posts" view="feed">
-        <column field="title" title="Title" width="0" />
-        <column field="author" title="Author" width="80" />
-        <column field="like_count" title="Likes" width="50" />
-        <column field="comment_count" title="Comments" width="55" />
-      </binding>
-      <binding name="post_comments_report" source="feed_comments" view="comments">
-        <column field="author" title="Author" width="70" />
-        <column field="text" title="Text" width="0" />
-        <column field="like_count" title="Likes" width="45" />
-      </binding>
-      <action name="fetch_feed" type="fetch" source="feed_posts" target="feed" />
-      <action name="fetch_comments" type="fetch" source="feed_comments" target="comments" />
-    </database>
+    <databases>
+      <!-- NeXTSTEP-style split: one database per model/table. -->
+      <database name="posts" model="post">
+        <action name="fetch_feed" type="fetch" target="feed" />
+      </database>
+      <database name="comments" model="comment">
+        <action name="fetch_comments" type="fetch" target="comments" />
+      </database>
+    </databases>
 
     <forms>
+      <form name="main_window"
+            title="Social Feed"
+            width="472" height="336"
+            flags="WINDOW_TOOLBAR | WINDOW_STATUSBAR"
+            spacing="0"
+            padding="0">
+        <stack name="content" spacing="0" flags="WINDOW_FLEXSPACE">
+          <db-tableview name="feed"
+                        database="posts"
+                        action="fetch_feed"
+                        flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
+            <column field="title" title="Title" width="0" />
+            <column field="author" title="Author" width="80" />
+            <column field="like_count" title="Likes" width="50" />
+            <column field="comment_count" title="Comments" width="55" />
+          </db-tableview>
+        </stack>
+      </form>
+
       <form name="new_post"
             title="New Post"
             width="272" height="250"
@@ -120,8 +130,15 @@
           </stack>
         </stack>
 
-        <!-- Comments reportview -->
-        <reportview name="comments" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+        <!-- Bound tableview for comments (reportview-compatible class). -->
+        <db-tableview name="comments"
+                      database="comments"
+                      action="fetch_comments"
+                      flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
+          <column field="author" title="Author" width="70" />
+          <column field="text" title="Text" width="0" />
+          <column field="like_count" title="Likes" width="45" />
+        </db-tableview>
 
         <separator name="section_sep" />
 
