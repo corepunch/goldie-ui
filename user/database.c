@@ -12,7 +12,7 @@
 static db_class_desc_t g_database_classes[MAX_DATABASE_CLASSES];
 static int g_database_class_count = 0;
 
-static bool streq(const char *a, const char *b) {
+static bool db_streq(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
 }
 
@@ -22,7 +22,7 @@ bool register_database_class(const db_class_desc_t *desc) {
   
   // Check if already registered (idempotent)
   for (int i = 0; i < g_database_class_count; i++) {
-    if (streq(g_database_classes[i].class_name, desc->class_name))
+    if (db_streq(g_database_classes[i].class_name, desc->class_name))
       return true;
   }
   
@@ -36,7 +36,7 @@ bool register_database_class(const db_class_desc_t *desc) {
 dbproc_t find_database_class_proc(const char *class_name) {
   if (!class_name || !*class_name) return NULL;
   for (int i = 0; i < g_database_class_count; i++) {
-    if (streq(g_database_classes[i].class_name, class_name))
+    if (db_streq(g_database_classes[i].class_name, class_name))
       return g_database_classes[i].proc;
   }
   return NULL;

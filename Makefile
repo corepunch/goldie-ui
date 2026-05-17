@@ -449,6 +449,13 @@ $(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEE
 		$(CC) $(CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
+# Minimal database-driven socialfeed (demonstrates Zero Wrapper Structs API)
+$(BIN_DIR)/socialfeed_db$(EXE_EXT): examples/socialfeed/socialfeed_db.c examples/socialfeed/db_simple_xml.c $(SOCIALFEED_FORMS_H) $(SHARED_LIB) | $(BIN_DIR) share
+	@echo "Building example: $@"
+	$(CC) $(CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' \
+		-o $@ examples/socialfeed/socialfeed_db.c examples/socialfeed/db_simple_xml.c \
+		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
 # Static unity-build rule for all examples.
 # The target list is scoped to $(EXAMPLE_BINS) so this rule never fires for
 # test binaries (which share the same $(BIN_DIR)/%$(EXE_EXT) pattern).

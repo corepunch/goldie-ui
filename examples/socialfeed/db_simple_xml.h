@@ -44,15 +44,26 @@ typedef struct comment_s {
 // Database procedure (analogous to winproc_t pattern)
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Messages supported:
+// Messages supported (Zero Wrapper Structs API):
 //   dbCreate - allocate userdata, parse lparam source path
 //   dbLoad   - load from XML file
 //   dbSave   - save to XML file (only if dirty)
-//   dbInsert - wparam=TABLE_AUTHORS/POSTS/COMMENTS; lparam=record_data
-//   dbUpdate - wparam=TABLE_*; lparam=record_ptr
-//   dbDelete - wparam=TABLE_*; lparam=(void*)(intptr_t)record_id
-//   dbFetch  - wparam=TABLE_*; lparam=fetch_params_t*
-//   dbFind   - wparam=TABLE_*; lparam=find_params_t*
+//   dbInsert - wparam=TABLE_*; lparam=record_data → returns (lresult_t)record_ptr
+//   dbUpdate - wparam=TABLE_*; lparam=record_ptr → returns 1 on success
+//   dbDelete - wparam=TABLE_*; lparam=(void*)(intptr_t)record_id → returns 1 on success
+//   dbFetch  - wparam=MAKEDWORD(TABLE_*,filter_field); lparam=(intptr_t)filter_value → returns (lresult_t)result_node_t*
+//   dbFind   - wparam=MAKEDWORD(TABLE_*,search_field); lparam=(intptr_t)value or (void*)str → returns (lresult_t)record_ptr
+//
+// Example usage:
+//   // Insert
+//   author_t author = { .name = "alice" };
+//   author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+//
+//   // Fetch all posts
+//   result_node_t *posts = (result_node_t *)send_db_message(db, dbFetch,
+//     MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+//   int count = count_result_list(posts);
+//   free_result_list(posts);
 //
 lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
