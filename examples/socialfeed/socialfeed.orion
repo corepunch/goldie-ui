@@ -43,15 +43,15 @@
         <!-- Core entities -->
         <table name="authors" model="author">
           <field name="id" type="integer" key="YES"/>
-          <field name="name" type="string"/>
-          <field name="avatar" type="string"/>
+          <field name="name" type="string" length="64"/>
+          <field name="avatar" type="string" length="256"/>
         </table>
 
         <table name="posts" model="post">
           <field name="id" type="integer" key="YES"/>
           <field name="author_id" type="integer" relation="authors.id"/>
-          <field name="title" type="string"/>
-          <field name="body" type="string"/>
+          <field name="title" type="string" length="256"/>
+          <field name="body" type="string" length="2048"/>
           <field name="like_count" type="integer"/>
           <field name="comment_count" type="integer"/>
         </table>
@@ -60,7 +60,7 @@
           <field name="id" type="integer" key="YES"/>
           <field name="post_id" type="integer" relation="posts.id"/>
           <field name="author_id" type="integer" relation="authors.id"/>
-          <field name="text" type="string"/>
+          <field name="text" type="string" length="1024"/>
           <field name="like_count" type="integer"/>
         </table>
       </database>
@@ -71,18 +71,19 @@
             title="Social Feed"
             width="472" height="336"
             flags="WINDOW_TOOLBAR | WINDOW_STATUSBAR"
+            toolbar="feed"
             spacing="0"
             padding="0">
         <stack name="content" spacing="0" flags="WINDOW_FLEXSPACE">
-          <db-tableview name="feed"
-                        database="posts"
-                        action="fetch_feed"
-                        flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
+          <tableview name="feed"
+                     database="posts"
+                     action="fetch_feed"
+                     flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
             <column field="title" title="Title" width="0" />
             <column field="author.name" title="Author" width="80" />
             <column field="like_count" title="Likes" width="50" />
             <column field="comment_count" title="Comments" width="55" />
-          </db-tableview>
+          </tableview>
         </stack>
       </form>
 
@@ -158,16 +159,16 @@
         </stack>
 
         <!-- Bound tableview for comments (reportview-compatible class). -->
-        <db-tableview name="comments"
-                      database="comments"
-                      action="fetch_comments"
-                      master="posts"
-                      master-key="post_id"
-                      flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
+        <tableview name="comments"
+                   database="comments"
+                   action="fetch_comments"
+                   master="posts"
+                   master-key="post_id"
+                   flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
           <column field="author.name" title="Author" width="70" />
           <column field="text" title="Text" width="0" />
           <column field="like_count" title="Likes" width="45" />
-        </db-tableview>
+        </tableview>
 
         <separator name="section_sep" />
 

@@ -41,9 +41,27 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   }
 #endif
 
+  // Register database class
+  extern const db_class_desc_t db_simple_xml_class;
+  register_database_class(&db_simple_xml_class);
+
   g_app = app_init();
   if (!g_app) return false;
   g_app->hinstance = hinstance;
+
+  // Create database instance
+  char db_path[512];
+  snprintf(db_path, sizeof(db_path), "%s/socialfeed_seed.xml", SHAREDIR);
+  g_app->db = create_database("socialfeed", "db_simple_xml", db_path);
+  if (!g_app->db) {
+    SF_DEBUG("Failed to create database");
+    app_shutdown(g_app);
+    g_app = NULL;
+    return false;
+  }
+
+  // Register database with framework (NeXTSTEP-style singleton)
+  ui_set_database(g_app->db);
 
   if (!socialfeed_load_seed_data(SHAREDIR "/socialfeed_seed.xml")) {
     app_shutdown(g_app);
@@ -66,6 +84,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 void gem_shutdown(void) {
   if (!g_app) return;
   SF_DEBUG("gem_shutdown");
+  if (g_app->db) {
+    destroy_database(g_app->db);
+    g_app->db = NULL;
+  }
   app_shutdown(g_app);
   g_app = NULL;
 #if SOCIALFEED_DEBUG

@@ -19,6 +19,17 @@ typedef struct {
 static window_class_t g_window_classes[MAX_WINDOW_CLASSES];
 static int g_window_class_count = 0;
 
+// NeXTSTEP-style database singleton
+static database_t *g_app_database = NULL;
+
+void ui_set_database(database_t *db) {
+  g_app_database = db;
+}
+
+database_t *ui_get_database(void) {
+  return g_app_database;
+}
+
 static bool streq(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
 }
@@ -199,6 +210,17 @@ void register_builtin_window_classes(void) {
   register_window_class(&(fe_component_desc_t){
     .class_name = "reportview",
     .proc = win_reportview,
+    .default_width = 0,     // stretch to fit
+    .default_height = 100,  // ~6 rows
+    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Tableview - database-backed table view
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "tableview",
+    .proc = win_tableview,
     .default_width = 0,     // stretch to fit
     .default_height = 100,  // ~6 rows
     .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
@@ -1161,6 +1183,28 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Children inherit hinstance from the parent (pass 0 = inherit).
   create_form_children(win, def->children, def->child_count);
 
+  // Auto-populate toolbar if defined
+  if (def->toolbar_items && def->toolbar_count > 0 && (win->flags & WINDOW_TOOLBAR)) {
+    send_message(win, tbSetItems, (uint32_t)def->toolbar_count, (void *)def->toolbar_items);
+  }
+
+  // Auto-propagate database to all tableview children
+  // Use global database singleton (NeXTSTEP-style)
+  database_t *effective_db = g_app_database;
+  if (effective_db) {
+    for (window_t *child = win->children; child; child = child->next) {
+      if (child->proc == win_tableview) {
+        send_message(child, tvSetDatabase, 0, effective_db);
+      }
+      // Recurse into nested containers
+      for (window_t *grandchild = child->children; grandchild; grandchild = grandchild->next) {
+        if (grandchild->proc == win_tableview) {
+          send_message(grandchild, tvSetDatabase, 0, effective_db);
+        }
+      }
+    }
+  }
+
   if (win->flags & WINDOW_AUTO_LAYOUT)
     window_layout_sync(win);
 
@@ -1210,6 +1254,10 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     };
     if (cp == win_label)
       param = &label_cfg;
+    
+    // For tableview, params are pre-generated in the form definition
+    if (cp == win_tableview && cd->lparam)
+      param = (void *)cd->lparam;
 
     irect16_t child_frame = {0, 0, cd->size.w, cd->size.h};
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,

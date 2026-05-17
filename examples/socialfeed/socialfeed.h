@@ -14,10 +14,37 @@
 #include "../../user/accel.h"
 #include "../../user/icons.h"
 
-// Menu / toolbar IDs and static form definitions are generated from socialfeed.orion.
-// The generated header also defines kMenus, kNumMenus, TB_FEED/TB_FEED_COUNT,
-// and the three form_def_t structs used by the dialogs.
-#include "build/generated/examples/socialfeed/socialfeed_forms.h"
+// All definitions generated from socialfeed.orion:
+//   - Menu IDs, toolbar IDs, form definitions
+//   - Database schema (table enums, structs, field bindings)
+#include "build/generated/examples/socialfeed/socialfeed.h"
+
+// ============================================================
+// Database Implementation (db_simple_xml.c)
+// ============================================================
+//
+// Messages supported (Zero Wrapper Structs API):
+//   dbCreate - allocate userdata, parse lparam source path
+//   dbLoad   - load from XML file
+//   dbSave   - save to XML file (only if dirty)
+//   dbInsert - wparam=TABLE_*; lparam=record_data → returns (lresult_t)record_ptr
+//   dbUpdate - wparam=TABLE_*; lparam=record_ptr → returns 1 on success
+//   dbDelete - wparam=TABLE_*; lparam=(void*)(intptr_t)record_id → returns 1 on success
+//   dbFetch  - wparam=MAKEDWORD(TABLE_*,filter_field); lparam=(intptr_t)filter_value → returns (lresult_t)result_node_t*
+//   dbFind   - wparam=MAKEDWORD(TABLE_*,search_field); lparam=(intptr_t)value or (void*)str → returns (lresult_t)record_ptr
+//
+// Example usage:
+//   // Insert
+//   author_t author = { .name = "alice" };
+//   author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+//
+//   // Fetch all posts
+//   result_node_t *posts = (result_node_t *)send_db_message(db, dbFetch,
+//     MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+//   int count = count_result_list(posts);
+//   free_result_list(posts);
+//
+lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 #ifndef SOCIALFEED_DEBUG
 #define SOCIALFEED_DEBUG 1
@@ -84,6 +111,7 @@ typedef struct {
 // ============================================================
 
 typedef struct {
+  database_t  *db;           // Database for automatic view population
   post_t     **posts;
   int          post_count;
   int          post_cap;

@@ -58,6 +58,7 @@ static const class_defaults_t kClassDefaults[] = {
   { "separator",   1, 0 },
   { "space",       0, WINDOW_FLEXSPACE },
   { "reportview", 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE },
+  { "tableview",  100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE },
   { "list",       100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE },
   { "multiedit",  100, WINDOW_VSCROLL | WINDOW_FLEXSPACE },
 };
@@ -391,12 +392,138 @@ static bool has_child_controls(xmlNodePtr node) {
   return false;
 }
 
+// Generate tableview_params_t struct for a <tableview> element.
+// Returns name of generated struct, or NULL on error. Caller must free.
+static char *emit_tableview_params(FILE *f, xmlNodePtr tv, const char *form_ident,
+                                   const char *tv_name, const char *prefix) {
+  if (!is_element(tv, "tableview")) return NULL;
+  
+  char *db_attr = attr_dup(tv, "database");
+  if (!db_attr || !*db_attr) {
+    fprintf(stderr, "orionc: <tableview> requires database= attribute\n");
+    free(db_attr);
+    return NULL;
+  }
+  
+  // Count columns
+  int col_count = 0;
+  for (xmlNodePtr col = tv->children; col; col = col->next) {
+    if (is_element(col, "column")) col_count++;
+  }
+  if (col_count == 0) {
+    fprintf(stderr, "orionc: <tableview> requires at least one <column>\n");
+    free(db_attr);
+    return NULL;
+  }
+  
+  // Generate unique identifier for this tableview's params struct
+  char params_ident[256];
+  snprintf(params_ident, sizeof(params_ident), "%s_%s_tableview_params",
+           form_ident, tv_name ? tv_name : "unnamed");
+  
+  // Emit field_names array
+  fprintf(f, "static const char *%s_field_names[] = { ", params_ident);
+  for (xmlNodePtr col = tv->children; col; col = col->next) {
+    if (!is_element(col, "column")) continue;
+    char *field = attr_dup(col, "field");
+    if (field && *field) {
+      fprint_c_string(f, field);
+      fputs(", ", f);
+    }
+    free(field);
+  }
+  fputs("NULL };\n", f);
+  
+  // Emit column_titles array
+  fprintf(f, "static const char *%s_column_titles[] = { ", params_ident);
+  for (xmlNodePtr col = tv->children; col; col = col->next) {
+    if (!is_element(col, "column")) continue;
+    char *title = attr_dup(col, "title");
+    if (title && *title) {
+      fprint_c_string(f, title);
+      fputs(", ", f);
+    } else {
+      fputs("\"\"", f);
+      fputs(", ", f);
+    }
+    free(title);
+  }
+  fputs("NULL };\n", f);
+  
+  // Emit column_widths array
+  fprintf(f, "static const int %s_column_widths[] = { ", params_ident);
+  for (xmlNodePtr col = tv->children; col; col = col->next) {
+    if (!is_element(col, "column")) continue;
+    char *width_str = attr_dup(col, "width");
+    int width = width_str ? atoi(width_str) : 0;
+    fprintf(f, "%d, ", width);
+    free(width_str);
+  }
+  fputs("-1 };\n", f);
+  
+  // Emit the tableview_params_t struct
+  fprintf(f, "static const tableview_params_t %s = {\n", params_ident);
+  fputs("  .db = NULL,\n", f);  // Set at runtime via app->db
+  
+  // Map database name to TABLE_* enum
+  char table_enum[256];
+  make_ident(table_enum, sizeof(table_enum), db_attr);
+  for (char *p = table_enum; *p; p++)
+    if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
+  fprintf(f, "  .table_id = TABLE_%s,\n", table_enum);
+  
+  fputs("  .filter_field = 0,\n", f);  // Set at runtime via tvSetFilter
+  fputs("  .filter_value = 0,\n", f);
+  fprintf(f, "  .field_names = %s_field_names,\n", params_ident);
+  fprintf(f, "  .column_titles = %s_column_titles,\n", params_ident);
+  fprintf(f, "  .column_widths = %s_column_widths,\n", params_ident);
+  fputs("};\n\n", f);
+  
+  free(db_attr);
+  return strdup(params_ident);
+}
+
+// Forward declare emit_control_tree for recursion
+static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
+                              const char *form_ident, const char *parent_expr,
+                              int *out_count);
+
+// Walk tree and emit all tableview params before the children array
+static bool emit_all_tableview_params(FILE *f, xmlNodePtr parent,
+                                      const char *form_ident, const char *scope) {
+  for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
+    if (!is_control_node(c)) continue;
+    
+    char *klass = control_class_name(c);
+    if (klass && strcmp(klass, "tableview") == 0) {
+      char *name = attr_dup(c, "name");
+      char *emitted_name = emit_tableview_params(f, c, form_ident, name, scope);
+      free(name);
+      free(emitted_name);
+      if (!emitted_name) {
+        free(klass);
+        return false;
+      }
+    }
+    free(klass);
+    
+    // Recurse into children
+    if (has_child_controls(c)) {
+      if (!emit_all_tableview_params(f, c, form_ident, scope)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
                               int *out_count);
 
 static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
-                              const char *ident, const char *parent_expr) {
+                              const char *form_ident, const char *ident,
+                              const char *parent_expr) {
   char *klass = control_class_name(c);
   char *name = attr_dup(c, "name");
   char *text = attr_dup(c, "text");
@@ -424,6 +551,15 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
     free(layout_orientation); free(layout_spacing);
     free(padding); free(margin); free(font); free(color);
     return false;
+  }
+  
+  // Handle tableview - construct params name (already emitted by emit_all_tableview_params)
+  char *tv_params_name = NULL;
+  if (streq(emit_class, "tableview")) {
+    char params_ident[256];
+    snprintf(params_ident, sizeof(params_ident), "%s_%s_tableview_params",
+             form_ident, name ? name : "unnamed");
+    tv_params_name = strdup(params_ident);
   }
 
   /* All layout is auto now */
@@ -474,8 +610,8 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
   fputs(", ", f);
   fprint_c_string(f, nonempty(name, ""));
   fprintf(f, ", %u, %u, ", (unsigned)align_h_attr(h_align, 0), (unsigned)align_v_attr(v_align, 0));
-  fputs("NULL, 0, ", f);
-  fprintf(f, "%u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %u, %s, %u, %s },\n",
+  fputs("NULL, 0", f);
+  fprintf(f, ", %u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %u, %s, %u, %s, ",
           (unsigned)layout_spacing_attr(layout_spacing, 4),
           pad.x, pad.y, pad.w, pad.h,
           mar.x, mar.y, mar.w, mar.h,
@@ -484,6 +620,14 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
           font_set ? "true" : "false",
           (unsigned)color_val,
           color_set ? "true" : "false");
+  
+  // Emit lparam (tableview params or NULL)
+  if (tv_params_name) {
+    fprintf(f, "&%s },\n", tv_params_name);
+    free(tv_params_name);
+  } else {
+    fputs("NULL },\n", f);
+  }
 
   free(klass); free(name); free(text); free(cflags);
   free(h_align); free(v_align);
@@ -506,7 +650,7 @@ static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
     free(name);
     free(klass);
 
-    if (!emit_control_node(f, c, scope, ident, parent_expr))
+    if (!emit_control_node(f, c, scope, form_ident, ident, parent_expr))
       return false;
     count++;
     ordinal++;
@@ -1039,17 +1183,39 @@ static const char *db_action_kind_c_token(const char *kind) {
 static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *prefix) {
   if (!database) return true;
 
+  int table_count = 0;
   int source_count = 0;
   int binding_count = 0;
   int action_count = 0;
 
   for (xmlNodePtr n = database ? database->children : NULL; n; n = n->next) {
-    if (is_element(n, "source")) source_count++;
+    if (is_element(n, "table")) table_count++;
+    else if (is_element(n, "source")) source_count++;
     else if (is_element(n, "binding")) binding_count++;
     else if (is_element(n, "action")) action_count++;
   }
-  if (source_count == 0 && binding_count == 0 && action_count == 0)
+  if (table_count == 0 && source_count == 0 && binding_count == 0 && action_count == 0)
     return true;
+
+  // Emit TABLE_ enums for each table
+  if (table_count > 0) {
+    fprintf(f, "// Table identifiers\n");
+    fprintf(f, "enum {\n");
+    int table_index = 0;
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "table")) continue;
+      char *table_name = attr_dup(n, "name");
+      if (table_name && *table_name) {
+        char table_enum[128];
+        make_upper_ident(table_enum, sizeof(table_enum), table_name);
+        fprintf(f, "  TABLE_%s = %d,\n", table_enum, table_index);
+        table_index++;
+      }
+      free(table_name);
+    }
+    fprintf(f, "  TABLE_COUNT = %d\n", table_index);
+    fprintf(f, "};\n\n");
+  }
 
   if (source_count > 0) {
     fprintf(f, "static const db_source_def_t %s_db_sources[] = {\n", prefix);
@@ -1220,6 +1386,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   char *id = attr_dup(form, "name");
   char *title = attr_dup(form, "title");
   char *flags = attr_dup(form, "flags");
+  char *toolbar = attr_dup(form, "toolbar");  // Link to toolbar definition
   char *layout_spacing = attr_dup_first(form, "spacing", "layout_spacing");
   char *padding = attr_dup_first(form, "padding", "layout_padding");
   char *margin = attr_dup_first(form, "margin", "layout_margin");
@@ -1229,7 +1396,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   frame_t mar = {0, 0, 0, 0};
   if (!parse_frame(form, &fr)) {
     fprintf(stderr, "orionc: form '%s' requires width= attribute\n", nonempty(id, ""));
-    free(id); free(title); free(flags);
+    free(id); free(title); free(flags); free(toolbar);
     free(layout_spacing);
     free(padding); free(margin);
     return false;
@@ -1241,11 +1408,20 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
 
   char id_ident[128];
   make_ident(id_ident, sizeof(id_ident), id);
+  
+  // First pass: emit all tableview params before the children array
+  if (!emit_all_tableview_params(f, form, id_ident, id_ident)) {
+    free(id); free(title); free(flags); free(toolbar);
+    free(layout_spacing);
+    free(padding); free(margin);
+    return false;
+  }
+  
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
           prefix, id_ident);
   int child_count = 0;
   if (!emit_control_tree(f, form, id_ident, id_ident, "0", &child_count)) {
-    free(id); free(title); free(flags);
+    free(id); free(title); free(flags); free(toolbar);
     free(layout_spacing);
     free(padding); free(margin);
     return false;
@@ -1255,13 +1431,26 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   fprint_c_string(f, nonempty(title, nonempty(id, "")));
     fprintf(f, ", .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, ",
       fr.w, fr.h, nonempty(flags, "0"));
-    fprintf(f, ".layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d };\n\n",
+    fprintf(f, ".layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
           (unsigned)layout_spacing_attr(layout_spacing, 4),
           pad.x, pad.y, pad.w, pad.h,
           mar.x, mar.y, mar.w, mar.h,
           prefix, id_ident, child_count);
+  
+  // Emit toolbar reference if specified
+  if (toolbar && *toolbar) {
+    char toolbar_ident[128];
+    make_ident(toolbar_ident, sizeof(toolbar_ident), toolbar);
+    for (char *p = toolbar_ident; *p; p++)
+      if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
+    fprintf(f, ", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", toolbar_ident, toolbar_ident);
+  } else {
+    fputs(", .toolbar_items = NULL, .toolbar_count = 0", f);
+  }
+  
+  fputs(" };\n\n", f);
 
-  free(id); free(title); free(flags);
+  free(id); free(title); free(flags); free(toolbar);
   free(layout_spacing);
   free(padding); free(margin);
   return true;
@@ -1330,7 +1519,8 @@ int main(int argc, char **argv) {
   ident_list_t command_ids = {0};
   xmlNodePtr menus = first_child_element(root, "menus");
   xmlNodePtr toolbars = first_child_element(root, "toolbars");
-  xmlNodePtr database = first_child_element(root, "database");
+  xmlNodePtr databases = first_child_element(root, "databases");
+  xmlNodePtr database = databases ? first_child_element(databases, "database") : first_child_element(root, "database");
   xmlNodePtr forms = first_child_element(root, "forms");
 
   if (!collect_menu_idents(&command_ids, menus)) {

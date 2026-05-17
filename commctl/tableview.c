@@ -1,0 +1,304 @@
+// tableview.c — Database-backed table view control
+//
+// Automatically populates a reportview from database records using the Zero
+// Wrapper Structs API. No manual population code needed.
+//
+// Creation parameters (lparam):
+//   tableview_params_t (see commctl/commctl.h)
+//
+// Messages:
+//   tvRefresh - Refresh from database (wparam=0, lparam=0)
+//   tvSetFilter - Change filter (wparam=filter_field, lparam=filter_value)
+//
+// Example usage:
+//   tableview_params_t params = {
+//     .db = g_db,
+//     .table_id = TABLE_POSTS,
+//     .filter_field = 0,
+//     .filter_value = 0,
+//     .field_names = (const char *[]){"title", "author", "like_count", NULL},
+//     .column_titles = (const char *[]){"Title", "Author", "Likes", NULL},
+//     .column_widths = (const int[]){0, 80, 50, -1}
+//   };
+//   window_t *tv = create_window("", WINDOW_NOTITLE | WINDOW_VSCROLL,
+//                                MAKERECT(0, 0, w, h), parent,
+//                                win_tableview, &params);
+
+#include "../ui.h"
+#include <string.h>
+#include <stdlib.h>
+
+typedef struct {
+  database_t *db;
+  int table_id;
+  int filter_field;
+  intptr_t filter_value;
+  
+  // Column metadata (copied from params)
+  char **field_names;
+  char **column_titles;
+  int *column_widths;
+  int column_count;
+  
+  // DDX-style field extraction
+  db_object_proc_t obj_proc;          // Object handler proc for this table
+  const db_field_msg_binding_t *bindings;  // Field bindings for this table
+  int binding_count;
+} tableview_state_t;
+
+// Forward declarations
+static void tv_refresh(window_t *win, tableview_state_t *s);
+
+// ══════════════════════════════════════════════════════════════════════════
+// Helper: Count NULL-terminated string array
+// ══════════════════════════════════════════════════════════════════════════
+
+static int count_strings(const char **strs) {
+  if (!strs) return 0;
+  int count = 0;
+  while (strs[count]) count++;
+  return count;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Helper: Copy string array
+// ══════════════════════════════════════════════════════════════════════════
+
+static char **copy_string_array(const char **src, int count) {
+  if (!src || count <= 0) return NULL;
+  char **dst = calloc((size_t)(count + 1), sizeof(char *));
+  if (!dst) return NULL;
+  for (int i = 0; i < count; i++) {
+    dst[i] = src[i] ? strdup(src[i]) : NULL;
+  }
+  dst[count] = NULL;
+  return dst;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Helper: Copy int array
+// ══════════════════════════════════════════════════════════════════════════
+
+static int *copy_int_array(const int *src, int count) {
+  if (count <= 0) return NULL;
+  int *dst = calloc((size_t)count, sizeof(int));
+  if (!dst) return NULL;
+  if (src) {
+    memcpy(dst, src, (size_t)count * sizeof(int));
+  }
+  return dst;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Helper: Free string array
+// ══════════════════════════════════════════════════════════════════════════
+
+static void free_string_array(char **arr) {
+  if (!arr) return;
+  for (int i = 0; arr[i]; i++)
+    free(arr[i]);
+  free(arr);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Helper: Get field text from record via DDX-style field interrogation
+// ══════════════════════════════════════════════════════════════════════════
+
+static bool tv_get_field_text(tableview_state_t *s, void *record,
+                                 const char *field, char *buf, size_t buf_sz) {
+  if (!s || !record || !field || !buf || buf_sz == 0) return false;
+  
+  // Use DDX-style field extraction via database object proc
+  return db_object_get_field_text(s->bindings, s->binding_count,
+                                  s->obj_proc, record, field, buf, buf_sz);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Refresh: Fetch records from database and populate reportview
+// ══════════════════════════════════════════════════════════════════════════
+
+static void tv_refresh(window_t *win, tableview_state_t *s) {
+  if (!win || !s || !s->db) return;
+  
+  // Clear existing items
+  send_message(win, RVM_CLEAR, 0, NULL);
+  
+  // Setup columns (on first refresh or if column count changed)
+  int existing_cols = (int)send_message(win, RVM_GETCOLUMNCOUNT, 0, NULL);
+  if (existing_cols != s->column_count) {
+    send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
+    for (int i = 0; i < s->column_count; i++) {
+      reportview_column_t col = {
+        .title = s->column_titles[i] ? s->column_titles[i] : s->field_names[i],
+        .width = (uint32_t)((s->column_widths && s->column_widths[i] > 0) ? s->column_widths[i] : 0),
+      };
+      send_message(win, RVM_ADDCOLUMN, 0, &col);
+    }
+  }
+  
+  // Fetch records from database (Zero Wrapper Structs API!)
+  result_node_t *results = (result_node_t *)send_db_message(s->db, dbFetch,
+    MAKEDWORD(s->table_id, s->filter_field), (void *)s->filter_value);
+  
+  if (!results) return;
+  
+  // Allocate cell buffers
+  char (*cell_buf)[256] = calloc((size_t)s->column_count, sizeof(*cell_buf));
+  if (!cell_buf) {
+    free_result_list(results);
+    return;
+  }
+  
+  // Add each record as a row
+  int row_idx = 0;
+  for (result_node_t *n = results; n; n = (result_node_t *)n->next) {
+    void *record = *(void **)n->data;
+    if (!record) continue;
+    
+    // Extract field values for all columns
+    for (int col = 0; col < s->column_count; col++) {
+      if (!tv_get_field_text(s, record, s->field_names[col],
+                             cell_buf[col], sizeof(cell_buf[col]))) {
+        cell_buf[col][0] = '\0';
+      }
+    }
+    
+    // Create row
+    reportview_item_t item = {
+      .text = cell_buf[0],
+      .icon = -1,
+      .color = get_sys_color(brTextNormal),
+      .userdata = (uint32_t)row_idx,
+      .subitem_count = (uint32_t)((s->column_count > 1) ? (s->column_count - 1) : 0),
+    };
+    
+    for (int col = 1; col < s->column_count; col++) {
+      item.subitems[col - 1] = cell_buf[col];
+    }
+    
+    send_message(win, RVM_ADDITEM, 0, &item);
+    row_idx++;
+  }
+  
+  free(cell_buf);
+  free_result_list(results);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Window Procedure
+// ══════════════════════════════════════════════════════════════════════════
+
+result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  tableview_state_t *s = (tableview_state_t *)win->userdata;
+  
+  switch (msg) {
+    case evCreate: {
+      // Parse creation parameters
+      tableview_params_t *params = (tableview_params_t *)lparam;
+      if (!params || !params->field_names) {
+        return false;
+      }
+      
+      // Allocate state
+      s = calloc(1, sizeof(tableview_state_t));
+      if (!s) return false;
+      
+      win->userdata = s;
+      s->db = params->db;  // May be NULL - set later via tvSetDatabase
+      s->table_id = params->table_id;
+      s->filter_field = params->filter_field;
+      s->filter_value = params->filter_value;
+      
+      // Get object proc and field bindings from database (DDX pattern!)
+      // Skip if db is NULL (will be set later)
+      if (s->db) {
+        s->obj_proc = (db_object_proc_t)send_db_message(s->db, dbGetObjectProc,
+                                                         (uint32_t)s->table_id, NULL);
+        s->bindings = (const db_field_msg_binding_t *)send_db_message(s->db, dbGetFieldBindings,
+                                                                       (uint32_t)s->table_id, &s->binding_count);
+        
+        if (!s->obj_proc || !s->bindings) {
+          free(s);
+          win->userdata = NULL;
+          return false;
+        }
+      }
+      
+      // Copy column metadata
+      s->column_count = count_strings(params->field_names);
+      if (s->column_count <= 0) {
+        free(s);
+        win->userdata = NULL;
+        return false;
+      }
+      
+      s->field_names = copy_string_array(params->field_names, s->column_count);
+      s->column_titles = params->column_titles
+        ? copy_string_array(params->column_titles, s->column_count)
+        : copy_string_array(params->field_names, s->column_count);  // Use field names as titles
+      s->column_widths = copy_int_array(params->column_widths, s->column_count);
+      
+      if (!s->field_names || !s->column_titles) {
+        free_string_array(s->field_names);
+        free_string_array(s->column_titles);
+        free(s->column_widths);
+        free(s);
+        win->userdata = NULL;
+        return false;
+      }
+      
+      // Setup as reportview
+      send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+      
+      // Initial refresh (only if db is set)
+      if (s->db) {
+        tv_refresh(win, s);
+      }
+      
+      return true;
+    }
+    
+    case evDestroy:
+      if (s) {
+        free_string_array(s->field_names);
+        free_string_array(s->column_titles);
+        free(s->column_widths);
+        free(s);
+        win->userdata = NULL;
+      }
+      return false;
+    
+    case tvRefresh:
+      if (s) {
+        tv_refresh(win, s);
+      }
+      return true;
+    
+    case tvSetDatabase:
+      if (s && lparam) {
+        s->db = (database_t *)lparam;
+        // Get object proc and field bindings
+        s->obj_proc = (db_object_proc_t)send_db_message(s->db, dbGetObjectProc,
+                                                         (uint32_t)s->table_id, NULL);
+        s->bindings = (const db_field_msg_binding_t *)send_db_message(s->db, dbGetFieldBindings,
+                                                                       (uint32_t)s->table_id, &s->binding_count);
+        // Refresh from database
+        if (s->obj_proc && s->bindings) {
+          tv_refresh(win, s);
+        }
+      }
+      return true;
+    
+    case tvSetFilter:
+      if (s) {
+        s->filter_field = (int)wparam;
+        s->filter_value = (intptr_t)lparam;
+        tv_refresh(win, s);
+      }
+      return true;
+    
+    // Forward all other messages to reportview
+    default:
+      return win_reportview(win, msg, wparam, lparam);
+  }
+}

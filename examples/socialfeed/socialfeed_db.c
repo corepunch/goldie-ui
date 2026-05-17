@@ -5,8 +5,7 @@
 
 #include "../../ui.h"
 #include "../../gem_magic.h"
-#include "db_simple_xml.h"
-#include "../../build/generated/examples/socialfeed/socialfeed_forms.h"
+#include "socialfeed.h"
 
 #ifndef SHAREDIR
 #define SHAREDIR "."
@@ -22,45 +21,10 @@ static window_t *g_menubar = NULL;
 static accel_table_t *g_accel = NULL;
 
 // ══════════════════════════════════════════════════════════════════════════
-// Feed List Management
+// Feed List Management (AUTOMATIC via tableview!)
 // ══════════════════════════════════════════════════════════════════════════
 
-static void refresh_feed_list(void) {
-  if (!g_main_win) return;
-  
-  window_t *feed = get_window_item(g_main_win, ID_MAIN_WINDOW_FEED);
-  if (!feed) return;
-  
-  // Clear existing items
-  send_message(feed, rvClear, 0, NULL);
-  
-  // Fetch all posts from database
-  result_node_t *posts = (result_node_t *)send_db_message(g_db, dbFetch,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
-  
-  if (!posts) return;
-  
-  // Add each post as a row
-  for (result_node_t *n = posts; n; n = (result_node_t *)n->next) {
-    post_t *post = *(post_t **)n->data;
-    
-    // Fetch author name
-    author_t *author = (author_t *)send_db_message(g_db, dbFind,
-      MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)post->author_id);
-    
-    const char *author_name = author ? author->name : "Unknown";
-    
-    // Create row: [title, author, likes, comments]
-    char likes[16], comments[16];
-    snprintf(likes, sizeof(likes), "%d", post->like_count);
-    snprintf(comments, sizeof(comments), "%d", post->comment_count);
-    
-    const char *cells[] = { post->title, author_name, likes, comments };
-    rvAddRow(feed, 4, cells, (void *)(intptr_t)post->id);
-  }
-  
-  free_result_list(posts);
-}
+// No manual population needed - tableview handles everything automatically!
 
 // ══════════════════════════════════════════════════════════════════════════
 // New Post Dialog
@@ -135,7 +99,11 @@ static result_t new_post_proc(window_t *win, uint32_t msg, uint32_t wparam, void
           post_t *inserted = (post_t *)send_db_message(g_db, dbInsert, TABLE_POSTS, &new_post);
           
           if (inserted) {
-            refresh_feed_list();
+            // Refresh feed list via tableview
+            window_t *feed = get_window_item(g_main_win, ID_MAIN_WINDOW_FEED);
+            if (feed)
+              send_message(feed, tvRefresh, 0, NULL);
+            }
             end_dialog(win, 1);
           } else {
             end_dialog(win, 0);
@@ -162,9 +130,31 @@ static result_t new_post_proc(window_t *win, uint32_t msg, uint32_t wparam, void
 
 static result_t main_win_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
-    case evCreate:
-      refresh_feed_list();
+    case evCreate: {
+      // Replace form's reportview with tableview for automatic population
+      window_t *old_feed = get_window_item(win, ID_MAIN_WINDOW_FEED);
+      if (old_feed) {
+        // Create tableview with same frame/parent but using database API
+        tableview_params_t params = {
+          .db = g_db,
+          .table_id = TABLE_POSTS,
+          .filter_field = 0,          // No filter (fetch all)
+          .filter_value = 0,
+          .field_names = (const char *[]){"title", "author", "like_count", "comment_count", NULL},
+          .column_titles = (const char *[]){"Title", "Author", "Likes", "Comments", NULL},
+          .column_widths = (const int[]){0, 80, 50, 50, -1}
+        };
+        
+        // Create tableview in place of old reportview
+        window_t *feed = create_window("", old_feed->flags, old_feed->frame,
+                                       old_feed->parent, win_tableview, &params);
+        if (feed) {
+          feed->id = ID_MAIN_WINDOW_FEED;
+          destroy_window(old_feed);
+        }
+      }
       return true;
+    }
       
     case evCommand: {
       int cmd = LOWORD(wparam);
@@ -178,9 +168,14 @@ static result_t main_win_proc(window_t *win, uint32_t msg, uint32_t wparam, void
           show_dialog_from_form(&socialfeed_new_post_form, "New Post", win, new_post_proc, NULL);
           return true;
           
-        case ID_VIEW_REFRESH:
-          refresh_feed_list();
+        case ID_VIEW_REFRESH: {
+          // Send refresh message to tableview
+          window_t *feed = get_window_item(win, ID_MAIN_WINDOW_FEED);
+          if (feed)
+            send_message(feed, tvRefresh, 0, NULL);
+          }
           return true;
+        }
           
         case ID_HELP_ABOUT:
           msgbox(win, "About Social Feed",

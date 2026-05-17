@@ -40,8 +40,8 @@ else
     LDFLAGS_TEST =
     ifeq ($(UNAME_S),Darwin)
         # macOS specific flags
-        CFLAGS += -I/opt/homebrew/include -I/usr/local/include
-        LDFLAGS += -L/opt/homebrew/lib -L/usr/local/lib
+        CFLAGS += -arch arm64 -I/opt/homebrew/include -I/usr/local/include
+        LDFLAGS += -arch arm64 -L/opt/homebrew/lib -L/usr/local/lib
         LIBS += -framework OpenGL
         LIB_EXT = .dylib
         PLATFORM_LIB_EXT = dylib
@@ -269,7 +269,7 @@ GENERATED_DIR = $(BUILD_DIR)/generated
 IMAGEEDITOR_ORION = examples/imageeditor/imageeditor.orion
 IMAGEEDITOR_FORMS_H = $(GENERATED_DIR)/examples/imageeditor/imageeditor_forms.h
 SOCIALFEED_ORION = examples/socialfeed/socialfeed.orion
-SOCIALFEED_FORMS_H = $(GENERATED_DIR)/examples/socialfeed/socialfeed_forms.h
+SOCIALFEED_H = $(GENERATED_DIR)/examples/socialfeed/socialfeed.h
 
 # Tests with custom build rules — excluded from the generic pattern rules.
 APP_UI_TEST_SRCS = $(GITCLIENT_TEST_SRCS) $(IMAGEEDITOR_UI_TEST_SRC) $(FORMEDITOR_UI_TEST_SRC) $(DATABASE_TEST_SRC)
@@ -324,7 +324,7 @@ $(IMAGEEDITOR_FORMS_H): $(ORIONC_BIN) $(IMAGEEDITOR_ORION) | $(GENERATED_DIR)
 	@mkdir -p $(dir $@)
 	$(ORIONC_BIN) --input $(IMAGEEDITOR_ORION) --output $@ --prefix imageeditor
 
-$(SOCIALFEED_FORMS_H): $(ORIONC_BIN) $(SOCIALFEED_ORION) | $(GENERATED_DIR)
+$(SOCIALFEED_H): $(ORIONC_BIN) $(SOCIALFEED_ORION) | $(GENERATED_DIR)
 	@echo "Compiling Orion form: $@"
 	@mkdir -p $(dir $@)
 	$(ORIONC_BIN) --input $(SOCIALFEED_ORION) --output $@ --prefix socialfeed
@@ -442,7 +442,7 @@ $(IMAGEEDITOR256_EXAMPLE_BIN): $(wildcard examples/imageeditor/*.c) $(IMAGEEDITO
 		      -I. -Iexamples/imageeditor -DSHAREDIR='"../share/imageeditor"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
-$(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEED_FORMS_H) $(SHARED_LIB) | $(BIN_DIR) share
+$(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEED_H) $(SHARED_LIB) | $(BIN_DIR) share
 	@echo "Building example: $@"
 	@(find examples/socialfeed -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/socialfeed/main.c"') | \
@@ -450,7 +450,7 @@ $(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEE
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 # Minimal database-driven socialfeed (demonstrates Zero Wrapper Structs API)
-$(BIN_DIR)/socialfeed_db$(EXE_EXT): examples/socialfeed/socialfeed_db.c examples/socialfeed/db_simple_xml.c $(SOCIALFEED_FORMS_H) $(SHARED_LIB) | $(BIN_DIR) share
+$(BIN_DIR)/socialfeed_db$(EXE_EXT): examples/socialfeed/socialfeed_db.c examples/socialfeed/db_simple_xml.c $(SOCIALFEED_H) $(SHARED_LIB) | $(BIN_DIR) share
 	@echo "Building example: $@"
 	$(CC) $(CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' \
 		-o $@ examples/socialfeed/socialfeed_db.c examples/socialfeed/db_simple_xml.c \

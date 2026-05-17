@@ -12,6 +12,7 @@
 // Forward declarations
 typedef struct window_s window_t;
 typedef struct irect16_s irect16_t;
+typedef struct database_s database_t;
 typedef uint32_t flags_t;
 typedef uint32_t result_t;
 
@@ -224,6 +225,7 @@ typedef struct form_ctrl_def_s {
   bool              font_set; // font attribute explicitly set
   uint8_t           color;   // label color palette index; 0 = transparent
   bool              color_set; // color attribute explicitly set
+  const void       *lparam;  // custom control creation parameter (e.g. tableview_params_t*)
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -242,6 +244,9 @@ typedef struct {
   irect16_t               margin;       // outer margin for this form when nested
   const form_ctrl_def_t  *children;    // array of child control definitions (may be NULL)
   int                     child_count; // number of entries in children[]
+  // ── Toolbar fields ───────────────────────────────────────────────────────
+  const void             *toolbar_items;  // toolbar_item_t array (may be NULL)
+  int                     toolbar_count;  // number of toolbar items
   // ── DDX (Dialog Data Exchange) fields ───────────────────────────────────
   const ctrl_binding_t   *bindings;      // data-exchange table (may be NULL)
   int                     binding_count;   // number of entries in bindings[]
@@ -615,6 +620,11 @@ uint32_t show_dialog_from_form(form_def_t const *def, char const *title,
 // Returns the dialog end code (1 = accepted, 0 = cancelled).
 uint32_t show_ddx_dialog(form_def_t const *def, const char *title,
                          window_t *parent, void *state);
+
+// Database registry (NeXTSTEP-style singleton pattern)
+// Applications register their database at startup, framework retrieves automatically.
+void ui_set_database(database_t *db);
+database_t *ui_get_database(void);
 
 // Theme functions (analogous to WinAPI SetSysColors / GetSysColor)
 void set_sys_colors(int count, const int *indices, const uint32_t *colors);

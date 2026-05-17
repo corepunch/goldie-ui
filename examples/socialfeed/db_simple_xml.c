@@ -1,5 +1,5 @@
 // SimpleXMLDatabase implementation (message-based proc pattern)
-#include "db_simple_xml.h"
+#include "socialfeed.h"
 #include "../../platform/platform.h"  // for LOWORD/HIWORD
 #include <stdio.h>
 #include <stdlib.h>
@@ -194,6 +194,166 @@ static bool comment_delete(simple_xml_context_t *ctx, int id) {
   }
   return false;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Object Procedures (DDX-style field extraction)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Column IDs for Action-Message DDX
+enum {
+  COL_AUTHOR_ID = 0,
+  COL_AUTHOR_NAME,
+  COL_AUTHOR_AVATAR,
+  
+  COL_POST_ID = 100,
+  COL_POST_AUTHOR_ID,
+  COL_POST_TITLE,
+  COL_POST_BODY,
+  COL_POST_LIKE_COUNT,
+  COL_POST_COMMENT_COUNT,
+  
+  COL_COMMENT_ID = 200,
+  COL_COMMENT_POST_ID,
+  COL_COMMENT_AUTHOR_ID,
+  COL_COMMENT_TEXT,
+  COL_COMMENT_LIKE_COUNT,
+};
+
+// Object proc for author_t records
+static result_t author_object_proc(const void *object, uint32_t msg,
+                                   uint32_t wparam, void *lparam) {
+  const author_t *a = (const author_t *)object;
+  char *buf = (char *)lparam;
+  uint16_t column_id = LOWORD(wparam);
+  size_t buf_sz = (size_t)HIWORD(wparam);
+  
+  if (!a || !buf || buf_sz == 0) return false;
+  
+  switch (msg) {
+    case dbObjGetFieldText:
+      switch (column_id) {
+        case COL_AUTHOR_ID:
+          snprintf(buf, buf_sz, "%d", a->id);
+          return true;
+        case COL_AUTHOR_NAME:
+          strncpy(buf, a->name, buf_sz - 1);
+          buf[buf_sz - 1] = '\0';
+          return true;
+        case COL_AUTHOR_AVATAR:
+          strncpy(buf, a->avatar, buf_sz - 1);
+          buf[buf_sz - 1] = '\0';
+          return true;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+}
+
+// Object proc for post_t records
+static result_t post_object_proc(const void *object, uint32_t msg,
+                                 uint32_t wparam, void *lparam) {
+  const post_t *p = (const post_t *)object;
+  char *buf = (char *)lparam;
+  uint16_t column_id = LOWORD(wparam);
+  size_t buf_sz = (size_t)HIWORD(wparam);
+  
+  if (!p || !buf || buf_sz == 0) return false;
+  
+  switch (msg) {
+    case dbObjGetFieldText:
+      switch (column_id) {
+        case COL_POST_ID:
+          snprintf(buf, buf_sz, "%d", p->id);
+          return true;
+        case COL_POST_AUTHOR_ID:
+          snprintf(buf, buf_sz, "%d", p->author_id);
+          return true;
+        case COL_POST_TITLE:
+          strncpy(buf, p->title, buf_sz - 1);
+          buf[buf_sz - 1] = '\0';
+          return true;
+        case COL_POST_BODY:
+          strncpy(buf, p->body, buf_sz - 1);
+          buf[buf_sz - 1] = '\0';
+          return true;
+        case COL_POST_LIKE_COUNT:
+          snprintf(buf, buf_sz, "%d", p->like_count);
+          return true;
+        case COL_POST_COMMENT_COUNT:
+          snprintf(buf, buf_sz, "%d", p->comment_count);
+          return true;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+}
+
+// Object proc for comment_t records
+static result_t comment_object_proc(const void *object, uint32_t msg,
+                                    uint32_t wparam, void *lparam) {
+  const comment_t *c = (const comment_t *)object;
+  char *buf = (char *)lparam;
+  uint16_t column_id = LOWORD(wparam);
+  size_t buf_sz = (size_t)HIWORD(wparam);
+  
+  if (!c || !buf || buf_sz == 0) return false;
+  
+  switch (msg) {
+    case dbObjGetFieldText:
+      switch (column_id) {
+        case COL_COMMENT_ID:
+          snprintf(buf, buf_sz, "%d", c->id);
+          return true;
+        case COL_COMMENT_POST_ID:
+          snprintf(buf, buf_sz, "%d", c->post_id);
+          return true;
+        case COL_COMMENT_AUTHOR_ID:
+          snprintf(buf, buf_sz, "%d", c->author_id);
+          return true;
+        case COL_COMMENT_TEXT:
+          strncpy(buf, c->text, buf_sz - 1);
+          buf[buf_sz - 1] = '\0';
+          return true;
+        case COL_COMMENT_LIKE_COUNT:
+          snprintf(buf, buf_sz, "%d", c->like_count);
+          return true;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+}
+
+// Field bindings for each table
+static const db_field_msg_binding_t author_field_bindings[] = {
+  { "id", COL_AUTHOR_ID },
+  { "name", COL_AUTHOR_NAME },
+  { "avatar", COL_AUTHOR_AVATAR },
+};
+
+static const db_field_msg_binding_t post_field_bindings[] = {
+  { "id", COL_POST_ID },
+  { "author_id", COL_POST_AUTHOR_ID },
+  { "title", COL_POST_TITLE },
+  { "body", COL_POST_BODY },
+  { "like_count", COL_POST_LIKE_COUNT },
+  { "comment_count", COL_POST_COMMENT_COUNT },
+  { "author", COL_POST_AUTHOR_ID },  // Alias for join queries
+};
+
+static const db_field_msg_binding_t comment_field_bindings[] = {
+  { "id", COL_COMMENT_ID },
+  { "post_id", COL_COMMENT_POST_ID },
+  { "author_id", COL_COMMENT_AUTHOR_ID },
+  { "text", COL_COMMENT_TEXT },
+  { "like_count", COL_COMMENT_LIKE_COUNT },
+  { "author", COL_COMMENT_AUTHOR_ID },  // Alias for join queries
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Database Procedure (analogous to winproc_t)
@@ -442,6 +602,38 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     
     case dbGetDirty:
       return db->dirty ? 1 : 0;
+    
+    case dbGetObjectProc: {
+      // wparam = table_id; returns object proc for that table
+      int table_id = (int)wparam;
+      switch (table_id) {
+        case TABLE_AUTHORS:  return (lresult_t)author_object_proc;
+        case TABLE_POSTS:    return (lresult_t)post_object_proc;
+        case TABLE_COMMENTS: return (lresult_t)comment_object_proc;
+        default: return (lresult_t)NULL;
+      }
+    }
+    
+    case dbGetFieldBindings: {
+      // wparam = table_id; lparam = int* count_out; returns db_field_msg_binding_t*
+      int table_id = (int)wparam;
+      int *count_out = (int *)lparam;
+      
+      switch (table_id) {
+        case TABLE_AUTHORS:
+          if (count_out) *count_out = sizeof(author_field_bindings) / sizeof(author_field_bindings[0]);
+          return (lresult_t)author_field_bindings;
+        case TABLE_POSTS:
+          if (count_out) *count_out = sizeof(post_field_bindings) / sizeof(post_field_bindings[0]);
+          return (lresult_t)post_field_bindings;
+        case TABLE_COMMENTS:
+          if (count_out) *count_out = sizeof(comment_field_bindings) / sizeof(comment_field_bindings[0]);
+          return (lresult_t)comment_field_bindings;
+        default:
+          if (count_out) *count_out = 0;
+          return (lresult_t)NULL;
+      }
+    }
   }
   
   return 0;

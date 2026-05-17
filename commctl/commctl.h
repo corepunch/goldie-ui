@@ -8,6 +8,9 @@
 #include "filepicker.h"
 #include "msgbox.h"
 
+// Forward declarations for types from other subsystems
+typedef struct database_s database_t;
+
 // bitmap_strip_t is defined in user/user.h and available via the include above.
 // Kept here as a comment for documentation purposes:
 // A fixed-size-tile bitmap strip used with btnSetImage (wparam=index, lparam=bitmap_strip_t*).
@@ -49,6 +52,26 @@ result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
 result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
+// Database-backed table view — automatically populates from database API.
+// See commctl/tableview.c for full documentation and usage examples.
+enum {
+  tvRefresh = evUser + 100,
+  tvSetFilter,
+  tvSetDatabase,  // Set database pointer after creation (wparam=0, lparam=database_t*)
+};
+
+typedef struct {
+  database_t *db;              // Database instance
+  int table_id;                // TABLE_* enum value
+  int filter_field;            // Field to filter by (0 = fetch all)
+  intptr_t filter_value;       // Value to match
+  const char **field_names;    // Column field names (NULL-terminated)
+  const char **column_titles;  // Column display titles (NULL-terminated)
+  const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
+} tableview_params_t;
+
+result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Auto-layout container windows.
 typedef struct {

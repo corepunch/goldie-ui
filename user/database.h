@@ -24,6 +24,8 @@ enum {
   dbFetch,           // wparam=MAKEDWORD(table_id,filter_field); lparam=(intptr_t)filter_value → returns (lresult_t)result_node_t* (linked list)
   dbFind,            // wparam=MAKEDWORD(table_id,search_field); lparam=(intptr_t)value or (void*)str → returns (lresult_t)record_ptr
   dbGetDirty,        // returns dirty flag as lresult_t (0 or 1)
+  dbGetObjectProc,   // wparam=table_id; lparam=0 → returns (lresult_t)db_object_proc_t
+  dbGetFieldBindings, // wparam=table_id; lparam=int* count_out → returns (lresult_t)db_field_msg_binding_t*
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
