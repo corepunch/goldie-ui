@@ -113,6 +113,8 @@ static bool tv_get_field_text(tableview_state_t *s, void *record,
                                   s->obj_proc, record, field, buf, buf_sz);
 }
 
+// Removed: tv_apply_column_widths() - now inherited from reportview evResize
+
 // ══════════════════════════════════════════════════════════════════════════
 // Refresh: Fetch records from database and populate reportview
 // ══════════════════════════════════════════════════════════════════════════
@@ -134,6 +136,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
       };
       send_message(win, RVM_ADDCOLUMN, 0, &col);
     }
+    // Column widths will be calculated by reportview's evResize when window is sized
   }
   
   // Fetch records from database (Zero Wrapper Structs API!)
@@ -198,10 +201,17 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (!params || !params->field_names) {
         return false;
       }
+
+      if (!win_reportview(win, evCreate, 0, NULL)) {
+        return false;
+      }
       
       // Allocate state
       s = calloc(1, sizeof(tableview_state_t));
-      if (!s) return false;
+      if (!s) {
+        win_reportview(win, evDestroy, 0, NULL);
+        return false;
+      }
       
       win->userdata = s;
       s->db = params->db;  // May be NULL - set later via tvSetDatabase
@@ -220,6 +230,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         if (!s->obj_proc || !s->bindings) {
           free(s);
           win->userdata = NULL;
+          win_reportview(win, evDestroy, 0, NULL);
           return false;
         }
       }
@@ -244,6 +255,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free(s->column_widths);
         free(s);
         win->userdata = NULL;
+        win_reportview(win, evDestroy, 0, NULL);
         return false;
       }
       
@@ -266,6 +278,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free(s);
         win->userdata = NULL;
       }
+      win_reportview(win, evDestroy, 0, NULL);
       return false;
     
     case tvRefresh:
@@ -296,6 +309,9 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         tv_refresh(win, s);
       }
       return true;
+
+    // evArrange and evResize now inherited from reportview
+    // (reportview evResize automatically recalculates column widths)
     
     // Forward all other messages to reportview
     default:
