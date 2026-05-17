@@ -12,6 +12,7 @@
 #include "user/theme.h"
 #include "user/accel.h"
 #include "user/image.h"
+#include "user/database.h"
 
 // Kernel subsystem (event management)
 #include "kernel/kernel.h"
