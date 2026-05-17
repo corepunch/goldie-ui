@@ -39,11 +39,30 @@
 
     <databases>
       <!-- NeXTSTEP-style split: one database per model/table. -->
-      <database name="posts" model="post">
-        <action name="fetch_feed" type="fetch" target="feed" />
-      </database>
-      <database name="comments" model="comment">
-        <action name="fetch_comments" type="fetch" target="comments" />
+      <database name="db" class="SimpleXMLDatabase">
+        <!-- Core entities -->
+        <table name="authors" model="author">
+          <field name="id" type="integer" key="YES"/>
+          <field name="name" type="string"/>
+          <field name="avatar" type="string"/>
+        </table>
+
+        <table name="posts" model="post">
+          <field name="id" type="integer" key="YES"/>
+          <field name="author_id" type="integer" relation="authors.id"/>
+          <field name="title" type="string"/>
+          <field name="body" type="string"/>
+          <field name="like_count" type="integer"/>
+          <field name="comment_count" type="integer"/>
+        </table>
+        
+        <table name="comments" model="comment">
+          <field name="id" type="integer" key="YES"/>
+          <field name="post_id" type="integer" relation="posts.id"/>
+          <field name="author_id" type="integer" relation="authors.id"/>
+          <field name="text" type="string"/>
+          <field name="like_count" type="integer"/>
+        </table>
       </database>
     </databases>
 
@@ -60,7 +79,7 @@
                         action="fetch_feed"
                         flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
             <column field="title" title="Title" width="0" />
-            <column field="author" title="Author" width="80" />
+            <column field="author.name" title="Author" width="80" />
             <column field="like_count" title="Likes" width="50" />
             <column field="comment_count" title="Comments" width="55" />
           </db-tableview>
@@ -134,8 +153,10 @@
         <db-tableview name="comments"
                       database="comments"
                       action="fetch_comments"
+                      master="posts"
+                      master-key="post_id"
                       flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
-          <column field="author" title="Author" width="70" />
+          <column field="author.name" title="Author" width="70" />
           <column field="text" title="Text" width="0" />
           <column field="like_count" title="Likes" width="45" />
         </db-tableview>

@@ -1,0 +1,157 @@
+<!-- DepartmentBrowser.nib — NeXTSTEP 3.0 Interface Builder archive
+     Object graph (typed-stream format, shown here as annotated XML for clarity)
+     Owner class: DepartmentBrowserController                              -->
+
+<archive>
+
+  <!-- ═══════════════════════════════════════════════════
+       FILE'S OWNER
+       The controller object. IB holds a proxy; the real
+       instance is created at -loadNibNamed: time.
+       ═══════════════════════════════════════════════════ -->
+  <object class="DepartmentBrowserController" id="owner">
+    <!-- outlets wired in IB: -->
+    <outlet name="databaseChannel"    ref="dbChannel"/>
+    <outlet name="departmentTableView" ref="deptTable"/>
+    <outlet name="employeeTableView"  ref="empTable"/>
+    <outlet name="titleField"         ref="titleField"/>
+    <outlet name="locationField"      ref="locationField"/>
+    <outlet name="departmentImageWell" ref="deptPhoto"/>
+    <outlet name="employeeImageWell"  ref="empPhoto"/>
+  </object>
+
+  <!-- ═══════════════════════════════════════════════════
+       DATABASE KIT OBJECTS  (non-visual, live in the nib)
+       ═══════════════════════════════════════════════════ -->
+
+  <!-- DBDatabase — holds connection info for Sybase -->
+  <object class="DBDatabase" id="db">
+    <property name="serverType" value="Sybase"/>
+    <!-- host/login left blank; prompted at runtime via login panel -->
+  </object>
+
+  <!-- DBChannel — the model layer; owns the fetch logic -->
+  <object class="DBChannel" id="dbChannel">
+    <outlet name="database" ref="db"/>
+
+    <!-- Two DBRecordList objects, one per master/detail -->
+    <object class="DBRecordList" id="deptRecordList">
+      <property name="tableName"   value="department"/>
+      <property name="columnNames" value="dept_name"/>
+    </object>
+
+    <object class="DBRecordList" id="empRecordList">
+      <!-- detail; joined automatically by DBChannel when
+           master selection changes                        -->
+      <property name="tableName"   value="employee"/>
+      <property name="columnNames"
+                value="last_name,first_name,manager,salary,phone"/>
+      <!-- join defined in IB's database inspector:
+           employee.dept_id = department.dept_id           -->
+      <property name="masterRecordList" ref="deptRecordList"/>
+    </object>
+  </object>
+
+  <!-- ═══════════════════════════════════════════════════
+       MENU
+       ═══════════════════════════════════════════════════ -->
+  <object class="Menu" id="mainMenu" title="WackoApp">
+    <object class="MenuItem" title="This Is A Custom Menu"/>
+    <object class="MenuItem" title="Color" hasSubmenu="YES">
+      <!-- NB: Jobs dragged a Color submenu from the palette -->
+      <object class="ColorMenu" id="colorMenu"/>
+    </object>
+    <object class="MenuItem" title="Quit"
+            action="terminate:" target="NSApp"/>
+  </object>
+
+  <!-- ═══════════════════════════════════════════════════
+       MAIN WINDOW
+       ═══════════════════════════════════════════════════ -->
+  <object class="Window" id="mainWindow"
+          title="Department Browser"
+          contentRect="200 200 680 520"
+          style="titled|closable|resizable"
+          visible="YES">
+
+    <contentView class="View" id="contentView">
+
+      <!-- ── Search button ── -->
+      <object class="Button" id="searchButton"
+              frame="16 472 120 36"
+              title="Search"
+              font="Stencil 24">
+        <!-- action wired to DBChannel fetchAllRecords in IB
+             (Jobs dragged the line from button → dbChannel) -->
+        <connection action="fetchAllRecords:" target="dbChannel"/>
+      </object>
+
+      <!-- ── MASTER: Department name table ── -->
+      <object class="ScrollView" id="deptScrollView"
+              frame="16 280 180 180">
+        <object class="DBTableView" id="deptTable"
+                dataSource="deptRecordList"
+                delegate="owner">
+          <object class="TableColumn" id="deptNameCol"
+                  identifier="dept_name"
+                  title="Department"
+                  width="160"/>
+        </object>
+      </object>
+
+      <!-- ── Department photo (DBImageView) ── -->
+      <object class="DBImageView" id="deptPhoto"
+              frame="210 330 180 130"
+              recordList="deptRecordList"
+              columnName="location_photo"/>
+
+      <!-- ── DETAIL: Employee table ── -->
+      <object class="ScrollView" id="empScrollView"
+              frame="16 100 640 168">
+        <object class="DBTableView" id="empTable"
+                dataSource="empRecordList"
+                delegate="owner">
+          <object class="TableColumn" identifier="last_name"
+                  title="Last Name"  width="120"/>
+          <object class="TableColumn" identifier="first_name"
+                  title="First Name" width="120"/>
+          <object class="TableColumn" identifier="manager"
+                  title="Manager"    width="120"/>
+          <object class="TableColumn" identifier="salary"
+                  title="Salary"     width="80"/>
+          <object class="TableColumn" identifier="phone"
+                  title="Phone"      width="120"/>
+        </object>
+      </object>
+
+      <!-- ── Detail fields (title + location, joined from
+           employee and location tables automatically)  ── -->
+      <object class="TextField" id="titleField"
+              frame="16 60 200 28"
+              font="Stencil 18"
+              editable="NO"
+              bordered="NO">
+        <!-- bound to empRecordList.title via DBChannel -->
+        <connection binding="value"
+                    source="empRecordList" keyPath="title"/>
+      </object>
+
+      <object class="TextField" id="locationField"
+              frame="230 60 200 28"
+              font="Stencil 18"
+              editable="NO"
+              bordered="NO">
+        <connection binding="value"
+                    source="empRecordList" keyPath="location_name"/>
+      </object>
+
+      <!-- ── Employee photo (DBImageView) ── -->
+      <object class="DBImageView" id="empPhoto"
+              frame="460 20 180 150"
+              recordList="empRecordList"
+              columnName="employee_photo"/>
+
+    </contentView>
+  </object>
+
+</archive>
