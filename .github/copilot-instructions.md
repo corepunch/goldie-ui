@@ -34,6 +34,54 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - **Prefer class/proc-driven behavior over global mode switches.** In WinAPI style, behavior belongs to window classes and message handlers, not to app-wide enum dispatchers.
 - **For layout engines, split by responsibility.** Avoid one monolithic layout function with long `if (stack)`, `if (grid)`, `if (column)` chains. Keep shared math in helpers, but keep container-specific measure/arrange logic in focused functions tied to each container type.
 
+### Declarative Forms Must Be Self-Contained (Critical)
+
+**Principle:** When declarative forms use full path syntax (`field="db.table.field"`), they must be completely self-contained. Never require external context as function parameters when the form already knows that context.
+
+**Wrong - leaky abstraction:**
+```c
+// Form already knows db_name="db" from field="db.posts.title"
+// Why pass it again? This breaks the declarative model.
+show_db_dialog(&form, "Edit Post", parent, db, post_id);
+                                           ^^
+                                           redundant!
+```
+
+**Correct - self-contained:**
+```c
+// Form looks up database by name internally - no external context needed
+show_db_dialog(&form, "Edit Post", parent, post_id);
+```
+
+**Implementation pattern:**
+- Use a **registry pattern** for declarative resources (databases, themes, locales, etc.)
+- Forms with `field="db.table.field"` → store `db_name`, look up via `get_database_by_name()`
+- Forms with `theme="dark"` → look up via `get_theme_by_name()`
+- Forms with `locale="fr_FR"` → look up via `get_locale_by_name()`
+- Never duplicate context that's already encoded in the declarative definition
+
+**Application startup pattern:**
+```c
+// Register resources once at startup
+database_t *db = create_database("db", "SimpleXMLDatabase", "data.xml");
+register_database("db", db);
+
+// Now all forms with field="db.table.field" are self-contained
+// No need to pass database instances around
+```
+
+**Why this matters:**
+- ✅ True declarative programming - forms are pure data, not code
+- ✅ Impossible to pass wrong database instance (compile-time guarantee)
+- ✅ Consistent with "field= knows everything" philosophy
+- ✅ Reduces function parameters and API surface
+- ✅ Forms can be serialized, transmitted, hot-reloaded without code changes
+- ❌ Passing external context breaks the declarative model
+- ❌ Creates opportunity for runtime mismatch bugs (wrong db passed)
+- ❌ Makes forms dependent on caller context instead of self-describing
+
+**When to deviate:** Only if the resource is genuinely dynamic and cannot be named at form definition time (extremely rare). If you can name it, register it.
+
 ### Scrollbars — Built-in vs. Standalone
 
 **`WINDOW_HSCROLL` / `WINDOW_VSCROLL` — built-in scrollbars on a window**

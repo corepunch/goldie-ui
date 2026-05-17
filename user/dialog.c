@@ -587,8 +587,15 @@ static result_t dialog_db_proc(window_t *win, uint32_t msg,
 }
 
 uint32_t show_db_dialog(form_def_t const *def, const char *title,
-                        window_t *parent, database_t *db, int record_id) {
-  if (!def || !def->db_table || !db) return 0;
+                        window_t *parent, int record_id) {
+  if (!def || !def->db_name || !def->db_table) return 0;
+  
+  // Look up database by name from form definition
+  database_t *db = get_database_by_name(def->db_name);
+  if (!db) {
+    fprintf(stderr, "show_db_dialog: database '%s' not found\n", def->db_name);
+    return 0;
+  }
   
   // Allocate buffer for database record (estimate 1KB per record)
   // TODO: Calculate exact size from field metadata

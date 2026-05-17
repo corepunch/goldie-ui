@@ -631,9 +631,10 @@ uint32_t show_ddx_dialog(form_def_t const *def, const char *title,
 // Fetches a record from the database table on open, pushes fields to controls,
 // pulls control values back on OK, and updates/inserts the record.
 // If record_id == 0, creates a new record (INSERT); otherwise updates existing (UPDATE).
+// The database is looked up automatically from def->db_name via the registry.
 // Returns the dialog end code (1 = accepted/saved, 0 = cancelled).
 uint32_t show_db_dialog(form_def_t const *def, const char *title,
-                        window_t *parent, database_t *db, int record_id);
+                        window_t *parent, int record_id);
 
 // Database registry (NeXTSTEP-style singleton pattern)
 // Applications register their database at startup, framework retrieves automatically.

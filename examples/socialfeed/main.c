@@ -62,6 +62,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   // Register database with framework (NeXTSTEP-style singleton)
   ui_set_database(g_app->db);
+  
+  // Register database in the new registry (for declarative forms)
+  // Forms with field="db.table.field" will look up "db" automatically
+  register_database("db", g_app->db);
 
   // Database automatically loads data from source XML file
   // (no manual seed loading needed)

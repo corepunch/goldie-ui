@@ -42,6 +42,49 @@ dbproc_t find_database_class_proc(const char *class_name) {
   return NULL;
 }
 
+// ── Database instance registry ──────────────────────────────────────────────
+
+#define MAX_DATABASE_INSTANCES 16
+
+static struct {
+  const char *name;
+  database_t *db;
+} g_database_instances[MAX_DATABASE_INSTANCES];
+static int g_database_instance_count = 0;
+
+bool register_database(const char *name, database_t *db) {
+  if (!name || !*name || !db) return false;
+  
+  // Check if already registered (allow overwrite)
+  for (int i = 0; i < g_database_instance_count; i++) {
+    if (db_streq(g_database_instances[i].name, name)) {
+      g_database_instances[i].db = db;
+      return true;
+    }
+  }
+  
+  if (g_database_instance_count >= MAX_DATABASE_INSTANCES) {
+    fprintf(stderr, "Too many database instances registered (max %d)\n",
+            MAX_DATABASE_INSTANCES);
+    return false;
+  }
+  
+  g_database_instances[g_database_instance_count].name = name;
+  g_database_instances[g_database_instance_count].db = db;
+  g_database_instance_count++;
+  return true;
+}
+
+database_t *get_database_by_name(const char *name) {
+  if (!name || !*name) return NULL;
+  for (int i = 0; i < g_database_instance_count; i++) {
+    if (db_streq(g_database_instances[i].name, name))
+      return g_database_instances[i].db;
+  }
+  fprintf(stderr, "Database '%s' not found in registry\n", name);
+  return NULL;
+}
+
 database_t *create_database(const char *name, const char *class_name, const char *source_path) {
   if (!name || !class_name) return NULL;
   

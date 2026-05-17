@@ -35,7 +35,8 @@ static const form_def_t author_edit_form = {
   .binding_count = 2,
   .ok_id = 100,
   .cancel_id = 101,
-  // Database metadata (would be auto-filled by orionc from table= attribute)
+  // Database metadata (would be auto-filled by orionc from field= attribute)
+  .db_name = "db",
   .db_table = "authors",
   .db_table_id = TABLE_AUTHORS,
   .db_fields = (const void *)authors_fields,
@@ -43,11 +44,16 @@ static const form_def_t author_edit_form = {
 };
 
 // Test function - call from socialfeed to test
+// NOTE: Database must be registered first via register_database("db", db)
 void test_author_edit_dialog(window_t *parent, database_t *db) {
   printf("Testing database-driven author edit dialog...\n");
   
-  // Test with existing author (ID 1)
-  uint32_t result = show_db_dialog(&author_edit_form, "Edit Author", parent, db, 1);
+  // Register database instance (normally done once at startup)
+  register_database("db", db);
+  
+  // NEW API: Form is self-contained - no db parameter needed!
+  // The form knows db_name="db" from field="db.authors.name"
+  uint32_t result = show_db_dialog(&author_edit_form, "Edit Author", parent, 1);
   
   if (result == 1) {
     printf("Author saved successfully!\n");
@@ -60,8 +66,11 @@ void test_author_edit_dialog(window_t *parent, database_t *db) {
 void test_new_author_dialog(window_t *parent, database_t *db) {
   printf("Testing new author creation dialog...\n");
   
-  // Test with new author (ID 0 = INSERT)
-  uint32_t result = show_db_dialog(&author_edit_form, "New Author", parent, db, 0);
+  // Register database instance
+  register_database("db", db);
+  
+  // NEW API: Self-contained - form looks up database automatically
+  uint32_t result = show_db_dialog(&author_edit_form, "New Author", parent, 0);
   
   if (result == 1) {
     printf("New author created!\n");

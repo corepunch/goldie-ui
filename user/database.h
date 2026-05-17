@@ -90,6 +90,11 @@ bool db_load_record_from_xml(xmlNodePtr node, void *record,
 bool register_database_class(const db_class_desc_t *desc);
 dbproc_t find_database_class_proc(const char *class_name);
 
+// Database instance registry (for declarative forms)
+// Forms with field="db.table.field" look up the database by name automatically
+bool register_database(const char *name, database_t *db);
+database_t *get_database_by_name(const char *name);
+
 #define DB_CLASS(proc_sym) \
   register_database_class(&(db_class_desc_t){ .class_name = #proc_sym, .proc = (proc_sym) })
 
