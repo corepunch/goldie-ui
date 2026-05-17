@@ -1,5 +1,6 @@
 // SimpleXMLDatabase implementation (message-based proc pattern)
 #include "db_simple_xml.h"
+#include "../../platform/platform.h"  // for LOWORD/HIWORD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -260,28 +261,28 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     case dbInsert: {
       if (!ctx) return (lresult_t)NULL;
       
-      insert_params_t *params = (insert_params_t *)lparam;
-      if (!params) return (lresult_t)NULL;
+      void *record_data = lparam;
+      if (!record_data) return (lresult_t)NULL;
       
       int table_id = wparam;
       
       switch (table_id) {
         case TABLE_AUTHORS: {
-          author_t *data = (author_t *)params->record_data;
+          author_t *data = (author_t *)record_data;
           author_t *rec = author_insert(ctx, data->name, data->avatar);
           db->dirty = true;
-          return (lresult_t)rec;  // Return pointer directly
+          return (lresult_t)rec;
         }
         
         case TABLE_POSTS: {
-          post_t *data = (post_t *)params->record_data;
+          post_t *data = (post_t *)record_data;
           post_t *rec = post_insert(ctx, data->author_id, data->title, data->body);
           db->dirty = true;
           return (lresult_t)rec;
         }
         
         case TABLE_COMMENTS: {
-          comment_t *data = (comment_t *)params->record_data;
+          comment_t *data = (comment_t *)record_data;
           comment_t *rec = comment_insert(ctx, data->post_id, data->author_id, data->text);
           db->dirty = true;
           return (lresult_t)rec;
@@ -327,7 +328,9 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
       fetch_params_t *params = (fetch_params_t *)lparam;
       if (!params) return (lresult_t)NULL;
       
-      int table_id = wparam;
+      int table_id = LOWORD(wparam);
+      int filter_field = HIWORD(wparam);
+      int filter_value = (int)params->filter_value;
       
       switch (table_id) {
         case TABLE_AUTHORS: {
@@ -337,11 +340,11 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
             results[i] = &ctx->authors[i];
           }
           if (params->count_out) *params->count_out = count;
-          return (lresult_t)results;  // Return array pointer directly
+          return (lresult_t)results;
         }
         
         case TABLE_POSTS: {
-          if (params->filter_field == 0) {
+          if (filter_field == 0) {
             // Fetch all
             int count = ctx->post_count;
             void **results = malloc(count * sizeof(void *));
@@ -355,22 +358,22 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
         }
         
         case TABLE_COMMENTS: {
-          if (params->filter_field == 2) {  // filter by post_id
+          if (filter_field == 2) {  // filter by post_id
             int count = 0;
             for (int i = 0; i < ctx->comment_count; i++) {
-              if (ctx->comments[i].post_id == params->filter_value)
+              if (ctx->comments[i].post_id == filter_value)
                 count++;
             }
             
             void **results = malloc(count * sizeof(void *));
             int idx = 0;
             for (int i = 0; i < ctx->comment_count; i++) {
-              if (ctx->comments[i].post_id == params->filter_value)
+              if (ctx->comments[i].post_id == filter_value)
                 results[idx++] = &ctx->comments[i];
             }
             if (params->count_out) *params->count_out = count;
             return (lresult_t)results;
-          } else if (params->filter_field == 0) {
+          } else if (filter_field == 0) {
             // Fetch all
             int count = ctx->comment_count;
             void **results = malloc(count * sizeof(void *));
@@ -390,38 +393,47 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     case dbFind: {
       if (!ctx) return (lresult_t)NULL;
       
-      find_params_t *params = (find_params_t *)lparam;
-      if (!params) return (lresult_t)NULL;
-      
-      int table_id = wparam;
-      void *result = NULL;
+      int table_id = LOWORD(wparam);
+      int search_field = HIWORD(wparam);
       
       switch (table_id) {
         case TABLE_AUTHORS: {
-          if (params->search_field == 0) {  // by id
-            result = author_find_by_id(ctx, params->search_value.int_value);
-          } else if (params->search_field == 1) {  // by name
-            result = author_find_by_name(ctx, params->search_value.str_value);
+          if (search_field == 0) {
+            // Find by id
+            int id = (int)(intptr_t)lparam;
+            author_t *found = author_find_by_id(ctx, id);
+            return (lresult_t)found;
+          } else if (search_field == 1) {
+            // Find by name
+            const char *name = (const char *)lparam;
+            author_t *found = author_find_by_name(ctx, name);
+            return (lresult_t)found;
           }
           break;
         }
         
         case TABLE_POSTS: {
-          if (params->search_field == 0) {  // by id
-            result = post_find_by_id(ctx, params->search_value.int_value);
+          if (search_field == 0) {
+            // Find by id
+            int id = (int)(intptr_t)lparam;
+            post_t *found = post_find_by_id(ctx, id);
+            return (lresult_t)found;
           }
           break;
         }
         
         case TABLE_COMMENTS: {
-          if (params->search_field == 0) {  // by id
-            result = comment_find_by_id(ctx, params->search_value.int_value);
+          if (search_field == 0) {
+            // Find by id
+            int id = (int)(intptr_t)lparam;
+            comment_t *found = comment_find_by_id(ctx, id);
+            return (lresult_t)found;
           }
           break;
         }
       }
       
-      return (lresult_t)result;  // Return pointer directly (NULL if not found)
+      return (lresult_t)NULL;
     }
     
     case dbGetDirty:

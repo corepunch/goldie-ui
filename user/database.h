@@ -18,38 +18,22 @@ enum {
   dbDestroy,         // cleanup → returns 1 on success
   dbLoad,            // load from source → returns 1 on success
   dbSave,            // save to source (only if dirty) → returns 1 on success
-  dbInsert,          // wparam=table_id; lparam=insert_params_t* → returns (lresult_t)record_ptr
-  dbUpdate,          // wparam=table_id; lparam=record_data_ptr → returns 1 on success
+  dbInsert,          // wparam=table_id; lparam=record_data → returns (lresult_t)record_ptr
+  dbUpdate,          // wparam=table_id; lparam=record_data → returns 1 on success
   dbDelete,          // wparam=table_id; lparam=(void*)(intptr_t)record_id → returns 1 on success
-  dbFetch,           // wparam=table_id; lparam=fetch_params_t* → returns (lresult_t)results_array
-  dbFind,            // wparam=table_id; lparam=find_params_t* → returns (lresult_t)record_ptr
+  dbFetch,           // wparam=MAKEDWORD(table_id,filter_field); lparam=fetch_params_t* → returns (lresult_t)results_array
+  dbFind,            // wparam=MAKEDWORD(table_id,search_field); lparam=(intptr_t)value or (void*)str → returns (lresult_t)record_ptr
   dbGetDirty,        // returns dirty flag as lresult_t (0 or 1)
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
-// Insert parameters (for dbInsert message)
-typedef struct {
-  void *record_data;      // input: record with fields filled in (id will be assigned)
-  // Result returned directly as lresult_t (cast to record_type*)
-} insert_params_t;
-
 // Fetch parameters (for dbFetch message)
+// wparam carries MAKEDWORD(table_id, filter_field)
 typedef struct {
-  int filter_field;       // field to filter on (0=none, 1=author_id, 2=post_id, etc.)
-  int filter_value;       // value to match
+  intptr_t filter_value;  // value to match (cast from int or pointer)
   int *count_out;         // output: number of records
   // Result array returned directly as lresult_t (cast to record_type**; caller frees)
 } fetch_params_t;
-
-// Find parameters (for dbFind message)
-typedef struct {
-  int search_field;       // field to search (0=id, 1=name, etc.)
-  union {
-    int int_value;        // for integer fields
-    const char *str_value; // for string fields
-  } search_value;
-  // Result returned directly as lresult_t (cast to record_type*; do not free)
-} find_params_t;
 
 // Database class descriptor
 typedef struct {
