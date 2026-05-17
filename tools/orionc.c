@@ -33,6 +33,13 @@ typedef struct {
   int count;
 } ident_list_t;
 
+typedef struct {
+  char db_name[64];
+  char table_name[64];
+  char field_name[64];
+  int part_count;  // 2 for "db.posts", 3 for "db.posts.title"
+} db_path_t;
+
 static const char *base_name(const char *path) {
   const char *s = strrchr(path, '/');
   return s ? s + 1 : path;
@@ -85,6 +92,48 @@ static bool is_ident_expr(const char *s) {
           c == '_'))
       return false;
   }
+  return true;
+}
+
+/* Parse a database path like "db.posts.title" into components.
+   Returns true if path has 2+ parts (minimum is db.table). */
+static bool parse_db_path(const char *path, db_path_t *out) {
+  if (!path || !out) return false;
+  
+  memset(out, 0, sizeof(*out));
+  
+  const char *p = path;
+  const char *dot1 = strchr(p, '.');
+  if (!dot1) return false;  // Need at least db.table
+  
+  // Extract db_name
+  size_t len = (size_t)(dot1 - p);
+  if (len >= sizeof(out->db_name)) len = sizeof(out->db_name) - 1;
+  memcpy(out->db_name, p, len);
+  out->db_name[len] = '\0';
+  out->part_count = 1;
+  
+  // Extract table_name
+  p = dot1 + 1;
+  const char *dot2 = strchr(p, '.');
+  if (!dot2) {
+    // Only db.table - no field
+    snprintf(out->table_name, sizeof(out->table_name), "%s", p);
+    out->part_count = 2;
+    return true;
+  }
+  
+  len = (size_t)(dot2 - p);
+  if (len >= sizeof(out->table_name)) len = sizeof(out->table_name) - 1;
+  memcpy(out->table_name, p, len);
+  out->table_name[len] = '\0';
+  out->part_count = 2;
+  
+  // Extract field_name (everything after second dot)
+  p = dot2 + 1;
+  snprintf(out->field_name, sizeof(out->field_name), "%s", p);
+  out->part_count = 3;
+  
   return true;
 }
 
@@ -398,11 +447,27 @@ static char *emit_tableview_params(FILE *f, xmlNodePtr tv, const char *form_iden
                                    const char *tv_name, const char *prefix) {
   if (!is_element(tv, "tableview")) return NULL;
   
-  char *db_attr = attr_dup(tv, "database");
-  if (!db_attr || !*db_attr) {
-    fprintf(stderr, "orionc: <tableview> requires database= attribute\n");
-    free(db_attr);
+  // Try source= first (new full path syntax), fall back to database= (old)
+  char *source_attr = attr_dup(tv, "source");
+  if (!source_attr || !*source_attr) {
+    free(source_attr);
+    source_attr = attr_dup(tv, "database");
+  }
+  
+  if (!source_attr || !*source_attr) {
+    fprintf(stderr, "orionc: <tableview> requires source= attribute\n");
+    free(source_attr);
     return NULL;
+  }
+  
+  // Parse path to extract table name
+  db_path_t path;
+  const char *table_name;
+  if (parse_db_path(source_attr, &path) && path.part_count >= 2) {
+    table_name = path.table_name;
+  } else {
+    // Old format: just table name
+    table_name = source_attr;
   }
   
   // Count columns
@@ -412,7 +477,7 @@ static char *emit_tableview_params(FILE *f, xmlNodePtr tv, const char *form_iden
   }
   if (col_count == 0) {
     fprintf(stderr, "orionc: <tableview> requires at least one <column>\n");
-    free(db_attr);
+    free(source_attr);
     return NULL;
   }
   
@@ -465,9 +530,9 @@ static char *emit_tableview_params(FILE *f, xmlNodePtr tv, const char *form_iden
   fprintf(f, "static const tableview_params_t %s = {\n", params_ident);
   fputs("  .db = NULL,\n", f);  // Set at runtime via app->db
   
-  // Map database name to TABLE_* enum
+  // Map table name to TABLE_* enum
   char table_enum[256];
-  make_ident(table_enum, sizeof(table_enum), db_attr);
+  make_ident(table_enum, sizeof(table_enum), table_name);
   for (char *p = table_enum; *p; p++)
     if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
   fprintf(f, "  .table_id = TABLE_%s,\n", table_enum);
@@ -479,7 +544,7 @@ static char *emit_tableview_params(FILE *f, xmlNodePtr tv, const char *form_iden
   fprintf(f, "  .column_widths = %s_column_widths,\n", params_ident);
   fputs("};\n\n", f);
   
-  free(db_attr);
+  free(source_attr);
   return strdup(params_ident);
 }
 
@@ -1197,7 +1262,177 @@ static bool emit_database_resources(FILE *f, xmlNodePtr database, const char *pr
   if (table_count == 0 && source_count == 0 && binding_count == 0 && action_count == 0)
     return true;
 
-  // Emit TABLE_ enums for each table
+  // ═══════════════════════════════════════════════════════════════════
+  // 1. Emit struct definitions for each table
+  // ═══════════════════════════════════════════════════════════════════
+  if (table_count > 0) {
+    fprintf(f, "// ═══════════════════════════════════════════════════════════════════\n");
+    fprintf(f, "// Database Record Types (generated from <table> schemas)\n");
+    fprintf(f, "// ═══════════════════════════════════════════════════════════════════\n\n");
+    
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "table")) continue;
+      
+      char *table_name = attr_dup(n, "name");
+      char *model_name = attr_dup(n, "model");
+      if (!table_name || !*table_name) {
+        free(table_name);
+        free(model_name);
+        continue;
+      }
+      
+      // Use model name if provided, otherwise derive from table name
+      char type_name[128];
+      if (model_name && *model_name) {
+        // Use model name directly - allows unified types (post_t instead of db_post_t)
+        snprintf(type_name, sizeof(type_name), "%s", model_name);
+      } else {
+        // Singularize table name: "authors" -> "db_author_t"
+        snprintf(type_name, sizeof(type_name), "db_%s_t", table_name);
+        size_t len = strlen(type_name);
+        if (len > 6 && type_name[len-3] == 's' && type_name[len-2] == '_') {
+          type_name[len-3] = '_';
+          type_name[len-2] = 't';
+          type_name[len-1] = '\0';
+        }
+      }
+      
+      fprintf(f, "typedef struct {\n");
+      
+      // Emit fields
+      for (xmlNodePtr field = n->children; field; field = field->next) {
+        if (!is_element(field, "field")) continue;
+        
+        char *field_name = attr_dup(field, "name");
+        char *field_type = attr_dup(field, "type");
+        char *field_length = attr_dup(field, "length");
+        
+        if (!field_name || !field_type) {
+          free(field_name);
+          free(field_type);
+          free(field_length);
+          continue;
+        }
+        
+        // Map XML type to C type
+        if (streq(field_type, "integer") || streq(field_type, "int")) {
+          fprintf(f, "  int %s;\n", field_name);
+        } else if (streq(field_type, "string")) {
+          int len = field_length ? atoi(field_length) : 256;
+          fprintf(f, "  char %s[%d];\n", field_name, len);
+        } else if (streq(field_type, "boolean") || streq(field_type, "bool")) {
+          fprintf(f, "  bool %s;\n", field_name);
+        } else if (streq(field_type, "float") || streq(field_type, "real")) {
+          fprintf(f, "  float %s;\n", field_name);
+        } else if (streq(field_type, "double")) {
+          fprintf(f, "  double %s;\n", field_name);
+        } else {
+          // Unknown type - default to int
+          fprintf(f, "  int %s;\n", field_name);
+        }
+        
+        free(field_name);
+        free(field_type);
+        free(field_length);
+      }
+      
+      fprintf(f, "} %s;\n\n", type_name);
+      
+      free(table_name);
+      free(model_name);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 2. Emit field metadata arrays for reflection
+  // ═══════════════════════════════════════════════════════════════════
+  if (table_count > 0) {
+    fprintf(f, "// ═══════════════════════════════════════════════════════════════════\n");
+    fprintf(f, "// Field Metadata (for reflection-based XML load/save)\n");
+    fprintf(f, "// ═══════════════════════════════════════════════════════════════════\n\n");
+    
+    for (xmlNodePtr n = database->children; n; n = n->next) {
+      if (!is_element(n, "table")) continue;
+      
+      char *table_name = attr_dup(n, "name");
+      char *model_name = attr_dup(n, "model");
+      if (!table_name || !*table_name) {
+        free(table_name);
+        free(model_name);
+        continue;
+      }
+      
+      char type_name[128];
+      if (model_name && *model_name) {
+        // Use model name directly - allows unified types (post_t instead of db_post_t)
+        snprintf(type_name, sizeof(type_name), "%s", model_name);
+      } else {
+        snprintf(type_name, sizeof(type_name), "db_%s_t", table_name);
+        size_t len = strlen(type_name);
+        if (len > 6 && type_name[len-3] == 's' && type_name[len-2] == '_') {
+          type_name[len-3] = '_';
+          type_name[len-2] = 't';
+          type_name[len-1] = '\0';
+        }
+      }
+      
+      char meta_name[128];
+      snprintf(meta_name, sizeof(meta_name), "%s_fields", model_name ? model_name : table_name);
+      
+      fprintf(f, "static const db_field_meta_t %s[] = {\n", meta_name);
+      
+      for (xmlNodePtr field = n->children; field; field = field->next) {
+        if (!is_element(field, "field")) continue;
+        
+        char *field_name = attr_dup(field, "name");
+        char *field_type = attr_dup(field, "type");
+        char *field_length = attr_dup(field, "length");
+        
+        if (!field_name || !field_type) {
+          free(field_name);
+          free(field_type);
+          free(field_length);
+          continue;
+        }
+        
+        // Determine C type enum
+        const char *c_type = "DB_TYPE_INT";
+        int size = 0;
+        if (streq(field_type, "integer") || streq(field_type, "int")) {
+          c_type = "DB_TYPE_INT";
+          size = 0;
+        } else if (streq(field_type, "string")) {
+          c_type = "DB_TYPE_STRING";
+          size = field_length ? atoi(field_length) : 256;
+        } else if (streq(field_type, "boolean") || streq(field_type, "bool")) {
+          c_type = "DB_TYPE_BOOL";
+          size = 0;
+        } else if (streq(field_type, "float") || streq(field_type, "real")) {
+          c_type = "DB_TYPE_FLOAT";
+          size = 0;
+        } else if (streq(field_type, "double")) {
+          c_type = "DB_TYPE_DOUBLE";
+          size = 0;
+        }
+        
+        fprintf(f, "  { \"%s\", %s, offsetof(%s, %s), %d },\n",
+                field_name, c_type, type_name, field_name, size);
+        
+        free(field_name);
+        free(field_type);
+        free(field_length);
+      }
+      
+      fprintf(f, "};\n\n");
+      
+      free(table_name);
+      free(model_name);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 3. Emit TABLE_ enums
+  // ═══════════════════════════════════════════════════════════════════
   if (table_count > 0) {
     fprintf(f, "// Table identifiers\n");
     fprintf(f, "enum {\n");

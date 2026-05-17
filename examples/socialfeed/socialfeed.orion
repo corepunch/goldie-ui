@@ -22,6 +22,11 @@
         <item name="refresh" label="Refresh" />
       </menu>
 
+      <menu name="test" label="Test">
+        <item name="edit_author" label="Edit Author (DB Dialog)..." />
+        <item name="new_author" label="New Author (DB Dialog)..." />
+      </menu>
+
       <menu name="help" label="Help">
         <item name="about" label="About..." />
       </menu>
@@ -41,13 +46,13 @@
       <!-- NeXTSTEP-style split: one database per model/table. -->
       <database name="db" class="SimpleXMLDatabase" source="socialfeed_seed.xml">
         <!-- Core entities -->
-        <table name="authors" model="author">
+        <table name="authors">
           <field name="id" type="integer" key="YES"/>
           <field name="name" type="string" length="64"/>
           <field name="avatar" type="string" length="256"/>
         </table>
 
-        <table name="posts" model="post">
+        <table name="posts">
           <field name="id" type="integer" key="YES"/>
           <field name="author_id" type="integer" relation="authors.id"/>
           <field name="title" type="string" length="256"/>
@@ -56,7 +61,7 @@
           <field name="comment_count" type="integer"/>
         </table>
         
-        <table name="comments" model="comment">
+        <table name="comments">
           <field name="id" type="integer" key="YES"/>
           <field name="post_id" type="integer" relation="posts.id"/>
           <field name="author_id" type="integer" relation="authors.id"/>
@@ -76,7 +81,7 @@
             padding="0">
         <stack name="content" spacing="0" flags="WINDOW_FLEXSPACE">
           <tableview name="feed"
-                     database="posts"
+                     source="db.posts"
                      action="fetch_feed"
                      flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
             <column field="title" title="Title" width="0" />
@@ -100,18 +105,18 @@
           </column>
           <column name="inputs">
             <combobox name="author" 
-                      bind="posts.author_id"
-                      source="authors"
+                      field="db.posts.author_id"
+                      source="db.authors"
                       display="name"
                       value="id" />
-            <textedit name="title" bind="posts.title" />
-            <multiedit name="body" bind="posts.body" />
+            <textedit name="title" field="db.posts.title" />
+            <multiedit name="body" field="db.posts.body" />
           </column>
         </grid>
         <separator name="section_sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex_left" />
-          <button name="ok" text="Post" action="posts.insert" flags="BUTTON_DEFAULT" />
+          <button name="ok" text="Post" action="db.posts.insert" flags="BUTTON_DEFAULT" />
           <button name="cancel" text="Cancel" />
           <space name="flex_right" />
         </stack>
@@ -124,20 +129,20 @@
         <stack name="author_row" orientation="horizontal" spacing="6">
           <label name="lbl_author" text="Author:" />
           <combobox name="author"
-                    bind="comments.author_id"
-                    source="authors"
+                    field="db.comments.author_id"
+                    source="db.authors"
                     display="name"
                     value="id" />
         </stack>
 
         <stack name="text_row" orientation="horizontal" spacing="6">
           <label name="lbl_text" text="Text:" />
-          <textedit name="text" bind="comments.text" />
+          <textedit name="text" field="db.comments.text" />
         </stack>
 
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
-          <button name="ok" text="Submit" action="comments.insert" flags="BUTTON_DEFAULT" />
+          <button name="ok" text="Submit" action="db.comments.insert" flags="BUTTON_DEFAULT" />
           <space name="flex" />
           <button name="cancel" text="Cancel" />
         </stack>
@@ -160,7 +165,7 @@
 
         <!-- Bound tableview for comments (reportview-compatible class). -->
         <tableview name="comments"
-                   database="comments"
+                   source="db.comments"
                    action="fetch_comments"
                    master="posts"
                    master-key="post_id"

@@ -252,6 +252,12 @@ typedef struct {
   int                     binding_count;   // number of entries in bindings[]
   uint32_t                ok_id;           // child ID of the Accept / OK button
   uint32_t                cancel_id;       // child ID of the Cancel button (0 = none)
+  // ── Database binding fields ──────────────────────────────────────────────
+  const char             *db_name;       // database instance name (e.g., "db")
+  const char             *db_table;      // database table name (e.g., "posts")
+  int                     db_table_id;   // TABLE_* enum value
+  const void             *db_fields;     // db_field_meta_t array for this table
+  int                     db_field_count; // number of fields in db_fields[]
 } form_def_t;
 
 // Declarative database API metadata emitted from .orion documents.
@@ -620,6 +626,14 @@ uint32_t show_dialog_from_form(form_def_t const *def, char const *title,
 // Returns the dialog end code (1 = accepted, 0 = cancelled).
 uint32_t show_ddx_dialog(form_def_t const *def, const char *title,
                          window_t *parent, void *state);
+
+// Show a modal database-driven dialog (DDX + database integration).
+// Fetches a record from the database table on open, pushes fields to controls,
+// pulls control values back on OK, and updates/inserts the record.
+// If record_id == 0, creates a new record (INSERT); otherwise updates existing (UPDATE).
+// Returns the dialog end code (1 = accepted/saved, 0 = cancelled).
+uint32_t show_db_dialog(form_def_t const *def, const char *title,
+                        window_t *parent, database_t *db, int record_id);
 
 // Database registry (NeXTSTEP-style singleton pattern)
 // Applications register their database at startup, framework retrieves automatically.
