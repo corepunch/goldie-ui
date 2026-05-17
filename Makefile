@@ -450,7 +450,7 @@ $(IMAGEEDITOR256_EXAMPLE_BIN): $(wildcard examples/imageeditor/*.c) $(IMAGEEDITO
 
 $(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEED_H) $(SHARED_LIB) | $(BIN_DIR) share
 	@echo "Building example: $@"
-	@(find examples/socialfeed -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	@(find examples/socialfeed -name "*.c" ! -name "main.c" ! -name "socialfeed_db.c" ! -name "db_simple_xml.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/socialfeed/main.c"') | \
 		$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
