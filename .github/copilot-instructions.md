@@ -321,6 +321,47 @@ When refactoring, update all field accesses systematically:
 - Common messages include WM_CREATE, WM_DESTROY, WM_PAINT, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_COMMAND
 - Return true from window proc if message was handled, false otherwise
 
+### Message Parameter Passing (Zero Wrapper Structs)
+
+**Design Principle:** Pass values directly via wparam/lparam without wrapper structs. This matches WinAPI conventions and maximizes API simplicity.
+
+**Rules:**
+- **No parameter structs** — Pass simple values directly as wparam (uint32_t) or lparam (void*/intptr_t)
+- **Pack multiple IDs** — Use `MAKEDWORD(lo, hi)` to pack two 16-bit values into wparam; unpack with `LOWORD(wparam)` / `HIWORD(wparam)`
+- **Cast appropriately** — For integers: `(void *)(intptr_t)value` or `(int)(intptr_t)lparam`; for strings: `(const char *)lparam`
+- **Return results directly** — Use `lresult_t` (pointer-sized like WinAPI `LRESULT`) to return pointers, booleans, or integers
+- **Linked lists over arrays** — For variable-length results, return linked list head instead of array+count_out struct
+
+**Example (Database API):**
+```c
+// ✅ Insert: wparam carries table_id, lparam carries record data directly
+author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+
+// ✅ Find: MAKEDWORD packs table_id + search_field, lparam is value or string
+author_t *found = (author_t *)send_db_message(db, dbFind, 
+  MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)author_id);
+
+// ✅ Fetch: Returns linked list, lparam is filter value directly
+result_node_t *results = (result_node_t *)send_db_message(db, dbFetch,
+  MAKEDWORD(TABLE_COMMENTS, 2), (void *)(intptr_t)post_id);
+int count = count_result_list(results);
+free_result_list(results);
+
+// ❌ Wrong: Unnecessary wrapper struct
+typedef struct { int table_id; void *record_data; } insert_params_t;
+insert_params_t params = { TABLE_AUTHORS, &author };
+send_db_message(db, dbInsert, 0, &params);  // Don't do this!
+```
+
+**Benefits:**
+- Zero boilerplate struct definitions and initializations
+- Direct value passing matches WinAPI message conventions
+- MAKEDWORD/LOWORD/HIWORD standard for packing related values
+- Linked lists eliminate count_out output parameters
+- Code is shorter, clearer, and faster
+
+**When to deviate:** Only use a parameter struct if the message genuinely requires more than 3 values that cannot be decomposed into separate messages or packed into wparam. This should be extremely rare.
+
 ### Confirmation Dialogs
 - Match the button set to the question being asked. A two-choice question such
   as "Close without saving?", "Discard changes?", or "Delete selected item?"
