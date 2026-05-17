@@ -513,8 +513,17 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   // reserve a title bar unless a caller explicitly creates a root window.
   if (parent)
     flags |= WINDOW_NOTITLE;
-  if (proc == win_space)
-    flags |= WINDOW_FLEXSPACE;
+  
+  // Phase 3: Merge class defaults with instance flags.
+  // Find the class descriptor by proc and OR in default_flags.
+  // This replaces the old hardcoded `if (proc == win_space)` check.
+  for (int i = 0; i < g_window_class_count; i++) {
+    if (g_window_classes[i].desc.proc == proc) {
+      flags |= g_window_classes[i].desc.default_flags;
+      break;
+    }
+  }
+  
   win->flags = flags;
   window_set_state(win, WINDOW_STATE_VISIBLE, (flags & WINDOW_HIDDEN) == 0);
   window_set_state(win, WINDOW_STATE_DISABLED, false);
@@ -1259,7 +1268,19 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     if (cp == win_tableview && cd->lparam)
       param = (void *)cd->lparam;
 
-    irect16_t child_frame = {0, 0, cd->size.w, cd->size.h};
+    // Phase 3: Apply class defaults for width/height when form doesn't specify (0).
+    // Get class descriptor to check for default dimensions.
+    const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
+    int16_t effective_w = cd->size.w;
+    int16_t effective_h = cd->size.h;
+    if (class_desc) {
+      if (effective_w == 0 && class_desc->default_width > 0)
+        effective_w = class_desc->default_width;
+      if (effective_h == 0 && class_desc->default_height > 0)
+        effective_h = class_desc->default_height;
+    }
+
+    irect16_t child_frame = {0, 0, effective_w, effective_h};
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
                                     &child_frame, parent, cp, 0, param);
     if (!child) continue;
