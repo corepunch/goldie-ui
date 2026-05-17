@@ -241,6 +241,11 @@ GITCLIENT_TEST_SRCS = $(TEST_DIR)/gitclient_backend_test.c \
 GITCLIENT_TEST_BINS = $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/test_%$(EXE_EXT),$(GITCLIENT_TEST_SRCS))
 GITCLIENT_SRCS_NO_MAIN = $(filter-out examples/gitclient/main.c,$(wildcard examples/gitclient/*.c))
 
+# Database test — links user/database.c + SimpleXMLDatabase implementation
+DATABASE_TEST_SRC = $(TEST_DIR)/database_test.c
+DATABASE_TEST_BIN = $(BIN_DIR)/test_database_test$(EXE_EXT)
+DATABASE_IMPL_SRCS = user/database.c examples/socialfeed/db_simple_xml.c
+
 # Imageeditor UI test — links imageeditor sources (no main.c) + test_env.c.
 IMAGEEDITOR_UI_TEST_SRC  = $(TEST_DIR)/imageeditor_ui_test.c
 IMAGEEDITOR_UI_TEST_BIN  = $(BIN_DIR)/test_imageeditor_ui_test$(EXE_EXT)
@@ -267,8 +272,8 @@ SOCIALFEED_ORION = examples/socialfeed/socialfeed.orion
 SOCIALFEED_FORMS_H = $(GENERATED_DIR)/examples/socialfeed/socialfeed_forms.h
 
 # Tests with custom build rules — excluded from the generic pattern rules.
-APP_UI_TEST_SRCS = $(GITCLIENT_TEST_SRCS) $(IMAGEEDITOR_UI_TEST_SRC) $(FORMEDITOR_UI_TEST_SRC)
-APP_UI_TEST_BINS = $(GITCLIENT_TEST_BINS) $(LIBXML_UI_TEST_BINS)
+APP_UI_TEST_SRCS = $(GITCLIENT_TEST_SRCS) $(IMAGEEDITOR_UI_TEST_SRC) $(FORMEDITOR_UI_TEST_SRC) $(DATABASE_TEST_SRC)
+APP_UI_TEST_BINS = $(GITCLIENT_TEST_BINS) $(LIBXML_UI_TEST_BINS) $(DATABASE_TEST_BIN)
 
 # Test sources (app UI tests excluded — they use their own build rules)
 TEST_SRCS = $(filter-out $(TEST_DIR)/test_env.c $(APP_UI_TEST_SRCS),$(wildcard $(TEST_DIR)/*.c))
@@ -588,6 +593,13 @@ $(BIN_DIR)/test_gitclient_ui_test$(EXE_EXT): $(TEST_DIR)/gitclient_ui_test.c $(T
 		$(TEST_DIR)/gitclient_ui_test.c $(TEST_DIR)/test_env.c \
 		$(GITCLIENT_SRCS_NO_MAIN) \
 		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
+# Database test — tests message-based CRUD API using SimpleXMLDatabase implementation.
+$(DATABASE_TEST_BIN): $(DATABASE_TEST_SRC) $(DATABASE_IMPL_SRCS) | $(BIN_DIR)
+	@echo "Building database test: $@"
+	$(CC) $(CFLAGS) -I. -Iexamples/socialfeed -o $@ \
+		$(DATABASE_TEST_SRC) $(DATABASE_IMPL_SRCS) \
+		$(LDFLAGS) $(LDFLAGS_TEST) -lm
 
 # Imageeditor UI test — needs all imageeditor sources except main.c + test_env.c.
 $(IMAGEEDITOR_UI_TEST_BIN): $(IMAGEEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) | $(BIN_DIR)
