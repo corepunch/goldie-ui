@@ -29,14 +29,12 @@ enum {
 
 // Insert parameters (for dbInsert message)
 typedef struct {
-  int table_id;           // which table to insert into
   void *record_data;      // input: record with fields filled in (id will be assigned)
   void **out_record;      // output: pointer to inserted record (do not free)
 } insert_params_t;
 
 // Fetch parameters (for dbFetch message)
 typedef struct {
-  int table_id;           // which table to fetch from
   int filter_field;       // field to filter on (0=none, 1=author_id, 2=post_id, etc.)
   int filter_value;       // value to match
   void ***results_out;    // output: address of results array pointer (caller frees array)
@@ -45,7 +43,6 @@ typedef struct {
 
 // Find parameters (for dbFind message)
 typedef struct {
-  int table_id;           // which table to search
   int search_field;       // field to search (0=id, 1=name, etc.)
   union {
     int int_value;        // for integer fields

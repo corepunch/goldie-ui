@@ -263,7 +263,9 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       insert_params_t *params = (insert_params_t *)lparam;
       if (!params) return 0;
       
-      switch (params->table_id) {
+      int table_id = wparam;
+      
+      switch (table_id) {
         case TABLE_AUTHORS: {
           author_t *data = (author_t *)params->record_data;
           author_t *rec = author_insert(ctx, data->name, data->avatar);
@@ -328,7 +330,9 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       fetch_params_t *params = (fetch_params_t *)lparam;
       if (!params || !params->results_out || !params->count_out) return 0;
       
-      switch (params->table_id) {
+      int table_id = wparam;
+      
+      switch (table_id) {
         case TABLE_AUTHORS: {
           int count = ctx->author_count;
           void **results = malloc(count * sizeof(void *));
@@ -395,9 +399,10 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       find_params_t *params = (find_params_t *)lparam;
       if (!params || !params->result_out) return 0;
       
+      int table_id = wparam;
       void *result = NULL;
       
-      switch (params->table_id) {
+      switch (table_id) {
         case TABLE_AUTHORS: {
           if (params->search_field == 0) {  // by id
             result = author_find_by_id(ctx, params->search_value.int_value);

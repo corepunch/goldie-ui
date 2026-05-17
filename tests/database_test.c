@@ -41,14 +41,13 @@ void test_author_crud(void) {
   strcpy(author_data.avatar, "avatar.png");
   
   insert_params_t insert = {
-    .table_id = TABLE_AUTHORS,
     .record_data = &author_data,
     .out_record = NULL
   };
   author_t *inserted = NULL;
   insert.out_record = (void **)&inserted;
   
-  result_t res = send_db_message(db, dbInsert, 0, &insert);
+  result_t res = send_db_message(db, dbInsert, TABLE_AUTHORS, &insert);
   if (!res || !inserted) {
     destroy_database(db);
     FAIL("insert failed");
@@ -60,7 +59,6 @@ void test_author_crud(void) {
   
   // Find by ID
   find_params_t find_by_id = {
-    .table_id = TABLE_AUTHORS,
     .search_field = 0,  // by id
     .search_value.int_value = inserted->id
   };
@@ -78,7 +76,6 @@ void test_author_crud(void) {
   
   // Find by name
   find_params_t find_by_name = {
-    .table_id = TABLE_AUTHORS,
     .search_field = 1,  // by name
     .search_value.str_value = "testuser"
   };
@@ -100,7 +97,6 @@ void test_author_crud(void) {
   
   // Verify deleted
   find_params_t find_deleted = {
-    .table_id = TABLE_AUTHORS,
     .search_field = 0,
     .search_value.int_value = delete_id
   };
@@ -125,13 +121,12 @@ void test_post_operations(void) {
   author_t author = { .id = 0 };
   strcpy(author.name, "postauthor");
   insert_params_t ins_author = {
-    .table_id = TABLE_AUTHORS,
     .record_data = &author,
     .out_record = NULL
   };
   author_t *author_ptr = NULL;
   ins_author.out_record = (void **)&author_ptr;
-  send_db_message(db, dbInsert, 0, &ins_author);
+  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_author);
   
   if (!author_ptr) {
     destroy_database(db);
@@ -147,13 +142,12 @@ void test_post_operations(void) {
   post.comment_count = 0;
   
   insert_params_t ins_post = {
-    .table_id = TABLE_POSTS,
     .record_data = &post,
     .out_record = NULL
   };
   post_t *post_ptr = NULL;
   ins_post.out_record = (void **)&post_ptr;
-  send_db_message(db, dbInsert, 0, &ins_post);
+  send_db_message(db, dbInsert, TABLE_POSTS, &ins_post);
   
   ASSERT(post_ptr != NULL, "post insert should succeed");
   ASSERT(post_ptr->id > 0, "post should have auto-increment ID");
@@ -161,7 +155,6 @@ void test_post_operations(void) {
   
   // Fetch all posts
   fetch_params_t fetch = {
-    .table_id = TABLE_POSTS,
     .filter_field = 0  // no filter
   };
   void **results = NULL;
@@ -194,27 +187,27 @@ void test_comment_and_denormalized_fields(void) {
   // Create author and post
   author_t author = { .id = 0 };
   strcpy(author.name, "commenter");
-  insert_params_t ins_a = { .table_id = TABLE_AUTHORS, .record_data = &author };
+  insert_params_t ins_a = { .record_data = &author };
   author_t *a_ptr = NULL;
   ins_a.out_record = (void **)&a_ptr;
-  send_db_message(db, dbInsert, 0, &ins_a);
+  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_a);
   
   post_t post = { .id = 0, .author_id = a_ptr->id, .comment_count = 0 };
   strcpy(post.title, "Post");
-  insert_params_t ins_p = { .table_id = TABLE_POSTS, .record_data = &post };
+  insert_params_t ins_p = { .record_data = &post };
   post_t *p_ptr = NULL;
   ins_p.out_record = (void **)&p_ptr;
-  send_db_message(db, dbInsert, 0, &ins_p);
+  send_db_message(db, dbInsert, TABLE_POSTS, &ins_p);
   
   int initial_count = p_ptr->comment_count;
   
   // Add comment (should auto-increment post comment_count)
   comment_t comment = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
   strcpy(comment.text, "Great post!");
-  insert_params_t ins_c = { .table_id = TABLE_COMMENTS, .record_data = &comment };
+  insert_params_t ins_c = { .record_data = &comment };
   comment_t *c_ptr = NULL;
   ins_c.out_record = (void **)&c_ptr;
-  send_db_message(db, dbInsert, 0, &ins_c);
+  send_db_message(db, dbInsert, TABLE_COMMENTS, &ins_c);
   
   ASSERT(c_ptr != NULL, "comment insert should succeed");
   ASSERT_EQUAL(p_ptr->comment_count, initial_count + 1);
@@ -238,29 +231,28 @@ void test_cascading_delete(void) {
   // Create author, post, and comments
   author_t author = { .id = 0 };
   strcpy(author.name, "cascade_test");
-  insert_params_t ins_a = { .table_id = TABLE_AUTHORS, .record_data = &author };
+  insert_params_t ins_a = { .record_data = &author };
   author_t *a_ptr = NULL;
   ins_a.out_record = (void **)&a_ptr;
-  send_db_message(db, dbInsert, 0, &ins_a);
+  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_a);
   
   post_t post = { .id = 0, .author_id = a_ptr->id };
   strcpy(post.title, "To Be Deleted");
-  insert_params_t ins_p = { .table_id = TABLE_POSTS, .record_data = &post };
+  insert_params_t ins_p = { .record_data = &post };
   post_t *p_ptr = NULL;
   ins_p.out_record = (void **)&p_ptr;
-  send_db_message(db, dbInsert, 0, &ins_p);
+  send_db_message(db, dbInsert, TABLE_POSTS, &ins_p);
   
   // Add two comments
   for (int i = 0; i < 2; i++) {
     comment_t c = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
     sprintf(c.text, "Comment %d", i + 1);
-    insert_params_t ins_c = { .table_id = TABLE_COMMENTS, .record_data = &c };
-    send_db_message(db, dbInsert, 0, &ins_c);
+    insert_params_t ins_c = { .record_data = &c };
+    send_db_message(db, dbInsert, TABLE_COMMENTS, &ins_c);
   }
   
   // Count comments before delete
   fetch_params_t fetch_before = {
-    .table_id = TABLE_COMMENTS,
     .filter_field = 2,  // filter by post_id
     .filter_value = p_ptr->id
   };
@@ -279,7 +271,6 @@ void test_cascading_delete(void) {
   
   // Count comments after delete
   fetch_params_t fetch_after = {
-    .table_id = TABLE_COMMENTS,
     .filter_field = 2,
     .filter_value = post_id
   };
@@ -310,8 +301,8 @@ void test_dirty_tracking(void) {
   // Insert should mark dirty
   author_t author = { .id = 0 };
   strcpy(author.name, "dirtytest");
-  insert_params_t ins = { .table_id = TABLE_AUTHORS, .record_data = &author };
-  send_db_message(db, dbInsert, 0, &ins);
+  insert_params_t ins = { .record_data = &author };
+  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins);
   
   result_t after_insert = send_db_message(db, dbGetDirty, 0, NULL);
   ASSERT(after_insert != 0, "should be dirty after insert");
