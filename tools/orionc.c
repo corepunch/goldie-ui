@@ -40,6 +40,20 @@ typedef struct {
   int part_count;  // 2 for "db.posts", 3 for "db.posts.title"
 } db_path_t;
 
+typedef struct {
+  char ctrl_id[128];       // Control ID identifier
+  char field_path[256];    // Full path: db.posts.title
+  char field_name[64];     // Just the field name: title
+  char class_name[64];     // Control class: textedit, checkbox, combobox
+} field_binding_t;
+
+typedef struct {
+  field_binding_t items[128];
+  int count;
+  char db_name[64];        // Database instance name (extracted from first binding)
+  char table_name[64];     // Table name (extracted from first binding)
+} binding_list_t;
+
 static const char *base_name(const char *path) {
   const char *s = strrchr(path, '/');
   return s ? s + 1 : path;
@@ -551,7 +565,7 @@ static char *emit_tableview_params(FILE *f, xmlNodePtr tv, const char *form_iden
 // Forward declare emit_control_tree for recursion
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
-                              int *out_count);
+                              binding_list_t *bindings, int *out_count);
 
 // Walk tree and emit all tableview params before the children array
 static bool emit_all_tableview_params(FILE *f, xmlNodePtr parent,
@@ -584,11 +598,11 @@ static bool emit_all_tableview_params(FILE *f, xmlNodePtr parent,
 
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
-                              int *out_count);
+                              binding_list_t *bindings, int *out_count);
 
 static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
                               const char *form_ident, const char *ident,
-                              const char *parent_expr) {
+                              const char *parent_expr, binding_list_t *bindings) {
   char *klass = control_class_name(c);
   char *name = attr_dup(c, "name");
   char *text = attr_dup(c, "text");
@@ -626,6 +640,29 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
              form_ident, name ? name : "unnamed");
     tv_params_name = strdup(params_ident);
   }
+  
+  // Collect field= attribute for binding generation
+  char *field_attr = attr_dup(c, "field");
+  if (field_attr && *field_attr && bindings && ident && is_ident_expr(ident)) {
+    db_path_t path;
+    if (parse_db_path(field_attr, &path) && path.part_count == 3) {
+      if (bindings->count < 128) {
+        field_binding_t *binding = &bindings->items[bindings->count];
+        snprintf(binding->ctrl_id, sizeof(binding->ctrl_id), "%s", ident);
+        snprintf(binding->field_path, sizeof(binding->field_path), "%s", field_attr);
+        snprintf(binding->field_name, sizeof(binding->field_name), "%s", path.field_name);
+        snprintf(binding->class_name, sizeof(binding->class_name), "%s", emit_class);
+        
+        // Store db/table names from first binding
+        if (bindings->count == 0) {
+          snprintf(bindings->db_name, sizeof(bindings->db_name), "%s", path.db_name);
+          snprintf(bindings->table_name, sizeof(bindings->table_name), "%s", path.table_name);
+        }
+        bindings->count++;
+      }
+    }
+  }
+  free(field_attr);
 
   /* All layout is auto now */
   if (!parse_frame(c, &cr)) {
@@ -703,7 +740,7 @@ static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
 
 static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
                               const char *form_ident, const char *parent_expr,
-                              int *out_count) {
+                              binding_list_t *bindings, int *out_count) {
   int count = 0;
   int ordinal = 0;
   for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
@@ -715,7 +752,7 @@ static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
     free(name);
     free(klass);
 
-    if (!emit_control_node(f, c, scope, form_ident, ident, parent_expr))
+    if (!emit_control_node(f, c, scope, form_ident, ident, parent_expr, bindings))
       return false;
     count++;
     ordinal++;
@@ -731,7 +768,7 @@ static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
       }
       const char *next_parent = next_parent_buf;
       int subcount = 0;
-      if (!emit_control_tree(f, c, scope, form_ident, next_parent, &subcount)) {
+      if (!emit_control_tree(f, c, scope, form_ident, next_parent, bindings, &subcount)) {
         free(cname);
         free(cclass);
         return false;
@@ -1652,16 +1689,65 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
     return false;
   }
   
+  // Collect field bindings during tree emission
+  binding_list_t bindings = {0};
+  
   fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
           prefix, id_ident);
   int child_count = 0;
-  if (!emit_control_tree(f, form, id_ident, id_ident, "0", &child_count)) {
+  if (!emit_control_tree(f, form, id_ident, id_ident, "0", &bindings, &child_count)) {
     free(id); free(title); free(flags); free(toolbar);
     free(layout_spacing);
     free(padding); free(margin);
     return false;
   }
   fprintf(f, "};\n\n");
+  
+  // Emit bindings array if we collected any field= attributes
+  if (bindings.count > 0) {
+    // We need the record type name for offsetof() - derive from table name
+    char record_type[128];
+    snprintf(record_type, sizeof(record_type), "db_%s_t", bindings.table_name);
+    
+    fprintf(f, "static const ctrl_binding_t %s_%s_bindings[] = {\n", prefix, id_ident);
+    for (int i = 0; i < bindings.count; i++) {
+      const field_binding_t *b = &bindings.items[i];
+      
+      // Determine getter message based on control class
+      const char *getter = "0";
+      if (streq(b->class_name, "textedit") || streq(b->class_name, "multiedit")) {
+        getter = "edGetText";
+      } else if (streq(b->class_name, "combobox")) {
+        getter = "cbGetCurrentSelection";
+      } else if (streq(b->class_name, "checkbox")) {
+        getter = "chkIsChecked";
+      }
+      
+      // For text fields, wparam is buffer size
+      // For combobox, wparam is default index (-1 = no selection)
+      const char *wparam_expr = "0";
+      if (streq(b->class_name, "textedit") || streq(b->class_name, "multiedit")) {
+        wparam_expr = "sizeof(((typeof(record_buf))0)->field)";
+      } else if (streq(b->class_name, "combobox")) {
+        wparam_expr = "-1";  // No default selection
+      }
+      
+      // Emit binding entry
+      fprintf(f, "  { %s, 0, %s, offsetof(%s, %s), ",
+              b->ctrl_id, getter, record_type, b->field_name);
+      
+      // For simplicity, use literal sizeof expression for text fields
+      if (streq(b->class_name, "textedit") || streq(b->class_name, "multiedit")) {
+        fprintf(f, "sizeof(((%s *)0)->%s)", record_type, b->field_name);
+      } else {
+        fputs(wparam_expr, f);
+      }
+      
+      fputs(", NULL, NULL },\n", f);
+    }
+    fprintf(f, "};\n\n");
+  }
+  
   fprintf(f, "static const form_def_t %s_%s_form = { .name = ", prefix, id_ident);
   fprint_c_string(f, nonempty(title, nonempty(id, "")));
     fprintf(f, ", .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, ",
@@ -1681,6 +1767,31 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
     fprintf(f, ", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", toolbar_ident, toolbar_ident);
   } else {
     fputs(", .toolbar_items = NULL, .toolbar_count = 0", f);
+  }
+  
+  // Emit bindings reference if we have any
+  if (bindings.count > 0) {
+    fprintf(f, ", .bindings = %s_%s_bindings, .binding_count = %d",
+            prefix, id_ident, bindings.count);
+    
+    // TODO: For now, leave ok_id and cancel_id as 0
+    // These should be extracted from button value= attributes
+    fputs(", .ok_id = 0, .cancel_id = 0", f);
+    
+    // Emit database metadata
+    char table_enum[128];
+    make_ident(table_enum, sizeof(table_enum), bindings.table_name);
+    for (char *p = table_enum; *p; p++)
+      if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
+    
+    fprintf(f, ", .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s",
+            bindings.db_name, bindings.table_name, table_enum);
+    
+    // TODO: Generate db_fields metadata from database schema
+    fputs(", .db_fields = NULL, .db_field_count = 0", f);
+  } else {
+    fputs(", .bindings = NULL, .binding_count = 0, .ok_id = 0, .cancel_id = 0", f);
+    fputs(", .db_name = NULL, .db_table = NULL, .db_table_id = 0, .db_fields = NULL, .db_field_count = 0", f);
   }
   
   fputs(" };\n\n", f);
