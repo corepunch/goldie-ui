@@ -54,6 +54,6 @@ typedef struct comment_s {
 //   dbFetch  - wparam=TABLE_*; lparam=fetch_params_t*
 //   dbFind   - wparam=TABLE_*; lparam=find_params_t*
 //
-result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 #endif // __DB_SIMPLE_XML_H__

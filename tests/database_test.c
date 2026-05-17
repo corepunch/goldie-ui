@@ -40,15 +40,10 @@ void test_author_crud(void) {
   strcpy(author_data.name, "testuser");
   strcpy(author_data.avatar, "avatar.png");
   
-  insert_params_t insert = {
-    .record_data = &author_data,
-    .out_record = NULL
-  };
-  author_t *inserted = NULL;
-  insert.out_record = (void **)&inserted;
+  insert_params_t insert = { .record_data = &author_data };
+  author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &insert);
   
-  result_t res = send_db_message(db, dbInsert, TABLE_AUTHORS, &insert);
-  if (!res || !inserted) {
+  if (!inserted) {
     destroy_database(db);
     FAIL("insert failed");
     return;
@@ -62,9 +57,7 @@ void test_author_crud(void) {
     .search_field = 0,  // by id
     .search_value.int_value = inserted->id
   };
-  author_t *found = NULL;
-  find_by_id.result_out = (void **)&found;
-  send_db_message(db, dbFind, TABLE_AUTHORS, &find_by_id);
+  author_t *found = (author_t *)send_db_message(db, dbFind, TABLE_AUTHORS, &find_by_id);
   
   if (!found) {
     destroy_database(db);
@@ -79,9 +72,7 @@ void test_author_crud(void) {
     .search_field = 1,  // by name
     .search_value.str_value = "testuser"
   };
-  author_t *found2 = NULL;
-  find_by_name.result_out = (void **)&found2;
-  send_db_message(db, dbFind, TABLE_AUTHORS, &find_by_name);
+  author_t *found2 = (author_t *)send_db_message(db, dbFind, TABLE_AUTHORS, &find_by_name);
   
   ASSERT(found2 != NULL, "find by name should succeed");
   ASSERT_EQUAL(found2->id, inserted->id);
@@ -100,9 +91,7 @@ void test_author_crud(void) {
     .search_field = 0,
     .search_value.int_value = delete_id
   };
-  author_t *should_be_null = NULL;
-  find_deleted.result_out = (void **)&should_be_null;
-  send_db_message(db, dbFind, TABLE_AUTHORS, &find_deleted);
+  author_t *should_be_null = (author_t *)send_db_message(db, dbFind, TABLE_AUTHORS, &find_deleted);
   
   ASSERT(should_be_null == NULL, "deleted record should not be found");
   
@@ -120,13 +109,8 @@ void test_post_operations(void) {
   // Create author first
   author_t author = { .id = 0 };
   strcpy(author.name, "postauthor");
-  insert_params_t ins_author = {
-    .record_data = &author,
-    .out_record = NULL
-  };
-  author_t *author_ptr = NULL;
-  ins_author.out_record = (void **)&author_ptr;
-  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_author);
+  insert_params_t ins_author = { .record_data = &author };
+  author_t *author_ptr = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_author);
   
   if (!author_ptr) {
     destroy_database(db);
@@ -141,27 +125,20 @@ void test_post_operations(void) {
   post.like_count = 0;
   post.comment_count = 0;
   
-  insert_params_t ins_post = {
-    .record_data = &post,
-    .out_record = NULL
-  };
-  post_t *post_ptr = NULL;
-  ins_post.out_record = (void **)&post_ptr;
-  send_db_message(db, dbInsert, TABLE_POSTS, &ins_post);
+  insert_params_t ins_post = { .record_data = &post };
+  post_t *post_ptr = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &ins_post);
   
   ASSERT(post_ptr != NULL, "post insert should succeed");
   ASSERT(post_ptr->id > 0, "post should have auto-increment ID");
   ASSERT_EQUAL(post_ptr->author_id, author_ptr->id);
   
   // Fetch all posts
-  fetch_params_t fetch = {
-    .filter_field = 0  // no filter
-  };
-  void **results = NULL;
   int count = 0;
-  fetch.results_out = &results;
-  fetch.count_out = &count;
-  send_db_message(db, dbFetch, TABLE_POSTS, &fetch);
+  fetch_params_t fetch = {
+    .filter_field = 0,  // no filter
+    .count_out = &count
+  };
+  void **results = (void **)send_db_message(db, dbFetch, TABLE_POSTS, &fetch);
   
   ASSERT(count > 0, "should fetch at least one post");
   ASSERT(results != NULL, "results array should be allocated");
@@ -188,16 +165,12 @@ void test_comment_and_denormalized_fields(void) {
   author_t author = { .id = 0 };
   strcpy(author.name, "commenter");
   insert_params_t ins_a = { .record_data = &author };
-  author_t *a_ptr = NULL;
-  ins_a.out_record = (void **)&a_ptr;
-  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_a);
+  author_t *a_ptr = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_a);
   
   post_t post = { .id = 0, .author_id = a_ptr->id, .comment_count = 0 };
   strcpy(post.title, "Post");
   insert_params_t ins_p = { .record_data = &post };
-  post_t *p_ptr = NULL;
-  ins_p.out_record = (void **)&p_ptr;
-  send_db_message(db, dbInsert, TABLE_POSTS, &ins_p);
+  post_t *p_ptr = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &ins_p);
   
   int initial_count = p_ptr->comment_count;
   
@@ -205,9 +178,7 @@ void test_comment_and_denormalized_fields(void) {
   comment_t comment = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
   strcpy(comment.text, "Great post!");
   insert_params_t ins_c = { .record_data = &comment };
-  comment_t *c_ptr = NULL;
-  ins_c.out_record = (void **)&c_ptr;
-  send_db_message(db, dbInsert, TABLE_COMMENTS, &ins_c);
+  comment_t *c_ptr = (comment_t *)send_db_message(db, dbInsert, TABLE_COMMENTS, &ins_c);
   
   ASSERT(c_ptr != NULL, "comment insert should succeed");
   ASSERT_EQUAL(p_ptr->comment_count, initial_count + 1);
@@ -232,16 +203,12 @@ void test_cascading_delete(void) {
   author_t author = { .id = 0 };
   strcpy(author.name, "cascade_test");
   insert_params_t ins_a = { .record_data = &author };
-  author_t *a_ptr = NULL;
-  ins_a.out_record = (void **)&a_ptr;
-  send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_a);
+  author_t *a_ptr = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &ins_a);
   
   post_t post = { .id = 0, .author_id = a_ptr->id };
   strcpy(post.title, "To Be Deleted");
   insert_params_t ins_p = { .record_data = &post };
-  post_t *p_ptr = NULL;
-  ins_p.out_record = (void **)&p_ptr;
-  send_db_message(db, dbInsert, TABLE_POSTS, &ins_p);
+  post_t *p_ptr = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &ins_p);
   
   // Add two comments
   for (int i = 0; i < 2; i++) {
@@ -252,15 +219,13 @@ void test_cascading_delete(void) {
   }
   
   // Count comments before delete
+  int count_before = 0;
   fetch_params_t fetch_before = {
     .filter_field = 2,  // filter by post_id
-    .filter_value = p_ptr->id
+    .filter_value = p_ptr->id,
+    .count_out = &count_before
   };
-  void **results_before = NULL;
-  int count_before = 0;
-  fetch_before.results_out = &results_before;
-  fetch_before.count_out = &count_before;
-  send_db_message(db, dbFetch, TABLE_COMMENTS, &fetch_before);
+  void **results_before = (void **)send_db_message(db, dbFetch, TABLE_COMMENTS, &fetch_before);
   
   ASSERT_EQUAL(count_before, 2);
   free(results_before);
@@ -270,15 +235,13 @@ void test_cascading_delete(void) {
   send_db_message(db, dbDelete, TABLE_POSTS, (void *)(intptr_t)post_id);
   
   // Count comments after delete
+  int count_after = 0;
   fetch_params_t fetch_after = {
     .filter_field = 2,
-    .filter_value = post_id
+    .filter_value = post_id,
+    .count_out = &count_after
   };
-  void **results_after = NULL;
-  int count_after = 0;
-  fetch_after.results_out = &results_after;
-  fetch_after.count_out = &count_after;
-  send_db_message(db, dbFetch, TABLE_COMMENTS, &fetch_after);
+  void **results_after = (void **)send_db_message(db, dbFetch, TABLE_COMMENTS, &fetch_after);
   
   ASSERT_EQUAL(count_after, 0);
   if (results_after) free(results_after);
@@ -295,7 +258,7 @@ void test_dirty_tracking(void) {
   database_t *db = create_database("test", "db_simple_xml", "test.xml");
   
   // Check initial dirty state (should be false after load)
-  result_t initial_dirty = send_db_message(db, dbGetDirty, 0, NULL);
+  lresult_t initial_dirty = send_db_message(db, dbGetDirty, 0, NULL);
   ASSERT_EQUAL(initial_dirty, 0);
   
   // Insert should mark dirty
@@ -304,7 +267,7 @@ void test_dirty_tracking(void) {
   insert_params_t ins = { .record_data = &author };
   send_db_message(db, dbInsert, TABLE_AUTHORS, &ins);
   
-  result_t after_insert = send_db_message(db, dbGetDirty, 0, NULL);
+  lresult_t after_insert = send_db_message(db, dbGetDirty, 0, NULL);
   ASSERT(after_insert != 0, "should be dirty after insert");
   
   destroy_database(db);

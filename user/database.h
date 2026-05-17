@@ -7,38 +7,38 @@
 
 // Forward declarations
 typedef struct database_s database_t;
-typedef uint32_t result_t;
+typedef intptr_t lresult_t;  // Pointer-sized result (like WinAPI LRESULT)
 
 // Database procedure callback type (analogous to winproc_t)
-typedef result_t (*dbproc_t)(database_t *, uint32_t, uint32_t, void *);
+typedef lresult_t (*dbproc_t)(database_t *, uint32_t, uint32_t, void *);
 
 // Database messages
 enum {
-  dbCreate,          // wparam=0; lparam=const char* source_path
-  dbDestroy,         // cleanup
-  dbLoad,            // load from source
-  dbSave,            // save to source (only if dirty)
-  dbInsert,          // wparam=table_id; lparam=insert_params_t* → writes result to out_record
-  dbUpdate,          // wparam=table_id; lparam=record_data_ptr → returns bool
-  dbDelete,          // wparam=table_id; lparam=(void*)(intptr_t)record_id → returns bool
-  dbFetch,           // wparam=table_id; lparam=fetch_params_t* → writes results/count, returns count
-  dbFind,            // wparam=table_id; lparam=find_params_t* → writes result to result_out, returns bool
-  dbGetDirty,        // returns dirty flag (bool)
+  dbCreate,          // wparam=0; lparam=const char* source_path → returns 1 on success
+  dbDestroy,         // cleanup → returns 1 on success
+  dbLoad,            // load from source → returns 1 on success
+  dbSave,            // save to source (only if dirty) → returns 1 on success
+  dbInsert,          // wparam=table_id; lparam=insert_params_t* → returns (lresult_t)record_ptr
+  dbUpdate,          // wparam=table_id; lparam=record_data_ptr → returns 1 on success
+  dbDelete,          // wparam=table_id; lparam=(void*)(intptr_t)record_id → returns 1 on success
+  dbFetch,           // wparam=table_id; lparam=fetch_params_t* → returns (lresult_t)results_array
+  dbFind,            // wparam=table_id; lparam=find_params_t* → returns (lresult_t)record_ptr
+  dbGetDirty,        // returns dirty flag as lresult_t (0 or 1)
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
 // Insert parameters (for dbInsert message)
 typedef struct {
   void *record_data;      // input: record with fields filled in (id will be assigned)
-  void **out_record;      // output: pointer to inserted record (do not free)
+  // Result returned directly as lresult_t (cast to record_type*)
 } insert_params_t;
 
 // Fetch parameters (for dbFetch message)
 typedef struct {
   int filter_field;       // field to filter on (0=none, 1=author_id, 2=post_id, etc.)
   int filter_value;       // value to match
-  void ***results_out;    // output: address of results array pointer (caller frees array)
   int *count_out;         // output: number of records
+  // Result array returned directly as lresult_t (cast to record_type**; caller frees)
 } fetch_params_t;
 
 // Find parameters (for dbFind message)
@@ -48,7 +48,7 @@ typedef struct {
     int int_value;        // for integer fields
     const char *str_value; // for string fields
   } search_value;
-  void **result_out;      // output: address to write record pointer (do not free)
+  // Result returned directly as lresult_t (cast to record_type*; do not free)
 } find_params_t;
 
 // Database class descriptor
@@ -70,7 +70,7 @@ struct database_s {
 // Database management functions
 database_t *create_database(const char *name, const char *class_name, const char *source_path);
 void destroy_database(database_t *db);
-result_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Database class registry
 bool register_database_class(const db_class_desc_t *desc);

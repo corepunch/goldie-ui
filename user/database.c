@@ -84,7 +84,7 @@ void destroy_database(database_t *db) {
   free(db);
 }
 
-result_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
   if (!db || !db->proc) return 0;
   return db->proc(db, msg, wparam, lparam);
 }

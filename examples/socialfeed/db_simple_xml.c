@@ -198,7 +198,7 @@ static bool comment_delete(simple_xml_context_t *ctx, int id) {
 // Database Procedure (analogous to winproc_t)
 // ═══════════════════════════════════════════════════════════════════════════
 
-result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
   simple_xml_context_t *ctx = (simple_xml_context_t *)db->userdata;
   
   switch (msg) {
@@ -258,10 +258,10 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
     }
     
     case dbInsert: {
-      if (!ctx) return 0;
+      if (!ctx) return (lresult_t)NULL;
       
       insert_params_t *params = (insert_params_t *)lparam;
-      if (!params) return 0;
+      if (!params) return (lresult_t)NULL;
       
       int table_id = wparam;
       
@@ -269,28 +269,25 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case TABLE_AUTHORS: {
           author_t *data = (author_t *)params->record_data;
           author_t *rec = author_insert(ctx, data->name, data->avatar);
-          if (params->out_record) *params->out_record = rec;
           db->dirty = true;
-          return 1;
+          return (lresult_t)rec;  // Return pointer directly
         }
         
         case TABLE_POSTS: {
           post_t *data = (post_t *)params->record_data;
           post_t *rec = post_insert(ctx, data->author_id, data->title, data->body);
-          if (params->out_record) *params->out_record = rec;
           db->dirty = true;
-          return 1;
+          return (lresult_t)rec;
         }
         
         case TABLE_COMMENTS: {
           comment_t *data = (comment_t *)params->record_data;
           comment_t *rec = comment_insert(ctx, data->post_id, data->author_id, data->text);
-          if (params->out_record) *params->out_record = rec;
           db->dirty = true;
-          return 1;
+          return (lresult_t)rec;
         }
       }
-      return 0;
+      return (lresult_t)NULL;
     }
     
     case dbUpdate: {
@@ -325,10 +322,10 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
     }
     
     case dbFetch: {
-      if (!ctx) return 0;
+      if (!ctx) return (lresult_t)NULL;
       
       fetch_params_t *params = (fetch_params_t *)lparam;
-      if (!params || !params->results_out || !params->count_out) return 0;
+      if (!params) return (lresult_t)NULL;
       
       int table_id = wparam;
       
@@ -339,9 +336,8 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
           for (int i = 0; i < count; i++) {
             results[i] = &ctx->authors[i];
           }
-          *params->results_out = results;  // Write to the pointer variable
-          *params->count_out = count;
-          return count;
+          if (params->count_out) *params->count_out = count;
+          return (lresult_t)results;  // Return array pointer directly
         }
         
         case TABLE_POSTS: {
@@ -352,9 +348,8 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
             for (int i = 0; i < count; i++) {
               results[i] = &ctx->posts[i];
             }
-            *params->results_out = results;
-            *params->count_out = count;
-            return count;
+            if (params->count_out) *params->count_out = count;
+            return (lresult_t)results;
           }
           break;
         }
@@ -373,9 +368,8 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
               if (ctx->comments[i].post_id == params->filter_value)
                 results[idx++] = &ctx->comments[i];
             }
-            *params->results_out = results;
-            *params->count_out = count;
-            return count;
+            if (params->count_out) *params->count_out = count;
+            return (lresult_t)results;
           } else if (params->filter_field == 0) {
             // Fetch all
             int count = ctx->comment_count;
@@ -383,21 +377,21 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
             for (int i = 0; i < count; i++) {
               results[i] = &ctx->comments[i];
             }
-            *params->results_out = results;
-            *params->count_out = count;
-            return count;
+            if (params->count_out) *params->count_out = count;
+            return (lresult_t)results;
           }
           break;
         }
       }
-      return 0;
+      if (params->count_out) *params->count_out = 0;
+      return (lresult_t)NULL;
     }
     
     case dbFind: {
-      if (!ctx) return 0;
+      if (!ctx) return (lresult_t)NULL;
       
       find_params_t *params = (find_params_t *)lparam;
-      if (!params || !params->result_out) return 0;
+      if (!params) return (lresult_t)NULL;
       
       int table_id = wparam;
       void *result = NULL;
@@ -427,8 +421,7 @@ result_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         }
       }
       
-      *params->result_out = result;
-      return result ? 1 : 0;
+      return (lresult_t)result;  // Return pointer directly (NULL if not found)
     }
     
     case dbGetDirty:
