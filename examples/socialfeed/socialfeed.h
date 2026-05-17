@@ -112,11 +112,6 @@ typedef struct {
 
 typedef struct {
   database_t  *db;           // Database for automatic view population
-  post_t     **posts;
-  int          post_count;
-  int          post_cap;
-  int          next_id;          // next post ID (Appwrite document ID)
-  int          next_comment_id;  // next comment / reply ID
   int          selected_idx;
   window_t    *menubar_win;
   window_t    *main_win;
@@ -178,6 +173,13 @@ result_t app_menubar_proc(window_t *win, uint32_t msg,
 void     create_menubar(void);
 
 // ============================================================
+// Test — database dialog tests (test_db_dialog.c)
+// ============================================================
+
+void test_author_edit_dialog(window_t *parent, database_t *db);
+void test_new_author_dialog(window_t *parent, database_t *db);
+
+// ============================================================
 // View — main window (view_main.c)
 // ============================================================
 
@@ -200,11 +202,5 @@ bool show_new_post_dialog(window_t *parent);
 bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
                              char *author_buf, size_t author_sz,
                              char *text_buf,   size_t text_sz);
-
-// ============================================================
-// Seed data loading
-// ============================================================
-
-bool socialfeed_load_seed_data(const char *path);
 
 #endif // __SOCIALFEED_H__

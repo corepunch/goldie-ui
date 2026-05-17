@@ -63,17 +63,13 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   // Register database with framework (NeXTSTEP-style singleton)
   ui_set_database(g_app->db);
 
-  if (!socialfeed_load_seed_data(SHAREDIR "/socialfeed_seed.xml")) {
-    app_shutdown(g_app);
-    g_app = NULL;
-    return false;
-  }
+  // Database automatically loads data from source XML file
+  // (no manual seed loading needed)
 
   create_menubar();
   create_main_window();
 
-  SF_DEBUG("gem_init complete: %d posts seeded (next_comment_id=%d)",
-           g_app->post_count, g_app->next_comment_id);
+  SF_DEBUG("gem_init complete: database loaded");
   return true;
 }
 

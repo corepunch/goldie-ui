@@ -164,7 +164,8 @@ ORION_LDFLAGS = -L$(LIB_DIR) -lorion
 
 # Tools directory
 ORIONC_BIN = $(BIN_DIR)/orionc$(EXE_EXT)
-TOOLS_SRCS = $(filter-out tools/orionc.c,$(wildcard tools/*.c))
+ORIONC_ALT_BIN = $(BIN_DIR)/orionc_alt$(EXE_EXT)
+TOOLS_SRCS = $(filter-out tools/orionc.c tools/orionc_alt.c,$(wildcard tools/*.c))
 TOOLS_BINS = $(patsubst tools/%.c,$(BIN_DIR)/%$(EXE_EXT),$(TOOLS_SRCS))
 # orionc requires libxml2; added to TOOLS_BINS only when libxml2 is available.
 TOOLS_CFLAGS = $(CFLAGS) -Wno-unused-function
@@ -220,7 +221,7 @@ endif
 # The imageeditor and formeditor UI tests also need the generated forms header
 # (via imageeditor.h) and LIBXML2_CFLAGS respectively, so skip those too.
 ifneq ($(strip $(LIBXML2_LIBS)),)
-TOOLS_BINS += $(ORIONC_BIN)
+TOOLS_BINS += $(ORIONC_BIN) $(ORIONC_ALT_BIN)
 FORMEDITOR_EXAMPLE_BIN = $(BIN_DIR)/formeditor$(EXE_EXT)
 FORMEDITOR_VB_EXAMPLE_BIN = $(BIN_DIR)/formeditor_vb$(EXE_EXT)
 IMAGEEDITOR_EXAMPLE_BIN = $(BIN_DIR)/imageeditor$(EXE_EXT)
@@ -319,6 +320,11 @@ $(ORIONC_BIN): tools/orionc.c | $(BIN_DIR)
 	$(CC) $(TOOLS_CFLAGS) $(LIBXML2_CFLAGS) -I. -Itools -o $@ $< \
 		$(LDFLAGS) $(LIBXML2_LIBS)
 
+$(ORIONC_ALT_BIN): tools/orionc_alt.c | $(BIN_DIR)
+	@echo "Building alternate Orion compiler: $@"
+	$(CC) $(TOOLS_CFLAGS) $(LIBXML2_CFLAGS) -I. -Itools -o $@ $< \
+		$(LDFLAGS) $(LIBXML2_LIBS)
+
 $(IMAGEEDITOR_FORMS_H): $(ORIONC_BIN) $(IMAGEEDITOR_ORION) | $(GENERATED_DIR)
 	@echo "Compiling Orion form: $@"
 	@mkdir -p $(dir $@)
@@ -394,7 +400,7 @@ $(STATIC_LIB): $(USER_SRCS) $(KERNEL_SRCS) $(COMMCTL_SRCS) $(PLATFORM_LIB) | $(L
 $(SHARED_LIB): $(USER_SRCS) $(KERNEL_SRCS) $(COMMCTL_SRCS) $(PLATFORM_LIB) | $(LIB_DIR)
 	@echo "Creating shared library: $@"
 	find user kernel commctl -name "*.c" ! -name "formeditor_components_plugin.c" | sort | sed 's/.*/#include "&"/' | \
-		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS) $(IMPLIB_FLAGS)
+		$(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS) $(PLATFORM_LIB) $(IMPLIB_FLAGS)
 
 # Examples
 .PHONY: examples
@@ -446,8 +452,8 @@ $(BIN_DIR)/socialfeed$(EXE_EXT): $(wildcard examples/socialfeed/*.c) $(SOCIALFEE
 	@echo "Building example: $@"
 	@(find examples/socialfeed -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/socialfeed/main.c"') | \
-		$(CC) $(CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' -x c -o $@ - \
-		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+		$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/socialfeed -DSHAREDIR='"../share/socialfeed"' -x c -o $@ - \
+		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
 
 # Minimal database-driven socialfeed (demonstrates Zero Wrapper Structs API)
 $(BIN_DIR)/socialfeed_db$(EXE_EXT): examples/socialfeed/socialfeed_db.c examples/socialfeed/db_simple_xml.c $(SOCIALFEED_H) $(SHARED_LIB) | $(BIN_DIR) share

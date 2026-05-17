@@ -7,6 +7,62 @@ Orion is a retro-styled UI framework written in C that brings the familiar Windo
 <a href="https://www.youtube.com/watch?v=US-BxhRw2qA">
 <img width="1654" height="1224" alt="Screenshot 2026-05-12 at 07 30 29" src="https://github.com/user-attachments/assets/a5671731-81d0-4e03-a348-4ae824783c90" /></a>
 
+---
+
+## 🌟 Killer Feature: Zero-Boilerplate Database Forms
+
+Generate complete CRUD dialogs from XML with **ZERO manual binding code**.
+
+**Traditional approach (200+ lines per table):**
+```c
+// Fetch record manually
+author_t *record = fetch_author(db, id);
+
+// Populate 20 fields one by one
+set_window_item_text(dlg, ID_NAME, record->name);
+set_window_item_text(dlg, ID_EMAIL, record->email);
+// ... 18 more fields ...
+
+// Extract values back out
+get_window_item_text(dlg, ID_NAME, record->name, sizeof(record->name));
+get_window_item_text(dlg, ID_EMAIL, record->email, sizeof(record->email));
+// ... 18 more fields ...
+
+// Build SQL and save
+sprintf(sql, "UPDATE authors SET name='%s', email='%s' WHERE id=%d", ...);
+// Error handling, memory management, etc.
+```
+
+**Orion approach (1 function call):**
+```xml
+<!-- Define once in your .orion file -->
+<form name="edit_author" width="300" height="100">
+  <textedit field="db.authors.name" />
+  <textedit field="db.authors.email" />
+  <button value="1" text="OK" />
+</form>
+```
+
+```c
+// Use it everywhere - auto-fetch, auto-populate, auto-save
+show_db_dialog(&form, "Edit Author", parent, db, author_id);
+```
+
+**What you get automatically:**
+- ✅ Type-safe bindings with `offsetof()`/`sizeof()`
+- ✅ Auto-fetch record from database  
+- ✅ Auto-populate all controls
+- ✅ Auto-save on OK (INSERT or UPDATE)
+- ✅ Compile-time field validation
+- ✅ Multi-database support
+- ✅ Zero boilerplate code
+
+**Code reduction: 95%** (200 lines → 10 lines)
+
+**[📖 Read the complete Database Forms guide →](docs/database-forms.md)**
+
+---
+
 ## Architecture
 
 Orion follows a layered architecture similar to Windows:

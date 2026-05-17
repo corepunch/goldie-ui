@@ -1,25 +1,30 @@
 // SimpleXMLDatabase implementation (message-based proc pattern)
-#include "socialfeed.h"
+#include "../../ui.h"
+#include "socialfeed.h"  // Includes generated types: db_author_t, db_post_t, db_comment_t + field metadata
 #include "../../platform/platform.h"  // for LOWORD/HIWORD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Internal Context (stored in database_t->userdata)
+// Uses generated types from orionc: db_author_t, db_post_t, db_comment_t
+// Field metadata arrays: authors_fields[], posts_fields[], comments_fields[]
 // ═══════════════════════════════════════════════════════════════════════════
 
 typedef struct {
-  // In-memory tables (dynamic arrays)
-  author_t *authors;
+  // In-memory tables (dynamic arrays) - using generated types
+  db_author_t *authors;
   int author_count;
   int author_capacity;
   
-  post_t *posts;
+  db_post_t *posts;
   int post_count;
   int post_capacity;
   
-  comment_t *comments;
+  db_comment_t *comments;
   int comment_count;
   int comment_capacity;
   
@@ -36,21 +41,21 @@ typedef struct {
 static void ensure_capacity_authors(simple_xml_context_t *ctx) {
   if (ctx->author_count >= ctx->author_capacity) {
     ctx->author_capacity = (ctx->author_capacity == 0) ? 16 : ctx->author_capacity * 2;
-    ctx->authors = realloc(ctx->authors, ctx->author_capacity * sizeof(author_t));
+    ctx->authors = realloc(ctx->authors, ctx->author_capacity * sizeof(db_author_t));
   }
 }
 
 static void ensure_capacity_posts(simple_xml_context_t *ctx) {
   if (ctx->post_count >= ctx->post_capacity) {
     ctx->post_capacity = (ctx->post_capacity == 0) ? 32 : ctx->post_capacity * 2;
-    ctx->posts = realloc(ctx->posts, ctx->post_capacity * sizeof(post_t));
+    ctx->posts = realloc(ctx->posts, ctx->post_capacity * sizeof(db_post_t));
   }
 }
 
 static void ensure_capacity_comments(simple_xml_context_t *ctx) {
   if (ctx->comment_count >= ctx->comment_capacity) {
     ctx->comment_capacity = (ctx->comment_capacity == 0) ? 64 : ctx->comment_capacity * 2;
-    ctx->comments = realloc(ctx->comments, ctx->comment_capacity * sizeof(comment_t));
+    ctx->comments = realloc(ctx->comments, ctx->comment_capacity * sizeof(db_comment_t));
   }
 }
 
@@ -58,10 +63,10 @@ static void ensure_capacity_comments(simple_xml_context_t *ctx) {
 // CRUD Helpers - Authors
 // ═══════════════════════════════════════════════════════════════════════════
 
-static author_t *author_insert(simple_xml_context_t *ctx, const char *name, const char *avatar) {
+static db_author_t *author_insert(simple_xml_context_t *ctx, const char *name, const char *avatar) {
   ensure_capacity_authors(ctx);
   
-  author_t *author = &ctx->authors[ctx->author_count++];
+  db_author_t *author = &ctx->authors[ctx->author_count++];
   author->id = ctx->next_author_id++;
   strncpy(author->name, name, sizeof(author->name) - 1);
   strncpy(author->avatar, avatar ? avatar : "", sizeof(author->avatar) - 1);
@@ -69,7 +74,7 @@ static author_t *author_insert(simple_xml_context_t *ctx, const char *name, cons
   return author;
 }
 
-static author_t *author_find_by_id(simple_xml_context_t *ctx, int id) {
+static db_author_t *author_find_by_id(simple_xml_context_t *ctx, int id) {
   for (int i = 0; i < ctx->author_count; i++) {
     if (ctx->authors[i].id == id)
       return &ctx->authors[i];
@@ -77,7 +82,7 @@ static author_t *author_find_by_id(simple_xml_context_t *ctx, int id) {
   return NULL;
 }
 
-static author_t *author_find_by_name(simple_xml_context_t *ctx, const char *name) {
+static db_author_t *author_find_by_name(simple_xml_context_t *ctx, const char *name) {
   for (int i = 0; i < ctx->author_count; i++) {
     if (strcmp(ctx->authors[i].name, name) == 0)
       return &ctx->authors[i];
@@ -89,7 +94,7 @@ static bool author_delete(simple_xml_context_t *ctx, int id) {
   for (int i = 0; i < ctx->author_count; i++) {
     if (ctx->authors[i].id == id) {
       memmove(&ctx->authors[i], &ctx->authors[i + 1], 
-              (ctx->author_count - i - 1) * sizeof(author_t));
+              (ctx->author_count - i - 1) * sizeof(db_author_t));
       ctx->author_count--;
       return true;
     }
@@ -101,11 +106,11 @@ static bool author_delete(simple_xml_context_t *ctx, int id) {
 // CRUD Helpers - Posts
 // ═══════════════════════════════════════════════════════════════════════════
 
-static post_t *post_insert(simple_xml_context_t *ctx, int author_id, 
+static db_post_t *post_insert(simple_xml_context_t *ctx, int author_id, 
                            const char *title, const char *body) {
   ensure_capacity_posts(ctx);
   
-  post_t *post = &ctx->posts[ctx->post_count++];
+  db_post_t *post = &ctx->posts[ctx->post_count++];
   post->id = ctx->next_post_id++;
   post->author_id = author_id;
   strncpy(post->title, title, sizeof(post->title) - 1);
@@ -116,7 +121,7 @@ static post_t *post_insert(simple_xml_context_t *ctx, int author_id,
   return post;
 }
 
-static post_t *post_find_by_id(simple_xml_context_t *ctx, int id) {
+static db_post_t *post_find_by_id(simple_xml_context_t *ctx, int id) {
   for (int i = 0; i < ctx->post_count; i++) {
     if (ctx->posts[i].id == id)
       return &ctx->posts[i];
@@ -129,7 +134,7 @@ static bool post_delete(simple_xml_context_t *ctx, int id) {
   for (int i = ctx->comment_count - 1; i >= 0; i--) {
     if (ctx->comments[i].post_id == id) {
       memmove(&ctx->comments[i], &ctx->comments[i + 1],
-              (ctx->comment_count - i - 1) * sizeof(comment_t));
+              (ctx->comment_count - i - 1) * sizeof(db_comment_t));
       ctx->comment_count--;
     }
   }
@@ -138,7 +143,7 @@ static bool post_delete(simple_xml_context_t *ctx, int id) {
   for (int i = 0; i < ctx->post_count; i++) {
     if (ctx->posts[i].id == id) {
       memmove(&ctx->posts[i], &ctx->posts[i + 1],
-              (ctx->post_count - i - 1) * sizeof(post_t));
+              (ctx->post_count - i - 1) * sizeof(db_post_t));
       ctx->post_count--;
       return true;
     }
@@ -150,11 +155,11 @@ static bool post_delete(simple_xml_context_t *ctx, int id) {
 // CRUD Helpers - Comments
 // ═══════════════════════════════════════════════════════════════════════════
 
-static comment_t *comment_insert(simple_xml_context_t *ctx, int post_id, 
+static db_comment_t *comment_insert(simple_xml_context_t *ctx, int post_id, 
                                  int author_id, const char *text) {
   ensure_capacity_comments(ctx);
   
-  comment_t *comment = &ctx->comments[ctx->comment_count++];
+  db_comment_t *comment = &ctx->comments[ctx->comment_count++];
   comment->id = ctx->next_comment_id++;
   comment->post_id = post_id;
   comment->author_id = author_id;
@@ -162,13 +167,13 @@ static comment_t *comment_insert(simple_xml_context_t *ctx, int post_id,
   comment->like_count = 0;
   
   // Update post comment count
-  post_t *post = post_find_by_id(ctx, post_id);
+  db_post_t *post = post_find_by_id(ctx, post_id);
   if (post) post->comment_count++;
   
   return comment;
 }
 
-static comment_t *comment_find_by_id(simple_xml_context_t *ctx, int id) {
+static db_comment_t *comment_find_by_id(simple_xml_context_t *ctx, int id) {
   for (int i = 0; i < ctx->comment_count; i++) {
     if (ctx->comments[i].id == id)
       return &ctx->comments[i];
@@ -182,11 +187,11 @@ static bool comment_delete(simple_xml_context_t *ctx, int id) {
       int post_id = ctx->comments[i].post_id;
       
       memmove(&ctx->comments[i], &ctx->comments[i + 1],
-              (ctx->comment_count - i - 1) * sizeof(comment_t));
+              (ctx->comment_count - i - 1) * sizeof(db_comment_t));
       ctx->comment_count--;
       
       // Update post comment count
-      post_t *post = post_find_by_id(ctx, post_id);
+      db_post_t *post = post_find_by_id(ctx, post_id);
       if (post && post->comment_count > 0) post->comment_count--;
       
       return true;
@@ -219,10 +224,10 @@ enum {
   COL_COMMENT_LIKE_COUNT,
 };
 
-// Object proc for author_t records
+// Object proc for db_author_t records
 static result_t author_object_proc(const void *object, uint32_t msg,
                                    uint32_t wparam, void *lparam) {
-  const author_t *a = (const author_t *)object;
+  const db_author_t *a = (const db_author_t *)object;
   char *buf = (char *)lparam;
   uint16_t column_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
@@ -251,10 +256,10 @@ static result_t author_object_proc(const void *object, uint32_t msg,
   }
 }
 
-// Object proc for post_t records
+// Object proc for db_post_t records
 static result_t post_object_proc(const void *object, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
-  const post_t *p = (const post_t *)object;
+  const db_post_t *p = (const db_post_t *)object;
   char *buf = (char *)lparam;
   uint16_t column_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
@@ -292,10 +297,10 @@ static result_t post_object_proc(const void *object, uint32_t msg,
   }
 }
 
-// Object proc for comment_t records
+// Object proc for db_comment_t records
 static result_t comment_object_proc(const void *object, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
-  const comment_t *c = (const comment_t *)object;
+  const db_comment_t *c = (const db_comment_t *)object;
   char *buf = (char *)lparam;
   uint16_t column_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
@@ -341,7 +346,7 @@ static const db_field_msg_binding_t post_field_bindings[] = {
   { "author_id", COL_POST_AUTHOR_ID },
   { "title", COL_POST_TITLE },
   { "body", COL_POST_BODY },
-  { "like_count", COL_POST_LIKE_COUNT },
+  { "likes", COL_POST_LIKE_COUNT },
   { "comment_count", COL_POST_COMMENT_COUNT },
   { "author", COL_POST_AUTHOR_ID },  // Alias for join queries
 };
@@ -351,7 +356,7 @@ static const db_field_msg_binding_t comment_field_bindings[] = {
   { "post_id", COL_COMMENT_POST_ID },
   { "author_id", COL_COMMENT_AUTHOR_ID },
   { "text", COL_COMMENT_TEXT },
-  { "like_count", COL_COMMENT_LIKE_COUNT },
+  { "likes", COL_COMMENT_LIKE_COUNT },
   { "author", COL_COMMENT_AUTHOR_ID },  // Alias for join queries
 };
 
@@ -390,16 +395,79 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     case dbLoad: {
       if (!ctx) return 0;
       
-      // TODO: Parse XML file from db->source_path
-      printf("db_simple_xml: Loading from %s\n", db->source_path);
+      // Parse XML file from db->source_path using reflection
+      xmlDoc *doc = xmlReadFile(db->source_path, NULL, 0);
+      if (!doc) {
+        printf("db_simple_xml: Failed to parse %s\n", db->source_path);
+        return 0;
+      }
       
-      // Seed with example data (normally parsed from XML)
-      author_insert(ctx, "alice", "avatar_alice.png");
-      author_insert(ctx, "bob", "avatar_bob.png");
-      author_insert(ctx, "carol", "avatar_carol.png");
-      author_insert(ctx, "dave", "avatar_dave.png");
-      author_insert(ctx, "eve", "avatar_eve.png");
-      author_insert(ctx, "frank", "avatar_frank.png");
+      xmlNode *root = xmlDocGetRootElement(doc);
+      if (!root) {
+        xmlFreeDoc(doc);
+        return 0;
+      }
+      
+      // Parse each table using generated field metadata (no hardcoded field names!)
+      for (xmlNode *table = root->children; table; table = table->next) {
+        if (table->type != XML_ELEMENT_NODE) continue;
+        
+        if (xmlStrcmp(table->name, (const xmlChar *)"authors") == 0) {
+          // Load authors using reflection
+          for (xmlNode *row = table->children; row; row = row->next) {
+            if (row->type != XML_ELEMENT_NODE) continue;
+            if (xmlStrcmp(row->name, (const xmlChar *)"author") != 0) continue;
+            
+            db_author_t author;
+            if (db_load_record_from_xml(row, &author, authors_fields, 
+                                        sizeof(authors_fields)/sizeof(authors_fields[0]))) {
+              ensure_capacity_authors(ctx);
+              ctx->authors[ctx->author_count++] = author;
+              if (author.id >= ctx->next_author_id)
+                ctx->next_author_id = author.id + 1;
+            }
+          }
+        }
+        else if (xmlStrcmp(table->name, (const xmlChar *)"posts") == 0) {
+          // Load posts using reflection
+          for (xmlNode *row = table->children; row; row = row->next) {
+            if (row->type != XML_ELEMENT_NODE) continue;
+            if (xmlStrcmp(row->name, (const xmlChar *)"post") != 0) continue;
+            
+            db_post_t post;
+            if (db_load_record_from_xml(row, &post, posts_fields,
+                                        sizeof(posts_fields)/sizeof(posts_fields[0]))) {
+              ensure_capacity_posts(ctx);
+              ctx->posts[ctx->post_count++] = post;
+              if (post.id >= ctx->next_post_id)
+                ctx->next_post_id = post.id + 1;
+            }
+          }
+        }
+        else if (xmlStrcmp(table->name, (const xmlChar *)"comments") == 0) {
+          // Load comments using reflection
+          for (xmlNode *row = table->children; row; row = row->next) {
+            if (row->type != XML_ELEMENT_NODE) continue;
+            if (xmlStrcmp(row->name, (const xmlChar *)"comment") != 0) continue;
+            
+            db_comment_t comment;
+            if (db_load_record_from_xml(row, &comment, comments_fields,
+                                        sizeof(comments_fields)/sizeof(comments_fields[0]))) {
+              ensure_capacity_comments(ctx);
+              ctx->comments[ctx->comment_count++] = comment;
+              if (comment.id >= ctx->next_comment_id)
+                ctx->next_comment_id = comment.id + 1;
+            }
+          }
+        }
+      }
+      
+      xmlFreeDoc(doc);
+      
+      printf("db_simple_xml: Loaded from %s (reflection-based)\n", db->source_path);
+      printf("  - %d authors\n", ctx->author_count);
+      printf("  - %d posts\n", ctx->post_count);
+      printf("  - %d comments\n", ctx->comment_count);
       
       db->dirty = false;
       return 1;
@@ -428,22 +496,22 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
       
       switch (table_id) {
         case TABLE_AUTHORS: {
-          author_t *data = (author_t *)record_data;
-          author_t *rec = author_insert(ctx, data->name, data->avatar);
+          db_author_t *data = (db_author_t *)record_data;
+          db_author_t *rec = author_insert(ctx, data->name, data->avatar);
           db->dirty = true;
           return (lresult_t)rec;
         }
         
         case TABLE_POSTS: {
-          post_t *data = (post_t *)record_data;
-          post_t *rec = post_insert(ctx, data->author_id, data->title, data->body);
+          db_post_t *data = (db_post_t *)record_data;
+          db_post_t *rec = post_insert(ctx, data->author_id, data->title, data->body);
           db->dirty = true;
           return (lresult_t)rec;
         }
         
         case TABLE_COMMENTS: {
-          comment_t *data = (comment_t *)record_data;
-          comment_t *rec = comment_insert(ctx, data->post_id, data->author_id, data->text);
+          db_comment_t *data = (db_comment_t *)record_data;
+          db_comment_t *rec = comment_insert(ctx, data->post_id, data->author_id, data->text);
           db->dirty = true;
           return (lresult_t)rec;
         }
@@ -494,9 +562,9 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
           // Build linked list of all authors
           result_node_t *head = NULL, *tail = NULL;
           for (int i = 0; i < ctx->author_count; i++) {
-            result_node_t *node = malloc(sizeof(result_node_t) + sizeof(author_t *));
+            result_node_t *node = malloc(sizeof(result_node_t) + sizeof(db_author_t *));
             node->next = NULL;
-            *(author_t **)node->data = &ctx->authors[i];
+            *(db_author_t **)node->data = &ctx->authors[i];
             if (tail) tail->next = node;
             else head = node;
             tail = node;
@@ -509,9 +577,9 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
             // Fetch all posts
             result_node_t *head = NULL, *tail = NULL;
             for (int i = 0; i < ctx->post_count; i++) {
-              result_node_t *node = malloc(sizeof(result_node_t) + sizeof(post_t *));
+              result_node_t *node = malloc(sizeof(result_node_t) + sizeof(db_post_t *));
               node->next = NULL;
-              *(post_t **)node->data = &ctx->posts[i];
+              *(db_post_t **)node->data = &ctx->posts[i];
               if (tail) tail->next = node;
               else head = node;
               tail = node;
@@ -526,9 +594,9 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
             result_node_t *head = NULL, *tail = NULL;
             for (int i = 0; i < ctx->comment_count; i++) {
               if (ctx->comments[i].post_id == filter_value) {
-                result_node_t *node = malloc(sizeof(result_node_t) + sizeof(comment_t *));
+                result_node_t *node = malloc(sizeof(result_node_t) + sizeof(db_comment_t *));
                 node->next = NULL;
-                *(comment_t **)node->data = &ctx->comments[i];
+                *(db_comment_t **)node->data = &ctx->comments[i];
                 if (tail) tail->next = node;
                 else head = node;
                 tail = node;
@@ -539,9 +607,9 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
             // Fetch all comments
             result_node_t *head = NULL, *tail = NULL;
             for (int i = 0; i < ctx->comment_count; i++) {
-              result_node_t *node = malloc(sizeof(result_node_t) + sizeof(comment_t *));
+              result_node_t *node = malloc(sizeof(result_node_t) + sizeof(db_comment_t *));
               node->next = NULL;
-              *(comment_t **)node->data = &ctx->comments[i];
+              *(db_comment_t **)node->data = &ctx->comments[i];
               if (tail) tail->next = node;
               else head = node;
               tail = node;
@@ -565,12 +633,12 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
           if (search_field == 0) {
             // Find by id
             int id = (int)(intptr_t)lparam;
-            author_t *found = author_find_by_id(ctx, id);
+            db_author_t *found = author_find_by_id(ctx, id);
             return (lresult_t)found;
           } else if (search_field == 1) {
             // Find by name
             const char *name = (const char *)lparam;
-            author_t *found = author_find_by_name(ctx, name);
+            db_author_t *found = author_find_by_name(ctx, name);
             return (lresult_t)found;
           }
           break;
@@ -580,7 +648,7 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
           if (search_field == 0) {
             // Find by id
             int id = (int)(intptr_t)lparam;
-            post_t *found = post_find_by_id(ctx, id);
+            db_post_t *found = post_find_by_id(ctx, id);
             return (lresult_t)found;
           }
           break;
@@ -590,7 +658,7 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
           if (search_field == 0) {
             // Find by id
             int id = (int)(intptr_t)lparam;
-            comment_t *found = comment_find_by_id(ctx, id);
+            db_comment_t *found = comment_find_by_id(ctx, id);
             return (lresult_t)found;
           }
           break;

@@ -462,3 +462,151 @@ void dialog_pull(window_t *win, void *state,
                  const ctrl_binding_t *b, int n) {
   (void)dialog_pull_command(win, state, b, n, 0);
 }
+
+// ── Database-Driven Dialogs ────────────────────────────────────────────────
+// Extension of DDX system that works directly with database records.
+// Fetch record on open, push to controls, pull on OK, save to database.
+
+typedef struct {
+  form_def_t const *def;          // form definition with db_table metadata
+  database_t       *db;           // database instance
+  int               record_id;    // record ID (0 = INSERT, >0 = UPDATE)
+  void             *record_buf;   // allocated buffer for record struct
+  bool              is_new;       // true if creating new record
+} db_dlg_ctx_t;
+
+static result_t dialog_db_proc(window_t *win, uint32_t msg,
+                               uint32_t wparam, void *lparam) {
+  db_dlg_ctx_t *ctx = (db_dlg_ctx_t *)win->userdata;
+
+  switch (msg) {
+    case evCreate: {
+      ctx = (db_dlg_ctx_t *)lparam;
+      win->userdata = ctx;
+      
+      if (!ctx->def->db_table || !ctx->def->db_fields || !ctx->db) {
+        // Missing database metadata - can't proceed
+        end_dialog(win, 0);
+        return true;
+      }
+      
+      // Fetch record from database if updating (record_id > 0)
+      if (ctx->record_id > 0) {
+        lresult_t result = send_db_message(ctx->db, dbFind,
+          MAKEDWORD(ctx->def->db_table_id, 0),
+          (void *)(intptr_t)ctx->record_id);
+        void *fetched = (void *)result;
+        
+        if (fetched) {
+          // Copy fetched record to our buffer
+          // TODO: Calculate exact struct size from field metadata
+          size_t struct_size = 512; // Reasonable default for most records
+          memcpy(ctx->record_buf, fetched, struct_size);
+          ctx->is_new = false;
+        } else {
+          // Record not found - treat as new
+          ctx->is_new = true;
+        }
+      } else {
+        // New record (INSERT mode)
+        ctx->is_new = true;
+      }
+      
+      // Push record fields to controls using DDX
+      if (ctx->def->bindings && ctx->def->binding_count > 0) {
+        dialog_push(win, ctx->record_buf,
+                    ctx->def->bindings, ctx->def->binding_count);
+      }
+      return true;
+    }
+
+    case evCommand: {
+      if (!ctx) return false;
+      uint16_t notif = HIWORD(wparam);
+
+      // Pressing Enter in edit box - save and close
+      if (notif == edUpdate) {
+        if (ctx->def->bindings) {
+          dialog_pull(win, ctx->record_buf,
+                      ctx->def->bindings, ctx->def->binding_count);
+        }
+        
+        // Save to database
+        if (ctx->is_new) {
+          // INSERT
+          send_db_message(ctx->db, dbInsert,
+            ctx->def->db_table_id, ctx->record_buf);
+        } else {
+          // UPDATE
+          send_db_message(ctx->db, dbUpdate,
+            MAKEDWORD(ctx->def->db_table_id, ctx->record_id),
+            ctx->record_buf);
+        }
+        
+        end_dialog(win, 1);
+        return true;
+      }
+
+      if (notif != btnClicked) return false;
+      window_t *src = (window_t *)lparam;
+      if (!src) return false;
+
+      if (ctx->def->ok_id && src->id == ctx->def->ok_id) {
+        // Pull controls → record buffer
+        if (ctx->def->bindings) {
+          dialog_pull(win, ctx->record_buf,
+                      ctx->def->bindings, ctx->def->binding_count);
+        }
+        
+        // Save to database
+        if (ctx->is_new) {
+          // INSERT
+          send_db_message(ctx->db, dbInsert,
+            ctx->def->db_table_id, ctx->record_buf);
+        } else {
+          // UPDATE  
+          send_db_message(ctx->db, dbUpdate,
+            MAKEDWORD(ctx->def->db_table_id, ctx->record_id),
+            ctx->record_buf);
+        }
+        
+        end_dialog(win, 1);
+        return true;
+      }
+      
+      if (ctx->def->cancel_id && src->id == ctx->def->cancel_id) {
+        end_dialog(win, 0);
+        return true;
+      }
+      return false;
+    }
+
+    default:
+      return false;
+  }
+}
+
+uint32_t show_db_dialog(form_def_t const *def, const char *title,
+                        window_t *parent, database_t *db, int record_id) {
+  if (!def || !def->db_table || !db) return 0;
+  
+  // Allocate buffer for database record (estimate 1KB per record)
+  // TODO: Calculate exact size from field metadata
+  void *record_buf = calloc(1, 1024);
+  if (!record_buf) return 0;
+  
+  db_dlg_ctx_t ctx = {
+    .def = def,
+    .db = db,
+    .record_id = record_id,
+    .record_buf = record_buf,
+    .is_new = (record_id == 0)
+  };
+  
+  uint32_t result = show_dialog_from_form_ex(def, title, parent,
+                                             WINDOW_VSCROLL | WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
+                                             dialog_db_proc, &ctx);
+  
+  free(record_buf);
+  return result;
+}

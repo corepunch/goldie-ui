@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <socialfeed>
-  <!-- Authors referenced by posts and comments -->
+  <!-- Database-style table format: each top-level element is a table -->
+  
   <authors>
     <author id="1" name="alice" avatar="avatar_alice.png" />
     <author id="2" name="bob" avatar="avatar_bob.png" />
@@ -10,111 +11,49 @@
     <author id="6" name="frank" avatar="avatar_frank.png" />
   </authors>
 
-  <post author_id="1" title="Orion UI is awesome!" likes="12">
-    <body>
-      <text>Just started using Orion and the WinAPI-style message loop makes everything so familiar. Highly recommended for desktop apps.</text>
-    </body>
-    <comment author_id="2" likes="4">
-      <text>Totally agree, the form_def_t API is very clean.</text>
-      <reply author_id="1" likes="0">
-        <text>Thanks! Took a while to get the DDX bindings right.</text>
-      </reply>
-      <reply author_id="4" likes="0">
-        <text>Same experience here, love the DDX approach.</text>
-      </reply>
-    </comment>
-    <comment author_id="3" likes="3">
-      <text>Does it support high-DPI?</text>
-      <reply author_id="1" likes="2">
-        <text>Yes, set UI_WINDOW_SCALE=2 in your build.</text>
-      </reply>
-    </comment>
-    <comment author_id="5" likes="0">
-      <text>I migrated from FLTK and this feels much more natural.</text>
-    </comment>
-  </post>
+  <posts>
+    <post id="1" author_id="1" title="Orion UI is awesome!" like_count="12">Just started using Orion and the WinAPI-style message loop makes everything so familiar. Highly recommended for desktop apps.</post>
+    <post id="2" author_id="2" title="Custom controls in 50 lines" like_count="7">You can write a fully custom control by implementing just evCreate, evPaint, evLeftButtonDown and evDestroy. The framework handles the rest through the message loop.</post>
+    <post id="3" author_id="3" title="Scrollable panels with built-in scrollbars" like_count="5">Use WINDOW_VSCROLL on the content window, call set_scroll_info() in evCreate, and handle evVScroll to update your pan offset. No extra child scrollbar windows needed.</post>
+    <post id="4" author_id="4" title="win_reportview cheat sheet" like_count="9">RVM_ADDCOLUMN + RVM_ADDITEM to build the list, RVM_SETREDRAW(0) before bulk inserts and (1) after. Use RVM_SETREPORTCOLUMNWIDTH(0, ...) for the auto-stretch column.</post>
+    <post id="5" author_id="5" title="Dialogs using form_def_t + DDX" like_count="6">Declare children in a static form_ctrl_def_t[] array, add a ctrl_binding_t[] for data exchange, then call show_dialog_from_form(). No imperative child creation needed - everything is declarative.</post>
+  </posts>
 
-  <post author_id="2" title="Custom controls in 50 lines" likes="7">
-    <body>
-      <text>You can write a fully custom control by implementing just evCreate, evPaint, evLeftButtonDown and evDestroy. The framework handles the rest through the message loop.</text>
-    </body>
-    <comment author_id="4" likes="3">
-      <text>Great tip! I used this for a colour picker widget.</text>
-      <reply author_id="2" likes="0">
-        <text>Show us the colour picker! Sounds useful.</text>
-      </reply>
-    </comment>
-    <comment author_id="5" likes="0">
-      <text>What about keyboard navigation?</text>
-      <reply author_id="2" likes="1">
-        <text>Handle evKeyDown and call invalidate_window().</text>
-      </reply>
-      <reply author_id="5" likes="2">
-        <text>Thanks, that worked perfectly.</text>
-      </reply>
-    </comment>
-    <comment author_id="6" likes="1">
-      <text>Nice post, bookmarked!</text>
-    </comment>
-  </post>
+  <comments>
+    <!-- Post 1 comments and replies (parent_id=0 means top-level comment) -->
+    <comment id="1" post_id="1" author_id="2" parent_id="0" like_count="4">Totally agree, the form_def_t API is very clean.</comment>
+    <comment id="2" post_id="1" author_id="1" parent_id="1" like_count="0">Thanks! Took a while to get the DDX bindings right.</comment>
+    <comment id="3" post_id="1" author_id="4" parent_id="1" like_count="0">Same experience here, love the DDX approach.</comment>
+    <comment id="4" post_id="1" author_id="3" parent_id="0" like_count="3">Does it support high-DPI?</comment>
+    <comment id="5" post_id="1" author_id="1" parent_id="4" like_count="2">Yes, set UI_WINDOW_SCALE=2 in your build.</comment>
+    <comment id="6" post_id="1" author_id="5" parent_id="0" like_count="0">I migrated from FLTK and this feels much more natural.</comment>
 
-  <post author_id="3" title="Scrollable panels with built-in scrollbars" likes="5">
-    <body>
-      <text>Use WINDOW_VSCROLL on the content window, call set_scroll_info() in evCreate, and handle evVScroll to update your pan offset. No extra child scrollbar windows needed.</text>
-    </body>
-    <comment author_id="1" likes="2">
-      <text>This tripped me up for days - glad you posted it!</text>
-      <reply author_id="3" likes="0">
-        <text>The exact same pattern applies to WINDOW_HSCROLL.</text>
-      </reply>
-    </comment>
-    <comment author_id="6" likes="0">
-      <text>Does this work the same for WINDOW_HSCROLL?</text>
-      <reply author_id="3" likes="1">
-        <text>Yes - handle evHScroll identically, just change SB_HORZ to SB_VERT.</text>
-      </reply>
-    </comment>
-  </post>
+    <!-- Post 2 comments and replies -->
+    <comment id="7" post_id="2" author_id="4" parent_id="0" like_count="3">Great tip! I used this for a colour picker widget.</comment>
+    <comment id="8" post_id="2" author_id="2" parent_id="7" like_count="0">Show us the colour picker! Sounds useful.</comment>
+    <comment id="9" post_id="2" author_id="5" parent_id="0" like_count="0">What about keyboard navigation?</comment>
+    <comment id="10" post_id="2" author_id="2" parent_id="9" like_count="1">Handle evKeyDown and call invalidate_window().</comment>
+    <comment id="11" post_id="2" author_id="5" parent_id="9" like_count="2">Thanks, that worked perfectly.</comment>
+    <comment id="12" post_id="2" author_id="6" parent_id="0" like_count="1">Nice post, bookmarked!</comment>
 
-  <post author_id="4" title="win_reportview cheat sheet" likes="9">
-    <body>
-      <text>RVM_ADDCOLUMN + RVM_ADDITEM to build the list, RVM_SETREDRAW(0) before bulk inserts and (1) after. Use RVM_SETREPORTCOLUMNWIDTH(0, ...) for the auto-stretch column.</text>
-    </body>
-    <comment author_id="1" likes="5">
-      <text>The RVM_SETREDRAW trick alone saved me huge repaint jank - thanks!</text>
-      <reply author_id="4" likes="0">
-        <text>Glad it helps - that one is documented in columnview.h.</text>
-      </reply>
-    </comment>
-    <comment author_id="2" likes="0">
-      <text>How do you handle double-click selection?</text>
-      <reply author_id="4" likes="3">
-        <text>Listen for RVN_DBLCLK in evCommand - LOWORD(wparam) is the row index.</text>
-      </reply>
-    </comment>
-    <comment author_id="3" likes="2">
-      <text>Any way to get multi-column sorting?</text>
-      <reply author_id="4" likes="0">
-        <text>Not built-in yet - you'd need to sort the data array and call feed_refresh().</text>
-      </reply>
-    </comment>
-  </post>
+    <!-- Post 3 comments and replies -->
+    <comment id="13" post_id="3" author_id="1" parent_id="0" like_count="2">This tripped me up for days - glad you posted it!</comment>
+    <comment id="14" post_id="3" author_id="3" parent_id="13" like_count="0">The exact same pattern applies to WINDOW_HSCROLL.</comment>
+    <comment id="15" post_id="3" author_id="6" parent_id="0" like_count="0">Does this work the same for WINDOW_HSCROLL?</comment>
+    <comment id="16" post_id="3" author_id="3" parent_id="15" like_count="1">Yes - handle evHScroll identically, just change SB_HORZ to SB_VERT.</comment>
 
-  <post author_id="5" title="Dialogs using form_def_t + DDX" likes="6">
-    <body>
-      <text>Declare children in a static form_ctrl_def_t[] array, add a ctrl_binding_t[] for data exchange, then call show_dialog_from_form(). No imperative child creation needed - everything is declarative.</text>
-    </body>
-    <comment author_id="6" likes="2">
-      <text>The edGetText binding style for multiline edits is especially handy.</text>
-    </comment>
-    <comment author_id="1" likes="1">
-      <text>Is there a way to add validation before the dialog closes?</text>
-      <reply author_id="5" likes="3">
-        <text>Yes - handle evCommand/btnClicked for ID_OK, run validation, and only call end_dialog() when it passes.</text>
-      </reply>
-      <reply author_id="1" likes="0">
-        <text>Perfect, that's exactly what I needed. Thanks!</text>
-      </reply>
-    </comment>
-  </post>
+    <!-- Post 4 comments and replies -->
+    <comment id="17" post_id="4" author_id="1" parent_id="0" like_count="5">The RVM_SETREDRAW trick alone saved me huge repaint jank - thanks!</comment>
+    <comment id="18" post_id="4" author_id="4" parent_id="17" like_count="0">Glad it helps - that one is documented in columnview.h.</comment>
+    <comment id="19" post_id="4" author_id="2" parent_id="0" like_count="0">How do you handle double-click selection?</comment>
+    <comment id="20" post_id="4" author_id="4" parent_id="19" like_count="3">Listen for RVN_DBLCLK in evCommand - LOWORD(wparam) is the row index.</comment>
+    <comment id="21" post_id="4" author_id="3" parent_id="0" like_count="2">Any way to get multi-column sorting?</comment>
+    <comment id="22" post_id="4" author_id="4" parent_id="21" like_count="0">Not built-in yet - you'd need to sort the data array and call feed_refresh().</comment>
+
+    <!-- Post 5 comments and replies -->
+    <comment id="23" post_id="5" author_id="6" parent_id="0" like_count="2">The edGetText binding style for multiline edits is especially handy.</comment>
+    <comment id="24" post_id="5" author_id="1" parent_id="0" like_count="1">Is there a way to add validation before the dialog closes?</comment>
+    <comment id="25" post_id="5" author_id="5" parent_id="24" like_count="3">Yes - handle evCommand/btnClicked for ID_OK, run validation, and only call end_dialog() when it passes.</comment>
+    <comment id="26" post_id="5" author_id="1" parent_id="24" like_count="0">Perfect, that's exactly what I needed. Thanks!</comment>
+  </comments>
 </socialfeed>

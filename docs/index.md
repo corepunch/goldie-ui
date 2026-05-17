@@ -9,6 +9,34 @@ permalink: /
 
 Orion is a retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from DOOM-ED, it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who've worked with Win32. Built on SDL2 and OpenGL 3.2+, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
 
+---
+
+## 🌟 Killer Feature: Zero-Boilerplate Database Forms
+
+**The Problem:** Traditional GUI database code is 90% boilerplate. For every edit dialog, you manually fetch records, populate 20 fields, validate input, extract values back out, build SQL statements. Repeat for every table.
+
+**The Solution:** Declare your form structure once in XML with `field="db.table.field"` attributes. Orion generates all the bindings and handles fetch/save automatically.
+
+```xml
+<!-- Define once -->
+<form name="edit_author" width="300" height="100">
+  <textedit field="db.authors.name" />
+  <textedit field="db.authors.email" />
+  <button value="1" text="OK" />
+</form>
+```
+
+```c
+// Use everywhere - auto-fetch, auto-populate, auto-save
+show_db_dialog(&form, "Edit Author", parent, db, author_id);
+```
+
+**Result:** 95% less code, 100% type-safe, infinitely maintainable.
+
+**[📖 Read the complete Database Forms guide →](database-forms.md)**
+
+---
+
 **filemanager.c** example:
 ![Screenshot 2026-01-16 at 15 21 17](https://github.com/user-attachments/assets/1474fcfa-17eb-4731-8af5-06a83ace958f)
 
@@ -150,3 +178,15 @@ The framework uses a message-based architecture. Common messages include:
 - `evKeyDown` - Key pressed
 - `evKeyUp` - Key released
 - `evCommand` - Control notification
+
+## Documentation
+
+- [Getting Started](getting-started.md) - Installation and first program
+- [Architecture](architecture.md) - Framework design and structure
+- [Window System](window-system.md) - Window management and messages
+- **[Database Forms](database-forms.md) - Zero-boilerplate CRUD dialogs** ⭐
+- [Controls](controls.md) - Available UI controls and usage
+- [Dialogs](dialogs.md) - Modal and modeless dialogs
+- [Messages](messages.md) - Window message reference
+- [Drawing](drawing.md) - Graphics primitives and rendering
+- [Examples](examples.md) - Complete example programs

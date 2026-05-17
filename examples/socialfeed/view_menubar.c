@@ -39,7 +39,7 @@ void handle_menu_command(uint16_t id) {
       if (show_new_post_dialog(parent)) {
         feed_refresh();
         app_update_status();
-        SF_DEBUG("action new_post count=%d", g_app->post_count);
+        SF_DEBUG("action new_post");
       }
       break;
 
@@ -78,7 +78,7 @@ void handle_menu_command(uint16_t id) {
         app_delete_post(idx);
         feed_refresh();
         app_update_status();
-        SF_DEBUG("action delete_post idx=%d count=%d", idx, g_app->post_count);
+        SF_DEBUG("action delete_post idx=%d", idx);
       }
       break;
     }
@@ -86,6 +86,19 @@ void handle_menu_command(uint16_t id) {
     // ---- View ----
     case ID_VIEW_REFRESH:
       feed_refresh();
+      break;
+
+    // ---- Test ----
+    case ID_TEST_EDIT_AUTHOR:
+      SF_DEBUG("Testing edit author dialog with DB integration");
+      test_author_edit_dialog(parent, g_app->db);
+      feed_refresh(); // Refresh to show changes
+      break;
+
+    case ID_TEST_NEW_AUTHOR:
+      SF_DEBUG("Testing new author dialog with DB integration");
+      test_new_author_dialog(parent, g_app->db);
+      feed_refresh(); // Refresh to show changes
       break;
 
     // ---- Help ----

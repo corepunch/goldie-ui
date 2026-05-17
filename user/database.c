@@ -162,3 +162,86 @@ int count_result_list(void *head) {
     count++;
   return count;
 }
+
+// ── Reflection-based XML loading (uses generated field metadata) ────────────
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+
+bool db_load_field_from_xml(xmlNodePtr node, void *record_base,
+                             const db_field_meta_t *field) {
+  if (!node || !record_base || !field) return false;
+  
+  xmlChar *value = NULL;
+  
+  // Try attribute first
+  value = xmlGetProp(node, (const xmlChar *)field->name);
+  
+  // If not found as attribute, try child element
+  if (!value) {
+    for (xmlNode *child = node->children; child; child = child->next) {
+      if (child->type == XML_ELEMENT_NODE &&
+          xmlStrcmp(child->name, (const xmlChar *)field->name) == 0) {
+        value = xmlNodeGetContent(child);
+        break;
+      }
+    }
+  }
+  
+  // Special case: if field is "body" or "text" and we haven't found it yet,
+  // use the node's direct text content
+  if (!value && (strcmp(field->name, "body") == 0 || strcmp(field->name, "text") == 0)) {
+    value = xmlNodeGetContent(node);
+  }
+  
+  if (!value) return false;
+  
+  void *field_ptr = (char *)record_base + field->offset;
+  
+  switch (field->type) {
+    case DB_TYPE_INT:
+      *(int *)field_ptr = atoi((const char *)value);
+      break;
+      
+    case DB_TYPE_STRING:
+      strncpy((char *)field_ptr, (const char *)value, field->length - 1);
+      ((char *)field_ptr)[field->length - 1] = '\0';
+      break;
+      
+    case DB_TYPE_BOOL:
+      *(bool *)field_ptr = (value[0] == '1' || value[0] == 't' || value[0] == 'Y');
+      break;
+      
+    case DB_TYPE_FLOAT:
+      *(float *)field_ptr = (float)atof((const char *)value);
+      break;
+      
+    case DB_TYPE_DOUBLE:
+      *(double *)field_ptr = atof((const char *)value);
+      break;
+      
+    default:
+      xmlFree(value);
+      return false;
+  }
+  
+  xmlFree(value);
+  return true;
+}
+
+bool db_load_record_from_xml(xmlNodePtr node, void *record,
+                              const db_field_meta_t *fields, int field_count) {
+  if (!node || !record || !fields || field_count <= 0) return false;
+  
+  // Zero the record first
+  memset(record, 0, fields[field_count - 1].offset +
+         (fields[field_count - 1].type == DB_TYPE_STRING ?
+          fields[field_count - 1].length : sizeof(int)));
+  
+  // Load each field
+  for (int i = 0; i < field_count; i++) {
+    db_load_field_from_xml(node, record, &fields[i]);
+  }
+  
+  return true;
+}
