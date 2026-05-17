@@ -325,68 +325,72 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     case dbFetch: {
       if (!ctx) return (lresult_t)NULL;
       
-      fetch_params_t *params = (fetch_params_t *)lparam;
-      if (!params) return (lresult_t)NULL;
-      
       int table_id = LOWORD(wparam);
       int filter_field = HIWORD(wparam);
-      int filter_value = (int)params->filter_value;
+      int filter_value = (int)(intptr_t)lparam;
       
       switch (table_id) {
         case TABLE_AUTHORS: {
-          int count = ctx->author_count;
-          void **results = malloc(count * sizeof(void *));
-          for (int i = 0; i < count; i++) {
-            results[i] = &ctx->authors[i];
+          // Build linked list of all authors
+          result_node_t *head = NULL, *tail = NULL;
+          for (int i = 0; i < ctx->author_count; i++) {
+            result_node_t *node = malloc(sizeof(result_node_t) + sizeof(author_t *));
+            node->next = NULL;
+            *(author_t **)node->data = &ctx->authors[i];
+            if (tail) tail->next = node;
+            else head = node;
+            tail = node;
           }
-          if (params->count_out) *params->count_out = count;
-          return (lresult_t)results;
+          return (lresult_t)head;
         }
         
         case TABLE_POSTS: {
           if (filter_field == 0) {
-            // Fetch all
-            int count = ctx->post_count;
-            void **results = malloc(count * sizeof(void *));
-            for (int i = 0; i < count; i++) {
-              results[i] = &ctx->posts[i];
+            // Fetch all posts
+            result_node_t *head = NULL, *tail = NULL;
+            for (int i = 0; i < ctx->post_count; i++) {
+              result_node_t *node = malloc(sizeof(result_node_t) + sizeof(post_t *));
+              node->next = NULL;
+              *(post_t **)node->data = &ctx->posts[i];
+              if (tail) tail->next = node;
+              else head = node;
+              tail = node;
             }
-            if (params->count_out) *params->count_out = count;
-            return (lresult_t)results;
+            return (lresult_t)head;
           }
           break;
         }
         
         case TABLE_COMMENTS: {
           if (filter_field == 2) {  // filter by post_id
-            int count = 0;
+            result_node_t *head = NULL, *tail = NULL;
             for (int i = 0; i < ctx->comment_count; i++) {
-              if (ctx->comments[i].post_id == filter_value)
-                count++;
+              if (ctx->comments[i].post_id == filter_value) {
+                result_node_t *node = malloc(sizeof(result_node_t) + sizeof(comment_t *));
+                node->next = NULL;
+                *(comment_t **)node->data = &ctx->comments[i];
+                if (tail) tail->next = node;
+                else head = node;
+                tail = node;
+              }
             }
-            
-            void **results = malloc(count * sizeof(void *));
-            int idx = 0;
-            for (int i = 0; i < ctx->comment_count; i++) {
-              if (ctx->comments[i].post_id == filter_value)
-                results[idx++] = &ctx->comments[i];
-            }
-            if (params->count_out) *params->count_out = count;
-            return (lresult_t)results;
+            return (lresult_t)head;
           } else if (filter_field == 0) {
-            // Fetch all
-            int count = ctx->comment_count;
-            void **results = malloc(count * sizeof(void *));
-            for (int i = 0; i < count; i++) {
-              results[i] = &ctx->comments[i];
+            // Fetch all comments
+            result_node_t *head = NULL, *tail = NULL;
+            for (int i = 0; i < ctx->comment_count; i++) {
+              result_node_t *node = malloc(sizeof(result_node_t) + sizeof(comment_t *));
+              node->next = NULL;
+              *(comment_t **)node->data = &ctx->comments[i];
+              if (tail) tail->next = node;
+              else head = node;
+              tail = node;
             }
-            if (params->count_out) *params->count_out = count;
-            return (lresult_t)results;
+            return (lresult_t)head;
           }
           break;
         }
       }
-      if (params->count_out) *params->count_out = 0;
       return (lresult_t)NULL;
     }
     

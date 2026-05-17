@@ -21,19 +21,18 @@ enum {
   dbInsert,          // wparam=table_id; lparam=record_data → returns (lresult_t)record_ptr
   dbUpdate,          // wparam=table_id; lparam=record_data → returns 1 on success
   dbDelete,          // wparam=table_id; lparam=(void*)(intptr_t)record_id → returns 1 on success
-  dbFetch,           // wparam=MAKEDWORD(table_id,filter_field); lparam=fetch_params_t* → returns (lresult_t)results_array
+  dbFetch,           // wparam=MAKEDWORD(table_id,filter_field); lparam=(intptr_t)filter_value → returns (lresult_t)result_node_t* (linked list)
   dbFind,            // wparam=MAKEDWORD(table_id,search_field); lparam=(intptr_t)value or (void*)str → returns (lresult_t)record_ptr
   dbGetDirty,        // returns dirty flag as lresult_t (0 or 1)
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
-// Fetch parameters (for dbFetch message)
-// wparam carries MAKEDWORD(table_id, filter_field)
-typedef struct {
-  intptr_t filter_value;  // value to match (cast from int or pointer)
-  int *count_out;         // output: number of records
-  // Result array returned directly as lresult_t (cast to record_type**; caller frees)
-} fetch_params_t;
+// Result node for dbFetch (linked list of records)
+// Caller must free with free_result_list() after use
+typedef struct result_node_s {
+  void *next;              // Next node (NULL for last)
+  char data[];             // Flexible array member - record data
+} result_node_t;
 
 // Database class descriptor
 typedef struct {
@@ -55,6 +54,10 @@ struct database_s {
 database_t *create_database(const char *name, const char *class_name, const char *source_path);
 void destroy_database(database_t *db);
 lresult_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+
+// Result list helpers
+void free_result_list(void *head);
+int count_result_list(void *head);
 
 // Database class registry
 bool register_database_class(const db_class_desc_t *desc);

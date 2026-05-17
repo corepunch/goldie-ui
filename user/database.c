@@ -144,3 +144,21 @@ bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int bindin
   }
   return false;
 }
+
+// ── Result list helpers ──────────────────────────────────────────────────────
+
+void free_result_list(void *head) {
+  result_node_t *node = (result_node_t *)head;
+  while (node) {
+    result_node_t *next = (result_node_t *)node->next;
+    free(node);
+    node = next;
+  }
+}
+
+int count_result_list(void *head) {
+  int count = 0;
+  for (result_node_t *node = (result_node_t *)head; node; node = (result_node_t *)node->next)
+    count++;
+  return count;
+}

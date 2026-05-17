@@ -121,15 +121,14 @@ void test_post_operations(void) {
   ASSERT_EQUAL(post_ptr->author_id, author_ptr->id);
   
   // Fetch all posts
-  int count = 0;
-  fetch_params_t fetch = { .filter_value = 0, .count_out = &count };
-  void **results = (void **)send_db_message(db, dbFetch, 
-    MAKEDWORD(TABLE_POSTS, 0), &fetch);
+  result_node_t *results = (result_node_t *)send_db_message(db, dbFetch, 
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
   
+  int count = count_result_list(results);
   ASSERT(count > 0, "should fetch at least one post");
-  ASSERT(results != NULL, "results array should be allocated");
+  ASSERT(results != NULL, "results list should exist");
   
-  free(results);
+  free_result_list(results);
   
   // Update post likes
   post_ptr->like_count = 42;
@@ -199,26 +198,24 @@ void test_cascading_delete(void) {
   }
   
   // Count comments before delete
-  int count_before = 0;
-  fetch_params_t fetch_before = { .filter_value = p_ptr->id, .count_out = &count_before };
-  void **results_before = (void **)send_db_message(db, dbFetch, 
-    MAKEDWORD(TABLE_COMMENTS, 2), &fetch_before);
+  result_node_t *results_before = (result_node_t *)send_db_message(db, dbFetch, 
+    MAKEDWORD(TABLE_COMMENTS, 2), (void *)(intptr_t)p_ptr->id);
   
+  int count_before = count_result_list(results_before);
   ASSERT_EQUAL(count_before, 2);
-  free(results_before);
+  free_result_list(results_before);
   
   // Delete post (should cascade delete comments)
   int post_id = p_ptr->id;
   send_db_message(db, dbDelete, TABLE_POSTS, (void *)(intptr_t)post_id);
   
   // Count comments after delete
-  int count_after = 0;
-  fetch_params_t fetch_after = { .filter_value = post_id, .count_out = &count_after };
-  void **results_after = (void **)send_db_message(db, dbFetch, 
-    MAKEDWORD(TABLE_COMMENTS, 2), &fetch_after);
+  result_node_t *results_after = (result_node_t *)send_db_message(db, dbFetch, 
+    MAKEDWORD(TABLE_COMMENTS, 2), (void *)(intptr_t)post_id);
   
+  int count_after = count_result_list(results_after);
   ASSERT_EQUAL(count_after, 0);
-  if (results_after) free(results_after);
+  free_result_list(results_after);
   
   destroy_database(db);
   PASS();
