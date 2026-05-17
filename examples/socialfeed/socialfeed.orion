@@ -98,15 +98,19 @@
             <label name="lbl_body" text="Body:" />
           </column>
           <column name="inputs">
-            <textedit name="author" />
-            <textedit name="title" />
-            <multiedit name="body" />
+            <combobox name="author" 
+                      bind="posts.author_id"
+                      source="authors"
+                      display="name"
+                      value="id" />
+            <textedit name="title" bind="posts.title" />
+            <multiedit name="body" bind="posts.body" />
           </column>
         </grid>
         <separator name="section_sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
           <space name="flex_left" />
-          <button name="ok" text="Post" flags="BUTTON_DEFAULT" />
+          <button name="ok" text="Post" action="posts.insert" flags="BUTTON_DEFAULT" />
           <button name="cancel" text="Cancel" />
           <space name="flex_right" />
         </stack>
@@ -118,17 +122,21 @@
             padding="8">
         <stack name="author_row" orientation="horizontal" spacing="6">
           <label name="lbl_author" text="Author:" />
-          <textedit name="author" />
+          <combobox name="author"
+                    bind="comments.author_id"
+                    source="authors"
+                    display="name"
+                    value="id" />
         </stack>
 
         <stack name="text_row" orientation="horizontal" spacing="6">
           <label name="lbl_text" text="Text:" />
-          <textedit name="text" />
+          <textedit name="text" bind="comments.text" />
         </stack>
 
         <separator name="sep" />
         <stack name="actions" orientation="horizontal" spacing="6">
-          <button name="ok" text="Submit" flags="BUTTON_DEFAULT" />
+          <button name="ok" text="Submit" action="comments.insert" flags="BUTTON_DEFAULT" />
           <space name="flex" />
           <button name="cancel" text="Cancel" />
         </stack>
