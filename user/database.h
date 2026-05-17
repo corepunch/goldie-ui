@@ -27,13 +27,6 @@ enum {
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
-// Table identifiers for socialfeed database
-enum {
-  TABLE_AUTHORS = 0,
-  TABLE_POSTS,
-  TABLE_COMMENTS
-};
-
 // Insert parameters (for dbInsert message)
 typedef struct {
   int table_id;           // which table to insert into

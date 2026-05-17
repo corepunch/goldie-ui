@@ -3,6 +3,13 @@
 
 #include "../../user/database.h"
 
+// Table identifiers
+enum {
+  TABLE_AUTHORS = 0,
+  TABLE_POSTS,
+  TABLE_COMMENTS
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Schema Definitions (match socialfeed.orion <table> declarations)
 // ═══════════════════════════════════════════════════════════════════════════
