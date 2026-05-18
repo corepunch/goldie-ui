@@ -39,10 +39,10 @@ result_t main_win_proc(window_t *win, uint32_t msg,
       return true;
 
     case evResize:
-      if (g_app && g_app->content_win) {
-        irect16_t cr = get_client_rect(win);
-        resize_window(g_app->content_win, cr.w, cr.h);
-      }
+      // Don't manually resize - auto-layout handles it
+      return false;
+
+    case evPaint:
       return false;
 
     case tbButtonClick:

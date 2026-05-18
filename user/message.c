@@ -102,6 +102,26 @@ static toolbar_state_t *ensure_toolbar_state(window_t *win) {
                                       WINDOW_NOTABSTOP | WINDOW_HIDDEN,
                                  &r, win, win_toolbar, win->hinstance, NULL);
     if (!win->toolbar) return NULL;
+    
+    // Remove toolbar host from parent->children so layout doesn't see it.
+    // The toolbar host is accessed via win->toolbar, not through the children list.
+    // This matches the behavior of toolbar button children created by create_toolbar_child.
+    {
+      window_t *prev = NULL;
+      window_t *c = win->children;
+      while (c && c != win->toolbar) {
+        prev = c;
+        c = c->next;
+      }
+      if (c == win->toolbar) {
+        if (prev) {
+          prev->next = win->toolbar->next;
+        } else {
+          win->children = win->toolbar->next;
+        }
+        win->toolbar->next = NULL;
+      }
+    }
   }
   return window_toolbar_state(win);
 }
@@ -895,6 +915,8 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           if (r.h < 1) r.h = 1;
           win->frame = r;
           send_message(win, evResize, 0, NULL);
+          // If this window has auto-layout, sync its children
+          window_layout_sync(win);
         }
         value = MAKEDWORD((uint16_t)MAX(1, win->frame.w),
                           (uint16_t)MAX(1, win->frame.h));

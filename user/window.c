@@ -1059,7 +1059,9 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
 
   for (int i = 0; i < child_count; i++) {
     const form_ctrl_def_t *cd = &children[i];
-    if (cd->parent != parent_id) continue;
+    if (cd->parent != parent_id) {
+      continue;
+    }
 
     winproc_t cp = find_window_class_proc(cd->class_name);
     if (!cp) continue;
@@ -1115,6 +1117,7 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     window_t *child = create_window(cd->text ? cd->text : "", child_flags,
                                     &child_frame, parent, cp, 0, param);
     if (!child) continue;
+    
     child->id = cd->id;
     child->layout.h_align = child_h_align;
     child->layout.v_align = child_v_align;
@@ -1148,6 +1151,9 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
   if (!def || !proc) return NULL;
+  
+
+  
   if (!(def->flags & WINDOW_AUTO_LAYOUT) && def->child_count > 0) {
     fprintf(stderr, "create_window_from_form: forms with children require auto_layout=true\n");
     return NULL;
@@ -1181,17 +1187,20 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Allocate the parent window without sending evCreate yet.
   window_t *win = alloc_window(def->name ? def->name : "", def->flags, &r, parent, proc, hinstance);
   if (!win) return NULL;
+  
+
+  
   if (def->flags & WINDOW_AUTO_LAYOUT)
     win->flags |= WINDOW_AUTO_LAYOUT;
   win->flags &= ~WINDOW_STACK_HORIZONTAL;
   win->layout.layout_spacing    = def->layout_spacing;
   win->layout.layout_padding    = def->padding;
   win->layout.layout_margin     = def->margin;
-  if ((win->flags & WINDOW_AUTO_LAYOUT) && win->layout.layout_spacing == 0)
-    win->layout.layout_spacing = 4;
+  // Removed: forced spacing override - respect explicit spacing=0 from forms
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).
+
   create_form_children(win, def->children, def->child_count);
 
   // Auto-populate toolbar if defined
@@ -1203,7 +1212,7 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Use global database singleton (NeXTSTEP-style)
   database_t *effective_db = g_app_database;
   if (effective_db) {
-    for (window_t *child = win->children; child; child = child->next) {
+      for (window_t *child = win->children; child; child = child->next) {
       if (child->proc == win_tableview) {
         send_message(child, tvSetDatabase, 0, effective_db);
       }
@@ -1240,7 +1249,7 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     create_form_children_flat(parent, children, child_count, 0);
     return;
   }
-
+  
   for (int i = 0; i < child_count; i++) {
     const form_ctrl_def_t *cd = &children[i];
     winproc_t cp = find_window_class_proc(cd->class_name);

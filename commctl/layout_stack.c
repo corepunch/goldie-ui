@@ -63,6 +63,13 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
   irect16_t cr = rect ? *rect : get_client_rect(win);
   irect16_t content = layout_content_rect(win, cr);
   int gap = layout_spacing_for(win);
+  
+  // Debug: main window and content stack layout
+  if (win && win->id < 1010) {  // Catch main window and content stack
+    int child_count = 0;
+    for (window_t *c = win->children; c; c = c->next) child_count++;
+
+  }
 
   if (layout_is_horizontal(win)) {
     int total_fixed = 0;
@@ -102,6 +109,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     int total_fixed = 0;
     int stretch_count = 0;
     int count = 0;
+    
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
       bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
@@ -113,6 +121,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     int remaining = content.h - total_fixed - total_gap;
     if (remaining < 0) remaining = 0;
     int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;
+    
     int y = content.y;
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       if (y > content.y) y += gap;
@@ -167,6 +176,13 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
 
 void layout_arrange_window(window_t *win, const irect16_t *rect) {
   if (!win) return;
+  
+  // Debug: see what gets passed to each window layout
+  if (win->id < 1010) {
+    fprintf(stderr, "[layout_arrange_window] win_id=%d rect=%dx%d flags=0x%x\n",
+            win->id, rect ? rect->w : 0, rect ? rect->h : 0, win->flags);
+  }
+  
   if (is_grid_proc(win)) {
     layout_grid_arrange_window(win, rect);
     return;
