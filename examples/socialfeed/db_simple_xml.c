@@ -34,6 +34,9 @@ typedef struct {
   int next_comment_id;
 } simple_xml_context_t;
 
+// Global context pointer for object procs to access (set during database operations)
+static simple_xml_context_t *g_db_ctx = NULL;
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Internal Helpers
 // ═══════════════════════════════════════════════════════════════════════════
@@ -216,12 +219,14 @@ enum {
   COL_POST_BODY,
   COL_POST_LIKE_COUNT,
   COL_POST_COMMENT_COUNT,
+  COL_POST_AUTHOR_NAME,  // Join: author.name
   
   COL_COMMENT_ID = 200,
   COL_COMMENT_POST_ID,
   COL_COMMENT_AUTHOR_ID,
   COL_COMMENT_TEXT,
   COL_COMMENT_LIKE_COUNT,
+  COL_COMMENT_AUTHOR_NAME,  // Join: author.name
 };
 
 // Object proc for db_author_t records
@@ -289,6 +294,19 @@ static result_t post_object_proc(const void *object, uint32_t msg,
         case COL_POST_COMMENT_COUNT:
           snprintf(buf, buf_sz, "%d", p->comment_count);
           return true;
+        case COL_POST_AUTHOR_NAME: {
+          // Join: Look up author by author_id and return name
+          if (g_db_ctx) {
+            db_author_t *author = author_find_by_id(g_db_ctx, p->author_id);
+            if (author) {
+              strncpy(buf, author->name, buf_sz - 1);
+              buf[buf_sz - 1] = '\0';
+              return true;
+            }
+          }
+          snprintf(buf, buf_sz, "Unknown");
+          return true;
+        }
         default:
           return false;
       }
@@ -326,6 +344,19 @@ static result_t comment_object_proc(const void *object, uint32_t msg,
         case COL_COMMENT_LIKE_COUNT:
           snprintf(buf, buf_sz, "%d", c->like_count);
           return true;
+        case COL_COMMENT_AUTHOR_NAME: {
+          // Join: Look up author by author_id and return name
+          if (g_db_ctx) {
+            db_author_t *author = author_find_by_id(g_db_ctx, c->author_id);
+            if (author) {
+              strncpy(buf, author->name, buf_sz - 1);
+              buf[buf_sz - 1] = '\0';
+              return true;
+            }
+          }
+          snprintf(buf, buf_sz, "Unknown");
+          return true;
+        }
         default:
           return false;
       }
@@ -347,8 +378,10 @@ static const db_field_msg_binding_t post_field_bindings[] = {
   { "title", COL_POST_TITLE },
   { "body", COL_POST_BODY },
   { "likes", COL_POST_LIKE_COUNT },
+  { "like_count", COL_POST_LIKE_COUNT },  // Alias
   { "comment_count", COL_POST_COMMENT_COUNT },
   { "author", COL_POST_AUTHOR_ID },  // Alias for join queries
+  { "author.name", COL_POST_AUTHOR_NAME },  // Join field
 };
 
 static const db_field_msg_binding_t comment_field_bindings[] = {
@@ -357,7 +390,9 @@ static const db_field_msg_binding_t comment_field_bindings[] = {
   { "author_id", COL_COMMENT_AUTHOR_ID },
   { "text", COL_COMMENT_TEXT },
   { "likes", COL_COMMENT_LIKE_COUNT },
+  { "like_count", COL_COMMENT_LIKE_COUNT },  // Alias
   { "author", COL_COMMENT_AUTHOR_ID },  // Alias for join queries
+  { "author.name", COL_COMMENT_AUTHOR_NAME },  // Join field
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -366,6 +401,7 @@ static const db_field_msg_binding_t comment_field_bindings[] = {
 
 lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
   simple_xml_context_t *ctx = (simple_xml_context_t *)db->userdata;
+  g_db_ctx = ctx;  // Set global for object procs
   
   switch (msg) {
     case dbCreate: {
