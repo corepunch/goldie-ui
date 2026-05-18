@@ -375,6 +375,33 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form) {
   }
 }
 
+static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
+  EACH_ELEMENT(c, parent) {
+    if (elem(c, "combobox")) {
+      char *name = attr(c, "name"), *source = attr(c, "source");
+      char *display = attr(c, "display"), *value = attr(c, "value");
+      
+      // Only generate params if source/display/value are all present
+      if (source && display && value) {
+        char param[256], table[128], table_id[128];
+        char display_q[ORIONC_STRING_SIZE], value_q[ORIONC_STRING_SIZE];
+        
+        snprintf(param, sizeof(param), "%s_%s_combobox_params", form, nz(name, "unnamed"));
+        table_name_from_source(table, sizeof(table), source);
+        ident(table_id, sizeof(table_id), table, true);
+        cstr(display_q, sizeof(display_q), display);
+        cstr(value_q, sizeof(value_q), value);
+        
+        OUT("static const combobox_params_t %s = { NULL, TABLE_%s, %s, %s };\n\n",
+            param, table_id, display_q, value_q);
+      }
+      
+      free(name); free(source); free(display); free(value);
+    }
+    emit_comboboxes(f, c, form);
+  }
+}
+
 static const char *binding_getter(const char *klass) {
   if (eq(klass, "textedit") || eq(klass, "multiedit")) return "edGetText";
   if (eq(klass, "combobox")) return "cbGetCurrentSelection";
@@ -412,6 +439,7 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     snprintf(font, sizeof(font), "%s", eq(a.v[A_FONT], "system") ? "FONT_SYSTEM" : eq(a.v[A_FONT], "icon") ? "FONT_ICON" : "FONT_SMALL");
     snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));
     if (elem(c, "tableview")) snprintf(lparam, sizeof(lparam), "&%s_%s_tableview_params", form, nz(a.v[A_NAME], "unnamed"));
+    if (elem(c, "combobox") && attr(c, "source")) snprintf(lparam, sizeof(lparam), "&%s_%s_combobox_params", form, nz(a.v[A_NAME], "unnamed"));
     if (a.v[A_FIELD]) add_binding(bindings, id, a.v[A_FIELD], klass);
     cstr(classq, sizeof(classq), klass); cstr(textq, sizeof(textq), a.v[A_TEXT]); cstr(nameq, sizeof(nameq), a.v[A_NAME]);
     OUT("  { %s, %s, { %d, %d }, %s, %s, %s, %u, %u, NULL, 0, %s, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %s, %s, %s, %s, %s },\n",
@@ -448,6 +476,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
   emit_tableviews(f, form, form_id);
+  emit_comboboxes(f, form, form_id);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
   int count = 0; bindings_t bindings = {0}; emit_controls_ex(f, form, form_id, "0", &bindings, &count); LINE("};\n\n");
   emit_bindings(f, prefix, form_id, &bindings);

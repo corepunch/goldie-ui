@@ -178,13 +178,17 @@ bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int bindin
   // HIWORD(wparam) is 16-bit in the Action-Message DDX contract.
   if (buf_sz > 0xffffu)
     return false;
+  
   for (int i = 0; i < binding_count; i++) {
     if (!bindings[i].field || strcmp(bindings[i].field, field) != 0)
       continue;
+    
     buf[0] = '\0';
     uint32_t packed = MAKEDWORD(bindings[i].column_id, (uint16_t)buf_sz);
-    return proc(object, dbObjGetFieldText, packed, buf) ? true : false;
+    result_t result = proc(object, dbObjGetFieldText, packed, buf);
+    return result ? true : false;
   }
+  
   return false;
 }
 

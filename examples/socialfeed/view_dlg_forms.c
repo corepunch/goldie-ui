@@ -30,6 +30,18 @@ static result_t new_post_proc(window_t *win, uint32_t msg,
     case evCreate:
       s = (new_post_state_t *)lparam;
       win->userdata = s;
+      
+      // Set database on combobox for auto-population
+      {
+        database_t *db = get_database_by_name("db");
+        if (db) {
+          window_t *author_cb = get_window_item(win, ID_NEW_POST_AUTHOR);
+          if (author_cb) {
+            send_message(author_cb, cbSetDatabase, 0, db);
+          }
+        }
+      }
+      
       dialog_push(win, s, kNewPostBindings,
                   (int)(sizeof(kNewPostBindings)/sizeof(kNewPostBindings[0])));
       return true;
@@ -98,6 +110,18 @@ static result_t new_comment_proc(window_t *win, uint32_t msg,
   switch (msg) {
     case evCreate:
       win->userdata = lparam;
+      
+      // Set database on combobox for auto-population
+      {
+        database_t *db = get_database_by_name("db");
+        if (db) {
+          window_t *author_cb = get_window_item(win, ID_NEW_COMMENT_AUTHOR);
+          if (author_cb) {
+            send_message(author_cb, cbSetDatabase, 0, db);
+          }
+        }
+      }
+      
       return true;
 
     case evCommand:

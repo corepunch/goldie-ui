@@ -91,6 +91,7 @@ enum {
   cbSetCurrentSelection,
   cbGetListBoxText,
   cbClear,            // clear all items and reset title
+  cbSetDatabase,      // wparam=0, lparam=database_t* — set database for auto-population
   sbAddWindow,
   tbButtonClick,
   tbSetStrip,         // wparam=0, lparam=bitmap_strip_t* (or NULL to clear)

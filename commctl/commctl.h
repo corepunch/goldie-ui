@@ -41,6 +41,24 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+// Combobox creation parameters — for database-driven dropdowns.
+// When source/display/value attributes are present in .orion forms,
+// orionc generates a combobox_params_t structure and passes it via lparam.
+typedef struct {
+  database_t *db;            // Database instance (NULL = populate manually)
+  int table_id;              // TABLE_* enum value for source table
+  const char *display_field; // Field name to show in dropdown (e.g. "name")
+  const char *value_field;   // Field name for actual value (e.g. "id")
+} combobox_params_t;
+
+// Combobox internal state (shared with list control for dropdown)
+#define MAX_COMBOBOX_STRINGS MAX_LIST_ITEMS
+typedef char combobox_string_t[64];
+typedef struct {
+  combobox_params_t params;  // Copy of creation params
+  combobox_string_t *texts;  // Display strings
+} combobox_state_t;
+
 result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

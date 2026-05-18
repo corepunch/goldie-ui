@@ -6,11 +6,9 @@
 #include "../user/messages.h"
 #include "../user/draw.h"
 #include "../user/rect.h"
+#include "commctl.h"
 
 #define LIST_HEIGHT     (FONT_SIZE_SMALL + 5)
-
-#define MAX_COMBOBOX_STRINGS MAX_LIST_ITEMS
-typedef char combobox_string_t[64];
 
 // Helper functions (will be moved to ui/user/window.c later)
 extern window_t *get_root_window(window_t *window);
@@ -18,7 +16,9 @@ extern window_t *get_root_window(window_t *window);
 // List control window procedure
 result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   window_t *cb = win->userdata;
-  combobox_string_t const *texts = cb?cb->userdata:NULL;
+  combobox_state_t *cb_state = cb ? (combobox_state_t *)cb->userdata : NULL;
+  combobox_string_t const *texts = cb_state ? cb_state->texts : NULL;
+  
   switch (msg) {
     case evCreate:
       win->userdata = lparam;
