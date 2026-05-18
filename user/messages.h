@@ -248,6 +248,7 @@ typedef struct {
 #define WINDOW_STACK_HORIZONTAL (1 << 19)  // auto-layout stack flows left-to-right
 #define WINDOW_FLEXSPACE    (1 << 20)  // space/spring child that absorbs leftover horizontal room
 #define WINDOW_AUTO_LAYOUT  (1 << 21)  // enable automatic measure/arrange for children
+#define WINDOW_LAYOUT_CONTAINER (1 << 22)  // window arranges children (stack/grid/flow/column)
 #define WINDOW_STACK_VERTICAL   0
 
 // Runtime window state bits stored in window_t.flags.

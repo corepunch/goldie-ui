@@ -34,38 +34,33 @@ static bool streq(const char *a, const char *b) {
   return a && b && strcmp(a, b) == 0;
 }
 
-static bool is_stack_or_flow_proc(const window_t *win) {
-  return win && (win->proc == win_stack || win->proc == win_stackview ||
-                 win->proc == win_flow || win->proc == win_flowview);
-}
-
-static bool is_layout_container_proc(const window_t *win) {
+// Check if window is a layout container (arranges its children).
+// Uses flags only - no proc checks, respecting user.dll/commctl.dll boundary.
+static bool is_layout_container(const window_t *win) {
   if (!win) return false;
-  // Auto-layout dialogs/panels act as layout containers
-  if (win->flags & WINDOW_AUTO_LAYOUT) return true;
-  // Explicit layout container procs
-  return is_stack_or_flow_proc(win) || win->proc == win_grid ||
-         win->proc == win_gridview || win->proc == win_column;
+  return (win->flags & WINDOW_LAYOUT_CONTAINER) ||
+         (win->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static bool layout_child_flex_affects_parent(const window_t *parent, const window_t *child) {
   if (!parent || !child || !(child->flags & WINDOW_FLEXSPACE)) return false;
 
-  bool parent_is_stack_like = is_stack_or_flow_proc(parent);
+  bool parent_is_container = is_layout_container(parent);
+  bool child_is_container = is_layout_container(child);
 
   // Horizontal action rows often contain local flex spacers.  If that row is
   // nested in a vertical container, keep the spacer local to the row instead of
   // promoting the whole row to a vertically flexible child.
-  if (!is_layout_container_proc(child) && parent_is_stack_like &&
+  if (!child_is_container && parent_is_container &&
       (parent->flags & WINDOW_STACK_HORIZONTAL) &&
-      parent->parent && is_layout_container_proc(parent->parent) &&
+      parent->parent && is_layout_container(parent->parent) &&
       !(parent->parent->flags & WINDOW_STACK_HORIZONTAL)) {
     return false;
   }
 
   // Horizontal stack/flow rows use flex spacers locally.  They should not make
   // an orthogonal parent stack claim extra vertical room.
-  if (is_stack_or_flow_proc(child)) {
+  if (child_is_container && (child->flags & WINDOW_LAYOUT_CONTAINER)) {
     bool child_horizontal  = (child->flags & WINDOW_STACK_HORIZONTAL) != 0;
     bool parent_horizontal = (parent->flags & WINDOW_STACK_HORIZONTAL) != 0;
     if (child_horizontal != parent_horizontal) return false;
@@ -381,7 +376,7 @@ void register_builtin_window_classes(void) {
     .proc = win_column,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -392,7 +387,7 @@ void register_builtin_window_classes(void) {
     .proc = win_stack,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -403,7 +398,7 @@ void register_builtin_window_classes(void) {
     .proc = win_stack,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -414,7 +409,7 @@ void register_builtin_window_classes(void) {
     .proc = win_flow,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -425,7 +420,7 @@ void register_builtin_window_classes(void) {
     .proc = win_flow,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -436,7 +431,7 @@ void register_builtin_window_classes(void) {
     .proc = win_grid,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
@@ -447,7 +442,7 @@ void register_builtin_window_classes(void) {
     .proc = win_grid,
     .default_width = 0,
     .default_height = 0,
-    .default_flags = 0,
+    .default_flags = WINDOW_LAYOUT_CONTAINER,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,
   });
