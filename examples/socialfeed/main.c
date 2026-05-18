@@ -42,8 +42,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 #endif
 
   // Register database class
-  extern const db_class_desc_t db_simple_xml_class;
-  register_database_class(&db_simple_xml_class);
+  DB_CLASS(db_simple_xml);
 
   g_app = app_init();
   if (!g_app) return false;

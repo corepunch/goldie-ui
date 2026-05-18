@@ -96,8 +96,6 @@ result_t main_win_proc(window_t *win, uint32_t msg,
 
 void create_main_window(void) {
   if (!g_app) return;
-  int sw = 480;
-  int sh = 400;
   int x  = 40;
   int y  = MENUBAR_HEIGHT + 40;
 

@@ -2,6 +2,7 @@
 
 #include "imageeditor.h"
 
+#define VIEW_ITEM_COUNT ((int)(sizeof(MENU_VIEW_ITEMS) / sizeof(MENU_VIEW_ITEMS[0])))
 #define WINDOW_PREFIX_COUNT ((int)(sizeof(MENU_WINDOW_ITEMS) / sizeof(MENU_WINDOW_ITEMS[0])))
 
 #if !IMAGEEDITOR_INDEXED
@@ -14,9 +15,26 @@ static char        s_filter_photo_labels[IMAGEEDITOR_MAX_FILTERS][64];
 #endif // !IMAGEEDITOR_INDEXED
 
 // Persistent storage for dynamically built items and document title strings.
+static menu_item_t s_view_items[VIEW_ITEM_COUNT];
+static bool        s_view_items_initialized = false;
 static menu_item_t s_window_items[WINDOW_PREFIX_COUNT + WINDOW_MENU_MAX_DOCS];
 static int         s_window_item_count = WINDOW_PREFIX_COUNT;
 static int         s_last_blur_radius = 4;
+
+static menu_def_t *find_menu(const char *label) {
+  for (int i = 0; i < kNumMenus; i++) {
+    if (kMenus[i].label && strcmp(kMenus[i].label, label) == 0)
+      return &kMenus[i];
+  }
+  return NULL;
+}
+
+static void publish_dynamic_menus(void) {
+  if (g_app && g_app->menubar_win) {
+    send_message(g_app->menubar_win, kMenuBarMessageSetMenus,
+                 (uint32_t)kNumMenus, kMenus);
+  }
+}
 
 
 static bool cancel_active_canvas_interaction(canvas_doc_t *doc, int old_tool) {
@@ -229,25 +247,36 @@ void imageeditor_sync_main_toolbar(void) {
 static void view_menu_rebuild(void) {
   if (!g_app) return;
   canvas_doc_t *doc = g_app->active_doc;
-  int n = (int)(sizeof(MENU_VIEW_ITEMS) / sizeof(MENU_VIEW_ITEMS[0]));
+  if (!s_view_items_initialized) {
+    memcpy(s_view_items, MENU_VIEW_ITEMS, sizeof(s_view_items));
+    s_view_items_initialized = true;
+  }
+  int n = (int)(sizeof(s_view_items) / sizeof(s_view_items[0]));
   for (int i = 0; i < n; i++) {
-    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_SHOW_GRID)
-      MENU_VIEW_ITEMS[i].label = g_app->grid.visible
+    if (s_view_items[i].id == ID_VIEW_SHOW_GRID)
+      s_view_items[i].label = g_app->grid.visible
                                  ? MENU_CHECK_ON "Show Grid"
                                  : MENU_CHECK_OFF "Show Grid";
-    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_SNAP_GRID)
-      MENU_VIEW_ITEMS[i].label = g_app->grid.snap
+    if (s_view_items[i].id == ID_VIEW_SNAP_GRID)
+      s_view_items[i].label = g_app->grid.snap
                                  ? MENU_CHECK_ON "Snap to Grid"
                                  : MENU_CHECK_OFF "Snap to Grid";
-    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_SHOW_BACKGROUND)
-      MENU_VIEW_ITEMS[i].label = (!doc || doc->background.show)
+    if (s_view_items[i].id == ID_VIEW_SHOW_BACKGROUND)
+      s_view_items[i].label = (!doc || doc->background.show)
                                  ? MENU_CHECK_ON "Show Background"
                                  : MENU_CHECK_OFF "Show Background";
-    if (MENU_VIEW_ITEMS[i].id == ID_VIEW_MASK_ONLY)
-      MENU_VIEW_ITEMS[i].label = (doc && doc->layer.mask_only_view)
+    if (s_view_items[i].id == ID_VIEW_MASK_ONLY)
+      s_view_items[i].label = (doc && doc->layer.mask_only_view)
                                  ? MENU_CHECK_ON "Mask Only View"
                                  : MENU_CHECK_OFF "Mask Only View";
   }
+
+  menu_def_t *view_menu = find_menu("View");
+  if (view_menu) {
+    view_menu->items = s_view_items;
+    view_menu->item_count = n;
+  }
+  publish_dynamic_menus();
 }
 
 void window_menu_rebuild(void) {
@@ -268,15 +297,16 @@ void window_menu_rebuild(void) {
   }
 
   s_window_item_count = n;
-  kMenus[MENU_WINDOW_INDEX].items      = s_window_items;
-  kMenus[MENU_WINDOW_INDEX].item_count = s_window_item_count;
+  menu_def_t *window_menu = find_menu("Window");
+  if (window_menu) {
+    window_menu->items = s_window_items;
+    window_menu->item_count = s_window_item_count;
+  }
 
   // In standalone mode push the updated menus to our local menubar window.
   // In gem mode menubar_win is NULL; the shell holds a pointer to kMenus
   // (set during gem_init) and will read the updated data on its next redraw.
-  if (g_app->menubar_win)
-    send_message(g_app->menubar_win, kMenuBarMessageSetMenus,
-                 (uint32_t)kNumMenus, kMenus);
+  publish_dynamic_menus();
 }
 
 bool imageeditor_open_file_path(const char *path) {
@@ -1179,13 +1209,12 @@ void imageeditor_sync_filter_menu(void) {
   }
 
   s_filter_item_count = n;
-  kMenus[MENU_FILTER_INDEX].items = s_filter_items;
-  kMenus[MENU_FILTER_INDEX].item_count = s_filter_item_count;
-
-  if (g_app->menubar_win) {
-    send_message(g_app->menubar_win, kMenuBarMessageSetMenus,
-                 (uint32_t)kNumMenus, kMenus);
+  menu_def_t *filter_menu = find_menu("Filter");
+  if (filter_menu) {
+    filter_menu->items = s_filter_items;
+    filter_menu->item_count = s_filter_item_count;
   }
+  publish_dynamic_menus();
 #endif // !IMAGEEDITOR_INDEXED
 }
 

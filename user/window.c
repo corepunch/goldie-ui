@@ -1083,6 +1083,8 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     };
     if (cp == win_label)
       param = &label_cfg;
+    if (cp == win_tableview && cd->lparam)
+      param = (void *)cd->lparam;
 
     // Apply class defaults for dimensions and flags
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);

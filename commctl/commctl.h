@@ -56,7 +56,7 @@ result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 // Database-backed table view — automatically populates from database API.
 // See commctl/tableview.c for full documentation and usage examples.
 enum {
-  tvRefresh = evUser + 100,
+  tvRefresh = evUser + 260,
   tvSetFilter,
   tvSetDatabase,  // Set database pointer after creation (wparam=0, lparam=database_t*)
 };
