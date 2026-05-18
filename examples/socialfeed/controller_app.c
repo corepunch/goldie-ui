@@ -107,26 +107,16 @@ bool app_delete_post(int index) {
 // ============================================================
 // app_get_post — fetch post from database by index
 // ============================================================
-//
-// NOTE: This temporarily returns NULL because of type mismatch.
-// The database has db_post_t (flat records with fixed char arrays)
-// but the view code expects post_t (with char* and nested comments).
-//
-// TODO: Either:
-//   1. Convert db_post_t -> post_t when fetching (build rich model on-demand)
-//   2. Refactor views to work with db_post_t directly (simpler, flatter data)
-//   3. Keep posts cached in memory and just use database for persistence
-//
-// For now, view_dlg_post.c and other code using app_get_post will break.
-//
+
 post_t *app_get_post(int index) {
   if (!g_app || !g_app->db || index < 0) return NULL;
   
-  // Fetch all posts and navigate to index
+  // Fetch all posts from database
   result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
     MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
   if (!posts) return NULL;
   
+  // Navigate to the requested index
   result_node_t *node = posts;
   for (int i = 0; i < index && node; i++)
     node = node->next;
@@ -136,12 +126,40 @@ post_t *app_get_post(int index) {
     return NULL;
   }
   
-  // Type mismatch: database has db_post_t, caller expects post_t
+  // Convert db_post_t to post_t
   db_post_t *db_post = *(db_post_t **)node->data;
-  (void)db_post;
-  free_result_list(posts);
+  if (!db_post) {
+    free_result_list(posts);
+    return NULL;
+  }
   
-  return NULL;  // Temporarily disabled - needs type conversion
+  post_t *post = (post_t *)calloc(1, sizeof(post_t));
+  if (!post) {
+    free_result_list(posts);
+    return NULL;
+  }
+  
+  // Copy fields
+  post->id = db_post->id;
+  post->like_count = db_post->like_count;
+  post->comment_count = db_post->comment_count;
+  post->created_at = 0; // Not stored in database yet
+  
+  // Convert fixed arrays to allocated strings
+  post->title = strdup(db_post->title);
+  post->body = strdup(db_post->body);
+  
+  // Fetch author name from database
+  db_author_t *author = (db_author_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)db_post->author_id);
+  post->author = author ? strdup(author->name) : strdup("Unknown");
+  
+  // Initialize comment arrays (empty for now - comments would need separate fetch)
+  post->comments = NULL;
+  post->comment_cap = 0;
+  
+  free_result_list(posts);
+  return post;
 }
 
 // ============================================================

@@ -61,6 +61,9 @@ result_t main_win_proc(window_t *win, uint32_t msg,
           return true;
 
         case RVN_DBLCLK:
+          // Update selected_idx from the double-click event before viewing
+          if (g_app)
+            g_app->selected_idx = (int)(int16_t)LOWORD(wparam);
           handle_menu_command(ID_POST_VIEW);
           return true;
 
