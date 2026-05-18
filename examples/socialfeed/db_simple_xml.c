@@ -590,7 +590,7 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
         }
         
         case TABLE_COMMENTS: {
-          if (filter_field == 2) {  // filter by post_id
+          if (filter_field == 1) {  // filter by post_id (field 1)
             result_node_t *head = NULL, *tail = NULL;
             for (int i = 0; i < ctx->comment_count; i++) {
               if (ctx->comments[i].post_id == filter_value) {
