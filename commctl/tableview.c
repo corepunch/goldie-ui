@@ -196,8 +196,19 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
   
   switch (msg) {
     case evCreate: {
-      // Parse creation parameters
-      tableview_params_t *params = (tableview_params_t *)lparam;
+      // Parse creation parameters from form_ctrl_def_t or raw tableview_params_t*
+      tableview_params_t *params = NULL;
+      if (lparam && (uintptr_t)lparam > 0x1000) {
+        // Check if it's a form_ctrl_def_t* (has class_name field at offset 0)
+        const form_ctrl_def_t *cd = (const form_ctrl_def_t *)lparam;
+        if (cd->lparam) {
+          params = (tableview_params_t *)cd->lparam;
+        }
+      } else {
+        // Legacy: direct tableview_params_t* (for non-form creation)
+        params = (tableview_params_t *)lparam;
+      }
+      
       if (!params || !params->field_names) {
         return false;
       }

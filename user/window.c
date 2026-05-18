@@ -744,28 +744,6 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     winproc_t cp = find_window_class_proc(cd->class_name);
     if (!cp) continue;
 
-    void *param = NULL;
-    layout_view_config_t cfg = {
-      .orientation = cd->flags & WINDOW_STACK_HORIZONTAL,
-      .spacing = cd->layout_spacing,
-      .padding = cd->padding,
-      .margin = cd->margin,
-    };
-    if (cp == win_stack || cp == win_grid || cp == win_flow ||
-        cp == win_stackview || cp == win_gridview || cp == win_flowview ||
-        cp == win_column) {
-      param = &cfg;
-    }
-    label_create_params_t label_cfg = {
-      .color_index = cd->color,
-      .font = cd->font_set ? cd->font : FONT_SMALL,
-      .color_set = cd->color_set,
-    };
-    if (cp == win_label)
-      param = &label_cfg;
-    if (cp == win_tableview && cd->lparam)
-      param = (void *)cd->lparam;
-
     // Apply class defaults for dimensions and flags
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
     int16_t child_w = cd->size.w;
@@ -793,7 +771,7 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
 
     irect16_t child_frame = {0, 0, child_w, child_h};
     window_t *child = create_window(cd->text ? cd->text : "", child_flags,
-                                    &child_frame, parent, cp, 0, param);
+                                    &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     
     child->id = cd->id;
@@ -933,30 +911,6 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     winproc_t cp = find_window_class_proc(cd->class_name);
     if (!cp) continue;
 
-    void *param = NULL;
-    layout_view_config_t cfg = {
-      .orientation = cd->flags & WINDOW_STACK_HORIZONTAL,
-      .spacing = cd->layout_spacing,
-      .padding = cd->padding,
-      .margin = cd->margin,
-    };
-    if (cp == win_stack || cp == win_grid || cp == win_flow ||
-        cp == win_stackview || cp == win_gridview || cp == win_flowview ||
-        cp == win_column) {
-      param = &cfg;
-    }
-    label_create_params_t label_cfg = {
-      .color_index = cd->color,
-      .font = cd->font_set ? cd->font : FONT_SMALL,
-      .color_set = cd->color_set,
-    };
-    if (cp == win_label)
-      param = &label_cfg;
-    
-    // For tableview, params are pre-generated in the form definition
-    if (cp == win_tableview && cd->lparam)
-      param = (void *)cd->lparam;
-
     // Phase 3: Apply class defaults for width/height when form doesn't specify (0).
     // Get class descriptor to check for default dimensions.
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
@@ -971,7 +925,7 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
 
     irect16_t child_frame = {0, 0, effective_w, effective_h};
     window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
-                                    &child_frame, parent, cp, 0, param);
+                                    &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     child->id = cd->id;
     child->layout.h_align = cd->h_align;

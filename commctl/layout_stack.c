@@ -206,7 +206,6 @@ void window_layout_sync(window_t *win) {
 result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
-      const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
       win->flags |= WINDOW_AUTO_LAYOUT;
       win->flags &= ~WINDOW_STACK_HORIZONTAL;
       win->layout.layout_spacing = 4;
@@ -214,15 +213,30 @@ result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
       win->layout.h_align = LAYOUT_ALIGN_STRETCH;
       win->layout.v_align = LAYOUT_ALIGN_STRETCH;
-      if (cfg) {
-        if (cfg->orientation & WINDOW_STACK_HORIZONTAL)
-          win->flags |= WINDOW_STACK_HORIZONTAL;
-        else
-          win->flags &= ~WINDOW_STACK_HORIZONTAL;
-        if (cfg->spacing > 0)
-          win->layout.layout_spacing = cfg->spacing;
-        win->layout.layout_padding = cfg->padding;
-        win->layout.layout_margin = cfg->margin;
+      
+      if (lparam) {
+        // Try form_ctrl_def_t* first (from create_window_from_form)
+        const form_ctrl_def_t *cd = (const form_ctrl_def_t *)lparam;
+        // Check if class_name field looks like a realistic pointer (not a small integer/flag)
+        // Real pointers are typically > 16MB on modern systems; flags like WINDOW_STACK_HORIZONTAL (0x80000) are much smaller
+        if (cd->class_name && (uintptr_t)cd->class_name > 0x1000000) {
+          // Parse as form_ctrl_def_t*
+          if (cd->flags & WINDOW_STACK_HORIZONTAL)
+            win->flags |= WINDOW_STACK_HORIZONTAL;
+          if (cd->layout_spacing > 0)
+            win->layout.layout_spacing = cd->layout_spacing;
+          win->layout.layout_padding = cd->padding;
+          win->layout.layout_margin = cd->margin;
+        } else {
+          // Parse as legacy layout_view_config_t* (from direct create_window)
+          const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
+          if (cfg->orientation & WINDOW_STACK_HORIZONTAL)
+            win->flags |= WINDOW_STACK_HORIZONTAL;
+          if (cfg->spacing > 0)
+            win->layout.layout_spacing = cfg->spacing;
+          win->layout.layout_padding = cfg->padding;
+          win->layout.layout_margin = cfg->margin;
+        }
       }
       return true;
     }
