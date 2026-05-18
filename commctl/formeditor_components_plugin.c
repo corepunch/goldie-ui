@@ -166,6 +166,7 @@ static const fe_component_desc_t k_components[] = {
     .toolbox_ident = 215,
     .toolbox_icon = IC_PANEL,
     .default_size = {80, 40},
+    .default_flags = WINDOW_FLEXSPACE,  // Space elements expand by default
     .capabilities = FE_COMPONENT_PLACEABLE,
     .proc = win_space,
   },

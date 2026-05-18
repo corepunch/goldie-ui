@@ -40,8 +40,12 @@ static bool is_stack_or_flow_proc(const window_t *win) {
 }
 
 static bool is_layout_container_proc(const window_t *win) {
-  return win && (is_stack_or_flow_proc(win) || win->proc == win_grid ||
-                 win->proc == win_gridview || win->proc == win_column);
+  if (!win) return false;
+  // Auto-layout dialogs/panels act as layout containers
+  if (win->flags & WINDOW_AUTO_LAYOUT) return true;
+  // Explicit layout container procs
+  return is_stack_or_flow_proc(win) || win->proc == win_grid ||
+         win->proc == win_gridview || win->proc == win_column;
 }
 
 static bool layout_child_flex_affects_parent(const window_t *parent, const window_t *child) {
