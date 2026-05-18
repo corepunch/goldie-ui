@@ -11,6 +11,10 @@
 // Forward declarations for types from other subsystems
 typedef struct database_s database_t;
 
+// Register all common controls with the window system.
+// Called once during framework initialization by user.dll.
+void register_commctl_classes(void);
+
 // bitmap_strip_t is defined in user/user.h and available via the include above.
 // Kept here as a comment for documentation purposes:
 // A fixed-size-tile bitmap strip used with btnSetImage (wparam=index, lparam=bitmap_strip_t*).
