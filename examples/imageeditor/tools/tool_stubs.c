@@ -81,27 +81,3 @@ const tool_handler_t tool_magic_wand_handler = {
   .begin = stub_begin, .drag = stub_drag, .end = stub_end,
   .cancel = stub_cancel, .key = stub_key,
 };
-
-const tool_handler_t tool_eyedropper_handler = {
-  .id = ID_TOOL_EYEDROPPER, .name = "Eyedropper",
-  .begin = stub_begin, .drag = stub_drag, .end = stub_end,
-  .cancel = stub_cancel, .key = stub_key,
-};
-
-const tool_handler_t tool_magnifier_handler = {
-  .id = ID_TOOL_MAGNIFIER, .name = "Magnifier",
-  .begin = stub_begin, .drag = stub_drag, .end = stub_end,
-  .cancel = stub_cancel, .key = stub_key,
-};
-
-const tool_handler_t tool_text_handler = {
-  .id = ID_TOOL_TEXT, .name = "Text",
-  .begin = stub_begin, .drag = stub_drag, .end = stub_end,
-  .cancel = stub_cancel, .key = stub_key,
-};
-
-const tool_handler_t tool_magic_wand_handler = {
-  .id = ID_TOOL_MAGIC_WAND, .name = "Magic Wand",
-  .begin = stub_begin, .drag = stub_drag, .end = stub_end,
-  .cancel = stub_cancel, .key = stub_key,
-};
