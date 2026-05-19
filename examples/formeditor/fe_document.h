@@ -30,6 +30,13 @@ typedef struct {
   bool     font_set;    // font attribute explicitly set in the project
   uint8_t  color;       // label color palette index; 0 = transparent
   bool     color_set;   // color attribute explicitly set in the project
+  
+  // Database binding support (analogous to NeXTSTEP DBKit)
+  char     db_field[64];      // Field path: "posts.title" or "author.name"
+  char     db_source[64];     // Combobox source table: "authors"
+  char     db_display[64];    // Combobox display field: "name"
+  char     db_value[64];      // Combobox value field: "id"
+  
   window_t *live_win;    // design-time live control hosted on the canvas (temporary)
 } form_element_t;
 
@@ -47,6 +54,10 @@ typedef struct form_doc_t {
   char   form_id[64];
   char   form_title[128];
   char   required_plugin[64];
+  
+  // Database context for the form (NeXTSTEP DBKit style)
+  char   database_name[64];  // e.g., "db"
+  char   table_name[64];     // Primary table: "posts"
   int    next_id;                      // next numeric control ID
   int    type_counters[FE_MAX_COMPONENTS]; // per-component name counter
   window_t *canvas_win;
@@ -101,6 +112,12 @@ bool fe_doc_set_element_name(form_doc_t *doc, int idx, const char *name);
 bool fe_doc_set_element_align(form_doc_t *doc, int idx, uint8_t h_align, uint8_t v_align);
 bool fe_doc_set_element_font(form_doc_t *doc, int idx, uint8_t font);
 bool fe_doc_set_element_color(form_doc_t *doc, int idx, uint8_t color);
+
+// Database binding setters (NeXTSTEP DBKit style).
+bool fe_doc_set_element_db_field(form_doc_t *doc, int idx, const char *field);
+bool fe_doc_set_element_db_source(form_doc_t *doc, int idx, const char *source);
+bool fe_doc_set_element_db_display(form_doc_t *doc, int idx, const char *display);
+bool fe_doc_set_element_db_value(form_doc_t *doc, int idx, const char *value);
 
 // ============================================================
 // Element Query

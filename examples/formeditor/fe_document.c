@@ -58,6 +58,10 @@ form_doc_t *fe_doc_create(const char *form_id, int w, int h) {
   if (form_id && *form_id) {
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", form_id);
   }
+  
+  // Initialize database context
+  doc->database_name[0] = '\0';
+  doc->table_name[0] = '\0';
 
   // Auto-layout defaults
   if (fe_default_auto_layout_enabled()) {
@@ -129,6 +133,12 @@ int fe_doc_add_element(form_doc_t *doc, int type, irect16_t frame, uint32_t pare
   el->h_align = LAYOUT_ALIGN_STRETCH;
   el->v_align = LAYOUT_ALIGN_STRETCH;
   el->color = brTextNormal;
+  
+  // Initialize database fields
+  el->db_field[0] = '\0';
+  el->db_source[0] = '\0';
+  el->db_display[0] = '\0';
+  el->db_value[0] = '\0';
 
   // Generate default name
   const fe_component_desc_t *desc = fe_component_by_id(type);
@@ -220,6 +230,50 @@ bool fe_doc_set_element_color(form_doc_t *doc, int idx, uint8_t color) {
   form_element_t *el = &doc->elements[idx];
   el->color = color;
   el->color_set = true;
+  fe_doc_mark_modified(doc);
+  return true;
+}
+
+// ============================================================
+// Database Binding Setters
+// ============================================================
+
+bool fe_doc_set_element_db_field(form_doc_t *doc, int idx, const char *field) {
+  if (!doc || idx < 0 || idx >= doc->element_count || !field)
+    return false;
+
+  form_element_t *el = &doc->elements[idx];
+  snprintf(el->db_field, sizeof(el->db_field), "%s", field);
+  fe_doc_mark_modified(doc);
+  return true;
+}
+
+bool fe_doc_set_element_db_source(form_doc_t *doc, int idx, const char *source) {
+  if (!doc || idx < 0 || idx >= doc->element_count || !source)
+    return false;
+
+  form_element_t *el = &doc->elements[idx];
+  snprintf(el->db_source, sizeof(el->db_source), "%s", source);
+  fe_doc_mark_modified(doc);
+  return true;
+}
+
+bool fe_doc_set_element_db_display(form_doc_t *doc, int idx, const char *display) {
+  if (!doc || idx < 0 || idx >= doc->element_count || !display)
+    return false;
+
+  form_element_t *el = &doc->elements[idx];
+  snprintf(el->db_display, sizeof(el->db_display), "%s", display);
+  fe_doc_mark_modified(doc);
+  return true;
+}
+
+bool fe_doc_set_element_db_value(form_doc_t *doc, int idx, const char *value) {
+  if (!doc || idx < 0 || idx >= doc->element_count || !value)
+    return false;
+
+  form_element_t *el = &doc->elements[idx];
+  snprintf(el->db_value, sizeof(el->db_value), "%s", value);
   fe_doc_mark_modified(doc);
   return true;
 }
