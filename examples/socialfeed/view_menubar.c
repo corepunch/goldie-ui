@@ -36,7 +36,7 @@ void handle_menu_command(uint16_t id) {
 
     // ---- Post ----
     case ID_POST_NEW:
-      if (show_new_post_dialog(parent)) {
+      if (show_db_dialog(&socialfeed_new_post_form, "New Post", parent, 0)) {
         feed_refresh();
         app_update_status();
         SF_DEBUG("action new_post");

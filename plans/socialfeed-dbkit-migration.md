@@ -46,14 +46,14 @@ Transform socialfeed from dual object-model to pure database-driven application 
 
 ## Phase 3: Combobox Foreign Key Binding (P2 Important)
 
-- [ ] **3.1 Store item values in combobox**
+- [x] **3.1 Store item values in combobox** ✅ Commit 3d98b2d
   - Extend `combobox_state_t` with `int *values` array
   - Allocate values array in `evCreate`
   - Store value_field data during `cb_populate_from_database()`
   - Add `cbGetCurrentValue` message returning ID (not row index)
   - Free values array in `evDestroy`
 
-- [ ] **3.2 Update binding generation**
+- [x] **3.2 Update binding generation** ✅ Commit 3d98b2d
   - Change orionc to emit `cbGetCurrentValue` for combobox bindings
   - Verify DDX extracts author ID (e.g., 1) not row index (e.g., 0)
   - Test in new post dialog: select "Alice" → author_id=1
