@@ -403,6 +403,11 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
                               rect_attr(n, "layout_padding", (irect16_t){0, 0, 0, 0}));
       el->margin = rect_attr(n, "margin",
                               rect_attr(n, "layout_margin", (irect16_t){0, 0, 0, 0}));
+      // Database binding attributes (NeXTSTEP DBKit-style)
+      copy_attr(n, "field", el->db_field, sizeof(el->db_field));
+      copy_attr(n, "source", el->db_source, sizeof(el->db_source));
+      copy_attr(n, "display", el->db_display, sizeof(el->db_display));
+      copy_attr(n, "value", el->db_value, sizeof(el->db_value));
       free(font);
       free(color);
       free(h_align);
@@ -467,6 +472,9 @@ static bool project_load_form_node(xmlNodePtr form_node) {
                            rect_attr(form_node, "layout_padding", (irect16_t){0, 0, 0, 0}));
   doc->margin = rect_attr(form_node, "margin",
                           rect_attr(form_node, "layout_margin", (irect16_t){0, 0, 0, 0}));
+  // Database binding context (form-level)
+  copy_attr(form_node, "database", doc->database_name, sizeof(doc->database_name));
+  copy_attr(form_node, "table", doc->table_name, sizeof(doc->table_name));
   project_load_requires(doc, form_node);
   project_load_controls(doc, form_node);
   
@@ -549,6 +557,11 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   if (doc->margin.x || doc->margin.y || doc->margin.w || doc->margin.h)
     fprintf(f, "\n            margin=\"%d %d %d %d\"",
             doc->margin.x, doc->margin.y, doc->margin.w, doc->margin.h);
+  // Database binding context (form-level)
+  if (doc->database_name[0])
+    xml_attr(f, "database", doc->database_name);
+  if (doc->table_name[0])
+    xml_attr(f, "table", doc->table_name);
   fprintf(f, ">\n");
 
   if (doc->required_plugin[0]) {
@@ -583,6 +596,15 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     char flags_buf[32];
     snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, el->flags);
     xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);
+    // Database binding attributes (NeXTSTEP DBKit-style)
+    if (el->db_field[0])
+      xml_attr(f, "field", el->db_field);
+    if (el->db_source[0])
+      xml_attr(f, "source", el->db_source);
+    if (el->db_display[0])
+      xml_attr(f, "display", el->db_display);
+    if (el->db_value[0])
+      xml_attr(f, "value", el->db_value);
     fprintf(f, " />\n");
   }
   fprintf(f, "      </form>\n");
