@@ -818,4 +818,52 @@ bool anim_export_gif(canvas_doc_t *doc, const char *path);
 bool anim_export_apng(canvas_doc_t *doc, const char *path);
 bool anim_export_spritesheet(canvas_doc_t *doc, const char *path);
 
+// ============================================================
+// Operation lifecycle API (canvas_ops.c)
+// ============================================================
+
+// Begin a document mutation operation — pushes undo snapshot.
+void ie_doc_begin_op(canvas_doc_t *doc, const char *op_name);
+
+// Commit the operation — marks dirty, updates title, and refreshes all views.
+// If success is false, discards the undo snapshot instead.
+void ie_doc_commit_op(canvas_doc_t *doc, bool success);
+
+// Dirty state and title management.
+void ie_doc_mark_dirty(canvas_doc_t *doc);
+void ie_doc_update_title(canvas_doc_t *doc);
+
+// Invalidation helpers — refresh specific views after changes.
+void ie_doc_invalidate_all(canvas_doc_t *doc);
+void ie_doc_invalidate_canvas(canvas_doc_t *doc);
+void ie_doc_invalidate_layers(canvas_doc_t *doc);
+void ie_doc_invalidate_timeline(canvas_doc_t *doc);
+
+// Targeted refresh hooks — use after specific mutation types.
+void ie_doc_after_pixels_changed(canvas_doc_t *doc);
+void ie_doc_after_layers_changed(canvas_doc_t *doc);
+void ie_doc_after_selection_changed(canvas_doc_t *doc);
+
+// ============================================================
+// Coordinate conversion (canvas_coords.c)
+// ============================================================
+
+// Convert viewport (screen) coordinates to document (pixel) coordinates.
+void canvas_view_to_doc(window_t *win, canvas_win_state_t *state,
+                        int view_x, int view_y, int *doc_x, int *doc_y);
+
+ipoint16_t canvas_view_to_doc_point(window_t *win, canvas_win_state_t *state,
+                                    int view_x, int view_y);
+
+// Convert document (pixel) coordinates to viewport (screen) coordinates.
+void canvas_doc_to_view(window_t *win, canvas_win_state_t *state,
+                        int doc_x, int doc_y, int *view_x, int *view_y);
+
+ipoint16_t canvas_doc_to_view_point(window_t *win, canvas_win_state_t *state,
+                                    int doc_x, int doc_y);
+
+// Convert a document rectangle to viewport coordinates.
+irect16_t canvas_doc_rect_to_view(window_t *win, canvas_win_state_t *state,
+                                  int x0, int y0, int x1, int y1);
+
 #endif // __IMAGEEDITOR_H__

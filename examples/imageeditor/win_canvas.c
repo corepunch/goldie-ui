@@ -67,29 +67,29 @@ static int canvas_view_axis_to_doc(int view_px, int origin_px, float scale) {
   return (int)floorf((float)(view_px - origin_px) / scale);
 }
 
-static ipoint16_t canvas_view_to_doc_point(window_t *win,
-                                           canvas_win_state_t *state,
-                                           int view_x, int view_y) {
+static ipoint16_t _canvas_view_to_doc_point(window_t *win,
+                                            canvas_win_state_t *state,
+                                            int view_x, int view_y) {
   ipoint16_t pt;
   pt.x = canvas_view_axis_to_doc(view_x, canvas_doc_origin_x(win, state), state->scale);
   pt.y = canvas_view_axis_to_doc(view_y, canvas_doc_origin_y(win, state), state->scale);
   return pt;
 }
 
-static ipoint16_t canvas_doc_to_view_point(window_t *win,
-                                           canvas_win_state_t *state,
-                                           int doc_x, int doc_y) {
+static ipoint16_t _canvas_doc_to_view_point(window_t *win,
+                                            canvas_win_state_t *state,
+                                            int doc_x, int doc_y) {
   ipoint16_t pt;
   pt.x = canvas_doc_origin_x(win, state) + scaled_px(doc_x, state->scale);
   pt.y = canvas_doc_origin_y(win, state) + scaled_px(doc_y, state->scale);
   return pt;
 }
 
-static irect16_t canvas_doc_rect_to_view(window_t *win,
-                                         canvas_win_state_t *state,
-                                         int x0, int y0, int x1, int y1) {
-  ipoint16_t p0 = canvas_doc_to_view_point(win, state, x0, y0);
-  ipoint16_t p1 = canvas_doc_to_view_point(win, state, x1, y1);
+static irect16_t _canvas_doc_rect_to_view(window_t *win,
+                                          canvas_win_state_t *state,
+                                          int x0, int y0, int x1, int y1) {
+  ipoint16_t p0 = _canvas_doc_to_view_point(win, state, x0, y0);
+  ipoint16_t p1 = _canvas_doc_to_view_point(win, state, x1, y1);
   return R(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
 }
 
@@ -429,8 +429,8 @@ static void canvas_draw_grid(window_t *win, canvas_win_state_t *state) {
   if (gy < 1) gy = 1;
 
   // Canvas rect in screen-local coordinates (may extend outside the window)
-  irect16_t canvas_rect = canvas_doc_rect_to_view(win, state, 0, 0,
-                                                  doc->canvas_w, doc->canvas_h);
+irect16_t canvas_rect = _canvas_doc_rect_to_view(win, state, 0, 0,
+                                                    doc->canvas_w, doc->canvas_h);
 
   // Intersection of canvas rect and window rect (visible canvas area)
   int clip_x0 = MAX(0, canvas_rect.x);
@@ -443,7 +443,7 @@ static void canvas_draw_grid(window_t *win, canvas_win_state_t *state) {
 
   // Horizontal lines at canvas y = gy, 2*gy, ...
   for (int row = gy; row < doc->canvas_h; row += gy) {
-    int sy = canvas_doc_to_view_point(win, state, 0, row).y;
+    int sy = _canvas_doc_to_view_point(win, state, 0, row).y;
     if (sy >= clip_y1) break;
     if (sy < clip_y0) continue;
     draw_sel_rect(R(clip_x0, sy, clip_w, 1));
@@ -451,7 +451,7 @@ static void canvas_draw_grid(window_t *win, canvas_win_state_t *state) {
 
   // Vertical lines at canvas x = gx, 2*gx, ...
   for (int col = gx; col < doc->canvas_w; col += gx) {
-    int sx = canvas_doc_to_view_point(win, state, col, 0).x;
+    int sx = _canvas_doc_to_view_point(win, state, col, 0).x;
     if (sx >= clip_x1) break;
     if (sx < clip_x0) continue;
     draw_sel_rect(R(sx, clip_y0, 1, clip_h));
@@ -485,8 +485,8 @@ static void canvas_draw_selection_mask_overlay(canvas_doc_t *doc,
     doc->sel.mask.dirty = false;
   }
 
-  irect16_t canvas_rect = canvas_doc_rect_to_view(win, state, 0, 0,
-                                                  doc->canvas_w, doc->canvas_h);
+  irect16_t canvas_rect = _canvas_doc_rect_to_view(win, state, 0, 0,
+                                                   doc->canvas_w, doc->canvas_h);
   ui_render_effect_params_t params = {{0}};
   params.f[0] = (float)doc->sel.mask.offset.x / (float)doc->canvas_w;
   params.f[1] = (float)doc->sel.mask.offset.y / (float)doc->canvas_h;
@@ -587,8 +587,8 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       if (!state || !doc) return true;
       canvas_upload(doc);
 
-      irect16_t canvas_rect = canvas_doc_rect_to_view(win, state, 0, 0,
-                                                      doc->canvas_w, doc->canvas_h);
+      irect16_t canvas_rect = _canvas_doc_rect_to_view(win, state, 0, 0,
+                                                       doc->canvas_w, doc->canvas_h);
       if (!doc->layer.mask_only_view) {
         if (doc->background.show)
           fill_rect(doc->background.color, canvas_rect);
@@ -642,7 +642,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
 
       if (doc->sel.move.active && doc->sel.floating.tex) {
         // Draw the floating selection at its current position
-        irect16_t float_rect = canvas_doc_rect_to_view(win, state,
+        irect16_t float_rect = _canvas_doc_rect_to_view(win, state,
                                                        doc->sel.floating.rect.x,
                                                        doc->sel.floating.rect.y,
                                                        doc->sel.floating.rect.x + doc->sel.floating.rect.w,
@@ -653,7 +653,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
                  (IMAGEEDITOR_SHOW_SELECTION_BOUNDS ||
                   (g_app && ((g_app->current_tool == ID_TOOL_SELECT && doc->drawing) ||
                              g_app->current_tool == ID_TOOL_CROP)))) {
-        irect16_t sel_rect = canvas_doc_rect_to_view(win, state,
+        irect16_t sel_rect = _canvas_doc_rect_to_view(win, state,
                                                      MIN(doc->sel.start.x, doc->sel.end.x),
                                                      MIN(doc->sel.start.y, doc->sel.end.y),
                                                      MAX(doc->sel.start.x, doc->sel.end.x) + 1,
@@ -665,7 +665,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       if (doc->poly.active && doc->poly.count > 0) {
         ipoint16_t v0 = doc->poly.pts[doc->poly.count - 1];
         ipoint16_t v1 = doc->last;
-        irect16_t poly_rect = canvas_doc_rect_to_view(win, state,
+        irect16_t poly_rect = _canvas_doc_rect_to_view(win, state,
                                                       MIN(v0.x, v1.x),
                                                       MIN(v0.y, v1.y),
                                                       MAX(v0.x, v1.x) + 1,
@@ -782,7 +782,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       int ly = (int16_t)HIWORD(wparam);
 
       if (!doc || !g_app) return true;
-      ipoint16_t doc_pt = canvas_view_to_doc_point(win, state, lx, ly);
+      ipoint16_t doc_pt = _canvas_view_to_doc_point(win, state, lx, ly);
 
       // Clear any stale panning state – if the user switched away from Hand
       // while holding the button, panning must not bleed into MouseMove.
@@ -999,7 +999,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       if (state && g_app->current_tool == ID_TOOL_EYEDROPPER) {
         int lx = (int16_t)LOWORD(wparam);
         int ly = (int16_t)HIWORD(wparam);
-        ipoint16_t doc_pt = canvas_view_to_doc_point(win, state, lx, ly);
+        ipoint16_t doc_pt = _canvas_view_to_doc_point(win, state, lx, ly);
         int px = doc_pt.x;
         int py = doc_pt.y;
         if (canvas_in_bounds(doc, px, py)) {
@@ -1016,7 +1016,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         int ly = (int16_t)HIWORD(wparam);
         int mx = lx;
         int my = ly;
-        ipoint16_t doc_pt = canvas_view_to_doc_point(win, state, mx, my);
+        ipoint16_t doc_pt = _canvas_view_to_doc_point(win, state, mx, my);
         int new_scale = -1;
         for (int i = NUM_ZOOM_LEVELS - 1; i >= 0; i--) {
           if (kZoomLevels[i] < state->scale) { new_scale = kZoomLevels[i]; break; }
@@ -1067,7 +1067,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
 
       int lx = (int16_t)LOWORD(wparam);
       int ly = (int16_t)HIWORD(wparam);
-      ipoint16_t doc_pt = canvas_view_to_doc_point(win, state, lx, ly);
+      ipoint16_t doc_pt = _canvas_view_to_doc_point(win, state, lx, ly);
       int px = doc_pt.x;
       int py = doc_pt.y;
 
