@@ -866,8 +866,7 @@ ipoint16_t canvas_doc_to_view_point(window_t *win, canvas_win_state_t *state,
 irect16_t canvas_doc_rect_to_view(window_t *win, canvas_win_state_t *state,
                                   int x0, int y0, int x1, int y1);
 
-// ============================================================
-// Tool handler system (tools/tools.h)
+// ── Tool handler system (tools/tools.h)
 // ============================================================
 
 // Tool handler interface — replaces giant switch statements in win_canvas.c.
@@ -879,5 +878,50 @@ const tool_handler_t *get_tool_handler(int tool_id);
 
 // Register all built-in tool handlers (called at startup).
 void register_builtin_tools(void);
+
+// ============================================================
+// Command modules (commands/*.c)
+// ============================================================
+
+// Replaces handle_menu_command's giant switch with focused command modules.
+// Each command uses Phase 1's ie_doc_begin_op/commit_op lifecycle wrappers.
+// See commands/commands.h for all command declarations.
+
+// Edit commands
+void cmd_undo(canvas_doc_t *doc);
+void cmd_redo(canvas_doc_t *doc);
+void cmd_cut(canvas_doc_t *doc);
+void cmd_copy(canvas_doc_t *doc);
+void cmd_paste(canvas_doc_t *doc);
+
+// Selection commands
+void cmd_select_all(canvas_doc_t *doc);
+void cmd_deselect(canvas_doc_t *doc);
+void cmd_select_clear(canvas_doc_t *doc);
+void cmd_select_expand(canvas_doc_t *doc, int amount);
+void cmd_select_contract(canvas_doc_t *doc, int amount);
+void cmd_crop_to_selection(canvas_doc_t *doc);
+
+// Image commands
+void cmd_flip_horizontal(canvas_doc_t *doc);
+void cmd_flip_vertical(canvas_doc_t *doc);
+void cmd_invert_colors(canvas_doc_t *doc);
+void cmd_resize_image(canvas_doc_t *doc, int new_w, int new_h, image_resize_filter_t filter);
+void cmd_resize_canvas(canvas_doc_t *doc, int new_w, int new_h);
+
+// Layer commands
+void cmd_layer_new(canvas_doc_t *doc, uint32_t fill_color);
+void cmd_layer_delete(canvas_doc_t *doc);
+void cmd_layer_duplicate(canvas_doc_t *doc);
+void cmd_layer_move_up(canvas_doc_t *doc);
+void cmd_layer_move_down(canvas_doc_t *doc);
+void cmd_layer_merge_down(canvas_doc_t *doc);
+void cmd_layer_flatten(canvas_doc_t *doc);
+void cmd_layer_fill(canvas_doc_t *doc, uint32_t color);
+void cmd_layer_add_mask(canvas_doc_t *doc, int fill_mode);
+void cmd_layer_apply_mask(canvas_doc_t *doc);
+void cmd_layer_remove_mask(canvas_doc_t *doc);
+canvas_doc_t *cmd_layer_extract_mask(canvas_doc_t *doc);
+void cmd_layer_edit_mask(canvas_doc_t *doc, bool enable);
 
 #endif // __IMAGEEDITOR_H__

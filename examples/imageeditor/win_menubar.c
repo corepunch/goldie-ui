@@ -453,72 +453,43 @@ void handle_menu_command(uint16_t id) {
       break;
 
     case ID_EDIT_UNDO:
-      if (doc && doc_undo(doc)) {
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_undo(doc);
       break;
 
     case ID_EDIT_REDO:
-      if (doc && doc_redo(doc)) {
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_redo(doc);
       break;
 
     case ID_EDIT_CUT:
-      if (doc && doc->sel.active) {
-        doc_push_undo(doc);
-        canvas_cut_selection(doc, MAKE_COLOR(0, 0, 0, 0));
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_cut(doc);
       break;
 
     case ID_EDIT_COPY:
-      if (doc && doc->sel.active)
-        canvas_copy_selection(doc);
+      cmd_copy(doc);
       break;
 
     case ID_EDIT_PASTE:
-      if (doc && g_app->clipboard) {
-        canvas_paste_clipboard(doc);
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_paste(doc);
       break;
 
     case ID_SELECT_CLEAR:
-      if (doc && doc->sel.active) {
-        doc_push_undo(doc);
-        canvas_clear_selection(doc, MAKE_COLOR(0, 0, 0, 0));
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_select_clear(doc);
       break;
 
     case ID_SELECT_ALL:
-      if (doc) {
-        canvas_select_all(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_select_all(doc);
       break;
 
     case ID_SELECT_DESELECT:
-      if (doc) {
-        canvas_deselect(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_deselect(doc);
       break;
 
     case ID_SELECT_EXPAND:
       if (doc && doc->sel.active) {
         int amount = 1;
         if (show_selection_modify_dialog(doc->win ? doc->win : g_app->menubar_win,
-                                         "Expand Selection", &amount) &&
-            canvas_expand_selection(doc, amount)) {
-          invalidate_window(doc->canvas_win);
-        }
+                                         "Expand Selection", &amount))
+          cmd_select_expand(doc, amount);
       }
       break;
 
@@ -526,48 +497,25 @@ void handle_menu_command(uint16_t id) {
       if (doc && doc->sel.active) {
         int amount = 1;
         if (show_selection_modify_dialog(doc->win ? doc->win : g_app->menubar_win,
-                                         "Contract Selection", &amount) &&
-            canvas_contract_selection(doc, amount)) {
-          invalidate_window(doc->canvas_win);
-        }
+                                         "Contract Selection", &amount))
+          cmd_select_contract(doc, amount);
       }
       break;
 
     case ID_IMAGE_CROP:
-      if (doc && doc->sel.active) {
-        doc_push_undo(doc);
-        if (canvas_crop_or_expand_to_selection(doc)) {
-          doc_update_title(doc);
-          invalidate_window(doc->canvas_win);
-        }
-      }
+      cmd_crop_to_selection(doc);
       break;
 
     case ID_IMAGE_FLIP_H:
-      if (doc) {
-        doc_push_undo(doc);
-        canvas_flip_h(doc);
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_flip_horizontal(doc);
       break;
 
     case ID_IMAGE_FLIP_V:
-      if (doc) {
-        doc_push_undo(doc);
-        canvas_flip_v(doc);
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_flip_vertical(doc);
       break;
 
     case ID_IMAGE_INVERT:
-      if (doc) {
-        doc_push_undo(doc);
-        canvas_invert_colors(doc);
-        doc_update_title(doc);
-        invalidate_window(doc->canvas_win);
-      }
+      cmd_invert_colors(doc);
       break;
 
 #if !IMAGEEDITOR_INDEXED
@@ -792,93 +740,43 @@ void handle_menu_command(uint16_t id) {
     case ID_LAYER_NEW:
       if (doc) {
         uint32_t fill;
-        if (!show_new_layer_dialog(doc->canvas_win, &fill)) break;
-        doc_push_undo(doc);
-        if (!doc_add_layer_filled(doc, fill)) { doc_discard_undo(doc); break; }
-        doc->canvas_dirty = true;
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
+        if (show_new_layer_dialog(doc->canvas_win, &fill))
+          cmd_layer_new(doc, fill);
       }
       break;
 
     case ID_LAYER_DUPLICATE:
-      if (doc) {
-        doc_push_undo(doc);
-        if (!doc_duplicate_layer(doc)) { doc_discard_undo(doc); break; }
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      cmd_layer_duplicate(doc);
       break;
 
     case ID_LAYER_DELETE:
-      if (doc) {
-        doc_push_undo(doc);
-        if (!doc_delete_layer(doc)) { doc_discard_undo(doc); break; }
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      cmd_layer_delete(doc);
       break;
 
     case ID_LAYER_MOVE_UP:
-      if (doc) {
-        doc_push_undo(doc);
-        doc_move_layer_up(doc);
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      cmd_layer_move_up(doc);
       break;
 
     case ID_LAYER_MOVE_DOWN:
-      if (doc) {
-        doc_push_undo(doc);
-        doc_move_layer_down(doc);
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      cmd_layer_move_down(doc);
       break;
 
     case ID_LAYER_MERGE_DOWN:
-      if (doc) {
-        doc_push_undo(doc);
-        doc_merge_down(doc);
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      cmd_layer_merge_down(doc);
       break;
 
     case ID_LAYER_FLATTEN:
-      if (doc) {
-        doc_push_undo(doc);
-        doc_flatten(doc);
-        invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      cmd_layer_flatten(doc);
       break;
 
     case ID_LAYER_FILL_BACKGROUND:
-      if (doc) {
-        doc_push_undo(doc);
-        if (!canvas_fill_active_layer(doc, g_app ? g_app->bg_color : 0)) {
-          doc_discard_undo(doc);
-          break;
-        }
-        if (doc->canvas_win)
-          invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      if (doc && g_app)
+        cmd_layer_fill(doc, g_app->bg_color);
       break;
 
     case ID_LAYER_FILL_FOREGROUND:
-      if (doc) {
-        doc_push_undo(doc);
-        if (!canvas_fill_active_layer(doc, g_app ? g_app->fg_color : 0)) {
-          doc_discard_undo(doc);
-          break;
-        }
-        if (doc->canvas_win)
-          invalidate_window(doc->canvas_win);
-        layers_win_refresh();
-      }
+      if (doc && g_app)
+        cmd_layer_fill(doc, g_app->fg_color);
       break;
 
     case ID_LAYER_ADD_MASK:

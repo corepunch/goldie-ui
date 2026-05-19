@@ -249,7 +249,7 @@ DATABASE_IMPL_SRCS = user/database.c examples/socialfeed/db_simple_xml.c
 # Imageeditor UI test — links imageeditor sources (no main.c) + test_env.c.
 IMAGEEDITOR_UI_TEST_SRC  = $(TEST_DIR)/imageeditor_ui_test.c
 IMAGEEDITOR_UI_TEST_BIN  = $(BIN_DIR)/test_imageeditor_ui_test$(EXE_EXT)
-IMAGEEDITOR_SRCS_NO_MAIN = $(filter-out examples/imageeditor/main.c,$(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c))
+IMAGEEDITOR_SRCS_NO_MAIN = $(filter-out examples/imageeditor/main.c,$(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c examples/imageeditor/commands/*.c))
 
 # Formeditor UI test — links formeditor sources (no main.c) + test_env.c.
 FORMEDITOR_UI_TEST_SRC  = $(TEST_DIR)/formeditor_ui_test.c
@@ -427,14 +427,14 @@ $(BIN_DIR)/formeditor_vb$(EXE_EXT): $(FORMEDITOR_BIN_SRCS) $(SHARED_LIB) $(FORME
 		$(CC) $(CFLAGS) $(LIBXML2_CFLAGS) -I. -Iexamples/formeditor -DFE_DEFAULT_EDIT_MODE=FE_EDIT_MODE_VB_STYLE -DSHAREDIR='"../share/formeditor"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
 
-$(BIN_DIR)/imageeditor$(EXE_EXT): $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR) share
+$(BIN_DIR)/imageeditor$(EXE_EXT): $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c examples/imageeditor/commands/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR) share
 	@echo "Building example: $@"
 	@(find examples/imageeditor -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/imageeditor/main.c"') | \
 		$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -DSHAREDIR='"../share/imageeditor"' -x c -o $@ - \
 		$(LDFLAGS) $(LDFLAGS_EXAMPLE) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
-$(IMAGEEDITOR256_EXAMPLE_BIN): $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR) share
+$(IMAGEEDITOR256_EXAMPLE_BIN): $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c examples/imageeditor/commands/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(BIN_DIR) share
 	@echo "Building 256-color image editor: $@"
 	@(find examples/imageeditor -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/imageeditor/main.c"') | \
@@ -520,7 +520,7 @@ $(GEM_DIR)/formeditor_vb.gem: $(FORMEDITOR_BIN_SRCS) $(SHARED_LIB) $(FORMEDITOR_
 		$(LDFLAGS) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBXML2_LIBS) $(LIBS)
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
 
-$(GEM_DIR)/imageeditor.gem: $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(GEM_DIR)
+$(GEM_DIR)/imageeditor.gem: $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c examples/imageeditor/commands/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(GEM_DIR)
 	@echo "Building .gem: $@"
 	@(echo '#include "gem_magic.h"'; \
 	 find examples/imageeditor -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
@@ -529,7 +529,7 @@ $(GEM_DIR)/imageeditor.gem: $(wildcard examples/imageeditor/*.c examples/imageed
 		$(LDFLAGS) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
 
-$(GEM_DIR)/imageeditor256.gem: $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(GEM_DIR)
+$(GEM_DIR)/imageeditor256.gem: $(wildcard examples/imageeditor/*.c examples/imageeditor/tools/*.c examples/imageeditor/commands/*.c) $(IMAGEEDITOR_FORMS_H) $(SHARED_LIB) $(IE_COMPONENTS_PLUGIN) | $(GEM_DIR)
 	@echo "Building .gem: $@"
 	@(echo '#include "gem_magic.h"'; \
 	 find examples/imageeditor -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
