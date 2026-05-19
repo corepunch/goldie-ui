@@ -1,0 +1,51 @@
+// tools/tool_brush.c — Brush tool handler (similar to pencil, with radius)
+
+#include "../imageeditor.h"
+#include "tools.h"
+
+extern app_state_t *g_app;
+
+// Helper to get brush radius from app state
+static int brush_radius(void) {
+  return g_app ? g_app->brush_size : 4;
+}
+
+static void brush_begin(canvas_doc_t *doc, canvas_win_state_t *view, ipoint16_t doc_pt) {
+  if (!doc || !g_app) return;
+  ie_doc_begin_op(doc, "Brush Stroke");
+  doc->last = doc_pt;
+  canvas_draw_circle(doc, doc_pt.x, doc_pt.y, brush_radius(), g_app->fg_color);
+  ie_doc_after_pixels_changed(doc);
+}
+
+static void brush_drag(canvas_doc_t *doc, canvas_win_state_t *view, ipoint16_t doc_pt) {
+  if (!doc || !g_app) return;
+  if (doc_pt.x == doc->last.x && doc_pt.y == doc->last.y) return;
+  canvas_draw_line(doc, doc->last.x, doc->last.y, doc_pt.x, doc_pt.y, brush_radius(), g_app->fg_color);
+  doc->last = doc_pt;
+  ie_doc_after_pixels_changed(doc);
+}
+
+static void brush_end(canvas_doc_t *doc, canvas_win_state_t *view, ipoint16_t doc_pt) {
+  if (!doc) return;
+  ie_doc_commit_op(doc, true);
+}
+
+static void brush_cancel(canvas_doc_t *doc, canvas_win_state_t *view) {
+  if (!doc) return;
+  ie_doc_commit_op(doc, false);
+}
+
+static bool brush_key(canvas_doc_t *doc, canvas_win_state_t *view, uint32_t key, uint32_t mods) {
+  return false;
+}
+
+const tool_handler_t tool_brush_handler = {
+  .id = ID_TOOL_BRUSH,
+  .name = "Brush",
+  .begin = brush_begin,
+  .drag = brush_drag,
+  .end = brush_end,
+  .cancel = brush_cancel,
+  .key = brush_key,
+};

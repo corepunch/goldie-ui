@@ -872,10 +872,17 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
       if (child->proc == win_tableview) {
         send_message(child, tvSetDatabase, 0, effective_db);
       }
+      // Auto-populate comboboxes with database if they have params
+      if (child->proc == win_combobox) {
+        send_message(child, cbSetDatabase, 0, effective_db);
+      }
       // Recurse into nested containers
       for (window_t *grandchild = child->children; grandchild; grandchild = grandchild->next) {
         if (grandchild->proc == win_tableview) {
           send_message(grandchild, tvSetDatabase, 0, effective_db);
+        }
+        if (grandchild->proc == win_combobox) {
+          send_message(grandchild, cbSetDatabase, 0, effective_db);
         }
       }
     }

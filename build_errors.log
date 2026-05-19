@@ -1,0 +1,65 @@
+In file included from <stdin>:24:
+./examples/imageeditor/tools/tool_eraser.c:8:12: error: redefinition of 'brush_radius'
+    8 | static int brush_radius(void) {
+      |            ^
+./examples/imageeditor/tools/tool_brush.c:9:12: note: previous definition is here
+    9 | static int brush_radius(void) {
+      |            ^
+In file included from <stdin>:30:
+./examples/imageeditor/tools/tool_shapes.c:13:25: error: too few arguments to function call, expected 3, have 1
+   13 |   canvas_shape_begin(doc);
+      |   ~~~~~~~~~~~~~~~~~~    ^
+./examples/imageeditor/canvas.c:1307:6: note: 'canvas_shape_begin' declared here
+ 1307 | void canvas_shape_begin(canvas_doc_t *doc, int cx, int cy) {
+      |      ^                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:31:22: error: redefinition of 'tool_brush_handler'
+   31 | const tool_handler_t tool_brush_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_brush.c:43:22: note: previous definition is here
+   43 | const tool_handler_t tool_brush_handler = {
+      |                      ^
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:37:22: error: redefinition of 'tool_eraser_handler'
+   37 | const tool_handler_t tool_eraser_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_eraser.c:50:22: note: previous definition is here
+   50 | const tool_handler_t tool_eraser_handler = {
+      |                      ^
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:55:22: error: redefinition of 'tool_rect_handler'
+   55 | const tool_handler_t tool_rect_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_shapes.c:43:22: note: previous definition is here
+   43 | const tool_handler_t tool_rect_handler = {
+      |                      ^
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:61:22: error: redefinition of 'tool_ellipse_handler'
+   61 | const tool_handler_t tool_ellipse_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_shapes.c:77:22: note: previous definition is here
+   77 | const tool_handler_t tool_ellipse_handler = {
+      |                      ^
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:67:22: error: redefinition of 'tool_rounded_rect_handler'
+   67 | const tool_handler_t tool_rounded_rect_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_shapes.c:111:22: note: previous definition is here
+  111 | const tool_handler_t tool_rounded_rect_handler = {
+      |                      ^
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:79:22: error: redefinition of 'tool_fill_handler'
+   79 | const tool_handler_t tool_fill_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_fill.c:31:22: note: previous definition is here
+   31 | const tool_handler_t tool_fill_handler = {
+      |                      ^
+In file included from <stdin>:32:
+./examples/imageeditor/tools/tool_stubs.c:85:22: error: redefinition of 'tool_spray_handler'
+   85 | const tool_handler_t tool_spray_handler = {
+      |                      ^
+./examples/imageeditor/tools/tool_spray.c:37:22: note: previous definition is here
+   37 | const tool_handler_t tool_spray_handler = {
+      |                      ^
+9 errors generated.
+make: *** [build/bin/imageeditor] Error 1
