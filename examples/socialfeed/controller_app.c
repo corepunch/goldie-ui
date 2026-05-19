@@ -206,6 +206,30 @@ post_t *app_get_post(int index) {
   return post;
 }
 
+// Get post ID from feed row index (0-based)
+int app_get_post_id_from_index(int index) {
+  if (!g_app || !g_app->db || index < 0) return 0;
+  
+  // Fetch all posts from database
+  result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+  if (!posts) return 0;
+  
+  // Navigate to the requested index
+  result_node_t *node = posts;
+  for (int i = 0; i < index && node; i++)
+    node = node->next;
+  
+  int post_id = 0;
+  if (node) {
+    db_post_t *db_post = *(db_post_t **)node->data;
+    if (db_post) post_id = db_post->id;
+  }
+  
+  free_result_list(posts);
+  return post_id;
+}
+
 // ============================================================
 // app_update_status — refresh main window status bar
 // ============================================================

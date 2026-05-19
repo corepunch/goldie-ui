@@ -68,17 +68,18 @@ Transform socialfeed from dual object-model to pure database-driven application 
   - Remove manual `app_add_post()` call (show_db_dialog inserts)
   - Verify File → New Post works with zero manual code
 
-- [ ] **4.2 Replace manual new comment dialog**
+- [x] **4.2 Replace manual new comment dialog** ✅ Commit d19f304
+  - Add `show_db_dialog_ex()` with FK field support
+  - Update view_dlg_post.c to use `show_db_dialog_ex()` with "post_id" FK
   - Remove `show_new_comment_dialog()` implementation
-  - Update view_dlg_post.c to use `show_db_dialog()` directly
-  - Remove manual `app_add_comment()` call
+  - Remove manual author lookup and `app_add_comment()` call
   - Verify Add Comment works with zero manual code
 
 ---
 
 ## Phase 5: Object Model Elimination (Recommended)
 
-- [ ] **5.1 Remove transient post_t/comment_t conversion**
+- [x] **5.1 Remove transient post_t/comment_t conversion**
   - Update post detail dialog to store `int post_id` instead of `post_t*`
   - Fetch `db_post_t*` on-demand via `dbFind`
   - Remove `app_get_post()` conversion helper

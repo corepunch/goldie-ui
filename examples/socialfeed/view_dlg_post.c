@@ -22,8 +22,7 @@
 // ============================================================
 
 typedef struct {
-  post_t   *post;
-  int       post_idx;
+  int       post_id;       // DB record ID, not feed row index
   window_t *comments_win;  // tableview — automatically populated from database
 } post_detail_t;
 
@@ -32,10 +31,18 @@ typedef struct {
 // ============================================================
 
 static void update_header_labels(window_t *win, post_detail_t *s) {
-  post_t *p = s->post;
+  // Fetch post from database on-demand
+  db_post_t *p = (db_post_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)s->post_id);
+  if (!p) return;
+  
+  // Fetch author name
+  db_author_t *author = (db_author_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)p->author_id);
+  const char *author_name = author ? author->name : "Unknown";
 
   set_window_item_text(win, ID_POST_DETAIL_LBL_TITLE,    "%s",  p->title);
-  set_window_item_text(win, ID_POST_DETAIL_LBL_AUTHOR,   "by %s", p->author);
+  set_window_item_text(win, ID_POST_DETAIL_LBL_AUTHOR,   "by %s", author_name);
   set_window_item_text(win, ID_POST_DETAIL_LBL_BODY,     "%s",  p->body);
   set_window_item_text(win, ID_POST_DETAIL_LBL_LIKES,
                        p->like_count == 1 ? "%d like" : "%d likes",
@@ -63,7 +70,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
       if (s->comments_win) {
         // Database is auto-propagated during form creation.
         // Just set the filter to show only comments for this post.
-        send_message(s->comments_win, tvSetFilter, 1, (void*)(intptr_t)s->post->id);
+        send_message(s->comments_win, tvSetFilter, 1, (void*)(intptr_t)s->post_id);
       }
       
       update_header_labels(win, s);
@@ -101,31 +108,21 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
       switch (src->id) {
         // ---- Like Post ----
         case ID_POST_DETAIL_LIKE_POST:
-          if (app_like_post(s->post->id)) {
-            // Refresh post to get updated like count
-            free(s->post->title);
-            free(s->post->body);
-            free(s->post->author);
-            free(s->post);
-            s->post = app_get_post(g_app->selected_idx);
+          if (app_like_post(s->post_id)) {
+            // Refresh header labels (fetches from DB automatically)
             update_header_labels(win, s);
-            SF_DEBUG("liked post id=%d (persisted to DB)", s->post->id);
+            SF_DEBUG("liked post id=%d (persisted to DB)", s->post_id);
           }
           return true;
 
         // ---- Add Comment ----
         case ID_POST_DETAIL_ADD_COMMENT: {
           if (show_db_dialog_ex(&socialfeed_new_comment_form, "New Comment",
-                               win, 0, "post_id", s->post->id)) {
+                               win, 0, "post_id", s->post_id)) {
             // Tableview auto-refreshes from database via tvSetFilter
-            // Update post to reflect new comment count
-            free(s->post->title);
-            free(s->post->body);
-            free(s->post->author);
-            free(s->post);
-            s->post = app_get_post(g_app->selected_idx);
+            // Update header labels to reflect new comment count
             update_header_labels(win, s);
-            SF_DEBUG("added comment to post_id=%d", s->post->id);
+            SF_DEBUG("added comment to post_id=%d", s->post_id);
           }
           return true;
         }
@@ -163,12 +160,12 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
 // ============================================================
 
 void show_post_detail(window_t *parent, int post_idx) {
-  post_t *p = app_get_post(post_idx);
-  if (!p) return;
+  // Convert feed row index to post ID
+  int post_id = app_get_post_id_from_index(post_idx);
+  if (!post_id) return;
 
   post_detail_t state = {
-    .post          = p,
-    .post_idx      = post_idx,
+    .post_id       = post_id,
     .comments_win  = NULL,
   };
 

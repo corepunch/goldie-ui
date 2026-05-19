@@ -154,7 +154,8 @@ bool         app_add_post(post_t *post);
 bool         app_delete_post(int index);
 bool         app_like_post(int post_id);
 bool         app_like_comment(int comment_id);
-post_t      *app_get_post(int index);
+post_t      *app_get_post(int index);  // DEPRECATED: Use app_get_post_id_from_index + dbFind
+int          app_get_post_id_from_index(int index);
 void         app_update_status(void);
 
 // Append a comment to a post in database.

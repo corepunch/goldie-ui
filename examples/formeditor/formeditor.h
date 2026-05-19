@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "../../ui.h"
+#include "fe_document.h"  // Document model types
 
 // ============================================================
 // Layout constants
@@ -113,8 +114,8 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // Limits
 // ============================================================
 
-#define MAX_ELEMENTS  256
-#define CTRL_ID_BASE  1001
+// Note: MAX_ELEMENTS, CTRL_ID_BASE, and FE_MAX_COMPONENTS
+// are now defined in fe_document.h
 
 // Built-in component indices as registered by formeditor_components.
 // Kept as compatibility aliases for tests and older form editor code; project
@@ -127,54 +128,9 @@ static inline bool fe_default_auto_layout_enabled(void) {
 #define CTRL_COMBOBOX  5
 
 // ============================================================
-// Types
+// Project and App State Types
 // ============================================================
-
-typedef struct {
-  int      type;        // registered component ID
-  int      id;          // numeric control ID (e.g. 1001)
-  uint32_t parent;      // parent control ID; 0 = form root
-  char     id_expr[32]; // original ID expression from project XML, if any
-  irect16_t frame;      // position and size in form coordinates
-  uint32_t flags;        // reserved for future style flags
-  char     flags_expr[128]; // original flags expression from project XML, if any
-  char     text[64];     // control caption / label text
-  char     name[32];     // identifier name (e.g. "IDC_BUTTON1")
-  uint8_t  h_align;     // horizontal alignment; 0 = stretch
-  uint8_t  v_align;     // vertical alignment; 0 = stretch
-  irect16_t padding;    // inner padding for nested layout containers
-  irect16_t margin;     // outer margin when auto-layout reflows this element
-  uint8_t  font;        // label font; FONT_SMALL by default
-  bool     font_set;    // font attribute explicitly set in the project
-  uint8_t  color;       // label color palette index; 0 = transparent
-  bool     color_set;   // color attribute explicitly set in the project
-  window_t *live_win;    // design-time live control hosted on the canvas
-} form_element_t;
-
-typedef struct form_doc_t {
-  form_element_t elements[MAX_ELEMENTS];
-  int    element_count;
-  isize16_t form_size;
-  uint32_t flags;       // form/window flags exported in form_def_t
-  uint8_t layout_mode;  // window_layout_mode_t
-  uint8_t layout_columns; // grid columns (0 = default)
-  uint8_t layout_spacing; // spacing between direct children; 0 = default
-  irect16_t padding;    // inner padding for auto-layout content
-  irect16_t margin;     // outer margin for the form when serialized
-  bool   modified;
-  char   form_id[64];
-  char   form_title[128];
-  char   required_plugin[64];
-  int    next_id;                      // next numeric control ID
-  int    type_counters[FE_MAX_COMPONENTS]; // per-component name counter
-  window_t *canvas_win;
-  window_t *doc_win;
-  struct form_doc_t *next;
-  // Grid settings
-  int    grid_size;       // dot spacing in form pixels (default 8)
-  bool   show_grid;       // paint grid dots on the form surface
-  bool   snap_to_grid;    // snap moves/resizes to grid
-} form_doc_t;
+// Note: form_element_t and form_doc_t are now defined in fe_document.h
 
 typedef struct {
   char name[64];

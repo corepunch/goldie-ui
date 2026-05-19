@@ -44,16 +44,11 @@ void handle_menu_command(uint16_t id) {
       break;
 
     case ID_POST_LIKE: {
-      post_t *p = app_get_post(g_app->selected_idx);
-      if (!p) {
+      int post_id = app_get_post_id_from_index(g_app->selected_idx);
+      if (!post_id) {
         message_box(parent, "Select a post to like.", "Like Post", MB_OK);
         break;
       }
-      int post_id = p->id;
-      free(p->title);
-      free(p->body);
-      free(p->author);
-      free(p);
       
       if (app_like_post(post_id)) {
         feed_refresh();
@@ -64,7 +59,7 @@ void handle_menu_command(uint16_t id) {
 
     case ID_POST_VIEW: {
       int idx = g_app->selected_idx;
-      if (!app_get_post(idx)) {
+      if (!app_get_post_id_from_index(idx)) {
         message_box(parent, "Select a post to view.", "View Post", MB_OK);
         break;
       }
@@ -76,7 +71,7 @@ void handle_menu_command(uint16_t id) {
 
     case ID_POST_DELETE: {
       int idx = g_app->selected_idx;
-      if (!app_get_post(idx)) {
+      if (!app_get_post_id_from_index(idx)) {
         message_box(parent, "Select a post to delete.", "Delete Post", MB_OK);
         break;
       }
