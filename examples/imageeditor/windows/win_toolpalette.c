@@ -9,9 +9,9 @@
 // after the flow container.
 
 #include "imageeditor.h"
-#include "../../commctl/commctl.h"
-#include "../../kernel/renderer.h"
-#include "../../user/image.h"
+#include "commctl/commctl.h"
+#include "kernel/renderer.h"
+#include "user/image.h"
 
 // Image editor atlas tile size (all icons are square).
 #define ICON_W  TOOL_ICON_W

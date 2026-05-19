@@ -214,7 +214,7 @@ COMPONENT_PLUGIN_BINS = \
 	$(patsubst commctl/%_components_plugin.c,$(LIB_DIR)/%_components$(LIB_EXT),$(wildcard commctl/*_components_plugin.c)) \
 	$(patsubst %,$(LIB_DIR)/%_components$(LIB_EXT),$(sort $(patsubst examples/%/components/,%,$(dir $(wildcard examples/*/components/*.c)))))
 
-example_sources = $(filter-out examples/$1/tests/%,$(wildcard examples/$1/*.c examples/$1/*/*.c))
+example_sources = $(shell find examples/$1 -name "*.c" ! -path "examples/$1/tests/*" 2>/dev/null | sort)
 example_lib_sources = $(filter-out examples/$1/main.c,$(call example_sources,$1))
 example_generated_headers = $(patsubst examples/$1/%.orion,$(GENERATED_DIR)/examples/$1/%.h,$(wildcard examples/$1/*.orion)) $(patsubst examples/$1/%.orion,$(GENERATED_DIR)/examples/$1/%_forms.h,$(wildcard examples/$1/*.orion))
 example_component_plugin = $(filter $(LIB_DIR)/$1_components$(LIB_EXT),$(COMPONENT_PLUGIN_BINS))

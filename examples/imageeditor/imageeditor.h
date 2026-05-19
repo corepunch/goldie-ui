@@ -793,7 +793,7 @@ void swap_foreground_background_colors(void);
 // canvas state; additional frames enable sprite/animation workflows.
 // ============================================================
 
-#include "anim.h"
+#include "anim/anim.h"
 
 // Timeline window geometry — docked at the bottom of the screen.
 #define TIMELINE_THUMB_W   48   // thumbnail cell width
