@@ -20,6 +20,7 @@ extern result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void 
 extern result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Register all common controls with the window system.
 // Called once during framework initialization.
@@ -261,6 +262,17 @@ void register_commctl_classes(void) {
     .proc = win_splitter,
     .default_width = 0,
     .default_height = 0,
+    .default_flags = 0,
+    .default_h_align = LAYOUT_ALIGN_STRETCH,
+    .default_v_align = LAYOUT_ALIGN_STRETCH,
+  });
+  
+  // Column browser (NSBrowser-style multi-column navigation)
+  register_window_class(&(fe_component_desc_t){
+    .class_name = "column_browser",
+    .proc = win_column_browser,
+    .default_width = 0,     // stretch to container
+    .default_height = 200,  // reasonable default height
     .default_flags = 0,
     .default_h_align = LAYOUT_ALIGN_STRETCH,
     .default_v_align = LAYOUT_ALIGN_STRETCH,

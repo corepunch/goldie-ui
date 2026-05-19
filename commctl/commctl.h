@@ -76,6 +76,25 @@ result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
+// Column browser (NSBrowser-style multi-column hierarchical navigation).
+// Data source callback pattern for populating columns dynamically.
+typedef struct {
+  int (*get_child_count)(void *ctx, int column, int parent_idx);
+  const char *(*get_child_title)(void *ctx, int column, int parent_idx, int child_idx);
+  bool (*is_leaf)(void *ctx, int column, int idx);
+  void *userdata;
+} column_browser_datasource_t;
+
+enum {
+  cbSetDataSource = evUser + 300,  // lparam = column_browser_datasource_t*
+  cbRefresh,                        // Rebuild all columns from current path
+  cbGetSelection,                   // wparam = column; returns selected index or -1
+  cbSetPath,                        // lparam = int[] path array, wparam = length
+  cbGetColumnCount,                 // Returns number of visible columns
+};
+
+result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
 // Database-backed table view — automatically populates from database API.
 // See commctl/tableview.c for full documentation and usage examples.
 enum {
