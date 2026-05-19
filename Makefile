@@ -272,8 +272,10 @@ SOCIALFEED_ORION = examples/socialfeed/socialfeed.orion
 SOCIALFEED_H = $(GENERATED_DIR)/examples/socialfeed/socialfeed.h
 
 # Tests with custom build rules — excluded from the generic pattern rules.
-APP_UI_TEST_SRCS = $(GITCLIENT_TEST_SRCS) $(IMAGEEDITOR_UI_TEST_SRC) $(FORMEDITOR_UI_TEST_SRC) $(DATABASE_TEST_SRC)
-APP_UI_TEST_BINS = $(GITCLIENT_TEST_BINS) $(LIBXML_UI_TEST_BINS) $(DATABASE_TEST_BIN)
+IMAGEEDITOR_PHASE5_TEST_SRCS = $(TEST_DIR)/canvas_ops_test.c $(TEST_DIR)/canvas_coords_test.c $(TEST_DIR)/tool_handler_test.c $(TEST_DIR)/commands_test.c
+IMAGEEDITOR_PHASE5_TEST_BINS = $(patsubst $(TEST_DIR)/%.c,$(BIN_DIR)/test_%$(EXE_EXT),$(IMAGEEDITOR_PHASE5_TEST_SRCS))
+APP_UI_TEST_SRCS = $(GITCLIENT_TEST_SRCS) $(IMAGEEDITOR_UI_TEST_SRC) $(FORMEDITOR_UI_TEST_SRC) $(DATABASE_TEST_SRC) $(IMAGEEDITOR_PHASE5_TEST_SRCS)
+APP_UI_TEST_BINS = $(GITCLIENT_TEST_BINS) $(LIBXML_UI_TEST_BINS) $(DATABASE_TEST_BIN) $(IMAGEEDITOR_PHASE5_TEST_BINS)
 
 # Test sources (app UI tests excluded — they use their own build rules)
 TEST_SRCS = $(filter-out $(TEST_DIR)/test_env.c $(APP_UI_TEST_SRCS),$(wildcard $(TEST_DIR)/*.c))
@@ -614,6 +616,31 @@ $(IMAGEEDITOR_UI_TEST_BIN): $(IMAGEEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c $(
 	$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -DIMAGEEDITOR_DEBUG=0 -o $@ \
 		$(IMAGEEDITOR_UI_TEST_SRC) $(TEST_DIR)/test_env.c \
 		$(IMAGEEDITOR_SRCS_NO_MAIN) \
+		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
+# Phase 5 infrastructure tests — need imageeditor sources like above
+$(BIN_DIR)/test_canvas_ops_test$(EXE_EXT): $(TEST_DIR)/canvas_ops_test.c $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) $(SHARED_LIB) | $(BIN_DIR)
+	@echo "Building canvas ops test: $@"
+	$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -o $@ \
+		$< $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) \
+		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
+$(BIN_DIR)/test_canvas_coords_test$(EXE_EXT): $(TEST_DIR)/canvas_coords_test.c $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) $(SHARED_LIB) | $(BIN_DIR)
+	@echo "Building canvas coords test: $@"
+	$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -o $@ \
+		$< $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) \
+		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
+$(BIN_DIR)/test_tool_handler_test$(EXE_EXT): $(TEST_DIR)/tool_handler_test.c $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) $(SHARED_LIB) | $(BIN_DIR)
+	@echo "Building tool handler test: $@"
+	$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -o $@ \
+		$< $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) \
+		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
+
+$(BIN_DIR)/test_commands_test$(EXE_EXT): $(TEST_DIR)/commands_test.c $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) $(SHARED_LIB) | $(BIN_DIR)
+	@echo "Building commands test: $@"
+	$(CC) $(CFLAGS) -I. -Iexamples/imageeditor -o $@ \
+		$< $(TEST_DIR)/test_env.c $(IMAGEEDITOR_SRCS_NO_MAIN) \
 		$(LDFLAGS) $(LDFLAGS_TEST) $(ORION_LDFLAGS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 # Formeditor UI test — needs all formeditor sources except main.c + test_env.c.
