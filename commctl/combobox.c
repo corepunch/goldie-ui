@@ -101,10 +101,21 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
     return;
   }
   
+  combobox_state_t *state = (combobox_state_t *)win->userdata;
+  if (!state) {
+    free_result_list(results);
+    return;
+  }
+  
+  // Allocate values array if not already allocated
+  if (!state->values) {
+    state->values = calloc(MAX_COMBOBOX_STRINGS, sizeof(int));
+  }
+  
   // Add each record to combobox
   char display_buf[256];
   int count = 0;
-  for (result_node_t *node = results; node; node = node->next) {
+  for (result_node_t *node = results; node && count < MAX_COMBOBOX_STRINGS; node = node->next) {
     display_buf[0] = '\0';
     
     // Extract display field text using DDX-style field interrogation
@@ -119,10 +130,15 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
     if (success && display_buf[0] != '\0') {
       send_message(win, cbAddString, 0, display_buf);
       
-      // TODO: Store value_field (e.g., ID) as itemdata for later retrieval
-      // Currently combobox only stores display text, not separate value
+      // Store value_field (e.g., ID) for foreign key binding
+      char value_buf[64];
+      if (db_object_get_field_text(bindings, binding_count, obj_proc,
+                                    record, params->value_field,
+                                    value_buf, sizeof(value_buf))) {
+        state->values[count] = atoi(value_buf);
+      }
+      count++;
     }
-    count++;
   }
   
   free_result_list(results);
@@ -177,6 +193,7 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evDestroy:
       if (state) {
         free(state->texts);
+        free(state->values);
         free(state);
       }
       return true;
@@ -272,6 +289,20 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           if (lparam)
             *(int *)lparam = (int)i;
           return i;
+        }
+      }
+      if (lparam)
+        *(int *)lparam = kComboBoxError;
+      return kComboBoxError;
+    case cbGetCurrentValue:
+      // Return value_field data (e.g., ID) instead of row index
+      if (state && state->values) {
+        for (uint32_t i = 0; i < win->cursor_pos; i++) {
+          if (!strncmp(texts[i], win->title, sizeof(win->title))) {
+            if (lparam)
+              *(int *)lparam = state->values[i];
+            return state->values[i];
+          }
         }
       }
       if (lparam)

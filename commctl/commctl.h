@@ -57,6 +57,7 @@ typedef char combobox_string_t[64];
 typedef struct {
   combobox_params_t params;  // Copy of creation params
   combobox_string_t *texts;  // Display strings
+  int *values;               // Value field data (e.g., IDs) for foreign keys
 } combobox_state_t;
 
 result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

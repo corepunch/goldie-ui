@@ -36,7 +36,7 @@ Transform socialfeed from dual object-model to pure database-driven application 
   - Emit actual button IDs instead of hardcoded zeros
   - Verify generated .h has non-zero ok_id/cancel_id
 
-- [ ] **2.2 Generate db_fields metadata link**
+- [x] **2.2 Generate db_fields metadata link** ✅ Commit 08700b9
   - Add `count_table_fields()` helper to orionc.c
   - Pass `database` xmlNodePtr through to `emit_form()`
   - Emit `.db_fields = posts_fields, .db_field_count = 6`

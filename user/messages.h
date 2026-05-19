@@ -88,6 +88,7 @@ enum {
   btnSetImage,       // wparam = icon index (iBitmap); lparam = bitmap_strip_t*
   cbAddString,
   cbGetCurrentSelection, // returns index; if lparam=int* also writes index (or kComboBoxError)
+  cbGetCurrentValue,     // returns value_field data (e.g., ID) for foreign key binding
   cbSetCurrentSelection,
   cbGetListBoxText,
   cbClear,            // clear all items and reset title

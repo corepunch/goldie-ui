@@ -421,7 +421,7 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
 
 static const char *binding_getter(const char *klass) {
   if (eq(klass, "textedit") || eq(klass, "multiedit")) return "edGetText";
-  if (eq(klass, "combobox")) return "cbGetCurrentSelection";
+  if (eq(klass, "combobox")) return "cbGetCurrentValue";  // Use value_field (ID) not row index
   if (eq(klass, "checkbox")) return "chkIsChecked";
   return "0";
 }
