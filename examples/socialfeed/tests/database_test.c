@@ -5,8 +5,8 @@
 // rather than XML serialization details.
 
 #include "test_framework.h"
-#include "../ui.h"
-#include "../examples/socialfeed/db_simple_xml.h"
+#include "ui.h"
+#include "examples/socialfeed/socialfeed.h"
 
 // Test database creation and destruction
 void test_database_lifecycle(void) {
@@ -36,11 +36,11 @@ void test_author_crud(void) {
   database_t *db = create_database("test", "db_simple_xml", "test.xml");
   
   // Insert new author
-  author_t author_data = { .id = 0 };
+  db_author_t author_data = { .id = 0 };
   strcpy(author_data.name, "testuser");
   strcpy(author_data.avatar, "avatar.png");
   
-  author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author_data);
+  db_author_t *inserted = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author_data);
   
   if (!inserted) {
     destroy_database(db);
@@ -52,7 +52,7 @@ void test_author_crud(void) {
   ASSERT_STR_EQUAL(inserted->name, "testuser");
   
   // Find by ID
-  author_t *found = (author_t *)send_db_message(db, dbFind, 
+  db_author_t *found = (db_author_t *)send_db_message(db, dbFind,
     MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)inserted->id);
   
   if (!found) {
@@ -64,7 +64,7 @@ void test_author_crud(void) {
   ASSERT_EQUAL(found->id, inserted->id);
   
   // Find by name
-  author_t *found2 = (author_t *)send_db_message(db, dbFind, 
+  db_author_t *found2 = (db_author_t *)send_db_message(db, dbFind,
     MAKEDWORD(TABLE_AUTHORS, 1), "testuser");
   
   ASSERT(found2 != NULL, "find by name should succeed");
@@ -80,7 +80,7 @@ void test_author_crud(void) {
   send_db_message(db, dbDelete, TABLE_AUTHORS, (void *)(intptr_t)delete_id);
   
   // Verify deleted
-  author_t *should_be_null = (author_t *)send_db_message(db, dbFind, 
+  db_author_t *should_be_null = (db_author_t *)send_db_message(db, dbFind,
     MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)delete_id);
   
   ASSERT(should_be_null == NULL, "deleted record should not be found");
@@ -97,9 +97,9 @@ void test_post_operations(void) {
   database_t *db = create_database("test", "db_simple_xml", "test.xml");
   
   // Create author first
-  author_t author = { .id = 0 };
+  db_author_t author = { .id = 0 };
   strcpy(author.name, "postauthor");
-  author_t *author_ptr = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+  db_author_t *author_ptr = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
   
   if (!author_ptr) {
     destroy_database(db);
@@ -108,13 +108,13 @@ void test_post_operations(void) {
   }
   
   // Create post with foreign key
-  post_t post = { .id = 0, .author_id = author_ptr->id };
+  db_post_t post = { .id = 0, .author_id = author_ptr->id };
   strcpy(post.title, "Test Post");
   strcpy(post.body, "Post body");
   post.like_count = 0;
   post.comment_count = 0;
   
-  post_t *post_ptr = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
+  db_post_t *post_ptr = (db_post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
   
   ASSERT(post_ptr != NULL, "post insert should succeed");
   ASSERT(post_ptr->id > 0, "post should have auto-increment ID");
@@ -147,20 +147,20 @@ void test_comment_and_denormalized_fields(void) {
   database_t *db = create_database("test", "db_simple_xml", "test.xml");
   
   // Create author and post
-  author_t author = { .id = 0 };
+  db_author_t author = { .id = 0 };
   strcpy(author.name, "commenter");
-  author_t *a_ptr = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+  db_author_t *a_ptr = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
   
-  post_t post = { .id = 0, .author_id = a_ptr->id, .comment_count = 0 };
+  db_post_t post = { .id = 0, .author_id = a_ptr->id, .comment_count = 0 };
   strcpy(post.title, "Post");
-  post_t *p_ptr = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
+  db_post_t *p_ptr = (db_post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
   
   int initial_count = p_ptr->comment_count;
   
   // Add comment (should auto-increment post comment_count)
-  comment_t comment = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
+  db_comment_t comment = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
   strcpy(comment.text, "Great post!");
-  comment_t *c_ptr = (comment_t *)send_db_message(db, dbInsert, TABLE_COMMENTS, &comment);
+  db_comment_t *c_ptr = (db_comment_t *)send_db_message(db, dbInsert, TABLE_COMMENTS, &comment);
   
   ASSERT(c_ptr != NULL, "comment insert should succeed");
   ASSERT_EQUAL(p_ptr->comment_count, initial_count + 1);
@@ -182,17 +182,17 @@ void test_cascading_delete(void) {
   database_t *db = create_database("test", "db_simple_xml", "test.xml");
   
   // Create author, post, and comments
-  author_t author = { .id = 0 };
+  db_author_t author = { .id = 0 };
   strcpy(author.name, "cascade_test");
-  author_t *a_ptr = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+  db_author_t *a_ptr = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
   
-  post_t post = { .id = 0, .author_id = a_ptr->id };
+  db_post_t post = { .id = 0, .author_id = a_ptr->id };
   strcpy(post.title, "To Be Deleted");
-  post_t *p_ptr = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
+  db_post_t *p_ptr = (db_post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
   
   // Add two comments
   for (int i = 0; i < 2; i++) {
-    comment_t c = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
+    db_comment_t c = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
     sprintf(c.text, "Comment %d", i + 1);
     send_db_message(db, dbInsert, TABLE_COMMENTS, &c);
   }
@@ -233,7 +233,7 @@ void test_dirty_tracking(void) {
   ASSERT_EQUAL(initial_dirty, 0);
   
   // Insert should mark dirty
-  author_t author = { .id = 0 };
+  db_author_t author = { .id = 0 };
   strcpy(author.name, "dirtytest");
   send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
   

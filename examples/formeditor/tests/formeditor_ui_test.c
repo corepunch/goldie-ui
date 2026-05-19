@@ -13,10 +13,11 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../examples/formeditor/formeditor.h"
-#include "../examples/imageeditor/components/lv_cmpn.h"
-#include "../commctl/commctl.h"
-#include "../user/icons.h"
+#define FE_DEFAULT_EDIT_MODE FE_EDIT_MODE_VB_STYLE
+#include "examples/formeditor/formeditor.h"
+#include "examples/imageeditor/components/lv_cmpn.h"
+#include "commctl/commctl.h"
+#include "user/icons.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -1677,7 +1678,7 @@ void test_fe_property_browser_edit_respects_vertical_scrollbar(void) {
     PASS();
 }
 
-// form_project_save + form_project_load round-trips all element fields correctly.
+// fe_project_save + fe_project_load round-trips all element fields correctly.
 void test_fe_save_load_roundtrip(void) {
     TEST("project save/load roundtrip: element count, type, geometry, text, name preserved");
 
@@ -1702,7 +1703,7 @@ void test_fe_save_load_roundtrip(void) {
     form_element_t orig[3];
     memcpy(orig, doc->elements, 3 * sizeof(form_element_t));
 
-    bool saved = form_project_save(path);
+    bool saved = fe_project_save(path);
     ASSERT_TRUE(saved);
 
     char *xml = fe_read_file(path);
@@ -1714,7 +1715,7 @@ void test_fe_save_load_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, " frame=\"") == NULL);
     free(xml);
 
-    bool loaded = form_project_load(path);
+    bool loaded = fe_project_load(path);
     ASSERT_TRUE(loaded);
 
     form_doc_t *ndoc = g_app->docs;
@@ -1766,7 +1767,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     doc->elements[2].color = brTextDisabled;
     doc->elements[2].color_set = true;
 
-    bool saved = form_project_save(path);
+    bool saved = fe_project_save(path);
     ASSERT_TRUE(saved);
 
     char *xml = fe_read_file(path);
@@ -1782,7 +1783,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "frame=\"") == NULL);
     free(xml);
 
-    bool loaded = form_project_load(path);
+    bool loaded = fe_project_load(path);
     ASSERT_TRUE(loaded);
 
     form_doc_t *ndoc = g_app->docs;
@@ -1821,7 +1822,7 @@ void test_fe_load_padding_shorthand(void) {
 
     fe_setup();
     fe_write_padding_project(path, "8");
-    ASSERT_TRUE(form_project_load(path));
+    ASSERT_TRUE(fe_project_load(path));
     ASSERT_NOT_NULL(g_app->docs);
     ASSERT_EQUAL(g_app->docs->padding.x, 8);
     ASSERT_EQUAL(g_app->docs->padding.y, 8);
@@ -1832,7 +1833,7 @@ void test_fe_load_padding_shorthand(void) {
 
     fe_setup();
     fe_write_padding_project(path, "2 6");
-    ASSERT_TRUE(form_project_load(path));
+    ASSERT_TRUE(fe_project_load(path));
     ASSERT_NOT_NULL(g_app->docs);
     ASSERT_EQUAL(g_app->docs->padding.x, 2);
     ASSERT_EQUAL(g_app->docs->padding.y, 6);
@@ -1853,7 +1854,7 @@ void test_fe_load_margin_shorthand(void) {
 
     fe_setup();
     fe_write_margin_project(path, "7");
-    ASSERT_TRUE(form_project_load(path));
+    ASSERT_TRUE(fe_project_load(path));
     ASSERT_NOT_NULL(g_app->docs);
     ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 7);
     ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 7);
@@ -1864,7 +1865,7 @@ void test_fe_load_margin_shorthand(void) {
 
     fe_setup();
     fe_write_margin_project(path, "3 5");
-    ASSERT_TRUE(form_project_load(path));
+    ASSERT_TRUE(fe_project_load(path));
     ASSERT_NOT_NULL(g_app->docs);
     ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 3);
     ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 5);
@@ -1894,7 +1895,7 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
 
-    bool saved = form_project_save(path);
+    bool saved = fe_project_save(path);
     ASSERT_TRUE(saved);
 
     char *xml = fe_read_file(path);
@@ -1908,7 +1909,7 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "layout_columns=") == NULL);
     free(xml);
 
-    bool loaded = form_project_load(path);
+    bool loaded = fe_project_load(path);
     ASSERT_TRUE(loaded);
 
     form_doc_t *ndoc = g_app->docs;
@@ -1924,7 +1925,7 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
     PASS();
 }
 
-// form_project_load preserves form dimensions stored in the .orion file.
+// fe_project_load preserves form dimensions stored in the .orion file.
 void test_fe_save_load_form_dimensions(void) {
     TEST("project save/load: form_size round-trips correctly");
 
@@ -1938,10 +1939,10 @@ void test_fe_save_load_form_dimensions(void) {
     doc->form_size.w = 400;
     doc->form_size.h = 300;
 
-    bool saved = form_project_save(path);
+    bool saved = fe_project_save(path);
     ASSERT_TRUE(saved);
 
-    bool loaded = form_project_load(path);
+    bool loaded = fe_project_load(path);
     ASSERT_TRUE(loaded);
 
     form_doc_t *ndoc = g_app->docs;
@@ -1954,7 +1955,7 @@ void test_fe_save_load_form_dimensions(void) {
     PASS();
 }
 
-// form_project_save + form_project_load preserve form/window flags such as WINDOW_STATUSBAR.
+// fe_project_save + fe_project_load preserve form/window flags such as WINDOW_STATUSBAR.
 void test_fe_save_load_form_flags(void) {
     TEST("project save/load: form flags round-trip correctly");
 
@@ -1967,10 +1968,10 @@ void test_fe_save_load_form_flags(void) {
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "flags");
     doc->flags = WINDOW_STATUSBAR;
 
-    bool saved = form_project_save(path);
+    bool saved = fe_project_save(path);
     ASSERT_TRUE(saved);
 
-    bool loaded = form_project_load(path);
+    bool loaded = fe_project_load(path);
     ASSERT_TRUE(loaded);
 
     form_doc_t *ndoc = g_app->docs;
@@ -1986,7 +1987,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     TEST("project load: ImageEditor levels keeps sliders and gradient");
 
     fe_setup();
-    ASSERT_TRUE(form_project_load("examples/imageeditor/imageeditor.orion"));
+    ASSERT_TRUE(fe_project_load("examples/imageeditor/imageeditor.orion"));
 
     form_doc_t *levels = NULL;
     form_doc_t *filter_gallery = NULL;
@@ -2086,7 +2087,7 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     char path[512];
     snprintf(path, sizeof(path), "%s/orion_fe_imageeditor_%d.orion",
              fe_temp_dir(), (int)getpid());
-    ASSERT_TRUE(form_project_save(path));
+    ASSERT_TRUE(fe_project_save(path));
     char *xml = fe_read_file(path);
     ASSERT_NOT_NULL(xml);
     ASSERT_TRUE(strstr(xml, "<menus") != NULL);

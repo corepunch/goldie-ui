@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
     printf("✓ show_db_dialog() ready to test\n\n");
     
     printf("TEST 1: Edit existing author (ID 1)\n");
-    uint32_t result1 = show_db_dialog(&author_form, "Edit Author", NULL, db, 1);
+    uint32_t result1 = show_db_dialog(&author_form, "Edit Author", NULL, 1);
     if (result1 == 1) {
         printf("✓ Dialog saved\n");
     } else {
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     }
     
     printf("\nTEST 2: Create new author (ID 0 = INSERT)\n");
-    uint32_t result2 = show_db_dialog(&author_form, "New Author", NULL, db, 0);
+    uint32_t result2 = show_db_dialog(&author_form, "New Author", NULL, 0);
     if (result2 == 1) {
         printf("✓ New author created\n");
     } else {

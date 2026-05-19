@@ -62,6 +62,8 @@ void gem_shutdown(void) {
   }
 }
 
+GEM_DEFINE("Git Client", "1.0", gem_init, gem_shutdown, NULL)
+
 // ============================================================
 // Standalone entry point (no-op when built as a .gem)
 // ============================================================

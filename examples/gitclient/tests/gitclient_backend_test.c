@@ -9,7 +9,7 @@
 
 #include "test_framework.h"
 #include "gitclient_test_helpers.h"
-#include "../examples/gitclient/gitclient.h"
+#include "examples/gitclient/gitclient.h"
 
 #include <stdio.h>
 #include <stdlib.h>

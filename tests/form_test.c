@@ -1090,7 +1090,7 @@ void test_form_rejects_non_auto_layout_children(void) {
   memset(&g_create_state, 0, sizeof(g_create_state));
 
   window_t *win = create_window_from_form(&kNonAutoLayoutChildForm, 0, 0, NULL,
-                                          form_test_proc, 0, NULL, NULL);
+                                          form_test_proc, 0, NULL);
   ASSERT_NULL(win);
   ASSERT_FALSE(g_create_state.create_fired);
 
@@ -1211,7 +1211,7 @@ void test_ddx_push_pull_roundtrip(void) {
 
   // Create the form window without a modal loop.
   window_t *win = create_window_from_form(&kDdxTestForm, 0, 0, NULL,
-                                          nop_proc, 0, NULL, NULL);
+                                          nop_proc, 0, NULL);
   ASSERT_NOT_NULL(win);
 
   dialog_push(win, &st_in, kDdxTestForm.bindings, kDdxTestForm.binding_count);
@@ -1849,7 +1849,7 @@ void test_socialfeed_post_detail_layout(void) {
   test_env_init();
 
   window_t *win = create_window_from_form(&socialfeed_post_detail_form, 0, 0, NULL,
-                                          socialfeed_post_detail_layout_proc, 0, NULL, NULL);
+                                          socialfeed_post_detail_layout_proc, 0, NULL);
   ASSERT_NOT_NULL(win);
 
   window_t *title = get_window_item(win, ID_POST_DETAIL_LBL_TITLE);

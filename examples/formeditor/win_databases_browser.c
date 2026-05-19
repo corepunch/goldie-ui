@@ -16,8 +16,6 @@ typedef struct {
 typedef struct {
   app_state_t *app;
   database_t *db;
-  table_name_node_t *tables;
-  table_schema_t *current_schema;
   int selected_table_id;
 } db_datasource_ctx_t;
 
@@ -25,25 +23,15 @@ static db_datasource_ctx_t g_db_ctx = {0};
 
 // Column browser data source callbacks
 static int db_get_child_count(void *ctx, int column, int parent_idx) {
-  db_datasource_ctx_t *ds = (db_datasource_ctx_t *)ctx;
+  (void)ctx;
   (void)parent_idx;
   
   if (column == 0) {
     // Column 0: List of registered databases (for now, just 1)
     return 1;  // Single "db" database
   } else if (column == 1) {
-    // Column 1: Tables in selected database
-    if (!ds->tables && ds->db) {
-      ds->tables = (table_name_node_t *)send_db_message(ds->db, dbGetTables, 0, NULL);
-    }
-    int count = 0;
-    for (table_name_node_t *t = ds->tables; t; t = t->next)
-      count++;
-    return count;
+    return 0;
   } else if (column == 2) {
-    // Column 2: Fields in selected table
-    if (ds->current_schema)
-      return ds->current_schema->field_count;
     return 0;
   }
   
@@ -52,7 +40,6 @@ static int db_get_child_count(void *ctx, int column, int parent_idx) {
 
 static const char *db_get_child_title(void *ctx, int column, int parent_idx, int child_idx) {
   db_datasource_ctx_t *ds = (db_datasource_ctx_t *)ctx;
-  static char buf[128];
   (void)parent_idx;
   
   if (column == 0) {
@@ -61,30 +48,8 @@ static const char *db_get_child_title(void *ctx, int column, int parent_idx, int
       return ds->db->name;
     return "?";
   } else if (column == 1) {
-    // Column 1: Table names
-    table_name_node_t *t = ds->tables;
-    for (int i = 0; i < child_idx && t; i++)
-      t = t->next;
-    if (t) {
-      ds->selected_table_id = t->table_id;  // Cache for column 2
-      return t->name;
-    }
     return "?";
   } else if (column == 2) {
-    // Column 2: Field names with types
-    if (ds->current_schema && child_idx < ds->current_schema->field_count) {
-      const db_field_meta_t *field = &ds->current_schema->fields[child_idx];
-      const char *type_name = "?";
-      switch (field->type) {
-        case DB_TYPE_INT: type_name = "int"; break;
-        case DB_TYPE_STRING: type_name = "string"; break;
-        case DB_TYPE_BOOL: type_name = "bool"; break;
-        case DB_TYPE_FLOAT: type_name = "float"; break;
-        case DB_TYPE_DOUBLE: type_name = "double"; break;
-      }
-      snprintf(buf, sizeof(buf), "%s (%s)", field->name, type_name);
-      return buf;
-    }
     return "?";
   }
   
@@ -92,20 +57,11 @@ static const char *db_get_child_title(void *ctx, int column, int parent_idx, int
 }
 
 static bool db_is_leaf(void *ctx, int column, int idx) {
-  db_datasource_ctx_t *ds = (db_datasource_ctx_t *)ctx;
+  (void)ctx;
   (void)idx;
   
   if (column == 0) return false;  // Databases have tables
-  if (column == 1) {
-    // Tables have fields - fetch schema when selected
-    table_name_node_t *t = ds->tables;
-    for (int i = 0; i < idx && t; i++)
-      t = t->next;
-    if (t) {
-      ds->current_schema = (table_schema_t *)send_db_message(ds->db, dbGetTableSchema, t->table_id, NULL);
-    }
-    return false;  // Tables have fields
-  }
+  if (column == 1) return false;  // Tables have fields
   if (column == 2) return true;   // Fields are leaves
   
   return true;
@@ -114,13 +70,6 @@ static bool db_is_leaf(void *ctx, int column, int idx) {
 static void db_browser_refresh(window_t *win) {
   db_browser_state_t *dbs = (db_browser_state_t *)win->userdata;
   if (!dbs || !dbs->browser_win) return;
-  
-  // Free old table list
-  if (g_db_ctx.tables) {
-    free_result_list(g_db_ctx.tables);
-    g_db_ctx.tables = NULL;
-  }
-  g_db_ctx.current_schema = NULL;
   
   // Refresh the database reference (in case it changed)
   if (g_app) {
@@ -180,8 +129,6 @@ static result_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
       // Setup data source
       g_db_ctx.db = get_database_by_name("db");  // Hardcoded for now
       g_db_ctx.app = g_app;
-      g_db_ctx.tables = NULL;
-      g_db_ctx.current_schema = NULL;
       g_db_ctx.selected_table_id = -1;
       
       column_browser_datasource_t datasource = {
@@ -203,10 +150,6 @@ static result_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
       if (dbs) {
         if (dbs->subscription_id > 0)
           fe_unsubscribe(dbs->subscription_id);
-        if (g_db_ctx.tables) {
-          free_result_list(g_db_ctx.tables);
-          g_db_ctx.tables = NULL;
-        }
         free(dbs);
         win->userdata = NULL;
       }

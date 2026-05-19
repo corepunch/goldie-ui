@@ -2,8 +2,8 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../examples/imageeditor/imageeditor.h"
-#include "../examples/imageeditor/commands/commands.h"
+#include "examples/imageeditor/imageeditor.h"
+#include "examples/imageeditor/commands/commands.h"
 
 app_state_t *g_app = NULL;
 
