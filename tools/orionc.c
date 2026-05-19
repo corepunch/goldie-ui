@@ -360,6 +360,22 @@ static void table_name_from_source(char *out, size_t cap, const char *source) {
   char *next = strchr(out, '.'); if (next) *next = 0;
 }
 
+// count_table_fields — count number of fields in a database table
+static int count_table_fields(xmlNodePtr db, const char *table_name) {
+  if (!db || !table_name) return 0;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *name = attr(t, "name");
+    if (eq(name, table_name)) {
+      int count = 0;
+      EACH_ELEMENT(field, t) if (elem(field, "field")) count++;
+      free(name);
+      return count;
+    }
+    free(name);
+  }
+  return 0;
+}
+
 static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form) {
   EACH_ELEMENT(c, parent) {
     if (elem(c, "tableview")) {
@@ -486,7 +502,7 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
   LINE("};\n\n");
 }
 
-static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
+static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr database) {
   char *name = attr(form, "name"), *title = attr(form, "title"), *flags = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *spacing = attrs_first(form, "spacing", "layout_spacing");
   rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE];
   if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
@@ -504,12 +520,15 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   if (toolbar && *toolbar) { char tb[128]; ident(tb, sizeof(tb), toolbar, true); OUT(", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", tb, tb); }
   else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
   if (bindings.n) {
-    char table_id[128]; ident(table_id, sizeof(table_id), bindings.table, true);
-    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = %s, .cancel_id = %s, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s, .db_fields = NULL, .db_field_count = 0",
+    char table_id[128], meta[128]; 
+    ident(table_id, sizeof(table_id), bindings.table, true);
+    ident(meta, sizeof(meta), bindings.table, false);
+    int field_count = count_table_fields(database, bindings.table);
+    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = %s, .cancel_id = %s, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s, .db_fields = %s_fields, .db_field_count = %d",
         prefix, form_id, bindings.n, 
         btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
         btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0",
-        bindings.db, bindings.table, table_id);
+        bindings.db, bindings.table, table_id, meta, field_count);
   } else {
     OUT(", .bindings = NULL, .binding_count = 0, .ok_id = %s, .cancel_id = %s, .db_name = NULL, .db_table = NULL, .db_table_id = 0, .db_fields = NULL, .db_field_count = 0",
         btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
@@ -545,7 +564,7 @@ int main(int argc, char **argv) {
   emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
   emit_menus(f, menus); emit_toolbars(f, toolbars); emit_database(f, database, pre);
   int emitted = 0;
-  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre)) return 1; emitted++; } free(name); }
+  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; emitted++; } free(name); }
   OUT("#endif /* %s */\n", guard);
   fclose(f); xmlFreeDoc(doc);
   if (!emitted) { fprintf(stderr, "orionc_alt: no forms emitted from %s\n", input); return 1; }

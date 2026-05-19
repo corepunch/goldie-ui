@@ -29,7 +29,7 @@ Transform socialfeed from dual object-model to pure database-driven application 
 
 ## Phase 2: orionc Code Generation (P2 Important)
 
-- [ ] **2.1 Generate ok_id/cancel_id from buttons**
+- [x] **2.1 Generate ok_id/cancel_id from buttons** ✅ Commit 70ad101
   - Add `button_ids_t` tracking struct to orionc.c
   - Update `emit_controls_ex()` to parse `action="db.*.insert"` attributes
   - Detect cancel buttons by text/name
