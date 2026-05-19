@@ -8,7 +8,7 @@ Transform socialfeed from dual object-model to pure database-driven application 
 
 ## Phase 1: Database Persistence (P1 Critical)
 
-- [ ] **1.1 Implement like count persistence**
+- [x] **1.1 Implement like count persistence** ✅ Commit 16efbd6
   - Add `app_like_post()` and `app_like_comment()` using `dbUpdate`
   - Replace in-memory `post_like()` calls in view_menubar.c and view_dlg_post.c
   - Verify likes persist across feed refresh

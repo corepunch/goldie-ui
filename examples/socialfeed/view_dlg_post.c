@@ -28,15 +28,6 @@ typedef struct {
 } post_detail_t;
 
 // ============================================================
-// refresh_comments — tell tableview to refresh from database
-// ============================================================
-
-static void refresh_comments(post_detail_t *s) {
-  if (!s || !s->comments_win) return;
-  send_message(s->comments_win, tvRefresh, 0, NULL);
-}
-
-// ============================================================
 // update_header_labels — push current post data into the label controls
 // ============================================================
 
@@ -129,12 +120,34 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
           if (show_new_comment_dialog(win, "New Comment",
                                       author, sizeof(author),
                                       text,   sizeof(text))) {
-            comment_t *c = comment_create(author, text);
-            if (c) {
-              app_add_comment(s->post, c);
-              refresh_comments(s);
+            // Look up author ID by name
+            // TODO: Should use combobox that returns author_id directly
+            int author_id = 1;  // Default to first author
+            
+            // Try to find author by name in database
+            result_node_t *authors = (result_node_t *)send_db_message(
+              g_app->db, dbFetch, MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)0);
+            if (authors) {
+              for (result_node_t *n = authors; n; n = n->next) {
+                db_author_t *a = *(db_author_t **)n->data;
+                if (a && strcmp(a->name, author) == 0) {
+                  author_id = a->id;
+                  break;
+                }
+              }
+              free_result_list(authors);
+            }
+            
+            // Insert comment into database
+            if (app_add_comment(s->post->id, author_id, text)) {
+              // Tableview auto-refreshes from database via tvSetFilter
+              // Update post to reflect new comment count
+              free(s->post->title);
+              free(s->post->body);
+              free(s->post->author);
+              free(s->post);
+              s->post = app_get_post(g_app->selected_idx);
               update_header_labels(win, s);
-              SF_DEBUG("comment added post_id=%d comment_id=%d", s->post->id, c->id);
             }
           }
           return true;

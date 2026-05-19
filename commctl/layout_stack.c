@@ -177,12 +177,6 @@ void layout_measure_window(window_t *win, layout_measure_t *m) {
 void layout_arrange_window(window_t *win, const irect16_t *rect) {
   if (!win) return;
   
-  // Debug: see what gets passed to each window layout
-  if (win->id < 1010) {
-    fprintf(stderr, "[layout_arrange_window] win_id=%d rect=%dx%d flags=0x%x\n",
-            win->id, rect ? rect->w : 0, rect ? rect->h : 0, win->flags);
-  }
-  
   if (is_grid_proc(win)) {
     layout_grid_arrange_window(win, rect);
     return;

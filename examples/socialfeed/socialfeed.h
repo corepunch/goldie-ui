@@ -157,10 +157,10 @@ bool         app_like_comment(int comment_id);
 post_t      *app_get_post(int index);
 void         app_update_status(void);
 
-// Append a comment to a post, assigning it a unique document ID.
-// Mirrors app_add_post — callers must use this instead of post_add_comment()
-// directly so that all comments are assigned monotonically increasing IDs.
-bool         app_add_comment(post_t *post, comment_t *c);
+// Append a comment to a post in database.
+// Takes post_id, author_id, and comment text.
+// Returns true if comment was successfully inserted.
+bool         app_add_comment(int post_id, int author_id, const char *text);
 
 // Append a reply to a comment, assigning it a unique document ID.
 bool         app_add_reply(comment_t *parent, comment_t *reply);

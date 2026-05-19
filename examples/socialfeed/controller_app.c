@@ -226,16 +226,38 @@ void app_update_status(void) {
 }
 
 // ============================================================
-// app_add_comment — assign an ID then add to the post
+// app_add_comment — insert comment into database
 // ============================================================
 
-bool app_add_comment(post_t *post, comment_t *c) {
-  if (!g_app || !g_app->db || !post || !c) return false;
+bool app_add_comment(int post_id, int author_id, const char *text) {
+  if (!g_app || !g_app->db || post_id <= 0 || !text) return false;
   
-  // Database auto-assigns comment ID during insert
-  // For now, keep using application-level comment management
-  // TODO: Store comments in database and use dbInsert(TABLE_COMMENTS)
-  return post_add_comment(post, c);
+  // Create database comment record
+  db_comment_t db_comment = {
+    .id = 0,  // Database auto-increments
+    .post_id = post_id,
+    .author_id = author_id,
+    .like_count = 0,
+  };
+  strncpy(db_comment.text, text, sizeof(db_comment.text) - 1);
+  db_comment.text[sizeof(db_comment.text) - 1] = '\0';
+  
+  // Insert into database
+  db_comment_t *inserted = (db_comment_t *)send_db_message(
+    g_app->db, dbInsert, TABLE_COMMENTS, &db_comment);
+  
+  if (!inserted) return false;
+  
+  // Update post's comment count in database
+  db_post_t *post = (db_post_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)post_id);
+  if (post) {
+    post->comment_count++;
+    send_db_message(g_app->db, dbUpdate, TABLE_POSTS, post);
+  }
+  
+  SF_DEBUG("comment added: post_id=%d comment_id=%d", post_id, inserted->id);
+  return true;
 }
 
 // ============================================================
