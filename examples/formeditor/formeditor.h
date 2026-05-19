@@ -11,6 +11,7 @@
 #include "fe_document.h"  // Document model types
 #include "fe_editor_context.h"  // Editor context for live view mapping
 #include "fe_layout.h"  // Layout computation
+#include "fe_project_io.h"  // XML project I/O
 
 // ============================================================
 // Layout constants
@@ -279,7 +280,7 @@ void        form_doc_show_only(form_doc_t *doc);
 // Project I/O
 // ============================================================
 
-bool form_project_load(const char *path);
+// Project I/O functions (declared in fe_project_io.h)
 bool form_project_save(const char *path);
 
 // ============================================================
