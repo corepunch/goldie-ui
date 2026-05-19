@@ -26,6 +26,8 @@ enum {
   dbGetDirty,        // returns dirty flag as lresult_t (0 or 1)
   dbGetObjectProc,   // wparam=table_id; lparam=0 → returns (lresult_t)db_object_proc_t
   dbGetFieldBindings, // wparam=table_id; lparam=int* count_out → returns (lresult_t)db_field_msg_binding_t*
+  dbGetTables,       // wparam=0; lparam=0 → returns (lresult_t)table_name_node_t* (linked list of table names)
+  dbGetTableSchema,  // wparam=table_id; lparam=0 → returns (lresult_t)table_schema_t* (field metadata array)
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
@@ -35,6 +37,14 @@ typedef struct result_node_s {
   void *next;              // Next node (NULL for last)
   char data[];             // Flexible array member - record data
 } result_node_t;
+
+// Table name node for dbGetTables (linked list of table names)
+// Caller must free with free_result_list() after use
+typedef struct table_name_node_s {
+  struct table_name_node_s *next;  // Next node (NULL for last)
+  char name[64];                   // Table name (e.g., "posts")
+  int table_id;                    // Table ID for other messages
+} table_name_node_t;
 
 // Field types for reflection-based XML loading
 typedef enum {
@@ -52,6 +62,13 @@ typedef struct {
   size_t offset;           // offsetof(struct_t, field)
   int length;              // For strings: buffer size; else 0
 } db_field_meta_t;
+
+// Table schema for dbGetTableSchema (field metadata array)
+// Returned pointer is owned by database - do NOT free
+typedef struct {
+  const db_field_meta_t *fields;   // Field metadata array
+  int field_count;                 // Number of fields
+} table_schema_t;
 
 // Database class descriptor
 typedef struct {
