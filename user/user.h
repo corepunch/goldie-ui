@@ -636,6 +636,13 @@ uint32_t show_ddx_dialog(form_def_t const *def, const char *title,
 uint32_t show_db_dialog(form_def_t const *def, const char *title,
                         window_t *parent, int record_id);
 
+// Extended version with FK parent ID support (e.g., post_id for comments)
+// fk_field: name of FK field to populate (e.g., "post_id")
+// fk_value: FK value to set (e.g., 42 for post #42)
+uint32_t show_db_dialog_ex(form_def_t const *def, const char *title,
+                           window_t *parent, int record_id,
+                           const char *fk_field, int fk_value);
+
 // Database registry (NeXTSTEP-style singleton pattern)
 // Applications register their database at startup, framework retrieves automatically.
 void ui_set_database(database_t *db);

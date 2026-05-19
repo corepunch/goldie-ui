@@ -929,6 +929,82 @@ examples/socialfeed/
   main.c              ← gem_init: seed data, wire up windows
 ```
 
+### Designer/App Architecture for Complex Examples
+
+For complex tools such as `examples/formeditor/`, follow an Xcode/Interface Builder-style split. Do not let one window file become the document model, canvas renderer, serializer, property inspector, layout engine, and command dispatcher at the same time.
+
+**Required layers for designer-style apps:**
+- **Project/workspace layer** (`project_*.c`): owns project metadata, document list, plugin references, open/save orchestration. It must not contain menu window procs or canvas hit-testing.
+- **Document model layer** (`model_*.c`, `document_*.c`): owns persistent structs, IDs, validation, CRUD, dirty state, and serialization-ready data. Persistent model structs must not store `window_t *`, OpenGL resources, or design-time preview state.
+- **Editor context/controller layer** (`controller_*.c`, `editor_context_*.c`): owns active document, active selection, active tool, command dispatch, and refresh/notification fan-out.
+- **Canvas/view layer** (`view_canvas*.c`): owns painting, hit-testing, drag state, coordinate conversion, live design-time child windows, and visual adornments. It edits the document only through commands/controller helpers.
+- **Inspector/library/palette views** (`view_property_*.c`, `view_library_*.c`, `view_palette_*.c`): render model metadata and send commands. They do not parse project files or directly rewrite document arrays.
+- **Layout engine layer** (`layout_*.c`): owns measure/arrange/reflow/drop-target calculations. Loading a file should not contain layout algorithms inline.
+- **Archiver layer** (`archive_*.c`, `project_io_*.c`): owns XML/binary read/write. UI files such as menubars and canvases must not contain project parsers.
+
+**Represented model vs. live design-time view**
+- Keep persistent document objects pure. A form/control model may store IDs, type/class tokens, text, flags, rects, padding, margins, bindings, and style properties.
+- Never put live runtime/design-time handles in persistent structs. Avoid fields like `window_t *live_win` inside `form_element_t` or equivalent model types.
+- The canvas/editor runtime owns mappings between represented objects and live windows/resources:
+```c
+typedef struct {
+  uint32_t element_id;
+  window_t *live_win;
+} designer_live_view_ref_t;
+```
+- Treat live controls as an implementation detail of the editor surface. Destroy/rebuild them from the model whenever needed.
+
+**Metadata-driven component system**
+- Component behavior should come from a registry/descriptor, not switch statements scattered through canvas, property browser, project I/O, and palettes.
+- A component descriptor should be the single source for class token, display name, default size, design-placeable flag, window proc/class name, property schema, and archive hooks.
+- Adding a component should mostly add metadata and component-specific handlers, not edit five unrelated `switch(type)` blocks.
+
+**Metadata-driven properties and inspectors**
+- Property browsers must render from property descriptors, not hand-coded rows for every field and component type.
+- Use table-driven get/set/parse/format helpers. The inspector sends a command such as `designer_cmd_set_property(...)`; it does not mutate model fields directly.
+- Shared properties (name, id, text, frame, margins, padding, alignment) should be declared once and reused across component descriptors.
+
+**Commands and notifications**
+- All model mutations from UI go through named commands:
+```c
+designer_cmd_add_element(ctx, component_id, parent_id, frame);
+designer_cmd_delete_selection(ctx);
+designer_cmd_set_property(ctx, object_id, property_id, value);
+designer_cmd_move_element(ctx, object_id, frame);
+```
+- Commands are responsible for marking documents dirty, updating titles, triggering layout reflow, syncing live views, and notifying panels.
+- Prefer simple app notifications over manual refresh chains:
+```c
+designer_notify(ctx, DESIGNER_EVENT_ACTIVE_DOCUMENT_CHANGED);
+designer_notify(ctx, DESIGNER_EVENT_SELECTION_CHANGED);
+designer_notify(ctx, DESIGNER_EVENT_DOCUMENT_MUTATED);
+designer_notify(ctx, DESIGNER_EVENT_COMPONENT_REGISTRY_CHANGED);
+```
+- Views subscribe/respond. Do not have low-level code directly call every panel refresh function it happens to know about.
+
+**File organization rules**
+- Menubar files should define menu resources, the menubar window proc, and command forwarding only. They must not own document creation/destruction, project XML parsing, layout algorithms, or property dialogs.
+- Canvas files should not save/load projects, own global app state, or decide component metadata. They may call document commands and layout/canvas helpers.
+- Header files should expose narrow module APIs. Avoid one mega-header that defines all app structs, all window states, and all cross-module functions.
+- Prefer private structs in `.c` files. Put only stable public model/API types in headers.
+
+**Good target shape:**
+```text
+examples/mydesigner/
+  main.c
+  app_controller.c/.h        // app state, active doc, commands, notifications
+  project_io.c/.h            // load/save/archive only
+  document_model.c/.h        // pure persistent document model + CRUD
+  component_registry.c/.h    // component descriptors + property schemas
+  layout_engine.c/.h         // measure/arrange/reflow/drop targets
+  view_canvas.c/.h           // canvas proc, hit testing, live-view map
+  view_menubar.c/.h          // menu resources + command forwarding
+  view_property_browser.c/.h // metadata-driven inspector
+  view_library.c/.h          // toolbox/library UI
+```
+
+When unsure, use this test: if a file both parses XML and handles `evLeftButtonDown`, or both draws selection handles and writes project files, split it.
+
 ### Working with Text Rendering
 - For small fixed-width text: use `draw_text_small()` with `strwidth()` for measurements
 - Font rendering is OpenGL-based using texture atlases for efficiency

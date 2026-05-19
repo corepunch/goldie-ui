@@ -62,7 +62,7 @@ Transform socialfeed from dual object-model to pure database-driven application 
 
 ## Phase 4: Dialog Migration (Recommended)
 
-- [ ] **4.1 Replace manual new post dialog**
+- [x] **4.1 Replace manual new post dialog** ✅ Commit f44e8ae
   - Remove `show_new_post_dialog()` implementation
   - Update view_menubar.c to use `show_db_dialog()` directly
   - Remove manual `app_add_post()` call (show_db_dialog inserts)

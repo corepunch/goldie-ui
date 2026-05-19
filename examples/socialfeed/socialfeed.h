@@ -197,12 +197,9 @@ void     create_main_window(void);
 void show_post_detail(window_t *parent, int post_idx);
 
 // ============================================================
-// View — new comment dialog (view_dlg_forms.c)
+// View — Dialogs (MIGRATED to show_db_dialog)
 // ============================================================
-// NOTE: New Post is now handled by show_db_dialog() directly.
-
-bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
-                             char *author_buf, size_t author_sz,
-                             char *text_buf,   size_t text_sz);
+// All form-based dialogs now use show_db_dialog() / show_db_dialog_ex().
+// See view_menubar.c and view_dlg_post.c for usage.
 
 #endif // __SOCIALFEED_H__

@@ -473,6 +473,8 @@ typedef struct {
   int               record_id;    // record ID (0 = INSERT, >0 = UPDATE)
   void             *record_buf;   // allocated buffer for record struct
   bool              is_new;       // true if creating new record
+  const char       *fk_field;     // FK field name (e.g., "post_id"), optional
+  int               fk_value;     // FK value to set for new records
 } db_dlg_ctx_t;
 
 static result_t dialog_db_proc(window_t *win, uint32_t msg,
@@ -510,6 +512,20 @@ static result_t dialog_db_proc(window_t *win, uint32_t msg,
       } else {
         // New record (INSERT mode)
         ctx->is_new = true;
+        
+        // Set FK field if provided (e.g., post_id for comments)
+        if (ctx->fk_field && ctx->fk_value > 0 && ctx->def->db_fields) {
+          const db_field_meta_t *fields = (const db_field_meta_t *)ctx->def->db_fields;
+          // Find field offset by name
+          for (int i = 0; i < ctx->def->db_field_count; i++) {
+            if (strcmp(fields[i].name, ctx->fk_field) == 0) {
+              // Set FK value at field offset
+              int *fk_ptr = (int *)((char *)ctx->record_buf + fields[i].offset);
+              *fk_ptr = ctx->fk_value;
+              break;
+            }
+          }
+        }
       }
       
       // Push record fields to controls using DDX
@@ -586,8 +602,9 @@ static result_t dialog_db_proc(window_t *win, uint32_t msg,
   }
 }
 
-uint32_t show_db_dialog(form_def_t const *def, const char *title,
-                        window_t *parent, int record_id) {
+uint32_t show_db_dialog_ex(form_def_t const *def, const char *title,
+                           window_t *parent, int record_id,
+                           const char *fk_field, int fk_value) {
   if (!def || !def->db_name || !def->db_table) return 0;
   
   // Look up database by name from form definition
@@ -607,7 +624,9 @@ uint32_t show_db_dialog(form_def_t const *def, const char *title,
     .db = db,
     .record_id = record_id,
     .record_buf = record_buf,
-    .is_new = (record_id == 0)
+    .is_new = (record_id == 0),
+    .fk_field = fk_field,
+    .fk_value = fk_value
   };
   
   uint32_t result = show_dialog_from_form_ex(def, title, parent,
@@ -616,4 +635,9 @@ uint32_t show_db_dialog(form_def_t const *def, const char *title,
   
   free(record_buf);
   return result;
+}
+
+uint32_t show_db_dialog(form_def_t const *def, const char *title,
+                        window_t *parent, int record_id) {
+  return show_db_dialog_ex(def, title, parent, record_id, NULL, 0);
 }
