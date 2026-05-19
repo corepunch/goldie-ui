@@ -10,6 +10,7 @@
 #include "../../ui.h"
 #include "fe_document.h"  // Document model types
 #include "fe_editor_context.h"  // Editor context for live view mapping
+#include "fe_layout.h"  // Layout computation
 
 // ============================================================
 // Layout constants
@@ -250,7 +251,7 @@ void canvas_sync_live_controls(form_doc_t *doc);
 void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *target);
 window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
                                             int canvas_x, int canvas_y);
-void form_doc_auto_layout_reflow(form_doc_t *doc);
+void form_doc_auto_layout_reflow(form_doc_t *doc);  // Convenience wrapper for fe_layout_reflow
 bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y);
 bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,
                                      int screen_x, int screen_y);
