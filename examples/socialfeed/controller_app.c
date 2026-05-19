@@ -101,6 +101,50 @@ bool app_delete_post(int index) {
 }
 
 // ============================================================
+// app_like_post — increment like count in database
+// ============================================================
+
+bool app_like_post(int post_id) {
+  if (!g_app || !g_app->db || post_id <= 0) return false;
+  
+  // Fetch the post from database
+  db_post_t *post = (db_post_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)post_id);
+  
+  if (!post) return false;
+  
+  // Increment like count
+  post->like_count++;
+  
+  // Update in database
+  bool success = send_db_message(g_app->db, dbUpdate, TABLE_POSTS, post) != 0;
+  
+  return success;
+}
+
+// ============================================================
+// app_like_comment — increment like count in database
+// ============================================================
+
+bool app_like_comment(int comment_id) {
+  if (!g_app || !g_app->db || comment_id <= 0) return false;
+  
+  // Fetch the comment from database
+  db_comment_t *comment = (db_comment_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_COMMENTS, 0), (void *)(intptr_t)comment_id);
+  
+  if (!comment) return false;
+  
+  // Increment like count
+  comment->like_count++;
+  
+  // Update in database
+  bool success = send_db_message(g_app->db, dbUpdate, TABLE_COMMENTS, comment) != 0;
+  
+  return success;
+}
+
+// ============================================================
 // app_get_post — bounds-checked accessor
 // ============================================================
 

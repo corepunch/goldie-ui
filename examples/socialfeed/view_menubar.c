@@ -49,9 +49,16 @@ void handle_menu_command(uint16_t id) {
         message_box(parent, "Select a post to like.", "Like Post", MB_OK);
         break;
       }
-      post_like(p);
-      feed_refresh();
-      SF_DEBUG("liked post id=%d likes=%d", p->id, p->like_count);
+      int post_id = p->id;
+      free(p->title);
+      free(p->body);
+      free(p->author);
+      free(p);
+      
+      if (app_like_post(post_id)) {
+        feed_refresh();
+        SF_DEBUG("liked post id=%d (persisted to DB)", post_id);
+      }
       break;
     }
 

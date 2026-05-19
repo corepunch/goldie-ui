@@ -110,9 +110,16 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
       switch (src->id) {
         // ---- Like Post ----
         case ID_POST_DETAIL_LIKE_POST:
-          post_like(s->post);
-          update_header_labels(win, s);
-          SF_DEBUG("liked post id=%d likes=%d", s->post->id, s->post->like_count);
+          if (app_like_post(s->post->id)) {
+            // Refresh post to get updated like count
+            free(s->post->title);
+            free(s->post->body);
+            free(s->post->author);
+            free(s->post);
+            s->post = app_get_post(g_app->selected_idx);
+            update_header_labels(win, s);
+            SF_DEBUG("liked post id=%d (persisted to DB)", s->post->id);
+          }
           return true;
 
         // ---- Add Comment ----
