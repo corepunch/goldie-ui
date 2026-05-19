@@ -37,6 +37,9 @@ static void create_app_windows(hinstance_t hinstance) {
   g_app->prop_win = property_browser_create(hinstance);
   g_app->forms_win = forms_browser_create(hinstance);
   g_app->plugins_win = plugins_browser_create(hinstance);
+  g_app->databases_win = create_database_browser(
+    MAKERECT(DATABASES_WIN_X, DATABASES_WIN_Y, DATABASES_WIN_W, DATABASES_WIN_H),
+    NULL);
 }
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
@@ -100,6 +103,8 @@ void gem_shutdown(void) {
     destroy_window(g_app->forms_win);
   if (g_app->plugins_win)
     destroy_window(g_app->plugins_win);
+  if (g_app->databases_win)
+    destroy_window(g_app->databases_win);
   free(g_app);
   g_app = NULL;
 }

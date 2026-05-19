@@ -80,7 +80,13 @@ static inline bool fe_default_auto_layout_enabled(void) {
 #define PLUGINS_WIN_X     PROPBROWSER_WIN_X
 #define PLUGINS_WIN_Y     (PROPBROWSER_WIN_Y + PROPBROWSER_WIN_H + 4)
 #define PLUGINS_WIN_W     PROPBROWSER_WIN_W
-#define PLUGINS_WIN_H     (SCREEN_H - PLUGINS_WIN_Y - 4)
+#define PLUGINS_WIN_H     120
+
+// Database browser (NSBrowser-style).
+#define DATABASES_WIN_X   PROPBROWSER_WIN_X
+#define DATABASES_WIN_Y   (PLUGINS_WIN_Y + PLUGINS_WIN_H + 4)
+#define DATABASES_WIN_W   PROPBROWSER_WIN_W
+#define DATABASES_WIN_H   (SCREEN_H - DATABASES_WIN_Y - 4)
 
 // Document window initial position
 // frame.y is the window top; place it 8px below the menu bar.
@@ -164,6 +170,7 @@ typedef struct {
   window_t    *prop_win;
   window_t    *forms_win;
   window_t    *plugins_win;
+  window_t    *databases_win;
   hinstance_t  hinstance;  // owning app instance
   int          current_tool;
   accel_table_t *accel;
@@ -268,6 +275,7 @@ window_t *forms_browser_create(hinstance_t hinstance);
 void forms_browser_refresh(void);
 window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
+window_t *create_database_browser(const irect16_t *frame, window_t *parent);
 
 // ============================================================
 // Document helpers — declared in fe_project.h
