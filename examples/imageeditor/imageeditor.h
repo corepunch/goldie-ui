@@ -866,4 +866,18 @@ ipoint16_t canvas_doc_to_view_point(window_t *win, canvas_win_state_t *state,
 irect16_t canvas_doc_rect_to_view(window_t *win, canvas_win_state_t *state,
                                   int x0, int y0, int x1, int y1);
 
+// ============================================================
+// Tool handler system (tools/tools.h)
+// ============================================================
+
+// Tool handler interface — replaces giant switch statements in win_canvas.c.
+// See tools/tools.h for the handler structure definition.
+typedef struct tool_handler_s tool_handler_t;
+
+// Get the handler for a tool ID, returns NULL if no handler registered.
+const tool_handler_t *get_tool_handler(int tool_id);
+
+// Register all built-in tool handlers (called at startup).
+void register_builtin_tools(void);
+
 #endif // __IMAGEEDITOR_H__

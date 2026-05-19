@@ -15,16 +15,16 @@ typedef struct {
 #define LV_SLOT_MIN  0
 #define LV_SLOT_MAX  1
 
-static int lv_track_margin(int w) {
+static int lvstrip_track_margin(int w) {
   return CLAMP(w / 32, 4, LV_TRACK_L);
 }
 
-static int lv_track_l(int w) {
-  return lv_track_margin(w);
+static int lvstrip_track_l(int w) {
+  return lvstrip_track_margin(w);
 }
 
-static int lv_track_w(int w) {
-  int margin = lv_track_margin(w);
+static int lvstrip_track_w(int w) {
+  int margin = lvstrip_track_margin(w);
   return MAX(1, w - 2 * margin);
 }
 
@@ -46,7 +46,7 @@ static int lv_strip_handle_h(int h) {
   return MIN(13, MAX(5, h));
 }
 
-static uint32_t lv_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+static uint32_t lvstrip_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
   return ((uint32_t)a << 24) | ((uint32_t)b << 16) |
          ((uint32_t)g << 8) | (uint32_t)r;
 }
@@ -56,8 +56,8 @@ static int lv_clamp_slider(int v) {
 }
 
 static int lv_handle_x_from_norm(float t, int w) {
-  int raw = (int)lroundf(CLAMP(t, 0.0f, 1.0f) * (float)lv_track_w(w));
-  return lv_track_l(w) + raw;
+  int raw = (int)lroundf(CLAMP(t, 0.0f, 1.0f) * (float)lvstrip_track_w(w));
+  return lvstrip_track_l(w) + raw;
 }
 
 static void lv_get_handle_visuals(const lv_strip_state_t *st,
@@ -81,8 +81,8 @@ static void lv_draw_handle(int x, int y, int h, uint32_t col, bool active) {
 
 static void lv_draw_strip_window(window_t *win, lv_strip_state_t *st) {
   irect16_t cr = get_client_rect(win);
-  int track_l = lv_track_l(cr.w);
-  int track_w = lv_track_w(cr.w);
+  int track_l = lvstrip_track_l(cr.w);
+  int track_w = lvstrip_track_w(cr.w);
   int bar_y = lv_strip_bar_y(cr.h);
   int bar_h = lv_strip_bar_h(cr.h);
   int handle_y = lv_strip_handle_y(cr.h);
@@ -94,8 +94,8 @@ static void lv_draw_strip_window(window_t *win, lv_strip_state_t *st) {
 
   fill_rect(get_sys_color(brWindowBg), cr);
   draw_gradient_rect(R(track_l, bar_y, track_w, bar_h),
-                     lv_rgba(0x00, 0x00, 0x00, 0xFF),
-                     lv_rgba(0xFF, 0xFF, 0xFF, 0xFF));
+                     lvstrip_rgba(0x00, 0x00, 0x00, 0xFF),
+                     lvstrip_rgba(0xFF, 0xFF, 0xFF, 0xFF));
   for (int i = 0; i < count; i++) {
     bool active = (st->dragging && st->dragging_index == i);
     lv_draw_handle(lv_handle_x_from_norm(pos[i], cr.w), handle_y,
@@ -131,8 +131,8 @@ static int lv_hit_handle(const lv_strip_state_t *st,
 
 static void lv_apply_drag(lv_strip_state_t *st, int handle_index, int mx,
                           int w) {
-  int track_w = lv_track_w(w);
-  int raw = CLAMP(mx - lv_track_l(w), 0, track_w);
+  int track_w = lvstrip_track_w(w);
+  int raw = CLAMP(mx - lvstrip_track_l(w), 0, track_w);
   int val = (int)lroundf((float)raw * 255.0f / (float)track_w);
   switch (handle_index) {
     case LV_SLOT_MIN:
