@@ -542,8 +542,10 @@ static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *e
     send_message(live_win, evInitChildren, 0, NULL);
   if (live_win->frame.w > el->frame.w ||
       live_win->frame.h > el->frame.h) {
-    el->frame.w = MAX(el->frame.w, live_win->frame.w);
-    el->frame.h = MAX(el->frame.h, live_win->frame.h);
+    irect16_t new_frame = el->frame;
+    new_frame.w = MAX(el->frame.w, live_win->frame.w);
+    new_frame.h = MAX(el->frame.h, live_win->frame.h);
+    fe_doc_set_element_frame(doc, el->id, new_frame);
     canvas_sync_live_element_window(doc, el);
   }
 }
@@ -954,8 +956,7 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   else
     canvas_sync_live_controls(doc);
   canvas_sync_live_parent_layout(doc, parent_id);
-  doc->modified = true;
-  form_doc_update_title(doc);
+  fe_doc_mark_modified(doc);
   return index;
 }
 
@@ -1192,7 +1193,7 @@ static void canvas_apply_resize(canvas_state_t *s, int dx, int dy) {
   }
   if (x < 0) x = 0;
   if (y < 0) y = 0;
-  el->frame.x = x; el->frame.y = y; el->frame.w = w; el->frame.h = h;
+  fe_doc_set_element_frame(doc, el->id, (irect16_t){x, y, w, h});
 }
 
 // ============================================================
@@ -1412,8 +1413,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         if (ny < 0) ny = 0;
         if (nx + el->frame.w > doc->form_size.w) nx = doc->form_size.w - el->frame.w;
         if (ny + el->frame.h > doc->form_size.h) ny = doc->form_size.h - el->frame.h;
-        el->frame.x = nx;
-        el->frame.y = ny;
+        fe_doc_set_element_frame(doc, el->id, (irect16_t){nx, ny, el->frame.w, el->frame.h});
         canvas_sync_live_controls(doc);
         invalidate_window(win);
         return true;
@@ -1423,7 +1423,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         int dx = lx - s->drag.resize.start.x;
         int dy = ly - s->drag.resize.start.y;
         canvas_apply_resize(s, dx, dy);
-        doc->modified = true;
+        fe_doc_mark_modified(doc);
         canvas_sync_live_controls(doc);
         invalidate_window(win);
         return true;
@@ -1446,13 +1446,11 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       int ly = (int16_t)HIWORD(wparam);
 
       if (s->drag.mode == DRAG_MOVE && s->selected_idx >= 0) {
-        doc->modified = true;
-        form_doc_update_title(doc);
+        fe_doc_mark_modified(doc);
       }
 
       if (s->drag.mode == DRAG_RESIZE) {
-        doc->modified = true;
-        form_doc_update_title(doc);
+        fe_doc_mark_modified(doc);
       }
 
       if (s->drag.mode == DRAG_RUBBERBND) {

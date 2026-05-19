@@ -162,55 +162,65 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
 
   switch (prop_id) {
     case PROP_ROW_NAME:
-      snprintf(el->name, sizeof(el->name), "%s", value);
+      fe_doc_set_element_name(doc, el->id, value);
       break;
     case PROP_ROW_CAPTION:
-      snprintf(el->text, sizeof(el->text), "%s", value);
+      fe_doc_set_element_text(doc, el->id, value);
       break;
     case PROP_ROW_H_ALIGN:
-      el->h_align = prop_parse_h_align(value, el->h_align);
+      fe_doc_set_element_align(doc, el->id, prop_parse_h_align(value, el->h_align), el->v_align);
       break;
     case PROP_ROW_V_ALIGN:
-      el->v_align = prop_parse_v_align(value, el->v_align);
+      fe_doc_set_element_align(doc, el->id, el->h_align, prop_parse_v_align(value, el->v_align));
       break;
     case PROP_ROW_FONT:
-      el->font = prop_parse_font(value, el->font);
-      el->font_set = true;
+      fe_doc_set_element_font(doc, el->id, prop_parse_font(value, el->font));
       break;
     case PROP_ROW_LEFT:
-      el->frame.x = prop_parse_int(value, el->frame.x);
-      if (el->frame.x < 0) el->frame.x = 0;
-      if (el->frame.x + el->frame.w > doc->form_size.w)
-        el->frame.x = doc->form_size.w - el->frame.w;
-      if (el->frame.x < 0) el->frame.x = 0;
+      {
+        int x = prop_parse_int(value, el->frame.x);
+        if (x < 0) x = 0;
+        if (x + el->frame.w > doc->form_size.w)
+          x = doc->form_size.w - el->frame.w;
+        if (x < 0) x = 0;
+        fe_doc_set_element_frame(doc, el->id, (irect16_t){x, el->frame.y, el->frame.w, el->frame.h});
+      }
       break;
     case PROP_ROW_TOP:
-      el->frame.y = prop_parse_int(value, el->frame.y);
-      if (el->frame.y < 0) el->frame.y = 0;
-      if (el->frame.y + el->frame.h > doc->form_size.h)
-        el->frame.y = doc->form_size.h - el->frame.h;
-      if (el->frame.y < 0) el->frame.y = 0;
+      {
+        int y = prop_parse_int(value, el->frame.y);
+        if (y < 0) y = 0;
+        if (y + el->frame.h > doc->form_size.h)
+          y = doc->form_size.h - el->frame.h;
+        if (y < 0) y = 0;
+        fe_doc_set_element_frame(doc, el->id, (irect16_t){el->frame.x, y, el->frame.w, el->frame.h});
+      }
       break;
     case PROP_ROW_WIDTH:
-      el->frame.w = prop_parse_int(value, el->frame.w);
-      if (el->frame.w < 10) el->frame.w = 10;
-      if (el->frame.x + el->frame.w > doc->form_size.w)
-        el->frame.w = doc->form_size.w - el->frame.x;
-      if (el->frame.w < 1) el->frame.w = 1;
+      {
+        int w = prop_parse_int(value, el->frame.w);
+        if (w < 10) w = 10;
+        if (el->frame.x + w > doc->form_size.w)
+          w = doc->form_size.w - el->frame.x;
+        if (w < 1) w = 1;
+        fe_doc_set_element_frame(doc, el->id, (irect16_t){el->frame.x, el->frame.y, w, el->frame.h});
+      }
       break;
     case PROP_ROW_HEIGHT:
-      el->frame.h = prop_parse_int(value, el->frame.h);
-      if (el->frame.h < 8) el->frame.h = 8;
-      if (el->frame.y + el->frame.h > doc->form_size.h)
-        el->frame.h = doc->form_size.h - el->frame.y;
-      if (el->frame.h < 1) el->frame.h = 1;
+      {
+        int h = prop_parse_int(value, el->frame.h);
+        if (h < 8) h = 8;
+        if (el->frame.y + h > doc->form_size.h)
+          h = doc->form_size.h - el->frame.y;
+        if (h < 1) h = 1;
+        fe_doc_set_element_frame(doc, el->id, (irect16_t){el->frame.x, el->frame.y, el->frame.w, h});
+      }
       break;
     default:
       return;
   }
 
-  doc->modified = true;
-  form_doc_update_title(doc);
+  fe_doc_mark_modified(doc);
   canvas_sync_live_controls(doc);
   property_browser_refresh(doc);
 }

@@ -88,9 +88,8 @@ static void forms_add_new(void) {
   int n = forms_doc_count();
   snprintf(doc->form_id, sizeof(doc->form_id), "form%d", n);
   snprintf(doc->form_title, sizeof(doc->form_title), "Form %d", n);
-  doc->modified = true;
+  fe_doc_mark_modified(doc);
   g_app->project.modified = true;
-  form_doc_update_title(doc);
   forms_browser_refresh();
 }
 

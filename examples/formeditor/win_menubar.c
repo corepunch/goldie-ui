@@ -116,10 +116,9 @@ static result_t doc_win_proc(window_t *win, uint32_t msg,
         doc->form_size.h = new_h;
         resize_window(doc->canvas_win, cr.w, cr.h);
         if (changed) {
-          doc->modified = true;
+          fe_doc_mark_modified(doc);
           if (g_app)
             g_app->project.modified = true;
-          form_doc_update_title(doc);
         }
       }
       return false;
@@ -1456,8 +1455,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
               doc->layout_mode != old_kind ||
               (doc->flags & WINDOW_STACK_HORIZONTAL) != old_orient ||
               doc->layout_columns != old_columns) {
-            doc->modified = true;
-            form_doc_update_title(doc);
+            fe_doc_mark_modified(doc);
           }
           if (doc->flags & WINDOW_AUTO_LAYOUT) {
             form_doc_auto_layout_reflow(doc);
@@ -1646,8 +1644,7 @@ void handle_menu_command(uint16_t id) {
         doc->elements[i] = doc->elements[i + 1];
       doc->element_count--;
       cs->selected_idx = -1;
-      doc->modified = true;
-      form_doc_update_title(doc);
+      fe_doc_mark_modified(doc);
       canvas_rebuild_live_controls(doc);
       break;
     }
@@ -1663,9 +1660,7 @@ void handle_menu_command(uint16_t id) {
       } else {
         form_element_t *el = &doc->elements[cs->selected_idx];
         if (show_props_dialog(owner, el)) {
-          doc->modified = true;
-          form_doc_update_title(doc);
-          canvas_sync_live_controls(doc);
+          fe_doc_mark_modified(doc);
           property_browser_refresh(doc);
         }
       }
