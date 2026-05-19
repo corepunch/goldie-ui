@@ -27,6 +27,7 @@ typedef struct { char *v[10]; } attrs_t;
 enum { A_NAME, A_TEXT, A_FLAGS, A_HA, A_VA, A_ORIENT, A_SPACING, A_FONT, A_COLOR, A_FIELD };
 typedef struct { char ctrl[128], db[64], table[64], field[64], klass[64]; } binding_t;
 typedef struct { binding_t v[128]; int n; char db[64], table[64]; } bindings_t;
+typedef struct { char ok_id[256], cancel_id[256]; } button_ids_t;
 
 typedef struct {
   const char *xml, *c, *db;
@@ -425,7 +426,7 @@ static void add_binding(bindings_t *b, const char *ctrl, const char *path, const
   b->v[b->n++] = next;
 }
 
-static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const char *parent_id, bindings_t *bindings, int *count) {
+static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const char *parent_id, bindings_t *bindings, int *count, button_ids_t *btn_ids) {
   int ordinal = 0;
   EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
     attrs_t a; rect_t sz = size_attr(c), pad = {0}, mar = {0}; char id[256], klass[128], classq[ORIONC_STRING_SIZE], textq[ORIONC_STRING_SIZE], nameq[ORIONC_STRING_SIZE], flags[256], spacing[16], font[16], color[16], lparam[256] = "NULL";
@@ -441,6 +442,22 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     if (elem(c, "tableview")) snprintf(lparam, sizeof(lparam), "&%s_%s_tableview_params", form, nz(a.v[A_NAME], "unnamed"));
     if (elem(c, "combobox") && attr(c, "source")) snprintf(lparam, sizeof(lparam), "&%s_%s_combobox_params", form, nz(a.v[A_NAME], "unnamed"));
     if (a.v[A_FIELD]) add_binding(bindings, id, a.v[A_FIELD], klass);
+    
+    // Track button IDs for ok_id/cancel_id form metadata
+    if (elem(c, "button") && btn_ids) {
+      char *action = attr(c, "action");
+      if (action && (strstr(action, ".insert") || strstr(action, ".update"))) {
+        snprintf(btn_ids->ok_id, sizeof(btn_ids->ok_id), "%s", id);
+      }
+      free(action);
+      
+      // Detect cancel button by text or name
+      if ((a.v[A_TEXT] && strcasecmp(a.v[A_TEXT], "Cancel") == 0) ||
+          (a.v[A_NAME] && strcasecmp(a.v[A_NAME], "cancel") == 0)) {
+        snprintf(btn_ids->cancel_id, sizeof(btn_ids->cancel_id), "%s", id);
+      }
+    }
+    
     cstr(classq, sizeof(classq), klass); cstr(textq, sizeof(textq), a.v[A_TEXT]); cstr(nameq, sizeof(nameq), a.v[A_NAME]);
     OUT("  { %s, %s, { %d, %d }, %s, %s, %s, %u, %u, NULL, 0, %s, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %s, %s, %s, %s, %s },\n",
         classq, id, sz.w, sz.h, flags, textq, nameq,
@@ -449,7 +466,7 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
         spacing, pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h,
         nz(parent_id, "0"), font, a.v[A_FONT] ? "true" : "false", color, a.v[A_COLOR] ? "true" : "false", lparam);
     (*count)++;
-    emit_controls_ex(f, c, form, id, bindings, count);
+    emit_controls_ex(f, c, form, id, bindings, count, btn_ids);
     free_attrs(&a);
   }
 }
@@ -478,7 +495,8 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   emit_tableviews(f, form, form_id);
   emit_comboboxes(f, form, form_id);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
-  int count = 0; bindings_t bindings = {0}; emit_controls_ex(f, form, form_id, "0", &bindings, &count); LINE("};\n\n");
+  int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
+  emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");
   emit_bindings(f, prefix, form_id, &bindings);
   OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
       prefix, form_id, titleq, sz.w, sz.h, nz(flags, "0"), byte_attr(spacing, ORIONC_DEFAULT_SPACING),
@@ -487,10 +505,15 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
   else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
   if (bindings.n) {
     char table_id[128]; ident(table_id, sizeof(table_id), bindings.table, true);
-    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = 0, .cancel_id = 0, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s, .db_fields = NULL, .db_field_count = 0",
-        prefix, form_id, bindings.n, bindings.db, bindings.table, table_id);
+    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = %s, .cancel_id = %s, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s, .db_fields = NULL, .db_field_count = 0",
+        prefix, form_id, bindings.n, 
+        btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
+        btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0",
+        bindings.db, bindings.table, table_id);
   } else {
-    LINE(", .bindings = NULL, .binding_count = 0, .ok_id = 0, .cancel_id = 0, .db_name = NULL, .db_table = NULL, .db_table_id = 0, .db_fields = NULL, .db_field_count = 0");
+    OUT(", .bindings = NULL, .binding_count = 0, .ok_id = %s, .cancel_id = %s, .db_name = NULL, .db_table = NULL, .db_table_id = 0, .db_fields = NULL, .db_field_count = 0",
+        btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
+        btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0");
   }
   LINE(" };\n\n");
   free(name); free(title); free(flags); free(toolbar); free(spacing);

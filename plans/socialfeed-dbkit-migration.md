@@ -13,7 +13,7 @@ Transform socialfeed from dual object-model to pure database-driven application 
   - Replace in-memory `post_like()` calls in view_menubar.c and view_dlg_post.c
   - Verify likes persist across feed refresh
 
-- [ ] **1.2 Migrate comments to database**
+- [x] **1.2 Migrate comments to database** ✅ Commit 551d881
   - Update `app_add_comment()` to use `dbInsert(TABLE_COMMENTS)`
   - Replace `post_add_comment()` array manipulation
   - Remove manual `refresh_comments()` (tableview auto-refreshes)
