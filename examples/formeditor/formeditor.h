@@ -12,6 +12,8 @@
 #include "fe_editor_context.h"  // Editor context for live view mapping
 #include "fe_layout.h"  // Layout computation
 #include "fe_project_io.h"  // XML project I/O
+#include "fe_project.h"  // Project-level document management
+#include "fe_commands.h"  // Command dispatcher
 
 // ============================================================
 // Layout constants
@@ -267,29 +269,19 @@ window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
 
 // ============================================================
-// Document helpers
+// Document helpers — declared in fe_project.h
 // ============================================================
 
-form_doc_t *create_form_doc(int w, int h);
-void        close_form_doc(form_doc_t *doc);
-void        form_doc_update_title(form_doc_t *doc);
-void        form_doc_activate(form_doc_t *doc);
-void        form_doc_show_only(form_doc_t *doc);
-
 // ============================================================
-// Project I/O
+// Project I/O — declared in fe_project_io.h
 // ============================================================
 
-// Project I/O functions (declared in fe_project_io.h)
-bool form_project_save(const char *path);
-
 // ============================================================
-// Menu dispatch
+// Menu dispatch — declared in fe_commands.h
 // ============================================================
 
 extern menu_def_t  kMenus[];
 extern const int   kNumMenus;
-void handle_menu_command(uint16_t id);
 
 // ============================================================
 // Dialogs
@@ -297,5 +289,7 @@ void handle_menu_command(uint16_t id);
 
 void show_about_dialog(window_t *parent);
 bool show_props_dialog(window_t *parent, form_element_t *el);
+void show_grid_settings_dialog(window_t *parent, form_doc_t *doc);
+bool show_form_props_dialog(window_t *parent, form_doc_t *doc);
 
 #endif // __FORMEDITOR_H__
