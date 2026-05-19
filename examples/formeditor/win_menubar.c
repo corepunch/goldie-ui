@@ -434,14 +434,9 @@ static const char *color_token(uint8_t color) {
   return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
 }
 
-static bool parse_numeric_expr(const char *s, int *out) {
-  if (!s || !*s || !out) return false;
-  char *end = NULL;
-  long n = strtol(s, &end, 0);
-  if (!end || *end != '\0') return false;
-  *out = (int)n;
-  return true;
-}
+// Note: parse_numeric_expr, upper_ident, project_resolve_control_id, and
+// make_control_id_expr have been moved to fe_document.c and are accessed
+// via fe_doc_resolve_control_id() and fe_doc_make_control_id_expr().
 
 static uint32_t flag_value(const char *tok) {
   if (!tok || !*tok || strcmp(tok, "0") == 0) return 0;
@@ -492,57 +487,7 @@ static bool load_component_plugin_named(const char *name) {
   return fe_load_component_plugin(path);
 }
 
-static int project_resolve_control_id(form_doc_t *doc, const char *expr) {
-  int id = 0;
-  if (parse_numeric_expr(expr, &id))
-    return id;
-  return doc ? doc->next_id++ : CTRL_ID_BASE;
-}
-
-static void upper_ident(char *s) {
-  if (!s) return;
-  for (; *s; s++) {
-    if (*s >= 'a' && *s <= 'z')
-      *s = (char)(*s - 'a' + 'A');
-  }
-}
-
-static void make_control_id_expr(char *out, size_t out_sz,
-                                 const char *form_id,
-                                 const char *name,
-                                 const char *class_name,
-                                 int ordinal) {
-  char form_buf[96];
-  char name_buf[96];
-  size_t i = 0;
-
-  if (!out || out_sz == 0) return;
-
-  for (const char *p = form_id && *form_id ? form_id : "form";
-       *p && i + 1 < sizeof(form_buf); p++) {
-    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
-    form_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
-  }
-  if (i == 0) form_buf[i++] = 'F';
-  form_buf[i] = '\0';
-  upper_ident(form_buf);
-
-  i = 0;
-  for (const char *p = name && *name ? name : (class_name && *class_name ? class_name : "control");
-       *p && i + 1 < sizeof(name_buf); p++) {
-    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
-    name_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
-  }
-  if (i == 0) {
-    snprintf(name_buf, sizeof(name_buf), "CONTROL%d", ordinal);
-    upper_ident(name_buf);
-  } else {
-    name_buf[i] = '\0';
-    upper_ident(name_buf);
-  }
-
-  snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
-}
+// Use fe_doc_resolve_control_id() and fe_doc_make_control_id_expr() from fe_document.c
 
 static irect16_t rect_attr(xmlNodePtr node, const char *name, irect16_t fallback) {
   char *v = xml_attr_dup(node, name);
@@ -618,7 +563,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->v_align = LAYOUT_ALIGN_STRETCH;
       el->color = brTextNormal;
       copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
-      el->id = project_resolve_control_id(doc, el->id_expr);
+      el->id = fe_doc_resolve_control_id(doc, el->id_expr);
       el->frame.x = int_attr(n, "x", 0);
       el->frame.y = int_attr(n, "y", 0);
       el->frame.w = int_attr(n, "width", int_attr(n, "w", 10));
@@ -637,7 +582,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->color = color_attr(color, brTextNormal);
       el->color_set = (color != NULL);
       if (!el->id_expr[0]) {
-        make_control_id_expr(el->id_expr, sizeof(el->id_expr),
+        fe_doc_make_control_id_expr(el->id_expr, sizeof(el->id_expr),
                              doc->form_id, el->name,
                              ctrl_type_token(el->type), doc->element_count);
       }

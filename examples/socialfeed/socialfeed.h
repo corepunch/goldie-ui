@@ -80,33 +80,6 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
 #define REPLIES_INIT_CAP   4
 
 // ============================================================
-// Data model
-// ============================================================
-
-typedef struct comment_s {
-  int                id;
-  char              *author;
-  char              *text;
-  int                like_count;
-  uint32_t           created_at;
-  struct comment_s **replies;
-  int                reply_count;
-  int                reply_cap;
-} comment_t;
-
-typedef struct {
-  int        id;
-  char      *author;
-  char      *title;
-  char      *body;
-  int        like_count;
-  uint32_t   created_at;
-  comment_t **comments;
-  int        comment_count;
-  int        comment_cap;
-} post_t;
-
-// ============================================================
 // Application state
 // ============================================================
 
@@ -124,37 +97,14 @@ typedef struct {
 extern app_state_t *g_app;
 
 // ============================================================
-// Model functions (model_feed.c)
-// ============================================================
-
-char      *sf_strdup(const char *s);
-
-comment_t *comment_create(const char *author, const char *text);
-void       comment_free(comment_t *c);
-bool       comment_add_reply(comment_t *c, comment_t *reply);
-void       comment_like(comment_t *c);
-
-post_t    *post_create(const char *author, const char *title, const char *body);
-void       post_free(post_t *p);
-bool       post_add_comment(post_t *p, comment_t *c);
-void       post_like(post_t *p);
-bool       socialfeed_post_field_text(const post_t *p, const char *field,
-                                      char *buf, size_t buf_sz);
-bool       socialfeed_comment_field_text(const comment_t *c, const char *field,
-                                         char *buf, size_t buf_sz);
-bool       socialfeed_comment_has_field(const char *field);
-
-// ============================================================
 // Controller functions (controller_app.c)
 // ============================================================
 
 app_state_t *app_init(void);
 void         app_shutdown(app_state_t *app);
-bool         app_add_post(post_t *post);
 bool         app_delete_post(int index);
 bool         app_like_post(int post_id);
 bool         app_like_comment(int comment_id);
-post_t      *app_get_post(int index);  // DEPRECATED: Use app_get_post_id_from_index + dbFind
 int          app_get_post_id_from_index(int index);
 void         app_update_status(void);
 
@@ -162,9 +112,6 @@ void         app_update_status(void);
 // Takes post_id, author_id, and comment text.
 // Returns true if comment was successfully inserted.
 bool         app_add_comment(int post_id, int author_id, const char *text);
-
-// Append a reply to a comment, assigning it a unique document ID.
-bool         app_add_reply(comment_t *parent, comment_t *reply);
 
 // ============================================================
 // View — menu bar (view_menubar.c)

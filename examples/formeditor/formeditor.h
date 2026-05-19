@@ -9,6 +9,7 @@
 
 #include "../../ui.h"
 #include "fe_document.h"  // Document model types
+#include "fe_editor_context.h"  // Editor context for live view mapping
 
 // ============================================================
 // Layout constants
@@ -217,6 +218,7 @@ typedef struct {
   irect16_t   hover_layout_rc;  // form-space rect for hover highlight
   bool        external_component_drag; // true while toolbox drag hovers the canvas
   drag_state_t drag;
+  fe_editor_context_t editor_ctx;  // Live view mapping
 } canvas_state_t;
 
 // ============================================================

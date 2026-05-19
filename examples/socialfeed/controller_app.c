@@ -33,32 +33,6 @@ void app_shutdown(app_state_t *app) {
 }
 
 // ============================================================
-// app_add_post — append a post, grow the array if needed
-// ============================================================
-
-bool app_add_post(post_t *post) {
-  if (!g_app || !g_app->db || !post) return false;
-  
-  // Convert application post_t to database db_post_t
-  db_post_t db_post = {
-    .id = 0,  // Database auto-increments
-    .author_id = 1,  // TODO: lookup author by name
-    .like_count = post->like_count,
-    .comment_count = post->comment_count
-  };
-  strncpy(db_post.title, post->title ? post->title : "", sizeof(db_post.title) - 1);
-  strncpy(db_post.body, post->body ? post->body : "", sizeof(db_post.body) - 1);
-  
-  // Insert into database
-  db_post_t *inserted = (db_post_t *)send_db_message(g_app->db, dbInsert, TABLE_POSTS, &db_post);
-  if (!inserted) return false;
-  
-  // Update application model with assigned ID
-  post->id = inserted->id;
-  return true;
-}
-
-// ============================================================
 // app_delete_post — remove post at index and free it
 // ============================================================
 
@@ -149,62 +123,8 @@ bool app_like_comment(int comment_id) {
 // ============================================================
 
 // ============================================================
-// app_get_post — fetch post from database by index
+// app_get_post_id_from_index — convert feed row to post ID
 // ============================================================
-
-post_t *app_get_post(int index) {
-  if (!g_app || !g_app->db || index < 0) return NULL;
-  
-  // Fetch all posts from database
-  result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
-  if (!posts) return NULL;
-  
-  // Navigate to the requested index
-  result_node_t *node = posts;
-  for (int i = 0; i < index && node; i++)
-    node = node->next;
-  
-  if (!node) {
-    free_result_list(posts);
-    return NULL;
-  }
-  
-  // Convert db_post_t to post_t
-  db_post_t *db_post = *(db_post_t **)node->data;
-  if (!db_post) {
-    free_result_list(posts);
-    return NULL;
-  }
-  
-  post_t *post = (post_t *)calloc(1, sizeof(post_t));
-  if (!post) {
-    free_result_list(posts);
-    return NULL;
-  }
-  
-  // Copy fields
-  post->id = db_post->id;
-  post->like_count = db_post->like_count;
-  post->comment_count = db_post->comment_count;
-  post->created_at = 0; // Not stored in database yet
-  
-  // Convert fixed arrays to allocated strings
-  post->title = strdup(db_post->title);
-  post->body = strdup(db_post->body);
-  
-  // Fetch author name from database
-  db_author_t *author = (db_author_t *)send_db_message(g_app->db, dbFind,
-    MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)db_post->author_id);
-  post->author = author ? strdup(author->name) : strdup("Unknown");
-  
-  // Initialize comment arrays (empty for now - comments would need separate fetch)
-  post->comments = NULL;
-  post->comment_cap = 0;
-  
-  free_result_list(posts);
-  return post;
-}
 
 // Get post ID from feed row index (0-based)
 int app_get_post_id_from_index(int index) {
@@ -282,17 +202,4 @@ bool app_add_comment(int post_id, int author_id, const char *text) {
   
   SF_DEBUG("comment added: post_id=%d comment_id=%d", post_id, inserted->id);
   return true;
-}
-
-// ============================================================
-// app_add_reply — assign an ID then add to the parent comment
-// ============================================================
-
-bool app_add_reply(comment_t *parent, comment_t *reply) {
-  if (!g_app || !g_app->db || !parent || !reply) return false;
-  
-  // Database auto-assigns comment ID during insert
-  // For now, keep using application-level comment management
-  // TODO: Store comments in database and use dbInsert(TABLE_COMMENTS)
-  return comment_add_reply(parent, reply);
 }

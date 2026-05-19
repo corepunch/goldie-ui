@@ -527,12 +527,13 @@ static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *e
   irect16_t r = (el->parent == 0)
       ? form_to_canvas_rect(s, el->frame)
       : R(el->frame.x, el->frame.y, el->frame.w, el->frame.h);
-  el->live_win = create_window(el->text, el->flags,
+  window_t *live_win = create_window(el->text, el->flags,
                                MAKERECT(r.x, r.y, r.w, r.h),
                                parent, design_live_ctrl_proc, 0, el);
-  if (!el->live_win) return;
-  el->live_win->id = el->id;
-  el->live_win->flags |= WINDOW_NOTABSTOP;
+  if (!live_win) return;
+  live_win->id = el->id;
+  live_win->flags |= WINDOW_NOTABSTOP;
+  fe_ctx_register_live_view(&s->editor_ctx, el->id, live_win);
     if (canvas_type_is_grid(el->type) &&
       !canvas_doc_has_children(doc, el->id))
     send_message(el->live_win, evInitChildren, 0, NULL);
@@ -558,13 +559,13 @@ void canvas_rebuild_live_controls(form_doc_t *doc) {
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s) return;
 
+  fe_ctx_clear_all_live_views(&s->editor_ctx);
+
   while (doc->canvas_win->children)
     destroy_window(doc->canvas_win->children);
 
-  for (int i = 0; i < doc->element_count; i++) {
-    doc->elements[i].live_win = NULL;
+  for (int i = 0; i < doc->element_count; i++)
     canvas_create_live_element_window(doc, &doc->elements[i]);
-  }
 
   canvas_sync_live_controls(doc);
 }
@@ -1186,6 +1187,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       st->external_component_drag = false;
       st->pan          = (ipoint16_t){0, 0};
       st->drag         = (drag_state_t){.mode = DRAG_NONE};
+      fe_ctx_init(&st->editor_ctx);
       canvas_sync_scrollbars(win, st);
       canvas_rebuild_live_controls(st->doc);
       return true;

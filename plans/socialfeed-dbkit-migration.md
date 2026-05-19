@@ -85,7 +85,7 @@ Transform socialfeed from dual object-model to pure database-driven application 
   - Remove `app_get_post()` conversion helper
   - Update view layer to work directly with DB records
 
-- [ ] **5.2 Delete object model entirely**
+- [x] **5.2 Delete object model entirely**
   - Remove model_feed.c file
   - Remove post_t and comment_t struct definitions
   - Remove all conversion helpers

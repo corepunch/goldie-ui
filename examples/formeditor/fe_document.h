@@ -6,7 +6,7 @@
 // Forward declare to avoid circular dependencies
 #define MAX_ELEMENTS  256
 #define CTRL_ID_BASE  1001
-#define FE_MAX_COMPONENTS 32
+// Note: FE_MAX_COMPONENTS is defined in user/user.h as 128
 
 // ============================================================
 // Document Model Types
