@@ -512,8 +512,51 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     case dbSave: {
       if (!ctx || !db->dirty) return 0;
       
-      // TODO: Serialize to XML file
-      printf("db_simple_xml: Saving to %s\n", db->source_path);
+      // Create XML document
+      xmlDocPtr doc = xmlNewDoc((const xmlChar *)"1.0");
+      if (!doc) {
+        printf("db_simple_xml: Failed to create XML document\n");
+        return 0;
+      }
+      
+      // Create root element
+      xmlNodePtr root = xmlNewNode(NULL, (const xmlChar *)"database");
+      xmlDocSetRootElement(doc, root);
+      
+      // Serialize authors table
+      xmlNodePtr authors_table = xmlNewChild(root, NULL, (const xmlChar *)"authors", NULL);
+      for (int i = 0; i < ctx->author_count; i++) {
+        db_save_record_to_xml(authors_table, "author", &ctx->authors[i],
+                              authors_fields,
+                              sizeof(authors_fields)/sizeof(authors_fields[0]));
+      }
+      
+      // Serialize posts table
+      xmlNodePtr posts_table = xmlNewChild(root, NULL, (const xmlChar *)"posts", NULL);
+      for (int i = 0; i < ctx->post_count; i++) {
+        db_save_record_to_xml(posts_table, "post", &ctx->posts[i],
+                              posts_fields,
+                              sizeof(posts_fields)/sizeof(posts_fields[0]));
+      }
+      
+      // Serialize comments table
+      xmlNodePtr comments_table = xmlNewChild(root, NULL, (const xmlChar *)"comments", NULL);
+      for (int i = 0; i < ctx->comment_count; i++) {
+        db_save_record_to_xml(comments_table, "comment", &ctx->comments[i],
+                              comments_fields,
+                              sizeof(comments_fields)/sizeof(comments_fields[0]));
+      }
+      
+      // Save to file with formatting
+      int result = xmlSaveFormatFileEnc(db->source_path, doc, "UTF-8", 1);
+      xmlFreeDoc(doc);
+      
+      if (result == -1) {
+        printf("db_simple_xml: Failed to write %s\n", db->source_path);
+        return 0;
+      }
+      
+      printf("db_simple_xml: Saved to %s\n", db->source_path);
       printf("  - %d authors\n", ctx->author_count);
       printf("  - %d posts\n", ctx->post_count);
       printf("  - %d comments\n", ctx->comment_count);

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database>
+  <authors>
+    <author id="1" name="Alice"/>
+    <author id="2" name="Bob"/>
+    <author id="3" name="Charlie"/>
+  </authors>
+  <posts>
+    <post id="1" author_id="1" title="Welcome to Orion Social Feed!" like_count="5" comment_count="2">
+This is the first post in our social feed application. It demonstrates the database-driven architecture where all data is stored in XML and automatically persists across sessions.
+    </post>
+    <post id="2" author_id="2" title="Database-First Architecture" like_count="3" comment_count="1">
+With the new architecture, all mutations (likes, comments, posts) are persisted immediately to the database. No more transient object conversions!
+    </post>
+  </posts>
+  <comments>
+    <comment id="1" post_id="1" author_id="2" like_count="2">
+Great work on this architecture! Much cleaner than before.
+    </comment>
+    <comment id="2" post_id="1" author_id="3" like_count="1">
+I love how the forms are generated from .orion files. Very declarative!
+    </comment>
+    <comment id="3" post_id="2" author_id="1" like_count="0">
+The combobox foreign key binding works perfectly for author selection.
+    </comment>
+  </comments>
+</database>

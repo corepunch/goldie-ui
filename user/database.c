@@ -292,3 +292,67 @@ bool db_load_record_from_xml(xmlNodePtr node, void *record,
   
   return true;
 }
+
+// ── Reflection-based XML saving (uses generated field metadata) ─────────────
+
+bool db_save_field_to_xml(xmlNodePtr node, const void *record_base,
+                           const db_field_meta_t *field) {
+  if (!node || !record_base || !field) return false;
+  
+  const void *field_ptr = (const char *)record_base + field->offset;
+  char buf[2048];
+  
+  switch (field->type) {
+    case DB_TYPE_INT:
+      snprintf(buf, sizeof(buf), "%d", *(const int *)field_ptr);
+      break;
+      
+    case DB_TYPE_STRING: {
+      const char *str = (const char *)field_ptr;
+      // For body/text fields with potentially large content, use element content
+      if (strcmp(field->name, "body") == 0 || strcmp(field->name, "text") == 0) {
+        if (str[0] != '\0') {
+          xmlNodeSetContent(node, (const xmlChar *)str);
+        }
+        return true;
+      }
+      snprintf(buf, sizeof(buf), "%s", str);
+      break;
+    }
+      
+    case DB_TYPE_BOOL:
+      snprintf(buf, sizeof(buf), "%d", *(const bool *)field_ptr ? 1 : 0);
+      break;
+      
+    case DB_TYPE_FLOAT:
+      snprintf(buf, sizeof(buf), "%g", *(const float *)field_ptr);
+      break;
+      
+    case DB_TYPE_DOUBLE:
+      snprintf(buf, sizeof(buf), "%g", *(const double *)field_ptr);
+      break;
+      
+    default:
+      return false;
+  }
+  
+  xmlSetProp(node, (const xmlChar *)field->name, (const xmlChar *)buf);
+  return true;
+}
+
+xmlNodePtr db_save_record_to_xml(xmlNodePtr parent, const char *element_name,
+                                   const void *record, const db_field_meta_t *fields,
+                                   int field_count) {
+  if (!parent || !element_name || !record || !fields || field_count <= 0)
+    return NULL;
+  
+  xmlNodePtr node = xmlNewChild(parent, NULL, (const xmlChar *)element_name, NULL);
+  if (!node) return NULL;
+  
+  // Save each field
+  for (int i = 0; i < field_count; i++) {
+    db_save_field_to_xml(node, record, &fields[i]);
+  }
+  
+  return node;
+}

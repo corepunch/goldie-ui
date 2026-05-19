@@ -170,13 +170,15 @@ static int hit_test_elements_cycle(canvas_state_t *s, int lx, int ly) {
 
 static irect16_t canvas_element_canvas_rect(form_doc_t *doc, canvas_state_t *s,
                                             const form_element_t *el) {
+  window_t *live_win;
   if (!doc || !s || !el)
     return (irect16_t){0, 0, 0, 0};
+  live_win = fe_ctx_find_live_view(&s->editor_ctx, el->id);
   if (el->parent == 0) {
     irect16_t r = form_to_canvas_rect(s, el->frame);
-    if (canvas_child_window_alive(doc->canvas_win, el->live_win)) {
-      r.w = el->live_win->frame.w;
-      r.h = el->live_win->frame.h;
+    if (live_win && canvas_child_window_alive(doc->canvas_win, live_win)) {
+      r.w = live_win->frame.w;
+      r.h = live_win->frame.h;
     }
     return r;
   }
@@ -184,11 +186,11 @@ static irect16_t canvas_element_canvas_rect(form_doc_t *doc, canvas_state_t *s,
   if (!parent)
     return form_to_canvas_rect(s, el->frame);
   irect16_t pr = canvas_element_canvas_rect(doc, s, parent);
-  if (canvas_child_window_alive(doc->canvas_win, el->live_win)) {
-    return R(pr.x + el->live_win->frame.x,
-             pr.y + el->live_win->frame.y,
-             el->live_win->frame.w,
-             el->live_win->frame.h);
+  if (live_win && canvas_child_window_alive(doc->canvas_win, live_win)) {
+    return R(pr.x + live_win->frame.x,
+             pr.y + live_win->frame.y,
+             live_win->frame.w,
+             live_win->frame.h);
   }
   return R(pr.x + el->frame.x, pr.y + el->frame.y, el->frame.w, el->frame.h);
 }
@@ -285,10 +287,10 @@ static bool canvas_type_is_grid(int type) {
 
 static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
                               int insert_index, uint32_t parent_id);
-static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id);
-
+// Reverse-lookup: find the form element that corresponds to a live window.
+// Walk up the ancestor chain to find the canvas that owns the document,
+// then use the editor context to resolve the window → element mapping.
 static form_element_t *canvas_find_element_for_live_window(window_t *win) {
-  form_doc_t *doc;
   if (!win) return NULL;
 
   /*
@@ -301,12 +303,9 @@ static form_element_t *canvas_find_element_for_live_window(window_t *win) {
     canvas_state_t *s = (canvas_state_t *)ancestor->userdata;
     if (!s || !s->doc)
       continue;
-    doc = s->doc;
-    for (int i = 0; i < doc->element_count; i++) {
-      if (doc->elements[i].live_win == win)
-        return &doc->elements[i];
-    }
-    return NULL;
+    form_element_t *el = fe_ctx_find_element_for_live_window(&s->editor_ctx, s->doc, win);
+    if (el)
+      return el;
   }
   return NULL;
 }
@@ -486,29 +485,32 @@ static void canvas_update_preview(canvas_state_t *s, int type, irect16_t form_rc
 
 static void canvas_sync_live_element_window(form_doc_t *doc, form_element_t *el) {
   canvas_state_t *s;
-  if (!doc || !doc->canvas_win || !el ||
-      !canvas_child_window_alive(doc->canvas_win, el->live_win))
+  window_t *live_win;
+  if (!doc || !doc->canvas_win || !el)
     return;
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s) return;
+  live_win = fe_ctx_find_live_view(&s->editor_ctx, el->id);
+  if (!live_win || !canvas_child_window_alive(doc->canvas_win, live_win))
+    return;
   if (el->parent == 0) {
     irect16_t r = form_to_canvas_rect(s, el->frame);
-    move_window(el->live_win, r.x, r.y);
-    resize_window(el->live_win, el->frame.w, el->frame.h);
+    move_window(live_win, r.x, r.y);
+    resize_window(live_win, el->frame.w, el->frame.h);
   } else if (!canvas_element_parent_is_layout_managed(doc, el)) {
-    move_window(el->live_win, el->frame.x, el->frame.y);
-    resize_window(el->live_win, el->frame.w, el->frame.h);
+    move_window(live_win, el->frame.x, el->frame.y);
+    resize_window(live_win, el->frame.w, el->frame.h);
   }
-  if (el->live_win->proc == win_label) {
+  if (live_win->proc == win_label) {
     uint32_t packed = label_pack_userdata(el->color,
                                           el->font_set ? (ui_font_t)el->font : FONT_SMALL,
                                           el->color_set);
-    if ((uint32_t)(uintptr_t)el->live_win->userdata != packed)
-      el->live_win->userdata = (void *)(uintptr_t)packed;
+    if ((uint32_t)(uintptr_t)live_win->userdata != packed)
+      live_win->userdata = (void *)(uintptr_t)packed;
   }
-  if (strcmp(el->live_win->title, el->text) != 0) {
-    snprintf(el->live_win->title, sizeof(el->live_win->title), "%s", el->text);
-    invalidate_window(el->live_win);
+  if (strcmp(live_win->title, el->text) != 0) {
+    snprintf(live_win->title, sizeof(live_win->title), "%s", el->text);
+    invalidate_window(live_win);
   }
 }
 
@@ -521,8 +523,9 @@ static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *e
   window_t *parent = doc->canvas_win;
   if (el->parent != 0) {
     form_element_t *pel = canvas_find_element_by_id(doc, el->parent);
-    if (pel && canvas_child_window_alive(doc->canvas_win, pel->live_win))
-      parent = pel->live_win;
+    window_t *parent_live = pel ? fe_ctx_find_live_view(&s->editor_ctx, pel->id) : NULL;
+    if (pel && parent_live && canvas_child_window_alive(doc->canvas_win, parent_live))
+      parent = parent_live;
   }
   irect16_t r = (el->parent == 0)
       ? form_to_canvas_rect(s, el->frame)
@@ -534,13 +537,13 @@ static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *e
   live_win->id = el->id;
   live_win->flags |= WINDOW_NOTABSTOP;
   fe_ctx_register_live_view(&s->editor_ctx, el->id, live_win);
-    if (canvas_type_is_grid(el->type) &&
+  if (canvas_type_is_grid(el->type) &&
       !canvas_doc_has_children(doc, el->id))
-    send_message(el->live_win, evInitChildren, 0, NULL);
-  if (el->live_win->frame.w > el->frame.w ||
-      el->live_win->frame.h > el->frame.h) {
-    el->frame.w = MAX(el->frame.w, el->live_win->frame.w);
-    el->frame.h = MAX(el->frame.h, el->live_win->frame.h);
+    send_message(live_win, evInitChildren, 0, NULL);
+  if (live_win->frame.w > el->frame.w ||
+      live_win->frame.h > el->frame.h) {
+    el->frame.w = MAX(el->frame.w, live_win->frame.w);
+    el->frame.h = MAX(el->frame.h, live_win->frame.h);
     canvas_sync_live_element_window(doc, el);
   }
 }
@@ -735,17 +738,33 @@ static form_element_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id) {
 
 static bool canvas_element_parent_is_layout_managed(form_doc_t *doc,
                                                     const form_element_t *el) {
+  canvas_state_t *s;
+  window_t *parent_live;
   if (!doc || !el || el->parent == 0)
     return false;
   form_element_t *parent = canvas_find_element_by_id(doc, el->parent);
-  return parent && parent->live_win && (parent->live_win->flags & WINDOW_AUTO_LAYOUT);
+  if (!parent || !doc->canvas_win)
+    return false;
+  s = (canvas_state_t *)doc->canvas_win->userdata;
+  if (!s)
+    return false;
+  parent_live = fe_ctx_find_live_view(&s->editor_ctx, parent->id);
+  return parent_live && (parent_live->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static bool canvas_parent_is_layout_managed(form_doc_t *doc, uint32_t parent_id) {
+  canvas_state_t *s;
+  window_t *parent_live;
   if (!doc || parent_id == 0)
     return false;
   form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
-  return parent && parent->live_win && (parent->live_win->flags & WINDOW_AUTO_LAYOUT);
+  if (!parent || !doc->canvas_win)
+    return false;
+  s = (canvas_state_t *)doc->canvas_win->userdata;
+  if (!s)
+    return false;
+  parent_live = fe_ctx_find_live_view(&s->editor_ctx, parent->id);
+  return parent_live && (parent_live->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static canvas_pt_t canvas_screen_to_canvas_pt(form_doc_t *doc, int screen_x, int screen_y) {
@@ -824,7 +843,7 @@ window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
   }
 
   for (form_element_t *el = &doc->elements[hit]; el; el = canvas_find_element_by_id(doc, el->parent)) {
-    window_t *target = el->live_win;
+    window_t *target = fe_ctx_find_live_view(&s->editor_ctx, el->id);
     if (!target)
       continue;
     if (!fe_component_rejects_parent(c, target))
@@ -862,12 +881,20 @@ static bool canvas_seed_grid_children(form_doc_t *doc, int grid_index) {
 }
 
 static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id) {
+  canvas_state_t *s;
+  window_t *parent_live;
   if (!doc || parent_id == 0)
     return;
   form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
-  if (!parent || !parent->live_win || !(parent->live_win->flags & WINDOW_AUTO_LAYOUT))
+  if (!parent || !doc->canvas_win)
     return;
-  window_layout_sync(parent->live_win);
+  s = (canvas_state_t *)doc->canvas_win->userdata;
+  if (!s)
+    return;
+  parent_live = fe_ctx_find_live_view(&s->editor_ctx, parent->id);
+  if (!parent_live || !(parent_live->flags & WINDOW_AUTO_LAYOUT))
+    return;
+  window_layout_sync(parent_live);
 }
 
 // ============================================================

@@ -86,6 +86,13 @@ bool db_load_field_from_xml(xmlNodePtr node, void *record_base,
 bool db_load_record_from_xml(xmlNodePtr node, void *record,
                               const db_field_meta_t *fields, int field_count);
 
+// Reflection-based XML saving (uses generated field metadata from orionc)
+bool db_save_field_to_xml(xmlNodePtr node, const void *record_base,
+                           const db_field_meta_t *field);
+xmlNodePtr db_save_record_to_xml(xmlNodePtr parent, const char *element_name,
+                                  const void *record, const db_field_meta_t *fields,
+                                  int field_count);
+
 // Database class registry
 bool register_database_class(const db_class_desc_t *desc);
 dbproc_t find_database_class_proc(const char *class_name);
