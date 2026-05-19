@@ -20,6 +20,11 @@ enum {
   PROP_ROW_H_ALIGN,
   PROP_ROW_V_ALIGN,
   PROP_ROW_FONT,
+  // Database binding properties (NeXTSTEP DBKit style)
+  PROP_ROW_DB_FIELD,
+  PROP_ROW_DB_SOURCE,
+  PROP_ROW_DB_DISPLAY,
+  PROP_ROW_DB_VALUE,
 };
 
 typedef struct {
@@ -73,6 +78,10 @@ static bool prop_row_editable(uint32_t prop_id) {
     case PROP_ROW_H_ALIGN:
     case PROP_ROW_V_ALIGN:
     case PROP_ROW_FONT:
+    case PROP_ROW_DB_FIELD:
+    case PROP_ROW_DB_SOURCE:
+    case PROP_ROW_DB_DISPLAY:
+    case PROP_ROW_DB_VALUE:
       return true;
     default:
       return false;
@@ -217,6 +226,34 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
         fe_doc_set_element_frame(doc, el->id, (irect16_t){el->frame.x, el->frame.y, el->frame.w, h});
       }
       break;
+    case PROP_ROW_DB_FIELD:
+      {
+        int idx = fe_doc_find_element_index(doc, el->id);
+        if (idx >= 0)
+          fe_doc_set_element_db_field(doc, idx, value);
+      }
+      break;
+    case PROP_ROW_DB_SOURCE:
+      {
+        int idx = fe_doc_find_element_index(doc, el->id);
+        if (idx >= 0)
+          fe_doc_set_element_db_source(doc, idx, value);
+      }
+      break;
+    case PROP_ROW_DB_DISPLAY:
+      {
+        int idx = fe_doc_find_element_index(doc, el->id);
+        if (idx >= 0)
+          fe_doc_set_element_db_display(doc, idx, value);
+      }
+      break;
+    case PROP_ROW_DB_VALUE:
+      {
+        int idx = fe_doc_find_element_index(doc, el->id);
+        if (idx >= 0)
+          fe_doc_set_element_db_value(doc, idx, value);
+      }
+      break;
     default:
       return;
   }
@@ -296,6 +333,13 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
+  
+  // Database binding properties
+  prop_add_row(list, "Database Field", el->db_field, PROP_ROW_DB_FIELD);
+  prop_add_row(list, "Database Source", el->db_source, PROP_ROW_DB_SOURCE);
+  prop_add_row(list, "Database Display", el->db_display, PROP_ROW_DB_DISPLAY);
+  prop_add_row(list, "Database Value", el->db_value, PROP_ROW_DB_VALUE);
+  
   if (g_app && g_app->doc && (g_app->doc->flags & WINDOW_AUTO_LAYOUT)) {
     prop_add_row(list, "Horizontal alignment", prop_h_align_name(el->h_align), PROP_ROW_H_ALIGN);
     prop_add_row(list, "Vertical alignment", prop_v_align_name(el->v_align), PROP_ROW_V_ALIGN);
