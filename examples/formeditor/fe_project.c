@@ -27,8 +27,7 @@ void form_doc_activate(form_doc_t *doc) {
     invalidate_window(prev->doc_win);
   if (doc->doc_win)
     invalidate_window(doc->doc_win);
-  property_browser_refresh(doc);
-  forms_browser_refresh();
+  fe_notify(FE_EVENT_DOCUMENT_ACTIVATED, doc);
 }
 
 void form_doc_show_only(form_doc_t *doc) {
@@ -40,7 +39,6 @@ void form_doc_show_only(form_doc_t *doc) {
   form_doc_activate(doc);
   if (doc->doc_win && is_window(doc->doc_win))
     show_window(doc->doc_win, true);
-  forms_browser_refresh();
 }
 
 // ============================================================
@@ -195,8 +193,7 @@ form_doc_t *create_form_doc(int w, int h) {
     invalidate_window(prev_doc->doc_win);
   form_doc_update_title(doc);
   send_message(dwin, evStatusBar, 0, (void *)"New form");
-  property_browser_refresh(doc);
-  forms_browser_refresh();
+  fe_notify(FE_EVENT_DOCUMENT_CREATED, doc);
   return doc;
 }
 
@@ -213,7 +210,6 @@ void close_form_doc(form_doc_t *doc) {
   }
   if (doc->doc_win && is_window(doc->doc_win))
     destroy_window(doc->doc_win);
-  property_browser_refresh(g_app ? g_app->doc : NULL);
-  forms_browser_refresh();
+  fe_notify(FE_EVENT_DOCUMENT_CLOSED, NULL);
   free(doc);
 }

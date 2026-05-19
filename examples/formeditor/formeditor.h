@@ -14,6 +14,7 @@
 #include "fe_project_io.h"  // XML project I/O
 #include "fe_project.h"  // Project-level document management
 #include "fe_commands.h"  // Command dispatcher
+#include "fe_notifications.h"  // Observer pattern for browser updates
 
 // ============================================================
 // Layout constants

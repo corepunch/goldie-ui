@@ -2,6 +2,7 @@
 // Pure data layer - no UI dependencies except type definitions.
 
 #include "fe_document.h"
+#include "fe_notifications.h"
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
 #include <ctype.h>
@@ -9,11 +10,6 @@
 
 // External reference to global app state (temporary, will be refactored).
 extern app_state_t *g_app;
-
-// Forward declarations for functions that will be moved from win_menubar.c
-// in later phases.
-extern void property_browser_refresh(form_doc_t *doc);
-extern void forms_browser_refresh(void);
 
 // ============================================================
 // Internal Helpers
@@ -95,6 +91,7 @@ void fe_doc_mark_modified(form_doc_t *doc) {
   if (!doc->modified) {
     doc->modified = true;
     fe_doc_update_title(doc);
+    fe_notify(FE_EVENT_DOCUMENT_MODIFIED, doc);
   }
 }
 

@@ -27,6 +27,7 @@ typedef struct {
   window_t *edit_win;
   uint32_t  edit_prop_id;
   int       edit_row;
+  int       subscription_id;
 } prop_browser_state_t;
 
 #define PROP_VALUE_X 72
@@ -333,6 +334,20 @@ void property_browser_refresh(form_doc_t *doc) {
   send_message(list, RVM_SETREDRAW, 1, NULL);
 }
 
+static void property_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+  (void)ctx;
+  switch (event) {
+    case FE_EVENT_DOCUMENT_ACTIVATED:
+    case FE_EVENT_DOCUMENT_MODIFIED:
+    case FE_EVENT_SELECTION_CHANGED:
+    case FE_EVENT_ELEMENT_MODIFIED:
+      property_browser_refresh(doc);
+      break;
+    default:
+      break;
+  }
+}
+
 window_t *property_browser_create(hinstance_t hinstance) {
   window_t *win = create_window(
       "Properties",
@@ -366,11 +381,14 @@ result_t win_property_browser_proc(window_t *win, uint32_t msg,
       reportview_column_t c1 = { "Value", 0 };
       send_message(pbs->list_win, RVM_ADDCOLUMN, 0, &c0);
       send_message(pbs->list_win, RVM_ADDCOLUMN, 0, &c1);
+      pbs->subscription_id = fe_subscribe(property_browser_observer, win);
       property_browser_refresh(g_app ? g_app->doc : NULL);
       return true;
     }
 
     case evDestroy:
+      if (pbs)
+        fe_unsubscribe(pbs->subscription_id);
       if (g_app && g_app->prop_win == win)
         g_app->prop_win = NULL;
       return false;

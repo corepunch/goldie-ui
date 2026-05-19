@@ -11,6 +11,7 @@
 
 typedef struct {
   window_t *list_win;
+  int       subscription_id;
 } forms_browser_state_t;
 
 static const toolbar_item_t kFormsToolbar[] = {
@@ -72,6 +73,21 @@ void forms_browser_refresh(void) {
   forms_browser_rebuild(st);
 }
 
+static void forms_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+  (void)doc;
+  (void)ctx;
+  switch (event) {
+    case FE_EVENT_DOCUMENT_CREATED:
+    case FE_EVENT_DOCUMENT_CLOSED:
+    case FE_EVENT_DOCUMENT_ACTIVATED:
+    case FE_EVENT_DOCUMENT_MODIFIED:
+      forms_browser_refresh();
+      break;
+    default:
+      break;
+  }
+}
+
 window_t *forms_browser_create(hinstance_t hinstance) {
   window_t *win = create_window("Forms",
       WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
@@ -128,6 +144,7 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
 
       send_message(win, tbSetItems, ARRAY_LEN(kFormsToolbar),
                    (void *)kFormsToolbar);
+      st->subscription_id = fe_subscribe(forms_browser_observer, win);
       forms_browser_rebuild(st);
       return true;
     }
@@ -171,6 +188,8 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
     }
 
     case evDestroy:
+      if (st)
+        fe_unsubscribe(st->subscription_id);
       if (g_app && g_app->forms_win == win)
         g_app->forms_win = NULL;
       return false;
