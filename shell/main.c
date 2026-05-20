@@ -69,6 +69,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    ui_init_ui();
+
     int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
 
     // Register the shell's open-file handler so any gem can call ui_open_file()

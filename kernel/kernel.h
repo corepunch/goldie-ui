@@ -47,6 +47,10 @@ void repost_messages(void);
 bool ui_init_graphics(int flags, const char *title, int width, int height);
 void ui_shutdown_graphics(void);
 
+// Initialize Orion UI component registry and register built-in controls.
+// Must be called after ui_init_graphics() but before creating any UI windows.
+void ui_init_ui(void);
+
 // Joystick input management (abstracted)
 bool ui_joystick_init(void);
 void ui_joystick_shutdown(void);

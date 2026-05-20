@@ -32,8 +32,8 @@ void test_env_init(void) {
     test_env.tracking_enabled = false;
     test_env.event_count = 0;
     
-    // Register all common controls with the window system
-    register_commctl_classes();
+    // Initialize UI components
+    ui_init_ui();
 }
 
 // Shutdown test environment

@@ -18,10 +18,8 @@
 #include "../user/user.h"
 #include "../user/draw.h"
 #include "../user/image.h"
-#include "../commctl/commctl.h"
 #include "../user/icons.h"
 #include "../user/theme.h"
-#include "../commctl/commctl.h"
 #include "kernel.h"
 
 bool ui_init_prog(void);
@@ -247,9 +245,6 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   if (g_graphics_initialized) return true;
 
   axInit();
-  
-  // Register all common controls with the window system
-  register_commctl_classes();
 
   if (!axCreateWindow(title, width * UI_WINDOW_SCALE, height * UI_WINDOW_SCALE, 0)) {
     printf("Window could not be created!\n");

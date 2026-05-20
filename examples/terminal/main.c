@@ -33,6 +33,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  ui_init_ui();
+
   window_t *win = create_window(
     "Terminal",
     0,
