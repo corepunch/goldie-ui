@@ -352,10 +352,8 @@ static inline uint32_t label_pack_userdata(uint32_t color_index, ui_font_t font,
 #define FE_COMPONENT_SHOW_TOOLBOX   0x0002u
 
 typedef struct {
-  const char *class_name;     // stable runtime class key (e.g. "button")
-  const char *display_name;   // UI/display caption base (e.g. "Button")
+  const char *class_name;     // stable runtime class key (e.g. "Button")
   const char *name_prefix;    // identifier prefix (e.g. "IDC_BTN")
-  int         toolbox_ident;  // command ID sent by toolbox host
   int         toolbox_icon;    // icon id from sysicon_* or custom strip index
   isize16_t   default_size;   // default size when click-placing
   uint32_t    capabilities;   // FE_COMPONENT_* flags
@@ -407,7 +405,7 @@ bool fe_register_component(const fe_component_desc_t *desc);
 int fe_component_count(void);
 const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
-const fe_component_desc_t *fe_component_by_tool_ident(int ident);
+int fe_component_id_of(const fe_component_desc_t *desc);
 const fe_component_desc_t *fe_component_by_class_name(const char *class_name);
 bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target);
 
@@ -489,7 +487,6 @@ window_t *create_window_proc(char const *title, flags_t flags, const irect16_t* 
 
 // Window class registry.
 bool register_window_class(const fe_component_desc_t *desc);
-bool register_window_class_once(const fe_component_desc_t *desc);
 winproc_t find_window_class_proc(const char *class_name);
 const fe_component_desc_t *find_window_class_desc(const char *class_name);
 void register_builtin_window_classes(void);
@@ -504,7 +501,7 @@ uint8_t  get_class_default_v_align(const char *class_name);
   ((fe_component_desc_t){ .class_name = (name_sym), .proc = (proc_sym) })
 
 #define UI_CLASS(proc_sym) \
-  register_window_class_once(&(fe_component_desc_t){ .class_name = #proc_sym, .proc = (proc_sym) })
+  register_window_class(&(fe_component_desc_t){ .class_name = #proc_sym, .proc = (proc_sym) })
 
 // Migration bridge: `create_window` accepts either a class name string or a
 // winproc symbol and dispatches to the appropriate creation function.

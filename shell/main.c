@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ui_init_ui();
+    register_commctl_classes();
 
     int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
 

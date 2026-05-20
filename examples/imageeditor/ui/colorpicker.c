@@ -114,10 +114,8 @@ static result_t cp_surface_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam);
 
 static const fe_component_desc_t kColorPickerSurfaceDesc = {
-  .class_name = "cp_surface",
-  .display_name = "Color Picker Surface",
+  .class_name = "ColorPickerSurface",
   .name_prefix = "IDC_CPSURF",
-  .toolbox_ident = 0,
   .toolbox_icon = 0,
   .default_size = {CP_WIN_W, CP_BTN_Y},
   .capabilities = 0,
@@ -402,7 +400,7 @@ bool show_color_picker(window_t *parent, uint32_t initial, uint32_t *out) {
   st.hover_pal = -1;
   sync_hsv(&st);
 
-  register_window_class_once(&kColorPickerSurfaceDesc);
+  register_window_class(&kColorPickerSurfaceDesc);
 
   uint32_t result = show_dialog_from_form(&imageeditor_color_picker_form, "Edit Color",
                                           parent, cp_proc, &st);

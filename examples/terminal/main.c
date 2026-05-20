@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  ui_init_ui();
+  register_commctl_classes();
 
   window_t *win = create_window(
     "Terminal",

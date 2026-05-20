@@ -32,8 +32,8 @@ void test_env_init(void) {
     test_env.tracking_enabled = false;
     test_env.event_count = 0;
     
-    // Initialize UI components
-    ui_init_ui();
+    // Register built-in common controls for tests that instantiate them.
+    register_commctl_classes();
 }
 
 // Shutdown test environment

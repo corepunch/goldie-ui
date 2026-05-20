@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  ui_init_ui();
+  register_commctl_classes();
 
   printf("Graphics initialized successfully\n");
   printf("Creating window with UI framework...\n");

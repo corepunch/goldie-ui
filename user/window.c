@@ -80,10 +80,6 @@ bool register_window_class(const fe_component_desc_t *desc) {
   return true;
 }
 
-bool register_window_class_once(const fe_component_desc_t *desc) {
-  return register_window_class(desc);
-}
-
 winproc_t find_window_class_proc(const char *class_name) {
   if (!class_name || !*class_name) return NULL;
   for (int i = 0; i < g_window_class_count; i++) {
