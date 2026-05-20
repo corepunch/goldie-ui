@@ -15,6 +15,7 @@
 // and refreshes itself after each change.
 
 #include "imageeditor.h"
+#include "../commands/commands.h"
 
 // ============================================================
 // Drawing helpers
@@ -241,11 +242,7 @@ result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
         if (li < 0 || li >= doc->layer.count) return true;
         int zone = hit_zone(mx);
         if (zone == ZONE_EYE) {
-          doc_push_undo(doc);
-          doc->layer.stack[li]->visible = !doc->layer.stack[li]->visible;
-          doc->canvas_dirty = true;
-          doc->modified = true;
-          invalidate_window(doc->canvas_win);
+          cmd_layer_set_visibility(doc, li, !doc->layer.stack[li]->visible);
           invalidate_window(win);
         } else if (zone == ZONE_CHIP) {
           if (li == doc->layer.active) {
@@ -288,10 +285,8 @@ result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
             doc->layer.active < doc->layer.count) {
           result_t sel = send_message((window_t *)lparam, cbGetCurrentSelection, 0, NULL);
           if (sel != (result_t)kComboBoxError) {
-            doc_push_undo(doc);
-            doc_set_layer_blend_mode(doc, doc->layer.active, (layer_blend_mode_t)sel);
+            cmd_layer_set_blend_mode(doc, doc->layer.active, (layer_blend_mode_t)sel);
             invalidate_window(win);
-            if (doc->canvas_win) invalidate_window(doc->canvas_win);
             return true;
           }
         }

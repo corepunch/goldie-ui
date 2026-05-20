@@ -2,6 +2,7 @@
 // Registers all commctl window classes with the user.dll window system
 
 #include "commctl.h"
+#include "../../examples/formeditor/controls-icons.h"
 
 // Layout containers (stack, grid, flow, column)
 extern result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -22,336 +23,138 @@ extern result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void 
 extern result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
+#define CLASS_DESC(class_name_lit, display_name_lit, name_prefix_lit, toolbox_ident_val, toolbox_icon_val, \
+                   default_size_w, default_size_h, default_layout_w, default_layout_h, \
+                   default_flags_val, capabilities_val, proc_fn) \
+  { \
+    .class_name = class_name_lit, \
+    .display_name = display_name_lit, \
+    .name_prefix = name_prefix_lit, \
+    .toolbox_ident = toolbox_ident_val, \
+    .toolbox_icon = toolbox_icon_val, \
+    .default_size = {default_size_w, default_size_h}, \
+    .capabilities = capabilities_val, \
+    .proc = proc_fn, \
+    .default_layout_size = {default_layout_w, default_layout_h}, \
+    .default_flags = default_flags_val, \
+    .default_h_align = LAYOUT_ALIGN_STRETCH, \
+    .default_v_align = LAYOUT_ALIGN_STRETCH, \
+  }
+
+static const fe_component_desc_t k_commctl_classes[] = {
+  CLASS_DESC("button", "Button", "IDC_BTN", 205, IC_BUTTON,
+             75, 23, 0, 19, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_button),
+  CLASS_DESC("checkbox", "CheckBox", "IDC_CHK", 206, IC_CHECKBOX,
+             97, 17, 0, 13, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_checkbox),
+  CLASS_DESC("label", "Label", "IDC_LBL", 202, IC_TEXT,
+             65, 13, 0, 13, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_label),
+  CLASS_DESC("textedit", "TextBox", "IDC_EDT", 203, IC_TEXT_FIELD,
+             121, 20, 0, 13, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_textedit),
+  CLASS_DESC("list", "ListBox", "IDC_LST", 209, IC_LIST_VIEW,
+             121, 60, 0, 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_list),
+  CLASS_DESC("combobox", "ComboBox", "IDC_CMB", 208, IC_COMBO_BOX,
+             121, 20, 0, 13, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_combobox),
+  CLASS_DESC("slider", "Slider", "IDC_SLD", 210, IC_SLIDER,
+             121, 17, 0, 16, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_slider),
+  CLASS_DESC("gradient", "Gradient", "IDC_GRD", 211, IC_PROGRESS_BAR,
+             121, 8, 0, 8, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_gradient),
+  CLASS_DESC("column", "Column", "IDC_COL", 213, IC_PANEL,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_column),
+  CLASS_DESC("stack", "StackView", "IDC_STK", 217, IC_DOCUMENT_STACK,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_stack),
+  CLASS_DESC("grid", "GridView", "IDC_GRD", 218, IC_GRID_LAYOUT,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_grid),
+  CLASS_DESC("flowview", "FlowView", "IDC_FLOW", 216, IC_DOCUMENT_STACK,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_flow),
+  CLASS_DESC("reportview", "ReportView", "IDC_RVW", 212, IC_DETAILS_VIEW,
+             160, 120, 0, 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_reportview),
+  CLASS_DESC("separator", "Separator", "IDC_SEP", 214, IC_PANEL,
+             80, 8, 0, 1, 0,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_separator),
+  CLASS_DESC("space", "Space", "IDC_SPC", 215, IC_PANEL,
+             80, 40, 0, 0, WINDOW_FLEXSPACE,
+             FE_COMPONENT_PLACEABLE, win_space),
+  CLASS_DESC("tableview", "TableView", "IDC_TBL", 0, 0,
+             160, 120, 0, 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
+             0, win_tableview),
+  CLASS_DESC("multiedit", "MultiEdit", "IDC_MED", 0, 0,
+             160, 120, 0, 100, WINDOW_VSCROLL | WINDOW_FLEXSPACE,
+             0, win_multiedit),
+  CLASS_DESC("toolbar_button", "ToolbarButton", "IDC_TBB", 0, 0,
+             19, 19, 0, 19, 0,
+             0, win_toolbar_button),
+  CLASS_DESC("image", "Image", "IDC_IMG", 0, 0,
+             0, 0, 0, 0, 0,
+             0, win_image),
+  CLASS_DESC("console", "Console", "IDC_CON", 0, 0,
+             160, 120, 0, 100, WINDOW_VSCROLL,
+             0, win_console),
+  CLASS_DESC("filelist", "FileList", "IDC_FLT", 0, 0,
+             160, 120, 0, 100, WINDOW_VSCROLL,
+             0, win_filelist),
+  CLASS_DESC("terminal", "Terminal", "IDC_TRM", 0, 0,
+             160, 120, 0, 100, WINDOW_VSCROLL,
+             0, win_terminal),
+  CLASS_DESC("menubar", "MenuBar", "IDC_MNB", 0, 0,
+             0, TITLEBAR_HEIGHT, 0, TITLEBAR_HEIGHT, 0,
+             0, win_menubar),
+  CLASS_DESC("scrollbar", "ScrollBar", "IDC_SCB", 0, 0,
+             8, 8, 8, 8, 0,
+             0, win_scrollbar),
+  CLASS_DESC("toolbox", "Toolbox", "IDC_TBX", 0, 0,
+             120, 300, 0, 0, 0,
+             0, win_toolbox),
+  CLASS_DESC("splitter", "Splitter", "IDC_SPL", 0, 0,
+             6, 6, 0, 0, 0,
+             0, win_splitter),
+  CLASS_DESC("column_browser", "ColumnBrowser", "IDC_CBR", 0, 0,
+             160, 200, 0, 200, 0,
+             0, win_column_browser),
+
+  // Compatibility aliases
+  CLASS_DESC("stackview", "StackViewAlias", "IDC_STK", 0, 0,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             0, win_stack),
+  CLASS_DESC("flow", "Flow", "IDC_FLW", 0, 0,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             0, win_flow),
+  CLASS_DESC("gridview", "GridViewAlias", "IDC_GRD", 0, 0,
+             120, 80, 0, 0, WINDOW_LAYOUT_CONTAINER,
+             0, win_grid),
+};
+
+#undef CLASS_DESC
+
+int get_num_classes(void) {
+  return (int)ARRAY_LEN(k_commctl_classes);
+}
+
+const fe_component_desc_t *get_class_at_index(int index) {
+  if (index < 0 || index >= get_num_classes())
+    return NULL;
+  return &k_commctl_classes[index];
+}
+
 // Register all common controls with the window system.
 // Called once during framework initialization.
 void register_commctl_classes(void) {
-  // Button control - standard height for buttons
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "button",
-    .proc = win_button,
-    .default_width = 0,    // measure content
-    .default_height = 19,  // standard button height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Label control - single line of text
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "label",
-    .proc = win_label,
-    .default_width = 0,    // measure content
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Text edit control - single line input
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "textedit",
-    .proc = win_textedit,
-    .default_width = 0,    // stretch to fit
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Checkbox control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "checkbox",
-    .proc = win_checkbox,
-    .default_width = 0,    // measure content
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Combobox control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "combobox",
-    .proc = win_combobox,
-    .default_width = 0,    // stretch to fit
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Separator - visual divider line (no expansion)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "separator",
-    .proc = win_separator,
-    .default_width = 0,    // stretch to container width
-    .default_height = 1,   // 1px visual line
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Space element - flexible spacer that expands
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "space",
-    .proc = win_space,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_FLEXSPACE,  // Always flexible
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Reportview - scrolling list/grid control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "reportview",
-    .proc = win_reportview,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // ~6 rows
-    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Tableview - database-backed table view
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "tableview",
-    .proc = win_tableview,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // ~6 rows
-    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // List control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "list",
-    .proc = win_list,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // ~6 rows
-    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Multi-line edit control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "multiedit",
-    .proc = win_multiedit,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // multiple lines
-    .default_flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Toolbar button control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "toolbar_button",
-    .proc = win_toolbar_button,
-    .default_width = 0,
-    .default_height = 19,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Image control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "image",
-    .proc = win_image,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Console control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "console",
-    .proc = win_console,
-    .default_width = 0,
-    .default_height = 100,
-    .default_flags = WINDOW_VSCROLL,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // File list control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "filelist",
-    .proc = win_filelist,
-    .default_width = 0,
-    .default_height = 100,
-    .default_flags = WINDOW_VSCROLL,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Terminal control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "terminal",
-    .proc = win_terminal,
-    .default_width = 0,
-    .default_height = 100,
-    .default_flags = WINDOW_VSCROLL,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Menu bar control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "menubar",
-    .proc = win_menubar,
-    .default_width = 0,
-    .default_height = TITLEBAR_HEIGHT,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Scrollbar control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "scrollbar",
-    .proc = win_scrollbar,
-    .default_width = 8,
-    .default_height = 8,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Slider control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "slider",
-    .proc = win_slider,
-    .default_width = 0,
-    .default_height = 16,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Gradient control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "gradient",
-    .proc = win_gradient,
-    .default_width = 0,
-    .default_height = 8,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Toolbox control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "toolbox",
-    .proc = win_toolbox,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Splitter control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "splitter",
-    .proc = win_splitter,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Column browser (NSBrowser-style multi-column navigation)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "column_browser",
-    .proc = win_column_browser,
-    .default_width = 0,     // stretch to container
-    .default_height = 200,  // reasonable default height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Column layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "column",
-    .proc = win_column,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Stack layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "stack",
-    .proc = win_stack,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Stack layout container (alias)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "stackview",
-    .proc = win_stack,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Flow layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "flow",
-    .proc = win_flow,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Flow layout container (alias)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "flowview",
-    .proc = win_flow,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Grid layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "grid",
-    .proc = win_grid,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Grid layout container (alias)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "gridview",
-    .proc = win_grid,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_LAYOUT_CONTAINER,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
+  int n = get_num_classes();
+  for (int i = 0; i < n; i++) {
+    const fe_component_desc_t *desc = get_class_at_index(i);
+    if (desc)
+      register_window_class(desc);
+  }
 }

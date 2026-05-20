@@ -8,7 +8,7 @@
 
 #include "msgbox.h"
 #include "commctl.h"
-#include "../user/user.h"
+#include "../../user/user.h"
 
 // ---------------------------------------------------------------------------
 // Layout

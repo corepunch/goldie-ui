@@ -10,9 +10,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
 
 #define ME_BUF_SIZE 2048
 #define ME_PADDING  3

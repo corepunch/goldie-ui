@@ -1,6 +1,6 @@
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
 
 #define TRAY_HEIGHT (BUTTON_HEIGHT+4)
 #define SPACING 4

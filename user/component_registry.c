@@ -22,24 +22,22 @@ static int g_component_count = 0;
 static void *g_component_plugin_handles[FE_MAX_COMPONENT_PLUGINS];
 static int g_component_plugin_count = 0;
 
-static bool fe_component_exists(const char *class_name, const char *token) {
+static bool fe_component_exists(const char *class_name) {
   for (int i = 0; i < g_component_count; i++) {
     const fe_component_desc_t *d = &g_components[i].desc;
     if (class_name && d->class_name && strcmp(class_name, d->class_name) == 0)
-      return true;
-    if (token && d->token && strcmp(token, d->token) == 0)
       return true;
   }
   return false;
 }
 
 bool fe_register_component(const fe_component_desc_t *desc) {
-  if (!desc || !desc->class_name || !desc->display_name || !desc->token ||
+  if (!desc || !desc->class_name || !desc->display_name ||
       !desc->name_prefix || !desc->proc)
     return false;
   if (g_component_count >= FE_MAX_COMPONENTS)
     return false;
-  if (fe_component_exists(desc->class_name, desc->token))
+  if (fe_component_exists(desc->class_name))
     return false;
   if (!register_window_class(desc))
     return false;
@@ -76,12 +74,12 @@ const fe_component_desc_t *fe_component_by_tool_ident(int ident) {
   return NULL;
 }
 
-const fe_component_desc_t *fe_component_by_token(const char *token) {
-  if (!token || !*token)
+const fe_component_desc_t *fe_component_by_class_name(const char *class_name) {
+  if (!class_name || !*class_name)
     return NULL;
   for (int i = 0; i < g_component_count; i++) {
     const fe_component_desc_t *d = &g_components[i].desc;
-    if (strcmp(d->token, token) == 0)
+    if (strcmp(d->class_name, class_name) == 0)
       return d;
   }
   return NULL;

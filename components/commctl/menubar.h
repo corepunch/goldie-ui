@@ -1,7 +1,7 @@
 #ifndef __UI_MENUBAR_H__
 #define __UI_MENUBAR_H__
 
-#include "../user/user.h"
+#include "../../user/user.h"
 
 // Height of the menu bar strip — same formula as TITLEBAR_HEIGHT.
 // FONT_SIZE is a compile-time constant from kernel/kernel.h (included via user/user.h).

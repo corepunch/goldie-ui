@@ -16,9 +16,9 @@
 #include "filepicker.h"
 #include "filelist.h"
 #include "commctl.h"
-#include "../user/user.h"
-#include "../user/icons.h"
-#include "../user/messages.h"
+#include "../../user/user.h"
+#include "../../user/icons.h"
+#include "../../user/messages.h"
 
 // ---------------------------------------------------------------------------
 // Layout constants

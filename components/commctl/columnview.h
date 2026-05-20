@@ -2,7 +2,7 @@
 #define __UI_COLUMNVIEW_H__
 
 #include <stdint.h>
-#include "../user/user.h"
+#include "../../user/user.h"
 
 // Layout constants shared by the columnview-style controls.
 // FONT_SIZE       — chrome font (ChiKareGo2), from kernel/kernel.h.

@@ -18,8 +18,8 @@
 // The splitter paints itself with the brBorderFocus colour so it matches the
 // rest of the Orion chrome.
 
-#include "../user/user.h"
-#include "../user/messages.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
 #include "commctl.h"   // SPLIT_VERT / SPLIT_HORZ
 
 typedef struct {

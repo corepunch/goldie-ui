@@ -1,5 +1,5 @@
-#include "../user/user.h"
-#include "../user/messages.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
 #include "commctl.h"
 #include "layout_shared.h"
 
@@ -65,11 +65,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
   int gap = layout_spacing_for(win);
   
   // Debug: main window and content stack layout
-  if (win && win->id < 1010) {  // Catch main window and content stack
-    int child_count = 0;
-    for (window_t *c = win->children; c; c = c->next) child_count++;
-
-  }
+  // (Removed unused child_count tracking)
 
   if (layout_is_horizontal(win)) {
     int total_fixed = 0;

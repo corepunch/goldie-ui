@@ -354,7 +354,6 @@ static inline uint32_t label_pack_userdata(uint32_t color_index, ui_font_t font,
 typedef struct {
   const char *class_name;     // stable runtime class key (e.g. "button")
   const char *display_name;   // UI/display caption base (e.g. "Button")
-  const char *token;          // stable serialization token (e.g. "button")
   const char *name_prefix;    // identifier prefix (e.g. "IDC_BTN")
   int         toolbox_ident;  // command ID sent by toolbox host
   int         toolbox_icon;    // icon id from sysicon_* or custom strip index
@@ -363,8 +362,7 @@ typedef struct {
   winproc_t   proc;           // runtime window proc backing this component
   
   // Window class defaults (used by auto-layout measurement system)
-  int16_t     default_width;  // -1 = stretch, 0 = measure content, >0 = fixed
-  int16_t     default_height; // natural height for this control type
+  isize16_t   default_layout_size; // layout defaults: -1 stretch, 0 measure, >0 fixed
   flags_t     default_flags;  // WINDOW_FLEXSPACE, WINDOW_VSCROLL, etc.
   uint8_t     default_h_align;// LAYOUT_ALIGN_STRETCH, etc.
   uint8_t     default_v_align;// LAYOUT_ALIGN_STRETCH, etc.
@@ -410,7 +408,7 @@ int fe_component_count(void);
 const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
 const fe_component_desc_t *fe_component_by_tool_ident(int ident);
-const fe_component_desc_t *fe_component_by_token(const char *token);
+const fe_component_desc_t *fe_component_by_class_name(const char *class_name);
 bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target);
 
 bool fe_load_component_plugin(const char *path);
@@ -497,8 +495,7 @@ const fe_component_desc_t *find_window_class_desc(const char *class_name);
 void register_builtin_window_classes(void);
 
 // Query window class defaults.
-int16_t  get_class_default_width(const char *class_name);
-int16_t  get_class_default_height(const char *class_name);
+isize16_t get_class_default_size(const char *class_name);
 flags_t  get_class_default_flags(const char *class_name);
 uint8_t  get_class_default_h_align(const char *class_name);
 uint8_t  get_class_default_v_align(const char *class_name);

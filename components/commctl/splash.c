@@ -10,10 +10,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "../user/user.h"
-#include "../user/draw.h"
-#include "../user/image.h"
-#include "../kernel/renderer.h"
+#include "../../user/user.h"
+#include "../../user/draw.h"
+#include "../../user/image.h"
+#include "../../kernel/renderer.h"
 
 typedef struct {
   uint32_t tex;

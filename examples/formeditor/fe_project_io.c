@@ -48,17 +48,17 @@ static void form_doc_apply_window_flags_and_size(form_doc_t *doc) {
 extern bool fe_load_component_plugin(const char *path);
 
 // ============================================================
-// Control type token mapping
+// Control type class-name mapping
 // ============================================================
 
 // Map control type to a short keyword used in the file.
-static const char *ctrl_type_token(int type) {
+static const char *ctrl_type_class_name(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
-  return c ? c->token : "control";
+  return c ? c->class_name : "control";
 }
 
-static int ctrl_type_from_token(const char *tok) {
-  const fe_component_desc_t *c = fe_component_by_token(tok);
+static int ctrl_type_from_class_name(const char *class_name) {
+  const fe_component_desc_t *c = fe_component_by_class_name(class_name);
   if (!c) return -1;
   for (int i = 0; i < fe_component_count(); i++) {
     const fe_component_desc_t *it = fe_component_at(i);
@@ -360,7 +360,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       continue;
     if (xmlStrcmp(n->name, BAD_CAST "requires") == 0)
       continue;
-    int type = ctrl_type_from_token((const char *)n->name);
+    int type = ctrl_type_from_class_name((const char *)n->name);
 
     if (type >= 0 && type < FE_MAX_COMPONENTS && doc->element_count < MAX_ELEMENTS) {
       form_element_t *el = &doc->elements[doc->element_count++];
@@ -391,7 +391,7 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       if (!el->id_expr[0]) {
         fe_doc_make_control_id_expr(el->id_expr, sizeof(el->id_expr),
                              doc->form_id, el->name,
-                             ctrl_type_token(el->type), doc->element_count);
+                             ctrl_type_class_name(el->type), doc->element_count);
       }
       char *h_align = xml_attr_dup(n, "h-align");
       char *v_align = xml_attr_dup(n, "v-align");
@@ -571,7 +571,7 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   }
   for (int i = 0; i < doc->element_count; i++) {
     form_element_t *el = &doc->elements[i];
-    fprintf(f, "        <%s", ctrl_type_token(el->type));
+    fprintf(f, "        <%s", ctrl_type_class_name(el->type));
     xml_attr(f, "name", el->name);
     xml_attr(f, "text", el->text);
     if (el->parent != 0)

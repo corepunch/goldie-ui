@@ -1,7 +1,7 @@
 #ifndef __UI_COMMCTL_H__
 #define __UI_COMMCTL_H__
 
-#include "../user/user.h"
+#include "../../user/user.h"
 #include "columnview.h"
 #include "menubar.h"
 #include "filelist.h"
@@ -14,6 +14,11 @@ typedef struct database_s database_t;
 // Register all common controls with the window system.
 // Called once during framework initialization by user.dll.
 void register_commctl_classes(void);
+
+// Built-in commctl class list APIs used by FormEditor/apps to register
+// classes from this library.
+int get_num_classes(void);
+const fe_component_desc_t *get_class_at_index(int index);
 
 // bitmap_strip_t is defined in user/user.h and available via the include above.
 // Kept here as a comment for documentation purposes:

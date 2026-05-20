@@ -11,6 +11,13 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 
 ## Code Architecture and Conventions
 
+### Version 1.0 Refactor Policy (Required)
+
+- Orion is treated as **1.0-first**: prioritize clean current design over preserving legacy behavior.
+- Do not add backward-compatibility shims, aliases, fallback fields, dual-path APIs, or migration adapters unless explicitly requested.
+- When introducing a new approach, update the existing codebase to that approach directly and remove superseded patterns in the same change.
+- Prefer one canonical representation per concept (no duplicate old/new fields or lookup keys).
+
 ### Directory Structure
 - `user/` contains window management, message queue, drawing primitives, and text rendering
 - `kernel/` contains SDL event loop, initialization, and joystick/gamepad support
@@ -490,13 +497,13 @@ Create an `.orion` XML file in your example directory:
 Compile with orionc:
 ```bash
 build/bin/orionc --input examples/myapp/myapp.orion \
-                 --output build/generated/examples/myapp/myapp_forms.h \
+                 --output build/generated/examples/myapp/myapp.h \
                  --prefix myapp
 ```
 
 Use in code:
 ```c
-#include "build/generated/examples/myapp/myapp_forms.h"
+#include "build/generated/examples/myapp/myapp.h"
 
 // Children already exist and are laid out automatically
 show_dialog_from_form(&myapp_form_my_dialog, "My Dialog", parent, my_dlg_proc, &st);
@@ -886,7 +893,7 @@ Currently, height must be specified manually even for fixed-content forms.
 **Compilation:**
 The `orionc` compiler processes `.orion` files in your Makefile:
 ```make
-build/generated/examples/myapp/myapp_forms.h: examples/myapp/myapp.orion
+build/generated/examples/myapp/myapp.h: examples/myapp/myapp.orion
 	build/bin/orionc --input $< --output $@ --prefix myapp
 ```
 

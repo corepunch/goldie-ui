@@ -2,7 +2,7 @@
 #define __IMAGEEDITOR_LEVELS_PRIVATE_H__
 
 #include "imageeditor.h"
-#include "components/lv_cmpn.h"
+#include "lv_cmpn.h"
 
 typedef struct {
   canvas_doc_t *doc;

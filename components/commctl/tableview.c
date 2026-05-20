@@ -4,7 +4,7 @@
 // Wrapper Structs API. No manual population code needed.
 //
 // Creation parameters (lparam):
-//   tableview_params_t (see commctl/commctl.h)
+//   tableview_params_t (see components/commctl/commctl.h)
 //
 // Messages:
 //   tvRefresh - Refresh from database (wparam=0, lparam=0)

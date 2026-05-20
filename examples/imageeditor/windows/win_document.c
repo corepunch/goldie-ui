@@ -128,11 +128,15 @@ bool doc_confirm_close(canvas_doc_t *doc, window_t *parent_win) {
                           "This image has unsaved changes.\nDo you want to close it?",
                           "Unsaved Changes",
                           MB_YESNO);
-    (void)res;
     doc->close_prompt_open = false;
     IE_DEBUG("close_confirm_result doc=%p result=%d filename_set=%d",
              (void *)doc, res, doc->filename[0] != '\0');
-    // IDNO or IDYES: fall through to close_document without saving.
+    // IDNO: cancel close, keep document open with unsaved changes
+    if (res == IDNO) {
+      debug_log_doc_state("close_confirm_cancelled", doc);
+      return false;
+    }
+    // IDYES: proceed to close without saving
   }
   debug_log_doc_state("close_confirm_accept", doc);
   close_document(doc);

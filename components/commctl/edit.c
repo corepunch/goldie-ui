@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/theme.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/theme.h"
 
 #define BUFFER_SIZE 512
 #define TEXTEDIT_MIN_WIDTH  80

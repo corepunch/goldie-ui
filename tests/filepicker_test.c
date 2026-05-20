@@ -102,41 +102,41 @@ void test_directory_always_accepted(void) {
 // the following tests validate the logic used by picker_proc to decide
 // whether to update the filename edit box for each notification code.
 // ---------------------------------------------------------------------------
-#define FLN_SELCHANGE   300u
-#define FLN_FILEOPEN    301u
-#define FLN_NAVDIR      302u
+#define TEST_FLN_SELCHANGE   300u
+#define TEST_FLN_FILEOPEN    301u
+#define TEST_FLN_NAVDIR      302u
 
 // Mimic picker_proc logic: returns true when the picker should update its
 // filename edit box.  FLN_SELCHANGE and FLN_FILEOPEN update the box only for
 // file items (not directories); FLN_NAVDIR never updates the box.
 static bool picker_updates_editbox(uint16_t code, bool is_directory) {
-  if (code == FLN_SELCHANGE && !is_directory) return true;
-  if (code == FLN_FILEOPEN  && !is_directory) return true;
+  if (code == TEST_FLN_SELCHANGE && !is_directory) return true;
+  if (code == TEST_FLN_FILEOPEN  && !is_directory) return true;
   return false;
 }
 
 void test_selchange_on_file_updates_editbox(void) {
   TEST("Picker: FLN_SELCHANGE on file updates edit box");
-  ASSERT_TRUE(picker_updates_editbox(FLN_SELCHANGE, false));
+  ASSERT_TRUE(picker_updates_editbox(TEST_FLN_SELCHANGE, false));
   PASS();
 }
 
 void test_selchange_on_dir_does_not_update_editbox(void) {
   TEST("Picker: FLN_SELCHANGE on directory does not update edit box");
-  ASSERT_FALSE(picker_updates_editbox(FLN_SELCHANGE, true));
+  ASSERT_FALSE(picker_updates_editbox(TEST_FLN_SELCHANGE, true));
   PASS();
 }
 
 void test_fileopen_on_file_updates_editbox(void) {
   TEST("Picker: FLN_FILEOPEN on file updates edit box");
-  ASSERT_TRUE(picker_updates_editbox(FLN_FILEOPEN, false));
+  ASSERT_TRUE(picker_updates_editbox(TEST_FLN_FILEOPEN, false));
   PASS();
 }
 
 void test_navdir_does_not_update_editbox(void) {
   TEST("Picker: FLN_NAVDIR does not update edit box");
-  ASSERT_FALSE(picker_updates_editbox(FLN_NAVDIR, true));
-  ASSERT_FALSE(picker_updates_editbox(FLN_NAVDIR, false));
+  ASSERT_FALSE(picker_updates_editbox(TEST_FLN_NAVDIR, true));
+  ASSERT_FALSE(picker_updates_editbox(TEST_FLN_NAVDIR, false));
   PASS();
 }
 

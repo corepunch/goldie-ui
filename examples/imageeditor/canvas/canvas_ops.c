@@ -15,20 +15,28 @@ static doc_op_ctx_t g_op_ctx = {0};
 
 // ── Core API ───────────────────────────────────────────────────────────────
 
-void ie_doc_begin_op(canvas_doc_t *doc, const char *op_name) {
-  if (!doc) return;
+bool ie_doc_begin_op(canvas_doc_t *doc, const char *op_name) {
+  if (!doc) return false;
   if (g_op_ctx.active) {
-    // Nested operation — not supported, but don't crash
-    return;
+    // Nested operation — not supported, silently ignore
+    IE_DEBUG("ie_doc_begin_op: nested operation '%s' ignored (outer='%s')",
+             op_name ? op_name : "(null)",
+             g_op_ctx.op_name ? g_op_ctx.op_name : "(null)");
+    return false;
   }
   g_op_ctx.doc = doc;
   g_op_ctx.op_name = op_name;
   g_op_ctx.active = true;
   doc_push_undo(doc);
+  return true;
 }
 
 void ie_doc_commit_op(canvas_doc_t *doc, bool success) {
   if (!doc || !g_op_ctx.active || g_op_ctx.doc != doc) {
+    if (doc && g_op_ctx.active && g_op_ctx.doc != doc) {
+      IE_DEBUG("ie_doc_commit_op: mismatched doc (expected=%p, got=%p)",
+               (void *)g_op_ctx.doc, (void *)doc);
+    }
     return;
   }
   g_op_ctx.active = false;

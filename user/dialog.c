@@ -35,6 +35,7 @@ static bool form_has_flexspace(const form_def_t *def) {
 
 // Calculate the minimum height needed for a fixed-content form
 // This is a simplified calculation - production version would measure actual controls
+__attribute__((unused))
 static int calculate_form_height(const form_def_t *def) {
   if (!def || !(def->flags & WINDOW_AUTO_LAYOUT)) return 0;
   

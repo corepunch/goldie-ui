@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "columnview_internal.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/theme.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/theme.h"
 
 static int report_content_height(reportview_data_t *data) {
   return rv_report_header_height(data) + (int)data->count * ENTRY_HEIGHT;

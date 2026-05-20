@@ -1,9 +1,9 @@
 #ifndef __UI_COMMCTL_LAYOUT_SHARED_H__
 #define __UI_COMMCTL_LAYOUT_SHARED_H__
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/rect.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/rect.h"
 
 static inline int layout_apply_alignment(int avail, int desired, uint8_t align) {
   if (avail < 0) avail = 0;

@@ -1,11 +1,11 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/rect.h"
-#include "../user/theme.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/rect.h"
+#include "../../user/theme.h"
 
 // Helper function (will be moved to ui/user/window.c later)
 extern window_t *get_root_window(window_t *window);

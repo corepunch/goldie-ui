@@ -18,11 +18,11 @@
 
 #include "filelist.h"
 #include "columnview.h"
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/sysicons.h"
-#include "../kernel/kernel.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/sysicons.h"
+#include "../../kernel/kernel.h"
 
 // ---------------------------------------------------------------------------
 // Layout constants — mirror columnview.c (exported via columnview.h)

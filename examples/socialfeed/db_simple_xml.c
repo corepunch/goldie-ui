@@ -781,63 +781,6 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
           return (lresult_t)NULL;
       }
     }
-    
-    case dbGetTables: {
-      // Returns linked list of table names (NeXTSTEP DBKit style)
-      table_name_node_t *head = NULL;
-      table_name_node_t *tail = NULL;
-      
-      // Add all tables in the database
-      static const struct { const char *name; int id; } tables[] = {
-        { "authors", TABLE_AUTHORS },
-        { "posts", TABLE_POSTS },
-        { "comments", TABLE_COMMENTS },
-      };
-      
-      for (size_t i = 0; i < sizeof(tables) / sizeof(tables[0]); i++) {
-        table_name_node_t *node = calloc(1, sizeof(table_name_node_t));
-        if (!node) {
-          free_result_list(head);
-          return (lresult_t)NULL;
-        }
-        
-        strncpy(node->name, tables[i].name, sizeof(node->name) - 1);
-        node->table_id = tables[i].id;
-        node->next = NULL;
-        
-        if (!head) {
-          head = tail = node;
-        } else {
-          tail->next = node;
-          tail = node;
-        }
-      }
-      
-      return (lresult_t)head;
-    }
-    
-    case dbGetTableSchema: {
-      // wparam = table_id; returns table_schema_t* with field metadata
-      int table_id = (int)wparam;
-      static table_schema_t schemas[3];  // Persistent storage
-      
-      switch (table_id) {
-        case TABLE_AUTHORS:
-          schemas[0].fields = authors_fields;
-          schemas[0].field_count = sizeof(authors_fields) / sizeof(authors_fields[0]);
-          return (lresult_t)&schemas[0];
-        case TABLE_POSTS:
-          schemas[1].fields = posts_fields;
-          schemas[1].field_count = sizeof(posts_fields) / sizeof(posts_fields[0]);
-          return (lresult_t)&schemas[1];
-        case TABLE_COMMENTS:
-          schemas[2].fields = comments_fields;
-          schemas[2].field_count = sizeof(comments_fields) / sizeof(comments_fields[0]);
-          return (lresult_t)&schemas[2];
-        default:
-          return (lresult_t)NULL;
-      }
-    }
   }
   
   return 0;

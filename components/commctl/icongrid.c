@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "columnview_internal.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/theme.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/theme.h"
 
 static int grid_content_height(window_t *win, reportview_data_t *data) {
   int ncol = rv_large_icon_ncol(data, rv_content_width(win), data->column_width);

@@ -147,3 +147,26 @@ void cmd_layer_edit_mask(canvas_doc_t *doc, bool enable) {
   
   ie_doc_invalidate_all(doc);
 }
+
+void cmd_layer_set_visibility(canvas_doc_t *doc, int layer_idx, bool visible) {
+  if (!doc || layer_idx < 0 || layer_idx >= doc->layer.count)
+    return;
+  
+  ie_doc_begin_op(doc, "Toggle Layer Visibility");
+  doc->layer.stack[layer_idx]->visible = visible;
+  doc->canvas_dirty = true;
+  ie_doc_commit_op(doc, true);
+  
+  ie_doc_after_layers_changed(doc);
+}
+
+void cmd_layer_set_blend_mode(canvas_doc_t *doc, int layer_idx, layer_blend_mode_t mode) {
+  if (!doc || layer_idx < 0 || layer_idx >= doc->layer.count)
+    return;
+  
+  ie_doc_begin_op(doc, "Set Layer Blend Mode");
+  doc_set_layer_blend_mode(doc, layer_idx, mode);
+  ie_doc_commit_op(doc, true);
+  
+  ie_doc_after_layers_changed(doc);
+}

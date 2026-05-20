@@ -30,9 +30,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
 #include "commctl.h"
 
 // Internal per-scrollbar state

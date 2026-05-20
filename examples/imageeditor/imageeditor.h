@@ -178,9 +178,9 @@ extern const int kZoomMenuIDs[NUM_ZOOM_LEVELS];
 #define ID_TOOL_MAGIC_WAND    37
 #define ID_TOOL_MOVE          38
 
-#include "components/lv_cmpn.h"
-#include "components/fg_preview.h"
-#include "build/generated/examples/imageeditor/imageeditor_forms.h"
+#include "lv_cmpn.h"
+#include "fg_preview.h"
+#include "build/generated/examples/imageeditor/imageeditor.h"
 
 // ============================================================
 // Color helpers
@@ -823,7 +823,7 @@ bool anim_export_spritesheet(canvas_doc_t *doc, const char *path);
 // ============================================================
 
 // Begin a document mutation operation — pushes undo snapshot.
-void ie_doc_begin_op(canvas_doc_t *doc, const char *op_name);
+bool ie_doc_begin_op(canvas_doc_t *doc, const char *op_name);
 
 // Commit the operation — marks dirty, updates title, and refreshes all views.
 // If success is false, discards the undo snapshot instead.

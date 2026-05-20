@@ -19,7 +19,7 @@
 // Usage (save):
 //   Same struct, call get_save_filename(&ofn) instead.
 
-#include "../user/user.h"
+#include "../../user/user.h"
 
 // ---------------------------------------------------------------------------
 // OFN Flags (subset of WinAPI OFN_* values)

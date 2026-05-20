@@ -39,6 +39,8 @@ void cmd_layer_move_down(canvas_doc_t *doc);
 void cmd_layer_merge_down(canvas_doc_t *doc);
 void cmd_layer_flatten(canvas_doc_t *doc);
 void cmd_layer_fill(canvas_doc_t *doc, uint32_t color);
+void cmd_layer_set_visibility(canvas_doc_t *doc, int layer_idx, bool visible);
+void cmd_layer_set_blend_mode(canvas_doc_t *doc, int layer_idx, layer_blend_mode_t mode);
 void cmd_layer_add_mask(canvas_doc_t *doc, int fill_mode);
 void cmd_layer_apply_mask(canvas_doc_t *doc);
 void cmd_layer_remove_mask(canvas_doc_t *doc);

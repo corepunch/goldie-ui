@@ -287,7 +287,7 @@ form_element_t *fe_doc_find_element(form_doc_t *doc, uint32_t id) {
     return NULL;
 
   for (int i = 0; i < doc->element_count; i++) {
-    if (doc->elements[i].id == id)
+    if (doc->elements[i].id == (int)id)
       return &doc->elements[i];
   }
   return NULL;
@@ -298,7 +298,7 @@ int fe_doc_find_element_index(form_doc_t *doc, uint32_t id) {
     return -1;
 
   for (int i = 0; i < doc->element_count; i++) {
-    if (doc->elements[i].id == id)
+    if (doc->elements[i].id == (int)id)
       return i;
   }
   return -1;

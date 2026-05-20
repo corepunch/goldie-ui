@@ -1,8 +1,8 @@
 #include <string.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
 #include "commctl.h"
 
 // Separator controls are intended to occupy a visible band, not a 1px hairline.

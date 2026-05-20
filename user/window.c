@@ -102,14 +102,9 @@ const fe_component_desc_t *find_window_class_desc(const char *class_name) {
   return NULL;
 }
 
-int16_t get_class_default_width(const char *class_name) {
+isize16_t get_class_default_size(const char *class_name) {
   const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_width : 0;
-}
-
-int16_t get_class_default_height(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_height : 0;
+  return desc ? desc->default_layout_size : (isize16_t){0, 0};
 }
 
 flags_t get_class_default_flags(const char *class_name) {
@@ -754,10 +749,10 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     
     if (class_desc) {
       // Apply default dimensions if not explicitly specified
-      if (child_w == 0 && class_desc->default_width > 0)
-        child_w = class_desc->default_width;
-      if (child_h == 0 && class_desc->default_height > 0)
-        child_h = class_desc->default_height;
+      if (child_w == 0 && class_desc->default_layout_size.w > 0)
+        child_w = class_desc->default_layout_size.w;
+      if (child_h == 0 && class_desc->default_layout_size.h > 0)
+        child_h = class_desc->default_layout_size.h;
       
       // Merge class default flags with instance flags
       child_flags |= class_desc->default_flags;
@@ -924,10 +919,10 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     int16_t effective_w = cd->size.w;
     int16_t effective_h = cd->size.h;
     if (class_desc) {
-      if (effective_w == 0 && class_desc->default_width > 0)
-        effective_w = class_desc->default_width;
-      if (effective_h == 0 && class_desc->default_height > 0)
-        effective_h = class_desc->default_height;
+      if (effective_w == 0 && class_desc->default_layout_size.w > 0)
+        effective_w = class_desc->default_layout_size.w;
+      if (effective_h == 0 && class_desc->default_layout_size.h > 0)
+        effective_h = class_desc->default_layout_size.h;
     }
 
     irect16_t child_frame = {0, 0, effective_w, effective_h};

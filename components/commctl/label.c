@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/rect.h"
-#include "../user/theme.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/rect.h"
+#include "../../user/theme.h"
 
 // Label control window procedure.
 // lparam in evCreate may be either:

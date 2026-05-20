@@ -1,6 +1,7 @@
 // Menu bar window proc and menu command handler
 
 #include "imageeditor.h"
+#include "../commands/commands.h"
 
 #define VIEW_ITEM_COUNT ((int)(sizeof(MENU_VIEW_ITEMS) / sizeof(MENU_VIEW_ITEMS[0])))
 #define WINDOW_PREFIX_COUNT ((int)(sizeof(MENU_WINDOW_ITEMS) / sizeof(MENU_WINDOW_ITEMS[0])))
@@ -582,18 +583,11 @@ void handle_menu_command(uint16_t id) {
       if (show_image_resize_dialog(doc->win ? doc->win : g_app->menubar_win,
                                    &new_w, &new_h, &filter) &&
           (new_w != doc->canvas_w || new_h != doc->canvas_h)) {
-        doc_push_undo(doc);
-        if (canvas_resize_image(doc, new_w, new_h, filter)) {
-          canvas_deselect(doc);
-          if (doc->canvas_win) {
-            canvas_win_sync_scrollbars(doc->canvas_win);
-            invalidate_window(doc->canvas_win);
-          }
-          doc_update_title(doc);
-          char sb[32];
-          snprintf(sb, sizeof(sb), "%dx%d", doc->canvas_w, doc->canvas_h);
-          send_message(doc->win, evStatusBar, 0, sb);
-        }
+        cmd_resize_image(doc, new_w, new_h, filter);
+        canvas_deselect(doc);
+        char sb[32];
+        snprintf(sb, sizeof(sb), "%dx%d", doc->canvas_w, doc->canvas_h);
+        send_message(doc->win, evStatusBar, 0, sb);
       }
       break;
     }
@@ -604,18 +598,11 @@ void handle_menu_command(uint16_t id) {
       if (show_size_dialog(doc->win ? doc->win : g_app->menubar_win,
                            "Canvas Size", &new_w, &new_h) &&
           (new_w != doc->canvas_w || new_h != doc->canvas_h)) {
-        doc_push_undo(doc);
-        if (canvas_resize(doc, new_w, new_h)) {
-          canvas_deselect(doc);
-          if (doc->canvas_win) {
-            canvas_win_sync_scrollbars(doc->canvas_win);
-            invalidate_window(doc->canvas_win);
-          }
-          doc_update_title(doc);
-          char sb[32];
-          snprintf(sb, sizeof(sb), "%dx%d", doc->canvas_w, doc->canvas_h);
-          send_message(doc->win, evStatusBar, 0, sb);
-        }
+        cmd_resize_canvas(doc, new_w, new_h);
+        canvas_deselect(doc);
+        char sb[32];
+        snprintf(sb, sizeof(sb), "%dx%d", doc->canvas_w, doc->canvas_h);
+        send_message(doc->win, evStatusBar, 0, sb);
       }
       break;
     }

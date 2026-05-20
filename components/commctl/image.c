@@ -1,8 +1,8 @@
 #include <stdint.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
 
 // Static image control — displays a GL texture.
 // lparam in evCreate is (void*)(uintptr_t)GLuint texture ID.

@@ -49,11 +49,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "../user/user.h"
-#include "../user/draw.h"
-#include "../user/image.h"
-#include "../user/icons.h"
-#include "../kernel/renderer.h"
+#include "../../user/user.h"
+#include "../../user/draw.h"
+#include "../../user/image.h"
+#include "../../user/icons.h"
+#include "../../kernel/renderer.h"
 
 // Inactive: just the dark background from the global fill; no bevel.
 // This matches the classic Photoshop / MS Paint toolbox look.  

@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/rect.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/rect.h"
 #include "commctl.h"
 
 #define LIST_HEIGHT     (FONT_SIZE_SMALL + 5)

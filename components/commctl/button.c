@@ -1,12 +1,12 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/icons.h"
-#include "../user/rect.h"
-#include "../user/theme.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/icons.h"
+#include "../../user/rect.h"
+#include "../../user/theme.h"
 #include "commctl.h"
 
 // Helper function (will be moved to ui/user/window.c later)

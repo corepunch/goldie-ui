@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
 #include "commctl.h"
 #include "layout_shared.h"
 

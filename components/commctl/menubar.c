@@ -12,11 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/text.h"
-#include "../user/accel.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/text.h"
+#include "../../user/accel.h"
 #include "menubar.h"
 
 #define MENU_ITEM_H      TITLEBAR_HEIGHT  // height of a normal dropdown row (font-size dependent)

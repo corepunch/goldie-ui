@@ -2,10 +2,10 @@
 #include <stdlib.h>
 
 #include "columnview_internal.h"
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/theme.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/theme.h"
 
 // Shared helper implementation used by the dedicated view controls.
 

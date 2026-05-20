@@ -14,9 +14,8 @@ void test_terminal_has_vscroll_flag(void) {
   window_t *terminal = create_window("Terminal Scroll Test", 0, &frame, NULL, win_terminal, 0, NULL);
   ASSERT_NOT_NULL(terminal);
   
-  // The terminal does not implement a scrollback buffer so it does NOT set
-  // WINDOW_VSCROLL (see commctl/terminal.c evCreate comment).
-  ASSERT_FALSE(terminal->flags & WINDOW_VSCROLL);
+  // The terminal now uses built-in vertical scrolling for scrollback.
+  ASSERT_TRUE(terminal->flags & WINDOW_VSCROLL);
   
   destroy_window(terminal);
   test_env_shutdown();

@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "commctl.h"
-#include "../user/text.h"
-#include "../user/user.h"
-#include "../user/messages.h"
+#include "../../user/text.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
 
 #define CONSOLE_PADDING 2
 #define LINE_HEIGHT 8

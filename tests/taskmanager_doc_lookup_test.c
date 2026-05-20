@@ -14,7 +14,7 @@ typedef struct {
 
 typedef struct {
   unsigned int userdata;
-} reportview_item_t;
+} tm_reportview_item_t;
 
 typedef struct fake_window_s {
   struct fake_window_s *parent;
@@ -43,7 +43,7 @@ static int tm_selected_from_wparam(unsigned int wparam) {
 }
 
 // Old buggy behavior (for regression comparison): selection pulled from item->userdata.
-static int tm_selected_from_item_userdata(reportview_item_t *item, unsigned int wparam) {
+static int tm_selected_from_item_userdata(tm_reportview_item_t *item, unsigned int wparam) {
   (void)wparam;
   return item ? (int)item->userdata : -1;
 }
@@ -152,7 +152,7 @@ static void test_selection_uses_wparam_row_index(void) {
 static void test_selection_does_not_depend_on_item_userdata(void) {
   TEST("TaskManager selection: ignores item userdata for selected_idx mapping");
 
-  reportview_item_t item = { .userdata = 99u };
+  tm_reportview_item_t item = { .userdata = 99u };
   unsigned int wparam = 2u;
 
   // Fixed path must use row index (2), not userdata (99).

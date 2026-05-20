@@ -272,7 +272,7 @@ static void draw_element_outlines(window_t *win, canvas_state_t *s);
 static void draw_rubber_band(window_t *win, canvas_state_t *s);
 static void draw_layout_hover(canvas_state_t *s);
 static void canvas_update_layout_hover(canvas_state_t *s, canvas_pt_t pos);
-static int canvas_component_id_for_token(const char *token);
+static int canvas_component_id_for_class_name(const char *class_name);
 
 static winproc_t ctrl_type_to_proc(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
@@ -280,8 +280,8 @@ static winproc_t ctrl_type_to_proc(int type) {
 }
 
 static bool canvas_type_is_grid(int type) {
-  int g = canvas_component_id_for_token("grid");
-  int gv = canvas_component_id_for_token("gridview");
+  int g = canvas_component_id_for_class_name("grid");
+  int gv = canvas_component_id_for_class_name("gridview");
   return (g >= 0 && type == g) || (gv >= 0 && type == gv);
 }
 
@@ -795,8 +795,8 @@ static void ctrl_make_caption(int type, int index, char *text, size_t text_sz) {
   snprintf(text, text_sz, "%s%d", ctrl_type_name(type), index);
 }
 
-static int canvas_component_id_for_token(const char *token) {
-  const fe_component_desc_t *desc = fe_component_by_token(token);
+static int canvas_component_id_for_class_name(const char *class_name) {
+  const fe_component_desc_t *desc = fe_component_by_class_name(class_name);
   if (!desc) return -1;
   for (int i = 0; i < fe_component_count(); i++) {
     if (fe_component_at(i) == desc)
@@ -866,7 +866,7 @@ static bool canvas_seed_grid_children(form_doc_t *doc, int grid_index) {
   form_element_t *grid = &doc->elements[grid_index];
   if (canvas_doc_has_children(doc, grid->id))
     return true;
-  int column_type = canvas_component_id_for_token("column");
+  int column_type = canvas_component_id_for_class_name("column");
   if (column_type < 0)
     return false;
   irect16_t child_frame = {0, 0, 0, 0};

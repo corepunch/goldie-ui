@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "columnview_internal.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/theme.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/theme.h"
 
 static int icon_content_height(reportview_data_t *data) {
   return (int)data->count * ENTRY_HEIGHT;

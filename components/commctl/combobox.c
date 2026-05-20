@@ -3,10 +3,10 @@
 #include <stdlib.h>
 
 #include "../ui.h"
-#include "../user/user.h"
-#include "../user/messages.h"
-#include "../user/draw.h"
-#include "../user/theme.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
+#include "../../user/draw.h"
+#include "../../user/theme.h"
 #include "commctl.h"
 
 // Forward declare list control procedure  

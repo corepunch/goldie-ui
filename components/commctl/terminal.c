@@ -4,9 +4,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include "commctl.h"
-#include "../user/text.h"
-#include "../user/user.h"
-#include "../user/messages.h"
+#include "../../user/text.h"
+#include "../../user/user.h"
+#include "../../user/messages.h"
 
 /* Platform-specific includes */
 #if defined(_WIN32) || defined(_WIN64)

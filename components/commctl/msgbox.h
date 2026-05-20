@@ -7,7 +7,7 @@
 //   int result = message_box(parent_win, "Proceed?", "Confirm", MB_YESNOCANCEL);
 //   if (result == IDYES) { ... }
 
-#include "../user/user.h"
+#include "../../user/user.h"
 
 // Button-set flags (low nibble of `type`).
 // On Windows these names are already defined by <winuser.h> with the same

@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <time.h>
-#include "../user/user.h"
+#include "../../user/user.h"
 
 // ---------------------------------------------------------------------------
 // File-item descriptor.  path is heap-allocated (owned by win_filelist).
