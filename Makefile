@@ -9,59 +9,59 @@ CFLAGS += -Wno-unused-parameter
 # silence partial struct initializers where trailing fields intentionally default
 CFLAGS += -Wno-missing-field-initializers
 LDFLAGS = 
-LIBS = -lm
+LIBS =
 
-# Platform detection
+# Host uname value (used directly in platform conditionals below).
+UNAME_S ?= $(shell uname -s)
+
+# Platform flags
 ifeq ($(OS),Windows_NT)
-    # Windows specific flags (MinGW/MSYS2)
-    LIBS += -lglew32 -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi -lxmllite
-    LDFLAGS_EXAMPLE = -mwindows
-    LDFLAGS_TEST = -mconsole
-    LIB_EXT = .dll
-    PLATFORM_LIB_EXT = dll
-    LIB_FLAGS = -shared
-    EXE_EXT = .exe
-    # Plugin and gem flags
-    GEM_LFLAGS = $(LIB_FLAGS)
-	IMPLIB_FLAGS = -Wl,--out-implib,$@.a
-	CORE_LIB_LFLAGS = $(LIB_FLAGS)
-    FE_PLUGIN_LFLAGS = $(LIB_FLAGS)
+LIBS += -lglew32 -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi -lxmllite
+LDFLAGS_EXAMPLE = -mwindows
+LDFLAGS_TEST = -mconsole
+LIB_EXT = dll
+LIB_FLAGS = -shared
+EXE_EXT = .exe
+IMPLIB_FLAGS = -Wl,--out-implib,$@.a
+else ifeq ($(UNAME_S),Darwin)
+ARCH ?= arm64
+CFLAGS += -arch $(ARCH)
+LDFLAGS += -arch $(ARCH)
+LIBS += -framework OpenGL
+LIB_EXT = dylib
+LIB_FLAGS = -dynamiclib
+else ifeq ($(UNAME_S),Linux)
+LIBS += -lGL
+LIB_EXT = so
+LIB_FLAGS = -shared -fPIC
+CFLAGS += -fPIC
+else ifneq (,$(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S)))
+LIBS += -lglew32 -lopengl32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion -luuid -lsetupapi -lxmllite
+LDFLAGS_EXAMPLE = -mwindows
+LDFLAGS_TEST = -mconsole
+LIB_EXT = dll
+LIB_FLAGS = -shared
+EXE_EXT = .exe
+IMPLIB_FLAGS = -Wl,--out-implib,$@.a
 else
-    UNAME_S := $(shell uname -s)
-    ifeq ($(UNAME_S),Darwin)
-        # macOS specific flags
-        ARCH ?= arm64
-        CFLAGS += -arch $(ARCH) -I/opt/homebrew/include -I/usr/local/include
-        LDFLAGS += -arch $(ARCH) -L/opt/homebrew/lib -L/usr/local/lib
-        LIBS += -framework OpenGL
-        LIB_EXT = .dylib
-        PLATFORM_LIB_EXT = dylib
-        LIB_FLAGS = -dynamiclib
-		CORE_LIB_LFLAGS = $(LIB_FLAGS) -undefined dynamic_lookup
-        # Plugin and gem flags (-undefined dynamic_lookup defers symbol resolution)
-        GEM_LFLAGS = $(LIB_FLAGS) -undefined dynamic_lookup
-        FE_PLUGIN_LFLAGS = $(LIB_FLAGS) -undefined dynamic_lookup
-    else ifeq ($(UNAME_S),Linux)
-        # Linux specific flags
-        LIBS += -lGL
-        LIB_EXT = .so
-        PLATFORM_LIB_EXT = so
-        LIB_FLAGS = -shared -fPIC
-		CORE_LIB_LFLAGS = $(LIB_FLAGS)
-        CFLAGS += -fPIC
-        # Plugin and gem flags (shell exports symbols for gem resolution)
-        GEM_LFLAGS = $(LIB_FLAGS)
-        SHELL_EXTRA_LDFLAGS = -Wl,--export-dynamic -ldl
-        FE_PLUGIN_LFLAGS = $(LIB_FLAGS)
-    else
-        $(error Unsupported platform: $(UNAME_S))
-    endif
+$(error Unsupported platform: OS=$(OS) UNAME_S=$(UNAME_S))
 endif
 
-# Add Lua to build flags (required)
-CFLAGS += $(shell pkg-config --cflags lua5.4 2>/dev/null || pkg-config --cflags lua 2>/dev/null)
-LIBS += $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --libs lua 2>/dev/null)
-CFLAGS += -DHAVE_LUA
+DARWIN_CORE_UNDEF_FLAGS =
+ifeq ($(UNAME_S),Darwin)
+DARWIN_CORE_UNDEF_FLAGS = -undefined dynamic_lookup
+endif
+
+# Dependencies
+PKG_CONFIG ?= pkg-config
+LUA_CFLAGS := $(shell $(PKG_CONFIG) --cflags lua5.4 2>/dev/null || $(PKG_CONFIG) --cflags lua 2>/dev/null)
+LUA_LIBS := $(shell $(PKG_CONFIG) --libs lua5.4 2>/dev/null || $(PKG_CONFIG) --libs lua 2>/dev/null)
+LIBXML_CFLAGS := $(shell $(PKG_CONFIG) --cflags libxml-2.0 2>/dev/null)
+LIBXML_LIBS := $(shell $(PKG_CONFIG) --libs libxml-2.0 2>/dev/null)
+
+CFLAGS += $(LUA_CFLAGS) $(LIBXML_CFLAGS) -DHAVE_LUA
+LIBS += $(filter-out -lm,$(LUA_LIBS) $(LIBXML_LIBS))
+LIBS += -lm
 
 # Compile flags for .gem shared libraries
 GEM_CFLAGS = $(CFLAGS) -DBUILD_AS_GEM
@@ -71,16 +71,18 @@ BUILD_DIR = build
 LIB_DIR = $(BUILD_DIR)/lib
 BIN_DIR = $(BUILD_DIR)/bin
 SHARE_DIR = $(BUILD_DIR)/share
+GEM_DIR = $(BUILD_DIR)/gem
+GENERATED_DIR = $(BUILD_DIR)/generated
 TEST_DIR = tests
 
 # Platform submodule library
 PLATFORM_DIR = platform
-PLATFORM_LIB = $(LIB_DIR)/libplatform.$(PLATFORM_LIB_EXT)
+PLATFORM_LIB = $(LIB_DIR)/libplatform.$(LIB_EXT)
 
 # Core Orion libraries
-USER_LIB = $(LIB_DIR)/libuser$(LIB_EXT)
-KERNEL_LIB = $(LIB_DIR)/libkernel$(LIB_EXT)
-COMMCTL_LIB = $(LIB_DIR)/libcommctl$(LIB_EXT)
+USER_LIB = $(LIB_DIR)/libuser.$(LIB_EXT)
+KERNEL_LIB = $(LIB_DIR)/libkernel.$(LIB_EXT)
+COMMCTL_LIB = $(LIB_DIR)/libcommctl.$(LIB_EXT)
 CORE_LIBS = $(USER_LIB) $(COMMCTL_LIB) $(KERNEL_LIB)
 
 # Shared rpath used exactly once per link command to avoid duplicate-rpath warnings.
@@ -102,34 +104,17 @@ TOOLS_SRCS = $(filter-out tools/orionc.c,$(wildcard tools/*.c))
 TOOLS_BINS = $(patsubst tools/%.c,$(BIN_DIR)/%$(EXE_EXT),$(TOOLS_SRCS)) $(ORIONC_BIN)
 TOOLS_CFLAGS = $(CFLAGS) -Wno-unused-function
 
-# .gem output directory
-GEM_DIR  = $(BUILD_DIR)/gem
+# Examples are directory names under examples/, independent of their contents.
+EXAMPLES = $(patsubst examples/%/,%,$(filter %/,$(wildcard examples/*/)))
+EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLES))
+GEM_BINS = $(patsubst %,$(GEM_DIR)/%.gem,$(EXAMPLES))
 
-# Shell binary
-SHELL_BIN  = $(BIN_DIR)/orion-shell$(EXE_EXT)
-SHELL_SRCS = $(wildcard shell/*.c)
-
-# Example sources - each example lives in its own subdirectory with a main.c.
-EXAMPLE_SOURCE_NAMES = $(patsubst examples/%/main.c,%,$(wildcard examples/*/main.c))
-
-# Add libxml2 to build flags (required)
-CFLAGS += $(shell pkg-config --cflags libxml-2.0 2>/dev/null)
-LIBS += $(shell pkg-config --libs libxml-2.0 2>/dev/null)
-
-# Keep exactly one libm entry to avoid duplicate -lm linker warnings.
-LIBS := $(filter-out -lm,$(LIBS)) -lm
-
-EXAMPLE_NAMES = $(EXAMPLE_SOURCE_NAMES)
-EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLE_NAMES))
-GEM_BINS = $(patsubst %,$(GEM_DIR)/%.gem,$(EXAMPLE_NAMES))
-
-GENERATED_DIR = $(BUILD_DIR)/generated
-
-APP_COMPONENT_PLUGIN_BINS = $(patsubst components/%,$(LIB_DIR)/%_components$(LIB_EXT),$(filter-out components/commctl,$(wildcard components/*)))
+APP_COMPONENT_PLUGIN_BINS = $(patsubst components/%,$(LIB_DIR)/%_components.$(LIB_EXT),$(filter-out components/commctl,$(wildcard components/*)))
 COMPONENT_PLUGIN_BINS = $(APP_COMPONENT_PLUGIN_BINS)
 
-GENERATED_HEADERS = \
-    $(patsubst examples/%.orion,$(GENERATED_DIR)/examples/%.h,$(wildcard examples/*/*.orion))
+GENERATED_HEADERS = $(patsubst examples/%.orion,$(GENERATED_DIR)/examples/%.h,$(wildcard examples/*/*.orion))
+
+.SECONDEXPANSION:
 
 TEST_SRCS = $(shell find $(TEST_DIR) -name "*.c" \
     ! -name "test_env.c" \
@@ -141,8 +126,6 @@ TEST_BINS = $(addprefix $(BIN_DIR)/test_,$(addsuffix $(EXE_EXT),$(basename $(not
 .PHONY: all
 ifeq ($(OS),Windows_NT)
 all: library examples tools
-else
-all: library examples gems shell tools
 endif
 
 .PHONY: tools
@@ -212,15 +195,15 @@ library: $(CORE_LIBS)
 
 $(USER_LIB): $(wildcard user/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
 	find user -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(CORE_LIB_LFLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(DARWIN_CORE_UNDEF_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 $(COMMCTL_LIB): $(wildcard components/commctl/*.c) $(USER_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
 	find components/commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(CORE_LIB_LFLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(DARWIN_CORE_UNDEF_FLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 $(KERNEL_LIB): $(wildcard kernel/*.c) $(COMMCTL_LIB) $(USER_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
 	find kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(CORE_LIB_LFLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(DARWIN_CORE_UNDEF_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 # Examples
 .PHONY: examples
@@ -229,8 +212,8 @@ examples: share $(EXAMPLE_BINS) $(COMPONENT_PLUGIN_BINS)
 .PHONY: plugins
 plugins: $(COMPONENT_PLUGIN_BINS)
 
-$(LIB_DIR)/%_components$(LIB_EXT): $$(wildcard components/%/*.c) $(CORE_LIBS) | $(LIB_DIR)
-	$(CC) $(CFLAGS) $(FE_PLUGIN_LFLAGS) -I. -Iexamples/$* -Icomponents/$* -o $@ $(wildcard components/$*/*.c) \
+$(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard components/$$*/*.c) $(CORE_LIBS) | $(LIB_DIR)
+	$(CC) $(CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents/$* -o $@ $(wildcard components/$*/*.c) \
 	    $(LDFLAGS) $(FE_PLUGIN_LDLIBS) $(RPATH_FLAGS) $(LIBS)
 
 
@@ -256,7 +239,7 @@ $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED
 	@(echo '#include "gem_magic.h"'; \
 	 find examples/$* -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/$*/main.c"') | \
-		$(CC) $(GEM_CFLAGS) $(GEM_LFLAGS) -I. -Iexamples/$* -Icomponents -Icomponents/$* -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
+		$(CC) $(GEM_CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents -Icomponents/$* -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
 	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS)
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
@@ -308,7 +291,6 @@ endif
 	done
 	@echo "All tests passed!"
 
-.SECONDEXPANSION:
 $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $(GENERATED_HEADERS) $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) | $(BIN_DIR)
 	@src=$$(find $(TEST_DIR) -name "$*.c" ! -path "$(TEST_DIR)/*/tests/*" | head -n 1); \
 	app_dir=""; \
@@ -358,11 +340,10 @@ help:
 	@echo "Orion UI Framework - Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all       - Build library, examples, gems, and shell"
+	@echo "  all       - Build library, examples, and gems"
 	@echo "  library   - Build shared library"
 	@echo "  examples  - Build example applications"
 	@echo "  gems      - Build all .gem shared libraries"
-	@echo "  shell     - Build the Orion shell"
 	@echo "  test      - Build and run tests"
 	@echo "  clean     - Remove all build artifacts"
 	@echo "  help      - Show this help message"
