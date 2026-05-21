@@ -71,7 +71,18 @@ static const enum_token_t kColors[] = {
 
 static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }
 static const char *nz(const char *s, const char *d) { return (s && *s) ? s : d; }
-static bool elem(xmlNodePtr n, const char *name) { return n && n->type == XML_ELEMENT_NODE && xmlStrcmp(n->name, BAD_CAST name) == 0; }
+static bool elem(xmlNodePtr n, const char *name) {
+  if (!n || n->type != XML_ELEMENT_NODE || !name) return false;
+  const xmlChar *a = n->name;
+  const unsigned char *b = (const unsigned char *)name;
+  while (*a && *b) {
+    int ca = (*a >= 'A' && *a <= 'Z') ? (*a + 32) : (int)*a;
+    int cb = (*b >= 'A' && *b <= 'Z') ? (*b + 32) : (int)*b;
+    if (ca != cb) return false;
+    a++; b++;
+  }
+  return *a == 0 && *b == 0;
+}
 static char *attr(xmlNodePtr n, const char *name) { xmlChar *r = xmlGetProp(n, BAD_CAST name); char *s = r ? strdup((char *)r) : NULL; if (r) xmlFree(r); return s; }
 static char *attrs_first(xmlNodePtr n, const char *a, const char *b) { char *v = attr(n, a); if (v && *v) return v; free(v); return b ? attr(n, b) : NULL; }
 static xmlNodePtr child(xmlNodePtr n, const char *name) { EACH_ELEMENT(c, n) if (elem(c, name)) return c; return NULL; }
@@ -419,10 +430,30 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
   }
 }
 
+/* Case-insensitive klass comparison for binding_getter.
+   The klass string comes from the XML element name which may be PascalCase
+   (e.g. "TextBox", "MultiEdit", "ComboBox") while the canonical names used
+   in the comparisons below are lowercase.  Use the same ASCII fold that
+   elem() uses so that all spelling variants are handled. */
+static bool klass_eq(const char *klass, const char *name) {
+  if (!klass || !name) return false;
+  const unsigned char *a = (const unsigned char *)klass;
+  const unsigned char *b = (const unsigned char *)name;
+  while (*a && *b) {
+    int ca = (*a >= 'A' && *a <= 'Z') ? (*a + 32) : (int)*a;
+    int cb = (*b >= 'A' && *b <= 'Z') ? (*b + 32) : (int)*b;
+    if (ca != cb) return false;
+    a++; b++;
+  }
+  return *a == 0 && *b == 0;
+}
+
 static const char *binding_getter(const char *klass) {
-  if (eq(klass, "textedit") || eq(klass, "multiedit")) return "edGetText";
-  if (eq(klass, "combobox")) return "cbGetCurrentValue";  // Use value_field (ID) not row index
-  if (eq(klass, "checkbox")) return "chkIsChecked";
+  /* "TextBox" / "textedit" / "textbox" and "MultiEdit" / "multiedit" */
+  if (klass_eq(klass, "textedit") || klass_eq(klass, "textbox") ||
+      klass_eq(klass, "multiedit")) return "edGetText";
+  if (klass_eq(klass, "combobox")) return "cbGetCurrentValue";
+  if (klass_eq(klass, "checkbox")) return "chkIsChecked";
   return "0";
 }
 
@@ -494,8 +525,8 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
   for (int i = 0; i < b->n; i++) {
     const binding_t *x = &b->v[i];
     OUT("  { %s, 0, %s, offsetof(%s, %s), ", x->ctrl, binding_getter(x->klass), type, x->field);
-    if (eq(x->klass, "textedit") || eq(x->klass, "multiedit")) OUT("sizeof_field(%s, %s)", type, x->field);
-    else if (eq(x->klass, "combobox")) LINE("(size_t)-1");
+    if (klass_eq(x->klass, "textedit") || klass_eq(x->klass, "textbox") || klass_eq(x->klass, "multiedit")) OUT("sizeof_field(%s, %s)", type, x->field);
+    else if (klass_eq(x->klass, "combobox")) LINE("(size_t)-1");
     else LINE("0");
     LINE(", NULL, NULL },\n");
   }
