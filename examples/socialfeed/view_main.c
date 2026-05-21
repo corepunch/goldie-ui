@@ -16,7 +16,7 @@ static int sf_count_children(window_t *win) {
 }
 
 static void sf_log_window_tree(window_t *win, int depth) {
-  if (!win || depth > SF_MAX_LOG_TREE_DEPTH) return;
+  if (!win || depth >= SF_MAX_LOG_TREE_DEPTH) return;
   SF_DEBUG("tree d=%d id=%u frame=%d,%d %dx%d flags=0x%08x visible=%d children=%d proc=%p title='%s'",
            depth, win->id, win->frame.x, win->frame.y, win->frame.w, win->frame.h,
            win->flags, window_has_state(win, WINDOW_STATE_VISIBLE), sf_count_children(win),
