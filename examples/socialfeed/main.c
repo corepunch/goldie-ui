@@ -20,17 +20,13 @@
 #include "socialfeed.h"
 #include "../../gem_magic.h"
 #include "../../commctl/commctl.h"
+#include "../../platform/platform.h"
 
 #ifndef SHAREDIR
 #define SHAREDIR "."
 #endif
 
-static bool file_exists(const char *path) {
-  FILE *f = fopen(path, "rb");
-  if (!f) return false;
-  fclose(f);
-  return true;
-}
+#define SOCIALFEED_PATH_MAX 1024
 
 static void resolve_socialfeed_db_path(char *out, size_t out_sz) {
   if (!out || out_sz == 0) return;
@@ -39,25 +35,25 @@ static void resolve_socialfeed_db_path(char *out, size_t out_sz) {
   const char *exe_dir = ui_get_exe_dir();
   if (!exe_dir || !*exe_dir) return;
 
-  char candidate[1024];
+  char candidate[SOCIALFEED_PATH_MAX];
 
   snprintf(candidate, sizeof(candidate), "%s/" SHAREDIR "/socialfeed_seed.xml",
            exe_dir);
-  if (file_exists(candidate)) {
+  if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return;
   }
 
   snprintf(candidate, sizeof(candidate), "%s/../share/orion/socialfeed_seed.xml",
            exe_dir);
-  if (file_exists(candidate)) {
+  if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return;
   }
 
   snprintf(candidate, sizeof(candidate),
            "%s/../../examples/socialfeed/socialfeed_seed.xml", exe_dir);
-  if (file_exists(candidate)) {
+  if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return;
   }
