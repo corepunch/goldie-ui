@@ -25,6 +25,46 @@
 #define SHAREDIR "."
 #endif
 
+static bool file_exists(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f) return false;
+  fclose(f);
+  return true;
+}
+
+static void resolve_socialfeed_db_path(char *out, size_t out_sz) {
+  if (!out || out_sz == 0) return;
+  out[0] = '\0';
+
+  const char *exe_dir = ui_get_exe_dir();
+  if (!exe_dir || !*exe_dir) return;
+
+  char candidate[1024];
+
+  snprintf(candidate, sizeof(candidate), "%s/" SHAREDIR "/socialfeed_seed.xml",
+           exe_dir);
+  if (file_exists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return;
+  }
+
+  snprintf(candidate, sizeof(candidate), "%s/../share/orion/socialfeed_seed.xml",
+           exe_dir);
+  if (file_exists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return;
+  }
+
+  snprintf(candidate, sizeof(candidate),
+           "%s/../../examples/socialfeed/socialfeed_seed.xml", exe_dir);
+  if (file_exists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return;
+  }
+
+  snprintf(out, out_sz, "%s/" SHAREDIR "/socialfeed_seed.xml", exe_dir);
+}
+
 // ============================================================
 // gem_init
 // ============================================================
@@ -52,11 +92,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   // Form-based windows/dialogs require commctl classes to be registered.
   register_commctl_classes();
 
-  // Create database instance.
-  // Use the framework share path staged by `make share`.
   char db_path[1024];
-  snprintf(db_path, sizeof(db_path), "%s/../share/orion/socialfeed_seed.xml",
-           ui_get_exe_dir());
+  resolve_socialfeed_db_path(db_path, sizeof(db_path));
   g_app->db = create_database("socialfeed", "db_simple_xml", db_path);
   if (!g_app->db) {
     SF_DEBUG("Failed to create database");

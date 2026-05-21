@@ -110,14 +110,8 @@ static inline int layout_horizontal_gap_total(window_t *first, int gap) {
 
 static inline void layout_paint_children(window_t *win) {
   if (!win) return;
-  int origin_x = win->frame.x - win->hscroll.pos;
-  int origin_y = win->frame.y + titlebar_height(win) - win->vscroll.pos;
   for (window_t *child = win->children; child; child = child->next) {
-    irect16_t saved = child->frame;
-    child->frame.x = origin_x + saved.x;
-    child->frame.y = origin_y + saved.y;
     send_message(child, evPaint, 0, NULL);
-    child->frame = saved;
   }
 }
 
