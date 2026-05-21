@@ -6,6 +6,8 @@
 #include "socialfeed.h"
 
 #define FEED_CELL_TEXT_MAX 256
+#define SF_MAX_LOG_TREE_DEPTH 6
+#define SF_MAX_PAINT_LOGS 5
 
 static int sf_count_children(window_t *win) {
   int n = 0;
@@ -14,7 +16,7 @@ static int sf_count_children(window_t *win) {
 }
 
 static void sf_log_window_tree(window_t *win, int depth) {
-  if (!win || depth > 6) return;
+  if (!win || depth > SF_MAX_LOG_TREE_DEPTH) return;
   SF_DEBUG("tree d=%d id=%u frame=%d,%d %dx%d flags=0x%08x visible=%d children=%d proc=%p title='%s'",
            depth, win->id, win->frame.x, win->frame.y, win->frame.w, win->frame.h,
            win->flags, window_has_state(win, WINDOW_STATE_VISIBLE), sf_count_children(win),
@@ -76,7 +78,7 @@ result_t main_win_proc(window_t *win, uint32_t msg,
     case evPaint:
       {
         static int paint_log_count = 0;
-        if (paint_log_count < 5) {
+        if (paint_log_count < SF_MAX_PAINT_LOGS) {
           toolbar_state_t *tb = window_toolbar_state(win);
           SF_DEBUG("main evPaint[%d]: frame=%d,%d %dx%d content=%d,%d %dx%d feed=%d,%d %dx%d rows=%d tb_items=%d",
                    paint_log_count,
