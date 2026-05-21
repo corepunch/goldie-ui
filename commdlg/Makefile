@@ -1,14 +1,14 @@
 CC ?= gcc
 CFLAGS ?= -Wall -Wextra -std=c11
-OBJS = dialog.o
+OBJS = dialog.o filepicker.o msgbox.o splash.o
 
 all: libcommdlg.a
 
 libcommdlg.a: $(OBJS)
 	$(AR) rcs $@ $^
 
-dialog.o: dialog.c
-	$(CC) $(CFLAGS) -c dialog.c -o dialog.o
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f *.o *.a

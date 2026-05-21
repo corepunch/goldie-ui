@@ -446,11 +446,13 @@ void draw_builtin_scrollbars(window_t *win) {
   int t = titlebar_height(win);
   int s = statusbar_height(win);
 
-  // Coordinate base: for child windows use win->frame.x/y (offset within the
-  // root-relative projection); for top-level windows the projection origin
-  // maps to the client top-left, so use 0.
-  int base_x = win->parent ? win->frame.x : 0;
-  int base_y = win->parent ? win->frame.y : 0;
+  // Coordinate base in root-client projection space.
+  // Use cumulative screen position converted back into root-relative coords so
+  // nested children (grandchildren and deeper) are positioned correctly.
+  window_t *root = get_root_window(win);
+  int root_t = titlebar_height(root);
+  int base_x = window_screen_x(win) - root->frame.x;
+  int base_y = window_screen_y(win) - (root->frame.y + root_t);
 
   // When the horizontal bar is merged with the status bar, draw_statusbar()
   // already rendered it during evNCPaint.  Skip it here so

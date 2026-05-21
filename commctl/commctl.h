@@ -5,8 +5,6 @@
 #include "columnview.h"
 #include "menubar.h"
 #include "filelist.h"
-#include "filepicker.h"
-#include "msgbox.h"
 
 // Forward declarations for types from other subsystems
 typedef struct database_s database_t;
@@ -167,12 +165,6 @@ int      win_splitter_orientation(window_t *win);
 // Returns the height (in client pixels) that win_toolbox occupies for its
 // button grid.  Call from a wrapping proc to find where custom content starts.
 int toolbox_grid_height(window_t *win);
-
-// Splash screen — displays an image in a borderless, always-on-top window that
-// closes when clicked.  image_path is detected by content (magic bytes), so
-// .jpg, .jpeg, .png, and .bmp files are all accepted regardless of extension.
-// Returns the window pointer (non-modal), or NULL if the image cannot be loaded.
-window_t *show_splash_screen(const char *image_path, hinstance_t hinstance);
 
 // Terminal API functions
 const char* terminal_get_buffer(window_t *win);

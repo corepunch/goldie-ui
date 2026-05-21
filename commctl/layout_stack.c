@@ -189,13 +189,17 @@ result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
       if (a) {
         win->frame = a->rect;
-        window_layout_sync(win);
+        irect16_t cr = get_client_rect(win);
+        layout_stack_arrange_window(win, &cr);
       }
       return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
                        (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
-      window_layout_sync(win);
+      {
+        irect16_t cr = get_client_rect(win);
+        layout_stack_arrange_window(win, &cr);
+      }
       return true;
     case evPaint:
       layout_paint_children(win);

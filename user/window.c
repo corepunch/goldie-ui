@@ -919,20 +919,28 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
     int16_t effective_w = cd->size.w;
     int16_t effective_h = cd->size.h;
+    flags_t child_flags = cd->flags;
+    uint8_t child_h_align = cd->h_align;
+    uint8_t child_v_align = cd->v_align;
     if (class_desc) {
       if (effective_w == 0 && class_desc->default_layout_size.w > 0)
         effective_w = class_desc->default_layout_size.w;
       if (effective_h == 0 && class_desc->default_layout_size.h > 0)
         effective_h = class_desc->default_layout_size.h;
+      child_flags |= class_desc->default_flags;
+      if (child_h_align == 0)
+        child_h_align = class_desc->default_h_align;
+      if (child_v_align == 0)
+        child_v_align = class_desc->default_v_align;
     }
 
     irect16_t child_frame = {0, 0, effective_w, effective_h};
-    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+    window_t *child = create_window(cd->text ? cd->text : "", child_flags,
                                     &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     child->id = cd->id;
-    child->layout.h_align = cd->h_align;
-    child->layout.v_align = cd->v_align;
+    child->layout.h_align = child_h_align;
+    child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;
 
     if (cd->children && cd->child_count > 0)

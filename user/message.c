@@ -399,10 +399,14 @@ extern int statusbar_height(window_t const *win);
 // root_titlebar_h should be titlebar_height(root) — callers that already have
 // it pass it in to avoid recomputing.
 static irect16_t win_frame_in_screen(window_t *win, window_t *root, int root_titlebar_h) {
-  if (win == root) return win->frame;
-  return (irect16_t){root->frame.x + win->frame.x,
-                  root->frame.y + root_titlebar_h + win->frame.y,
-                  win->frame.w, win->frame.h};
+  (void)root;
+  (void)root_titlebar_h;
+  return (irect16_t){
+    window_screen_x(win),
+    window_screen_y(win),
+    win->frame.w,
+    win->frame.h
+  };
 }
 
 // Register a window hook
@@ -767,8 +771,12 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // windows, cx/cy equal the child's frame.x/y so that drawing at (0,0)
         // appears at the child's screen position rather than at the root's
         // client origin.
-        int cx = win->parent ? win->frame.x : 0;
-        int cy = win->parent ? win->frame.y : 0;
+        int cx = 0;
+        int cy = 0;
+        if (win->parent) {
+          cx = window_screen_x(win) - window_screen_x(root);
+          cy = window_screen_y(win) - (window_screen_y(root) + t);
+        }
         set_projection(root->hscroll.pos - cx,
                        -t - cy + root->vscroll.pos,
                        root->frame.w + root->hscroll.pos - cx,

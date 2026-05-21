@@ -93,7 +93,7 @@ RPATH_FLAGS = -Wl,-rpath,$(abspath $(LIB_DIR))
 PLATFORM_LDFLAGS = -L$(LIB_DIR) -lplatform
 
 # Link flags for the core Orion libraries.
-CORE_LDLIBS = -L$(LIB_DIR) -lkernel -lcommctl -luser
+CORE_LDLIBS = -L$(LIB_DIR) -lkernel -lcommctl -lcommdlg -luser
 USER_LDLIBS = -L$(LIB_DIR) -lcommdlg -lkernel
 COMMCTL_LDLIBS = -L$(LIB_DIR) -luser -lkernel
 KERNEL_LDLIBS =
@@ -148,6 +148,7 @@ ifeq ($(OS),Windows_NT)
 	@cp -f $(LIB_DIR)/libplatform.dll $(BIN_DIR)/
 	@cp -f $(USER_LIB) $(BIN_DIR)/
 	@cp -f $(COMMCTL_LIB) $(BIN_DIR)/
+	@cp -f $(COMMDLG_LIB) $(BIN_DIR)/
 	@cp -f $(KERNEL_LIB) $(BIN_DIR)/
 endif
 
@@ -268,6 +269,7 @@ ifeq ($(OS),Windows_NT)
 	@cp -f $(LIB_DIR)/libplatform.dll $(BIN_DIR)/
 	@cp -f $(USER_LIB) $(BIN_DIR)/
 	@cp -f $(COMMCTL_LIB) $(BIN_DIR)/
+	@cp -f $(COMMDLG_LIB) $(BIN_DIR)/
 	@cp -f $(KERNEL_LIB) $(BIN_DIR)/
 endif
 	@for test in $(TEST_BINS); do \

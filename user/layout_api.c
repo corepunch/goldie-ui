@@ -134,6 +134,10 @@ void layout_arrange_window(window_t *win, const irect16_t *rect) {
 void window_layout_sync(window_t *win) {
   if (!win || !(win->flags & WINDOW_AUTO_LAYOUT))
     return;
+  if (win->flags & WINDOW_LAYOUT_CONTAINER) {
+    send_message(win, evResize, 0, NULL);
+    return;
+  }
   irect16_t cr = get_client_rect(win);
   layout_arrange_window(win, &cr);
 }
