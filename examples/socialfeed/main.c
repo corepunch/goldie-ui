@@ -28,37 +28,38 @@
 
 #define SOCIALFEED_PATH_MAX 1024
 
-static void resolve_socialfeed_db_path(char *out, size_t out_sz) {
-  if (!out || out_sz == 0) return;
+static bool resolve_socialfeed_db_path(char *out, size_t out_sz) {
+  if (!out || out_sz == 0) return false;
   out[0] = '\0';
 
   const char *exe_dir = ui_get_exe_dir();
-  if (!exe_dir || !*exe_dir) return;
+  if (!exe_dir || !*exe_dir) return false;
 
   char candidate[SOCIALFEED_PATH_MAX];
 
-  snprintf(candidate, sizeof(candidate), "%s/" SHAREDIR "/socialfeed_seed.xml",
-           exe_dir);
+  snprintf(candidate, sizeof(candidate), "%s/%s/socialfeed_seed.xml",
+           exe_dir, SHAREDIR);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
-    return;
+    return true;
   }
 
   snprintf(candidate, sizeof(candidate), "%s/../share/orion/socialfeed_seed.xml",
            exe_dir);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
-    return;
+    return true;
   }
 
   snprintf(candidate, sizeof(candidate),
            "%s/../../examples/socialfeed/socialfeed_seed.xml", exe_dir);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
-    return;
+    return true;
   }
 
-  snprintf(out, out_sz, "%s/" SHAREDIR "/socialfeed_seed.xml", exe_dir);
+  snprintf(out, out_sz, "%s/%s/socialfeed_seed.xml", exe_dir, SHAREDIR);
+  return false;
 }
 
 // ============================================================
@@ -88,8 +89,11 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   // Form-based windows/dialogs require commctl classes to be registered.
   register_commctl_classes();
 
-  char db_path[1024];
-  resolve_socialfeed_db_path(db_path, sizeof(db_path));
+  char db_path[SOCIALFEED_PATH_MAX];
+  if (!resolve_socialfeed_db_path(db_path, sizeof(db_path))) {
+    SF_DEBUG("socialfeed_seed.xml not found in known locations; using fallback path: %s",
+             db_path);
+  }
   g_app->db = create_database("socialfeed", "db_simple_xml", db_path);
   if (!g_app->db) {
     SF_DEBUG("Failed to create database");
