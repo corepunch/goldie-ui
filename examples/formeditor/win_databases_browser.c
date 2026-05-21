@@ -28,7 +28,8 @@ static int db_get_child_count(void *ctx, int column, int parent_idx) {
   
   if (column == 0) {
     // Column 0: List of registered databases (for now, just 1)
-    return 1;  // Single "db" database
+    db_datasource_ctx_t *ds = (db_datasource_ctx_t *)ctx;
+    return (ds && ds->db) ? 1 : 0;
   } else if (column == 1) {
     return 0;
   } else if (column == 2) {
@@ -73,9 +74,7 @@ static void db_browser_refresh(window_t *win) {
   
   // Refresh the database reference (in case it changed)
   if (g_app) {
-    // For now, hardcode to socialfeed's database
-    // TODO: Make this dynamic based on loaded plugins
-    g_db_ctx.db = get_database_by_name("db");
+    g_db_ctx.db = ui_get_database();
     g_db_ctx.app = g_app;
   }
   
@@ -127,7 +126,7 @@ static result_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
       }
       
       // Setup data source
-      g_db_ctx.db = get_database_by_name("db");  // Hardcoded for now
+      g_db_ctx.db = ui_get_database();
       g_db_ctx.app = g_app;
       g_db_ctx.selected_table_id = -1;
       

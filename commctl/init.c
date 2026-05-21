@@ -143,12 +143,21 @@ const fe_component_desc_t *get_class_at_index(int index) {
 }
 
 // Register all common controls with the window system.
-// Called once during framework initialization.
 void register_commctl_classes(void) {
   int n = get_num_classes();
   for (int i = 0; i < n; i++) {
     const fe_component_desc_t *desc = get_class_at_index(i);
     if (desc)
       register_window_class(desc);
+  }
+}
+
+// Register all common controls as FormEditor/placeable component descriptors.
+void register_commctl_components(void) {
+  int n = get_num_classes();
+  for (int i = 0; i < n; i++) {
+    const fe_component_desc_t *desc = get_class_at_index(i);
+    if (desc)
+      fe_register_component(desc);
   }
 }

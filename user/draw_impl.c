@@ -278,16 +278,11 @@ void ui_set_stencil_for_root_window(uint32_t window_id) {
 // Fill a rectangle with a solid color
 void fill_rect(uint32_t color, irect16_t r) {
   extern uint32_t ui_white_texture;
-  
-  // Skip drawing if graphics aren't initialized (e.g., in tests)
   if (!g_ui_runtime.running) return;
-  
-  // Update the white texture with the desired color
-  glBindTexture(GL_TEXTURE_2D, ui_white_texture);
-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &color);
-  
-  // Draw a rectangle using the texture
-  draw_rect_ex(ui_white_texture, r, false, 1);
+  // Pass color via tint+alpha uniforms — the white texture stays constant white,
+  // no glTexSubImage2D needed.  draw_sprite_region unpacks RGBA from color and
+  // sets the tint and alpha uniforms so the shader outputs the desired color.
+  draw_sprite_region((int)ui_white_texture, r, NULL, color, 0);
 }
 
 static void color_to_params(uint32_t color, ui_render_effect_params_t *params, int base) {
