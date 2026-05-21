@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "user.h"
 #include "messages.h"
@@ -31,7 +32,14 @@ database_t *ui_get_database(void) {
 }
 
 static bool streq(const char *a, const char *b) {
-  return a && b && strcmp(a, b) == 0;
+  if (!a || !b) return false;
+  while (*a && *b) {
+    if (tolower((unsigned char)*a) != tolower((unsigned char)*b))
+      return false;
+    a++;
+    b++;
+  }
+  return *a == '\0' && *b == '\0';
 }
 
 // Check if window is a layout container (arranges its children).
@@ -703,6 +711,19 @@ void load_window_children(window_t *win, windef_t const *def) {
 static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
                                  int child_count);
 
+static void propagate_database_message(window_t *win, database_t *db) {
+  if (!win || !db) return;
+
+  send_message(win, evSetDatabase, 0, db);
+
+  for (window_t *child = win->children; child; child = child->next)
+    propagate_database_message(child, db);
+
+  toolbar_state_t *tb = window_toolbar_state(win);
+  for (window_t *child = tb ? tb->children : NULL; child; child = child->next)
+    propagate_database_message(child, db);
+}
+
 static bool form_children_use_parent_links(const form_ctrl_def_t *children, int child_count) {
   if (!children || child_count <= 0) return false;
   for (int i = 0; i < child_count; i++) {
@@ -855,28 +876,12 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
     send_message(win, tbSetItems, (uint32_t)def->toolbar_count, (void *)def->toolbar_items);
   }
 
-  // Auto-propagate database to all tableview children
-  // Use global database singleton (NeXTSTEP-style)
-  database_t *effective_db = g_app_database;
+  // Propagate the global database context through the full child tree.
+  // Controls that care consume evSetDatabase; all other recipients ignore it.
+  database_t *effective_db = ui_get_database();
   if (effective_db) {
-      for (window_t *child = win->children; child; child = child->next) {
-      if (child->proc == win_tableview) {
-        send_message(child, tvSetDatabase, 0, effective_db);
-      }
-      // Auto-populate comboboxes with database if they have params
-      if (child->proc == win_combobox) {
-        send_message(child, cbSetDatabase, 0, effective_db);
-      }
-      // Recurse into nested containers
-      for (window_t *grandchild = child->children; grandchild; grandchild = grandchild->next) {
-        if (grandchild->proc == win_tableview) {
-          send_message(grandchild, tvSetDatabase, 0, effective_db);
-        }
-        if (grandchild->proc == win_combobox) {
-          send_message(grandchild, cbSetDatabase, 0, effective_db);
-        }
-      }
-    }
+    for (window_t *child = win->children; child; child = child->next)
+      propagate_database_message(child, effective_db);
   }
 
   if (win->flags & WINDOW_AUTO_LAYOUT)

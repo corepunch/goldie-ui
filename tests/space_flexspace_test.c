@@ -18,8 +18,8 @@ void test_space_has_flexspace_by_default(void) {
     test_env_init();
 
     form_ctrl_def_t children[] = {
-        { .class_name = "space", .id = 1, .size = {0, 0}, .name = "spacer" },
-        { .class_name = "button", .id = 2, .size = {40, 19}, .text = "OK", .name = "ok" },
+        { .class_name = "Space", .id = 1, .size = {0, 0}, .name = "spacer" },
+        { .class_name = "Button", .id = 2, .size = {40, 19}, .text = "OK", .name = "ok" },
     };
     form_def_t def = {
         .name = "Space Test",

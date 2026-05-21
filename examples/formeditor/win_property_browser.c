@@ -43,7 +43,7 @@ static result_t prop_edit_proc(window_t *win, uint32_t msg,
 
 static const char *prop_ctrl_type_name(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
-  return c ? c->display_name : "Control";
+  return c ? c->class_name : "Control";
 }
 
 static form_element_t *prop_selected_element(form_doc_t *doc) {

@@ -219,10 +219,10 @@ static void comp_build_tool_items(void) {
         (FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX))
       continue;
     g_comp_tools[g_comp_tool_count++] = (reportview_item_t){
-        .text = c->display_name,
+        .text = c->class_name,
         .icon = c->toolbox_icon,
         .color = get_sys_color(brTextNormal),
-        .userdata = (uint32_t)c->toolbox_ident,
+        .userdata = (uint32_t)i,
     };
   }
 }

@@ -83,7 +83,8 @@ PLATFORM_LIB = $(LIB_DIR)/libplatform.$(LIB_EXT)
 USER_LIB = $(LIB_DIR)/libuser.$(LIB_EXT)
 KERNEL_LIB = $(LIB_DIR)/libkernel.$(LIB_EXT)
 COMMCTL_LIB = $(LIB_DIR)/libcommctl.$(LIB_EXT)
-CORE_LIBS = $(USER_LIB) $(COMMCTL_LIB) $(KERNEL_LIB)
+COMMDLG_LIB = $(LIB_DIR)/libcommdlg.$(LIB_EXT)
+CORE_LIBS = $(USER_LIB) $(COMMCTL_LIB) $(COMMDLG_LIB) $(KERNEL_LIB)
 
 # Shared rpath used exactly once per link command to avoid duplicate-rpath warnings.
 RPATH_FLAGS = -Wl,-rpath,$(abspath $(LIB_DIR))
@@ -93,9 +94,9 @@ PLATFORM_LDFLAGS = -L$(LIB_DIR) -lplatform
 
 # Link flags for the core Orion libraries.
 CORE_LDLIBS = -L$(LIB_DIR) -lkernel -lcommctl -luser
-USER_LDLIBS =
-COMMCTL_LDLIBS = -L$(LIB_DIR) -luser
-KERNEL_LDLIBS = -L$(LIB_DIR) -lcommctl -luser
+USER_LDLIBS = -L$(LIB_DIR) -lcommdlg -lkernel
+COMMCTL_LDLIBS = -L$(LIB_DIR) -luser -lkernel
+KERNEL_LDLIBS =
 FE_PLUGIN_LDLIBS = $(CORE_LDLIBS)
 
 # Tools directory
@@ -107,10 +108,8 @@ TOOLS_CFLAGS = $(CFLAGS) -Wno-unused-function
 # Examples are directory names under examples/, independent of their contents.
 EXAMPLES = $(patsubst examples/%/,%,$(filter %/,$(wildcard examples/*/)))
 EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLES))
-GEM_BINS = $(patsubst %,$(GEM_DIR)/%.gem,$(EXAMPLES))
-
-APP_COMPONENT_PLUGIN_BINS = $(patsubst components/%,$(LIB_DIR)/%_components.$(LIB_EXT),$(filter-out components/commctl,$(wildcard components/*)))
-COMPONENT_PLUGIN_BINS = $(APP_COMPONENT_PLUGIN_BINS)
+GEM_BINS = $(patsubst %,$(GEM_DIR)/%.gem,$(filter-out shell,$(EXAMPLES)))
+COMPONENT_PLUGIN_BINS = $(patsubst components/%,$(LIB_DIR)/%_components.$(LIB_EXT),$(wildcard components/*))
 
 GENERATED_HEADERS = $(patsubst examples/%.orion,$(GENERATED_DIR)/examples/%.h,$(wildcard examples/*/*.orion))
 
@@ -126,6 +125,8 @@ TEST_BINS = $(addprefix $(BIN_DIR)/test_,$(addsuffix $(EXE_EXT),$(basename $(not
 .PHONY: all
 ifeq ($(OS),Windows_NT)
 all: library examples tools
+else
+all: library examples gems tools
 endif
 
 .PHONY: tools
@@ -193,17 +194,21 @@ share: $(VGA_FONT_PNG) | $(SHARE_DIR)
 .PHONY: library
 library: $(CORE_LIBS)
 
-$(USER_LIB): $(wildcard user/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
-	find user -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(DARWIN_CORE_UNDEF_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+$(USER_LIB): $(filter-out user/dialog.c,$(wildcard user/*.c)) $(COMMDLG_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
+	   find user -name "*.c" | grep -v dialog.c | sort | sed 's/.*/#include "&"/' | \
+		   $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+# Build commdlg static library
+$(COMMDLG_LIB): $(wildcard commdlg/*.c) | $(LIB_DIR)
+	$(MAKE) -C commdlg CC="$(CC)" CFLAGS="$(CFLAGS)"
+	cp commdlg/libcommdlg.a $(COMMDLG_LIB)
 
-$(COMMCTL_LIB): $(wildcard components/commctl/*.c) $(USER_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
-	find components/commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(DARWIN_CORE_UNDEF_FLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+$(COMMCTL_LIB): $(wildcard commctl/*.c) $(USER_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
+	find commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
-$(KERNEL_LIB): $(wildcard kernel/*.c) $(COMMCTL_LIB) $(USER_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
+$(KERNEL_LIB): $(wildcard kernel/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
 	find kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(DARWIN_CORE_UNDEF_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 # Examples
 .PHONY: examples
@@ -248,32 +253,12 @@ $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED
 .PHONY: validate-gem
 validate-gem:
 ifeq ($(OS),Windows_NT)
-	@dumpbin //EXPORTS $(GEM) 2>/dev/null | grep -q "gem_get_interface" \
-	    || (echo "FAIL missing gem_get_interface" && exit 1)
+	@dumpbin //EXPORTS $(GEM) 2>/dev/null | grep -q "gem_get_interface" || (echo "FAIL missing gem_get_interface" && exit 1)
 else ifeq ($(UNAME_S),Darwin)
-	@nm -g $(GEM) 2>/dev/null | grep -q "T _gem_get_interface" \
-	    || (echo "FAIL missing gem_get_interface" && exit 1)
+	@nm -g $(GEM) 2>/dev/null | grep -q "T _gem_get_interface" || (echo "FAIL missing gem_get_interface" && exit 1)
 else
-	@nm -D $(GEM) 2>/dev/null | grep -q "T gem_get_interface" \
-	    || (echo "FAIL missing gem_get_interface" && exit 1)
+	@nm -D $(GEM) 2>/dev/null | grep -q "T gem_get_interface" || (echo "FAIL missing gem_get_interface" && exit 1)
 endif
-
-$(GEM_DIR):
-	mkdir -p $@
-
-# === Orion Shell ===
-#
-# The shell links against the split core libraries and exports its symbols with
-# -Wl,--export-dynamic (Linux) so that gems whose unresolved references were
-# not satisfied by shared libraries can still resolve them from the shell.
-
-.PHONY: shell
-shell: $(SHELL_BIN)
-
-$(SHELL_BIN): $(SHELL_SRCS) $(CORE_LIBS) | $(BIN_DIR)
-	@(find shell -name "*.c" | sort | sed 's/.*/#include "&"/') | \
-	    $(CC) $(CFLAGS) -I. -Ishell -x c -o $@ - -x none \
-	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LDFLAGS_EXAMPLE) $(COMPONENT_PLUGIN_BINS) $(LIBS) $(SHELL_EXTRA_LDFLAGS)
 
 # Tests
 .PHONY: test
@@ -322,7 +307,7 @@ $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS)
 
 # Directory creation
-BUILD_DIRS = $(BUILD_DIR) $(LIB_DIR) $(BIN_DIR) $(SHARE_DIR) $(GENERATED_DIR)
+BUILD_DIRS = $(BUILD_DIR) $(LIB_DIR) $(BIN_DIR) $(SHARE_DIR) $(GEM_DIR) $(GENERATED_DIR)
 
 $(BUILD_DIRS):
 	mkdir -p $@
@@ -340,7 +325,7 @@ help:
 	@echo "Orion UI Framework - Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all       - Build library, examples, and gems"
+	@echo "  all       - Build library, examples, gems, and tools"
 	@echo "  library   - Build shared library"
 	@echo "  examples  - Build example applications"
 	@echo "  gems      - Build all .gem shared libraries"

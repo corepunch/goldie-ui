@@ -12,14 +12,6 @@
 #include "image.h"
 #include "icons.h"
 
-// Forward declarations for toolbar child creation.
-// These procs live in commctl but are referenced from user/ via extern linkage.
-extern result_t win_toolbar_button(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_space(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_label(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_combobox(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_textedit(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_button(window_t *, uint32_t, uint32_t, void *);
 extern bitmap_strip_t *ui_get_sysicon_strip(void);
 
 #define CONTAINS(x, y, x1, y1, w1, h1) \
@@ -30,7 +22,6 @@ extern bitmap_strip_t *ui_get_sysicon_strip(void);
   (float)((srow) * (strip)->icon_h) / (float)(strip)->sheet_h, \
   (float)((scol) * (strip)->icon_w + (strip)->icon_w) / (float)(strip)->sheet_w, \
   (float)((srow) * (strip)->icon_h + (strip)->icon_h) / (float)(strip)->sheet_h
-
 
 // Message queue structure for Orion-posted messages only.
 typedef struct {
@@ -55,37 +46,242 @@ static void free_posted_lparam(uint32_t msg, void *lparam) {
 
 
 
-// Separator pseudo-proc: draws a 1-pixel vertical divider line.
-static result_t win_toolbar_sep(window_t *win, uint32_t msg,
-                                 uint32_t wparam, void *lparam) {
-  (void)wparam; (void)lparam;
-  if (msg == evCreate || msg == evDestroy) return 1;
-  if (msg == evPaint) {
-    fill_rect(get_sys_color(brDarkEdge), R(win->frame.x + win->frame.w / 2, win->frame.y + 2, 1, win->frame.h - 4));
-    return 1;
+// Separator pseudo-proc: no longer used for toolbar items (drawn inline).
+// Kept as a stub so any stale tbSetItems calls that previously created
+// separator child windows do not crash; such windows are now never created.
+
+// ────────────────────────────────────────────────────────────────────────
+// Toolbar owner-draw helpers (declared before win_toolbar so they can be called)
+// ────────────────────────────────────────────────────────────────────────
+
+static int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
+  if (!tb || !tb->item_rects) return -1;
+  for (int i = 0; i < tb->item_count; i++) {
+    irect16_t r = tb->item_rects[i];
+    if (tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h)
+      return i;
   }
-  return 0;
+  return -1;
+}
+
+// Compute band-relative rects for all items and store in tb->item_rects[].
+// Also repositions any embedded child windows (COMBOBOX/TEXTEDIT).
+static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
+  if (!tb || !tb->items) return;
+  free(tb->item_rects);
+  tb->item_rects = tb->item_count > 0
+      ? malloc(tb->item_count * sizeof(irect16_t)) : NULL;
+  int bsz     = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+  int x       = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
+  int base_y  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
+  int field_y = base_y + 2;
+  int field_h = bsz > 4 ? (bsz - 4) : bsz;
+  for (int i = 0; i < tb->item_count; i++) {
+    toolbar_item_t *item = &tb->items[i];
+    int w = 0, y = base_y, h = bsz;
+    switch (item->type) {
+      case TOOLBAR_ITEM_BUTTON:
+        w = item->w > 0 ? item->w : bsz;
+        break;
+      case TOOLBAR_ITEM_DROPDOWN:
+        w = (item->w > 0 ? item->w : bsz) + DROPDOWN_ARROW_W;
+        break;
+      case TOOLBAR_ITEM_LABEL:
+        w = item->w > 0 ? item->w
+            : (strwidth(item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
+        break;
+      case TOOLBAR_ITEM_COMBOBOX:
+        w = item->w > 0 ? item->w : (bsz * TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT);
+        y = field_y; h = field_h;
+        break;
+      case TOOLBAR_ITEM_TEXTEDIT:
+        w = item->w > 0 ? item->w : (bsz * 8);
+        y = field_y; h = field_h;
+        break;
+      case TOOLBAR_ITEM_SEPARATOR:
+        w = item->w > 0 ? item->w : 6;
+        break;
+      case TOOLBAR_ITEM_SPACER:
+        w = item->w > 0 ? item->w : TOOLBAR_SPACING_GAP_WIDTH;
+        break;
+      default:
+        w = 0;
+        break;
+    }
+    if (tb->item_rects)
+      tb->item_rects[i] = (irect16_t){x, y, w, h};
+    x += w + TOOLBAR_SPACING;
+  }
+  // Sync embedded child window positions to match their computed rects.
+  for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
+    for (int i = 0; i < tb->item_count; i++) {
+      if ((uint32_t)tb->items[i].ident == tc->id && tb->item_rects) {
+        tc->frame = tb->item_rects[i];
+        break;
+      }
+    }
+  }
+  (void)parent;
+}
+
+// Draw the icon for a toolbar item centred in the given (already-projected) rect.
+// Uses the sysicon strip for icon >= SYSICON_BASE, otherwise the toolbar's custom strip.
+static void draw_toolbar_icon_in_rect(toolbar_state_t *tb, int icon, irect16_t r, int offset) {
+  bitmap_strip_t *strip = NULL;
+  int idx = icon;
+  if (icon >= SYSICON_BASE) {
+    strip = ui_get_sysicon_strip();
+    idx = icon - SYSICON_BASE;
+  } else if (tb && tb->strip.tex != 0) {
+    strip = &tb->strip;
+  }
+  if (!strip || strip->cols <= 0 || idx < 0) return;
+  int col = idx % strip->cols;
+  int row = idx / strip->cols;
+  float u0 = (float)(col * strip->icon_w) / (float)strip->sheet_w;
+  float v0 = (float)(row * strip->icon_h) / (float)strip->sheet_h;
+  float u1 = u0 + (float)strip->icon_w / (float)strip->sheet_w;
+  float v1 = v0 + (float)strip->icon_h / (float)strip->sheet_h;
+  int ix = r.x + (r.w - strip->icon_w) / 2 + offset;
+  int iy = r.y + (r.h - strip->icon_h) / 2 + offset;
+  draw_sprite_region((int)strip->tex,
+                     R(ix, iy, strip->icon_w, strip->icon_h),
+                     UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
+}
+
+// Draw one toolbar item.
+// Projection must be set so (0,0) maps to the item's band-relative top-left corner.
+static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
+  toolbar_item_t *item = &tb->items[i];
+  irect16_t r = tb->item_rects[i];
+  bool is_pressed = (tb->pressed_item == i);
+  bool is_active  = (item->flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0;
+  bool show_pressed = is_pressed || is_active;
+  switch (item->type) {
+    case TOOLBAR_ITEM_BUTTON: {
+      irect16_t local = {0, 0, r.w, r.h};
+      draw_button(local, 1, 1, show_pressed);
+      int icon = item->icon >= 0 ? item->icon : sysicon_missing;
+      draw_toolbar_icon_in_rect(tb, icon, local, show_pressed ? 1 : 0);
+      break;
+    }
+    case TOOLBAR_ITEM_DROPDOWN: {
+      int aw = DROPDOWN_ARROW_W;
+      irect16_t btn_part = {0,   0, r.w - aw, r.h};
+      irect16_t arr_part = {r.w - aw, 0, aw, r.h};
+      draw_button(btn_part, 1, 1, show_pressed);
+      int icon = item->icon >= 0 ? item->icon : sysicon_missing;
+      draw_toolbar_icon_in_rect(tb, icon, btn_part, show_pressed ? 1 : 0);
+      bool arrow_pressed = is_pressed && tb->pressed_in_arrow;
+      draw_button(arr_part, 1, 1, arrow_pressed);
+      // Small downward-pointing triangle glyph
+      int cx = arr_part.x + arr_part.w / 2;
+      int cy = arr_part.y + arr_part.h / 2 - 1 + (arrow_pressed ? 1 : 0);
+      uint32_t arrow_col = get_sys_color(brTextNormal);
+      fill_rect(arrow_col, R(cx - 3, cy,     7, 1));
+      fill_rect(arrow_col, R(cx - 2, cy + 1, 5, 1));
+      fill_rect(arrow_col, R(cx - 1, cy + 2, 3, 1));
+      fill_rect(arrow_col, R(cx,     cy + 3, 1, 1));
+      break;
+    }
+    case TOOLBAR_ITEM_SEPARATOR: {
+      int mx = r.w / 2;
+      fill_rect(get_sys_color(brDarkEdge),  R(mx,     2, 1, r.h - 4));
+      fill_rect(get_sys_color(brLightEdge), R(mx + 1, 2, 1, r.h - 4));
+      break;
+    }
+    case TOOLBAR_ITEM_LABEL: {
+      int ty = (r.h - CHAR_HEIGHT) / 2;
+      draw_text_small(item->text ? item->text : "", 2, ty,
+                      get_sys_color(brTextNormal));
+      break;
+    }
+    case TOOLBAR_ITEM_SPACER:
+    case TOOLBAR_ITEM_COMBOBOX:
+    case TOOLBAR_ITEM_TEXTEDIT:
+      break; // spacer: nothing; embedded controls: painted via their own child procs
+  }
 }
 
 static result_t win_toolbar(window_t *win, uint32_t msg,
                             uint32_t wparam, void *lparam) {
-  (void)wparam;
+  toolbar_state_t *tb = (toolbar_state_t *)win->userdata;
   switch (msg) {
     case evCreate:
       if (!win->userdata) {
         allocate_window_data(win, sizeof(toolbar_state_t));
+        tb = (toolbar_state_t *)win->userdata;
+        tb->hot_item     = -1;
+        tb->pressed_item = -1;
       }
       return true;
     case evDestroy: {
-      toolbar_state_t *tb = (toolbar_state_t *)win->userdata;
-      if (tb && tb->strip_tex) {
-        R_DeleteTexture(tb->strip_tex);
-        tb->strip_tex = 0;
+      if (tb) {
+        if (tb->strip_tex) {
+          R_DeleteTexture(tb->strip_tex);
+          tb->strip_tex = 0;
+        }
+        free(tb->items);    tb->items = NULL;
+        free(tb->item_rects); tb->item_rects = NULL;
       }
       return true;
     }
+    case evLeftButtonDown: {
+      if (!tb || !tb->item_rects) return false;
+      int tx = (int16_t)LOWORD(wparam);
+      int ty = (int16_t)HIWORD(wparam);
+      int idx = toolbar_item_hit(tb, tx, ty);
+      if (idx < 0) return false;
+      toolbar_item_t *item = &tb->items[idx];
+      if (item->type != TOOLBAR_ITEM_BUTTON &&
+          item->type != TOOLBAR_ITEM_DROPDOWN) return false;
+      tb->pressed_item  = idx;
+      tb->pressed_in_arrow = (item->type == TOOLBAR_ITEM_DROPDOWN) &&
+          (tx >= tb->item_rects[idx].x + tb->item_rects[idx].w - DROPDOWN_ARROW_W);
+      invalidate_window(win->parent);
+      return true;
+    }
+    case evLeftButtonUp: {
+      if (!tb || tb->pressed_item < 0) return false;
+      int tx = (int16_t)LOWORD(wparam);
+      int ty = (int16_t)HIWORD(wparam);
+      int saved_idx       = tb->pressed_item;
+      bool saved_in_arrow = tb->pressed_in_arrow;
+      tb->pressed_item    = -1;
+      tb->pressed_in_arrow = false;
+      invalidate_window(win->parent);
+      if (saved_idx >= tb->item_count) return true;
+      int hit = toolbar_item_hit(tb, tx, ty);
+      if (hit != saved_idx) return true; // released outside — cancel
+      toolbar_item_t *item = &tb->items[saved_idx];
+      window_t *root = get_root_window(win);
+      if (item->type == TOOLBAR_ITEM_DROPDOWN && saved_in_arrow) {
+        // Arrow zone: fire tbDropdown notification
+        send_message(root, evCommand,
+                     MAKEDWORD((uint16_t)item->ident, (uint16_t)tbDropdown), win);
+      } else {
+        send_message(root, tbButtonClick, (uint32_t)item->ident, win);
+      }
+      return true;
+    }
+    case evMouseMove: {
+      if (!tb) return false;
+      int tx = (int16_t)LOWORD(wparam);
+      int ty = (int16_t)HIWORD(wparam);
+      int old_hot = tb->hot_item;
+      tb->hot_item = toolbar_item_hit(tb, tx, ty);
+      if (tb->hot_item != old_hot) invalidate_window(win->parent);
+      return true;
+    }
+    case evMouseLeave: {
+      if (tb && tb->hot_item >= 0) {
+        tb->hot_item = -1;
+        invalidate_window(win->parent);
+      }
+      return false;
+    }
     default:
-      (void)lparam;
+      (void)lparam; (void)wparam;
       return false;
   }
 }
@@ -105,7 +301,6 @@ static toolbar_state_t *ensure_toolbar_state(window_t *win) {
     
     // Remove toolbar host from parent->children so layout doesn't see it.
     // The toolbar host is accessed via win->toolbar, not through the children list.
-    // This matches the behavior of toolbar button children created by create_toolbar_child.
     {
       window_t *prev = NULL;
       window_t *c = win->children;
@@ -144,161 +339,6 @@ static int toolbar_effective_bsz(window_t const *win) {
   return (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
 }
 
-// Create one toolbar child window at the given toolbar-band-relative position,
-// then remove it from parent->children (where create_window puts it) so the
-// caller can add it to toolbar state children.
-// Frames are relative to the toolbar band top-left (not screen-absolute).
-// For BUTTON items: sets btnSetImage if a sysicon or custom strip.
-static window_t *create_toolbar_child(window_t *parent, winproc_t proc,
-                                       uint32_t id, flags_t extra_flags,
-                                       const char *title,
-                                       int rel_x, int rel_y, int w, int h,
-                                       int icon) {
-  irect16_t r = {rel_x, rel_y, w, h};
-  // Toolbar children use toolbar-band-relative frames and WINDOW_NOTITLE | WINDOW_NOFILL
-  // so the framework neither draws a title bar nor fills their background.
-  window_t *tc = create_window(title ? title : "",
-                                WINDOW_NOTITLE | WINDOW_NOFILL | extra_flags,
-                                &r, parent, proc, parent->hinstance, NULL);
-  if (!tc) return NULL;
-  tc->id = id;
-  // create_window() appended tc to parent->children; remove it from there so
-  // that the default evPaint handler (which walks children) does
-  // not double-paint toolbar items, and so that clear_window_children does not
-  // double-free them (clear_toolbar_children handles that instead).
-  // Search for tc and splice it out without assuming it is at the tail;
-  // re-entrant create paths may have appended additional siblings after tc.
-  {
-    window_t *prev = NULL;
-    window_t *c = parent->children;
-    while (c && c != tc) {
-      prev = c;
-      c = c->next;
-    }
-    if (c == tc) {
-      if (prev) {
-        prev->next = tc->next;
-      } else {
-        parent->children = tc->next;
-      }
-    }
-  }
-  tc->next = NULL;
-  // Enforce the requested frame dimensions.  Some procs (win_button, win_label)
-  // expand frame.w/h during evCreate to fit their text content.
-  // Clamping here keeps sequential toolbar layout stable regardless of text length
-  // and ensures that an explicitly-provided width (item->w) is always honoured.
-  tc->frame.x = rel_x;
-  tc->frame.y = rel_y;
-  tc->frame.w = w;
-  tc->frame.h = h;
-  // Wire up icon image for button children.
-  if (proc == win_toolbar_button && icon >= 0) {
-    toolbar_state_t *tb = get_toolbar_state(parent);
-    if (icon >= SYSICON_BASE) {
-      bitmap_strip_t *sys = ui_get_sysicon_strip();
-      if (sys) {
-        send_message(tc, btnSetImage,
-                     (uint32_t)(icon - SYSICON_BASE), sys);
-      }
-    } else if (tb && tb->strip.tex != 0) {
-      send_message(tc, btnSetImage,
-                   (uint32_t)icon, &tb->strip);
-    }
-  }
-  return tc;
-}
-
-// Lay out toolbar_item_t[] items and create child windows.
-static void layout_toolbar_items(window_t *parent,
-                                  const toolbar_item_t *items,
-                                  uint32_t n) {
-  toolbar_state_t *tb = ensure_toolbar_state(parent);
-  if (!tb) return;
-  int bsz     = toolbar_effective_bsz(parent);
-  int base_x  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
-  int base_y  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
-  int field_y = base_y + 2;
-  int field_h = bsz > 4 ? (bsz - 4) : bsz;
-  window_t **tail = &tb->children;
-  while (*tail) tail = &(*tail)->next;
-  for (uint32_t i = 0; i < n; i++) {
-    const toolbar_item_t *item = &items[i];
-    switch (item->type) {
-      case TOOLBAR_ITEM_SPACER:
-        {
-          int w = item->w > 0 ? item->w : TOOLBAR_SPACING_GAP_WIDTH;
-          window_t *tc = create_toolbar_child(parent, win_space,
-                                               (uint32_t)item->ident, 0,
-                                               NULL,
-                                               0, base_y,
-                                               w, bsz, -1);
-          if (!tc) break;
-          *tail = tc; tail = &tc->next;
-        }
-        break;
-      case TOOLBAR_ITEM_SEPARATOR: {
-        int sw = item->w > 0 ? item->w : 6;
-        window_t *tc = create_toolbar_child(parent, win_toolbar_sep,
-                                             (uint32_t)item->ident, 0, NULL,
-                                             0, base_y, sw, bsz, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_BUTTON: {
-        int w = item->w > 0 ? item->w : bsz;
-        int icon = item->icon >= 0 ? item->icon : sysicon_missing;
-        flags_t extra = item->flags & ~(TOOLBAR_BUTTON_FLAG_ACTIVE | TOOLBAR_BUTTON_FLAG_PRESSED);
-        window_t *tc = create_toolbar_child(parent, win_toolbar_button,
-                                             (uint32_t)item->ident,
-                                             extra,
-                                             item->text,
-                                             0, base_y,
-                                             w, bsz, icon);
-        if (!tc) break;
-        if (item->flags & TOOLBAR_BUTTON_FLAG_ACTIVE) tc->value = true;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_LABEL: {
-        int w = item->w > 0 ? item->w : (strwidth(item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
-        window_t *tc = create_toolbar_child(parent, win_label,
-                                             (uint32_t)item->ident, 0,
-                                             item->text,
-                                             0, base_y,
-                                             w, bsz, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_COMBOBOX: {
-        int w = item->w > 0 ? item->w : (bsz * TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT);
-        window_t *tc = create_toolbar_child(parent, win_combobox,
-                                             (uint32_t)item->ident, 0,
-                                             item->text,
-                                             0, field_y,
-                                             w, field_h, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_TEXTEDIT: {
-        int w = item->w > 0 ? item->w : (bsz * 8);
-        window_t *tc = create_toolbar_child(parent, win_textedit,
-                                             (uint32_t)item->ident, 0,
-                                             item->text,
-                                             0, field_y,
-                                             w, field_h, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-    }
-  }
-  layout_flow_horizontal(tb->children, base_x, TOOLBAR_SPACING);
-}
-
 // Window hooks
 typedef struct winhook_s {
   winhook_func_t func;
@@ -310,6 +350,26 @@ typedef struct winhook_s {
 static winhook_t *g_hooks = NULL;
 
 // External references
+
+// Forward declarations for kernel/event.c helpers.
+// wake_event_loop() posts a sentinel to make get_message() return 0 (loop exit).
+extern void wake_event_loop(void);
+// dispatch_message() routes a platform or Orion event to its target window proc.
+void dispatch_message(ui_event_t *evt);
+// Forward declarations for kernel/init.c per-frame rendering.
+extern void ui_begin_frame(void);
+extern void ui_end_frame(void);
+
+// Forward declarations
+extern void draw_panel(window_t const *win);
+extern void draw_window_controls(window_t *win);
+extern void draw_statusbar(window_t *win, const char *text);
+extern void draw_bevel(irect16_t r);
+extern void draw_button(irect16_t r, int dx, int dy, bool pressed);
+extern void paint_window_stencil(window_t const *w);
+extern void repaint_stencil(void);
+extern void set_fullscreen(void);
+extern window_t *get_root_window(window_t *window);
 
 // Forward declarations for kernel/event.c helpers.
 // wake_event_loop() posts a sentinel to make get_message() return 0 (loop exit).
@@ -659,11 +719,17 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           irect16_t rect    = rect_inset(tb_rect, TOOLBAR_BEVEL_WIDTH);
           draw_bevel(rect);
           fill_rect(get_sys_color(brWindowBg), rect);
-          // Paint each toolbar child with a per-button projection so that
-          // drawing at (0,0) inside the child proc maps to the button's
-          // top-left corner (consistent with how send_message dispatches evPaint
-          // for regular child windows).  tc->frame.x/y are toolbar-band-relative.
+          // Owner-draw: paint each item with per-item projection (consistent with
+          // how child windows are painted — drawing at (0,0) maps to item top-left).
           set_viewport(tb_rect);
+          if (tb && tb->items && tb->item_rects) {
+            for (int i = 0; i < tb->item_count; i++) {
+              irect16_t r = tb->item_rects[i];
+              set_projection(-r.x, -r.y, win->frame.w - r.x, total_h - r.y);
+              draw_toolbar_item_at_origin(tb, i);
+            }
+          }
+          // Paint embedded child windows (COMBOBOX / TEXTEDIT) on top.
           for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
             set_projection(-tc->frame.x, -tc->frame.y,
                            win->frame.w - tc->frame.x, total_h - tc->frame.y);
@@ -720,15 +786,61 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         }
       }
       break;
-    case tbSetItems:
-      // Replace existing toolbar children with new mixed-type item children.
-      ensure_toolbar_state(win);
+    case tbSetItems: {
+      // Replace toolbar item list.  Buttons/separators/spacers/labels/dropdowns are
+      // stored as an owned copy and painted inline (owner-draw).  Embedded controls
+      // (COMBOBOX / TEXTEDIT) get real child windows; all other types do not.
+      toolbar_state_t *tb = ensure_toolbar_state(win);
+      if (!tb) break;
+      // Destroy any existing embedded child windows.
       clear_toolbar_children(win);
-      if (wparam > 0 && lparam) {
-        layout_toolbar_items(win, (const toolbar_item_t *)lparam, wparam);
+      // Free old item storage.
+      free(tb->items);  tb->items = NULL;  tb->item_count = 0;
+      free(tb->item_rects); tb->item_rects = NULL;
+      tb->hot_item = -1;  tb->pressed_item = -1;
+      if ((int)wparam > 0 && lparam) {
+        int n = (int)wparam;
+        tb->items = malloc((size_t)n * sizeof(toolbar_item_t));
+        if (tb->items) {
+          memcpy(tb->items, lparam, (size_t)n * sizeof(toolbar_item_t));
+          tb->item_count = n;
+        }
+        compute_toolbar_item_rects(win, tb);
+        // Create embedded child windows for COMBOBOX / TEXTEDIT items.
+        int bsz    = toolbar_effective_bsz(win);
+        int base_y = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
+        int field_y = base_y + 2;
+        int field_h = bsz > 4 ? (bsz - 4) : bsz;
+        window_t **tail = &tb->children;
+        for (int i = 0; i < n && tb->item_rects; i++) {
+          toolbar_item_t *item = &tb->items[i];
+          if (item->type != TOOLBAR_ITEM_COMBOBOX &&
+              item->type != TOOLBAR_ITEM_TEXTEDIT) continue;
+          const char *cls = (item->type == TOOLBAR_ITEM_COMBOBOX) ? "ComboBox" : "TextBox";
+          irect16_t r = tb->item_rects[i];
+          irect16_t rf = {r.x, r.y, r.w, r.h};
+          window_t *tc = create_window(item->text ? item->text : "",
+                                       WINDOW_NOTITLE | WINDOW_NOFILL,
+                                       &rf, win, cls, win->hinstance, NULL);
+          if (!tc) continue;
+          tc->id = (uint32_t)item->ident;
+          tc->frame = r; // enforce layout-computed rect
+          // Splice out of win->children so paint/layout don't see it twice.
+          {
+            window_t *prev = NULL, *c = win->children;
+            while (c && c != tc) { prev = c; c = c->next; }
+            if (c == tc) {
+              if (prev) prev->next = tc->next; else win->children = tc->next;
+            }
+          }
+          tc->next = NULL;
+          *tail = tc; tail = &tc->next;
+        }
+        (void)field_y; (void)field_h;
       }
       invalidate_window(win);
       break;
+    }
     case sbSetContent: {
       // Create (or replace) the sidebar child window for a WINDOW_SIDEBAR window.
       // wparam = desired sidebar width in pixels (0 → use SIDEBAR_DEFAULT_WIDTH).
@@ -760,15 +872,25 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       break;
       }
     case tbSetActiveButton: {
-      // Mark the toolbar child whose id == wparam as active (value=true);
-      // clear all others.
+      // Mark the toolbar item whose ident == wparam as active (set flag);
+      // clear all others. For owner-drawn items, this changes visual state.
       toolbar_state_t *tb = get_toolbar_state(win);
       uint32_t ident = wparam;
-      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
-        bool active = (tc->id == ident);
-        if (tc->value != active) {
-          tc->value = active;
+      if (tb && tb->items) {
+        for (int i = 0; i < tb->item_count; i++) {
+          bool active = ((uint32_t)tb->items[i].ident == ident);
+          if (active) {
+            tb->items[i].flags |= TOOLBAR_BUTTON_FLAG_ACTIVE;
+          } else {
+            tb->items[i].flags &= ~TOOLBAR_BUTTON_FLAG_ACTIVE;
+          }
         }
+      }
+      // Also update value field on any embedded child window with matching id
+      // (for backward compat with COMBOBOX/TEXTEDIT windows).
+      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
+        if (tc->id == ident) tc->value = true;
+        else tc->value = false;
       }
       invalidate_window(win);
       break;
@@ -945,25 +1067,18 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         break;
       case evNCLeftButtonUp:
         // For WINDOW_NOTITLE toolbar windows the toolbar band is treated as a
-        // drag area (window_in_drag_area returns true), so LeftButtonDown is
-        // never routed to toolbar children.  Instead the toolbar fires on
-        // release: find the child under the cursor, pre-set pressed, and send
-        // LeftButtonUp so win_toolbar_button fires its command normally.
+        // drag area (window_in_drag_area returns true), so a release can arrive
+        // as NC-left-up. Route it to the toolbar host's owner-draw handler.
         if ((win->flags & WINDOW_TOOLBAR) && (win->flags & WINDOW_NOTITLE)) {
-          toolbar_state_t *tb = get_toolbar_state(win);
           int sx = (int)(int16_t)LOWORD(wparam);
           int sy = (int)(int16_t)HIWORD(wparam);
           // Convert screen-absolute coords to toolbar-band-relative.
           int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
           int tb_x = sx - win->frame.x;
           int tb_y = sy - (win->frame.y + title_h);
-          for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
-            if (CONTAINS(tb_x, tb_y, tc->frame.x, tc->frame.y, tc->frame.w, tc->frame.h)) {
-              window_set_state(tc, WINDOW_STATE_PRESSED, true);
-              send_message(tc, evLeftButtonUp,
-                           MAKEDWORD(tb_x - tc->frame.x, tb_y - tc->frame.y), NULL);
-              break;
-            }
+          if (win->toolbar) {
+            send_message(win->toolbar, evLeftButtonUp,
+                         MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
           }
           invalidate_window(win);
         }

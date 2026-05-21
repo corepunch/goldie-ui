@@ -720,12 +720,9 @@ static void draw_grid(canvas_state_t *s, irect16_t canvas_rc) {
 // Tool -> control type mapping
 // ============================================================
 static int tool_to_ctrl_type(int tool) {
-  for (int i = 0; i < fe_component_count(); i++) {
-    const fe_component_desc_t *c = fe_component_at(i);
-    if (!c) continue;
-    if (c->toolbox_ident == tool && (c->capabilities & FE_COMPONENT_PLACEABLE))
-      return i;
-  }
+  const fe_component_desc_t *c = fe_component_by_id(tool);
+  if (c && (c->capabilities & FE_COMPONENT_PLACEABLE))
+    return tool;
   return -1;
 }
 
@@ -784,10 +781,10 @@ static isize16_t default_ctrl_size(int type) {
   return c ? c->default_size : (isize16_t){80, 20};
 }
 
-// Control type display names for use in caption and name generation.
+// Control type names for use in caption and name generation.
 static const char *ctrl_type_name(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
-  return c ? c->display_name : "Control";
+  return c ? c->class_name : "Control";
 }
 
 static void ctrl_make_caption(int type, int index, char *text, size_t text_sz) {
@@ -798,11 +795,7 @@ static void ctrl_make_caption(int type, int index, char *text, size_t text_sz) {
 static int canvas_component_id_for_class_name(const char *class_name) {
   const fe_component_desc_t *desc = fe_component_by_class_name(class_name);
   if (!desc) return -1;
-  for (int i = 0; i < fe_component_count(); i++) {
-    if (fe_component_at(i) == desc)
-      return i;
-  }
-  return -1;
+  return fe_component_id_of(desc);
 }
 
 static bool canvas_doc_has_children(form_doc_t *doc, uint32_t parent_id) {
@@ -824,8 +817,6 @@ window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
   if (!doc || !doc->canvas_win)
     return NULL;
   c = fe_component_by_id(type);
-  if (!c)
-    c = fe_component_by_tool_ident(type);
   if (!c)
     return NULL;
 

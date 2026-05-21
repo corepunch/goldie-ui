@@ -14,19 +14,19 @@
       <menu name="file" label="File">
         <item name="new" label="New" />
         <item name="open" label="Open..." />
-        <separator />
+        <Separator />
         <item name="save" label="Save" />
         <item name="saveas" label="Save As..." />
-        <separator />
+        <Separator />
         <item name="close" label="Close" />
-        <separator />
+        <Separator />
         <item name="quit" label="Quit" />
       </menu>
 
       <menu name="edit" label="Edit">
         <item name="undo" label="Undo" />
         <item name="redo" label="Redo" />
-        <separator />
+        <Separator />
         <item name="cut" label="Cut" />
         <item name="copy" label="Copy" />
         <item name="paste" label="Paste" />
@@ -35,22 +35,22 @@
       <menu name="select" label="Select">
         <item name="all" label="All" />
         <item name="deselect" label="Deselect" />
-        <separator />
+        <Separator />
         <item name="clear" label="Clear Selection" />
-        <separator />
+        <Separator />
         <item name="expand" label="Expand..." />
         <item name="contract" label="Contract..." />
       </menu>
 
       <menu name="image" label="Image">
         <item name="crop" label="Crop" shortcut="C" />
-        <separator />
+        <Separator />
         <item name="resize" label="Image Size..." />
         <item name="canvas_size" label="Canvas Size..." />
-        <separator />
+        <Separator />
         <item name="flip_h" label="Flip Horizontal" />
         <item name="flip_v" label="Flip Vertical" />
-        <separator />
+        <Separator />
         <item name="invert" label="Invert Colors" />
         <item name="levels" label="Levels..." />
       </menu>
@@ -58,7 +58,7 @@
       <menu name="filter" label="Filter" dynamic="true">
         <item name="reload" label="Reload Filters" />
         <item name="gallery" label="Filter Gallery..." />
-        <separator />
+        <Separator />
         <submenu name="blur" label="Blur">
           <item name="blur" label="Blur" />
         </submenu>
@@ -75,20 +75,20 @@
         <item name="new" label="New Layer" />
         <item name="duplicate" label="Duplicate Layer" />
         <item name="delete" label="Delete Layer" />
-        <separator />
+        <Separator />
         <item name="move_up" label="Move Layer Up" />
         <item name="move_down" label="Move Layer Down" />
-        <separator />
+        <Separator />
         <item name="merge_down" label="Merge Down" />
         <item name="flatten" label="Flatten Image" />
         <item name="fill_foreground" label="Fill with Foreground Color" shortcut="Alt+Backspace" />
         <item name="fill_background" label="Fill with Background Color" shortcut="Ctrl+Backspace" />
-        <separator />
+        <Separator />
         <item name="add_mask" label="Add Mask" />
         <item name="apply_mask" label="Apply Mask" />
         <item name="remove_mask" label="Remove Mask" />
         <item name="extract_mask" label="Extract Mask" />
-        <separator />
+        <Separator />
         <item name="edit_mask" label="[ ] Edit Mask" />
       </menu>
 
@@ -96,18 +96,18 @@
         <item name="zoom_in" label="Zoom In" />
         <item name="zoom_out" label="Zoom Out" />
         <item name="zoom_fit" label="Fit on Screen" />
-        <separator />
+        <Separator />
         <item name="zoom_1x" label="1x" />
         <item name="zoom_2x" label="2x" />
         <item name="zoom_4x" label="4x" />
         <item name="zoom_6x" label="6x" />
         <item name="zoom_8x" label="8x" />
-        <separator />
+        <Separator />
         <item name="show_grid" label="[ ] Show Grid" />
         <item name="snap_grid" label="[ ] Snap to Grid" />
         <item name="show_background" label="[x] Show Background" />
         <item name="mask_only" label="[ ] Mask Only View" />
-        <separator />
+        <Separator />
         <item name="grid_options" label="Grid Options..." />
       </menu>
 
@@ -116,22 +116,22 @@
         <item name="colors" label="Colors" />
         <item name="layers" label="Layers" />
         <item name="timeline" label="Timeline" />
-        <separator />
+        <Separator />
       </menu>
 
       <menu name="anim" label="Anim">
         <item name="new_frame" label="New Frame" />
         <item name="duplicate_frame" label="Duplicate Frame" />
         <item name="delete_frame" label="Delete Frame" />
-        <separator />
+        <Separator />
         <item name="prev_frame" label="Previous Frame" shortcut="Page Up" />
         <item name="next_frame" label="Next Frame" shortcut="Page Down" />
-        <separator />
+        <Separator />
         <item name="play" label="Play" />
         <item name="stop" label="Stop" />
         <item name="loop" label="[ ] Loop" />
         <item name="onion_skin" label="Onion Skin Settings..." />
-        <separator />
+        <Separator />
         <item name="export_gif" label="Export GIF..." />
         <item name="export_apng" label="Export APNG..." />
         <item name="export_spritesheet" label="Export Sprite Sheet..." />
@@ -145,278 +145,278 @@
 
     <toolbars>
       <toolbar name="main">
-        <button name="new" menu="file" icon="sysicon_page_add" text="New" />
-        <button name="open" menu="file" icon="sysicon_folder_page" text="Open" />
-        <button name="save" menu="file" icon="sysicon_disk_save" text="Save" />
-        <button name="saveas" menu="file" icon="sysicon_disk_multiple" text="Save As" />
+        <Button name="new" menu="file" icon="sysicon_page_add" text="New" />
+        <Button name="open" menu="file" icon="sysicon_folder_page" text="Open" />
+        <Button name="save" menu="file" icon="sysicon_disk_save" text="Save" />
+        <Button name="saveas" menu="file" icon="sysicon_disk_multiple" text="Save As" />
         <spacer w="10" />
-        <button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="Zoom Out" />
-        <button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="Zoom In" />
-        <button name="zoom_1x" menu="view" icon="sysicon_image_dimensions" text="1x" />
-        <button name="zoom_fit" menu="view" icon="sysicon_expand" text="Fit" />
+        <Button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="Zoom Out" />
+        <Button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="Zoom In" />
+        <Button name="zoom_1x" menu="view" icon="sysicon_image_dimensions" text="1x" />
+        <Button name="zoom_fit" menu="view" icon="sysicon_expand" text="Fit" />
         <spacer w="10" />
-        <button name="show_background" menu="view" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" />
-        <button name="mask_only" menu="view" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" />
+        <Button name="show_background" menu="view" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" />
+        <Button name="mask_only" menu="view" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" />
       </toolbar>
     </toolbars>
 
     <forms>
       <form name="new_image" title="New Image" width="180" spacing="8" padding="8">
-        <grid name="fields" spacing="4">
-          <column name="labels" width="48">
-            <label name="lbl_width" text="Width:" />
-            <label name="lbl_height" text="Height:" />
-          </column>
-          <column name="inputs">
-            <textedit name="width" text="" />
-            <textedit name="height" text="" />
-          </column>
-        </grid>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <GridView name="fields" spacing="4">
+          <Column name="labels" width="48">
+            <Label name="lbl_width" text="Width:" />
+            <Label name="lbl_height" text="Height:" />
+          </Column>
+          <Column name="inputs">
+            <TextBox name="width" text="" />
+            <TextBox name="height" text="" />
+          </Column>
+        </GridView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="image_resize" title="Image Size" width="210" spacing="8" padding="8">
-        <grid name="fields" spacing="4">
-          <column name="labels" width="48">
-            <label name="lbl_width" text="Width:" />
-            <label name="lbl_height" text="Height:" />
-            <label name="lbl_filter" text="Filter:" />
-          </column>
-          <column name="inputs">
-            <textedit name="width" text="" />
-            <textedit name="height" text="" />
-            <combobox name="filter" text="" />
-          </column>
-        </grid>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <GridView name="fields" spacing="4">
+          <Column name="labels" width="48">
+            <Label name="lbl_width" text="Width:" />
+            <Label name="lbl_height" text="Height:" />
+            <Label name="lbl_filter" text="Filter:" />
+          </Column>
+          <Column name="inputs">
+            <TextBox name="width" text="" />
+            <TextBox name="height" text="" />
+            <ComboBox name="filter" text="" />
+          </Column>
+        </GridView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="grid_options" title="Grid Options" width="180" spacing="8" padding="8">
-        <grid name="fields" spacing="4">
-          <column name="labels" width="48">
-            <label name="lbl_width" text="Width:" />
-            <label name="lbl_height" text="Height:" />
-          </column>
-          <column name="inputs">
-            <textedit name="width" text="" />
-            <textedit name="height" text="" />
-          </column>
-        </grid>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <GridView name="fields" spacing="4">
+          <Column name="labels" width="48">
+            <Label name="lbl_width" text="Width:" />
+            <Label name="lbl_height" text="Height:" />
+          </Column>
+          <Column name="inputs">
+            <TextBox name="width" text="" />
+            <TextBox name="height" text="" />
+          </Column>
+        </GridView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="selection_modify" title="Modify Selection" width="180" spacing="8" padding="8">
-        <stack name="amount_row" orientation="horizontal" spacing="6">
-          <label name="lbl_amount" text="By:" />
-          <textedit name="amount" text="" />
-          <label name="lbl_pixels" text="pixels" />
-        </stack>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <StackView name="amount_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_amount" text="By:" />
+          <TextBox name="amount" text="" />
+          <Label name="lbl_pixels" text="pixels" />
+        </StackView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="new_layer" title="New Layer" width="200" spacing="8" padding="8">
-        <stack name="fill_row" orientation="horizontal" spacing="6">
-          <label name="lbl_fill" text="Fill with:" />
-          <combobox name="combo_fill" text="" />
-        </stack>
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <StackView name="fill_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_fill" text="Fill with:" />
+          <ComboBox name="combo_fill" text="" />
+        </StackView>
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="add_mask" title="Add Mask" width="220" spacing="8" padding="8">
-        <stack name="fill_row" orientation="horizontal" spacing="6">
-          <label name="lbl_fill" text="Fill with:" />
-          <combobox name="combo_fill" text="" />
-        </stack>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <StackView name="fill_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_fill" text="Fill with:" />
+          <ComboBox name="combo_fill" text="" />
+        </StackView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="text_tool" title="Insert Text" width="220" spacing="6" padding="8">
-        <stack name="text_row" orientation="horizontal" spacing="6">
-          <label name="lbl_text" text="Text:" />
-          <textedit name="edit_text" text="" />
-        </stack>
-        <stack name="size_row" orientation="vertical" spacing="2">
-          <label name="lbl_size" text="Size: 16px" />
+        <StackView name="text_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_text" text="Text:" />
+          <TextBox name="edit_text" text="" />
+        </StackView>
+        <StackView name="size_row" orientation="vertical" spacing="2">
+          <Label name="lbl_size" text="Size: 16px" />
           <slider name="size" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        </stack>
-        <stack name="color_row" orientation="horizontal" spacing="6">
-          <label name="lbl_color" text="Color:" />
-          <space name="swatch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-          <button name="btn_color" text="Change..." />
-          <checkbox name="chk_aa" text="Anti-alias" />
-        </stack>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="btn_ok" text="OK" />
-          <button name="btn_cancel" text="Cancel" />
-        </stack>
+        </StackView>
+        <StackView name="color_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_color" text="Color:" />
+          <Space name="swatch" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
+          <Button name="btn_color" text="Change..." />
+          <CheckBox name="chk_aa" text="Anti-alias" />
+        </StackView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="btn_ok" text="OK" />
+          <Button name="btn_cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="levels" title="Levels" width="280" spacing="6" padding="10">
         <requires library="imageeditor_components" />
-        <grid name="input_row" spacing="6">
-          <column name="in_label_col" width="88">
-            <label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          </column>
-          <column name="in_fields_col">
-            <grid name="in_fields" spacing="4">
-              <column name="in_black_col">
-                <textedit name="in_black" text="0" />
-              </column>
-              <column name="in_gamma_col">
-                <textedit name="in_gamma" text="1.00" />
-              </column>
-              <column name="in_white_col">
-                <textedit name="in_white" text="255" />
-              </column>
-            </grid>
-          </column>
-        </grid>
+        <GridView name="input_row" spacing="6">
+          <Column name="in_label_col" width="88">
+            <Label name="in_label" text="Input Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          </Column>
+          <Column name="in_fields_col">
+            <GridView name="in_fields" spacing="4">
+              <Column name="in_black_col">
+                <TextBox name="in_black" text="0" />
+              </Column>
+              <Column name="in_gamma_col">
+                <TextBox name="in_gamma" text="1.00" />
+              </Column>
+              <Column name="in_white_col">
+                <TextBox name="in_white" text="255" />
+              </Column>
+            </GridView>
+          </Column>
+        </GridView>
         <lv_histogram name="graph" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="in_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        <grid name="output_row" spacing="6">
-          <column name="out_label_col" width="88">
-            <label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          </column>
-          <column name="out_fields_col">
-            <grid name="out_fields" spacing="4">
-              <column name="out_black_col">
-                <textedit name="out_black" text="0" />
-              </column>
-              <column name="out_white_col">
-                <textedit name="out_white" text="255" />
-              </column>
-            </grid>
-          </column>
-        </grid>
+        <GridView name="output_row" spacing="6">
+          <Column name="out_label_col" width="88">
+            <Label name="out_label" text="Output Levels:" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          </Column>
+          <Column name="out_fields_col">
+            <GridView name="out_fields" spacing="4">
+              <Column name="out_black_col">
+                <TextBox name="out_black" text="0" />
+              </Column>
+              <Column name="out_white_col">
+                <TextBox name="out_white" text="255" />
+              </Column>
+            </GridView>
+          </Column>
+        </GridView>
         <gradient name="out_grad" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
         <slider name="out_slider" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        <checkbox name="preview" text="Preview" />
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" />
-          <button name="reset" text="Reset" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <CheckBox name="preview" text="Preview" />
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" />
+          <Button name="reset" text="Reset" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="filter_gallery" title="Filter Gallery" width="560" height="360" flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON" padding="8">
         <requires library="imageeditor_components" />
-        <grid name="main" spacing="8">
-          <column name="preview_col">
+        <GridView name="main" spacing="8">
+          <Column name="preview_col">
             <filter_preview name="preview" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-            <label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
-          </column>
-          <column name="filters_col">
-            <reportview name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
-          </column>
-        </grid>
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+            <Label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+          </Column>
+          <Column name="filters_col">
+            <ReportView name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+          </Column>
+        </GridView>
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="blur_dialog" title="Blur" width="240" flags="WINDOW_DIALOG | WINDOW_NOTRAYBUTTON" spacing="6" padding="10">
-        <stack name="amount_row" orientation="vertical" spacing="2">
-          <label name="amount_label" text="Blur: 4px" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
+        <StackView name="amount_row" orientation="vertical" spacing="2">
+          <Label name="amount_label" text="Blur: 4px" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           <slider name="amount" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        </stack>
-        <checkbox name="preview" text="Preview" />
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        </StackView>
+        <CheckBox name="preview" text="Preview" />
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="onion_skin" title="Onion Skin" width="276" height="142" spacing="6" padding="8">
-        <checkbox name="enabled" text="Enable Onion Skin" />
-        <label name="selected_label" text="Selected: Previous 1 (40%)" />
-        <stack name="prev_row" orientation="horizontal" spacing="4">
-          <label name="prev_label" text="Prev" width="30" />
-          <button name="prev1" text="40%" width="44" flags="BUTTON_PUSHLIKE" />
-          <button name="prev2" text="20%" width="44" flags="BUTTON_PUSHLIKE" />
-          <button name="prev3" text="10%" width="44" flags="BUTTON_PUSHLIKE" />
-          <button name="prev4" text="5%" width="44" flags="BUTTON_PUSHLIKE" />
-        </stack>
-        <stack name="next_row" orientation="horizontal" spacing="4">
-          <label name="next_label" text="Next" width="30" />
-          <button name="next1" text="30%" width="44" flags="BUTTON_PUSHLIKE" />
-          <button name="next2" text="15%" width="44" flags="BUTTON_PUSHLIKE" />
-          <button name="next3" text="8%" width="44" flags="BUTTON_PUSHLIKE" />
-          <button name="next4" text="4%" width="44" flags="BUTTON_PUSHLIKE" />
-        </stack>
-        <stack name="value_row" orientation="vertical" spacing="2">
-          <label name="value_label" text="Opacity: 40%" />
+        <CheckBox name="enabled" text="Enable Onion Skin" />
+        <Label name="selected_label" text="Selected: Previous 1 (40%)" />
+        <StackView name="prev_row" orientation="horizontal" spacing="4">
+          <Label name="prev_label" text="Prev" width="30" />
+          <Button name="prev1" text="40%" width="44" flags="BUTTON_PUSHLIKE" />
+          <Button name="prev2" text="20%" width="44" flags="BUTTON_PUSHLIKE" />
+          <Button name="prev3" text="10%" width="44" flags="BUTTON_PUSHLIKE" />
+          <Button name="prev4" text="5%" width="44" flags="BUTTON_PUSHLIKE" />
+        </StackView>
+        <StackView name="next_row" orientation="horizontal" spacing="4">
+          <Label name="next_label" text="Next" width="30" />
+          <Button name="next1" text="30%" width="44" flags="BUTTON_PUSHLIKE" />
+          <Button name="next2" text="15%" width="44" flags="BUTTON_PUSHLIKE" />
+          <Button name="next3" text="8%" width="44" flags="BUTTON_PUSHLIKE" />
+          <Button name="next4" text="4%" width="44" flags="BUTTON_PUSHLIKE" />
+        </StackView>
+        <StackView name="value_row" orientation="vertical" spacing="2">
+          <Label name="value_label" text="Opacity: 40%" />
           <slider name="value" text="" flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTABSTOP" />
-        </stack>
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex" />
-          <button name="ok" text="OK" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        </StackView>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex" />
+          <Button name="ok" text="OK" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="about" title="About Orion Image Editor" width="270" height="120" orientation="horizontal" spacing="8" padding="0">
         <image name="banner" width="120" height="120" />
-        <stack name="info" spacing="2" padding="0 8 4 4">
-          <label name="title" text="Orion Image Editor" font="system" />
-          <label name="version" text="Version 1.0" color="text-disabled" />
-          <label name="desc1" text="A MacPaint-inspired" color="text-disabled" />
-          <label name="desc2" text="pixel art editor." color="text-disabled" />
-          <label name="desc3" text="Built with the" color="text-disabled" />
-          <label name="desc4" text="Orion UI framework." color="text-disabled" />
-          <space name="spacer" />
-          <stack name="actions" orientation="horizontal" spacing="6">
-            <space name="flex" />
-            <button name="ok" text="OK" width="50" flags="BUTTON_DEFAULT" />
-          </stack>
-        </stack>
+        <StackView name="info" spacing="2" padding="0 8 4 4">
+          <Label name="title" text="Orion Image Editor" font="system" />
+          <Label name="version" text="Version 1.0" color="text-disabled" />
+          <Label name="desc1" text="A MacPaint-inspired" color="text-disabled" />
+          <Label name="desc2" text="pixel art editor." color="text-disabled" />
+          <Label name="desc3" text="Built with the" color="text-disabled" />
+          <Label name="desc4" text="Orion UI framework." color="text-disabled" />
+          <Space name="spacer" />
+          <StackView name="actions" orientation="horizontal" spacing="6">
+            <Space name="flex" />
+            <Button name="ok" text="OK" width="50" flags="BUTTON_DEFAULT" />
+          </StackView>
+        </StackView>
       </form>
 
       <form name="color_picker" title="Edit Color" width="240" spacing="0" padding="0">
         <cp_surface name="surface" width="240" height="104" />
-        <stack name="actions" orientation="horizontal" spacing="2">
-          <button name="ok" text="OK" width="40" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" width="48" />
-          <button name="add_palette" text="+ Palette" width="62" />
-          <space name="flex" />
-        </stack>
+        <StackView name="actions" orientation="horizontal" spacing="2">
+          <Button name="ok" text="OK" width="40" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" width="48" />
+          <Button name="add_palette" text="+ Palette" width="62" />
+          <Space name="flex" />
+        </StackView>
       </form>
     </forms>
 </orion>

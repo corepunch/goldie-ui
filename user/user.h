@@ -97,10 +97,20 @@ typedef struct bitmap_strip_s {
 } bitmap_strip_t;
 
 typedef struct toolbar_state_s {
-  window_t *children;      // toolbar child windows (toolbar-band-relative frames)
-  bitmap_strip_t strip;    // optional custom strip set via tbSetStrip/tbLoadStrip
-  uint32_t strip_tex;      // GL texture owned by toolbar host (freed on destroy)
-  int btn_size;            // 0 = TB_SPACING default; >0 = custom square size in px
+  // Owner-draw item list — buttons/separators/spacers/labels/dropdowns drawn inline.
+  toolbar_item_t *items;          // owned copy of the item descriptors (malloc'd)
+  int             item_count;     // number of items in items[]
+  irect16_t      *item_rects;     // computed band-relative rect per item (malloc'd)
+  int             hot_item;       // index of hovered item; -1 = none
+  int             pressed_item;   // index of currently pressed item; -1 = none
+  bool            pressed_in_arrow; // true when the press was in the dropdown arrow zone
+  // Embedded control child windows (COMBOBOX / TEXTEDIT items only).
+  // These are real window_t children with toolbar-band-relative frames.
+  window_t       *children;
+  // Strip for icon rendering (set via tbSetStrip / tbLoadStrip)
+  bitmap_strip_t  strip;
+  uint32_t        strip_tex;    // GL texture owned here; freed on toolbar destroy
+  int             btn_size;     // 0 = TB_SPACING default; >0 = custom square size in px
 } toolbar_state_t;
 
 // Window definition structure (for declarative window creation)

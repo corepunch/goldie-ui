@@ -14,7 +14,7 @@
         <item name="new" label="New Post..." />
         <item name="like" label="Like Post" />
         <item name="view" label="View Post..." />
-        <separator />
+        <Separator />
         <item name="delete" label="Delete Post" />
       </menu>
 
@@ -34,11 +34,11 @@
 
     <toolbars>
       <toolbar name="feed">
-        <button name="new" menu="post" icon="sysicon_add" text="New Post" />
-        <button name="like" menu="post" icon="sysicon_heart" text="Like" />
-        <button name="view" menu="post" icon="sysicon_comment" text="View Post" />
+        <Button name="new" menu="post" icon="sysicon_add" text="New Post" />
+        <Button name="like" menu="post" icon="sysicon_heart" text="Like" />
+        <Button name="view" menu="post" icon="sysicon_comment" text="View Post" />
         <spacer />
-        <button name="delete" menu="post" icon="sysicon_delete" text="Delete" />
+        <Button name="delete" menu="post" icon="sysicon_delete" text="Delete" />
       </toolbar>
     </toolbars>
 
@@ -79,17 +79,17 @@
             toolbar="feed"
             spacing="0"
             padding="0">
-        <stack name="content" spacing="0" flags="WINDOW_FLEXSPACE">
-          <tableview name="feed"
+        <StackView name="content" spacing="0" flags="WINDOW_FLEXSPACE">
+          <TableView name="feed"
                      source="db.posts"
                      action="fetch_feed"
                      flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
-            <column field="title" title="Title" width="0" />
-            <column field="author.name" title="Author" width="80" />
-            <column field="like_count" title="Likes" width="50" />
-            <column field="comment_count" title="Comments" width="55" />
-          </tableview>
-        </stack>
+            <Column field="title" title="Title" width="0" />
+            <Column field="author.name" title="Author" width="80" />
+            <Column field="like_count" title="Likes" width="50" />
+            <Column field="comment_count" title="Comments" width="55" />
+          </TableView>
+        </StackView>
       </form>
 
       <form name="new_post"
@@ -97,94 +97,94 @@
             width="272" height="250"
             spacing="0"
             padding="8">
-        <grid name="fields" spacing="4">
-          <column name="labels" width="56">
-            <label name="lbl_author" text="Author:" />
-            <label name="lbl_title" text="Title:" />
-            <label name="lbl_body" text="Body:" />
-          </column>
-          <column name="inputs">
-            <combobox name="author" 
+        <GridView name="fields" spacing="4">
+          <Column name="labels" width="56">
+            <Label name="lbl_author" text="Author:" />
+            <Label name="lbl_title" text="Title:" />
+            <Label name="lbl_body" text="Body:" />
+          </Column>
+          <Column name="inputs">
+            <ComboBox name="author" 
                       field="db.posts.author_id"
                       source="db.authors"
                       display="name"
                       value="id" />
-            <textedit name="title" field="db.posts.title" />
-            <multiedit name="body" field="db.posts.body" />
-          </column>
-        </grid>
-        <separator name="section_sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <space name="flex_left" />
-          <button name="ok" text="Post" action="db.posts.insert" flags="BUTTON_DEFAULT" />
-          <button name="cancel" text="Cancel" />
-          <space name="flex_right" />
-        </stack>
+            <TextBox name="title" field="db.posts.title" />
+            <MultiEdit name="body" field="db.posts.body" />
+          </Column>
+        </GridView>
+        <Separator name="section_sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Space name="flex_left" />
+          <Button name="ok" text="Post" action="db.posts.insert" flags="BUTTON_DEFAULT" />
+          <Button name="cancel" text="Cancel" />
+          <Space name="flex_right" />
+        </StackView>
       </form>
 
       <form name="new_comment"
             title="New Comment"
             width="260"
             padding="8">
-        <stack name="author_row" orientation="horizontal" spacing="6">
-          <label name="lbl_author" text="Author:" />
-          <combobox name="author"
+        <StackView name="author_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_author" text="Author:" />
+          <ComboBox name="author"
                     field="db.comments.author_id"
                     source="db.authors"
                     display="name"
                     value="id" />
-        </stack>
+        </StackView>
 
-        <stack name="text_row" orientation="horizontal" spacing="6">
-          <label name="lbl_text" text="Text:" />
-          <textedit name="text" field="db.comments.text" />
-        </stack>
+        <StackView name="text_row" orientation="horizontal" spacing="6">
+          <Label name="lbl_text" text="Text:" />
+          <TextBox name="text" field="db.comments.text" />
+        </StackView>
 
-        <separator name="sep" />
-        <stack name="actions" orientation="horizontal" spacing="6">
-          <button name="ok" text="Submit" action="db.comments.insert" flags="BUTTON_DEFAULT" />
-          <space name="flex" />
-          <button name="cancel" text="Cancel" />
-        </stack>
+        <Separator name="sep" />
+        <StackView name="actions" orientation="horizontal" spacing="6">
+          <Button name="ok" text="Submit" action="db.comments.insert" flags="BUTTON_DEFAULT" />
+          <Space name="flex" />
+          <Button name="cancel" text="Cancel" />
+        </StackView>
       </form>
 
       <form name="post_detail"
             title="Post Detail"
             width="520" height="336"
             padding="8">
-        <stack name="header" orientation="vertical" spacing="2">
+        <StackView name="header" orientation="vertical" spacing="2">
           <!-- Post header labels (populated in evCreate) -->
-          <label name="lbl_title" font="system" color="text-normal" />
-          <label name="lbl_body" font="small" color="text-normal" />
-          <stack name="meta" orientation="horizontal" spacing="8">
-            <label name="lbl_author" font="small" color="text-disabled" />
-            <label name="lbl_likes" font="small" color="text-disabled" />
-            <label name="lbl_cmt_hdr" font="small" color="text-disabled" />
-          </stack>
-        </stack>
+          <Label name="lbl_title" font="system" color="text-normal" />
+          <Label name="lbl_body" font="small" color="text-normal" />
+          <StackView name="meta" orientation="horizontal" spacing="8">
+            <Label name="lbl_author" font="small" color="text-disabled" />
+            <Label name="lbl_likes" font="small" color="text-disabled" />
+            <Label name="lbl_cmt_hdr" font="small" color="text-disabled" />
+          </StackView>
+        </StackView>
 
         <!-- Bound tableview for comments (reportview-compatible class). -->
-        <tableview name="comments"
+        <TableView name="comments"
                    source="db.comments"
                    action="fetch_comments"
                    master="posts"
                    master-key="post_id"
                    flags="WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE">
-          <column field="author.name" title="Author" width="70" />
-          <column field="text" title="Text" width="0" />
-          <column field="like_count" title="Likes" width="45" />
-        </tableview>
+          <Column field="author.name" title="Author" width="70" />
+          <Column field="text" title="Text" width="0" />
+          <Column field="like_count" title="Likes" width="45" />
+        </TableView>
 
-        <separator name="section_sep" />
+        <Separator name="section_sep" />
 
-        <stack name="actions" orientation="horizontal" spacing="4">
-          <button name="like_post" text="Like Post" />
-          <button name="add_comment" text="Add Comment" />
-          <button name="add_reply" text="Add Reply" />
-          <button name="like_comment" text="Like Comment" />
-          <space name="flex" />
-          <button name="close" text="Close" flags="BUTTON_DEFAULT" />
-        </stack>
+        <StackView name="actions" orientation="horizontal" spacing="4">
+          <Button name="like_post" text="Like Post" />
+          <Button name="add_comment" text="Add Comment" />
+          <Button name="add_reply" text="Add Reply" />
+          <Button name="like_comment" text="Like Comment" />
+          <Space name="flex" />
+          <Button name="close" text="Close" flags="BUTTON_DEFAULT" />
+        </StackView>
       </form>
     </forms>
 </orion>

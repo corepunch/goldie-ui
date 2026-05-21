@@ -8,41 +8,41 @@
 // ============================================================
 
 static const form_ctrl_def_t kTaskFieldLabels[] = {
-  { .class_name = "label",    .text = "Title:",        .name = "lbl_title",
+  { .class_name = "Label",    .text = "Title:",        .name = "lbl_title",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "label",     .text = "Description:", .name = "lbl_desc",
+  { .class_name = "Label",     .text = "Description:", .name = "lbl_desc",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_START },
-  { .class_name = "label",    .text = "Priority:",     .name = "lbl_prio",
+  { .class_name = "Label",    .text = "Priority:",     .name = "lbl_prio",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "label",    .text = "Status:",       .name = "lbl_status",
+  { .class_name = "Label",    .text = "Status:",       .name = "lbl_status",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "label",    .text = "Due (epoch):",  .name = "lbl_due",
+  { .class_name = "Label",    .text = "Due (epoch):",  .name = "lbl_due",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 static const form_ctrl_def_t kTaskFieldInputs[] = {
-  { .class_name = "textedit", .id = ID_TASK_TITLE_CTRL, .name = "edit_title",
+  { .class_name = "TextBox", .id = ID_TASK_TITLE_CTRL, .name = "edit_title",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "multiedit", .id = ID_TASK_DESC_CTRL, .name = "edit_desc",
+  { .class_name = "MultiEdit", .id = ID_TASK_DESC_CTRL, .name = "edit_desc",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "combobox", .id = ID_TASK_PRIORITY_CTRL, .name = "combo_prio",
+  { .class_name = "ComboBox", .id = ID_TASK_PRIORITY_CTRL, .name = "combo_prio",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "combobox", .id = ID_TASK_STATUS_CTRL, .name = "combo_status",
+  { .class_name = "ComboBox", .id = ID_TASK_STATUS_CTRL, .name = "combo_status",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "textedit", .id = ID_TASK_DUEDATE_CTRL, .name = "edit_due",
+  { .class_name = "TextBox", .id = ID_TASK_DUEDATE_CTRL, .name = "edit_due",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 static const form_ctrl_def_t kTaskBtnRow[] = {
-  { .class_name = "button", .id = ID_OK,     .flags = BUTTON_DEFAULT, .text = "OK",
+  { .class_name = "Button", .id = ID_OK,     .flags = BUTTON_DEFAULT, .text = "OK",
     .name = "btn_ok",     .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "button", .id = ID_CANCEL, .text = "Cancel",
+  { .class_name = "Button", .id = ID_CANCEL, .text = "Cancel",
     .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
 };
 
 static const form_ctrl_def_t kTaskEditChildren[] = {
   {
-    .class_name         = "grid",
+    .class_name         = "GridView",
     .name               = "fields",
     .flags              = WINDOW_FLEXSPACE,
     .layout_spacing     = 4,
@@ -50,14 +50,14 @@ static const form_ctrl_def_t kTaskEditChildren[] = {
     .v_align            = LAYOUT_ALIGN_STRETCH,
     .children           = (const form_ctrl_def_t[]){
       {
-        .class_name = "column",
+        .class_name = "Column",
         .name = "labels",
         .size = {120, 0},
         .children = kTaskFieldLabels,
         .child_count = (int)(sizeof(kTaskFieldLabels)/sizeof(kTaskFieldLabels[0])),
       },
       {
-        .class_name = "column",
+        .class_name = "Column",
         .name = "inputs",
         .flags = WINDOW_FLEXSPACE,
         .children = kTaskFieldInputs,
@@ -67,7 +67,7 @@ static const form_ctrl_def_t kTaskEditChildren[] = {
     .child_count        = 2,
   },
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "actions",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,

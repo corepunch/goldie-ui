@@ -1,3 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#  include <windows.h>
+#elif defined(__APPLE__)
+#  include <mach-o/dyld.h>
+#else
+#  include <unistd.h>
+#endif
+
 #include "../ui.h"
 #include "../user/gl_compat.h"
 #include "fmat16.h"
@@ -7,6 +19,34 @@
 static int screen_width, screen_height;
 
 void ui_shutdown_prog(void);
+
+// Return the directory that contains the running executable (no trailing slash).
+// The returned pointer is to a static buffer valid until the next call.
+// Returns "" on any error.
+const char *ui_get_exe_dir(void) {
+  static char buf[4096];
+  buf[0] = '\0';
+
+#if defined(_WIN32) || defined(_WIN64)
+  DWORD len = GetModuleFileNameA(NULL, buf, (DWORD)sizeof(buf));
+  if (len == 0 || len >= (DWORD)sizeof(buf)) { buf[0] = '\0'; return buf; }
+  char *last = strrchr(buf, '\\');
+  if (last) *last = '\0';
+#elif defined(__APPLE__)
+  uint32_t size = (uint32_t)sizeof(buf);
+  if (_NSGetExecutablePath(buf, &size) != 0) { buf[0] = '\0'; return buf; }
+  char *last = strrchr(buf, '/');
+  if (last) *last = '\0';
+#else
+  ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+  if (len <= 0) { buf[0] = '\0'; return buf; }
+  buf[len] = '\0';
+  char *last = strrchr(buf, '/');
+  if (last) *last = '\0';
+#endif
+
+  return buf;
+}
 
 // Vertex structure for our buffer (xyzuv)
 typedef struct {
@@ -328,7 +368,7 @@ bool ui_init_prog(void) {
   //  fmat16_ortho(-offset_x, DOOM_WIDTH+offset_x, DOOM_HEIGHT, 0, -1, 1, &g_ref.projection);
   screen_width = width / UI_WINDOW_SCALE;
   screen_height = height / UI_WINDOW_SCALE;
-  fmat16_ortho(0, screen_width, ui_get_system_metrics(kSystemMetricScreenHeight), 0, -1, 1, &g_ref.projection);
+  fmat16_ortho(0, screen_width, screen_height, 0, -1, 1, &g_ref.projection);
   fmat16_copy(&g_ref.projection, &g_active_projection);
 
   update_sprite_projection_uniforms(&g_ref.projection);
@@ -373,7 +413,7 @@ void push_sprite_effect_args(int tex, int x, int y, int w, int h, float alpha,
 }
 
 void set_projection(int x, int y, int w, int h) {
-  if (!g_ui_runtime.running) return;
+  if (!g_ref.vga_program) return;
   fmat16_t projection;
   fmat16_ortho(x, w, h, y, -1, 1, &projection);
   fmat16_copy(&projection, &g_active_projection);
@@ -387,7 +427,7 @@ float *get_sprite_matrix(void) {
 
 // Draw a sprite at the specified screen position
 void draw_rect_ex(int tex, irect16_t r, int type, float alpha) {
-  if (!g_ui_runtime.running) return;
+  if (!g_ref.vga_program) return;
   push_sprite_args(tex, r.x, r.y, r.w, r.h, alpha);
   
   // Enable blending for transparency
@@ -415,7 +455,7 @@ void draw_rect(int tex, irect16_t r) {
 void draw_sprite_region(int tex, irect16_t r,
                         frect_t const *uv,
                         uint32_t color, uint32_t flags) {
-  if (!g_ui_runtime.running) return;
+  if (!g_ref.vga_program) return;
   const sprite_program_t *prog = sprite_program_for_effect(UI_RENDER_EFFECT_COPY);
   if (!prog || !prog->program) return;
   float u0 = uv ? uv->x : 0.0f;
@@ -453,7 +493,7 @@ void draw_sprite_region(int tex, irect16_t r,
 void draw_rect_effect(int tex, int x, int y, int w, int h,
                       ui_render_effect_t effect,
                       const ui_render_effect_params_t *params) {
-  if (!g_ui_runtime.running) return;
+  if (!g_ref.vga_program) return;
   push_sprite_effect_args(tex, x, y, w, h, 1.0f, effect, params);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -468,7 +508,7 @@ void draw_rect_effect_blend(int tex, int x, int y, int w, int h, float alpha,
                             ui_layer_blend_t blend,
                             ui_render_effect_t effect,
                             const ui_render_effect_params_t *params) {
-  if (!g_ui_runtime.running) return;
+  if (!g_ref.vga_program) return;
   push_sprite_effect_args(tex, x, y, w, h, alpha, effect, params);
   glEnable(GL_BLEND);
   glBlendEquation(GL_FUNC_ADD);
@@ -496,7 +536,7 @@ void draw_rect_effect_blend(int tex, int x, int y, int w, int h, float alpha,
 
 void draw_rect_blend(int tex, int x, int y, int w, int h, float alpha,
                      ui_layer_blend_t blend) {
-  if (!g_ui_runtime.running) return;
+  if (!g_ref.vga_program) return;
   push_sprite_args(tex, x, y, w, h, alpha);
   glEnable(GL_BLEND);
   glBlendEquation(GL_FUNC_ADD);
@@ -526,7 +566,7 @@ static void draw_rect_program_common(int tex, int x, int y, int w, int h,
                                      float alpha, uint32_t program,
                                      float mix_amount,
                                      const ui_render_effect_params_t *params) {
-  if (!g_ui_runtime.running || !program) return;
+  if (!g_ref.vga_program || !program) return;
   glUseProgram(program);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, tex);
@@ -566,7 +606,7 @@ static void draw_rect_program_common(int tex, int x, int y, int w, int h,
 void draw_rect_program_blend(int tex, int x, int y, int w, int h, float alpha,
                              ui_layer_blend_t blend, uint32_t program,
                              float mix_amount) {
-  if (!g_ui_runtime.running || !program) return;
+  if (!g_ref.vga_program || !program) return;
   glEnable(GL_BLEND);
   glBlendEquation(GL_FUNC_ADD);
   switch (blend) {
@@ -598,7 +638,7 @@ static bool bake_texture_program_common(int src_tex, int w, int h,
                                         uint32_t program, float mix_amount,
                                         const ui_render_effect_params_t *params,
                                         uint32_t *out_tex) {
-  if (!g_ui_runtime.running || src_tex == 0 || w <= 0 || h <= 0 || !program || !out_tex)
+  if (!g_ref.vga_program || src_tex == 0 || w <= 0 || h <= 0 || !program || !out_tex)
     return false;
 
   GLuint tex = R_CreateTextureRGBA(w, h, NULL, R_FILTER_LINEAR, R_WRAP_CLAMP);
@@ -674,7 +714,7 @@ bool bake_texture_effect(int src_tex, int w, int h,
                          ui_render_effect_t effect,
                          const ui_render_effect_params_t *params,
                          uint32_t *out_tex) {
-  if (!g_ui_runtime.running || w <= 0 || h <= 0 || !out_tex) return false;
+  if (!g_ref.vga_program || w <= 0 || h <= 0 || !out_tex) return false;
 
   GLuint tex = 0;
   GLuint fbo = 0;
@@ -752,7 +792,7 @@ bool bake_texture_blur(int src_tex, int w, int h, int radius,
                        uint32_t *out_tex) {
   if (!out_tex) return false;
   *out_tex = 0;
-  if (!g_ui_runtime.running || src_tex == 0 || w <= 0 || h <= 0)
+  if (!g_ref.vga_program || src_tex == 0 || w <= 0 || h <= 0)
     return false;
 
   radius = CLAMP(radius, 1, 16);
@@ -791,7 +831,7 @@ void draw_program_rect(int tex, irect16_t r, uint32_t program, float mix_amount)
 }
 
 bool read_texture_rgba(int src_tex, int w, int h, uint8_t *out_rgba) {
-  if (!g_ui_runtime.running || src_tex == 0 || w <= 0 || h <= 0 || !out_rgba)
+  if (!g_ref.vga_program || src_tex == 0 || w <= 0 || h <= 0 || !out_rgba)
     return false;
 
   GLuint fbo = 0;
@@ -923,7 +963,7 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
                      int dst_w_px, int dst_h_px,
                      uint32_t font_tex,
                      const uint32_t palette16[16]) {
-  if (!g_ui_runtime.running || !buf || !buf->vga_buffer || !font_tex ||
+  if (!g_ref.vga_program || !buf || !buf->vga_buffer || !font_tex ||
       !palette16 || buf->width <= 0 || buf->height <= 0 ||
       dst_w_px <= 0 || dst_h_px <= 0)
     return false;

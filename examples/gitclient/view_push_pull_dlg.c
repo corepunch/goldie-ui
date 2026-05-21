@@ -22,29 +22,29 @@
 #define CTL_CANCEL   6
 
 static const form_ctrl_def_t kPPFRemoteRow[] = {
-  { .class_name = "label",   .text = "Remote:", .name = "lbl_remote",
+  { .class_name = "Label",   .text = "Remote:", .name = "lbl_remote",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "combobox", .id = CTL_REMOTE, .name = "remote",
+  { .class_name = "ComboBox", .id = CTL_REMOTE, .name = "remote",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 static const form_ctrl_def_t kPPFBranchRow[] = {
-  { .class_name = "label",   .text = "Branch:", .name = "lbl_branch",
+  { .class_name = "Label",   .text = "Branch:", .name = "lbl_branch",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "combobox", .id = CTL_BRANCH, .name = "branch",
+  { .class_name = "ComboBox", .id = CTL_BRANCH, .name = "branch",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 static const form_ctrl_def_t kPPFBtnRow[] = {
-  { .class_name = "button", .id = CTL_OK,     .flags = BUTTON_DEFAULT, .text = "OK",
+  { .class_name = "Button", .id = CTL_OK,     .flags = BUTTON_DEFAULT, .text = "OK",
     .name = "ok",     .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "button", .id = CTL_CANCEL, .text = "Cancel",
+  { .class_name = "Button", .id = CTL_CANCEL, .text = "Cancel",
     .name = "cancel", .h_align = LAYOUT_ALIGN_START },
 };
 
 static const form_ctrl_def_t kPPFCtrls[] = {
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "remote_row",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
@@ -53,7 +53,7 @@ static const form_ctrl_def_t kPPFCtrls[] = {
     .child_count        = 2,
   },
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "branch_row",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
@@ -61,12 +61,12 @@ static const form_ctrl_def_t kPPFCtrls[] = {
     .children           = kPPFBranchRow,
     .child_count        = 2,
   },
-  { .class_name = "checkbox", .id = CTL_PRUNE, .text = "Prune deleted remote branches",
+  { .class_name = "CheckBox", .id = CTL_PRUNE, .text = "Prune deleted remote branches",
     .name = "prune", .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "checkbox", .id = CTL_FORCE, .text = "Force",
+  { .class_name = "CheckBox", .id = CTL_FORCE, .text = "Force",
     .name = "force", .h_align = LAYOUT_ALIGN_STRETCH },
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "actions",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,

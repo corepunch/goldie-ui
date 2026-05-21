@@ -97,16 +97,16 @@ static const ctrl_binding_t author_bindings[] = {
 };
 
 static const form_ctrl_def_t author_form_children[] = {
-    { .class_name = "stack", .id = 0, .size = {0, 0}, .flags = WINDOW_FLEXSPACE, .name = "main_stack", .layout_spacing = 8, .padding = {8,8,8,8}, .children = (const form_ctrl_def_t[]){
-        { .class_name = "label", .id = 0, .size = {0, 13}, .text = "Name:", .name = "lbl_name" },
-        { .class_name = "textedit", .id = 1, .size = {0, 13}, .flags = WINDOW_FLEXSPACE, .name = "edit_name" },
-        { .class_name = "label", .id = 0, .size = {0, 13}, .text = "Avatar:", .name = "lbl_avatar" },
-        { .class_name = "textedit", .id = 2, .size = {0, 13}, .flags = WINDOW_FLEXSPACE, .name = "edit_avatar" },
-        { .class_name = "separator", .id = 0, .size = {0, 1}, .name = "sep" },
-        { .class_name = "stack", .id = 0, .size = {0, 19}, .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = 6, .name = "buttons", .children = (const form_ctrl_def_t[]){
-            { .class_name = "space", .id = 0, .size = {0, 0}, .flags = WINDOW_FLEXSPACE, .name = "spacer" },
-            { .class_name = "button", .id = 100, .size = {60, 19}, .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok" },
-            { .class_name = "button", .id = 101, .size = {60, 19}, .text = "Cancel", .name = "cancel" },
+    { .class_name = "StackView", .id = 0, .size = {0, 0}, .flags = WINDOW_FLEXSPACE, .name = "main_stack", .layout_spacing = 8, .padding = {8,8,8,8}, .children = (const form_ctrl_def_t[]){
+        { .class_name = "Label", .id = 0, .size = {0, 13}, .text = "Name:", .name = "lbl_name" },
+        { .class_name = "TextBox", .id = 1, .size = {0, 13}, .flags = WINDOW_FLEXSPACE, .name = "edit_name" },
+        { .class_name = "Label", .id = 0, .size = {0, 13}, .text = "Avatar:", .name = "lbl_avatar" },
+        { .class_name = "TextBox", .id = 2, .size = {0, 13}, .flags = WINDOW_FLEXSPACE, .name = "edit_avatar" },
+        { .class_name = "Separator", .id = 0, .size = {0, 1}, .name = "sep" },
+        { .class_name = "StackView", .id = 0, .size = {0, 19}, .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = 6, .name = "buttons", .children = (const form_ctrl_def_t[]){
+            { .class_name = "Space", .id = 0, .size = {0, 0}, .flags = WINDOW_FLEXSPACE, .name = "spacer" },
+            { .class_name = "Button", .id = 100, .size = {60, 19}, .flags = BUTTON_DEFAULT, .text = "OK", .name = "ok" },
+            { .class_name = "Button", .id = 101, .size = {60, 19}, .text = "Cancel", .name = "cancel" },
         }, .child_count = 3 },
     }, .child_count = 6 },
 };

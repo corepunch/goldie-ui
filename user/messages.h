@@ -75,6 +75,10 @@ enum {
   // Ask a container to create its default child structure.
   // wparam = 0; lparam = NULL.
   evInitChildren,
+  // Set a database context on a window. Database-aware controls may consume
+  // this to populate themselves; other recipients ignore it.
+  // wparam = 0; lparam = database_t *.
+  evSetDatabase,
   evUser = 1000
 };
 
@@ -92,7 +96,6 @@ enum {
   cbSetCurrentSelection,
   cbGetListBoxText,
   cbClear,            // clear all items and reset title
-  cbSetDatabase,      // wparam=0, lparam=database_t* — set database for auto-population
   sbAddWindow,
   tbButtonClick,
   tbSetStrip,         // wparam=0, lparam=bitmap_strip_t* (or NULL to clear)
@@ -106,7 +109,10 @@ enum {
   slGetPos,         // wparam = handle index (0..3), lparam=int* out(optional)
   tbSetButtonSize,    // wparam=square button size in pixels (0 resets to TB_SPACING)
   tbLoadStrip,        // wparam=icon tile size in px (square); lparam=const char* path to PNG
-  tbSetItems,         // wparam=count; lparam=toolbar_item_t* — create real child windows
+  tbSetItems,         // wparam=count; lparam=toolbar_item_t* — set toolbar item list (owner-drawn)
+  // Fired via evCommand when the user clicks the dropdown arrow of a TOOLBAR_ITEM_DROPDOWN button.
+  // LOWORD(wparam) = button ident; HIWORD(wparam) = tbDropdown; lparam = toolbar window.
+  tbDropdown,
   // Text edit getter/setter messages (single-line and multiline controls).
   // Getter pattern is WinAPI-like: return value in result_t and optionally
   // mirror it to lparam when non-NULL.
@@ -338,15 +344,17 @@ typedef struct {
 #define TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT  3  // default combobox width = button_size * this multiplier
 #define TOOLBAR_BUTTON_FLAG_ACTIVE   (1u << 0)
 #define TOOLBAR_BUTTON_FLAG_PRESSED  (1u << 1)
+#define DROPDOWN_ARROW_W             12          // pixel width of the dropdown arrow zone in TOOLBAR_ITEM_DROPDOWN
 
 // Toolbar item types used with tbSetItems.
 typedef enum {
-  TOOLBAR_ITEM_BUTTON    = 0,  // icon-only button (win_toolbar_button)
-  TOOLBAR_ITEM_LABEL     = 1,  // static text label (win_label)
-  TOOLBAR_ITEM_COMBOBOX  = 2,  // drop-down combobox (win_combobox)
-  TOOLBAR_ITEM_TEXTEDIT  = 3,  // single-line text input (win_textedit)
-  TOOLBAR_ITEM_SEPARATOR = 4,  // narrow visual separator (no interaction)
-  TOOLBAR_ITEM_SPACER    = 5,  // invisible gap (no child window created)
+  TOOLBAR_ITEM_BUTTON    = 0,  // icon-only button (owner-drawn)
+  TOOLBAR_ITEM_LABEL     = 1,  // static text label (owner-drawn)
+  TOOLBAR_ITEM_COMBOBOX  = 2,  // drop-down combobox (embedded child window)
+  TOOLBAR_ITEM_TEXTEDIT  = 3,  // single-line text input (embedded child window)
+  TOOLBAR_ITEM_SEPARATOR = 4,  // narrow visual separator (owner-drawn)
+  TOOLBAR_ITEM_SPACER    = 5,  // invisible gap (owner-drawn, no interaction)
+  TOOLBAR_ITEM_DROPDOWN  = 6,  // split button: left half fires tbButtonClick, right arrow fires tbDropdown
 } toolbar_item_type_t;
 
 // Descriptor for a single toolbar item (used with tbSetItems).

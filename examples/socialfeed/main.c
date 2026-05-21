@@ -19,6 +19,7 @@
 
 #include "socialfeed.h"
 #include "../../gem_magic.h"
+#include "../../commctl/commctl.h"
 
 #ifndef SHAREDIR
 #define SHAREDIR "."
@@ -48,9 +49,14 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (!g_app) return false;
   g_app->hinstance = hinstance;
 
-  // Create database instance
-  char db_path[512];
-  snprintf(db_path, sizeof(db_path), "%s/socialfeed_seed.xml", SHAREDIR);
+  // Form-based windows/dialogs require commctl classes to be registered.
+  register_commctl_classes();
+
+  // Create database instance.
+  // Use the framework share path staged by `make share`.
+  char db_path[1024];
+  snprintf(db_path, sizeof(db_path), "%s/../share/orion/socialfeed_seed.xml",
+           ui_get_exe_dir());
   g_app->db = create_database("socialfeed", "db_simple_xml", db_path);
   if (!g_app->db) {
     SF_DEBUG("Failed to create database");
