@@ -111,6 +111,20 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   // Database automatically loads data from source XML file
   // (no manual seed loading needed)
+  {
+    result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    result_node_t *authors = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)0);
+    result_node_t *comments = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_COMMENTS, 0), (void *)(intptr_t)0);
+    SF_DEBUG("database loaded: path='%s' authors=%d posts=%d comments=%d",
+             db_path, count_result_list(authors), count_result_list(posts),
+             count_result_list(comments));
+    free_result_list(posts);
+    free_result_list(authors);
+    free_result_list(comments);
+  }
 
   create_menubar();
   create_main_window();
