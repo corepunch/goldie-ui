@@ -71,8 +71,8 @@ static const enum_token_t kColors[] = {
 
 static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }
 static const char *nz(const char *s, const char *d) { return (s && *s) ? s : d; }
-/* Case-insensitive comparison of a libxml2 node name against a C string.
-   Used by elem() and klass_eq() so both folding paths share one implementation. */
+/* Case-insensitive comparison of a libxml2 node name (unsigned char *)
+   against a C string literal (char *).  Used by elem() and klass_eq(). */
 static bool ascii_casecmp(const unsigned char *a, const char *b) {
   while (*a && *b) {
     if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) return false;
@@ -432,16 +432,16 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
   }
 }
 
-/* Case-insensitive klass comparison for binding_getter.
-   The klass string comes from the XML element name which may be PascalCase
-   (e.g. "TextBox", "MultiEdit", "ComboBox") while the canonical names used
-   in the comparisons below are lowercase. */
+/* Case-insensitive klass comparison.  The klass string comes from the XML
+   element name which may be PascalCase (e.g. "TextBox", "MultiEdit",
+   "ComboBox") while the canonical names used below are lowercase.
+   klass_eq() handles all case variants via ascii_casecmp(). */
 static bool klass_eq(const char *klass, const char *name) {
   return klass && name && ascii_casecmp((const unsigned char *)klass, name);
 }
 
 static const char *binding_getter(const char *klass) {
-  /* "TextBox" / "textedit" / "textbox" and "MultiEdit" / "multiedit" */
+  /* "textedit"/"textbox" (matches TextBox, textedit, etc.) and "multiedit" */
   if (klass_eq(klass, "textedit") || klass_eq(klass, "textbox") ||
       klass_eq(klass, "multiedit")) return "edGetText";
   if (klass_eq(klass, "combobox")) return "cbGetCurrentValue";
