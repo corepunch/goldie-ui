@@ -1,7 +1,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
-#include <stdbool.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,17 +71,19 @@ static const enum_token_t kColors[] = {
 
 static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }
 static const char *nz(const char *s, const char *d) { return (s && *s) ? s : d; }
-static bool elem(xmlNodePtr n, const char *name) {
-  if (!n || n->type != XML_ELEMENT_NODE || !name) return false;
-  const xmlChar *a = n->name;
-  const unsigned char *b = (const unsigned char *)name;
+/* Case-insensitive comparison of a libxml2 node name against a C string.
+   Used by elem() and klass_eq() so both folding paths share one implementation. */
+static bool ascii_casecmp(const unsigned char *a, const char *b) {
   while (*a && *b) {
-    int ca = (*a >= 'A' && *a <= 'Z') ? (*a + 32) : (int)*a;
-    int cb = (*b >= 'A' && *b <= 'Z') ? (*b + 32) : (int)*b;
-    if (ca != cb) return false;
+    if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) return false;
     a++; b++;
   }
   return *a == 0 && *b == 0;
+}
+
+static bool elem(xmlNodePtr n, const char *name) {
+  return n && n->type == XML_ELEMENT_NODE && name &&
+         ascii_casecmp(n->name, name);
 }
 static char *attr(xmlNodePtr n, const char *name) { xmlChar *r = xmlGetProp(n, BAD_CAST name); char *s = r ? strdup((char *)r) : NULL; if (r) xmlFree(r); return s; }
 static char *attrs_first(xmlNodePtr n, const char *a, const char *b) { char *v = attr(n, a); if (v && *v) return v; free(v); return b ? attr(n, b) : NULL; }
@@ -433,19 +435,9 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
 /* Case-insensitive klass comparison for binding_getter.
    The klass string comes from the XML element name which may be PascalCase
    (e.g. "TextBox", "MultiEdit", "ComboBox") while the canonical names used
-   in the comparisons below are lowercase.  Use the same ASCII fold that
-   elem() uses so that all spelling variants are handled. */
+   in the comparisons below are lowercase. */
 static bool klass_eq(const char *klass, const char *name) {
-  if (!klass || !name) return false;
-  const unsigned char *a = (const unsigned char *)klass;
-  const unsigned char *b = (const unsigned char *)name;
-  while (*a && *b) {
-    int ca = (*a >= 'A' && *a <= 'Z') ? (*a + 32) : (int)*a;
-    int cb = (*b >= 'A' && *b <= 'Z') ? (*b + 32) : (int)*b;
-    if (ca != cb) return false;
-    a++; b++;
-  }
-  return *a == 0 && *b == 0;
+  return klass && name && ascii_casecmp((const unsigned char *)klass, name);
 }
 
 static const char *binding_getter(const char *klass) {
