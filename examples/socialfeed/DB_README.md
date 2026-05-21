@@ -59,7 +59,8 @@ Based on `socialfeed.orion` table definitions:
 DB_CLASS(db_simple_xml);
 
 // Create database (sends dbCreate + dbLoad)
-database_t *db = create_database("socialfeed", "db_simple_xml", "socialfeed_seed.xml");
+database_t *db = create_database("socialfeed", "db_simple_xml",
+                                 "examples/socialfeed/share/socialfeed_seed.xml");
 
 // ... CRUD operations via messages ...
 

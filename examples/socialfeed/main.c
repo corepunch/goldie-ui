@@ -37,28 +37,22 @@ static bool resolve_socialfeed_db_path(char *out, size_t out_sz) {
 
   char candidate[SOCIALFEED_PATH_MAX];
 
-  snprintf(candidate, sizeof(candidate), "%s/%s/socialfeed_seed.xml",
-           exe_dir, SHAREDIR);
-  if (axPathExists(candidate)) {
-    snprintf(out, out_sz, "%s", candidate);
-    return true;
-  }
-
-  snprintf(candidate, sizeof(candidate), "%s/../share/orion/socialfeed_seed.xml",
-           exe_dir);
+  snprintf(candidate, sizeof(candidate),
+           "%s/../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return true;
   }
 
   snprintf(candidate, sizeof(candidate),
-           "%s/../../examples/socialfeed/socialfeed_seed.xml", exe_dir);
+           "%s/../../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return true;
   }
 
-  snprintf(out, out_sz, "%s/%s/socialfeed_seed.xml", exe_dir, SHAREDIR);
+  snprintf(out, out_sz, "%s/../../examples/socialfeed/share/socialfeed_seed.xml",
+           exe_dir);
   return false;
 }
 
