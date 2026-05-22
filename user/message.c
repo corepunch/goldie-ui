@@ -11,6 +11,7 @@
 #include "draw.h"
 #include "image.h"
 #include "icons.h"
+#include "scrollbar.h"
 
 extern bitmap_strip_t *ui_get_sysicon_strip(void);
 
@@ -476,198 +477,6 @@ void remove_from_global_queue(window_t *win) {
   }
 }
 
-// ---- Built-in scrollbar mouse handling --------------------------------------
-//
-// All mouse events are delivered in the receiving window's own client
-// coordinate system (see kernel/event.c), which includes win->scroll[] offset.
-// The coordinate helpers below keep the click/drag math consistent across
-// both scrollbar orientations and avoid duplicating LOWORD/HIWORD handling.
-static int sb_mouse_axis_coord(uint32_t wparam, bool vertical) {
-  return vertical ? (int16_t)HIWORD(wparam) : (int16_t)LOWORD(wparam);
-}
-
-static int sb_mouse_axis_delta(void *lparam, bool vertical) {
-  uint32_t delta = (uint32_t)(uintptr_t)lparam;
-  return vertical ? (int16_t)HIWORD(delta) : (int16_t)LOWORD(delta);
-}
-
-static int builtin_sb_thumb_len_msg(win_sb_t const *sb, int track) {
-  int range = sb->max_val - sb->min_val;
-  if (range <= 0 || sb->page >= range) return track;
-  int tl = track * sb->page / range;
-  return tl < 8 ? 8 : tl;
-}
-
-static int builtin_sb_thumb_off_msg(win_sb_t const *sb, int track, int tl) {
-  int travel = sb->max_val - sb->min_val - sb->page;
-  if (travel <= 0) return 0;
-  int tt = track - tl;
-  if (tt <= 0) return 0;
-  return (sb->pos - sb->min_val) * tt / travel;
-}
-
-static int sb_clamp_msg(win_sb_t const *sb, int pos) {
-  int max_pos = sb->max_val - sb->page;
-  if (max_pos < sb->min_val) max_pos = sb->min_val;
-  if (pos < sb->min_val) return sb->min_val;
-  if (pos > max_pos)     return max_pos;
-  return pos;
-}
-
-// Clamp new_pos, and if it differs from sb->pos apply it, fire scroll_msg, and invalidate.
-// Returns true if the position actually changed.
-static bool sb_try_scroll(window_t *win, win_sb_t *sb, uint32_t scroll_msg, int new_pos) {
-  new_pos = sb_clamp_msg(sb, new_pos);
-  if (new_pos == sb->pos) return false;
-  sb->pos = new_pos;
-  send_message(win, scroll_msg, (uint32_t)new_pos, NULL);
-  invalidate_window(win);
-  return true;
-}
-
-// Update the scroll position while a thumb drag is in progress.
-// The drag state accumulates raw mouse deltas, so scroll changes triggered by
-// the scrollbar itself cannot feed back into the next move event.
-static void sb_handle_drag_move(window_t *win, win_sb_t *sb, uint32_t scroll_msg,
-                                 int mouse_delta, int track) {
-  sb->drag_mouse += mouse_delta;
-  int eff_track = track - 2 * SCROLLBAR_WIDTH;
-  int track_len  = (eff_track > 0 ? eff_track : track);
-  int pos_eff    = sb->drag_mouse;
-  int tl         = builtin_sb_thumb_len_msg(sb, track_len);
-  int tp         = track_len - tl;
-  int tr        = sb->max_val - sb->min_val - sb->page;
-  if (tp > 0 && tr > 0) {
-    sb_try_scroll(win, sb, scroll_msg,
-                  sb->drag_start_pos + (pos_eff - sb->drag_start_mouse) * tr / tp);
-  }
-}
-
-// Dispatch a mouse-down click at position pos within a scrollbar track of total length track.
-// Fires SB_ARROW_STEP scrolls for arrow-button hits, starts a thumb drag, or scrolls by page.
-static void sb_handle_track_click(window_t *win, win_sb_t *sb, uint32_t scroll_msg,
-                                   int pos, int track) {
-  if (track >= 2 * SCROLLBAR_WIDTH) {
-    if (pos < SCROLLBAR_WIDTH) {
-      sb_try_scroll(win, sb, scroll_msg, sb->pos - SB_ARROW_STEP);
-      return;
-    }
-    if (pos >= track - SCROLLBAR_WIDTH) {
-      sb_try_scroll(win, sb, scroll_msg, sb->pos + SB_ARROW_STEP);
-      return;
-    }
-    int eff_track = track - 2 * SCROLLBAR_WIDTH;
-    int pos_eff   = pos - SCROLLBAR_WIDTH;
-    if (eff_track > 0) {
-      int tl = builtin_sb_thumb_len_msg(sb, eff_track);
-      int to = builtin_sb_thumb_off_msg(sb, eff_track, tl);
-      if (pos_eff >= to && pos_eff < to + tl) {
-        sb->dragging         = true;
-        sb->drag_start_mouse = pos_eff;
-        sb->drag_mouse       = pos_eff;
-        sb->drag_start_pos   = sb->pos;
-        set_capture(win);
-      } else {
-        sb_try_scroll(win, sb, scroll_msg,
-                      sb->pos + (pos_eff < to ? -sb->page : sb->page));
-      }
-    }
-  } else {
-    // Narrow track — no room for arrow buttons; plain thumb behaviour
-    int tl = builtin_sb_thumb_len_msg(sb, track);
-    int to = builtin_sb_thumb_off_msg(sb, track, tl);
-    if (pos >= to && pos < to + tl) {
-      sb->dragging         = true;
-      sb->drag_start_mouse = pos;
-      sb->drag_mouse       = pos;
-      sb->drag_start_pos   = sb->pos;
-      set_capture(win);
-    } else {
-      sb_try_scroll(win, sb, scroll_msg,
-                    sb->pos + (pos < to ? -sb->page : sb->page));
-    }
-  }
-}
-
-// Handle mouse events for a window's built-in scrollbars.
-// Returns true if the event was consumed by a scrollbar.
-static bool handle_builtin_scrollbars(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  bool has_h = (win->flags & WINDOW_HSCROLL) && win->hscroll.visible;
-  bool has_v = (win->flags & WINDOW_VSCROLL) && win->vscroll.visible;
-
-  // Non-client heights: mouse coords are delivered in CLIENT space
-  // (y=0 = client top, which excludes the title bar and toolbar rows).
-  // For child windows these are typically 0 (WINDOW_NOTITLE).
-  int t = titlebar_height(win);
-  int s = statusbar_height(win);
-  // Content height = client area + scrollbar strips (but NOT titlebar/statusbar).
-  int content_h = win->frame.h - t - s;
-
-  // When WINDOW_STATUSBAR and WINDOW_HSCROLL are both set, the horizontal bar
-  // is merged into the status-bar row.  In that case its geometry is:
-  //   y range : [content_h, content_h + STATUSBAR_HEIGHT)
-  //   x range : [frame.w*20/100, frame.w)        (right 80 %)
-  //   track   : (frame.w - h_x_min) - vscroll_width
-  bool h_merged = has_h && (win->flags & WINDOW_STATUSBAR);
-  int h_x_min   = h_merged ? SB_STATUS_SPLIT_X(win->frame.w) : 0;
-  int h_y_min   = h_merged ? content_h : content_h - SCROLLBAR_WIDTH;
-  int h_y_max   = h_merged ? content_h + STATUSBAR_HEIGHT : content_h;
-  // In merged mode the resize corner is always at the far right (SCROLLBAR_WIDTH wide),
-  // so always exclude it from the hscroll track.  In non-merged mode only exclude when vscroll is present.
-  int h_track   = (win->frame.w - h_x_min) - (h_merged ? SCROLLBAR_WIDTH : (has_v ? SCROLLBAR_WIDTH : 0));
-
-  // When merged, the vscroll is not shortened by the hscroll row (which lives
-  // in the status bar, outside the content area).
-  int v_track = content_h - (has_h && !h_merged ? SCROLLBAR_WIDTH : 0);
-
-  if (msg == evMouseMove || msg == evLeftButtonUp) {
-    if (win->hscroll.dragging) {
-      int mouse_delta = sb_mouse_axis_delta(lparam, false);
-      if (msg == evMouseMove)
-        sb_handle_drag_move(win, &win->hscroll, evHScroll,
-                            mouse_delta, h_track);
-      else { win->hscroll.dragging = false; set_capture(NULL); }
-      return true;
-    }
-    if (win->vscroll.dragging) {
-      int mouse_delta = sb_mouse_axis_delta(lparam, true);
-      if (msg == evMouseMove)
-        sb_handle_drag_move(win, &win->vscroll, evVScroll, mouse_delta, v_track);
-      else { win->vscroll.dragging = false; set_capture(NULL); }
-      return true;
-    }
-    return false;
-  }
-
-  if (msg != evLeftButtonDown &&
-      msg != evLeftButtonDoubleClick) return false;
-  if (!has_h && !has_v) return false;
-
-  int cx = sb_mouse_axis_coord(wparam, false);
-  int cy = sb_mouse_axis_coord(wparam, true);
-
-  // Horizontal scrollbar hit — always consume geometry even when disabled
-  if (has_h && cy >= h_y_min && cy < h_y_max &&
-      cx >= h_x_min && cx < win->frame.w) {
-    if (!win->hscroll.enabled) return true; // consume click but do nothing
-    int lx = cx - h_x_min;  // position within the hscroll strip
-    if (lx >= h_track) return true; // corner square
-    sb_handle_track_click(win, &win->hscroll, evHScroll, lx, h_track);
-    return true;
-  }
-
-  // Vertical scrollbar hit — always consume geometry even when disabled
-  if (has_v && cx >= win->frame.w - SCROLLBAR_WIDTH && cx < win->frame.w &&
-      cy >= 0 && cy < content_h) {
-    if (!win->vscroll.enabled) return true; // consume click but do nothing
-    if (cy >= v_track) return true; // corner square
-    sb_handle_track_click(win, &win->vscroll, evVScroll, cy, v_track);
-    return true;
-  }
-
-  return false;
-}
-
 static bool parent_notify_message(uint32_t msg) {
   switch (msg) {
     case evLeftButtonDown:
@@ -967,7 +776,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
        msg == evLeftButtonDoubleClick ||
        msg == evMouseMove ||
        msg == evLeftButtonUp)) {
-    if (handle_builtin_scrollbars(win, msg, wparam, lparam)) return true;
+    if (scrollbar_handle_builtin_mouse(win, msg, wparam, lparam)) return true;
   }
   if (win->parent && parent_notify_message(msg)) {
     parent_notify_t pn = {
@@ -993,19 +802,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // wparam = mouse position MAKEDWORD(x,y), lparam = scroll deltas MAKEDWORD(dx,dy)
         if ((win->flags & (WINDOW_HSCROLL | WINDOW_VSCROLL)) &&
             (win->hscroll.visible || win->vscroll.visible)) {
-          if ((win->flags & WINDOW_HSCROLL) && win->hscroll.visible &&
-              win->hscroll.enabled) {
-            int delta = (int16_t)LOWORD((uintptr_t)lparam);
-            sb_try_scroll(win, &win->hscroll, evHScroll,
-                          win->hscroll.pos + delta);
-          }
-          if ((win->flags & WINDOW_VSCROLL) && win->vscroll.visible &&
-              win->vscroll.enabled) {
-            // Negate for natural scroll: positive wheel-up dy decreases offset.
-            int delta = -(int16_t)HIWORD((uintptr_t)lparam);
-            sb_try_scroll(win, &win->vscroll, evVScroll,
-                          win->vscroll.pos + delta);
-          }
+          scrollbar_handle_builtin_wheel(win, lparam);
         } else if (win->parent) {
           // Bubble wheel event to parent, translating window-local mouse
           // coords from the child's client space into the parent's client space.

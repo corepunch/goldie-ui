@@ -6,8 +6,9 @@
 #include "../../user/messages.h"
 
 // Runtime class names exported by the imageeditor components plugin.
-#define LV_GRAPH_CLASS_NAME "LevelsHistogram"
-#define LV_STRIP_CLASS_NAME "LevelsStrip"
+// Keep these aligned with generated .orion class tags.
+#define LV_GRAPH_CLASS_NAME "lv_histogram"
+#define LV_STRIP_CLASS_NAME "lv_strip"
 
 // Shared geometry constants used by both host dialog and components.
 #define LV_GRAPH_W    260

@@ -189,6 +189,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   srand((unsigned int)time(NULL));
 
+  register_commctl_classes();
+  
   // Register tool handlers for the new dispatch system (Phase 3)
   register_builtin_tools();
 

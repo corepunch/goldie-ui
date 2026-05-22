@@ -46,7 +46,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_app = calloc(1, sizeof(app_state_t));
   if (!g_app) return false;
 
-  register_commctl_components();
+  register_commctl_classes();
   load_default_component_plugin();
   const char *project_path = NULL;
   for (int i = 1; i < argc; i++) {

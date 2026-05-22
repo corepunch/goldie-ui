@@ -12,9 +12,6 @@ typedef struct database_s database_t;
 // Register all common controls with the window system.
 void register_commctl_classes(void);
 
-// Register all common controls as FormEditor/placeable component descriptors.
-void register_commctl_components(void);
-
 // Built-in commctl class list APIs used by FormEditor/apps to register
 // classes from this library.
 int get_num_classes(void);

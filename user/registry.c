@@ -2,6 +2,15 @@
 #include "icons.h"
 #include "../examples/formeditor/controls-icons.h"
 
+#include <ctype.h>
+
+typedef struct {
+  fe_component_desc_t desc;
+} window_class_t;
+
+static window_class_t g_window_classes[MAX_WINDOW_CLASSES];
+static int g_window_class_count = 0;
+
 static bool is_valid_toolbox_icon(int icon) {
   if (icon >= SYSICON_BASE && icon <= sysicon_yield_add)
     return true;
@@ -12,52 +21,94 @@ static bool is_valid_toolbox_icon(int icon) {
 
 #define FE_MAX_COMPONENT_PLUGINS 32
 
-typedef struct {
-  fe_component_desc_t desc;
-} fe_component_entry_t;
-
-static fe_component_entry_t g_components[FE_MAX_COMPONENTS];
-static int g_component_count = 0;
-
 static void *g_component_plugin_handles[FE_MAX_COMPONENT_PLUGINS];
 static int g_component_plugin_count = 0;
 
-static bool fe_component_exists(const char *class_name) {
-  for (int i = 0; i < g_component_count; i++) {
-    const fe_component_desc_t *d = &g_components[i].desc;
-    if (class_name && d->class_name && strcmp(class_name, d->class_name) == 0)
-      return true;
+static bool reg_streq(const char *a, const char *b) {
+  if (!a || !b) return false;
+  while (*a && *b) {
+    if (tolower((unsigned char)*a) != tolower((unsigned char)*b))
+      return false;
+    a++;
+    b++;
   }
-  return false;
+  return *a == '\0' && *b == '\0';
 }
 
-bool fe_register_component(const fe_component_desc_t *desc) {
-  if (!desc || !desc->class_name || !desc->name_prefix || !desc->proc)
-    return false;
-  if (g_component_count >= FE_MAX_COMPONENTS)
-    return false;
-  if (fe_component_exists(desc->class_name))
-    return false;
-  if (!register_window_class(desc))
-    return false;
-
-  fe_component_desc_t stored = *desc;
-  if (!is_valid_toolbox_icon(stored.toolbox_icon))
-    stored.toolbox_icon = sysicon_puzzle;
-
-  g_components[g_component_count].desc = stored;
-  g_component_count++;
+bool register_window_class(const fe_component_desc_t *desc) {
+  if (!desc || !desc->class_name || !*desc->class_name || !desc->proc) return false;
+  for (int i = 0; i < g_window_class_count; i++) {
+    if (reg_streq(g_window_classes[i].desc.class_name, desc->class_name))
+      return true;  // already registered — idempotent on all platforms
+  }
+  if (g_window_class_count >= MAX_WINDOW_CLASSES) return false;
+  g_window_classes[g_window_class_count++].desc = *desc;
   return true;
 }
 
+int get_num_window_classes(void) {
+  return g_window_class_count;
+}
+
+const fe_component_desc_t *get_window_class_at_index(int index) {
+  if (index < 0 || index >= g_window_class_count)
+    return NULL;
+  return &g_window_classes[index].desc;
+}
+
+const fe_component_desc_t *find_window_class_desc_by_proc(winproc_t proc) {
+  if (!proc)
+    return NULL;
+  for (int i = 0; i < g_window_class_count; i++) {
+    if (g_window_classes[i].desc.proc == proc)
+      return &g_window_classes[i].desc;
+  }
+  return NULL;
+}
+
+winproc_t find_window_class_proc(const char *class_name) {
+  if (!class_name || !*class_name)
+    return NULL;
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->proc : NULL;
+}
+
+const fe_component_desc_t *find_window_class_desc(const char *class_name) {
+  if (!class_name || !*class_name)
+    return NULL;
+  for (int i = 0; i < g_window_class_count; i++) {
+    if (reg_streq(g_window_classes[i].desc.class_name, class_name))
+      return &g_window_classes[i].desc;
+  }
+  return NULL;
+}
+
+isize16_t get_class_default_size(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_layout_size : (isize16_t){0, 0};
+}
+
+flags_t get_class_default_flags(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_flags : 0;
+}
+
+uint8_t get_class_default_h_align(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_h_align : LAYOUT_ALIGN_STRETCH;
+}
+
+uint8_t get_class_default_v_align(const char *class_name) {
+  const fe_component_desc_t *desc = find_window_class_desc(class_name);
+  return desc ? desc->default_v_align : LAYOUT_ALIGN_STRETCH;
+}
+
 int fe_component_count(void) {
-  return g_component_count;
+  return get_num_window_classes();
 }
 
 const fe_component_desc_t *fe_component_at(int index) {
-  if (index < 0 || index >= g_component_count)
-    return NULL;
-  return &g_components[index].desc;
+  return get_window_class_at_index(index);
 }
 
 const fe_component_desc_t *fe_component_by_id(int id) {
@@ -67,8 +118,8 @@ const fe_component_desc_t *fe_component_by_id(int id) {
 int fe_component_id_of(const fe_component_desc_t *desc) {
   if (!desc)
     return -1;
-  for (int i = 0; i < g_component_count; i++) {
-    if (&g_components[i].desc == desc)
+  for (int i = 0; i < fe_component_count(); i++) {
+    if (fe_component_at(i) == desc)
       return i;
   }
   return -1;
@@ -77,12 +128,7 @@ int fe_component_id_of(const fe_component_desc_t *desc) {
 const fe_component_desc_t *fe_component_by_class_name(const char *class_name) {
   if (!class_name || !*class_name)
     return NULL;
-  for (int i = 0; i < g_component_count; i++) {
-    const fe_component_desc_t *d = &g_components[i].desc;
-    if (strcmp(d->class_name, class_name) == 0)
-      return d;
-  }
-  return NULL;
+  return find_window_class_desc(class_name);
 }
 
 bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target) {
@@ -116,7 +162,12 @@ bool fe_load_component_plugin(const char *path) {
   int n = count_fn();
   for (int i = 0; i < n; i++) {
     const fe_component_desc_t *d = desc_fn(i);
-    if (d) fe_register_component(d);
+    if (!d)
+      continue;
+    fe_component_desc_t stored = *d;
+    if (!is_valid_toolbox_icon(stored.toolbox_icon))
+      stored.toolbox_icon = sysicon_puzzle;
+    register_window_class(&stored);
   }
 
   g_component_plugin_handles[g_component_plugin_count++] = handle;

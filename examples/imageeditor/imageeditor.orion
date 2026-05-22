@@ -282,7 +282,7 @@
         </StackView>
       </form>
 
-      <form name="levels" title="Levels" width="280" spacing="6" padding="10">
+      <form name="levels" title="Levels" width="280" height="236" spacing="6" padding="10">
         <requires library="imageeditor_components" />
         <GridView name="input_row" spacing="6">
           <Column name="in_label_col" width="88">

@@ -151,13 +151,3 @@ void register_commctl_classes(void) {
       register_window_class(desc);
   }
 }
-
-// Register all common controls as FormEditor/placeable component descriptors.
-void register_commctl_components(void) {
-  int n = get_num_classes();
-  for (int i = 0; i < n; i++) {
-    const fe_component_desc_t *desc = get_class_at_index(i);
-    if (desc)
-      fe_register_component(desc);
-  }
-}

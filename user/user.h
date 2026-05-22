@@ -411,7 +411,6 @@ typedef uint32_t                   (*fe_plugin_version_fn)(void);
     return (uint32_t)(VERSION); \
   }
 
-bool fe_register_component(const fe_component_desc_t *desc);
 int fe_component_count(void);
 const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
@@ -497,6 +496,9 @@ window_t *create_window_proc(char const *title, flags_t flags, const irect16_t* 
 
 // Window class registry.
 bool register_window_class(const fe_component_desc_t *desc);
+int get_num_window_classes(void);
+const fe_component_desc_t *get_window_class_at_index(int index);
+const fe_component_desc_t *find_window_class_desc_by_proc(winproc_t proc);
 winproc_t find_window_class_proc(const char *class_name);
 const fe_component_desc_t *find_window_class_desc(const char *class_name);
 void register_builtin_window_classes(void);
