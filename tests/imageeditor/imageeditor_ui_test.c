@@ -129,7 +129,6 @@ void test_ie_create_document(void) {
     ASSERT_FALSE(doc->modified);
     ASSERT_TRUE(is_window(doc->win));
     ASSERT_NOT_NULL(g_app->main_toolbar_win);
-    ASSERT_NOT_NULL(get_window_item(g_app->main_toolbar_win, ID_FILE_NEW));
 
     ie_teardown();
     PASS();
@@ -321,41 +320,9 @@ void test_ie_palette_windows_created(void) {
     ASSERT_TRUE(is_window(g_app->tool_win));
     ASSERT_TRUE(is_window(g_app->tool_options_win));
     ASSERT_TRUE(is_window(g_app->color_win));
-    ASSERT_NOT_NULL(g_app->tool_win->children);
-    ASSERT_NOT_NULL(g_app->tool_win->children->next);
-    ASSERT_NOT_NULL(g_app->tool_win->children->children);
-    ASSERT_NOT_NULL(g_app->tool_win->children->children->next);
-    ASSERT_NOT_NULL(g_app->tool_win->children->children->next->next);
-    ASSERT_TRUE(g_app->tool_win->children->children->frame.y >= 0);
-    if (g_app->tool_win->children->children->frame.x != 0) {
-        FAIL("first tool button was not placed at x=0");
-        return;
-    }
-    if (g_app->tool_win->children->children->next->frame.x != TOOL_PALETTE_BTN_SIZE) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "second tool button x=%d y=%d, expected x=%d",
-                 g_app->tool_win->children->children->next->frame.x,
-                 g_app->tool_win->children->children->next->frame.y,
-                 TOOL_PALETTE_BTN_SIZE);
-        FAIL(msg);
-        return;
-    }
-    if (g_app->tool_win->children->children->next->next->frame.x != 0) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "third tool button x=%d y=%d, expected wrap to x=0",
-                 g_app->tool_win->children->children->next->next->frame.x,
-                 g_app->tool_win->children->children->next->next->frame.y);
-        FAIL(msg);
-        return;
-    }
-    if (g_app->tool_win->children->children->next->next->frame.y != TOOL_PALETTE_BTN_SIZE) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "third tool button y=%d, expected y=%d",
-                 g_app->tool_win->children->children->next->next->frame.y,
-                 TOOL_PALETTE_BTN_SIZE);
-        FAIL(msg);
-        return;
-    }
+    // Tool palette is owner-drawn (no child button windows).
+    ASSERT_NULL(g_app->tool_win->children);
+    ASSERT_NOT_NULL(g_app->tool_win->userdata);
 
     ie_teardown();
     PASS();
@@ -397,12 +364,12 @@ void test_ie_filter_gallery_layout_shape(void) {
     ASSERT_TRUE((imageeditor_filter_gallery_form.flags & WINDOW_AUTO_LAYOUT) != 0);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.layout_spacing, 4);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.child_count, 10);
-    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[0].class_name, "grid"), 0);
+    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[0].class_name, "GridView"), 0);
     // Grid uses column-based layout (<column> children).
     // The 2 columns are confirmed by children[1] and children[4] having the grid as parent.
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[1].parent, ID_FILTER_GALLERY_MAIN);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[4].parent, ID_FILTER_GALLERY_MAIN);
-    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[6].class_name, "stack"), 0);
+    ASSERT_EQUAL(strcmp(imageeditor_filter_gallery_form.children[6].class_name, "StackView"), 0);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[7].parent, ID_FILTER_GALLERY_ACTIONS);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[8].parent, ID_FILTER_GALLERY_ACTIONS);
     ASSERT_EQUAL(imageeditor_filter_gallery_form.children[9].parent, ID_FILTER_GALLERY_ACTIONS);
@@ -1554,10 +1521,10 @@ void test_ie_new_layer_form_auto_layout(void) {
     ASSERT_TRUE((imageeditor_new_layer_form.flags & WINDOW_AUTO_LAYOUT) != 0);
     ASSERT_EQUAL(imageeditor_new_layer_form.child_count, 7);
     ASSERT_NOT_NULL(imageeditor_new_layer_form.children);
-    ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[0].class_name, "stack"), 0);
+    ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[0].class_name, "StackView"), 0);
     ASSERT_EQUAL(imageeditor_new_layer_form.children[1].parent, ID_NEW_LAYER_FILL_ROW);
     ASSERT_EQUAL(imageeditor_new_layer_form.children[2].parent, ID_NEW_LAYER_FILL_ROW);
-    ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[3].class_name, "stack"), 0);
+    ASSERT_EQUAL(strcmp(imageeditor_new_layer_form.children[3].class_name, "StackView"), 0);
     ASSERT_EQUAL(imageeditor_new_layer_form.children[4].parent, ID_NEW_LAYER_ACTIONS);
     ASSERT_EQUAL(imageeditor_new_layer_form.children[5].parent, ID_NEW_LAYER_ACTIONS);
     ASSERT_EQUAL(imageeditor_new_layer_form.children[6].parent, ID_NEW_LAYER_ACTIONS);
