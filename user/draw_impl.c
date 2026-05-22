@@ -265,8 +265,7 @@ void draw_gradient_rect(irect16_t r, uint32_t left_color, uint32_t right_color) 
   ui_render_effect_params_t params = {{0}};
   color_to_params(left_color, &params, 0);
   color_to_params(right_color, &params, 4);
-  draw_rect_effect(ui_white_texture, r.x, r.y, r.w, r.h,
-                   UI_RENDER_EFFECT_GRADIENT, &params);
+  draw_rect_gradient(ui_white_texture, r.x, r.y, r.w, r.h, &params);
 }
 
 // Draw a dashed selection-outline rectangle using 4 tiled draw calls instead of

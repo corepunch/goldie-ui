@@ -66,7 +66,7 @@ static bool layer_crop_expand(layer_t *lay, int old_w, int old_h,
 static void layer_clear_preview_one(layer_t *lay) {
   if (!lay) return;
   lay->preview.active = false;
-  lay->preview.effect = UI_RENDER_EFFECT_COPY;
+  lay->preview.effect = IE_RENDER_EFFECT_COPY;
   memset(&lay->preview.params, 0, sizeof(lay->preview.params));
 }
 
@@ -416,7 +416,7 @@ void layer_clear_preview_effect(canvas_doc_t *doc, int idx) {
 }
 
 bool layer_set_preview_effect(canvas_doc_t *doc, int idx,
-                              ui_render_effect_t effect,
+                              imageeditor_render_effect_t effect,
                               const ui_render_effect_params_t *params) {
   if (!doc || idx < 0 || idx >= doc->layer.count) return false;
   layer_t *lay = doc->layer.stack[idx];
@@ -446,8 +446,8 @@ bool layer_commit_preview_effect(canvas_doc_t *doc, int idx) {
   uint8_t *buf = malloc(sz);
   if (!buf) return false;
   uint32_t baked_tex = 0;
-  if (!bake_texture_effect((int)lay->tex, doc->canvas_w, doc->canvas_h,
-                           lay->preview.effect, &lay->preview.params, &baked_tex)) {
+  if (!imageeditor_bake_texture_effect((int)lay->tex, doc->canvas_w, doc->canvas_h,
+                                       lay->preview.effect, &lay->preview.params, &baked_tex)) {
     free(buf);
     return false;
   }

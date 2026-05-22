@@ -194,6 +194,12 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   // Register tool handlers for the new dispatch system (Phase 3)
   register_builtin_tools();
 
+  if (!imageeditor_render_effects_init()) {
+    free(g_app);
+    g_app = NULL;
+    return false;
+  }
+
   create_app_windows(hinstance);
 #if !IMAGEEDITOR_INDEXED
   imageeditor_load_filters();
@@ -237,6 +243,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
 void gem_shutdown(void) {
   if (!g_app) return;
+
+  imageeditor_render_effects_shutdown();
 
 #if IMAGEEDITOR_DEBUG
   if (axGetLogFile()[0])
