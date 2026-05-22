@@ -111,7 +111,7 @@ static int fe_paint_probe_component_type(void) {
             .default_h_align = LAYOUT_ALIGN_STRETCH,
             .default_v_align = LAYOUT_ALIGN_STRETCH,
         };
-        if (fe_register_component(&desc)) {
+        if (register_window_class(&desc)) {
             const fe_component_desc_t *resolved = fe_component_by_class_name("PaintProbe");
             type = fe_component_id_for_desc(resolved);
         }
@@ -222,12 +222,7 @@ static void fe_setup(void) {
     }
     test_env_init();
     if (fe_component_count() == 0) {
-        int n = get_num_classes();
-        for (int i = 0; i < n; i++) {
-            const fe_component_desc_t *d = get_class_at_index(i);
-            if (d)
-                fe_register_component(d);
-        }
+        register_commctl_classes();
     }
     g_app = calloc(1, sizeof(app_state_t));
     g_app->current_tool = ID_TOOL_SELECT;

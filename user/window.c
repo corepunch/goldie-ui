@@ -13,13 +13,6 @@
 #include "draw.h"
 #include "../commctl/commctl.h"
 
-typedef struct {
-  fe_component_desc_t desc;
-} window_class_t;
-
-static window_class_t g_window_classes[MAX_WINDOW_CLASSES];
-static int g_window_class_count = 0;
-
 // NeXTSTEP-style database singleton
 static database_t *g_app_database = NULL;
 
@@ -75,55 +68,6 @@ static bool layout_child_flex_affects_parent(const window_t *parent, const windo
   }
 
   return true;
-}
-
-bool register_window_class(const fe_component_desc_t *desc) {
-  if (!desc || !desc->class_name || !*desc->class_name || !desc->proc) return false;
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (streq(g_window_classes[i].desc.class_name, desc->class_name))
-      return true;  // already registered — idempotent on all platforms
-  }
-  if (g_window_class_count >= MAX_WINDOW_CLASSES) return false;
-  g_window_classes[g_window_class_count++].desc = *desc;
-  return true;
-}
-
-winproc_t find_window_class_proc(const char *class_name) {
-  if (!class_name || !*class_name) return NULL;
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (streq(g_window_classes[i].desc.class_name, class_name))
-      return g_window_classes[i].desc.proc;
-  }
-  return NULL;
-}
-
-const fe_component_desc_t *find_window_class_desc(const char *class_name) {
-  if (!class_name || !*class_name) return NULL;
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (streq(g_window_classes[i].desc.class_name, class_name))
-      return &g_window_classes[i].desc;
-  }
-  return NULL;
-}
-
-isize16_t get_class_default_size(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_layout_size : (isize16_t){0, 0};
-}
-
-flags_t get_class_default_flags(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_flags : 0;
-}
-
-uint8_t get_class_default_h_align(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_h_align : LAYOUT_ALIGN_STRETCH;
-}
-
-uint8_t get_class_default_v_align(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_v_align : LAYOUT_ALIGN_STRETCH;
 }
 
 // Global window state
@@ -194,12 +138,9 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   // Phase 3: Merge class defaults with instance flags.
   // Find the class descriptor by proc and OR in default_flags.
   // This replaces the old hardcoded `if (proc == win_space)` check.
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (g_window_classes[i].desc.proc == proc) {
-      flags |= g_window_classes[i].desc.default_flags;
-      break;
-    }
-  }
+  const fe_component_desc_t *class_desc = find_window_class_desc_by_proc(proc);
+  if (class_desc)
+    flags |= class_desc->default_flags;
   
   win->flags = flags;
   window_set_state(win, WINDOW_STATE_VISIBLE, (flags & WINDOW_HIDDEN) == 0);
@@ -743,6 +684,19 @@ static bool form_children_have_parent(const form_ctrl_def_t *children, int child
   return false;
 }
 
+static void warn_missing_form_class(const form_ctrl_def_t *cd,
+                                    const char *scope,
+                                    uint32_t parent_id) {
+  if (!cd || !scope) return;
+  fprintf(stderr,
+          "create_window_from_form: class '%s' not found (scope=%s, id=%u, name=%s, parent=%u)\n",
+          cd->class_name ? cd->class_name : "<null>",
+          scope,
+          (unsigned)cd->id,
+          cd->name ? cd->name : "<null>",
+          (unsigned)parent_id);
+}
+
 static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *children,
                                       int child_count, uint32_t parent_id) {
   if (!parent || !children || child_count <= 0) return;
@@ -754,7 +708,10 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     }
 
     winproc_t cp = find_window_class_proc(cd->class_name);
-    if (!cp) continue;
+    if (!cp) {
+      warn_missing_form_class(cd, "flat", parent_id);
+      continue;
+    }
 
     // Apply class defaults for dimensions and flags
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
@@ -912,27 +869,38 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
   for (int i = 0; i < child_count; i++) {
     const form_ctrl_def_t *cd = &children[i];
     winproc_t cp = find_window_class_proc(cd->class_name);
-    if (!cp) continue;
+    if (!cp) {
+      warn_missing_form_class(cd, "tree", cd->parent);
+      continue;
+    }
 
     // Phase 3: Apply class defaults for width/height when form doesn't specify (0).
     // Get class descriptor to check for default dimensions.
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
     int16_t effective_w = cd->size.w;
     int16_t effective_h = cd->size.h;
+    flags_t child_flags = cd->flags;
+    uint8_t child_h_align = cd->h_align;
+    uint8_t child_v_align = cd->v_align;
     if (class_desc) {
       if (effective_w == 0 && class_desc->default_layout_size.w > 0)
         effective_w = class_desc->default_layout_size.w;
       if (effective_h == 0 && class_desc->default_layout_size.h > 0)
         effective_h = class_desc->default_layout_size.h;
+      child_flags |= class_desc->default_flags;
+      if (child_h_align == 0)
+        child_h_align = class_desc->default_h_align;
+      if (child_v_align == 0)
+        child_v_align = class_desc->default_v_align;
     }
 
     irect16_t child_frame = {0, 0, effective_w, effective_h};
-    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
+    window_t *child = create_window(cd->text ? cd->text : "", child_flags,
                                     &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     child->id = cd->id;
-    child->layout.h_align = cd->h_align;
-    child->layout.v_align = cd->v_align;
+    child->layout.h_align = child_h_align;
+    child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;
 
     if (cd->children && cd->child_count > 0)
@@ -991,112 +959,3 @@ void enable_window(window_t *win, bool enable) {
   invalidate_window(win);
 }
 
-// ---- Built-in scrollbar API (WinAPI SetScrollInfo / GetScrollInfo style) ----
-
-// Clamp pos to the valid range [min_val .. max_val-page]
-static int sb_clamp_range(win_sb_t const *sb, int pos) {
-  int max_pos = sb->max_val - sb->page;
-  if (max_pos < sb->min_val) max_pos = sb->min_val;
-  if (pos < sb->min_val) return sb->min_val;
-  if (pos > max_pos)     return max_pos;
-  return pos;
-}
-
-// Update one built-in scrollbar from a scroll_info_t.
-// Auto-shows the bar when content exceeds the viewport; hides it otherwise.
-static void set_scroll_info_one(win_sb_t *sb, scroll_info_t const *info) {
-  if (info->fMask & SIF_RANGE) {
-    sb->min_val = info->nMin;
-    sb->max_val = info->nMax;
-  }
-  if (info->fMask & SIF_PAGE) {
-    sb->page = info->nPage;
-  }
-  if (info->fMask & SIF_POS) {
-    sb->pos = sb_clamp_range(sb, info->nPos);
-  }
-  // Clamp existing pos whenever range or page changes (even without SIF_POS).
-  if (info->fMask & (SIF_RANGE | SIF_PAGE)) {
-    sb->pos = sb_clamp_range(sb, sb->pos);
-  }
-  // Automatic show/hide: hide when the whole content fits in the viewport.
-  // Only apply auto logic when not overridden by an explicit show_scroll_bar() call.
-  if (sb->visible_mode == SB_VIS_HIDE) {
-    sb->visible = false; // forced hidden
-  } else if (sb->visible_mode == SB_VIS_SHOW) {
-    sb->visible = true;  // forced shown
-  } else {
-    bool should_show = (sb->page < sb->max_val - sb->min_val);
-    sb->visible = should_show;
-  }
-  if (sb->visible && !sb->enabled) {
-    // First time visible: default to enabled.
-    sb->enabled = true;
-  }
-}
-
-void set_scroll_info(window_t *win, int bar, scroll_info_t const *info, bool redraw) {
-  if (!win || !info) return;
-  if (bar == SB_VERT) {
-    set_scroll_info_one(&win->vscroll, info);
-  } else if (bar == SB_HORZ) {
-    set_scroll_info_one(&win->hscroll, info);
-  } else { // SB_BOTH
-    set_scroll_info_one(&win->hscroll, info);
-    set_scroll_info_one(&win->vscroll, info);
-  }
-  if (redraw) invalidate_window(win);
-}
-
-void get_scroll_info(window_t *win, int bar, scroll_info_t *info) {
-  if (!win || !info) return;
-  if (bar == SB_BOTH) bar = SB_HORZ; // SB_BOTH reads horizontal by convention
-  win_sb_t *sb = (bar == SB_VERT) ? &win->vscroll : &win->hscroll;
-  if (info->fMask & SIF_RANGE) {
-    info->nMin = sb->min_val;
-    info->nMax = sb->max_val;
-  }
-  if (info->fMask & SIF_PAGE) info->nPage = sb->page;
-  if (info->fMask & SIF_POS)  info->nPos  = sb->pos;
-}
-
-int get_scroll_pos(window_t *win, int bar) {
-  if (!win) return 0;
-  if (bar == SB_VERT) return win->vscroll.pos;
-  return win->hscroll.pos; // SB_HORZ or SB_BOTH → horizontal
-}
-
-// Explicitly enable or disable a built-in scrollbar's mouse interactivity.
-// Disabled bars remain visible but ignore mouse clicks.
-void enable_scroll_bar(window_t *win, int bar, bool enable) {
-  if (!win) return;
-  if (bar == SB_HORZ || bar == SB_BOTH) win->hscroll.enabled = enable;
-  if (bar == SB_VERT || bar == SB_BOTH) win->vscroll.enabled = enable;
-  invalidate_window(win);
-}
-
-// Show or hide a built-in scrollbar explicitly.
-// Calling this locks the bar's visibility so that subsequent set_scroll_info()
-// calls do not auto-show or auto-hide it.  To restore auto-visibility mode,
-// call reset_scroll_bar_auto(win, bar).
-void show_scroll_bar(window_t *win, int bar, bool show) {
-  if (!win) return;
-  if (bar == SB_HORZ || bar == SB_BOTH) {
-    win->hscroll.visible = show;
-    win->hscroll.visible_mode = show ? SB_VIS_SHOW : SB_VIS_HIDE;
-  }
-  if (bar == SB_VERT || bar == SB_BOTH) {
-    win->vscroll.visible = show;
-    win->vscroll.visible_mode = show ? SB_VIS_SHOW : SB_VIS_HIDE;
-  }
-  invalidate_window(win);
-}
-
-// Restore auto visibility mode for a built-in scrollbar.
-// After this call, set_scroll_info() will again auto-show/hide the bar based
-// on the content range vs page size, undoing any prior show_scroll_bar() call.
-void reset_scroll_bar_auto(window_t *win, int bar) {
-  if (!win) return;
-  if (bar == SB_HORZ || bar == SB_BOTH) win->hscroll.visible_mode = SB_VIS_AUTO;
-  if (bar == SB_VERT || bar == SB_BOTH) win->vscroll.visible_mode = SB_VIS_AUTO;
-}

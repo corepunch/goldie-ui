@@ -494,9 +494,9 @@ static void canvas_draw_selection_mask_overlay(canvas_doc_t *doc,
   params.f[5] = (float)COLOR_G(g_app->wand.overlay_color) / 255.0f;
   params.f[6] = (float)COLOR_B(g_app->wand.overlay_color) / 255.0f;
   params.f[7] = (float)COLOR_A(g_app->wand.overlay_color) / 255.0f;
-  draw_rect_effect((int)doc->sel.mask.tex,
-                   canvas_rect.x, canvas_rect.y, canvas_rect.w, canvas_rect.h,
-                   UI_RENDER_EFFECT_SELECTION_MASK, &params);
+  imageeditor_draw_rect_effect((int)doc->sel.mask.tex,
+                               canvas_rect.x, canvas_rect.y, canvas_rect.w, canvas_rect.h,
+                               IE_RENDER_EFFECT_SELECTION_MASK, &params);
 }
 
 static void canvas_draw_animation_trace(window_t *win,
@@ -600,13 +600,13 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
           if (!lay || !lay->visible) continue;
           if (!lay->tex) continue;
           if (lay->preview.active) {
-            draw_rect_effect_blend(lay->tex,
-                                   canvas_rect.x, canvas_rect.y,
-                                   canvas_rect.w, canvas_rect.h,
-                                   lay->opacity / 255.0f,
-                                   (ui_layer_blend_t)lay->blend_mode,
-                                   lay->preview.effect,
-                                   &lay->preview.params);
+            imageeditor_draw_rect_effect_blend(lay->tex,
+                                               canvas_rect.x, canvas_rect.y,
+                                               canvas_rect.w, canvas_rect.h,
+                                               lay->opacity / 255.0f,
+                                               (ui_layer_blend_t)lay->blend_mode,
+                                               lay->preview.effect,
+                                               &lay->preview.params);
           } else {
             draw_rect_blend(lay->tex,
                             canvas_rect.x, canvas_rect.y,
@@ -619,18 +619,18 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         const layer_t *lay = doc->layer.stack[doc->layer.active];
         if (lay && lay->tex) {
           if (lay->preview.active) {
-            draw_rect_effect_blend(lay->tex,
-                                   canvas_rect.x, canvas_rect.y,
-                                   canvas_rect.w, canvas_rect.h,
-                                   lay->opacity / 255.0f,
-                                   UI_LAYER_BLEND_NORMAL,
-                                   lay->preview.effect,
-                                   &lay->preview.params);
+            imageeditor_draw_rect_effect_blend(lay->tex,
+                                               canvas_rect.x, canvas_rect.y,
+                                               canvas_rect.w, canvas_rect.h,
+                                               lay->opacity / 255.0f,
+                                               UI_LAYER_BLEND_NORMAL,
+                                               lay->preview.effect,
+                                               &lay->preview.params);
           } else {
-            draw_rect_effect(lay->tex,
-                             canvas_rect.x, canvas_rect.y,
-                             canvas_rect.w, canvas_rect.h,
-                             UI_RENDER_EFFECT_MASK_GRAYSCALE, NULL);
+            imageeditor_draw_rect_effect(lay->tex,
+                                         canvas_rect.x, canvas_rect.y,
+                                         canvas_rect.w, canvas_rect.h,
+                                         IE_RENDER_EFFECT_MASK_GRAYSCALE, NULL);
           }
         }
       }

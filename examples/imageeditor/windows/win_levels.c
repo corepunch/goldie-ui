@@ -152,7 +152,7 @@ static void lv_apply_preview_effect(lv_state_t *st) {
   p.f[2] = st->gamma;
   p.f[3] = (float)st->out_black / 255.0f;
   p.f[4] = (float)st->out_white / 255.0f;
-  layer_set_preview_effect(st->doc, st->layer_idx, UI_RENDER_EFFECT_LEVELS, &p);
+  layer_set_preview_effect(st->doc, st->layer_idx, IE_RENDER_EFFECT_LEVELS, &p);
 }
 
 static void lv_sync_preview(lv_state_t *st) {

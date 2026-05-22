@@ -1,4 +1,4 @@
-// commctl/msgbox.c — WinAPI-style message_box() modal dialog.
+// commdlg/msgbox.c — WinAPI-style message_box() modal dialog.
 //
 // Implements a minimal modal dialog with a text label and one of four
 // standard button combinations (OK, OK/Cancel, Yes/No, Yes/No/Cancel),
@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "msgbox.h"
-#include "commctl.h"
+#include "../commctl/commctl.h"
 #include "../user/user.h"
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #ifndef __UI_FILEPICKER_H__
 #define __UI_FILEPICKER_H__
 
-// commctl/filepicker.h — WinAPI GetOpenFileName / GetSaveFileName analogue.
+// commdlg/filepicker.h — WinAPI GetOpenFileName / GetSaveFileName analogue.
 //
 // Usage (open):
 //

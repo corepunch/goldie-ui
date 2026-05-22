@@ -71,7 +71,9 @@ static const enum_token_t kColors[] = {
 
 static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }
 static const char *nz(const char *s, const char *d) { return (s && *s) ? s : d; }
-static bool elem(xmlNodePtr n, const char *name) { return n && n->type == XML_ELEMENT_NODE && xmlStrcmp(n->name, BAD_CAST name) == 0; }
+static bool elem(xmlNodePtr n, const char *name) {
+  return n && n->type == XML_ELEMENT_NODE && xmlStrcasecmp(n->name, BAD_CAST name) == 0;
+}
 static char *attr(xmlNodePtr n, const char *name) { xmlChar *r = xmlGetProp(n, BAD_CAST name); char *s = r ? strdup((char *)r) : NULL; if (r) xmlFree(r); return s; }
 static char *attrs_first(xmlNodePtr n, const char *a, const char *b) { char *v = attr(n, a); if (v && *v) return v; free(v); return b ? attr(n, b) : NULL; }
 static xmlNodePtr child(xmlNodePtr n, const char *name) { EACH_ELEMENT(c, n) if (elem(c, name)) return c; return NULL; }
@@ -447,6 +449,8 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
   EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
     attrs_t a; rect_t sz = size_attr(c), pad = {0}, mar = {0}; char id[256], klass[128], classq[ORIONC_STRING_SIZE], textq[ORIONC_STRING_SIZE], nameq[ORIONC_STRING_SIZE], flags[256], spacing[16], font[16], color[16], lparam[256] = "NULL";
     read_control_attrs(c, &a); control_id(id, sizeof(id), form, a.v[A_NAME], (char *)c->name, ordinal++); ident(klass, sizeof(klass), (char *)c->name, false);
+    if (elem(c, "textbox"))
+      snprintf(klass, sizeof(klass), "TextEdit");
     if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
     rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
     // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)

@@ -350,8 +350,8 @@ bool imageeditor_apply_builtin_blur(canvas_doc_t *doc, int radius) {
   canvas_upload(doc);
   if (!lay->tex) return false;
 
-  if (!bake_texture_blur((int)lay->tex, doc->canvas_w, doc->canvas_h,
-                         radius, &baked_tex)) {
+  if (!imageeditor_bake_texture_blur((int)lay->tex, doc->canvas_w, doc->canvas_h,
+                                     radius, &baked_tex)) {
     return false;
   }
   return apply_baked_texture_to_active_layer(doc, baked_tex);
@@ -377,16 +377,16 @@ bool imageeditor_apply_builtin_filter(canvas_doc_t *doc, uint16_t id) {
 
     p.f[0] = 1.0f / (float)doc->canvas_w;
     p.f[1] = 1.0f / (float)doc->canvas_h;
-    ui_render_effect_t effect = UI_RENDER_EFFECT_COPY;
+    imageeditor_render_effect_t effect = IE_RENDER_EFFECT_COPY;
     if (id == ID_FILTER_SHARPEN)
-      effect = UI_RENDER_EFFECT_SHARPEN;
+      effect = IE_RENDER_EFFECT_SHARPEN;
     else if (id == ID_FILTER_EDGE)
-      effect = UI_RENDER_EFFECT_EDGE;
+      effect = IE_RENDER_EFFECT_EDGE;
     else {
       return false;
     }
-    if (!bake_texture_effect((int)lay->tex, doc->canvas_w, doc->canvas_h,
-                             effect, &p, &baked_tex)) {
+    if (!imageeditor_bake_texture_effect((int)lay->tex, doc->canvas_w, doc->canvas_h,
+                                         effect, &p, &baked_tex)) {
       return false;
     }
     return apply_baked_texture_to_active_layer(doc, baked_tex);

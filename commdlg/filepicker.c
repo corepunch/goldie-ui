@@ -1,4 +1,4 @@
-// commctl/filepicker.c — generic modal file-picker dialog.
+// commdlg/filepicker.c — generic modal file-picker dialog.
 //
 // Implements get_open_filename() and get_save_filename(), both analogous to
 // the WinAPI GetOpenFileName / GetSaveFileName functions.  Internally uses
@@ -14,8 +14,9 @@
 #include <stdbool.h>
 
 #include "filepicker.h"
-#include "filelist.h"
-#include "commctl.h"
+#include "msgbox.h"
+#include "../commctl/filelist.h"
+#include "../commctl/commctl.h"
 #include "../user/user.h"
 #include "../user/icons.h"
 #include "../user/messages.h"

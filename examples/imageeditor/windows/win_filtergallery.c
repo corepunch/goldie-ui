@@ -4,7 +4,6 @@
 // texture strip so no shader runs per frame during display.
 
 #include "imageeditor.h"
-#include <assert.h>
 
 #if !IMAGEEDITOR_INDEXED
 
@@ -175,9 +174,14 @@ static result_t filter_gallery_proc(window_t *win, uint32_t msg,
       {
         window_t *preview = get_window_item(win, ID_FILTER_GALLERY_PREVIEW);
         window_t *filters = get_window_item(win, ID_FILTER_GALLERY_FILTERS);
-        assert(preview != NULL);
-        assert(filters != NULL);
-        assert(!do_windows_overlap(preview, filters));
+        if (!preview || !filters) {
+          IE_DEBUG("filter_gallery: missing controls preview=%p filters=%p",
+                   (void *)preview, (void *)filters);
+        } else if (do_windows_overlap(preview, filters)) {
+          IE_DEBUG("filter_gallery: preview/filters overlap preview=(%d,%d,%d,%d) filters=(%d,%d,%d,%d)",
+                   preview->frame.x, preview->frame.y, preview->frame.w, preview->frame.h,
+                   filters->frame.x, filters->frame.y, filters->frame.w, filters->frame.h);
+        }
       }
       return true;
     }

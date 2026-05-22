@@ -981,6 +981,62 @@ typedef struct {
 
 static form_create_state_t g_create_state;
 
+typedef struct {
+  bool saw_create;
+  int fields_y;
+  int fields_h;
+  int sep_y;
+  int sep_h;
+  int actions_y;
+  int body_h;
+  int title_h;
+  int ok_x;
+  int ok_w;
+  int cancel_x;
+  int cancel_w;
+} socialfeed_new_post_modal_capture_t;
+
+static result_t socialfeed_new_post_modal_probe_proc(window_t *win, uint32_t msg,
+                                                     uint32_t wparam, void *lparam) {
+  socialfeed_new_post_modal_capture_t *cap = (socialfeed_new_post_modal_capture_t *)win->userdata;
+  if (msg == evCreate) {
+    cap = (socialfeed_new_post_modal_capture_t *)lparam;
+    win->userdata = cap;
+    if (!cap) return false;
+
+    window_t *fields = get_window_item(win, ID_NEW_POST_FIELDS);
+    window_t *title = get_window_item(win, ID_NEW_POST_TITLE);
+    window_t *body = get_window_item(win, ID_NEW_POST_BODY);
+    window_t *sep = get_window_item(win, ID_NEW_POST_SECTION_SEP);
+    window_t *actions = get_window_item(win, ID_NEW_POST_ACTIONS);
+    window_t *ok = get_window_item(win, ID_NEW_POST_OK);
+    window_t *cancel = get_window_item(win, ID_NEW_POST_CANCEL);
+
+    if (fields && title && body && sep && actions && ok && cancel) {
+      cap->saw_create = true;
+      cap->fields_y = fields->frame.y;
+      cap->fields_h = fields->frame.h;
+      cap->sep_y = sep->frame.y;
+      cap->sep_h = sep->frame.h;
+      cap->actions_y = actions->frame.y;
+      cap->title_h = title->frame.h;
+      cap->body_h = body->frame.h;
+      cap->ok_x = ok->frame.x;
+      cap->ok_w = ok->frame.w;
+      cap->cancel_x = cancel->frame.x;
+      cap->cancel_w = cancel->frame.w;
+    }
+    return true;
+  }
+
+  if (msg == evShowWindow && wparam) {
+    end_dialog(win, 1);
+    return true;
+  }
+
+  return false;
+}
+
 static result_t form_test_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   (void)wparam; (void)lparam;
@@ -1907,6 +1963,84 @@ void test_socialfeed_post_detail_layout(void) {
   PASS();
 }
 
+void test_socialfeed_new_post_dialog_layout(void) {
+  TEST("socialfeed new post: grid stack and actions do not overlap");
+
+  test_env_init();
+
+  form_def_t dlg_def = socialfeed_new_post_form;
+  dlg_def.flags |= WINDOW_VSCROLL | WINDOW_DIALOG | WINDOW_NOTRAYBUTTON;
+
+  irect16_t wr = {0, 0, dlg_def.width, dlg_def.height};
+  adjust_window_rect(&wr, dlg_def.flags);
+  dlg_def.width = wr.w;
+  dlg_def.height = wr.h;
+
+  window_t *win = create_window_from_form(&dlg_def, 0, 0, NULL, form_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(win);
+
+  window_t *fields = get_window_item(win, ID_NEW_POST_FIELDS);
+  window_t *labels = get_window_item(win, ID_NEW_POST_LABELS);
+  window_t *inputs = get_window_item(win, ID_NEW_POST_INPUTS);
+  window_t *author = get_window_item(win, ID_NEW_POST_AUTHOR);
+  window_t *title = get_window_item(win, ID_NEW_POST_TITLE);
+  window_t *body = get_window_item(win, ID_NEW_POST_BODY);
+  window_t *sep = get_window_item(win, ID_NEW_POST_SECTION_SEP);
+  window_t *actions = get_window_item(win, ID_NEW_POST_ACTIONS);
+  window_t *ok = get_window_item(win, ID_NEW_POST_OK);
+  window_t *cancel = get_window_item(win, ID_NEW_POST_CANCEL);
+
+  ASSERT_NOT_NULL(fields);
+  ASSERT_NOT_NULL(labels);
+  ASSERT_NOT_NULL(inputs);
+  ASSERT_NOT_NULL(author);
+  ASSERT_NOT_NULL(title);
+  ASSERT_NOT_NULL(body);
+  ASSERT_NOT_NULL(sep);
+  ASSERT_NOT_NULL(actions);
+  ASSERT_NOT_NULL(ok);
+  ASSERT_NOT_NULL(cancel);
+
+  ASSERT_TRUE(fields->frame.h > 0);
+  ASSERT_TRUE(inputs->frame.w > 0);
+  ASSERT_TRUE(body->frame.h > title->frame.h);
+  ASSERT_TRUE(title->frame.y >= author->frame.y + author->frame.h);
+  ASSERT_TRUE(body->frame.y >= title->frame.y + title->frame.h);
+  ASSERT_TRUE(sep->frame.y >= fields->frame.y + fields->frame.h);
+  ASSERT_TRUE(actions->frame.y >= sep->frame.y + sep->frame.h);
+  ASSERT_TRUE(ok->frame.y >= 0);
+  ASSERT_TRUE(cancel->frame.y >= 0);
+  ASSERT_TRUE(cancel->frame.x >= ok->frame.x + ok->frame.w);
+
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
+void test_socialfeed_new_post_modal_dialog_layout(void) {
+  TEST("socialfeed new post modal: layout survives show_dialog_from_form_ex");
+
+  test_env_init();
+
+  socialfeed_new_post_modal_capture_t cap;
+  memset(&cap, 0, sizeof(cap));
+
+  uint32_t rc = show_dialog_from_form_ex(&socialfeed_new_post_form, "New Post", NULL,
+                                         WINDOW_VSCROLL | WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
+                                         socialfeed_new_post_modal_probe_proc, &cap);
+  ASSERT_TRUE(rc == 0 || rc == 1);
+  ASSERT_TRUE(cap.saw_create);
+  ASSERT_TRUE(cap.fields_h > 0);
+  ASSERT_TRUE(cap.body_h > cap.title_h);
+  ASSERT_TRUE(cap.sep_y >= cap.fields_y + cap.fields_h);
+  ASSERT_TRUE(cap.actions_y >= cap.sep_y + cap.sep_h);
+  ASSERT_TRUE(cap.cancel_x >= cap.ok_x + cap.ok_w);
+  ASSERT_TRUE(cap.cancel_w > 0);
+
+  test_env_shutdown();
+  PASS();
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // main
 // ──────────────────────────────────────────────────────────────────────────
@@ -1940,6 +2074,8 @@ int main(int argc, char *argv[]) {
   test_button_keeps_fixed_height_and_centers_in_tall_row();
   test_post_detail_layout_budget();
   test_socialfeed_post_detail_layout();
+  test_socialfeed_new_post_dialog_layout();
+  test_socialfeed_new_post_modal_dialog_layout();
 
   TEST_END();
 }

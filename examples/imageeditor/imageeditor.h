@@ -180,6 +180,7 @@ extern const int kZoomMenuIDs[NUM_ZOOM_LEVELS];
 
 #include "lv_cmpn.h"
 #include "fg_preview.h"
+#include "render_effects.h"
 #include "build/generated/examples/imageeditor/imageeditor.h"
 
 // ============================================================
@@ -224,7 +225,7 @@ typedef struct {
   // Live-preview effect applied while an adjustment dialog is open.
   struct {
     bool                      active;
-    ui_render_effect_t        effect;
+    imageeditor_render_effect_t effect;
     ui_render_effect_params_t params;
   } preview;
 } layer_t;
@@ -729,7 +730,7 @@ void doc_set_mask_only_view(canvas_doc_t *doc, bool enabled);
 void doc_set_layer_blend_mode(canvas_doc_t *doc, int idx, layer_blend_mode_t mode);
 void layer_clear_preview_effect(canvas_doc_t *doc, int idx);
 bool layer_set_preview_effect(canvas_doc_t *doc, int idx,
-                              ui_render_effect_t effect,
+                              imageeditor_render_effect_t effect,
                               const ui_render_effect_params_t *params);
 bool layer_commit_preview_effect(canvas_doc_t *doc, int idx);
 const char *layer_blend_mode_name(layer_blend_mode_t mode);

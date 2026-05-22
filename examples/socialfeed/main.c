@@ -20,10 +20,41 @@
 #include "socialfeed.h"
 #include "../../gem_magic.h"
 #include "../../commctl/commctl.h"
+#include "../../platform/platform.h"
 
 #ifndef SHAREDIR
 #define SHAREDIR "."
 #endif
+
+#define SOCIALFEED_PATH_MAX 1024
+
+static bool resolve_socialfeed_db_path(char *out, size_t out_sz) {
+  if (!out || out_sz == 0) return false;
+  out[0] = '\0';
+
+  const char *exe_dir = ui_get_exe_dir();
+  if (!exe_dir || !*exe_dir) return false;
+
+  char candidate[SOCIALFEED_PATH_MAX];
+
+  snprintf(candidate, sizeof(candidate),
+           "%s/../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  snprintf(candidate, sizeof(candidate),
+           "%s/../../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  snprintf(out, out_sz, "%s/../../examples/socialfeed/share/socialfeed_seed.xml",
+           exe_dir);
+  return false;
+}
 
 // ============================================================
 // gem_init
@@ -52,11 +83,11 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   // Form-based windows/dialogs require commctl classes to be registered.
   register_commctl_classes();
 
-  // Create database instance.
-  // Use the framework share path staged by `make share`.
-  char db_path[1024];
-  snprintf(db_path, sizeof(db_path), "%s/../share/orion/socialfeed_seed.xml",
-           ui_get_exe_dir());
+  char db_path[SOCIALFEED_PATH_MAX];
+  if (!resolve_socialfeed_db_path(db_path, sizeof(db_path))) {
+    SF_DEBUG("socialfeed_seed.xml not found in known locations; using fallback path: %s",
+             db_path);
+  }
   g_app->db = create_database("socialfeed", "db_simple_xml", db_path);
   if (!g_app->db) {
     SF_DEBUG("Failed to create database");
@@ -74,6 +105,20 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   // Database automatically loads data from source XML file
   // (no manual seed loading needed)
+  {
+    result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    result_node_t *authors = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)0);
+    result_node_t *comments = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_COMMENTS, 0), (void *)(intptr_t)0);
+    SF_DEBUG("database loaded: path='%s' authors=%d posts=%d comments=%d",
+             db_path, count_result_list(authors), count_result_list(posts),
+             count_result_list(comments));
+    free_result_list(posts);
+    free_result_list(authors);
+    free_result_list(comments);
+  }
 
   create_menubar();
   create_main_window();

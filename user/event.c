@@ -9,6 +9,7 @@
 #include "user.h"
 #include "messages.h"
 #include "rect.h"
+#include "toolbar.h"
 #include "../kernel/kernel.h"
 
 // External functions
@@ -555,8 +556,10 @@ void dispatch_message(ui_event_t *msg) {
             int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
             int tb_x = sx - win->frame.x;
             int tb_y = sy - (win->frame.y + title_h);
-            send_message(toolbar_host, evLeftButtonDown,
-                         MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+            if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonDown, tb_x, tb_y)) {
+              send_message(toolbar_host, evLeftButtonDown,
+                           MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+            }
           } else {
             int wmsg = (msg->message == kEventLeftButtonDown)
                        ? evLeftButtonDown
@@ -646,8 +649,10 @@ void dispatch_message(ui_event_t *msg) {
               int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
               int tb_x = sx - win->frame.x;
               int tb_y = sy - (win->frame.y + title_h);
-              send_message(tb_host, evLeftButtonUp,
-                           MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+              if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonUp, tb_x, tb_y)) {
+                send_message(tb_host, evLeftButtonUp,
+                             MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+              }
             } else {
               send_message(win, evNCLeftButtonUp,
                            MAKEDWORD(sx, sy), NULL);

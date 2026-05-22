@@ -44,7 +44,7 @@
 
     <databases>
       <!-- NeXTSTEP-style split: one database per model/table. -->
-      <database name="db" class="SimpleXMLDatabase" source="socialfeed_seed.xml">
+      <database name="db" class="SimpleXMLDatabase" source="examples/socialfeed/share/socialfeed_seed.xml">
         <!-- Core entities -->
         <table name="authors">
           <field name="id" type="integer" key="YES"/>

@@ -11,6 +11,7 @@
 #include "user.h"
 #include "messages.h"
 #include "draw.h"
+#include "scrollbar.h"
 #include "icons.h"
 #include "sysicons.h"
 #include "theme.h"
@@ -43,9 +44,6 @@ bool window_has_focus(const window_t *win) {
 // Forward declarations
 extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void set_projection(int x, int y, int w, int h);
-
-static int builtin_sb_thumb_len(win_sb_t const *sb, int track);
-static int builtin_sb_thumb_off(win_sb_t const *sb, int track, int tl);
 
 void set_fullscreen(void) {
   int w = ui_get_system_metrics(kSystemMetricScreenWidth);
@@ -188,40 +186,7 @@ void draw_statusbar(window_t *win, const char *text) {
   }
 
   if (has_h) {
-    win_sb_t *sb = &win->hscroll;
-    // Resize corner — always present at the far right of the status-bar row.
-    irect16_t corner = rect_split_right(row, SCROLLBAR_WIDTH);
-    fill_rect(get_sys_color(brWindowDarkBg), corner);
-    draw_theme_icon_in_rect(THEME_ICON_RESIZE, corner, get_sys_color(brTextNormal));
-    // Horizontal scrollbar fills the remaining right portion of the status bar row.
-    int bw = row.w - split_x - SCROLLBAR_WIDTH;
-    if (bw > 0) {
-      int sx = row.x + split_x;
-      fill_rect(get_sys_color(brWindowDarkBg), R(sx, row.y, bw, row.h));
-      // Arrow buttons (each SCROLLBAR_WIDTH wide)
-      if (bw >= 2 * SCROLLBAR_WIDTH) {
-        irect16_t left_arr  = {sx,                        row.y, SCROLLBAR_WIDTH, row.h};
-        irect16_t right_arr = {sx + bw - SCROLLBAR_WIDTH, row.y, SCROLLBAR_WIDTH, row.h};
-        fill_rect(get_sys_color(brWindowBg), left_arr);
-        draw_theme_icon_in_rect(THEME_ICON_SCROLL_LEFT,  left_arr,  get_sys_color(brTextNormal));
-        fill_rect(get_sys_color(brWindowBg), right_arr);
-        draw_theme_icon_in_rect(THEME_ICON_SCROLL_RIGHT, right_arr, get_sys_color(brTextNormal));
-        // Thumb in effective track between buttons
-        int eff_track = bw - 2 * SCROLLBAR_WIDTH;
-        if (eff_track > 0) {
-          int tl = builtin_sb_thumb_len(sb, eff_track);
-          int to = builtin_sb_thumb_off(sb, eff_track, tl);
-          uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-          fill_rect(thumb_col, R(left_arr.x + left_arr.w + to, row.y, tl, row.h));
-        }
-      } else {
-        // Not enough room for buttons — draw plain thumb
-        int tl = builtin_sb_thumb_len(sb, bw);
-        int to = builtin_sb_thumb_off(sb, bw, tl);
-        uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-        fill_rect(thumb_col, R(sx + to, row.y, tl, row.h));
-      }
-    }
+    scrollbar_draw_statusbar_merged_hscroll(win, row, split_x);
   }
 }
 
@@ -278,16 +243,11 @@ void ui_set_stencil_for_root_window(uint32_t window_id) {
 // Fill a rectangle with a solid color
 void fill_rect(uint32_t color, irect16_t r) {
   extern uint32_t ui_white_texture;
-  
-  // Skip drawing if graphics aren't initialized (e.g., in tests)
   if (!g_ui_runtime.running) return;
-  
-  // Update the white texture with the desired color
-  glBindTexture(GL_TEXTURE_2D, ui_white_texture);
-  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &color);
-  
-  // Draw a rectangle using the texture
-  draw_rect_ex(ui_white_texture, r, false, 1);
+  // Pass color via tint+alpha uniforms — the white texture stays constant white,
+  // no glTexSubImage2D needed.  draw_sprite_region unpacks RGBA from color and
+  // sets the tint and alpha uniforms so the shader outputs the desired color.
+  draw_sprite_region((int)ui_white_texture, r, NULL, color, 0);
 }
 
 static void color_to_params(uint32_t color, ui_render_effect_params_t *params, int base) {
@@ -305,8 +265,7 @@ void draw_gradient_rect(irect16_t r, uint32_t left_color, uint32_t right_color) 
   ui_render_effect_params_t params = {{0}};
   color_to_params(left_color, &params, 0);
   color_to_params(right_color, &params, 4);
-  draw_rect_effect(ui_white_texture, r.x, r.y, r.w, r.h,
-                   UI_RENDER_EFFECT_GRADIENT, &params);
+  draw_rect_gradient(ui_white_texture, r.x, r.y, r.w, r.h, &params);
 }
 
 // Draw a dashed selection-outline rectangle using 4 tiled draw calls instead of
@@ -413,123 +372,3 @@ void draw_checkerboard(irect16_t r, int square_px) {
                      0xFFFFFFFF, 0);
 }
 
-// ---- Built-in scrollbar rendering -------------------------------------------
-//
-// Called from send_message() after evPaint when a window has
-// WINDOW_HSCROLL and/or WINDOW_VSCROLL set.  The bars are drawn in the same
-// projection as the window's paint pass (root-relative coordinates), on top
-// of the window's content.
-
-static int builtin_sb_thumb_len(win_sb_t const *sb, int track) {
-  int range = sb->max_val - sb->min_val;
-  if (range <= 0 || sb->page >= range) return track;
-  int tl = track * sb->page / range;
-  return tl < 8 ? 8 : tl;
-}
-
-static int builtin_sb_thumb_off(win_sb_t const *sb, int track, int tl) {
-  int travel = sb->max_val - sb->min_val - sb->page;
-  if (travel <= 0) return 0;
-  int tt = track - tl;
-  if (tt <= 0) return 0;
-  return (sb->pos - sb->min_val) * tt / travel;
-}
-
-void draw_builtin_scrollbars(window_t *win) {
-  bool has_h = (win->flags & WINDOW_HSCROLL) && win->hscroll.visible;
-  bool has_v = (win->flags & WINDOW_VSCROLL) && win->vscroll.visible;
-  if (!has_h && !has_v) return;
-
-  // Non-client heights that shift scroll bar positions within the projection.
-  // For child windows (typically WINDOW_NOTITLE) these are usually 0, so
-  // child-window scroll bar behaviour is unchanged.
-  int t = titlebar_height(win);
-  int s = statusbar_height(win);
-
-  // Coordinate base: for child windows use win->frame.x/y (offset within the
-  // root-relative projection); for top-level windows the projection origin
-  // maps to the client top-left, so use 0.
-  int base_x = win->parent ? win->frame.x : 0;
-  int base_y = win->parent ? win->frame.y : 0;
-
-  // When the horizontal bar is merged with the status bar, draw_statusbar()
-  // already rendered it during evNCPaint.  Skip it here so
-  // it isn't drawn twice, and don't subtract its height from the vscroll track.
-  bool h_merged = has_h && (win->flags & WINDOW_STATUSBAR);
-
-  // Content height (client area minus scrollbar strips).
-  // For top-level windows t/s shift where the strips appear within the frame;
-  // for child windows t=s=0 so the formula degenerates to the old behaviour.
-  int content_h = win->frame.h - t - s;
-
-  if (has_h && !h_merged) {
-    win_sb_t *sb = &win->hscroll;
-    int bw = win->frame.w - (has_v ? SCROLLBAR_WIDTH : 0);
-    irect16_t hbar = {base_x, base_y + content_h - SCROLLBAR_WIDTH, bw, SCROLLBAR_WIDTH};
-    // Track background
-    fill_rect(get_sys_color(brWindowDarkBg), hbar);
-    // Arrow buttons
-    if (bw >= 2 * SCROLLBAR_WIDTH) {
-      irect16_t left_arr  = rect_split_left(hbar, SCROLLBAR_WIDTH);
-      irect16_t right_arr = rect_split_right(hbar, SCROLLBAR_WIDTH);
-      fill_rect(get_sys_color(brWindowBg), left_arr);
-      draw_theme_icon_in_rect(THEME_ICON_SCROLL_LEFT,  left_arr,  get_sys_color(brTextNormal));
-      fill_rect(get_sys_color(brWindowBg), right_arr);
-      draw_theme_icon_in_rect(THEME_ICON_SCROLL_RIGHT, right_arr, get_sys_color(brTextNormal));
-      // Thumb in effective track between buttons
-      int eff_track = bw - 2 * SCROLLBAR_WIDTH;
-      if (eff_track > 0) {
-        int tl = builtin_sb_thumb_len(sb, eff_track);
-        int to = builtin_sb_thumb_off(sb, eff_track, tl);
-        uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-        fill_rect(thumb_col, R(left_arr.x + left_arr.w + to, hbar.y, tl, SCROLLBAR_WIDTH));
-      }
-    } else {
-      // Not enough room for buttons — plain thumb
-      int tl = builtin_sb_thumb_len(sb, bw);
-      int to = builtin_sb_thumb_off(sb, bw, tl);
-      uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-      fill_rect(thumb_col, R(hbar.x + to, hbar.y, tl, SCROLLBAR_WIDTH));
-    }
-  }
-
-  if (has_v) {
-    win_sb_t *sb = &win->vscroll;
-    int bh = content_h - (has_h && !h_merged ? SCROLLBAR_WIDTH : 0);
-    irect16_t vbar = {base_x + win->frame.w - SCROLLBAR_WIDTH, base_y, SCROLLBAR_WIDTH, bh};
-    // Track background
-    fill_rect(get_sys_color(brWindowDarkBg), vbar);
-    // Arrow buttons
-    if (bh >= 2 * SCROLLBAR_WIDTH) {
-      irect16_t top_arr = rect_split_top(vbar, SCROLLBAR_WIDTH);
-      irect16_t bot_arr = rect_split_bottom(vbar, SCROLLBAR_WIDTH);
-      fill_rect(get_sys_color(brWindowBg), top_arr);
-      draw_theme_icon_in_rect(THEME_ICON_SCROLL_UP,   top_arr, get_sys_color(brTextNormal));
-      fill_rect(get_sys_color(brWindowBg), bot_arr);
-      draw_theme_icon_in_rect(THEME_ICON_SCROLL_DOWN, bot_arr, get_sys_color(brTextNormal));
-      // Thumb in effective track between buttons
-      int eff_track = bh - 2 * SCROLLBAR_WIDTH;
-      if (eff_track > 0) {
-        int tl = builtin_sb_thumb_len(sb, eff_track);
-        int to = builtin_sb_thumb_off(sb, eff_track, tl);
-        uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-        fill_rect(thumb_col, R(vbar.x, top_arr.y + top_arr.h + to, SCROLLBAR_WIDTH, tl));
-      }
-    } else {
-      // Not enough room for buttons — plain thumb
-      int tl = builtin_sb_thumb_len(sb, bh);
-      int to = builtin_sb_thumb_off(sb, bh, tl);
-      uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-      fill_rect(thumb_col, R(vbar.x, vbar.y + to, SCROLLBAR_WIDTH, tl));
-    }
-  }
-
-  // Bottom-right corner: resize icon when both scrollbars are visible.
-  if (has_h && !h_merged && has_v) {
-    irect16_t corner = {base_x + win->frame.w - SCROLLBAR_WIDTH,
-                     base_y + content_h - SCROLLBAR_WIDTH,
-                     SCROLLBAR_WIDTH, SCROLLBAR_WIDTH};
-    fill_rect(get_sys_color(brWindowDarkBg), corner);
-    draw_theme_icon_in_rect(THEME_ICON_RESIZE, corner, get_sys_color(brTextNormal));
-  }
-}

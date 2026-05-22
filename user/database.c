@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "user.h"
 #include "database.h"
@@ -251,8 +252,21 @@ bool db_load_field_from_xml(xmlNodePtr node, void *record_base,
       break;
       
     case DB_TYPE_STRING:
-      strncpy((char *)field_ptr, (const char *)value, field->length - 1);
-      ((char *)field_ptr)[field->length - 1] = '\0';
+      {
+        const char *src = (const char *)value;
+        const char *start = src;
+        const char *end = src + strlen(src);
+        while (*start && isspace((unsigned char)*start))
+          start++;
+        while (end > start && isspace((unsigned char)*(end - 1)))
+          end--;
+        size_t len = (size_t)(end - start);
+        size_t cap = (size_t)field->length;
+        if (cap == 0) break;
+        if (len >= cap) len = cap - 1;
+        memcpy((char *)field_ptr, start, len);
+        ((char *)field_ptr)[len] = '\0';
+      }
       break;
       
     case DB_TYPE_BOOL:

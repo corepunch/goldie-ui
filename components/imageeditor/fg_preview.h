@@ -3,7 +3,7 @@
 
 #include "../../ui.h"
 
-#define FG_PREVIEW_CLASS_NAME "FilterPreview"
+#define FG_PREVIEW_CLASS_NAME "filter_preview"
 
 typedef struct {
   uint32_t texture;

@@ -1,7 +1,7 @@
 #ifndef __UI_MSGBOX_H__
 #define __UI_MSGBOX_H__
 
-// commctl/msgbox.h — WinAPI-style message_box() modal dialog.
+// commdlg/msgbox.h — WinAPI-style message_box() modal dialog.
 //
 // Usage:
 //   int result = message_box(parent_win, "Proceed?", "Confirm", MB_YESNOCANCEL);
