@@ -289,19 +289,19 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
                               int insert_index, uint32_t parent_id);
 static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id);
 
-static window_t *canvas_find_window_by_id(window_t *root, uint32_t id) {
+window_t *formeditor_find_window_by_id(window_t *root, uint32_t id) {
   if (!root)
     return NULL;
   if ((uint32_t)root->id == id)
     return root;
   toolbar_state_t *tb = window_toolbar_state(root);
   for (window_t *child = root->children; child; child = child->next) {
-    window_t *hit = canvas_find_window_by_id(child, id);
+    window_t *hit = formeditor_find_window_by_id(child, id);
     if (hit)
       return hit;
   }
   for (window_t *child = tb ? tb->children : NULL; child; child = child->next) {
-    window_t *hit = canvas_find_window_by_id(child, id);
+    window_t *hit = formeditor_find_window_by_id(child, id);
     if (hit)
       return hit;
   }
@@ -311,7 +311,7 @@ static window_t *canvas_find_window_by_id(window_t *root, uint32_t id) {
 static window_t *canvas_live_window_for_element(form_doc_t *doc, const form_element_t *el) {
   if (!doc || !doc->canvas_win || !el)
     return NULL;
-  return canvas_find_window_by_id(doc->canvas_win, (uint32_t)el->id);
+  return formeditor_find_window_by_id(doc->canvas_win, (uint32_t)el->id);
 }
 
 static form_element_t *canvas_find_element_for_live_window(window_t *win) {
@@ -510,8 +510,10 @@ static void canvas_update_preview(canvas_state_t *s, int type, irect16_t form_rc
 static void canvas_sync_live_element_window(form_doc_t *doc, form_element_t *el) {
   canvas_state_t *s;
   window_t *live;
-  if (!doc || !doc->canvas_win || !el ||
-      !canvas_child_window_alive(doc->canvas_win, (live = canvas_live_window_for_element(doc, el))))
+  if (!doc || !doc->canvas_win || !el)
+    return;
+  live = canvas_live_window_for_element(doc, el);
+  if (!canvas_child_window_alive(doc->canvas_win, live))
     return;
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s) return;

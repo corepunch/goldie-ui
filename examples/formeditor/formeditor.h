@@ -114,6 +114,7 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // ============================================================
 
 #define MAX_ELEMENTS  256
+#define FE_MAX_DOCS   64
 #define CTRL_ID_BASE  1001
 
 // Built-in component indices as registered by formeditor_components.
@@ -150,12 +151,18 @@ typedef struct {
   bool     color_set;   // color attribute explicitly set in the project
 } form_element_t;
 
+typedef enum {
+  FE_LAYOUT_NONE = 0,
+  FE_LAYOUT_STACK = 1,
+  FE_LAYOUT_GRID = 2,
+} fe_layout_type_t;
+
 typedef struct form_doc_t {
   form_element_t elements[MAX_ELEMENTS];
   int    element_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
-  uint8_t layout_kind;  // 0=none, 1=stack, 2=grid
+  fe_layout_type_t layout_type;
   uint8_t grid_columns; // grid columns (0 = default)
   uint8_t spacing;      // spacing between direct children; 0 = default
   irect16_t padding;    // inner padding for auto-layout content
@@ -193,7 +200,7 @@ typedef struct {
 } form_project_t;
 
 typedef struct {
-  form_doc_t  *docs[MAX_ELEMENTS];
+  form_doc_t  *docs[FE_MAX_DOCS];
   int          doc_count;
   int          active_doc_index;
   window_t    *windows[5];
@@ -281,6 +288,7 @@ int app_doc_index(form_doc_t *doc);
 bool app_add_doc(form_doc_t *doc);
 void app_remove_doc_at(int idx);
 bool app_set_active_doc_index(int idx);
+window_t *formeditor_find_window_by_id(window_t *root, uint32_t id);
 
 // ============================================================
 // Window procedures

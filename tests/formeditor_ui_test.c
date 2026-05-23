@@ -381,29 +381,10 @@ static canvas_state_t *fe_state(form_doc_t *doc) {
     return (canvas_state_t *)doc->canvas_win->userdata;
 }
 
-static window_t *fe_find_window_by_id(window_t *root, uint32_t id) {
-    if (!root)
-        return NULL;
-    if ((uint32_t)root->id == id)
-        return root;
-    toolbar_state_t *tb = window_toolbar_state(root);
-    for (window_t *child = root->children; child; child = child->next) {
-        window_t *hit = fe_find_window_by_id(child, id);
-        if (hit)
-            return hit;
-    }
-    for (window_t *child = tb ? tb->children : NULL; child; child = child->next) {
-        window_t *hit = fe_find_window_by_id(child, id);
-        if (hit)
-            return hit;
-    }
-    return NULL;
-}
-
 static window_t *fe_element_live_win(form_doc_t *doc, const form_element_t *el) {
     if (!doc || !doc->canvas_win || !el)
         return NULL;
-    return fe_find_window_by_id(doc->canvas_win, (uint32_t)el->id);
+    return formeditor_find_window_by_id(doc->canvas_win, (uint32_t)el->id);
 }
 
 static window_t *fe_create_property_browser(void) {
@@ -420,7 +401,7 @@ void test_fe_create_doc(void) {
 
     fe_setup();
     form_doc_t *doc = app_active_doc();
-    doc->layout_kind = 1; // stack
+    doc->layout_type = 1; // stack
 
     ASSERT_NOT_NULL(doc);
     ASSERT_TRUE(is_window(doc->doc_win));     // root window — is_window works
@@ -758,7 +739,7 @@ void test_fe_auto_layout_drop_inserts_before_target_node(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 1; // stack
+    doc->layout_type = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
     ASSERT_EQUAL(doc->element_count, 1);
@@ -781,7 +762,7 @@ void test_fe_auto_layout_drop_on_empty_form(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 1; // stack
+    doc->layout_type = 1; // stack
 
     ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_BUTTON, 22, 22));
     ASSERT_EQUAL(doc->element_count, 1);
@@ -798,7 +779,7 @@ void test_fe_auto_layout_drop_inserts_before_hovered_node(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 1; // stack
+    doc->layout_type = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
@@ -827,7 +808,7 @@ void test_fe_auto_layout_drop_honors_canvas_pan(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 1; // stack
+    doc->layout_type = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
@@ -857,7 +838,7 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -912,7 +893,7 @@ void test_fe_auto_layout_drop_uses_grid_column_as_parent(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -969,7 +950,7 @@ void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -1068,7 +1049,7 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
     fe_setup();
     form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 1; // stack
+    doc->layout_type = 1; // stack
 
     window_t *palette = formeditor_create_components_palette(0);
     ASSERT_NOT_NULL(palette);
@@ -1130,7 +1111,7 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
 
     form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->grid_columns = 2;
     doc->show_grid = false;
 
@@ -1193,7 +1174,7 @@ void test_fe_second_gridview_column_click_selects_its_own_column(void) {
     fe_setup();
     form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->grid_columns = 2;
     doc->show_grid = false;
 
@@ -1912,7 +1893,7 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
     fe_setup();
     form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->flags |= WINDOW_STACK_HORIZONTAL;
     doc->grid_columns = 3;
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "layout");
@@ -1940,7 +1921,7 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
     form_doc_t *ndoc = app_doc_at(0);
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->flags & WINDOW_AUTO_LAYOUT);
-    ASSERT_EQUAL(ndoc->layout_kind, 2);
+    ASSERT_EQUAL(ndoc->layout_type, 2);
     ASSERT_TRUE(ndoc->flags & WINDOW_STACK_HORIZONTAL);
     // layout_columns is deprecated - no longer checked
 
@@ -2369,7 +2350,7 @@ void test_fe_drop_grid_layouts_seeded_columns_across_full_width(void) {
     form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_kind = 2;
+    doc->layout_type = 2;
     doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");

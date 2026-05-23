@@ -46,13 +46,13 @@ menu_def_t kMenus[] = {
 const int kNumMenus = (int)(sizeof(kMenus)/sizeof(kMenus[0]));
 
 window_t *app_get_window(fe_window_role_t role) {
-  if (!g_app || role < 0 || role >= FE_WIN_COUNT)
+  if (!g_app || (unsigned)role >= FE_WIN_COUNT)
     return NULL;
   return g_app->windows[role];
 }
 
 void app_set_window(fe_window_role_t role, window_t *win) {
-  if (!g_app || role < 0 || role >= FE_WIN_COUNT)
+  if (!g_app || (unsigned)role >= FE_WIN_COUNT)
     return;
   g_app->windows[role] = win;
 }
@@ -91,7 +91,7 @@ bool app_set_active_doc_index(int idx) {
 }
 
 bool app_add_doc(form_doc_t *doc) {
-  if (!g_app || !doc || g_app->doc_count >= MAX_ELEMENTS)
+  if (!g_app || !doc || g_app->doc_count >= FE_MAX_DOCS)
     return false;
   g_app->docs[g_app->doc_count++] = doc;
   g_app->active_doc_index = g_app->doc_count - 1;
@@ -104,6 +104,7 @@ void app_remove_doc_at(int idx) {
   for (int i = idx; i < g_app->doc_count - 1; i++)
     g_app->docs[i] = g_app->docs[i + 1];
   g_app->doc_count--;
+  g_app->docs[g_app->doc_count] = NULL;
   if (g_app->doc_count <= 0) {
     g_app->active_doc_index = -1;
     return;
@@ -262,7 +263,7 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->modified  = false;
   if (fe_default_auto_layout_enabled())
     doc->flags |= WINDOW_AUTO_LAYOUT;
-  doc->layout_kind = (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0;
+  doc->layout_type = (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0;
   doc->flags &= ~WINDOW_STACK_HORIZONTAL;
   doc->grid_columns = 0;
   doc->spacing = 4;
@@ -761,7 +762,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   int content_x = pad_l;
   int content_y = pad_t;
 
-  if (doc->layout_kind == 2) {
+  if (doc->layout_type == 2) {
     int cols = doc->grid_columns > 0 ? doc->grid_columns : 2;
     if (cols < 1) cols = 1;
     int rows = (count + cols - 1) / cols;
@@ -892,7 +893,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     char *layout_orientation = xml_attr_dup(form_node, "orientation");
     if (!layout_orientation)
       layout_orientation = xml_attr_dup(form_node, "layout_orientation");
-    doc->layout_kind = layout_mode_attr(layout_mode,
+    doc->layout_type = layout_mode_attr(layout_mode,
                                         (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0);
     if (layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL)
       doc->flags |= WINDOW_STACK_HORIZONTAL;
@@ -997,9 +998,9 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   xml_attr(f, "title", label);
   fprintf(f, "\n            width=\"%d\" height=\"%d\"\n            flags=\"%" PRIu32 "\"",
           doc->form_size.w, doc->form_size.h, doc->flags);
-  if (doc->layout_kind == 2) {
+  if (doc->layout_type == 2) {
     fprintf(f, "\n            layout_mode=\"%s\"",
-            layout_mode_token(doc->layout_kind));
+            layout_mode_token(doc->layout_type));
   }
   if (doc->flags & WINDOW_STACK_HORIZONTAL)
     fprintf(f, "\n            layout_orientation=\"%s\"",
@@ -1424,7 +1425,7 @@ static const form_def_t kPropsForm = {
 
 typedef struct {
   bool auto_layout_enabled;
-  int  layout_kind;
+  int  layout_type;
   int  layout_orientation;
   char grid_columns[8];
   bool accepted;
@@ -1449,7 +1450,7 @@ static void form_props_fill_layout_combos(window_t *win) {
 
 static const ctrl_binding_t k_form_props_bindings[] = {
   DDX_CHECK(FORM_PROPS_ID_AUTO, form_props_state_t, auto_layout_enabled),
-  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_kind, 0),
+  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_type, 0),
   DDX_COMBO(FORM_PROPS_ID_ORIENT, form_props_state_t, layout_orientation, WINDOW_STACK_VERTICAL),
   DDX_TEXT(FORM_PROPS_ID_COLUMNS, form_props_state_t, grid_columns),
 };
@@ -1551,7 +1552,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
         form_doc_t *doc = app_active_doc();
         if (doc) {
           bool old_auto_layout = (doc->flags & WINDOW_AUTO_LAYOUT) != 0;
-          uint8_t old_kind = doc->layout_kind;
+          uint8_t old_kind = doc->layout_type;
           flags_t old_orient = doc->flags & WINDOW_STACK_HORIZONTAL;
           uint8_t old_columns = doc->grid_columns;
           dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
@@ -1559,7 +1560,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
             doc->flags |= WINDOW_AUTO_LAYOUT;
           else
             doc->flags &= ~WINDOW_AUTO_LAYOUT;
-          doc->layout_kind = (uint8_t)ps->layout_kind;
+          doc->layout_type = (uint8_t)ps->layout_type;
           if (ps->layout_orientation & WINDOW_STACK_HORIZONTAL)
             doc->flags |= WINDOW_STACK_HORIZONTAL;
           else
@@ -1571,7 +1572,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
             doc->grid_columns = (uint8_t)cols;
           }
           if (((doc->flags & WINDOW_AUTO_LAYOUT) != 0) != old_auto_layout ||
-              doc->layout_kind != old_kind ||
+              doc->layout_type != old_kind ||
               (doc->flags & WINDOW_STACK_HORIZONTAL) != old_orient ||
               doc->grid_columns != old_columns) {
             doc->modified = true;
@@ -1601,7 +1602,7 @@ static bool show_form_props_dialog(window_t *parent, form_doc_t *doc) {
   if (!doc) return false;
   form_props_state_t st = {
     .auto_layout_enabled = (doc->flags & WINDOW_AUTO_LAYOUT) != 0,
-    .layout_kind = doc->layout_kind,
+    .layout_type = doc->layout_type,
     .layout_orientation = (doc->flags & WINDOW_STACK_HORIZONTAL) ? WINDOW_STACK_HORIZONTAL : WINDOW_STACK_VERTICAL,
   };
   snprintf(st.grid_columns, sizeof(st.grid_columns), "%u",
