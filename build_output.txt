@@ -1,6 +1,34 @@
-find user -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -x c -o build/lib/libuser.dylib - -x none  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform -Lbuild/lib -lkernel  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
-clang: warning: '-x none' after last input file has no effect [-Wunused-command-line-argument]
+mkdir -p build/lib
+/Library/Developer/CommandLineTools/usr/bin/make -C commdlg CC="gcc" CFLAGS="-Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA"
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -c dialog.c -o dialog.o
+dialog.c:570:9: warning: unused variable 'base' [-Wunused-variable]
+  570 |   char *base = (char *)state;
+      |         ^~~~
+dialog.c:571:13: warning: unused variable 'ctrl' [-Wunused-variable]
+  571 |   window_t *ctrl = get_window_item(dlg, b->ctrl_id);
+      |             ^~~~
+2 warnings generated.
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -c filepicker.c -o filepicker.o
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -c msgbox.c -o msgbox.o
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -c splash.c -o splash.o
+ar rcs libcommdlg.a dialog.o filepicker.o msgbox.o splash.o
+cp commdlg/libcommdlg.a build/lib/libcommdlg.dylib
+/Library/Developer/CommandLineTools/usr/bin/make -C platform OUTDIR=/Users/igor/Developer/mapview/ui/build/lib ARCH="arm64"
+( find macos -name "*.m"; find unix -name "*.c"; ) | sed 's|.*|#include "&"|' | clang -Wall -Wextra -fPIC -I. -DGL_SILENCE_DEPRECATION -Wno-deprecated-declarations -DHAVE_WINDOWING -arch arm64 -x objective-c - -dynamiclib -framework AppKit -framework Cocoa -framework OpenGL -framework IOSurface -framework Security -framework CoreFoundation -install_name @rpath/libplatform.dylib -arch arm64 -o /Users/igor/Developer/mapview/ui/build/lib/libplatform.dylib
+find kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
+	    gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -x c -o build/lib/libkernel.dylib -  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform   -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
+printf '%s\n' user/accel.c user/console.c user/database.c user/draw_impl.c user/event.c user/http.c user/image.c user/init.c user/layout_api.c user/message.c user/registry.c user/scrollbar.c user/text.c user/theme.c user/toolbar.c user/tooltip.c user/tray.c user/window.c | sed 's/.*/#include "&"/' | \
+		   gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -x c -o build/lib/libuser.dylib -  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform -Lbuild/lib -lcommdlg -lkernel  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
 find commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -Icomponents -x c -o build/lib/libcommctl.dylib - -x none  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform -Lbuild/lib -luser -lkernel  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
-clang: warning: '-x none' after last input file has no effect [-Wunused-command-line-argument]
+	    gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -Icomponents -x c -o build/lib/libcommctl.dylib -  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform -Lbuild/lib -luser -lkernel  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
+mkdir -p build/bin
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -Wno-unused-function -I. -Itools -o build/bin/orionc tools/orionc.c  -arch arm64  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm
+mkdir -p build/generated
+build/bin/orionc --input examples/imageeditor/imageeditor.orion --output build/generated/examples/imageeditor/imageeditor.h --prefix imageeditor
+build/bin/orionc --input examples/socialfeed/socialfeed.orion --output build/generated/examples/socialfeed/socialfeed.h --prefix socialfeed
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -I. -Iexamples/imageeditor -Icomponents/imageeditor -o build/lib/imageeditor_components.dylib components/imageeditor/fg_preview.c components/imageeditor/lv_hist.c components/imageeditor/lv_plug.c components/imageeditor/lv_strip.c \
+	     -arch arm64 -Lbuild/lib -lkernel -lcommctl -lcommdlg -luser -Lbuild/lib -lplatform -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm
+gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -I. -Iexamples/socialfeed -Icomponents/socialfeed -o build/lib/socialfeed_components.dylib components/socialfeed/db_simple_xml_bridge.c components/socialfeed/socialfeed_db_plugin.c \
+	     -arch arm64 -Lbuild/lib -lkernel -lcommctl -lcommdlg -luser -Lbuild/lib -lplatform -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm
+mkdir -p build/share
+cp share/fonts/vga-rom-font-8x16.png build/share/orion/fonts/vga-rom-font-8x16.png

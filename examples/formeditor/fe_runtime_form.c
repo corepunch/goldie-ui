@@ -432,9 +432,10 @@ window_t *fe_create_runtime_form_window(window_t *doc,
 
   form_def_t def;
   memset(&def, 0, sizeof(def));
+  irect16_t cr = get_client_rect(doc);
   def.name = doc->title;
-  def.width = (doc->children && doc->children->frame.w > 0) ? doc->children->frame.w : FORM_DEFAULT_W;
-  def.height = (doc->children && doc->children->frame.h > 0) ? doc->children->frame.h : FORM_DEFAULT_H;
+  def.width = (cr.w > 0) ? cr.w : FORM_DEFAULT_W;
+  def.height = (cr.h > 0) ? cr.h : FORM_DEFAULT_H;
   def.flags = WINDOW_NOTITLE | WINDOW_AUTO_LAYOUT;
   def.layout_spacing = 4;
   def.padding = (irect16_t){0, 0, 0, 0};

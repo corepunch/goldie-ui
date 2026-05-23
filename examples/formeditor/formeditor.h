@@ -412,8 +412,6 @@ extern app_state_t *g_app;
 
 result_t editor_menubar_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam);
-result_t win_canvas_proc(window_t *win, uint32_t msg,
-                          uint32_t wparam, void *lparam);
 result_t win_components_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam);
 result_t win_tool_palette_proc(window_t *win, uint32_t msg,
@@ -425,11 +423,9 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
 result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam);
 void canvas_rebuild_live_controls(window_t *doc);
-void canvas_sync_live_controls(window_t *doc);
 void canvas_set_component_drag_hover(window_t *doc, bool active, window_t *target);
 window_t *canvas_find_component_drop_target(window_t *doc, int type,
                                             int canvas_x, int canvas_y);
-bool canvas_drop_component(window_t *doc, int type, int canvas_x, int canvas_y);
 bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target,
                                      int screen_x, int screen_y);
 void formeditor_rebuild_tool_palette(void);

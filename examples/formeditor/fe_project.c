@@ -47,6 +47,8 @@ void form_doc_show_only(window_t *doc) {
 result_t doc_win_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   form_doc_state_t *doc = fe_doc_state(win);
+  (void)wparam;
+  (void)lparam;
   switch (msg) {
     case evCreate:
       return true;
@@ -56,11 +58,6 @@ result_t doc_win_proc(window_t *win, uint32_t msg,
     case evPaint:
       fill_rect(get_sys_color(brWorkspaceBg), R(0, 0, win->frame.w, win->frame.h));
       return false;
-    case evHScroll:
-      // Forward the built-in hscroll notification to the canvas child.
-      if (win && win->children)
-        send_message(win->children, evHScroll, wparam, lparam);
-      return true;
     case evResize: {
       if (win && win->children) {
         irect16_t cr = get_client_rect(win);
@@ -150,15 +147,8 @@ window_t *create_form_doc(int w, int h) {
   dwin->layout.layout_padding = (irect16_t){0, 0, 0, 0};
   dwin->layout.layout_margin = (irect16_t){0, 0, 0, 0};
 
-  // Canvas child window (owns the VSCROLL) — sized to the document window's client area
-  irect16_t cr = get_client_rect(dwin);
-  window_t *cwin = create_window(
-      "", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
-      MAKERECT(0, 0, cr.w, cr.h),
-      dwin, win_canvas_proc, 0, dwin);
-  cwin->flags &= ~WINDOW_NOTABSTOP;
-  cr = get_client_rect(dwin);
-  resize_window(cwin, cr.w, cr.h);
+  // One-window mode: attach the runtime preview directly under the document.
+  canvas_rebuild_live_controls(dwin);
 
   g_app->forms[g_app->form_count++] = dwin;
   g_app->active_form = dwin;

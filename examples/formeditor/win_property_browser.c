@@ -8,11 +8,8 @@ typedef struct {
 static window_t *prop_runtime_target(window_t *doc) {
   if (!doc || !doc->children)
     return NULL;
-  canvas_state_t *cs = (canvas_state_t *)doc->children->userdata;
-  if (!cs || !cs->form_root_win)
-    return NULL;
-  // Window-first mode: inspect the first live child if present.
-  return cs->form_root_win->children ? cs->form_root_win->children : cs->form_root_win;
+  // One-window mode: doc->children is the runtime preview root.
+  return doc->children->children ? doc->children->children : doc->children;
 }
 
 static void prop_add_row(window_t *list, const char *name, const char *value) {
