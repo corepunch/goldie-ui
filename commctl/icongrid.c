@@ -168,6 +168,10 @@ lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       data->column_width = DEFAULT_COLUMN_WIDTH;
       data->icon_size = DEFAULT_ICON_SIZE;
       data->icon_text_gap = DEFAULT_ICON_TEXT_GAP;
+      data->drag_pending = false;
+      data->dragging = false;
+      data->drag_index = RV_INVALID_SELECTION;
+      data->drag_start = (ipoint16_t){0, 0};
       data->redraw_enabled = true;
       data->redraw_dirty = false;
       data->column_titles_visible = true;
@@ -191,6 +195,12 @@ lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     case evLeftButtonDown: {
       int index = grid_hit_index(win, data, wparam);
       if (rv_valid_index(data, index)) {
+        data->drag_pending = true;
+        data->dragging = false;
+        data->drag_index = index;
+        data->drag_start = (ipoint16_t){(int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam)};
+        set_capture(win);
+
         uint32_t now = axGetMilliseconds();
         if (data->last_click_index == index && (now - data->last_click_time) < RV_DOUBLE_CLICK_MS) {
           rv_notify(win, data, index, RVN_DBLCLK);
@@ -207,6 +217,26 @@ lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       }
       return true;
     }
+    case evMouseMove:
+      if (data->drag_pending && !data->dragging && rv_valid_index(data, data->drag_index)) {
+        int lx = (int16_t)LOWORD(wparam);
+        int ly = (int16_t)HIWORD(wparam);
+        int dx = lx - data->drag_start.x;
+        int dy = ly - data->drag_start.y;
+        if ((dx < 0 ? -dx : dx) >= RV_DRAG_THRESHOLD ||
+            (dy < 0 ? -dy : dy) >= RV_DRAG_THRESHOLD) {
+          data->dragging = true;
+          rv_notify(win, data, data->drag_index, RVN_BEGINDRAG);
+        }
+      }
+      return false;
+    case evLeftButtonUp:
+      if (data->drag_pending || data->dragging)
+        set_capture(NULL);
+      data->drag_pending = false;
+      data->dragging = false;
+      data->drag_index = RV_INVALID_SELECTION;
+      return true;
     case evLeftButtonDoubleClick: {
       int index = grid_hit_index(win, data, wparam);
       if (rv_valid_index(data, index)) {
@@ -393,6 +423,8 @@ lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return true;
     }
     case evDestroy:
+      if (data && (data->drag_pending || data->dragging))
+        set_capture(NULL);
       free(data);
       win->userdata2 = NULL;
       return true;

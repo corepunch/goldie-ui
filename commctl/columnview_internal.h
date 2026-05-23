@@ -13,6 +13,7 @@
 #define WIN_PADDING 4
 #define RV_DOUBLE_CLICK_MS DOUBLE_CLICK_MS
 #define RV_INVALID_SELECTION (-1)
+#define RV_DRAG_THRESHOLD 2
 
 // Large icon view dimensions:
 #define RV_LARGE_ICON_PAD       LARGE_ICON_PAD
@@ -43,6 +44,10 @@ typedef struct {
   int icon_size;
   int icon_text_gap;
   int fixed_large_icon_cols;
+  bool drag_pending;
+  bool dragging;
+  int drag_index;
+  ipoint16_t drag_start;
   bool redraw_enabled;
   bool redraw_dirty;
   bool column_titles_visible;

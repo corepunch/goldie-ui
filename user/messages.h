@@ -79,6 +79,11 @@ enum {
   // this to populate themselves; other recipients ignore it.
   // wparam = 0; lparam = database_t *.
   evSetDatabase,
+  // Framework drag-item move/drop notifications.
+  // wparam = MAKEDWORD(client_x, client_y) in the target window's local space
+  // lparam = ui_drag_item_payload_t*
+  evMouseDrag,
+  evMouseDrop,
   evUser = 1000
 };
 

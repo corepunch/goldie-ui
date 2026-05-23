@@ -421,6 +421,9 @@ void dispatch_message(ui_event_t *msg) {
     case kEventOtherButtonDragged: {
       px = (int)msg->x;
       py = (int)msg->y;
+      g_ui_runtime.mouse_x = SCALE_POINT(px);
+      g_ui_runtime.mouse_y = SCALE_POINT(py);
+      ui_drag_item_move(g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
       int16_t rdx = msg->dx;
       int16_t rdy = msg->dy;
       if (g_ui_runtime.dragging) {
@@ -489,6 +492,9 @@ void dispatch_message(ui_event_t *msg) {
     case kEventScrollWheel: {
       px = (int)msg->x;
       py = (int)msg->y;
+      g_ui_runtime.mouse_x = SCALE_POINT(px);
+      g_ui_runtime.mouse_y = SCALE_POINT(py);
+      ui_drag_item_move(g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
         if ((win = g_ui_runtime.captured) ||
           (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
@@ -513,6 +519,9 @@ void dispatch_message(ui_event_t *msg) {
     case kEventRightButtonDown: {
       px = (int)msg->x;
       py = (int)msg->y;
+      g_ui_runtime.mouse_x = SCALE_POINT(px);
+      g_ui_runtime.mouse_y = SCALE_POINT(py);
+      ui_drag_item_move(g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
       tooltip_cancel();
         if ((win = g_ui_runtime.captured) ||
           (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
@@ -534,7 +543,8 @@ void dispatch_message(ui_event_t *msg) {
         // focus the window (not the toolbar host); the toolbar host is hidden and
         // just processes owner-drawn clicks.
         window_t *focus_target = win;
-        bool activating = (focus_target != g_ui_runtime.focused);
+        bool allow_activate = !(focus_target->flags & WINDOW_NOACTIVATE);
+        bool activating = allow_activate && (focus_target != g_ui_runtime.focused);
         window_t *old_root = g_ui_runtime.focused ? get_root_window(g_ui_runtime.focused) : NULL;
         window_t *new_root = click_root;
         bool root_changing = activating && (new_root != old_root);
@@ -594,6 +604,9 @@ void dispatch_message(ui_event_t *msg) {
     case kEventLeftDoubleClick: {
       px = (int)msg->x;
       py = (int)msg->y;
+      g_ui_runtime.mouse_x = SCALE_POINT(px);
+      g_ui_runtime.mouse_y = SCALE_POINT(py);
+      ui_drag_item_move(g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
         if ((win = g_ui_runtime.captured) ||
           (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
@@ -612,6 +625,9 @@ void dispatch_message(ui_event_t *msg) {
     case kEventRightButtonUp: {
       px = (int)msg->x;
       py = (int)msg->y;
+      g_ui_runtime.mouse_x = SCALE_POINT(px);
+      g_ui_runtime.mouse_y = SCALE_POINT(py);
+      ui_drag_item_move(g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
       // Toolbar clicks are handled entirely by the toolbar host window's
       // evLeftButtonDown/Up handlers. No legacy toolbar_down_win state needed.
       if (g_ui_runtime.dragging) {
@@ -647,7 +663,10 @@ void dispatch_message(ui_event_t *msg) {
       } else if ((win = g_ui_runtime.captured) ||
                  (win = find_window(SCALE_POINT(px), SCALE_POINT(py))))
       {
-        if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
+        if (window_has_state(win, WINDOW_STATE_DISABLED)) {
+          ui_drag_item_clear();
+          break;
+        }
         // Deliver to client area only if mouse is at or below the title bar / toolbar.
         if (SCALE_POINT(py) >= win->frame.y + titlebar_height(win) || win == g_ui_runtime.captured) {
           int lx = LOCAL_X(px, py, win);
@@ -678,6 +697,7 @@ void dispatch_message(ui_event_t *msg) {
           }
         }
       }
+      ui_drag_item_clear();
       break;
     }
 

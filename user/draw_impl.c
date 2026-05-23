@@ -19,6 +19,8 @@
 // External references
 extern window_t *get_root_window(window_t *window);
 
+static void set_fullscreen(void);
+
 static bool g_scissor_valid = false;
 static irect16_t g_scissor_rect = {0};
 

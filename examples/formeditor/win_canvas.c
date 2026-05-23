@@ -2,54 +2,72 @@
 
 #include "formeditor.h"
 
-static lresult_t canvas_form_root_proc(window_t *win, uint32_t msg,
-                                      uint32_t wparam, void *lparam) {
-  switch (msg) {
-    // Keep the runtime canvas root as the mouse target.
-    // Returning handled for hit-test blocks recursion into preview children.
-    case evHitTest:
-      return (lresult_t)(intptr_t)win;
+static void canvas_restore_local_draw_space(window_t *win) {
+  window_t *root = get_root_window(win);
+  int t = titlebar_height(root);
 
-    // Intercept pointer input at the canvas layer so preview controls
-    // remain non-interactive while editing.
-    case evLeftButtonDown:
-    case evLeftButtonDoubleClick:
-    case evLeftButtonUp:
-    case evRightButtonDown:
-    case evRightButtonUp:
-    case evMouseMove:
-    case evWheel:
-      (void)wparam;
-      (void)lparam;
-      return true;
-
-    // Intercept keyboard/text input at the canvas layer.
-    case evKeyDown:
-    case evKeyUp:
-    case evTextInput:
-      (void)wparam;
-      (void)lparam;
-      return true;
-
-    default:
-      return default_winproc(win, msg, wparam, lparam);
-  }
+  set_viewport(root->frame);
+  set_projection(root->hscroll.pos,
+                 -t + root->vscroll.pos,
+                 root->frame.w + root->hscroll.pos,
+                 root->frame.h - t + root->vscroll.pos);
 }
 
-static window_t *canvas_create_runtime_form(window_t *doc) {
-  return fe_create_runtime_form_window(doc,
-                                       doc,
-                                       canvas_form_root_proc);
+static void canvas_drag_overlay_clear(window_t *doc) {
+  form_doc_state_t *st = fe_doc_state(doc);
+  if (!doc || !st || !st->drag_overlay_active)
+    return;
+  st->drag_overlay_active = false;
+  st->drag_overlay_rect = (irect16_t){0};
+  invalidate_window(doc);
+}
+
+// Return target's client rect in host's client coordinate space.
+// host==target => {0,0,w,h}; nested children are translated to host-local.
+static irect16_t client_rect_in_host(window_t *host, window_t *target) {
+  irect16_t tr = get_client_rect(target);
+
+  if (!host || !target)
+    return (irect16_t){0, 0, 0, 0};
+  if (host == target)
+    return (irect16_t){0, 0, tr.w, tr.h};
+
+  ipoint16_t host_client = window_client_origin_xy(host);
+  ipoint16_t target_client = window_client_origin_xy(target);
+  return (irect16_t){
+    (int16_t)(target_client.x - host_client.x),
+    (int16_t)(target_client.y - host_client.y),
+    tr.w,
+    tr.h,
+  };
+}
+
+static bool canvas_drag_overlay_update(window_t *doc, int local_x, int local_y) {
+  form_doc_state_t *st = fe_doc_state(doc);
+  if (!doc || !st)
+    return false;
+  lresult_t hit_res = default_winproc(doc, evHitTest, MAKEDWORD(local_x, local_y), NULL);
+  window_t *target = (window_t *)(intptr_t)hit_res;
+  if (target) {
+    st->drag_overlay_active = true;
+    st->drag_overlay_rect = client_rect_in_host(doc, target);
+    invalidate_window(doc);
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void canvas_rebuild_live_controls(window_t *doc) {
   if (!doc)
     return;
 
+  canvas_drag_overlay_clear(doc);
+
   while (doc->children)
     destroy_window(doc->children);
 
-  canvas_create_runtime_form(doc);
+  fe_create_runtime_form_window(doc, doc, default_winproc);  
   invalidate_window(doc);
 }
 
@@ -82,7 +100,23 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam) {
   form_doc_state_t *doc = fe_doc_state(win);
   switch (msg) {
-    case evCreate:
+    case evHitTest:
+      // Keep document canvas as the normal input target.
+      // Drag preview targeting uses default_winproc(evHitTest) explicitly.
+      return (lresult_t)(intptr_t)win;
+    case evPaint:
+      default_winproc(win, msg, wparam, lparam);
+      if (doc && doc->drag_overlay_active) {
+        canvas_restore_local_draw_space(win);
+        draw_sel_rect(doc->drag_overlay_rect);
+      }
+      return true;
+    case evMouseDrag:
+      if (!canvas_drag_overlay_update(win, LOWORD(wparam), HIWORD(wparam)))
+        canvas_drag_overlay_clear(win);
+      return true;
+    case evMouseDrop:
+      canvas_drag_overlay_clear(win);
       return true;
     case evSetFocus:
       if (doc && window_has_state(win, WINDOW_STATE_VISIBLE))

@@ -12,7 +12,6 @@
 #include "../../user/icons.h"
 
 #define FE_TOOL_ICON_SIZE FE_COMPONENTS_ICON_W
-#define FE_DRAG_THRESHOLD 2
 
 static reportview_item_t g_comp_tools[FE_MAX_COMPONENTS + 1];
 static int g_comp_tool_count = 0;
@@ -32,17 +31,9 @@ typedef struct {
   char text[64];
 } palette_drag_ghost_t;
 
-typedef struct {
-  bool pending;
-  bool dragging;
-  int tool_ident;
-  ipoint16_t start_local;
-} palette_drag_state_t;
-
 #ifdef SHAREDIR
 static palette_drag_ghost_t g_ghost = {0};
 #endif
-static palette_drag_state_t g_drag = {0};
 
 static int components_win_y(void) {
   return MENUBAR_HEIGHT + 4;
@@ -163,19 +154,6 @@ static void populate_tool_list(window_t *win) {
   }
 }
 
-#if 0
-// Disabled for now: retained for future drag/drop redesign.
-static int components_tool_ident_at(window_t *win, uint32_t wparam) {
-  int idx = (int)send_message(win, RVM_HITTEST, wparam, NULL);
-  if (idx < 0)
-    return -1;
-  reportview_item_t item = {0};
-  if (!send_message(win, RVM_GETITEMDATA, (uint32_t)idx, &item))
-    return -1;
-  return (int)item.userdata;
-}
-#endif
-
 static void components_palette_sync_list(window_t *win) {
   components_palette_state_t *st = win ? (components_palette_state_t *)win->userdata : NULL;
   if (!st || !st->list_win)
@@ -225,7 +203,7 @@ void formeditor_rebuild_tool_palette(void) {
     g_app->windows[FE_WIN_TOOL] = NULL;
   }
   g_app->current_tool = ID_TOOL_SELECT;
-  g_drag = (palette_drag_state_t){0};
+  ui_drag_item_clear();
   components_hide_ghost();
 #if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
   g_app->windows[FE_WIN_TOOL] = formeditor_create_components_palette(g_app->hinstance);
@@ -248,7 +226,7 @@ lresult_t win_components_proc(window_t *win, uint32_t msg,
         st->list_win = create_window(
             "", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NORESIZE | WINDOW_VSCROLL,
             MAKERECT(0, 0, cr.w, cr.h),
-            win, win_icongrid, win->hinstance, NULL);
+          win, win_icongrid, win->hinstance, NULL);
         if (!st->list_win)
           return false;
       }
@@ -263,16 +241,35 @@ lresult_t win_components_proc(window_t *win, uint32_t msg,
       return true;
 
     case evDestroy:
+      set_capture(NULL);
+      ui_drag_item_clear();
       if (g_app && g_app->windows[FE_WIN_TOOL] == win)
         g_app->windows[FE_WIN_TOOL] = NULL;
       return false;
 
     case evCommand:
       if ((lparam == st->list_win) &&
-          (HIWORD(wparam) == RVN_SELCHANGE || HIWORD(wparam) == RVN_DBLCLK)) {
+          (HIWORD(wparam) == RVN_SELCHANGE ||
+           HIWORD(wparam) == RVN_DBLCLK ||
+           HIWORD(wparam) == RVN_BEGINDRAG)) {
         reportview_item_t item = {0};
         if (send_message(st->list_win, RVM_GETITEMDATA, LOWORD(wparam), &item)) {
-          comp_select_tool_by_ident(win, (int)item.userdata);
+          int ident = (int)item.userdata;
+          if (HIWORD(wparam) == RVN_BEGINDRAG) {
+            ui_drag_item_payload_t payload = {
+              .pending = true,
+              .dragging = true,
+              .tool_ident = ident,
+              .start_local = {0, 0},
+            };
+
+            ui_drag_item_set((item.text && item.text[0]) ? item.text : "Component", &payload);
+            // if (g_app)
+            //   g_app->current_tool = ident;
+            return true;
+          }
+
+          comp_select_tool_by_ident(win, ident);
           return true;
         }
       }

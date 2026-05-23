@@ -66,6 +66,7 @@ enum {
   RVN_SELCHANGE = 200,
   RVN_DBLCLK,
   RVN_DELETE,
+  RVN_BEGINDRAG,
 };
 
 lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

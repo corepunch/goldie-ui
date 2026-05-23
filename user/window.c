@@ -173,7 +173,8 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   // visible_mode == SB_VIS_HIDE and the bars would never appear.
   if (flags & WINDOW_HSCROLL) win->hscroll.visible_mode = SB_VIS_AUTO;
   if (flags & WINDOW_VSCROLL) win->vscroll.visible_mode = SB_VIS_AUTO;
-  g_ui_runtime.focused = win;
+  if (!(flags & WINDOW_NOACTIVATE))
+    g_ui_runtime.focused = win;
   push_window(win, parent ? &parent->children : &g_ui_runtime.windows);
   return win;
 }
@@ -430,6 +431,13 @@ int window_screen_y(window_t const *win) {
   if (!win) return 0;
   if (!win->parent) return win->frame.y;
   return window_screen_y(win->parent) + titlebar_height(win->parent) + win->frame.y;
+}
+
+ipoint16_t window_client_origin_xy(window_t const *win) {
+  return (ipoint16_t){
+    .x = (int16_t)window_screen_x(win),
+    .y = (int16_t)(window_screen_y(win) + titlebar_height(win)),
+  };
 }
 
 irect16_t center_window_rect(irect16_t frame_rect, window_t const *owner) {

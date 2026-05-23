@@ -519,6 +519,7 @@ int titlebar_height(window_t const *win);
 int statusbar_height(window_t const *win);
 int window_screen_x(window_t const *win);
 int window_screen_y(window_t const *win);
+ipoint16_t window_client_origin_xy(window_t const *win);
 
 // Window management functions
 // Class-based API (preferred): create by registered class name.
@@ -625,6 +626,8 @@ typedef struct {
   window_t *resizing;
   window_t *toolbar_down_win;
   window_t *modal_overlay_parent;
+  int       mouse_x;
+  int       mouse_y;
   int       default_window_x;
   int       default_window_y;
 } ui_runtime_state_t;
@@ -639,6 +642,19 @@ void set_focus(window_t* win);
 void set_capture(window_t *win);
 void track_mouse(window_t *win);
 void move_to_top(window_t* win);
+
+// Global drag-item visual owned by Orion. Implemented as a lightweight
+// no-activate top-level window that follows the cursor.
+typedef struct {
+  bool pending;
+  bool dragging;
+  int tool_ident;
+  ipoint16_t start_local;
+} ui_drag_item_payload_t;
+
+void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload);
+void ui_drag_item_move(int sx, int sy);
+void ui_drag_item_clear(void);
 
 // Window hook registration
 void register_window_hook(uint32_t msg, winhook_func_t func, void *userdata);
