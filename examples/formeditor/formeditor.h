@@ -131,18 +131,6 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // Types
 // ============================================================
 
-typedef struct {
-  uint32_t id;              // control ID (matches window->id)
-  int      type;            // registered component ID
-  char     id_expr[32];     // original ID expression from project XML, if any
-  char     flags_expr[128]; // original flags expression from project XML, if any
-  char     name[32];        // identifier name (e.g. "IDC_BUTTON1")
-  uint8_t  font;            // label font; FONT_SMALL by default
-  bool     font_set;        // font attribute explicitly set in the project
-  uint8_t  color;           // label color palette index; 0 = transparent
-  bool     color_set;       // color attribute explicitly set in the project
-} form_ctrl_meta_t;
-
 typedef enum {
   FE_LAYOUT_NONE = 0,
   FE_LAYOUT_STACK = 1,
@@ -152,8 +140,6 @@ typedef enum {
 typedef struct form_doc_t {
   window_t *elements[MAX_ELEMENTS];
   int    element_count;
-  form_ctrl_meta_t ctrl_meta[MAX_ELEMENTS];
-  int    ctrl_meta_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
   fe_layout_type_t layout_type;
@@ -283,9 +269,6 @@ bool app_add_doc(form_doc_t *doc);
 void app_remove_doc_at(int idx);
 bool app_set_active_doc_index(int idx);
 window_t *formeditor_find_window_by_id(window_t *root, uint32_t id);
-form_ctrl_meta_t *form_doc_meta_for_id(form_doc_t *doc, uint32_t id);
-form_ctrl_meta_t *form_doc_meta_for_window(form_doc_t *doc, const window_t *win);
-int form_doc_type_for_window(form_doc_t *doc, const window_t *win);
 
 // ============================================================
 // Window procedures

@@ -498,6 +498,31 @@ static const char *color_token(uint8_t color) {
   return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
 }
 
+static const char *control_name_for_window(const window_t *el) {
+  return (el && el->statusbar_text[0]) ? el->statusbar_text : "control";
+}
+
+static ui_font_t label_font_from_window(const window_t *el) {
+  if (!el)
+    return FONT_SMALL;
+  uintptr_t packed = (uintptr_t)el->userdata;
+  return (ui_font_t)((packed >> 8) & 0xffu);
+}
+
+static uint8_t label_color_from_window(const window_t *el) {
+  if (!el)
+    return brTextNormal;
+  uintptr_t packed = (uintptr_t)el->userdata;
+  return (uint8_t)(packed & 0xffu);
+}
+
+static bool label_color_set_from_window(const window_t *el) {
+  if (!el)
+    return false;
+  uintptr_t packed = (uintptr_t)el->userdata;
+  return (packed & (1u << 16)) != 0;
+}
+
 static bool parse_numeric_expr(const char *s, int *out) {
   if (!s || !*s || !out) return false;
   char *end = NULL;
@@ -561,51 +586,6 @@ static int project_resolve_control_id(form_doc_t *doc, const char *expr) {
   if (parse_numeric_expr(expr, &id))
     return id;
   return doc ? doc->next_id++ : CTRL_ID_BASE;
-}
-
-static void upper_ident(char *s) {
-  if (!s) return;
-  for (; *s; s++) {
-    if (*s >= 'a' && *s <= 'z')
-      *s = (char)(*s - 'a' + 'A');
-  }
-}
-
-static void make_control_id_expr(char *out, size_t out_sz,
-                                 const char *form_id,
-                                 const char *name,
-                                 const char *class_name,
-                                 int ordinal) {
-  char form_buf[96];
-  char name_buf[96];
-  size_t i = 0;
-
-  if (!out || out_sz == 0) return;
-
-  for (const char *p = form_id && *form_id ? form_id : "form";
-       *p && i + 1 < sizeof(form_buf); p++) {
-    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
-    form_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
-  }
-  if (i == 0) form_buf[i++] = 'F';
-  form_buf[i] = '\0';
-  upper_ident(form_buf);
-
-  i = 0;
-  for (const char *p = name && *name ? name : (class_name && *class_name ? class_name : "control");
-       *p && i + 1 < sizeof(name_buf); p++) {
-    char c = (*p >= 'a' && *p <= 'z') ? (char)(*p - 'a' + 'A') : *p;
-    name_buf[i++] = (isalnum((unsigned char)c) || c == '_') ? c : '_';
-  }
-  if (i == 0) {
-    snprintf(name_buf, sizeof(name_buf), "CONTROL%d", ordinal);
-    upper_ident(name_buf);
-  } else {
-    name_buf[i] = '\0';
-    upper_ident(name_buf);
-  }
-
-  snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
 }
 
 static irect16_t rect_attr(xmlNodePtr node, const char *name, irect16_t fallback) {
@@ -690,12 +670,9 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       window_t *el = doc->elements[idx];
       if (!el)
         continue;
-      form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
-      if (!meta)
-        continue;
-
-      copy_attr(n, "id", meta->id_expr, sizeof(meta->id_expr));
-      int loaded_id = project_resolve_control_id(doc, meta->id_expr);
+      char id_expr[32] = {0};
+      copy_attr(n, "id", id_expr, sizeof(id_expr));
+      int loaded_id = project_resolve_control_id(doc, id_expr);
       if (loaded_id > 0) {
         bool id_in_use = false;
         for (int j = 0; j < doc->element_count; j++) {
@@ -706,23 +683,23 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
         }
         if (!id_in_use) {
           el->id = (uint32_t)loaded_id;
-          meta->id = (uint32_t)loaded_id;
         }
       }
-      copy_attr(n, "flags", meta->flags_expr, sizeof(meta->flags_expr));
-      el->flags = parse_flags_expr(meta->flags_expr);
+      char flags_expr[128] = {0};
+      copy_attr(n, "flags", flags_expr, sizeof(flags_expr));
+      el->flags = (el->flags & 0xff000000u) | parse_flags_expr(flags_expr);
       copy_attr(n, "text", el->title, sizeof(el->title));
-      copy_attr(n, "name", meta->name, sizeof(meta->name));
+      copy_attr(n, "name", el->statusbar_text, sizeof(el->statusbar_text));
       char *font = xml_attr_dup(n, "font");
-      meta->font = font_attr(font, FONT_SMALL);
-      meta->font_set = (font != NULL);
       char *color = xml_attr_dup(n, "color");
-      meta->color = color_attr(color, brTextNormal);
-      meta->color_set = (color != NULL);
-      if (!meta->id_expr[0]) {
-        make_control_id_expr(meta->id_expr, sizeof(meta->id_expr),
-                             doc->form_id, meta->name,
-                             ctrl_type_token(type), idx + 1);
+      if (!el->statusbar_text[0])
+        snprintf(el->statusbar_text, sizeof(el->statusbar_text), "control%d", idx + 1);
+      if (strcmp(ctrl_type_token(type), "label") == 0) {
+        uint8_t label_font = font_attr(font, FONT_SMALL);
+        uint8_t label_color = color_attr(color, brTextNormal);
+        bool label_color_set = (color != NULL);
+        el->userdata = (void *)(uintptr_t)label_pack_userdata(label_color, (ui_font_t)label_font,
+                                                              label_color_set);
       }
       char *h_align = xml_attr_dup(n, "h-align");
       char *v_align = xml_attr_dup(n, "v-align");
@@ -738,8 +715,6 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       free(color);
       free(h_align);
       free(v_align);
-      if (!meta->name[0])
-        snprintf(meta->name, sizeof(meta->name), "control%d", idx + 1);
       if ((int)el->id >= doc->next_id)
         doc->next_id = (int)el->id + 1;
     }
@@ -755,7 +730,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   // Apply component default sizes for auto-layout forms
   for (int i = 0; i < doc->element_count; i++) {
     window_t *el = doc->elements[i];
-    const fe_component_desc_t *desc = fe_component_by_id(form_doc_type_for_window(doc, el));
+    const fe_component_desc_t *desc = fe_component_by_id((int)el->value);
     if (desc) {
       el->frame.w = MAX(1, desc->default_size.w);
       el->frame.h = MAX(1, desc->default_size.h);
@@ -1059,17 +1034,21 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     window_t *el = doc->elements[i];
     if (!el)
       continue;
-    form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
-    int type = form_doc_type_for_window(doc, el);
+    int type = (int)el->value;
     fprintf(f, "        <%s", ctrl_type_token(type));
-    xml_attr(f, "name", meta ? meta->name : "");
+    xml_attr(f, "name", control_name_for_window(el));
     xml_attr(f, "text", el->title);
     if (el->parent && el->parent != doc->canvas_win)
       fprintf(f, " parent=\"%u\"", (unsigned)el->parent->id);
-    if (meta && (meta->font_set || meta->font != FONT_SMALL))
-      xml_attr(f, "font", font_token(meta->font));
-    if (meta && (meta->color_set || meta->color != brTextNormal))
-      xml_attr(f, "color", color_token(meta->color));
+    if (type == CTRL_LABEL || strcmp(ctrl_type_token(type), "label") == 0) {
+      ui_font_t label_font = label_font_from_window(el);
+      uint8_t label_color = label_color_from_window(el);
+      bool label_color_set = label_color_set_from_window(el);
+      if (label_font != FONT_SMALL)
+        xml_attr(f, "font", font_token(label_font));
+      if (label_color_set || label_color != brTextNormal)
+        xml_attr(f, "color", color_token(label_color));
+    }
     // Only emit x/y for fixed-layout forms; auto-layout forms recalculate positions
     if (!(doc->flags & WINDOW_AUTO_LAYOUT)) {
       irect16_t fr = doc_control_form_rect(doc, el);
@@ -1091,7 +1070,7 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
               el->layout.layout_margin.w, el->layout.layout_margin.h);
     char flags_buf[32];
     snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, (el->flags & 0x00FFFFFFu));
-    xml_attr(f, "flags", (meta && meta->flags_expr[0]) ? meta->flags_expr : flags_buf);
+    xml_attr(f, "flags", flags_buf);
     fprintf(f, " />\n");
   }
   fprintf(f, "      </form>\n");
@@ -1679,15 +1658,16 @@ static result_t props_proc(window_t *win, uint32_t msg,
       // Dynamic type-info label (content is computed at runtime).
       char info[64];
       snprintf(info, sizeof(info), "Type: %s  ID: %d  (%d, %d)  %d x %d",
-               ctrl_type_token(form_doc_type_for_window(ps->doc, ps->el)), ps->el->id,
+               ctrl_type_token((int)ps->el->value), ps->el->id,
                ps->el->frame.x, ps->el->frame.y, ps->el->frame.w, ps->el->frame.h);
       create_window(info, WINDOW_NOTITLE | WINDOW_NOFILL,
           MAKERECT(4, PROPS_INFO_Y, PROPS_W - 8, CONTROL_HEIGHT),
           win, "label", 0, (void *)(uintptr_t)brTextDisabled);
 
-      snprintf(ps->fields.caption, sizeof(ps->fields.caption), "%s", ps->el->title);
-      form_ctrl_meta_t *meta = form_doc_meta_for_window(ps->doc, ps->el);
-      snprintf(ps->fields.name, sizeof(ps->fields.name), "%s", meta ? meta->name : "");
+      snprintf(ps->fields.caption, sizeof(ps->fields.caption), "%.*s",
+               (int)sizeof(ps->fields.caption) - 1, ps->el->title);
+      snprintf(ps->fields.name, sizeof(ps->fields.name), "%.*s",
+               (int)sizeof(ps->fields.name) - 1, control_name_for_window(ps->el));
       dialog_push(win, &ps->fields, k_props_bindings, ARRAY_LEN(k_props_bindings));
       return true;
     }
@@ -1700,9 +1680,8 @@ static result_t props_proc(window_t *win, uint32_t msg,
       if (src->id == PROPS_ID_OK) {
         dialog_pull(win, &ps->fields, k_props_bindings, ARRAY_LEN(k_props_bindings));
         snprintf(ps->el->title, sizeof(ps->el->title), "%s", ps->fields.caption);
-        form_ctrl_meta_t *meta = form_doc_meta_for_window(ps->doc, ps->el);
-        if (meta)
-          snprintf(meta->name, sizeof(meta->name), "%s", ps->fields.name);
+        snprintf(ps->el->statusbar_text, sizeof(ps->el->statusbar_text), "%.*s",
+                 (int)sizeof(ps->el->statusbar_text) - 1, ps->fields.name);
         invalidate_window(ps->el);
         ps->accepted = true;
         end_dialog(win, 1);
@@ -1827,15 +1806,6 @@ void handle_menu_command(uint16_t id) {
         doc->elements[i] = doc->elements[i + 1];
       doc->element_count--;
       doc->elements[doc->element_count] = NULL;
-      uint32_t id = el ? el->id : 0;
-      for (int i = 0; i < doc->ctrl_meta_count; i++) {
-        if (doc->ctrl_meta[i].id == id) {
-          memmove(&doc->ctrl_meta[i], &doc->ctrl_meta[i + 1],
-                  (size_t)(doc->ctrl_meta_count - i - 1) * sizeof(doc->ctrl_meta[0]));
-          doc->ctrl_meta_count--;
-          break;
-        }
-      }
       cs->selected_idx = -1;
       doc->modified = true;
       form_doc_update_title(doc);

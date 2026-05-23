@@ -293,25 +293,6 @@ window_t *formeditor_find_window_by_id(window_t *root, uint32_t id) {
   return NULL;
 }
 
-form_ctrl_meta_t *form_doc_meta_for_id(form_doc_t *doc, uint32_t id) {
-  if (!doc || id == 0)
-    return NULL;
-  for (int i = 0; i < doc->ctrl_meta_count; i++) {
-    if (doc->ctrl_meta[i].id == id)
-      return &doc->ctrl_meta[i];
-  }
-  return NULL;
-}
-
-form_ctrl_meta_t *form_doc_meta_for_window(form_doc_t *doc, const window_t *win) {
-  return form_doc_meta_for_id(doc, win ? win->id : 0);
-}
-
-int form_doc_type_for_window(form_doc_t *doc, const window_t *win) {
-  form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, win);
-  return meta ? meta->type : -1;
-}
-
 static window_t *canvas_live_window_for_element(form_doc_t *doc, const window_t *el) {
   if (!doc || !doc->canvas_win || !el)
     return NULL;
@@ -372,23 +353,15 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
       break;
     }
   }
-  int type = form_doc_type_for_window(doc, el);
+  int type = el ? (int)el->value : -1;
   winproc_t real_proc = ctrl_type_to_proc(type);
 
   switch (msg) {
     case evCreate: {
-      const form_ctrl_meta_t *creating_meta = (const form_ctrl_meta_t *)lparam;
-      if (!real_proc && creating_meta)
-        real_proc = ctrl_type_to_proc(creating_meta->type);
+      int creating_type = (int)(intptr_t)lparam;
+      if (!real_proc && creating_type >= 0)
+        real_proc = ctrl_type_to_proc(creating_type);
       win->flags |= WINDOW_NOTABSTOP;
-      if (real_proc == win_label && creating_meta) {
-        label_create_params_t params = {
-          .color_index = creating_meta->color,
-          .font = creating_meta->font_set ? (ui_font_t)creating_meta->font : FONT_SMALL,
-          .color_set = creating_meta->color_set,
-        };
-        return real_proc(win, msg, wparam, &params);
-      }
       return real_proc ? real_proc(win, msg, wparam, NULL) : true;
     }
     case evDestroy:
@@ -523,7 +496,6 @@ static void canvas_update_preview(canvas_state_t *s, int type, irect16_t form_rc
 static void canvas_sync_live_element_window(form_doc_t *doc, window_t *el) {
   canvas_state_t *s;
   window_t *live;
-  form_ctrl_meta_t *meta;
   if (!doc || !doc->canvas_win || !el)
     return;
   live = canvas_live_window_for_element(doc, el);
@@ -532,14 +504,6 @@ static void canvas_sync_live_element_window(form_doc_t *doc, window_t *el) {
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s) return;
   (void)s;
-  meta = form_doc_meta_for_window(doc, el);
-  if (live->proc == win_label) {
-    uint32_t packed = label_pack_userdata(meta ? meta->color : brTextNormal,
-                                          (meta && meta->font_set) ? (ui_font_t)meta->font : FONT_SMALL,
-                                          meta ? meta->color_set : false);
-    if ((uint32_t)(uintptr_t)live->userdata != packed)
-      live->userdata = (void *)(uintptr_t)packed;
-  }
 }
 
 void canvas_sync_live_controls(form_doc_t *doc) {
@@ -893,29 +857,15 @@ int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   int n = ++doc->type_counters[type];
   char caption[64];
   ctrl_make_caption(type, n, caption, sizeof(caption));
-  char pfx[8];
-  strncpy(pfx, c->name_prefix, sizeof(pfx) - 1);
-  pfx[sizeof(pfx)-1] = '\0';
-  char name[32];
-  snprintf(name, sizeof(name), "%s%d", pfx, n);
-
-  if (doc->ctrl_meta_count >= MAX_ELEMENTS) {
-    doc->type_counters[type]--;
-    return -1;
-  }
-  form_ctrl_meta_t meta = {0};
-  meta.id = id;
-  meta.type = type;
-  meta.font = FONT_SMALL;
-  meta.color = brTextNormal;
-  snprintf(meta.name, sizeof(meta.name), "%s", name);
-
-  window_t *el = create_window(caption, 0, &frame, parent, design_live_ctrl_proc, 0, &meta);
+  window_t *el = create_window(caption, 0, &frame, parent, design_live_ctrl_proc, 0,
+                               (void *)(intptr_t)type);
   if (!el) {
     doc->type_counters[type]--;
     return -1;
   }
   el->id = id;
+  el->value = (uint32_t)type;
+  snprintf(el->statusbar_text, sizeof(el->statusbar_text), "%s%d", c->name_prefix, n);
   el->flags |= WINDOW_NOTABSTOP;
   el->layout.h_align = LAYOUT_ALIGN_STRETCH;
   el->layout.v_align = LAYOUT_ALIGN_STRETCH;
@@ -925,7 +875,6 @@ int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
             (size_t)(doc->element_count - index) * sizeof(doc->elements[0]));
 
   doc->element_count++;
-  doc->ctrl_meta[doc->ctrl_meta_count++] = meta;
   doc->next_id++;
   doc->elements[index] = el;
   canvas_state_t *s = doc->canvas_win ? (canvas_state_t *)doc->canvas_win->userdata : NULL;

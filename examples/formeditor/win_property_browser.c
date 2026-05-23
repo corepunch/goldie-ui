@@ -136,8 +136,26 @@ static const char *prop_font_name(uint8_t font) {
   return enum_token_name(font, kPropFontTokens, ARRAY_LEN(kPropFontTokens), "small");
 }
 
+static uint8_t prop_label_font(window_t *el) {
+  if (!el)
+    return FONT_SMALL;
+  return (uint8_t)(((uintptr_t)el->userdata >> 8) & 0xffu);
+}
+
+static uint8_t prop_label_color(window_t *el) {
+  if (!el)
+    return brTextNormal;
+  return (uint8_t)((uintptr_t)el->userdata & 0xffu);
+}
+
+static bool prop_label_color_set(window_t *el) {
+  if (!el)
+    return false;
+  return (((uintptr_t)el->userdata >> 16) & 0x1u) != 0u;
+}
+
 static bool prop_is_label(form_doc_t *doc, window_t *el) {
-  const fe_component_desc_t *c = el ? fe_component_by_id(form_doc_type_for_window(doc, el)) : NULL;
+  const fe_component_desc_t *c = el ? fe_component_by_id((int)el->value) : NULL;
   return c && c->class_name && strcmp(c->class_name, "label") == 0;
 }
 
@@ -148,7 +166,6 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
   window_t *edit = pbs->edit_win;
   form_doc_t *doc = app_active_doc();
   window_t *el = prop_selected_element(doc);
-  form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
   uint32_t prop_id = pbs->edit_prop_id;
   char value[sizeof(edit->title)];
   snprintf(value, sizeof(value), "%s", edit->title);
@@ -163,8 +180,8 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
 
   switch (prop_id) {
     case PROP_ROW_NAME:
-      if (meta)
-        snprintf(meta->name, sizeof(meta->name), "%s", value);
+      snprintf(el->statusbar_text, sizeof(el->statusbar_text), "%.*s",
+               (int)sizeof(el->statusbar_text) - 1, value);
       break;
     case PROP_ROW_CAPTION:
       snprintf(el->title, sizeof(el->title), "%s", value);
@@ -177,10 +194,9 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
       el->layout.v_align = prop_parse_v_align(value, el->layout.v_align);
       break;
     case PROP_ROW_FONT:
-      if (meta) {
-        meta->font = prop_parse_font(value, meta->font);
-        meta->font_set = true;
-      }
+      el->userdata = (void *)(uintptr_t)label_pack_userdata(prop_label_color(el),
+                                                            (ui_font_t)prop_parse_font(value, prop_label_font(el)),
+                                                            prop_label_color_set(el));
       break;
     case PROP_ROW_LEFT:
       el->frame.x = prop_parse_int(value, el->frame.x);
@@ -280,14 +296,13 @@ static void prop_begin_edit(prop_browser_state_t *pbs, int row) {
 }
 
 static void prop_fill_for_element(form_doc_t *doc, window_t *list, window_t *el) {
-  form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
   char buf[32];
 
-  prop_add_row(list, "(Name)", meta ? meta->name : "", PROP_ROW_NAME);
+  prop_add_row(list, "(Name)", el->statusbar_text, PROP_ROW_NAME);
   prop_add_row(list, "Caption", el->title, PROP_ROW_CAPTION);
-  prop_add_row(list, "Type", prop_ctrl_type_name(form_doc_type_for_window(doc, el)), PROP_ROW_TYPE);
+  prop_add_row(list, "Type", prop_ctrl_type_name((int)el->value), PROP_ROW_TYPE);
   if (prop_is_label(doc, el))
-    prop_add_row(list, "Font", prop_font_name(meta ? meta->font : FONT_SMALL), PROP_ROW_FONT);
+    prop_add_row(list, "Font", prop_font_name(prop_label_font(el)), PROP_ROW_FONT);
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);

@@ -35,8 +35,7 @@ const fe_component_desc_t *fe_plugin_class_desc(int i);
 app_state_t *g_app = NULL;
 
 #define FE_ELEM(doc_, idx_) ((doc_)->elements[(idx_)])
-#define FE_META(doc_, idx_) (form_doc_meta_for_window((form_doc_t *)(doc_), FE_ELEM((doc_), (idx_))))
-#define FE_TYPE(doc_, idx_) (FE_META((doc_), (idx_)) ? FE_META((doc_), (idx_))->type : -1)
+#define FE_TYPE(doc_, idx_) ((int)(FE_ELEM((doc_), (idx_)) ? FE_ELEM((doc_), (idx_))->value : (uint32_t)-1))
 
 static int fe_next_message_box_result = IDCANCEL;
 static uint32_t fe_last_message_box_type = 0;
@@ -1567,9 +1566,9 @@ void test_fe_element_names_generated(void) {
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 40, 60, 20);
     fe_place_ctrl(doc, ID_TOOL_LABEL,  10, 70, 60, 12);
 
-    ASSERT_STR_EQUAL(FE_META(doc, 0)->name, "IDC_BTN1");
-    ASSERT_STR_EQUAL(FE_META(doc, 1)->name, "IDC_BTN2");
-    ASSERT_STR_EQUAL(FE_META(doc, 2)->name, "IDC_LBL1");
+    ASSERT_STR_EQUAL(doc->elements[0]->statusbar_text, "IDC_BTN1");
+    ASSERT_STR_EQUAL(doc->elements[1]->statusbar_text, "IDC_BTN2");
+    ASSERT_STR_EQUAL(doc->elements[2]->statusbar_text, "IDC_LBL1");
 
     fe_teardown();
     PASS();
@@ -1709,10 +1708,12 @@ void test_fe_save_load_roundtrip(void) {
 
     // Snapshot the original element data for comparison after reload.
     window_t *orig_win[3];
-    form_ctrl_meta_t orig_meta[3];
+    char orig_name[3][64];
+    int orig_type[3];
     for (int i = 0; i < 3; i++) {
         orig_win[i] = doc->elements[i];
-        orig_meta[i] = *FE_META(doc, i);
+        snprintf(orig_name[i], sizeof(orig_name[i]), "%s", doc->elements[i]->statusbar_text);
+        orig_type[i] = FE_TYPE(doc, i);
     }
 
     bool saved = form_project_save(path);
@@ -1736,13 +1737,13 @@ void test_fe_save_load_roundtrip(void) {
     ASSERT_STR_EQUAL(ndoc->form_title, "Roundtrip");
     ASSERT_EQUAL(ndoc->element_count, 3);
     for (int i = 0; i < 3; i++) {
-        ASSERT_EQUAL(FE_TYPE(ndoc, i), orig_meta[i].type);
+        ASSERT_EQUAL(FE_TYPE(ndoc, i), orig_type[i]);
         ASSERT_EQUAL(ndoc->elements[i]->frame.x, orig_win[i]->frame.x);
         ASSERT_EQUAL(ndoc->elements[i]->frame.y, orig_win[i]->frame.y);
         ASSERT_EQUAL(ndoc->elements[i]->frame.w, orig_win[i]->frame.w);
         ASSERT_EQUAL(ndoc->elements[i]->frame.h, orig_win[i]->frame.h);
         ASSERT_STR_EQUAL(ndoc->elements[i]->title, orig_win[i]->title);
-        ASSERT_STR_EQUAL(FE_META(ndoc, i)->name, orig_meta[i].name);
+        ASSERT_STR_EQUAL(ndoc->elements[i]->statusbar_text, orig_name[i]);
     }
 
     // Clean up the temp file.
@@ -1774,10 +1775,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     doc->elements[0]->layout.layout_margin = (irect16_t){8, 8, 8, 8};
     doc->elements[1]->layout.h_align = LAYOUT_ALIGN_START;
     doc->elements[1]->layout.v_align = LAYOUT_ALIGN_STRETCH;
-    FE_META(doc, 2)->font = FONT_ICON;
-    FE_META(doc, 2)->font_set = true;
-    FE_META(doc, 2)->color = brTextDisabled;
-    FE_META(doc, 2)->color_set = true;
+    doc->elements[2]->userdata = (void *)(uintptr_t)label_pack_userdata(brTextDisabled, FONT_ICON, true);
 
     bool saved = form_project_save(path);
     ASSERT_TRUE(saved);
@@ -1814,10 +1812,10 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     ASSERT(ndoc->elements[0]->layout.layout_margin.h == 8, "element0 margin.h");
     ASSERT(ndoc->elements[1]->layout.h_align == LAYOUT_ALIGN_START, "element1 h_align");
     ASSERT(ndoc->elements[1]->layout.v_align == LAYOUT_ALIGN_STRETCH, "element1 v_align");
-    ASSERT(FE_META(doc, 2)->font == FONT_ICON, "element2 font");
-    ASSERT(FE_META(doc, 2)->font_set, "element2 font_set");
-    ASSERT(FE_META(doc, 2)->color == brTextDisabled, "element2 color");
-    ASSERT(FE_META(doc, 2)->color_set, "element2 color_set");
+    uintptr_t label_packed = (uintptr_t)ndoc->elements[2]->userdata;
+    ASSERT((((label_packed >> 8) & 0xffu) == FONT_ICON), "element2 font");
+    ASSERT(((label_packed & (1u << 16)) != 0u), "element2 color_set");
+    ASSERT(((label_packed & 0xffu) == brTextDisabled), "element2 color");
 
     unlink(path);
 
