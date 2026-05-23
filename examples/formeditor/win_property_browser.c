@@ -87,7 +87,7 @@ lresult_t win_property_browser_proc(window_t *win, uint32_t msg,
         send_message(st->list_win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
         send_message(st->list_win, RVM_SETCOLUMNTITLESVISIBLE, 1, NULL);
         reportview_column_t c0 = {"Property", 88};
-        reportview_column_t c1 = {"Value", 80};
+        reportview_column_t c1 = {"Value", 0};
         send_message(st->list_win, RVM_ADDCOLUMN, 0, &c0);
         send_message(st->list_win, RVM_ADDCOLUMN, 0, &c1);
       }
