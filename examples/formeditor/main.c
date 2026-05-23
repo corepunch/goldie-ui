@@ -39,7 +39,7 @@ static void create_app_windows(hinstance_t hinstance) {
   g_app->windows[FE_WIN_PLUGINS] = plugins_browser_create(hinstance);
   g_app->windows[FE_WIN_DATABASES] = create_database_browser(
     MAKERECT(DATABASES_WIN_X, DATABASES_WIN_Y, DATABASES_WIN_W, DATABASES_WIN_H),
-    NULL);
+    NULL, hinstance);
 }
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {

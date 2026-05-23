@@ -66,6 +66,7 @@ window_t *property_browser_create(hinstance_t hinstance) {
       MAKERECT(PROPBROWSER_WIN_X, PROPBROWSER_WIN_Y,
                PROPBROWSER_WIN_W, PROPBROWSER_WIN_H),
       NULL, win_property_browser_proc, hinstance, NULL);
+  if (win) show_window(win, true);
   return win;
 }
 

@@ -5,9 +5,6 @@
 static lresult_t canvas_form_root_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
   switch (msg) {
-    case evPaint: 
-      return default_winproc(win, msg, wparam, lparam);
-
     // Keep the runtime canvas root as the mouse target.
     // Returning handled for hit-test blocks recursion into preview children.
     case evHitTest:
@@ -90,8 +87,6 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
     case evSetFocus:
       if (doc && window_has_state(win, WINDOW_STATE_VISIBLE))
         form_doc_activate(win);
-      return default_winproc(win, msg, wparam, lparam);
-    case evPaint:
       return default_winproc(win, msg, wparam, lparam);
     case evResize: {
       if (win && win->children) {

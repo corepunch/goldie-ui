@@ -41,9 +41,6 @@ lresult_t main_win_proc(window_t *win, uint32_t msg,
       // Don't manually resize - auto-layout handles it
       return false;
 
-    case evPaint:
-      return false;
-
     case tbButtonClick:
       handle_menu_command((uint16_t)wparam);
       return true;

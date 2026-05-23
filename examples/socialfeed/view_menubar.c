@@ -130,7 +130,7 @@ lresult_t app_menubar_proc(window_t *win, uint32_t msg,
         handle_menu_command((uint16_t)LOWORD(wparam));
         return true;
       }
-      return false;
+      return win_menubar(win, msg, wparam, lparam);
     default:
       return win_menubar(win, msg, wparam, lparam);
   }

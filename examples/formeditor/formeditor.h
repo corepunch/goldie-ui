@@ -439,7 +439,8 @@ window_t *forms_browser_create(hinstance_t hinstance);
 void forms_browser_refresh(void);
 window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
-window_t *create_database_browser(const irect16_t *frame, window_t *parent);
+window_t *create_database_browser(const irect16_t *frame, window_t *parent,
+                                 hinstance_t hinstance);
 void databases_browser_refresh(void);
 
 // ============================================================

@@ -301,10 +301,6 @@ static lresult_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       }
       return true;
     
-    case evPaint:
-      // Browser draws itself
-      return true;
-    
     case evResize: {
       if (!dbs || !dbs->browser_win) return false;
       
@@ -336,11 +332,14 @@ static lresult_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, v
 }
 
 // Public API: Create database browser window
-window_t *create_database_browser(const irect16_t *frame, window_t *parent) {
-  return create_window("Databases",
+window_t *create_database_browser(const irect16_t *frame, window_t *parent,
+                                  hinstance_t hinstance) {
+  window_t *win = create_window("Databases",
     WINDOW_NOTRAYBUTTON,
     frame,
-    parent, db_browser_proc, 0, NULL);
+    parent, db_browser_proc, hinstance, NULL);
+  if (win) show_window(win, true);
+  return win;
 }
 
 void databases_browser_refresh(void) {

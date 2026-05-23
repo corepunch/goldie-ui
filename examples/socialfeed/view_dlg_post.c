@@ -79,13 +79,13 @@ static lresult_t post_detail_proc(window_t *win, uint32_t msg,
 
     case evDestroy:
       s->comments_win = NULL;
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
 
     case evResize:
       if (s) {
         window_layout_sync(win);
       }
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
 
     case evCommand: {
       uint16_t notif  = (uint16_t)HIWORD(wparam);

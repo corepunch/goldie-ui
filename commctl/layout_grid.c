@@ -435,8 +435,6 @@ lresult_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         layout_grid_arrange_window(win, &cr);
       }
       return true;
-    case evPaint:
-      return default_winproc(win, msg, wparam, lparam);
     default:
       return default_winproc(win, msg, wparam, lparam);
   }

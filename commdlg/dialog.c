@@ -101,7 +101,7 @@ static lresult_t dialog_db_proc(window_t *win, uint32_t msg,
       return false;
     }
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -472,7 +472,7 @@ static lresult_t dialog_ddx_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
