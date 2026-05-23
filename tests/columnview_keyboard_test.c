@@ -725,6 +725,33 @@ void test_cv_large_icon_left_right(void) {
     PASS();
 }
 
+// Extra horizontal room is distributed between icons before the column count
+// snaps upward, so the last icon in a row reaches the right edge.
+void test_cv_large_icon_stretches_columns_to_width(void) {
+    TEST("win_reportview large-icon: stretches icon columns to fill width");
+
+    test_env_init();
+    reset_cmd_state();
+
+    window_t *parent = test_env_create_window("P", 0, 0, 240, 120,
+                                               cmd_capture_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cv = make_large_icon_columnview(parent, 240, 120, 72, 32);
+    ASSERT_NOT_NULL(cv);
+    add_items(cv, 3);
+
+    int x = 240 - LARGE_ICON_PAD - 2;
+    int y = LARGE_ICON_PAD + LARGE_ICON_TOP_PAD + 4;
+    result_t hit = send_message(cv, RVM_HITTEST,
+                                MAKEDWORD((uint16_t)x, (uint16_t)y), NULL);
+
+    ASSERT_EQUAL((int)hit, 2);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 // With a fixed column count, shrinking the width must not change the vertical
 // scroll position.  This guards against the scrollbar-width feedback loop that
 // used to reflow the grid when the scrollbar appeared.
@@ -781,6 +808,7 @@ int main(int argc, char *argv[]) {
     test_cv_large_icon_down_from_no_selection();
     test_cv_large_icon_down_advances_row();
     test_cv_large_icon_left_right();
+    test_cv_large_icon_stretches_columns_to_width();
     test_cv_large_icon_fixed_columns_stable_scroll();
 
     TEST_END();
