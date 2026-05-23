@@ -214,8 +214,8 @@ static void fe_write_margin_project(const char *path, const char *margin_attr) {
 
 static void fe_close_all_docs(void) {
     if (!g_app) return;
-    while (g_app->docs)
-        close_form_doc(g_app->docs);
+    while (app_doc_count() > 0)
+        close_form_doc(app_doc_at(0));
 }
 
 static void fe_setup(void) {
@@ -224,12 +224,12 @@ static void fe_setup(void) {
     // explicitly so test_env_init() finds a consistent state.
     if (g_app) {
         fe_close_all_docs();
-        if (g_app->prop_win)
-            destroy_window(g_app->prop_win);
-        if (g_app->forms_win)
-            destroy_window(g_app->forms_win);
-        if (g_app->plugins_win)
-            destroy_window(g_app->plugins_win);
+        if (app_get_window(FE_WIN_PROPERTIES))
+            destroy_window(app_get_window(FE_WIN_PROPERTIES));
+        if (app_get_window(FE_WIN_FORMS))
+            destroy_window(app_get_window(FE_WIN_FORMS));
+        if (app_get_window(FE_WIN_PLUGINS))
+            destroy_window(app_get_window(FE_WIN_PLUGINS));
         free(g_app);
         g_app = NULL;
     }
@@ -266,12 +266,12 @@ static void fe_teardown(void) {
     }
     // close_form_doc destroys each document window tree and frees its struct.
     fe_close_all_docs();
-    if (g_app->prop_win)
-        destroy_window(g_app->prop_win);
-    if (g_app->forms_win)
-        destroy_window(g_app->forms_win);
-    if (g_app->plugins_win)
-        destroy_window(g_app->plugins_win);
+    if (app_get_window(FE_WIN_PROPERTIES))
+            destroy_window(app_get_window(FE_WIN_PROPERTIES));
+    if (app_get_window(FE_WIN_FORMS))
+            destroy_window(app_get_window(FE_WIN_FORMS));
+    if (app_get_window(FE_WIN_PLUGINS))
+            destroy_window(app_get_window(FE_WIN_PLUGINS));
     free(g_app);
     g_app = NULL;
     test_env_shutdown();
@@ -381,9 +381,35 @@ static canvas_state_t *fe_state(form_doc_t *doc) {
     return (canvas_state_t *)doc->canvas_win->userdata;
 }
 
+static window_t *fe_find_window_by_id(window_t *root, uint32_t id) {
+    if (!root)
+        return NULL;
+    if ((uint32_t)root->id == id)
+        return root;
+    toolbar_state_t *tb = window_toolbar_state(root);
+    for (window_t *child = root->children; child; child = child->next) {
+        window_t *hit = fe_find_window_by_id(child, id);
+        if (hit)
+            return hit;
+    }
+    for (window_t *child = tb ? tb->children : NULL; child; child = child->next) {
+        window_t *hit = fe_find_window_by_id(child, id);
+        if (hit)
+            return hit;
+    }
+    return NULL;
+}
+
+static window_t *fe_element_live_win(form_doc_t *doc, const form_element_t *el) {
+    if (!doc || !doc->canvas_win || !el)
+        return NULL;
+    return fe_find_window_by_id(doc->canvas_win, (uint32_t)el->id);
+}
+
 static window_t *fe_create_property_browser(void) {
-    g_app->prop_win = property_browser_create(0);
-    return g_app->prop_win ? g_app->prop_win->children : NULL;
+    app_set_window(FE_WIN_PROPERTIES, property_browser_create(0));
+    window_t *prop = app_get_window(FE_WIN_PROPERTIES);
+    return prop ? prop->children : NULL;
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -393,8 +419,8 @@ void test_fe_create_doc(void) {
     TEST("create_form_doc: initialises doc with correct defaults");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
-    doc->layout_mode = 1; // stack
+    form_doc_t *doc = app_active_doc();
+    doc->layout_kind = 1; // stack
 
     ASSERT_NOT_NULL(doc);
     ASSERT_TRUE(is_window(doc->doc_win));     // root window — is_window works
@@ -418,7 +444,7 @@ void test_fe_create_doc_sizes_canvas_to_form(void) {
     TEST("create_form_doc: canvas is exact form size when it fits");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
 
     ASSERT_EQUAL(doc->doc_win->frame.w, FORM_DEFAULT_W);
     ASSERT_EQUAL(doc->doc_win->frame.h, TITLEBAR_HEIGHT + FORM_DEFAULT_H);
@@ -460,7 +486,7 @@ void test_fe_doc_resize_updates_form_size(void) {
     TEST("document resize: updates form_size and canvas size");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
 
     int new_w = 380;
     int new_h = 260;
@@ -481,7 +507,7 @@ void test_fe_doc_resize_by_dragging_bottom_right_corner(void) {
     TEST("document resize: bottom-right drag resizes form even over canvas child");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     window_t *dwin = doc->doc_win;
     doc->show_grid = false;
     int old_w = doc->form_size.w;
@@ -506,17 +532,17 @@ void test_fe_doc_resize_by_dragging_bottom_right_corner(void) {
     PASS();
 }
 
-// close_form_doc frees the struct and nulls g_app->doc; the window is gone.
+// close_form_doc frees the struct and nulls app_active_doc(); the window is gone.
 void test_fe_close_doc(void) {
     TEST("close_form_doc: removes doc from g_app and destroys window");
 
     fe_setup();
-    form_doc_t *doc    = g_app->doc;
+    form_doc_t *doc    = app_active_doc();
     window_t   *dwin   = doc->doc_win;
 
     close_form_doc(doc);
 
-    ASSERT_NULL(g_app->doc);
+    ASSERT_NULL(app_active_doc());
     ASSERT_FALSE(is_window(dwin));
 
     // Prevent double-free in teardown.
@@ -529,7 +555,7 @@ void test_fe_close_modified_doc_no_keeps_window(void) {
     TEST("form window close: hides view and keeps form");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     window_t *dwin = doc->doc_win;
     doc->modified = true;
 
@@ -538,7 +564,7 @@ void test_fe_close_modified_doc_no_keeps_window(void) {
     ASSERT_TRUE(send_message(dwin, evClose, 0, NULL));
 
     ASSERT_EQUAL(fe_last_message_box_type, 0);
-    ASSERT_TRUE(g_app->doc == doc);
+    ASSERT_TRUE(app_active_doc() == doc);
     ASSERT_TRUE(is_window(dwin));
     ASSERT_TRUE(!window_has_state(dwin, WINDOW_STATE_VISIBLE));
     ASSERT_TRUE(doc->modified);
@@ -554,7 +580,7 @@ void test_fe_create_doc_keeps_existing_doc(void) {
     TEST("create_form_doc: adds document without closing existing one");
 
     fe_setup();
-    form_doc_t *first = g_app->doc;
+    form_doc_t *first = app_active_doc();
     window_t *first_win = first->doc_win;
     first->snap_to_grid = false;
     fe_place_ctrl(first, ID_TOOL_BUTTON, 10, 10, 60, 20);
@@ -562,7 +588,7 @@ void test_fe_create_doc_keeps_existing_doc(void) {
     form_doc_t *second = create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
 
     ASSERT_NOT_NULL(second);
-    ASSERT_TRUE(g_app->doc == second);
+    ASSERT_TRUE(app_active_doc() == second);
     ASSERT_TRUE(is_window(first_win));
     ASSERT_EQUAL(first->element_count, 1);
     ASSERT_EQUAL(second->element_count, 0);
@@ -576,7 +602,7 @@ void test_fe_place_button(void) {
     TEST("place button: element_count=1, type=CTRL_BUTTON");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -599,7 +625,7 @@ void test_fe_button_preview_visible_while_dragging(void) {
     TEST("place button drag: preview is a live button before mouse release");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_begin_place_drag(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -633,7 +659,7 @@ void test_fe_button_preview_uses_runtime_minimum_height(void) {
     TEST("place button drag: preview uses runtime minimum button height");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_begin_place_drag(doc, ID_TOOL_BUTTON, 20, 20, 40, 8);
@@ -655,7 +681,7 @@ void test_fe_begin_place_drag_deselects_previous_element(void) {
     TEST("place drag: starting new placement clears selection");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -677,7 +703,7 @@ void test_fe_preview_parent_notify_finishes_placement(void) {
     TEST("place button drag: preview parent notify finalizes placement");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_begin_place_drag(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -705,7 +731,7 @@ void test_fe_placement_type_latched_on_mousedown(void) {
     TEST("place button drag: control type is latched at mouse-down");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_begin_place_drag(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -729,10 +755,10 @@ void test_fe_auto_layout_drop_inserts_before_target_node(void) {
     TEST("auto layout: drop inserts component before target node");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 1; // stack
+    doc->layout_kind = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 24);
     ASSERT_EQUAL(doc->element_count, 1);
@@ -752,10 +778,10 @@ void test_fe_auto_layout_drop_on_empty_form(void) {
     TEST("auto layout: drop on empty form creates the first component");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 1; // stack
+    doc->layout_kind = 1; // stack
 
     ASSERT_TRUE(canvas_drop_component(doc, ID_TOOL_BUTTON, 22, 22));
     ASSERT_EQUAL(doc->element_count, 1);
@@ -769,10 +795,10 @@ void test_fe_auto_layout_drop_inserts_before_hovered_node(void) {
     TEST("auto layout: drop inserts component before hovered node");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 1; // stack
+    doc->layout_kind = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
@@ -798,10 +824,10 @@ void test_fe_auto_layout_drop_honors_canvas_pan(void) {
     TEST("auto layout: drop honors canvas pan when choosing the drop target");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 1; // stack
+    doc->layout_kind = 1; // stack
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 80, 24);
     fe_place_ctrl(doc, ID_TOOL_CHECKBOX, 10, 40, 80, 24);
@@ -828,11 +854,11 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     TEST("auto layout: dropping onto a grid records the grid as the parent");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
-    doc->layout_columns = 2;
+    doc->layout_kind = 2;
+    doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
     int button_type = fe_component_id_for_token("button");
@@ -841,8 +867,8 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
 
     ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
     ASSERT_EQUAL(doc->element_count, 3);
-    ASSERT_NOT_NULL(doc->elements[0].live_win);
-    window_t *grid_win = doc->elements[0].live_win;
+    ASSERT_NOT_NULL(fe_element_live_win(doc, &doc->elements[0]));
+    window_t *grid_win = fe_element_live_win(doc, &doc->elements[0]);
     ASSERT_NOT_NULL(grid_win->children);
     int column_type = fe_component_id_for_token("column");
     ASSERT_TRUE(column_type >= 0);
@@ -861,10 +887,10 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     ASSERT_TRUE(second_col >= 0);
     ASSERT_EQUAL((uint32_t)doc->elements[first_col].parent, grid_id);
     ASSERT_EQUAL((uint32_t)doc->elements[second_col].parent, grid_id);
-    ASSERT_TRUE(doc->elements[first_col].live_win != NULL);
-    ASSERT_TRUE(doc->elements[second_col].live_win != NULL);
-    ASSERT_TRUE(doc->elements[first_col].live_win->frame.w > 0);
-    ASSERT_TRUE(doc->elements[second_col].live_win->frame.w > 0);
+    ASSERT_TRUE(fe_element_live_win(doc, &doc->elements[first_col]) != NULL);
+    ASSERT_TRUE(fe_element_live_win(doc, &doc->elements[second_col]) != NULL);
+    ASSERT_TRUE(fe_element_live_win(doc, &doc->elements[first_col])->frame.w > 0);
+    ASSERT_TRUE(fe_element_live_win(doc, &doc->elements[second_col])->frame.w > 0);
 
     int sx = window_screen_x(grid_win) + 10;
     int sy = window_screen_y(grid_win) + 10;
@@ -883,11 +909,11 @@ void test_fe_auto_layout_drop_uses_grid_column_as_parent(void) {
     TEST("auto layout: dropping onto a grid column records the column as the parent");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
-    doc->layout_columns = 2;
+    doc->layout_kind = 2;
+    doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
     int button_type = fe_component_id_for_token("button");
@@ -911,7 +937,7 @@ void test_fe_auto_layout_drop_uses_grid_column_as_parent(void) {
     ASSERT_TRUE(first_col >= 0);
     uint32_t column_id = (uint32_t)doc->elements[first_col].id;
 
-    window_t *column_win = doc->elements[first_col].live_win;
+    window_t *column_win = fe_element_live_win(doc, &doc->elements[first_col]);
     ASSERT_NOT_NULL(column_win);
     int sx = window_screen_x(column_win) + 10;
     int sy = window_screen_y(column_win) + 10;
@@ -940,11 +966,11 @@ void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     TEST("canvas: clicking a panned grid selects the visible child");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
-    doc->layout_columns = 2;
+    doc->layout_kind = 2;
+    doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
     int button_type = fe_component_id_for_token("button");
@@ -965,7 +991,7 @@ void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     }
     ASSERT_TRUE(first_col >= 0);
     uint32_t column_id = (uint32_t)doc->elements[first_col].id;
-    window_t *column_win = doc->elements[first_col].live_win;
+    window_t *column_win = fe_element_live_win(doc, &doc->elements[first_col]);
     ASSERT_NOT_NULL(column_win);
 
     ASSERT_TRUE(canvas_drop_component_to_target(doc, button_type, column_win,
@@ -1040,9 +1066,9 @@ void test_fe_components_icon_grid_scrolled_drag_creates_expected_item(void) {
     TEST("Components: scrolled icon grid drag creates the expected item");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 1; // stack
+    doc->layout_kind = 1; // stack
 
     window_t *palette = formeditor_create_components_palette(0);
     ASSERT_NOT_NULL(palette);
@@ -1102,10 +1128,10 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
     g_paint_probe.paint_count = 0;
     g_paint_probe.last_paint_frame = (irect16_t){0, 0, 0, 0};
 
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
-    doc->layout_columns = 2;
+    doc->layout_kind = 2;
+    doc->grid_columns = 2;
     doc->show_grid = false;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -1127,11 +1153,11 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
         }
     }
     ASSERT_TRUE(first_col >= 0);
-    window_t *column_win = doc->elements[first_col].live_win;
+    window_t *column_win = fe_element_live_win(doc, &doc->elements[first_col]);
     ASSERT_NOT_NULL(column_win);
     uint32_t column_id = 0;
     for (int i = 0; i < doc->element_count; i++) {
-        if (doc->elements[i].live_win == column_win) {
+        if (fe_element_live_win(doc, &doc->elements[i]) == column_win) {
             column_id = doc->elements[i].id;
             break;
         }
@@ -1165,10 +1191,10 @@ void test_fe_second_gridview_column_click_selects_its_own_column(void) {
     TEST("canvas: second gridview column click selects the matching grid");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
-    doc->layout_columns = 2;
+    doc->layout_kind = 2;
+    doc->grid_columns = 2;
     doc->show_grid = false;
 
     int grid_type = fe_component_id_for_token("grid");
@@ -1205,7 +1231,7 @@ void test_fe_second_gridview_column_click_selects_its_own_column(void) {
     }
     ASSERT_TRUE(target_col >= 0);
 
-    window_t *target_win = doc->elements[target_col].live_win;
+    window_t *target_win = fe_element_live_win(doc, &doc->elements[target_col]);
     ASSERT_NOT_NULL(target_win);
 
     int click_x = window_screen_x(target_win) + 6;
@@ -1224,7 +1250,7 @@ void test_fe_place_all_types(void) {
     TEST("place all control types: element_count=6, types correct");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     static const struct { int tool; int type; } kCases[] = {
@@ -1253,14 +1279,14 @@ void test_fe_live_windows_created(void) {
     TEST("place button: live_win created and is_window");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 60, 20);
 
     ASSERT_EQUAL(doc->element_count, 1);
-    ASSERT_NOT_NULL(doc->elements[0].live_win);          // child window
-    ASSERT_TRUE(doc->elements[0].live_win->parent == doc->canvas_win);
+    ASSERT_NOT_NULL(fe_element_live_win(doc, &doc->elements[0]));          // child window
+    ASSERT_TRUE(fe_element_live_win(doc, &doc->elements[0])->parent == doc->canvas_win);
 
     fe_teardown();
     PASS();
@@ -1270,15 +1296,15 @@ void test_fe_live_button_uses_runtime_minimum_height(void) {
     TEST("place button: live control and element use runtime minimum height");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 40, 8);
 
     ASSERT_EQUAL(doc->element_count, 1);
     ASSERT_EQUAL(doc->elements[0].frame.h, BUTTON_HEIGHT);
-    ASSERT_NOT_NULL(doc->elements[0].live_win);
-    ASSERT_EQUAL(doc->elements[0].live_win->frame.h, BUTTON_HEIGHT);
+    ASSERT_NOT_NULL(fe_element_live_win(doc, &doc->elements[0]));
+    ASSERT_EQUAL(fe_element_live_win(doc, &doc->elements[0])->frame.h, BUTTON_HEIGHT);
 
     fe_teardown();
     PASS();
@@ -1289,7 +1315,7 @@ void test_fe_select_element(void) {
     TEST("select element: selected_idx set by click");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 30, 30, 80, 24);
@@ -1309,7 +1335,7 @@ void test_fe_select_cycles_through_overlapping_elements(void) {
     TEST("select element: overlapping clicks cycle through lower elements");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 30, 30, 80, 24);
@@ -1339,14 +1365,14 @@ void test_fe_live_button_parent_notify_selects_on_click(void) {
     TEST("live button parent notify selects on click");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 30, 30, 80, 24);
     fe_state(doc)->selected_idx = -1;
 
-    send_message(doc->elements[0].live_win, evLeftButtonDown, MAKEDWORD(4, 4), NULL);
-    send_message(doc->elements[0].live_win, evLeftButtonUp,   MAKEDWORD(4, 4), NULL);
+    send_message(fe_element_live_win(doc, &doc->elements[0]), evLeftButtonDown, MAKEDWORD(4, 4), NULL);
+    send_message(fe_element_live_win(doc, &doc->elements[0]), evLeftButtonUp,   MAKEDWORD(4, 4), NULL);
 
     ASSERT_EQUAL(fe_state(doc)->selected_idx, 0);
 
@@ -1359,7 +1385,7 @@ void test_fe_deselect_on_empty_click(void) {
     TEST("click empty area: selected_idx becomes -1");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 30, 30, 80, 24);
@@ -1382,7 +1408,7 @@ void test_fe_resize_element(void) {
     TEST("resize via BR handle: width and height updated by drag delta");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -1397,8 +1423,8 @@ void test_fe_resize_element(void) {
 
     ASSERT_EQUAL(doc->elements[0].frame.w, 120);
     ASSERT_EQUAL(doc->elements[0].frame.h, 50);
-    ASSERT_EQUAL(doc->elements[0].live_win->frame.w, 120);
-    ASSERT_EQUAL(doc->elements[0].live_win->frame.h, 50);
+    ASSERT_EQUAL(fe_element_live_win(doc, &doc->elements[0])->frame.w, 120);
+    ASSERT_EQUAL(fe_element_live_win(doc, &doc->elements[0])->frame.h, 50);
     // Position must not change for a BR drag.
     ASSERT_EQUAL(doc->elements[0].frame.x, 20);
     ASSERT_EQUAL(doc->elements[0].frame.y, 20);
@@ -1413,7 +1439,7 @@ void test_fe_resize_clamped_to_minimum(void) {
     TEST("resize to below minimum: clamped to MIN_ELEM_W x MIN_ELEM_H");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -1436,7 +1462,7 @@ void test_fe_resize_handle_has_larger_hit_area(void) {
     TEST("resize handle: hit target extends beyond visible square");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -1456,7 +1482,7 @@ void test_fe_delete_element(void) {
     TEST("delete selected element: element_count decreases to 0");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -1478,7 +1504,7 @@ void test_fe_delete_with_no_selection(void) {
     TEST("delete with no selection: element_count unchanged");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 20, 80, 30);
@@ -1502,7 +1528,7 @@ void test_fe_delete_middle_element(void) {
     TEST("delete middle element: remaining elements shift and preserve identity");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON,   10, 10, 60, 20);
@@ -1531,7 +1557,7 @@ void test_fe_element_ids_sequential(void) {
     TEST("element IDs: assigned sequentially from CTRL_ID_BASE");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON,   10, 10, 60, 20);
@@ -1551,7 +1577,7 @@ void test_fe_element_names_generated(void) {
     TEST("element names: correct prefix and per-type counter");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 10, 10, 60, 20);
@@ -1572,10 +1598,10 @@ void test_fe_property_browser_uses_reportview_for_selection(void) {
     TEST("property browser: reportview shows selected element basics");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     window_t *list = fe_create_property_browser();
-    ASSERT_NOT_NULL(g_app->prop_win);
+    ASSERT_NOT_NULL(app_get_window(FE_WIN_PROPERTIES));
     ASSERT_NOT_NULL(list);
     ASSERT_FALSE(send_message(list, RVM_GETCOLUMNTITLESVISIBLE, 0, NULL));
 
@@ -1608,10 +1634,10 @@ void test_fe_property_browser_edits_caption_in_place(void) {
     TEST("property browser: in-place edit commits caption");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     window_t *list = fe_create_property_browser();
-    ASSERT_NOT_NULL(g_app->prop_win);
+    ASSERT_NOT_NULL(app_get_window(FE_WIN_PROPERTIES));
     ASSERT_NOT_NULL(list);
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 30, 80, 24);
@@ -1634,7 +1660,7 @@ void test_fe_property_browser_edits_caption_in_place(void) {
     send_message(edit, evKeyDown, AX_KEY_ENTER, NULL);
 
     ASSERT_STR_EQUAL(doc->elements[0].text, "OK");
-    ASSERT_STR_EQUAL(doc->elements[0].live_win->title, "OK");
+    ASSERT_STR_EQUAL(fe_element_live_win(doc, &doc->elements[0])->title, "OK");
     ASSERT_NULL(list->children);
 
     reportview_item_t item = {0};
@@ -1652,10 +1678,10 @@ void test_fe_property_browser_edit_respects_vertical_scrollbar(void) {
     TEST("property browser: in-place edit avoids vertical scrollbar");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     window_t *list = fe_create_property_browser();
-    ASSERT_NOT_NULL(g_app->prop_win);
+    ASSERT_NOT_NULL(app_get_window(FE_WIN_PROPERTIES));
     ASSERT_NOT_NULL(list);
 
     fe_place_ctrl(doc, ID_TOOL_BUTTON, 20, 30, 80, 24);
@@ -1687,7 +1713,7 @@ void test_fe_save_load_roundtrip(void) {
              fe_temp_dir(), (int)getpid());
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "roundtrip");
     snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Roundtrip");
@@ -1717,7 +1743,7 @@ void test_fe_save_load_roundtrip(void) {
     bool loaded = form_project_load(path);
     ASSERT_TRUE(loaded);
 
-    form_doc_t *ndoc = g_app->docs;
+    form_doc_t *ndoc = app_doc_at(0);
     ASSERT_NOT_NULL(ndoc);
     ASSERT_STR_EQUAL(ndoc->form_id, "roundtrip");
     ASSERT_STR_EQUAL(ndoc->form_title, "Roundtrip");
@@ -1747,7 +1773,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
              fe_temp_dir(), (int)getpid());
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
     doc->padding = (irect16_t){8, 8, 8, 8};
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "auto");
@@ -1785,7 +1811,7 @@ void test_fe_save_load_auto_layout_roundtrip(void) {
     bool loaded = form_project_load(path);
     ASSERT_TRUE(loaded);
 
-    form_doc_t *ndoc = g_app->docs;
+    form_doc_t *ndoc = app_doc_at(0);
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->flags & WINDOW_AUTO_LAYOUT);
     ASSERT(ndoc->padding.x == 8, "padding.x");
@@ -1822,22 +1848,22 @@ void test_fe_load_padding_shorthand(void) {
     fe_setup();
     fe_write_padding_project(path, "8");
     ASSERT_TRUE(form_project_load(path));
-    ASSERT_NOT_NULL(g_app->docs);
-    ASSERT_EQUAL(g_app->docs->padding.x, 8);
-    ASSERT_EQUAL(g_app->docs->padding.y, 8);
-    ASSERT_EQUAL(g_app->docs->padding.w, 8);
-    ASSERT_EQUAL(g_app->docs->padding.h, 8);
+    ASSERT_NOT_NULL(app_doc_at(0));
+    ASSERT_EQUAL(app_doc_at(0)->padding.x, 8);
+    ASSERT_EQUAL(app_doc_at(0)->padding.y, 8);
+    ASSERT_EQUAL(app_doc_at(0)->padding.w, 8);
+    ASSERT_EQUAL(app_doc_at(0)->padding.h, 8);
     unlink(path);
     fe_teardown();
 
     fe_setup();
     fe_write_padding_project(path, "2 6");
     ASSERT_TRUE(form_project_load(path));
-    ASSERT_NOT_NULL(g_app->docs);
-    ASSERT_EQUAL(g_app->docs->padding.x, 2);
-    ASSERT_EQUAL(g_app->docs->padding.y, 6);
-    ASSERT_EQUAL(g_app->docs->padding.w, 2);
-    ASSERT_EQUAL(g_app->docs->padding.h, 6);
+    ASSERT_NOT_NULL(app_doc_at(0));
+    ASSERT_EQUAL(app_doc_at(0)->padding.x, 2);
+    ASSERT_EQUAL(app_doc_at(0)->padding.y, 6);
+    ASSERT_EQUAL(app_doc_at(0)->padding.w, 2);
+    ASSERT_EQUAL(app_doc_at(0)->padding.h, 6);
     unlink(path);
     fe_teardown();
 
@@ -1854,22 +1880,22 @@ void test_fe_load_margin_shorthand(void) {
     fe_setup();
     fe_write_margin_project(path, "7");
     ASSERT_TRUE(form_project_load(path));
-    ASSERT_NOT_NULL(g_app->docs);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 7);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 7);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.w, 7);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.h, 7);
+    ASSERT_NOT_NULL(app_doc_at(0));
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.x, 7);
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.y, 7);
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.w, 7);
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.h, 7);
     unlink(path);
     fe_teardown();
 
     fe_setup();
     fe_write_margin_project(path, "3 5");
     ASSERT_TRUE(form_project_load(path));
-    ASSERT_NOT_NULL(g_app->docs);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.x, 3);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.y, 5);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.w, 3);
-    ASSERT_EQUAL(g_app->docs->elements[0].margin.h, 5);
+    ASSERT_NOT_NULL(app_doc_at(0));
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.x, 3);
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.y, 5);
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.w, 3);
+    ASSERT_EQUAL(app_doc_at(0)->elements[0].margin.h, 5);
     unlink(path);
     fe_teardown();
 
@@ -1884,11 +1910,11 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
              fe_temp_dir(), (int)getpid());
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
+    doc->layout_kind = 2;
     doc->flags |= WINDOW_STACK_HORIZONTAL;
-    doc->layout_columns = 3;
+    doc->grid_columns = 3;
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "layout");
     snprintf(doc->form_title, sizeof(doc->form_title), "%s", "Layout");
 
@@ -1911,10 +1937,10 @@ void test_fe_save_load_layout_mode_roundtrip(void) {
     bool loaded = form_project_load(path);
     ASSERT_TRUE(loaded);
 
-    form_doc_t *ndoc = g_app->docs;
+    form_doc_t *ndoc = app_doc_at(0);
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->flags & WINDOW_AUTO_LAYOUT);
-    ASSERT_EQUAL(ndoc->layout_mode, 2);
+    ASSERT_EQUAL(ndoc->layout_kind, 2);
     ASSERT_TRUE(ndoc->flags & WINDOW_STACK_HORIZONTAL);
     // layout_columns is deprecated - no longer checked
 
@@ -1933,7 +1959,7 @@ void test_fe_save_load_form_dimensions(void) {
              fe_temp_dir(), (int)getpid());
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "dimensions");
     doc->form_size.w = 400;
     doc->form_size.h = 300;
@@ -1944,7 +1970,7 @@ void test_fe_save_load_form_dimensions(void) {
     bool loaded = form_project_load(path);
     ASSERT_TRUE(loaded);
 
-    form_doc_t *ndoc = g_app->docs;
+    form_doc_t *ndoc = app_doc_at(0);
     ASSERT_NOT_NULL(ndoc);
     ASSERT_EQUAL(ndoc->form_size.w, 400);
     ASSERT_EQUAL(ndoc->form_size.h, 300);
@@ -1963,7 +1989,7 @@ void test_fe_save_load_form_flags(void) {
              fe_temp_dir(), (int)getpid());
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     snprintf(doc->form_id, sizeof(doc->form_id), "%s", "flags");
     doc->flags = WINDOW_STATUSBAR;
 
@@ -1973,7 +1999,7 @@ void test_fe_save_load_form_flags(void) {
     bool loaded = form_project_load(path);
     ASSERT_TRUE(loaded);
 
-    form_doc_t *ndoc = g_app->docs;
+    form_doc_t *ndoc = app_doc_at(0);
     ASSERT_NOT_NULL(ndoc);
     ASSERT_TRUE(ndoc->flags & WINDOW_STATUSBAR);
 
@@ -1992,7 +2018,8 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     form_doc_t *filter_gallery = NULL;
     int doc_count = 0;
     int visible_docs = 0;
-    for (form_doc_t *doc = g_app->docs; doc; doc = doc->next) {
+    for (int i = 0; i < app_doc_count(); i++) {
+        form_doc_t *doc = app_doc_at(i);
         doc_count++;
         if (doc->doc_win && window_has_state(doc->doc_win, WINDOW_STATE_VISIBLE))
             visible_docs++;
@@ -2005,29 +2032,30 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     }
     ASSERT_EQUAL(doc_count, 13);
     ASSERT_EQUAL(visible_docs, 1);
-    ASSERT_NOT_NULL(g_app->doc);
-    ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
-    ASSERT_TRUE(g_app->doc->doc_win && window_has_state(g_app->doc->doc_win, WINDOW_STATE_VISIBLE));
-    ASSERT_TRUE(!g_app->doc->modified);
+    ASSERT_NOT_NULL(app_active_doc());
+    ASSERT_STR_EQUAL(app_active_doc()->form_id, "new_image");
+    ASSERT_TRUE(app_active_doc()->doc_win && window_has_state(app_active_doc()->doc_win, WINDOW_STATE_VISIBLE));
+    ASSERT_TRUE(!app_active_doc()->modified);
     ASSERT_NOT_NULL(levels);
     ASSERT_NOT_NULL(filter_gallery);
     ASSERT_TRUE(levels->doc_win && !window_has_state(levels->doc_win, WINDOW_STATE_VISIBLE));
 
     send_message(levels->doc_win, evSetFocus, 0, NULL);
-    ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
-    ASSERT_TRUE(!g_app->doc->modified);
-    send_message(g_app->doc->doc_win, evResize, 0, NULL);
-    ASSERT_TRUE(!g_app->doc->modified);
+    ASSERT_STR_EQUAL(app_active_doc()->form_id, "new_image");
+    ASSERT_TRUE(!app_active_doc()->modified);
+    send_message(app_active_doc()->doc_win, evResize, 0, NULL);
+    ASSERT_TRUE(!app_active_doc()->modified);
 
-    g_app->forms_win = forms_browser_create(0);
-    ASSERT_NOT_NULL(g_app->forms_win);
-    window_t *forms_list = g_app->forms_win->children;
+    app_set_window(FE_WIN_FORMS, forms_browser_create(0));
+    ASSERT_NOT_NULL(app_get_window(FE_WIN_FORMS));
+    window_t *forms_list = app_get_window(FE_WIN_FORMS)->children;
     ASSERT_NOT_NULL(forms_list);
 
     int levels_index = -1;
     int idx = 0;
     form_doc_t *new_image = NULL;
-    for (form_doc_t *doc = g_app->docs; doc; doc = doc->next, idx++) {
+    for (int i = 0; i < app_doc_count(); i++, idx++) {
+        form_doc_t *doc = app_doc_at(i);
         if (strcmp(doc->form_id, "new_image") == 0)
             new_image = doc;
         if (strcmp(doc->form_id, "levels") == 0)
@@ -2036,24 +2064,24 @@ void test_fe_load_imageeditor_levels_keeps_slider_and_gradient(void) {
     ASSERT_NOT_NULL(new_image);
     ASSERT_TRUE(levels_index >= 0);
 
-    send_message(g_app->forms_win, evCommand,
+    send_message(app_get_window(FE_WIN_FORMS), evCommand,
                  MAKEWPARAM(levels_index, RVN_SELCHANGE), forms_list);
-    ASSERT_STR_EQUAL(g_app->doc->form_id, "new_image");
+    ASSERT_STR_EQUAL(app_active_doc()->form_id, "new_image");
     ASSERT_TRUE(levels->doc_win && !window_has_state(levels->doc_win, WINDOW_STATE_VISIBLE));
 
-    send_message(g_app->forms_win, evCommand,
+    send_message(app_get_window(FE_WIN_FORMS), evCommand,
                  MAKEWPARAM(levels_index, RVN_DBLCLK), forms_list);
-    ASSERT_STR_EQUAL(g_app->doc->form_id, "levels");
+    ASSERT_STR_EQUAL(app_active_doc()->form_id, "levels");
     ASSERT_TRUE(levels->doc_win && window_has_state(levels->doc_win, WINDOW_STATE_VISIBLE));
     ASSERT_TRUE(new_image->doc_win && window_has_state(new_image->doc_win, WINDOW_STATE_VISIBLE));
 
-    ASSERT_TRUE(send_message(g_app->doc->doc_win, evClose, 0, NULL));
+    ASSERT_TRUE(send_message(app_active_doc()->doc_win, evClose, 0, NULL));
     doc_count = 0;
-    for (form_doc_t *doc = g_app->docs; doc; doc = doc->next)
+    for (int i = 0; i < app_doc_count(); i++)
         doc_count++;
     ASSERT_EQUAL(doc_count, 13);
-    ASSERT_TRUE(g_app->doc == levels);
-    ASSERT_TRUE(g_app->doc->doc_win && !window_has_state(g_app->doc->doc_win, WINDOW_STATE_VISIBLE));
+    ASSERT_TRUE(app_active_doc() == levels);
+    ASSERT_TRUE(app_active_doc()->doc_win && !window_has_state(app_active_doc()->doc_win, WINDOW_STATE_VISIBLE));
 
     const fe_component_desc_t *slider = fe_component_by_token("slider");
     const fe_component_desc_t *gradient = fe_component_by_token("gradient");
@@ -2112,7 +2140,7 @@ void test_fe_file_new_adds_doc_without_dropping_current(void) {
     TEST("ID_FILE_NEW: adds empty form and keeps current document");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     window_t *doc_win = doc->doc_win;
     doc->snap_to_grid = false;
 
@@ -2121,10 +2149,10 @@ void test_fe_file_new_adds_doc_without_dropping_current(void) {
 
     handle_menu_command(ID_FILE_NEW);
 
-    ASSERT_NOT_NULL(g_app->doc);
-    ASSERT_TRUE(g_app->doc != doc);
-    ASSERT_EQUAL(g_app->doc->element_count, 0);
-    ASSERT_FALSE(g_app->doc->modified);
+    ASSERT_NOT_NULL(app_active_doc());
+    ASSERT_TRUE(app_active_doc() != doc);
+    ASSERT_EQUAL(app_active_doc()->element_count, 0);
+    ASSERT_FALSE(app_active_doc()->modified);
     ASSERT_TRUE(is_window(doc_win));
     ASSERT_EQUAL(doc->element_count, 1);
 
@@ -2137,25 +2165,25 @@ void test_fe_forms_toolbar_new_creates_cascaded_doc(void) {
     TEST("Forms toolbar New form: creates cascaded document window");
 
     fe_setup();
-    g_app->forms_win = forms_browser_create(0);
-    ASSERT_NOT_NULL(g_app->forms_win);
+    app_set_window(FE_WIN_FORMS, forms_browser_create(0));
+    ASSERT_NOT_NULL(app_get_window(FE_WIN_FORMS));
 
-    form_doc_t *first = g_app->doc;
+    form_doc_t *first = app_active_doc();
     window_t *first_win = first->doc_win;
     int first_x = first_win->frame.x;
     int first_y = first_win->frame.y;
 
-    toolbar_state_t *tb = window_toolbar_state(g_app->forms_win);
+    toolbar_state_t *tb = window_toolbar_state(app_get_window(FE_WIN_FORMS));
     window_t *new_btn = tb ? tb->children : NULL;
     ASSERT_NOT_NULL(new_btn);
     send_message(new_btn, evLeftButtonUp, 0, NULL);
 
-    ASSERT_NOT_NULL(g_app->doc);
-    ASSERT_TRUE(g_app->doc != first);
-    ASSERT_NOT_NULL(g_app->doc->doc_win);
-    ASSERT_EQUAL(g_app->doc->element_count, 0);
-    ASSERT_EQUAL(g_app->doc->doc_win->frame.x, first_x + DEFAULT_WINDOW_CASCADE_X);
-    ASSERT_EQUAL(g_app->doc->doc_win->frame.y, first_y + DEFAULT_WINDOW_CASCADE_Y);
+    ASSERT_NOT_NULL(app_active_doc());
+    ASSERT_TRUE(app_active_doc() != first);
+    ASSERT_NOT_NULL(app_active_doc()->doc_win);
+    ASSERT_EQUAL(app_active_doc()->element_count, 0);
+    ASSERT_EQUAL(app_active_doc()->doc_win->frame.x, first_x + DEFAULT_WINDOW_CASCADE_X);
+    ASSERT_EQUAL(app_active_doc()->doc_win->frame.y, first_y + DEFAULT_WINDOW_CASCADE_Y);
     ASSERT_TRUE(is_window(first_win));
 
     fe_teardown();
@@ -2174,10 +2202,10 @@ void test_fe_plugins_browser_lists_project_plugins(void) {
              "/tmp/orion/plugins/imageeditor_components.dylib");
     g_app->project.plugin_count = 2;
 
-    g_app->plugins_win = plugins_browser_create(0);
-    ASSERT_NOT_NULL(g_app->plugins_win);
+    app_set_window(FE_WIN_PLUGINS, plugins_browser_create(0));
+    ASSERT_NOT_NULL(app_get_window(FE_WIN_PLUGINS));
 
-    window_t *list = g_app->plugins_win->children;
+    window_t *list = app_get_window(FE_WIN_PLUGINS)->children;
     ASSERT_NOT_NULL(list);
     ASSERT_EQUAL((int)send_message(list, RVM_GETITEMCOUNT, 0, NULL), 2);
 
@@ -2338,11 +2366,11 @@ void test_fe_drop_grid_layouts_seeded_columns_across_full_width(void) {
     TEST("auto layout: dropped grid seeds two live child columns");
 
     fe_setup();
-    form_doc_t *doc = g_app->doc;
+    form_doc_t *doc = app_active_doc();
     doc->snap_to_grid = false;
     doc->flags |= WINDOW_AUTO_LAYOUT;
-    doc->layout_mode = 2;
-    doc->layout_columns = 2;
+    doc->layout_kind = 2;
+    doc->grid_columns = 2;
 
     int grid_type = fe_component_id_for_token("grid");
     int button_type = fe_component_id_for_token("button");
@@ -2352,9 +2380,9 @@ void test_fe_drop_grid_layouts_seeded_columns_across_full_width(void) {
     ASSERT_TRUE(canvas_drop_component(doc, grid_type, 120, 80));
     int grid_idx = fe_first_element_index_of_type(doc, grid_type);
     ASSERT_TRUE(grid_idx >= 0);
-    ASSERT_NOT_NULL(doc->elements[grid_idx].live_win);
+    ASSERT_NOT_NULL(fe_element_live_win(doc, &doc->elements[grid_idx]));
 
-    window_t *grid_win = doc->elements[grid_idx].live_win;
+    window_t *grid_win = fe_element_live_win(doc, &doc->elements[grid_idx]);
     window_t *col1 = grid_win->children;
     window_t *col2 = col1 ? col1->next : NULL;
     ASSERT_NOT_NULL(col1);

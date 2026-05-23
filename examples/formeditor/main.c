@@ -29,14 +29,14 @@ static bool load_default_component_plugin(void) {
 }
 
 static void create_app_windows(hinstance_t hinstance) {
-  g_app->menubar_win = set_app_menu(editor_menubar_proc, kMenus, kNumMenus,
-                                    handle_menu_command, hinstance);
+  app_set_window(FE_WIN_MENUBAR, set_app_menu(editor_menubar_proc, kMenus, kNumMenus,
+                                              handle_menu_command, hinstance));
 
   formeditor_rebuild_tool_palette();
 
-  g_app->prop_win = property_browser_create(hinstance);
-  g_app->forms_win = forms_browser_create(hinstance);
-  g_app->plugins_win = plugins_browser_create(hinstance);
+  app_set_window(FE_WIN_PROPERTIES, property_browser_create(hinstance));
+  app_set_window(FE_WIN_FORMS, forms_browser_create(hinstance));
+  app_set_window(FE_WIN_PLUGINS, plugins_browser_create(hinstance));
 }
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
@@ -62,12 +62,13 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   g_app->current_tool = ID_TOOL_SELECT;
   g_app->hinstance = hinstance;
+  g_app->active_doc_index = -1;
   create_app_windows(hinstance);
 
   g_app->accel = load_accelerators(kAccelEntries,
       (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0])));
-  if (g_app->menubar_win)
-    send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
+  if (app_get_window(FE_WIN_MENUBAR))
+    send_message(app_get_window(FE_WIN_MENUBAR), kMenuBarMessageSetAccelerators, 0, g_app->accel);
 
   if (!project_path || !form_project_load(project_path))
     create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
@@ -92,14 +93,14 @@ void gem_shutdown(void) {
   free_accelerators(g_app->accel);
   g_app->accel = NULL;
   fe_unload_component_plugins();
-  while (g_app->docs)
-    close_form_doc(g_app->docs);
-  if (g_app->prop_win)
-    destroy_window(g_app->prop_win);
-  if (g_app->forms_win)
-    destroy_window(g_app->forms_win);
-  if (g_app->plugins_win)
-    destroy_window(g_app->plugins_win);
+  while (app_doc_count() > 0)
+    close_form_doc(app_doc_at(0));
+  if (app_get_window(FE_WIN_PROPERTIES))
+    destroy_window(app_get_window(FE_WIN_PROPERTIES));
+  if (app_get_window(FE_WIN_FORMS))
+    destroy_window(app_get_window(FE_WIN_FORMS));
+  if (app_get_window(FE_WIN_PLUGINS))
+    destroy_window(app_get_window(FE_WIN_PLUGINS));
   free(g_app);
   g_app = NULL;
 }
@@ -107,4 +108,4 @@ void gem_shutdown(void) {
 GEM_DEFINE("Form Editor", "1.0", gem_init, gem_shutdown, NULL)
 
 GEM_STANDALONE_MAIN("Orion Form Editor", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,
-                    g_app->menubar_win, g_app->accel)
+                    app_get_window(FE_WIN_MENUBAR), g_app->accel)

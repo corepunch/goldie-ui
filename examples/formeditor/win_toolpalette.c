@@ -35,10 +35,11 @@ static void build_tool_items(void) {
 static void select_tool_by_ident(window_t *win, int ident) {
   if (g_app) {
     g_app->current_tool = ident;
-    if (g_app->doc && g_app->doc->canvas_win)
-      invalidate_window(g_app->doc->canvas_win);
-    if (g_app->menubar_win)
-      send_message(g_app->menubar_win, evCommand,
+    form_doc_t *doc = app_active_doc();
+    if (doc && doc->canvas_win)
+      invalidate_window(doc->canvas_win);
+    if (app_get_window(FE_WIN_MENUBAR))
+      send_message(app_get_window(FE_WIN_MENUBAR), evCommand,
                    MAKEDWORD((uint16_t)ident, btnClicked),
                    win);
     else

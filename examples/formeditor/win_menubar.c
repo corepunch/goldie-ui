@@ -45,6 +45,75 @@ menu_def_t kMenus[] = {
 };
 const int kNumMenus = (int)(sizeof(kMenus)/sizeof(kMenus[0]));
 
+window_t *app_get_window(fe_window_role_t role) {
+  if (!g_app || role < 0 || role >= FE_WIN_COUNT)
+    return NULL;
+  return g_app->windows[role];
+}
+
+void app_set_window(fe_window_role_t role, window_t *win) {
+  if (!g_app || role < 0 || role >= FE_WIN_COUNT)
+    return;
+  g_app->windows[role] = win;
+}
+
+int app_doc_count(void) {
+  return g_app ? g_app->doc_count : 0;
+}
+
+form_doc_t *app_doc_at(int idx) {
+  if (!g_app || idx < 0 || idx >= g_app->doc_count)
+    return NULL;
+  return g_app->docs[idx];
+}
+
+int app_doc_index(form_doc_t *doc) {
+  if (!g_app || !doc)
+    return -1;
+  for (int i = 0; i < g_app->doc_count; i++) {
+    if (g_app->docs[i] == doc)
+      return i;
+  }
+  return -1;
+}
+
+form_doc_t *app_active_doc(void) {
+  if (!g_app)
+    return NULL;
+  return app_doc_at(g_app->active_doc_index);
+}
+
+bool app_set_active_doc_index(int idx) {
+  if (!g_app || idx < 0 || idx >= g_app->doc_count)
+    return false;
+  g_app->active_doc_index = idx;
+  return true;
+}
+
+bool app_add_doc(form_doc_t *doc) {
+  if (!g_app || !doc || g_app->doc_count >= MAX_ELEMENTS)
+    return false;
+  g_app->docs[g_app->doc_count++] = doc;
+  g_app->active_doc_index = g_app->doc_count - 1;
+  return true;
+}
+
+void app_remove_doc_at(int idx) {
+  if (!g_app || idx < 0 || idx >= g_app->doc_count)
+    return;
+  for (int i = idx; i < g_app->doc_count - 1; i++)
+    g_app->docs[i] = g_app->docs[i + 1];
+  g_app->doc_count--;
+  if (g_app->doc_count <= 0) {
+    g_app->active_doc_index = -1;
+    return;
+  }
+  if (g_app->active_doc_index > idx)
+    g_app->active_doc_index--;
+  else if (g_app->active_doc_index >= g_app->doc_count)
+    g_app->active_doc_index = g_app->doc_count - 1;
+}
+
 // ============================================================
 // Document title
 // ============================================================
@@ -62,9 +131,11 @@ void form_doc_update_title(form_doc_t *doc) {
 
 void form_doc_activate(form_doc_t *doc) {
   if (!g_app || !doc) return;
-  if (g_app->doc == doc) return;
-  form_doc_t *prev = g_app->doc;
-  g_app->doc = doc;
+  int next_idx = app_doc_index(doc);
+  if (next_idx < 0) return;
+  form_doc_t *prev = app_active_doc();
+  if (prev == doc) return;
+  g_app->active_doc_index = next_idx;
   if (prev && prev->doc_win)
     invalidate_window(prev->doc_win);
   if (doc->doc_win)
@@ -75,7 +146,8 @@ void form_doc_activate(form_doc_t *doc) {
 
 void form_doc_show_only(form_doc_t *doc) {
   if (!g_app || !doc) return;
-  for (form_doc_t *it = g_app->docs; it; it = it->next) {
+  for (int i = 0; i < app_doc_count(); i++) {
+    form_doc_t *it = app_doc_at(i);
     if (it != doc && it->doc_win && is_window(it->doc_win))
       show_window(it->doc_win, false);
   }
@@ -179,7 +251,7 @@ static void form_doc_apply_window_flags_and_size(form_doc_t *doc) {
 form_doc_t *create_form_doc(int w, int h) {
   if (!g_app) return NULL;
   if (w <= 0 || h <= 0 || w > INT16_MAX || h > INT16_MAX) return NULL;
-  form_doc_t *prev_doc = g_app->doc;
+  form_doc_t *prev_doc = app_active_doc();
 
   form_doc_t *doc = (form_doc_t *)calloc(1, sizeof(form_doc_t));
   if (!doc) return NULL;
@@ -190,10 +262,10 @@ form_doc_t *create_form_doc(int w, int h) {
   doc->modified  = false;
   if (fe_default_auto_layout_enabled())
     doc->flags |= WINDOW_AUTO_LAYOUT;
-  doc->layout_mode = (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0;
+  doc->layout_kind = (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0;
   doc->flags &= ~WINDOW_STACK_HORIZONTAL;
-  doc->layout_columns = 0;
-  doc->layout_spacing = 4;
+  doc->grid_columns = 0;
+  doc->spacing = 4;
   doc->padding = (irect16_t){0, 0, 0, 0};
   doc->margin = (irect16_t){0, 0, 0, 0};
   doc->next_id   = CTRL_ID_BASE;
@@ -223,16 +295,11 @@ form_doc_t *create_form_doc(int w, int h) {
   cr = get_client_rect(dwin);
   resize_window(cwin, cr.w, cr.h);
 
-  doc->next = NULL;
-  if (!g_app->docs) {
-    g_app->docs = doc;
-  } else {
-    form_doc_t *tail = g_app->docs;
-    while (tail->next)
-      tail = tail->next;
-    tail->next = doc;
+  if (!app_add_doc(doc)) {
+    destroy_window(dwin);
+    free(doc);
+    return NULL;
   }
-  g_app->doc = doc;
 
   show_window(dwin, true);
   if (prev_doc && prev_doc->doc_win)
@@ -246,18 +313,12 @@ form_doc_t *create_form_doc(int w, int h) {
 
 void close_form_doc(form_doc_t *doc) {
   if (!doc) return;
-  if (g_app) {
-    form_doc_t **link = &g_app->docs;
-    while (*link && *link != doc)
-      link = &(*link)->next;
-    if (*link == doc)
-      *link = doc->next;
-    if (g_app->doc == doc)
-      g_app->doc = g_app->docs;
-  }
+  int idx = app_doc_index(doc);
+  if (idx >= 0)
+    app_remove_doc_at(idx);
   if (doc->doc_win && is_window(doc->doc_win))
     destroy_window(doc->doc_win);
-  property_browser_refresh(g_app ? g_app->doc : NULL);
+  property_browser_refresh(app_active_doc());
   forms_browser_refresh();
   free(doc);
 }
@@ -560,8 +621,8 @@ static irect16_t rect_attr(xmlNodePtr node, const char *name, irect16_t fallback
 
 static void project_reset(void) {
   if (!g_app) return;
-  while (g_app->docs)
-    close_form_doc(g_app->docs);
+  while (app_doc_count() > 0)
+    close_form_doc(app_doc_at(0));
   memset(&g_app->project, 0, sizeof(g_app->project));
 }
 
@@ -689,7 +750,7 @@ static void project_auto_layout_doc(form_doc_t *doc) {
       roots[root_count++] = &doc->elements[i];
   }
   
-  const int gap = doc->layout_spacing > 0 ? doc->layout_spacing : 4;
+  const int gap = doc->spacing > 0 ? doc->spacing : 4;
   int count = root_count;
   int pad_l = doc->padding.x;
   int pad_t = doc->padding.y;
@@ -700,8 +761,8 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   int content_x = pad_l;
   int content_y = pad_t;
 
-  if (doc->layout_mode == 2) {
-    int cols = doc->layout_columns > 0 ? doc->layout_columns : 2;
+  if (doc->layout_kind == 2) {
+    int cols = doc->grid_columns > 0 ? doc->grid_columns : 2;
     if (cols < 1) cols = 1;
     int rows = (count + cols - 1) / cols;
     if (rows < 1) rows = 1;
@@ -831,7 +892,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     char *layout_orientation = xml_attr_dup(form_node, "orientation");
     if (!layout_orientation)
       layout_orientation = xml_attr_dup(form_node, "layout_orientation");
-    doc->layout_mode = layout_mode_attr(layout_mode,
+    doc->layout_kind = layout_mode_attr(layout_mode,
                                         (doc->flags & WINDOW_AUTO_LAYOUT) ? 1 : 0);
     if (layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL)
       doc->flags |= WINDOW_STACK_HORIZONTAL;
@@ -840,8 +901,8 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     free(layout_mode);
     free(layout_orientation);
   }
-  doc->layout_columns = (uint8_t)int_attr(form_node, "layout_columns", 0);
-  doc->layout_spacing = (uint8_t)int_attr(form_node, "spacing",
+  doc->grid_columns = (uint8_t)int_attr(form_node, "layout_columns", 0);
+  doc->spacing = (uint8_t)int_attr(form_node, "spacing",
                                           int_attr(form_node, "layout_spacing", 0));
   doc->padding = rect_attr(form_node, "padding",
                            rect_attr(form_node, "layout_padding", (irect16_t){0, 0, 0, 0}));
@@ -903,7 +964,7 @@ bool form_project_load(const char *path) {
 
   g_app->project.loaded = true;
   g_app->project.modified = false;
-  if (g_app->docs) form_doc_show_only(g_app->docs);
+  if (app_doc_count() > 0) form_doc_show_only(app_doc_at(0));
   forms_browser_refresh();
   plugins_browser_refresh();
   xmlFreeDoc(xdoc);
@@ -936,14 +997,15 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
   xml_attr(f, "title", label);
   fprintf(f, "\n            width=\"%d\" height=\"%d\"\n            flags=\"%" PRIu32 "\"",
           doc->form_size.w, doc->form_size.h, doc->flags);
-  if (doc->layout_mode == 2)
+  if (doc->layout_kind == 2) {
     fprintf(f, "\n            layout_mode=\"%s\"",
-            layout_mode_token(doc->layout_mode));
-    if (doc->flags & WINDOW_STACK_HORIZONTAL)
+            layout_mode_token(doc->layout_kind));
+  }
+  if (doc->flags & WINDOW_STACK_HORIZONTAL)
     fprintf(f, "\n            layout_orientation=\"%s\"",
         layout_orientation_token(doc->flags & WINDOW_STACK_HORIZONTAL));
-  if (doc->layout_spacing != 0)
-    fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->layout_spacing);
+  if (doc->spacing != 0)
+    fprintf(f, "\n            spacing=\"%u\"", (unsigned)doc->spacing);
   if (doc->padding.x || doc->padding.y || doc->padding.w || doc->padding.h)
     fprintf(f, "\n            padding=\"%d %d %d %d\"",
             doc->padding.x, doc->padding.y, doc->padding.w, doc->padding.h);
@@ -1015,8 +1077,8 @@ bool form_project_save(const char *path) {
   }
 
   fprintf(f, "    <forms>\n");
-  for (form_doc_t *doc = g_app->docs; doc; doc = doc->next)
-    project_save_doc(f, doc);
+  for (int i = 0; i < app_doc_count(); i++)
+    project_save_doc(f, app_doc_at(i));
   fprintf(f, "    </forms>\n");
   fprintf(f, "</orion>\n");
 
@@ -1024,7 +1086,8 @@ bool form_project_save(const char *path) {
   snprintf(p->filename, sizeof(p->filename), "%s", path);
   p->loaded = true;
   p->modified = false;
-  for (form_doc_t *doc = g_app->docs; doc; doc = doc->next) {
+  for (int i = 0; i < app_doc_count(); i++) {
+    form_doc_t *doc = app_doc_at(i);
     doc->modified = false;
     form_doc_update_title(doc);
   }
@@ -1361,9 +1424,9 @@ static const form_def_t kPropsForm = {
 
 typedef struct {
   bool auto_layout_enabled;
-  int  layout_mode;
+  int  layout_kind;
   int  layout_orientation;
-  char layout_columns[8];
+  char grid_columns[8];
   bool accepted;
 } form_props_state_t;
 
@@ -1386,9 +1449,9 @@ static void form_props_fill_layout_combos(window_t *win) {
 
 static const ctrl_binding_t k_form_props_bindings[] = {
   DDX_CHECK(FORM_PROPS_ID_AUTO, form_props_state_t, auto_layout_enabled),
-  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_mode, 0),
+  DDX_COMBO(FORM_PROPS_ID_KIND, form_props_state_t, layout_kind, 0),
   DDX_COMBO(FORM_PROPS_ID_ORIENT, form_props_state_t, layout_orientation, WINDOW_STACK_VERTICAL),
-  DDX_TEXT(FORM_PROPS_ID_COLUMNS, form_props_state_t, layout_columns),
+  DDX_TEXT(FORM_PROPS_ID_COLUMNS, form_props_state_t, grid_columns),
 };
 
 static const form_ctrl_def_t kFormPropsChildren[] = {
@@ -1475,7 +1538,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
     case evCreate:
       ps = (form_props_state_t *)lparam;
       win->userdata = ps;
-      if (ps && g_app && g_app->doc) {
+      if (ps && app_active_doc()) {
         form_props_fill_layout_combos(win);
         dialog_push(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
       }
@@ -1485,32 +1548,32 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
       window_t *src = (window_t *)lparam;
       if (!src) return false;
       if (src->id == FORM_PROPS_ID_OK) {
-        if (g_app && g_app->doc) {
-          form_doc_t *doc = g_app->doc;
+        form_doc_t *doc = app_active_doc();
+        if (doc) {
           bool old_auto_layout = (doc->flags & WINDOW_AUTO_LAYOUT) != 0;
-          uint8_t old_kind = doc->layout_mode;
+          uint8_t old_kind = doc->layout_kind;
           flags_t old_orient = doc->flags & WINDOW_STACK_HORIZONTAL;
-          uint8_t old_columns = doc->layout_columns;
+          uint8_t old_columns = doc->grid_columns;
           dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
           if (ps->auto_layout_enabled)
             doc->flags |= WINDOW_AUTO_LAYOUT;
           else
             doc->flags &= ~WINDOW_AUTO_LAYOUT;
-          doc->layout_mode = (uint8_t)ps->layout_mode;
+          doc->layout_kind = (uint8_t)ps->layout_kind;
           if (ps->layout_orientation & WINDOW_STACK_HORIZONTAL)
             doc->flags |= WINDOW_STACK_HORIZONTAL;
           else
             doc->flags &= ~WINDOW_STACK_HORIZONTAL;
           {
-            int cols = atoi(ps->layout_columns);
+            int cols = atoi(ps->grid_columns);
             if (cols < 0) cols = 0;
             if (cols > 255) cols = 255;
-            doc->layout_columns = (uint8_t)cols;
+            doc->grid_columns = (uint8_t)cols;
           }
           if (((doc->flags & WINDOW_AUTO_LAYOUT) != 0) != old_auto_layout ||
-              doc->layout_mode != old_kind ||
+              doc->layout_kind != old_kind ||
               (doc->flags & WINDOW_STACK_HORIZONTAL) != old_orient ||
-              doc->layout_columns != old_columns) {
+              doc->grid_columns != old_columns) {
             doc->modified = true;
             form_doc_update_title(doc);
           }
@@ -1538,11 +1601,11 @@ static bool show_form_props_dialog(window_t *parent, form_doc_t *doc) {
   if (!doc) return false;
   form_props_state_t st = {
     .auto_layout_enabled = (doc->flags & WINDOW_AUTO_LAYOUT) != 0,
-    .layout_mode = doc->layout_mode,
+    .layout_kind = doc->layout_kind,
     .layout_orientation = (doc->flags & WINDOW_STACK_HORIZONTAL) ? WINDOW_STACK_HORIZONTAL : WINDOW_STACK_VERTICAL,
   };
-  snprintf(st.layout_columns, sizeof(st.layout_columns), "%u",
-           (unsigned)doc->layout_columns);
+  snprintf(st.grid_columns, sizeof(st.grid_columns), "%u",
+           (unsigned)doc->grid_columns);
   show_dialog_from_form(&kFormPropsForm, "Form Properties", parent, form_props_proc, &st);
   return st.accepted;
 }
@@ -1627,7 +1690,7 @@ static bool show_form_file_picker(window_t *parent, bool save_mode,
 
 void handle_menu_command(uint16_t id) {
   if (!g_app) return;
-  form_doc_t *doc = g_app->doc;
+  form_doc_t *doc = app_active_doc();
 
   switch (id) {
     case ID_FILE_NEW:
@@ -1636,7 +1699,7 @@ void handle_menu_command(uint16_t id) {
 
     case ID_FILE_OPEN: {
       char path[512] = {0};
-      window_t *owner = doc ? doc->doc_win : (g_app->menubar_win);
+      window_t *owner = doc ? doc->doc_win : app_get_window(FE_WIN_MENUBAR);
       if (show_form_file_picker(owner, false, path, sizeof(path))) {
         if (!form_project_load(path) && owner)
           message_box(owner, "Failed to load Orion project.", "Open", MB_OK);
@@ -1659,9 +1722,9 @@ void handle_menu_command(uint16_t id) {
 
     do_save_as:
     case ID_FILE_SAVEAS: {
-      if (!doc && !g_app->docs) break;
+      if (!doc && app_doc_count() <= 0) break;
       char path[512] = {0};
-      window_t *owner = doc ? doc->doc_win : g_app->menubar_win;
+      window_t *owner = doc ? doc->doc_win : app_get_window(FE_WIN_MENUBAR);
       if (show_form_file_picker(owner, true, path, sizeof(path))) {
         if (form_project_save(path)) {
           if (doc && doc->doc_win)
@@ -1677,10 +1740,12 @@ void handle_menu_command(uint16_t id) {
     case ID_FILE_QUIT:
 #ifdef BUILD_AS_GEM
       if (g_app) {
-        while (g_app->docs)
-          close_form_doc(g_app->docs);
-        if (g_app->tool_win)    destroy_window(g_app->tool_win);
-        if (g_app->menubar_win) destroy_window(g_app->menubar_win);
+        while (app_doc_count() > 0)
+          close_form_doc(app_doc_at(0));
+        if (app_get_window(FE_WIN_TOOLBOX))
+          destroy_window(app_get_window(FE_WIN_TOOLBOX));
+        if (app_get_window(FE_WIN_MENUBAR))
+          destroy_window(app_get_window(FE_WIN_MENUBAR));
       }
 #else
       ui_request_quit();
@@ -1694,8 +1759,6 @@ void handle_menu_command(uint16_t id) {
       canvas_state_t *cs = (canvas_state_t *)cwin->userdata;
       if (!cs || cs->selected_idx < 0) break;
       int idx = cs->selected_idx;
-      if (doc->elements[idx].live_win)
-        destroy_window(doc->elements[idx].live_win);
       // Remove element by shifting the array
       for (int i = idx; i < doc->element_count - 1; i++)
         doc->elements[i] = doc->elements[i + 1];
@@ -1712,7 +1775,7 @@ void handle_menu_command(uint16_t id) {
       window_t *cwin = doc->canvas_win;
       if (!cwin) break;
       canvas_state_t *cs = (canvas_state_t *)cwin->userdata;
-      window_t *owner = g_app->menubar_win ? g_app->menubar_win : doc->doc_win;
+      window_t *owner = app_get_window(FE_WIN_MENUBAR) ? app_get_window(FE_WIN_MENUBAR) : doc->doc_win;
       if (!cs || cs->selected_idx < 0) {
         show_form_props_dialog(owner, doc);
       } else {
@@ -1729,13 +1792,13 @@ void handle_menu_command(uint16_t id) {
 
     case ID_VIEW_GRID: {
       if (!doc) break;
-      window_t *owner = g_app->menubar_win ? g_app->menubar_win : doc->doc_win;
+      window_t *owner = app_get_window(FE_WIN_MENUBAR) ? app_get_window(FE_WIN_MENUBAR) : doc->doc_win;
       show_grid_settings_dialog(owner, doc);
       break;
     }
 
     case ID_HELP_ABOUT: {
-      window_t *owner = g_app->menubar_win ? g_app->menubar_win : (doc ? doc->doc_win : NULL);
+      window_t *owner = app_get_window(FE_WIN_MENUBAR) ? app_get_window(FE_WIN_MENUBAR) : (doc ? doc->doc_win : NULL);
       show_about_dialog(owner);
       break;
     }

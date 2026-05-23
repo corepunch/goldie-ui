@@ -146,7 +146,7 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
     return;
 
   window_t *edit = pbs->edit_win;
-  form_doc_t *doc = g_app ? g_app->doc : NULL;
+  form_doc_t *doc = app_active_doc();
   form_element_t *el = prop_selected_element(doc);
   uint32_t prop_id = pbs->edit_prop_id;
   char value[sizeof(edit->title)];
@@ -285,7 +285,8 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
-  if (g_app && g_app->doc && (g_app->doc->flags & WINDOW_AUTO_LAYOUT)) {
+  form_doc_t *doc = app_active_doc();
+  if (doc && (doc->flags & WINDOW_AUTO_LAYOUT)) {
     prop_add_row(list, "Horizontal alignment", prop_h_align_name(el->h_align), PROP_ROW_H_ALIGN);
     prop_add_row(list, "Vertical alignment", prop_v_align_name(el->v_align), PROP_ROW_V_ALIGN);
   } else {
@@ -301,9 +302,10 @@ static void prop_fill_for_element(window_t *list, form_element_t *el) {
 }
 
 void property_browser_refresh(form_doc_t *doc) {
-  if (!g_app || !g_app->prop_win || !is_window(g_app->prop_win))
+  window_t *prop_win = app_get_window(FE_WIN_PROPERTIES);
+  if (!prop_win || !is_window(prop_win))
     return;
-  prop_browser_state_t *pbs = (prop_browser_state_t *)g_app->prop_win->userdata;
+  prop_browser_state_t *pbs = (prop_browser_state_t *)prop_win->userdata;
   if (!pbs || !pbs->list_win)
     return;
 
@@ -356,13 +358,13 @@ result_t win_property_browser_proc(window_t *win, uint32_t msg,
       reportview_column_t c1 = { "Value", 0 };
       send_message(pbs->list_win, RVM_ADDCOLUMN, 0, &c0);
       send_message(pbs->list_win, RVM_ADDCOLUMN, 0, &c1);
-      property_browser_refresh(g_app ? g_app->doc : NULL);
+      property_browser_refresh(app_active_doc());
       return true;
     }
 
     case evDestroy:
-      if (g_app && g_app->prop_win == win)
-        g_app->prop_win = NULL;
+      if (app_get_window(FE_WIN_PROPERTIES) == win)
+        app_set_window(FE_WIN_PROPERTIES, NULL);
       return false;
 
     case evResize:

@@ -85,8 +85,9 @@ static void plugins_browser_rebuild(plugins_browser_state_t *st) {
 }
 
 void plugins_browser_refresh(void) {
-  if (!g_app || !g_app->plugins_win) return;
-  plugins_browser_state_t *st = (plugins_browser_state_t *)g_app->plugins_win->userdata;
+  window_t *plugins_win = app_get_window(FE_WIN_PLUGINS);
+  if (!plugins_win) return;
+  plugins_browser_state_t *st = (plugins_browser_state_t *)plugins_win->userdata;
   plugins_browser_rebuild(st);
 }
 
@@ -204,8 +205,8 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
       return false;
 
     case evDestroy:
-      if (g_app && g_app->plugins_win == win)
-        g_app->plugins_win = NULL;
+      if (app_get_window(FE_WIN_PLUGINS) == win)
+        app_set_window(FE_WIN_PLUGINS, NULL);
       return false;
 
     default:

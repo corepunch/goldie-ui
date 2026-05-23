@@ -19,21 +19,11 @@ static const toolbar_item_t kFormsToolbar[] = {
 };
 
 static int forms_doc_count(void) {
-  int n = 0;
-  if (!g_app) return 0;
-  for (form_doc_t *doc = g_app->docs; doc; doc = doc->next)
-    n++;
-  return n;
+  return app_doc_count();
 }
 
 static form_doc_t *forms_doc_at(int idx) {
-  int n = 0;
-  if (!g_app) return NULL;
-  for (form_doc_t *doc = g_app->docs; doc; doc = doc->next) {
-    if (n == idx) return doc;
-    n++;
-  }
-  return NULL;
+  return app_doc_at(idx);
 }
 
 static const char *forms_doc_label(form_doc_t *doc) {
@@ -51,13 +41,14 @@ static void forms_browser_rebuild(forms_browser_state_t *st) {
 
   int idx = 0;
   int selected = -1;
-  for (form_doc_t *doc = g_app ? g_app->docs : NULL; doc; doc = doc->next, idx++) {
+  for (int i = 0; i < app_doc_count(); i++, idx++) {
+    form_doc_t *doc = app_doc_at(i);
     reportview_item_t item = {0};
     item.text = forms_doc_label(doc);
     item.color = get_sys_color(brTextNormal);
     item.userdata = (uint32_t)idx;
     send_message(st->list_win, RVM_ADDITEM, 0, &item);
-    if (g_app && doc == g_app->doc)
+    if (doc == app_active_doc())
       selected = idx;
   }
 
@@ -67,8 +58,9 @@ static void forms_browser_rebuild(forms_browser_state_t *st) {
 }
 
 void forms_browser_refresh(void) {
-  if (!g_app || !g_app->forms_win) return;
-  forms_browser_state_t *st = (forms_browser_state_t *)g_app->forms_win->userdata;
+  window_t *forms_win = app_get_window(FE_WIN_FORMS);
+  if (!forms_win) return;
+  forms_browser_state_t *st = (forms_browser_state_t *)forms_win->userdata;
   forms_browser_rebuild(st);
 }
 
@@ -95,8 +87,8 @@ static void forms_add_new(void) {
 }
 
 static void forms_delete_active(void) {
-  if (!g_app || !g_app->doc) return;
-  form_doc_t *doc = g_app->doc;
+  form_doc_t *doc = app_active_doc();
+  if (!doc) return;
   close_form_doc(doc);
   g_app->project.modified = true;
   forms_browser_refresh();
@@ -172,8 +164,8 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
     }
 
     case evDestroy:
-      if (g_app && g_app->forms_win == win)
-        g_app->forms_win = NULL;
+      if (app_get_window(FE_WIN_FORMS) == win)
+        app_set_window(FE_WIN_FORMS, NULL);
       return false;
 
     default:

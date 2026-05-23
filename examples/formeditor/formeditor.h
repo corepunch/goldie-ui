@@ -148,7 +148,6 @@ typedef struct {
   bool     font_set;    // font attribute explicitly set in the project
   uint8_t  color;       // label color palette index; 0 = transparent
   bool     color_set;   // color attribute explicitly set in the project
-  window_t *live_win;    // design-time live control hosted on the canvas
 } form_element_t;
 
 typedef struct form_doc_t {
@@ -156,9 +155,9 @@ typedef struct form_doc_t {
   int    element_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
-  uint8_t layout_mode;  // window_layout_mode_t
-  uint8_t layout_columns; // grid columns (0 = default)
-  uint8_t layout_spacing; // spacing between direct children; 0 = default
+  uint8_t layout_kind;  // 0=none, 1=stack, 2=grid
+  uint8_t grid_columns; // grid columns (0 = default)
+  uint8_t spacing;      // spacing between direct children; 0 = default
   irect16_t padding;    // inner padding for auto-layout content
   irect16_t margin;     // outer margin for the form when serialized
   bool   modified;
@@ -169,7 +168,6 @@ typedef struct form_doc_t {
   int    type_counters[FE_MAX_COMPONENTS]; // per-component name counter
   window_t *canvas_win;
   window_t *doc_win;
-  struct form_doc_t *next;
   // Grid settings
   int    grid_size;       // dot spacing in form pixels (default 8)
   bool   show_grid;       // paint grid dots on the form surface
@@ -195,18 +193,24 @@ typedef struct {
 } form_project_t;
 
 typedef struct {
-  form_doc_t  *doc;
-  form_doc_t  *docs;
-  window_t    *menubar_win;
-  window_t    *tool_win;
-  window_t    *prop_win;
-  window_t    *forms_win;
-  window_t    *plugins_win;
+  form_doc_t  *docs[MAX_ELEMENTS];
+  int          doc_count;
+  int          active_doc_index;
+  window_t    *windows[5];
   hinstance_t  hinstance;  // owning app instance
   int          current_tool;
   accel_table_t *accel;
   form_project_t project;
 } app_state_t;
+
+typedef enum {
+  FE_WIN_MENUBAR = 0,
+  FE_WIN_TOOLBOX = 1,
+  FE_WIN_PROPERTIES = 2,
+  FE_WIN_FORMS = 3,
+  FE_WIN_PLUGINS = 4,
+  FE_WIN_COUNT = 5,
+} fe_window_role_t;
 
 // ============================================================
 // Drag mode for the canvas window
@@ -268,6 +272,15 @@ typedef struct {
 // ============================================================
 
 extern app_state_t *g_app;
+window_t *app_get_window(fe_window_role_t role);
+void app_set_window(fe_window_role_t role, window_t *win);
+form_doc_t *app_active_doc(void);
+int app_doc_count(void);
+form_doc_t *app_doc_at(int idx);
+int app_doc_index(form_doc_t *doc);
+bool app_add_doc(form_doc_t *doc);
+void app_remove_doc_at(int idx);
+bool app_set_active_doc_index(int idx);
 
 // ============================================================
 // Window procedures
