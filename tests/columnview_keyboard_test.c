@@ -14,7 +14,7 @@ static int  g_cmd_count        = 0;
 static int  g_last_notification = 0;
 static int  g_last_index        = -1;
 
-static result_t cmd_capture_proc(window_t *win, uint32_t msg,
+static lresult_t cmd_capture_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
     (void)lparam;
     if (msg == evCreate || msg == evDestroy) return 1;
@@ -31,15 +31,16 @@ static result_t cmd_capture_proc(window_t *win, uint32_t msg,
     return 0;
 }
 
-static result_t wheel_blocking_parent_proc(window_t *win, uint32_t msg,
-                                           uint32_t wparam, void *lparam) {
-    (void)win;
-    (void)wparam;
-    (void)lparam;
-    if (msg == evCreate || msg == evDestroy) return 1;
-    if (msg == evParentNotify) return 1;
-    return 0;
-}
+// Disabled with evParentNotify path removal.
+// static lresult_t wheel_blocking_parent_proc(window_t *win, uint32_t msg,
+//                                            uint32_t wparam, void *lparam) {
+//     (void)win;
+//     (void)wparam;
+//     (void)lparam;
+//     if (msg == evCreate || msg == evDestroy) return 1;
+//     if (msg == evParentNotify) return 1;
+//     return 0;
+// }
 
 static void reset_cmd_state(void) {
     g_cmd_count        = 0;
@@ -85,7 +86,7 @@ void test_cv_down_from_no_selection(void) {
     ASSERT_NOT_NULL(cv);
     add_items(cv, 3);
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_DOWNARROW, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_DOWNARROW, NULL);
 
     ASSERT_TRUE(r);
     ASSERT_EQUAL(g_cmd_count, 1);
@@ -224,7 +225,7 @@ void test_cv_right_from_no_selection(void) {
     ASSERT_NOT_NULL(cv);
     add_items(cv, 3);
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_RIGHTARROW, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_RIGHTARROW, NULL);
 
     ASSERT_TRUE(r);
     ASSERT_EQUAL(g_cmd_count, 1);
@@ -281,7 +282,7 @@ void test_cv_enter_fires_dblclk(void) {
     send_message(cv, RVM_SETSELECTION, 1, NULL);
     reset_cmd_state();
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_ENTER, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_ENTER, NULL);
 
     ASSERT_TRUE(r);
     ASSERT_EQUAL(g_cmd_count, 1);
@@ -310,7 +311,7 @@ void test_cv_delete_fires_cvn_delete(void) {
     send_message(cv, RVM_SETSELECTION, 0, NULL);
     reset_cmd_state();
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_DEL, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_DEL, NULL);
 
     ASSERT_TRUE(r);
     ASSERT_EQUAL(g_cmd_count, 1);
@@ -337,7 +338,7 @@ void test_cv_enter_no_selection_returns_false(void) {
     add_items(cv, 3);
     // No RVM_SETSELECTION call — selection remains -1.
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_ENTER, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_ENTER, NULL);
 
     ASSERT_FALSE(r);
     ASSERT_EQUAL(g_cmd_count, 0);
@@ -362,7 +363,7 @@ void test_cv_delete_no_selection_returns_false(void) {
     add_items(cv, 3);
     // No RVM_SETSELECTION call — selection remains -1.
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_DEL, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_DEL, NULL);
 
     ASSERT_FALSE(r);
     ASSERT_EQUAL(g_cmd_count, 0);
@@ -541,7 +542,7 @@ void test_cv_report_wheel_scrolls_child(void) {
 
     test_env_init();
     window_t *parent = test_env_create_window("P", 0, 0, 300, 200,
-                                               wheel_blocking_parent_proc, NULL);
+                                               cmd_capture_proc, NULL);
     ASSERT_NOT_NULL(parent);
     window_t *cv = make_report_columnview(parent, 300, 200);
     ASSERT_NOT_NULL(cv);
@@ -597,7 +598,7 @@ void test_cv_large_icon_seticonsize(void) {
     ASSERT_NOT_NULL(cv);
 
     // Valid size should succeed.
-    result_t r = send_message(cv, RVM_SETICONSIZE, 64, NULL);
+    lresult_t r = send_message(cv, RVM_SETICONSIZE, 64, NULL);
     ASSERT_TRUE(r);
 
     // Zero should fail.
@@ -623,7 +624,7 @@ void test_cv_large_icon_setviewmode(void) {
                                  &fr, parent, win_icongrid, 0, NULL);
     ASSERT_NOT_NULL(cv);
 
-    result_t r = send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_LARGE_ICON, NULL);
+    lresult_t r = send_message(cv, RVM_SETVIEWMODE, RVM_VIEW_LARGE_ICON, NULL);
     ASSERT_TRUE(r);
 
     // An out-of-range mode value should fail.
@@ -650,7 +651,7 @@ void test_cv_large_icon_down_from_no_selection(void) {
     ASSERT_NOT_NULL(cv);
     add_items(cv, 6);
 
-    result_t r = send_message(cv, evKeyDown, AX_KEY_DOWNARROW, NULL);
+    lresult_t r = send_message(cv, evKeyDown, AX_KEY_DOWNARROW, NULL);
 
     ASSERT_TRUE(r);
     ASSERT_EQUAL(g_cmd_count, 1);
@@ -742,7 +743,7 @@ void test_cv_large_icon_stretches_columns_to_width(void) {
 
     int x = 240 - LARGE_ICON_PAD - 2;
     int y = LARGE_ICON_PAD + LARGE_ICON_TOP_PAD + 4;
-    result_t hit = send_message(cv, RVM_HITTEST,
+    lresult_t hit = send_message(cv, RVM_HITTEST,
                                 MAKEDWORD((uint16_t)x, (uint16_t)y), NULL);
 
     ASSERT_EQUAL((int)hit, 2);

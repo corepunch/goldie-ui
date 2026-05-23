@@ -74,26 +74,6 @@ extern void paint_window_stencil(window_t const *w);
 extern void repaint_stencil(void);
 extern void set_fullscreen(void);
 extern window_t *get_root_window(window_t *window);
-
-// Forward declarations for kernel/event.c helpers.
-// wake_event_loop() posts a sentinel to make get_message() return 0 (loop exit).
-extern void wake_event_loop(void);
-// dispatch_message() routes a platform or Orion event to its target window proc.
-void dispatch_message(ui_event_t *evt);
-// Forward declarations for kernel/init.c per-frame rendering.
-extern void ui_begin_frame(void);
-extern void ui_end_frame(void);
-
-// Forward declarations
-extern void draw_panel(window_t const *win);
-extern void draw_window_controls(window_t *win);
-extern void draw_statusbar(window_t *win, const char *text);
-extern void draw_bevel(irect16_t r);
-extern void draw_button(irect16_t r, int dx, int dy, bool pressed);
-extern void paint_window_stencil(window_t const *w);
-extern void repaint_stencil(void);
-extern void set_fullscreen(void);
-extern window_t *get_root_window(window_t *window);
 extern int titlebar_height(window_t const *win);
 extern int statusbar_height(window_t const *win);
 // Returns win's frame rect in absolute screen coordinates.
@@ -180,6 +160,7 @@ void remove_from_global_queue(window_t *win) {
   }
 }
 
+#if 0
 static bool parent_notify_message(uint32_t msg) {
   switch (msg) {
     case evLeftButtonDown:
@@ -188,21 +169,118 @@ static bool parent_notify_message(uint32_t msg) {
     case evRightButtonDown:
     case evRightButtonUp:
     case evMouseMove:
+    case evWheel:
     case evKeyDown:
     case evKeyUp:
     case evTextInput:
       return true;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
+}
+#endif
+
+// Default window procedure (DefWindowProc-style fallback).
+lresult_t default_winproc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  if (!win) return false;
+  irect16_t const *frame = &win->frame;
+  switch (msg) {
+    case evPaint:
+      for (window_t *sub = win->children; sub; sub = sub->next) {
+        send_message(sub, evPaint, wparam, lparam);
+      }
+      return true;
+    case evWheel:
+      // Only drive built-in scrollbars when they are actually visible.
+      // If this window can't handle wheel events, bubble to parent (WinAPI behavior).
+      // wparam = mouse position MAKEDWORD(x,y), lparam = scroll deltas MAKEDWORD(dx,dy)
+      if ((win->flags & (WINDOW_HSCROLL | WINDOW_VSCROLL)) &&
+          (win->hscroll.visible || win->vscroll.visible)) {
+        scrollbar_handle_builtin_wheel(win, lparam);
+      } else if (win->parent) {
+        // Bubble wheel event to parent, translating window-local mouse
+        // coords from the child's client space into the parent's client space.
+        int16_t clx = (int16_t)LOWORD(wparam);
+        int16_t cly = (int16_t)HIWORD(wparam);
+        uint32_t parent_wp = MAKEDWORD(
+          (uint16_t)(clx + win->frame.x - win->hscroll.pos + win->parent->hscroll.pos),
+          (uint16_t)(cly + win->frame.y - win->vscroll.pos + win->parent->vscroll.pos));
+        send_message(win->parent, evWheel, parent_wp, lparam);
+      }
+      return false;
+    case evPaintStencil:
+      paint_window_stencil(win);
+      return true;
+    case evMeasure: {
+      layout_measure_t *m = (layout_measure_t *)lparam;
+      // If window has auto-layout, measure its children
+      if (m && (win->flags & WINDOW_AUTO_LAYOUT)) {
+        layout_measure_window(win, m);
+      } else if (m) {
+        // Fallback: use existing frame dimensions
+        if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
+        if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
+      }
+      if (m) {
+        if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
+        if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
+        return MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
+      }
+      break;
+    }
+    case evArrange: {
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) {
+        irect16_t r = a->rect;
+        if (r.w < 1) r.w = 1;
+        if (r.h < 1) r.h = 1;
+        win->frame = r;
+        send_message(win, evResize, 0, NULL);
+        // If this window has auto-layout, sync its children
+        window_layout_sync(win);
+      }
+      return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
+                        (uint16_t)MAX(1, win->frame.h));
+    }
+    case evHitTest:
+      {
+        uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
+        x += (uint16_t)win->hscroll.pos;
+        y += (uint16_t)win->vscroll.pos;
+        if (win->parent) {
+          x += win->frame.x;
+          y += win->frame.y;
+        }
+        for (window_t *item = win->children; item; item = item->next) {
+          irect16_t r = item->frame;
+          if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
+            lresult_t hit = send_message(item, evHitTest,
+                                         MAKEDWORD((uint16_t)(x - r.x),
+                                                   (uint16_t)(y - r.y)),
+                                         NULL);
+            if (hit)
+              return (hit == 1) ? (lresult_t)(intptr_t)item : hit;
+            else
+              return (lresult_t)(intptr_t)item;
+          }
+        }
+      }
+      break;
+    case evNCLeftButtonUp:
+      (void)toolbar_handle_notitle_nc_left_button_up(win, wparam);
+      return true;
+    case evCommand:
+      break;
+  }
+  return false;
 }
 
 // Send message to window (synchronous)
-int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   if (!win) return false;
   irect16_t const *frame = &win->frame;
   window_t *root = get_root_window(win);
-  int value = 0;
+  lresult_t value = 0;
   // Call registered hooks
   for (winhook_t *hook = g_hooks; hook; hook = hook->next) {
     if (msg == hook->msg) {
@@ -321,6 +399,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
        msg == evLeftButtonUp)) {
     if (scrollbar_handle_builtin_mouse(win, msg, wparam, lparam)) return true;
   }
+#if 0
   if (win->parent && parent_notify_message(msg)) {
     parent_notify_t pn = {
       .child = win,
@@ -331,95 +410,10 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     if (send_message(win->parent, evParentNotify, 0, &pn))
       return true;
   }
-  // Call window procedure
-  if (!(value = win->proc(win, msg, wparam, lparam))) {
-    switch (msg) {
-      case evPaint:
-        for (window_t *sub = win->children; sub; sub = sub->next) {
-          send_message(sub, evPaint, wparam, lparam);
-        }
-        break;
-      case evWheel:
-        // Only drive built-in scrollbars when they are actually visible.
-        // If this window can't handle wheel events, bubble to parent (WinAPI behavior).
-        // wparam = mouse position MAKEDWORD(x,y), lparam = scroll deltas MAKEDWORD(dx,dy)
-        if ((win->flags & (WINDOW_HSCROLL | WINDOW_VSCROLL)) &&
-            (win->hscroll.visible || win->vscroll.visible)) {
-          scrollbar_handle_builtin_wheel(win, lparam);
-        } else if (win->parent) {
-          // Bubble wheel event to parent, translating window-local mouse
-          // coords from the child's client space into the parent's client space.
-          int16_t clx = (int16_t)LOWORD(wparam);
-          int16_t cly = (int16_t)HIWORD(wparam);
-          uint32_t parent_wp = MAKEDWORD(
-            (uint16_t)(clx + win->frame.x - win->hscroll.pos + win->parent->hscroll.pos),
-            (uint16_t)(cly + win->frame.y - win->vscroll.pos + win->parent->vscroll.pos));
-          send_message(win->parent, evWheel, parent_wp, lparam);
-        }
-        break;
-      case evPaintStencil:
-        paint_window_stencil(win);
-        break;
-      case evMeasure: {
-        layout_measure_t *m = (layout_measure_t *)lparam;
-        // If window has auto-layout, measure its children
-        if (m && (win->flags & WINDOW_AUTO_LAYOUT)) {
-          layout_measure_window(win, m);
-        } else if (m) {
-          // Fallback: use existing frame dimensions
-          if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
-          if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
-        }
-        if (m) {
-          if (m->desired_w <= 0) m->desired_w = frame->w > 0 ? frame->w : 1;
-          if (m->desired_h <= 0) m->desired_h = frame->h > 0 ? frame->h : 1;
-          value = MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
-        }
-        break;
-      }
-      case evArrange: {
-        layout_arrange_t *a = (layout_arrange_t *)lparam;
-        if (a) {
-          irect16_t r = a->rect;
-          if (r.w < 1) r.w = 1;
-          if (r.h < 1) r.h = 1;
-          win->frame = r;
-          send_message(win, evResize, 0, NULL);
-          // If this window has auto-layout, sync its children
-          window_layout_sync(win);
-        }
-        value = MAKEDWORD((uint16_t)MAX(1, win->frame.w),
-                          (uint16_t)MAX(1, win->frame.h));
-        break;
-      }
-      case evHitTest:
-        {
-          uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
-          x += (uint16_t)win->hscroll.pos;
-          y += (uint16_t)win->vscroll.pos;
-          if (win->parent) {
-            x += win->frame.x;
-            y += win->frame.y;
-          }
-          for (window_t *item = win->children; item; item = item->next) {
-            irect16_t r = item->frame;
-            if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
-              *(window_t **)lparam = item;
-              send_message(item, evHitTest,
-                           MAKEDWORD((uint16_t)(x - r.x),
-                                     (uint16_t)(y - r.y)),
-                           lparam);
-            }
-          }
-        }
-        break;
-      case evNCLeftButtonUp:
-        (void)toolbar_handle_notitle_nc_left_button_up(win, wparam);
-        break;
-      case evCommand:
-        break;
-    }
-  }
+#endif
+  // Call window procedure.
+  value = win->proc(win, msg, wparam, lparam);
+
   if (msg == evMeasure) {
     layout_measure_t *m = (layout_measure_t *)lparam;
     if (value == true)

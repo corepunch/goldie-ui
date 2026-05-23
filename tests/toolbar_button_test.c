@@ -15,7 +15,7 @@ static int  g_click_count = 0;
 static int  g_last_cmd_id = 0;
 static window_t *g_last_sender = NULL;
 
-static result_t cmd_parent_proc(window_t *win, uint32_t msg,
+static lresult_t cmd_parent_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
     (void)win;
     if (msg == evCreate)  return 1;
@@ -211,7 +211,7 @@ void test_toolbar_button_set_image_sanity(void) {
         .sheet_h = 160,
     };
     printf("Sending btnSetImage with dummy strip...\n");
-    result_t r = send_message(btn, btnSetImage, 5, &strip);
+    lresult_t r = send_message(btn, btnSetImage, 5, &strip);
     ASSERT_TRUE(r); // message was accepted
 
     printf("Checking that strip data was stored in button...\n");
@@ -269,7 +269,7 @@ void test_toolbar_button_set_image_zero_cols_no_crash(void) {
         .sheet_w = 0,
         .sheet_h = 0,
     };
-    result_t r = send_message(btn, btnSetImage, 0, &bad_strip);
+    lresult_t r = send_message(btn, btnSetImage, 0, &bad_strip);
     ASSERT_TRUE(r);
     ASSERT_NOT_NULL(btn->userdata);
 

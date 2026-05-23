@@ -12,7 +12,7 @@ static uint32_t test_last_button_id = 0;
 static window_t *test_last_button_sender = NULL;
 
 // Parent window procedure that receives evCommand from button
-static result_t test_parent_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t test_parent_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     (void)win;
     
     switch (msg) {
@@ -29,7 +29,7 @@ static result_t test_parent_proc(window_t *win, uint32_t msg, uint32_t wparam, v
         case evDestroy:
             return 1;
         default:
-            return 0;
+            return default_winproc(win, msg, wparam, lparam);
     }
 }
 

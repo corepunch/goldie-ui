@@ -116,13 +116,12 @@ void toggle_console(void) {
   console.show_console = !console.show_console;
 }
 
-result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evPaint:
       draw_console();
-      break;
+      return default_winproc(win, msg, wparam, lparam);
     default:
-      break;
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

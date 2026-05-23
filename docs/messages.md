@@ -10,7 +10,7 @@ nav_order: 7
 
 ```c
 // Synchronous: calls win->proc immediately; returns proc's return value
-int  send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Asynchronous: queued, delivered on the next repost_messages(-1) call
 void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -40,9 +40,31 @@ void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 | `evStatusBar` | Update status bar text | `lparam` = `(void *)const char *` |
 | `evHScroll` | Built-in H scrollbar moved | `wparam` = new scroll position |
 | `evVScroll` | Built-in V scrollbar moved | `wparam` = new scroll position |
-| `evHitTest` | Find child at point | `lparam` = `window_t **` |
+| `evHitTest` | Find child at point | return `lresult_t` cast from `window_t *`; 0 when no deeper child is hit |
 | `evRefreshStencil` | Stencil buffer needs update | – |
 | `evUser` (1000) | First app-defined message | – |
+
+## Default Window Procedure
+
+Orion now follows the WinAPI `DefWindowProc` pattern.
+
+- `default_winproc(win, msg, wparam, lparam)` performs built-in fallback behavior.
+- Custom window procedures should return early for handled messages and tail-call
+    `default_winproc(...)` for unhandled messages.
+
+```c
+lresult_t my_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+    switch (msg) {
+        case evCreate:
+            return true;
+        case evPaint:
+            // custom drawing
+            return true;
+        default:
+            return default_winproc(win, msg, wparam, lparam);
+    }
+}
+```
 
 ## Control Notification Codes
 

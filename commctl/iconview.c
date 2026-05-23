@@ -72,7 +72,7 @@ static void icon_paint(window_t *win, reportview_data_t *data) {
   }
 }
 
-result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   reportview_data_t *data = (reportview_data_t *)win->userdata2;
 
   switch (msg) {
@@ -142,7 +142,7 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       data->count++;
       icon_sync_scroll(win, data);
       rv_invalidate(win, data);
-      return (result_t)i;
+      return (lresult_t)i;
     }
     case RVM_DELETEITEM: {
       if (wparam >= data->count)
@@ -159,9 +159,9 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return true;
     }
     case RVM_GETITEMCOUNT:
-      return (result_t)data->count;
+      return (lresult_t)data->count;
     case RVM_GETSELECTION:
-      return (result_t)data->selected;
+      return (lresult_t)data->selected;
     case RVM_SETSELECTION:
       if ((int)wparam >= 0 && wparam < data->count) {
         int selected = (int)wparam;
@@ -193,7 +193,7 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return false;
     case RVM_GETCOLUMNWIDTH:
-      return (result_t)data->column_width;
+      return (lresult_t)data->column_width;
     case RVM_GETITEMDATA:
       if (wparam < data->count && lparam) {
         *(reportview_item_t *)lparam = data->items[wparam];
@@ -201,7 +201,7 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return false;
     case RVM_HITTEST:
-      return (result_t)icon_hit_index(win, data, wparam);
+      return (lresult_t)icon_hit_index(win, data, wparam);
     case RVM_SETITEMDATA: {
       reportview_item_t *item = (reportview_item_t *)lparam;
       if (!item || wparam >= data->count)
@@ -284,7 +284,7 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           rv_notify(win, data, cur, RVN_DELETE);
           return true;
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
       if (next != cur && next >= 0) {
         data->selected = next;
@@ -306,6 +306,6 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       win->userdata2 = NULL;
       return true;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

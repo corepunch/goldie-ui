@@ -119,7 +119,7 @@ typedef struct {
   int               fk_value;     // FK value to set for new records
 } db_dlg_ctx_t;
 
-static result_t dialog_db_proc(window_t *win, uint32_t msg,
+static lresult_t dialog_db_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   db_dlg_ctx_t *ctx = (db_dlg_ctx_t *)win->userdata;
 
@@ -240,7 +240,7 @@ static result_t dialog_db_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

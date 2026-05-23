@@ -11,9 +11,9 @@ static int tasklist_title_width(window_t *win) {
   return (avail < 20) ? 20 : avail;
 }
 
-result_t tasklist_proc(window_t *win, uint32_t msg,
+lresult_t tasklist_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam) {
-  result_t r = win_reportview(win, msg, wparam, lparam);
+  lresult_t r = win_reportview(win, msg, wparam, lparam);
 
   if (msg == evResize) {
     send_message(win, RVM_SETREPORTCOLUMNWIDTH, 0,

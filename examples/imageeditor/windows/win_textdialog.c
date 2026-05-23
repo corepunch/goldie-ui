@@ -23,7 +23,7 @@ static void paint_td(window_t *win, const td_state_t *st) {
   fill_rect(st->opts->color, swatch->frame);
 }
 
-static result_t td_proc(window_t *win, uint32_t msg,
+static lresult_t td_proc(window_t *win, uint32_t msg,
                         uint32_t wparam, void *lparam) {
   td_state_t *st = (td_state_t *)win->userdata;
 
@@ -105,7 +105,7 @@ static result_t td_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

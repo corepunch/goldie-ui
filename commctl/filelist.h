@@ -79,6 +79,6 @@ enum {
 // ---------------------------------------------------------------------------
 // Window procedure
 // ---------------------------------------------------------------------------
-result_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #endif // __UI_FILELIST_H__

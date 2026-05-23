@@ -177,7 +177,7 @@ window_t *create_color_palette_window(void) {
   return cp;
 }
 
-static result_t main_toolbar_proc(window_t *win, uint32_t msg,
+static lresult_t main_toolbar_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   (void)lparam;
   switch (msg) {
@@ -195,7 +195,7 @@ static result_t main_toolbar_proc(window_t *win, uint32_t msg,
       if (g_app && g_app->main_toolbar_win == win) g_app->main_toolbar_win = NULL;
       return false;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -1103,7 +1103,7 @@ void imageeditor_sync_filter_menu(void) {
 #endif // !IMAGEEDITOR_INDEXED
 }
 
-result_t editor_menubar_proc(window_t *win, uint32_t msg,
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   if (msg == evCommand) {
     uint16_t notif = HIWORD(wparam);

@@ -157,7 +157,7 @@ typedef struct {
 // Dialog procedure
 // ---------------------------------------------------------------------------
 
-static result_t mb_proc(window_t *win, uint32_t msg,
+static lresult_t mb_proc(window_t *win, uint32_t msg,
                          uint32_t wparam, void *lparam) {
   mb_state_t *ms = (mb_state_t *)win->userdata;
 

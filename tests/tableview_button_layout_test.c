@@ -8,7 +8,7 @@
 #include "test_env.h"
 
 // Simple window proc for testing
-static result_t test_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t test_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     (void)win; (void)wparam; (void)lparam;
     if (msg == evCreate) return 1;
     return 0;

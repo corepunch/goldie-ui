@@ -37,12 +37,12 @@ typedef struct {
 } slider_range_t;
 
 // Common control window procedures
-result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 // Combobox creation parameters — for database-driven dropdowns.
 // When source/display/value attributes are present in .orion forms,
 // orionc generates a combobox_params_t structure and passes it via lparam.
@@ -62,21 +62,21 @@ typedef struct {
   int *values;               // Value field data (e.g., IDs) for foreign keys
 } combobox_state_t;
 
-result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Column browser (NSBrowser-style multi-column hierarchical navigation).
 // Data source callback pattern for populating columns dynamically.
@@ -95,7 +95,7 @@ enum {
   cbGetColumnCount,                 // Returns number of visible columns
 };
 
-result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Database-backed table view — automatically populates from database API.
 // See commctl/tableview.c for full documentation and usage examples.
@@ -114,7 +114,7 @@ typedef struct {
   const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
 } tableview_params_t;
 
-result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Auto-layout container windows.
 typedef struct {
@@ -124,14 +124,14 @@ typedef struct {
   irect16_t margin;          // outer margin when nested in a parent layout
 } layout_view_config_t;
 
-result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 // Backward-compatible aliases for legacy call sites.
-result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void layout_stack_measure_window(window_t *win, layout_measure_t *m);
 void layout_stack_arrange_window(window_t *win, const irect16_t *rect);
 void layout_grid_measure_window(window_t *win, layout_measure_t *m);
@@ -142,7 +142,7 @@ void layout_flow_horizontal(window_t *first, int start_x, int gap);
 
 // Toolbox — 2-column grid of icon buttons (Photoshop / VB3 / Paint style).
 // See commctl/toolbox.c for the full API and usage examples.
-result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Splitter — thin draggable divider bar between two sibling panels.
 // Orientation is set via lparam at create time:
@@ -158,7 +158,7 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
 // See examples/gitclient/view_main.c for the canonical usage pattern.
 #define SPLIT_VERT 0
 #define SPLIT_HORZ 1
-result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 int      win_splitter_orientation(window_t *win);
 
 // Returns the height (in client pixels) that win_toolbox occupies for its

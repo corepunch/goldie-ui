@@ -77,7 +77,7 @@ static int sl_hit_handle(const window_t *win, const slider_state_t *s, int mx, i
   return best_i;
 }
 
-result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   slider_state_t *s = (slider_state_t *)win->userdata;
   switch (msg) {
     case evCreate: {
@@ -158,14 +158,14 @@ result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       }
 
     case slGetPos:
-      if (!s) return (result_t)0xFFFFFFFFu;
+      if (!s) return (lresult_t)0xFFFFFFFFu;
       {
         int idx = (int)wparam;
         int v;
-        if (idx < 0 || idx >= s->count) return (result_t)0xFFFFFFFFu;
+        if (idx < 0 || idx >= s->count) return (lresult_t)0xFFFFFFFFu;
         v = s->pos[idx];
         if (lparam) *(int *)lparam = v;
-        return (result_t)(uint32_t)v;
+        return (lresult_t)(uint32_t)v;
       }
 
     case evLeftButtonDown: {
@@ -205,6 +205,6 @@ result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

@@ -15,7 +15,7 @@ static bool separator_is_vertical(window_t *win) {
   return (win->parent->flags & WINDOW_STACK_HORIZONTAL) != 0;
 }
 
-result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   (void)wparam;
   switch (msg) {
     case evCreate:
@@ -54,6 +54,6 @@ result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     case evDestroy:
       return true;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

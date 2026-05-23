@@ -34,7 +34,7 @@ static void autoradio_select(window_t *win) {
 }
 
 // Button control window procedure (text label buttons).
-result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       win->frame.w = MAX(win->frame.w, strwidth(win->title) + BUTTON_PADDING * 2);
@@ -126,8 +126,9 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
     }
     case btnGetCheck:
       return win->value ? btnStateChecked : btnStateUnchecked;
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }
 
 // -------------------------------------------------------------------------
@@ -144,7 +145,7 @@ typedef struct {
 // Toolbar button window procedure.
 // Renders an icon from a bitmap_strip_t at a given index.
 // Set via btnSetImage: wparam = icon index; lparam = bitmap_strip_t*.
-result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evDestroy:
       if (win->userdata) {
@@ -244,11 +245,12 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
       invalidate_window(win);
       return true;
     }
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }
 
-result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       return true;
@@ -332,6 +334,6 @@ result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evDestroy:
       return true;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

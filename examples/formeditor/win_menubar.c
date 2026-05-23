@@ -138,7 +138,7 @@ typedef struct {
   bool        accepted;
 } grid_dlg_state_t;
 
-static result_t grid_dlg_proc(window_t *win, uint32_t msg,
+static lresult_t grid_dlg_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   grid_dlg_state_t *gs = (grid_dlg_state_t *)win->userdata;
   switch (msg) {
@@ -192,7 +192,7 @@ static result_t grid_dlg_proc(window_t *win, uint32_t msg,
       return false;
     }
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -407,7 +407,7 @@ static const form_def_t kFormPropsForm = {
   .cancel_id     = FORM_PROPS_ID_CANCEL,
 };
 
-static result_t form_props_proc(window_t *win, uint32_t msg,
+static lresult_t form_props_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   form_props_state_t *ps = (form_props_state_t *)win->userdata;
   switch (msg) {
@@ -456,7 +456,7 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
       return false;
     }
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -486,7 +486,7 @@ bool show_props_dialog(window_t *parent, form_element_t *el) {
 // Menu bar window procedure
 // ============================================================
 
-result_t editor_menubar_proc(window_t *win, uint32_t msg,
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   if (msg == evCommand) {
     uint16_t notif = HIWORD(wparam);

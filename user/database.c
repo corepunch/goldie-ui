@@ -195,7 +195,7 @@ bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int bindin
     
     buf[0] = '\0';
     uint32_t packed = MAKEDWORD(bindings[i].column_id, (uint16_t)buf_sz);
-    result_t result = proc(object, dbObjGetFieldText, packed, buf);
+    lresult_t result = proc(object, dbObjGetFieldText, packed, buf);
     return result ? true : false;
   }
   

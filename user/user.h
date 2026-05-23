@@ -14,7 +14,7 @@ typedef struct window_s window_t;
 typedef struct irect16_s irect16_t;
 typedef struct database_s database_t;
 typedef uint32_t flags_t;
-typedef uint32_t result_t;
+typedef intptr_t lresult_t;
 
 // Application instance handle (analogous to WinAPI HINSTANCE).
 // Each gem/app process receives a unique hinstance_t when loaded.
@@ -26,14 +26,20 @@ typedef uint32_t hinstance_t;
 #define DEFAULT_WINDOW_CASCADE_Y 20
 
 // Window procedure callback type
-typedef result_t (*winproc_t)(window_t *, uint32_t, uint32_t, void *);
+typedef lresult_t (*winproc_t)(window_t *, uint32_t, uint32_t, void *);
 
+// Default window procedure (WinAPI DefWindowProc equivalent).
+// Custom winprocs should tail-call this for unhandled messages.
+lresult_t default_winproc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
+#if 0
 typedef struct {
   window_t *child;       // child about to receive the event
   uint32_t  child_msg;   // original event message
   uint32_t  child_wparam;
   void     *child_lparam;
 } parent_notify_t;
+#endif
 
 typedef enum {
   UI_PROP_KIND_STRING = 0,
@@ -342,7 +348,7 @@ typedef struct {
   int                     outlet_count;
 } db_api_def_t;
 
-typedef result_t (*db_object_proc_t)(const void *object, uint32_t msg,
+typedef lresult_t (*db_object_proc_t)(const void *object, uint32_t msg,
                                      uint32_t wparam, void *lparam);
 
 // Action verbs for database object handlers (Action-Message DDX pattern).
@@ -571,7 +577,7 @@ void window_layout_sync(window_t *win);
 void set_default_window_position(int x, int y);
 
 // Window message functions
-int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void invalidate_window(window_t *win);
 

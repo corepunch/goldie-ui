@@ -73,7 +73,7 @@ static void on_win_destroyed(window_t *win, uint32_t msg, uint32_t wparam, void 
   }
 }
 
-result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   tray_state_t *st = (tray_state_t *)win->userdata;
   switch (msg) {
     case evCreate: {
@@ -153,7 +153,6 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       deregister_window_hook(evDestroy, on_win_destroyed, win);
       return true;
     default:
-      break;
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

@@ -64,7 +64,7 @@ typedef struct {
   bool  result;          // true = committed
 } commit_dlg_state_t;
 
-static result_t commit_dlg_proc(window_t *win, uint32_t msg,
+static lresult_t commit_dlg_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   commit_dlg_state_t *st = (commit_dlg_state_t *)win->userdata;
 
@@ -146,7 +146,7 @@ static result_t commit_dlg_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

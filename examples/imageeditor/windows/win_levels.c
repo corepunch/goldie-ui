@@ -224,7 +224,7 @@ static bool lv_pull_bindings_for_command(lv_state_t *st, uint16_t command) {
   return true;
 }
 
-static result_t levels_dlg_proc(window_t *win, uint32_t msg,
+static lresult_t levels_dlg_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   lv_state_t *st = (lv_state_t *)win->userdata;
   switch (msg) {
@@ -332,7 +332,7 @@ static result_t levels_dlg_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

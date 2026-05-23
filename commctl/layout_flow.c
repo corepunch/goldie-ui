@@ -168,7 +168,7 @@ void layout_flow_arrange_window(window_t *win, const irect16_t *rect) {
   free(row_y);
 }
 
-result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       win->flags |= WINDOW_AUTO_LAYOUT;
@@ -230,13 +230,13 @@ result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evPaint:
       layout_paint_children(win);
       return true;
-    case evParentNotify:
-      return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
+    // case evParentNotify:
+    //   return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
-result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   return win_flow(win, msg, wparam, lparam);
 }

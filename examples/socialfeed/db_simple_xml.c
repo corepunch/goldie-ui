@@ -230,7 +230,7 @@ enum {
 };
 
 // Object proc for db_author_t records
-static result_t author_object_proc(const void *object, uint32_t msg,
+static lresult_t author_object_proc(const void *object, uint32_t msg,
                                    uint32_t wparam, void *lparam) {
   const db_author_t *a = (const db_author_t *)object;
   char *buf = (char *)lparam;
@@ -262,7 +262,7 @@ static result_t author_object_proc(const void *object, uint32_t msg,
 }
 
 // Object proc for db_post_t records
-static result_t post_object_proc(const void *object, uint32_t msg,
+static lresult_t post_object_proc(const void *object, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   const db_post_t *p = (const db_post_t *)object;
   char *buf = (char *)lparam;
@@ -316,7 +316,7 @@ static result_t post_object_proc(const void *object, uint32_t msg,
 }
 
 // Object proc for db_comment_t records
-static result_t comment_object_proc(const void *object, uint32_t msg,
+static lresult_t comment_object_proc(const void *object, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
   const db_comment_t *c = (const db_comment_t *)object;
   char *buf = (char *)lparam;

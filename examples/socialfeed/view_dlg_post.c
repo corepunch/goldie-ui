@@ -56,7 +56,7 @@ static void update_header_labels(window_t *win, post_detail_t *s) {
 // Post detail dialog window procedure
 // ============================================================
 
-static result_t post_detail_proc(window_t *win, uint32_t msg,
+static lresult_t post_detail_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   post_detail_t *s = (post_detail_t *)win->userdata;
 
@@ -142,7 +142,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
           return true;
 
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
     }
 
@@ -151,7 +151,7 @@ static result_t post_detail_proc(window_t *win, uint32_t msg,
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

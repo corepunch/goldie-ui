@@ -111,7 +111,7 @@ void close_document(task_doc_t *doc) {
     g_app->active_doc = g_app->docs;
 }
 
-result_t main_win_proc(window_t *win, uint32_t msg,
+lresult_t main_win_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam) {
   task_doc_t *doc = (task_doc_t *)win->userdata;
 
@@ -179,7 +179,7 @@ result_t main_win_proc(window_t *win, uint32_t msg,
           return true;
         
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
     }
 
@@ -189,6 +189,6 @@ result_t main_win_proc(window_t *win, uint32_t msg,
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

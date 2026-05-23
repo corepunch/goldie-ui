@@ -51,7 +51,7 @@ static void reset_counters(void) {
 // ---- menu-bar window procs --------------------------------------------------
 
 // Basic proc: just counts received item-click commands.
-static result_t menubar_proc_basic(window_t *win, uint32_t msg,
+static lresult_t menubar_proc_basic(window_t *win, uint32_t msg,
                                    uint32_t wparam, void *lparam) {
     if (msg == evCommand &&
         HIWORD(wparam) == kMenuBarNotificationItemClick) {
@@ -64,7 +64,7 @@ static result_t menubar_proc_basic(window_t *win, uint32_t msg,
 
 // Proc that additionally checks whether the popup is still alive the moment
 // the command arrives.
-static result_t menubar_proc_order_check(window_t *win, uint32_t msg,
+static lresult_t menubar_proc_order_check(window_t *win, uint32_t msg,
                                          uint32_t wparam, void *lparam) {
     if (msg == evCommand &&
         HIWORD(wparam) == kMenuBarNotificationItemClick) {

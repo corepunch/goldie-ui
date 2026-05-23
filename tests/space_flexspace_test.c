@@ -4,7 +4,7 @@
 #include "test_framework.h"
 #include "test_env.h"
 
-static result_t nop_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t nop_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     (void)win;
     (void)msg;
     (void)wparam;

@@ -15,7 +15,7 @@ static int      g_cmd_count    = 0;
 static uint32_t g_last_wparam  = 0;
 static window_t *g_last_sender = NULL;
 
-static result_t parent_proc(window_t *win, uint32_t msg,
+static lresult_t parent_proc(window_t *win, uint32_t msg,
                              uint32_t wparam, void *lparam) {
     (void)win;
     if (msg == evCreate || msg == evDestroy) return 1;
@@ -53,7 +53,7 @@ void test_checkbox_initial_unchecked(void) {
     window_t *cb = make_checkbox(parent, 10);
     ASSERT_NOT_NULL(cb);
 
-    result_t state = send_message(cb, btnGetCheck, 0, NULL);
+    lresult_t state = send_message(cb, btnGetCheck, 0, NULL);
     ASSERT_EQUAL((int)state, (int)btnStateUnchecked);
 
     destroy_window(parent);
@@ -240,7 +240,7 @@ void test_checkbox_other_key_ignored(void) {
     ASSERT_NOT_NULL(cb);
 
     // A regular letter key should be ignored by the checkbox
-    result_t r = send_message(cb, evKeyDown, AX_KEY_A, NULL);
+    lresult_t r = send_message(cb, evKeyDown, AX_KEY_A, NULL);
     ASSERT_FALSE(r); // not handled
     ASSERT_EQUAL(g_cmd_count, 0);
     ASSERT_EQUAL((int)send_message(cb, btnGetCheck, 0, NULL),

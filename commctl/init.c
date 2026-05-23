@@ -5,24 +5,24 @@
 #include "../examples/formeditor/formeditor.h"
 
 // Layout containers (stack, grid, flow, column)
-extern result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_stackview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_flow(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_flowview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Other controls
-extern result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #define CLASS_DESC(class_name_lit, name_prefix_lit, toolbox_icon_val, \
                    default_size_w, default_size_h, default_layout_w, default_layout_h, \

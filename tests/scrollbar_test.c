@@ -14,7 +14,7 @@ static int  g_changed_count = 0;
 static int  g_last_pos      = -1;
 static int  g_last_cmd_id   = -1;
 
-static result_t sb_parent_proc(window_t *win, uint32_t msg,
+static lresult_t sb_parent_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
     (void)win;
     if (msg == evCreate || msg == evDestroy) return 1;
@@ -141,7 +141,7 @@ void test_sb_null_info_returns_false(void) {
     window_t *sb = make_vscrollbar(parent, 5, 100);
     ASSERT_NOT_NULL(sb);
 
-    result_t r = send_message(sb, sbSetInfo, 0, NULL);
+    lresult_t r = send_message(sb, sbSetInfo, 0, NULL);
     ASSERT_FALSE(r);
 
     destroy_window(parent);

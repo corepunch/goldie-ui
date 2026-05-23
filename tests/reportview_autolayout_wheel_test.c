@@ -7,7 +7,7 @@
 #include "../commctl/columnview.h"
 #include "../commctl/commctl.h"
 
-static result_t reportview_parent_proc(window_t *win, uint32_t msg,
+static lresult_t reportview_parent_proc(window_t *win, uint32_t msg,
                                        uint32_t wparam, void *lparam) {
     if (msg == evCreate || msg == evDestroy) return true;
     if (msg == evPaint) {

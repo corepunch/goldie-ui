@@ -40,7 +40,7 @@ static void shell_rebuild_menubar(void) {
     free(all);
 }
 
-static result_t shell_menubar_proc(window_t *win, uint32_t msg,
+static lresult_t shell_menubar_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
     if (msg == evCommand) {
         uint16_t notif = HIWORD(wparam);

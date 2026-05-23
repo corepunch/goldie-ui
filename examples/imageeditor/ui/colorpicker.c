@@ -110,7 +110,7 @@ typedef struct {
 static void sync_hsv(cp_state_t *st) { rgb_to_hsv(st->cur, &st->h, &st->s, &st->v); }
 static void sync_rgb(cp_state_t *st) { st->cur = hsv_to_rgb(st->h, st->s, st->v, COLOR_A(st->cur)); }
 
-static result_t cp_surface_proc(window_t *win, uint32_t msg,
+static lresult_t cp_surface_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam);
 
 static const fe_component_desc_t kColorPickerSurfaceDesc = {
@@ -266,7 +266,7 @@ static void paint_cp(const cp_state_t *st) {
 // Paint surface window procedure
 // ──────────────────────────────────────────────────────────────────
 
-static result_t cp_surface_proc(window_t *win, uint32_t msg,
+static lresult_t cp_surface_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   (void)lparam;
   cp_state_t *st = (cp_state_t *)get_root_window(win)->userdata;
@@ -340,7 +340,7 @@ static result_t cp_surface_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -348,7 +348,7 @@ static result_t cp_surface_proc(window_t *win, uint32_t msg,
 // Dialog window procedure
 // ──────────────────────────────────────────────────────────────────
 
-static result_t cp_proc(window_t *win, uint32_t msg,
+static lresult_t cp_proc(window_t *win, uint32_t msg,
                         uint32_t wparam, void *lparam) {
   cp_state_t *st = (cp_state_t *)win->userdata;
 
@@ -384,7 +384,7 @@ static result_t cp_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

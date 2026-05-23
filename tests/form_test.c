@@ -707,11 +707,11 @@ static const form_def_t kNewPostGridForm = {
   .child_count = ARRAY_LEN(kNewPostChildren),
 };
 
-static result_t form_test_proc(window_t *win, uint32_t msg,
+static lresult_t form_test_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam);
-static result_t post_detail_like_proc(window_t *win, uint32_t msg,
+static lresult_t post_detail_like_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam);
-static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
+static lresult_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
                                                    uint32_t wparam, void *lparam);
 static void socialfeed_post_detail_setup_comments(window_t *win);
 
@@ -906,7 +906,7 @@ static window_t *create_post_detail_like_window(int height) {
   return create_window_from_form(&def, 0, 0, NULL, post_detail_like_proc, 0, NULL);
 }
 
-static result_t post_detail_like_proc(window_t *win, uint32_t msg,
+static lresult_t post_detail_like_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
   (void)wparam;
   (void)lparam;
@@ -944,7 +944,7 @@ static void socialfeed_post_detail_setup_comments(window_t *win) {
   send_message(cv, RVM_SETREDRAW, 1, NULL);
 }
 
-static result_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
+static lresult_t socialfeed_post_detail_layout_proc(window_t *win, uint32_t msg,
                                                    uint32_t wparam, void *lparam) {
   (void)wparam;
   (void)lparam;
@@ -996,7 +996,7 @@ typedef struct {
   int cancel_w;
 } socialfeed_new_post_modal_capture_t;
 
-static result_t socialfeed_new_post_modal_probe_proc(window_t *win, uint32_t msg,
+static lresult_t socialfeed_new_post_modal_probe_proc(window_t *win, uint32_t msg,
                                                      uint32_t wparam, void *lparam) {
   socialfeed_new_post_modal_capture_t *cap = (socialfeed_new_post_modal_capture_t *)win->userdata;
   if (msg == evCreate) {
@@ -1037,7 +1037,7 @@ static result_t socialfeed_new_post_modal_probe_proc(window_t *win, uint32_t msg
   return false;
 }
 
-static result_t form_test_proc(window_t *win, uint32_t msg,
+static lresult_t form_test_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   (void)wparam; (void)lparam;
   if (msg == evCreate) {
@@ -1162,7 +1162,7 @@ void test_form_rejects_non_auto_layout_children(void) {
 static flags_t   g_dlg_flags     = 0;
 static char      g_dlg_title[64] = {0};
 
-static result_t dialog_flag_proc(window_t *win, uint32_t msg,
+static lresult_t dialog_flag_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   (void)wparam; (void)lparam;
   if (msg == evCreate) {
@@ -1250,7 +1250,7 @@ void test_ddx_form_def_fields(void) {
 }
 
 // Minimal no-op proc for tests that create a plain parent window.
-static result_t nop_proc(window_t *w, uint32_t m, uint32_t wp, void *lp) {
+static lresult_t nop_proc(window_t *w, uint32_t m, uint32_t wp, void *lp) {
   (void)w; (void)m; (void)wp; (void)lp;
   return false;
 }
@@ -1292,7 +1292,7 @@ void test_ddx_push_pull_roundtrip(void) {
 static ddx_test_state_t g_ddx_test_st;
 static flags_t          g_ddx_dlg_flags;
 
-static result_t ddx_verify_proc(window_t *win, uint32_t msg,
+static lresult_t ddx_verify_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   (void)wparam; (void)lparam;
   if (msg == evCreate) {

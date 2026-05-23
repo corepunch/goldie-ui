@@ -7,7 +7,7 @@ static void fg_preview_draw_outline(irect16_t r, uint32_t col) {
   fill_rect(col, R(r.x + r.w - 1, r.y, 1, r.h));
 }
 
-result_t fg_preview_component_proc(window_t *win, uint32_t msg,
+lresult_t fg_preview_component_proc(window_t *win, uint32_t msg,
                                    uint32_t wparam, void *lparam) {
   fg_preview_data_t *st = (fg_preview_data_t *)win->userdata;
   (void)wparam;

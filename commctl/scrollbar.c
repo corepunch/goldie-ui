@@ -108,7 +108,7 @@ static int sb_axis(window_t *win, uint32_t wparam) {
 
 // ---- window procedure ------------------------------------------------------
 
-result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   scrollbar_state_t *s = (scrollbar_state_t *)win->userdata;
 
   switch (msg) {
@@ -154,7 +154,7 @@ result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     }
 
     case sbGetPos:
-      return s ? (result_t)(uint32_t)s->pos : 0;
+      return s ? (lresult_t)(uint32_t)s->pos : 0;
 
     case evLeftButtonDown: {
       if (!s) return false;
@@ -208,6 +208,6 @@ result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

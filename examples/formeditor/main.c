@@ -76,7 +76,11 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (g_app->windows[FE_WIN_MENUBAR])
     send_message(g_app->windows[FE_WIN_MENUBAR], kMenuBarMessageSetAccelerators, 0, g_app->accel);
 
-  if (!project_path || !fe_project_load(project_path))
+  bool loaded = false;
+  if (project_path)
+    loaded = fe_project_load(project_path);
+
+  if (!loaded)
     create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
 
   /* Splash screen disabled for form editor startup.

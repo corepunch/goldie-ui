@@ -242,7 +242,7 @@ static void draw_cell(const timeline_state_t *st, canvas_doc_t *doc, int idx,
 // Window proc
 // ============================================================
 
-static result_t timeline_proc(window_t *win, uint32_t msg,
+static lresult_t timeline_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   timeline_state_t *st = (timeline_state_t *)win->userdata;
 
@@ -413,7 +413,7 @@ static result_t timeline_proc(window_t *win, uint32_t msg,
           handle_menu_command(doc->anim->playing ? ID_ANIM_STOP : ID_ANIM_PLAY);
           return true;
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
 
       if (target < 0) target = 0;
@@ -435,7 +435,7 @@ static result_t timeline_proc(window_t *win, uint32_t msg,
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

@@ -13,7 +13,7 @@ typedef struct {
   int               fk_value;
 } db_dlg_ctx_t;
 
-static result_t dialog_db_proc(window_t *win, uint32_t msg,
+static lresult_t dialog_db_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   db_dlg_ctx_t *ctx = (db_dlg_ctx_t *)win->userdata;
 
@@ -425,7 +425,7 @@ typedef struct {
   void             *state; // caller-supplied state for push/pull
 } ddx_dlg_ctx_t;
 
-static result_t dialog_ddx_proc(window_t *win, uint32_t msg,
+static lresult_t dialog_ddx_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   ddx_dlg_ctx_t *ctx = (ddx_dlg_ctx_t *)win->userdata;
 

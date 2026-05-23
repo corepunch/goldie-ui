@@ -136,7 +136,7 @@ static void filter_gallery_accept(window_t *win, filter_gallery_state_t *st) {
   end_dialog(win, 1);
 }
 
-static result_t filter_gallery_proc(window_t *win, uint32_t msg,
+static lresult_t filter_gallery_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
   filter_gallery_state_t *st = (filter_gallery_state_t *)win->userdata;
 

@@ -330,7 +330,7 @@ static void fp_edit_watch_hook(window_t *win, uint32_t msg,
   }
 }
 
-static result_t fp_newfolder_proc(window_t *win, uint32_t msg,
+static lresult_t fp_newfolder_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   fp_newfolder_state_t *st = (fp_newfolder_state_t *)win->userdata;
 
@@ -671,7 +671,7 @@ static void fp_accept_item(window_t *win, fp_state_t *ps,
 // Dialog window procedure
 // ---------------------------------------------------------------------------
 
-static result_t fp_proc(window_t *win, uint32_t msg,
+static lresult_t fp_proc(window_t *win, uint32_t msg,
                          uint32_t wparam, void *lparam) {
   fp_state_t *ps = (fp_state_t *)win->userdata;
 

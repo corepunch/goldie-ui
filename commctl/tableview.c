@@ -191,7 +191,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
 // Window Procedure
 // ══════════════════════════════════════════════════════════════════════════
 
-result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   tableview_state_t *s = (tableview_state_t *)win->userdata;
   
   switch (msg) {
@@ -323,7 +323,6 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     // evArrange and evResize now inherited from reportview
     // (reportview evResize automatically recalculates column widths)
     
-    // Forward all other messages to reportview
     default:
       return win_reportview(win, msg, wparam, lparam);
   }

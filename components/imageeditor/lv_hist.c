@@ -154,7 +154,7 @@ static void lv_build_graph_texture(lv_hist_state_t *st, int w, int h) {
   st->graph_dirty = false;
 }
 
-result_t lv_histogram_component_proc(window_t *win, uint32_t msg,
+lresult_t lv_histogram_component_proc(window_t *win, uint32_t msg,
                                      uint32_t wparam, void *lparam) {
   lv_hist_state_t *st = (lv_hist_state_t *)win->userdata;
   (void)wparam;

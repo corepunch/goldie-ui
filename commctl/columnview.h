@@ -68,8 +68,8 @@ enum {
   RVN_DELETE,
 };
 
-result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #endif // __UI_COLUMNVIEW_H__

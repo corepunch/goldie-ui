@@ -60,7 +60,6 @@ static void report_scroll_to_item(window_t *win, reportview_data_t *data, int in
 static void report_paint(window_t *win, reportview_data_t *data) {
   irect16_t cr = get_client_rect(win);
   int eff_w = cr.w;
-  int row_w = rv_report_total_width(data, eff_w);
   int header_h = rv_report_header_height(data);
   int body_h = cr.h - header_h;
   int scroll_y = (int)win->vscroll.pos;
@@ -74,12 +73,14 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   uint32_t hdr_fg = get_sys_color(brTextNormal);
   uint32_t sep_col = get_sys_color(brDarkEdge);
 
-  fill_rect(bg_col, R(0, header_h, row_w, body_h));
+  // Always paint the full client width so report/table views stretch visually
+  // even when column specs do not consume all horizontal space.
+  fill_rect(bg_col, R(0, header_h, eff_w, body_h));
 
   if (data->selected >= first_row && data->selected < last_row) {
     int y = header_h + data->selected * ENTRY_HEIGHT - scroll_y;
     if (y < header_h) y = header_h;
-    fill_rect(get_sys_color(brTextNormal), R(0, y, row_w, ENTRY_HEIGHT - 1));
+    fill_rect(get_sys_color(brTextNormal), R(0, y, eff_w, ENTRY_HEIGHT - 1));
   }
 
   int scr_x = window_screen_x(win);
@@ -126,7 +127,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   }
 }
 
-result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   reportview_data_t *data = (reportview_data_t *)win->userdata2;
 
   switch (msg) {
@@ -206,7 +207,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data->count++;
       report_sync_scroll(win, data);
       rv_invalidate(win, data);
-      return (result_t)i;
+      return (lresult_t)i;
     }
     case RVM_DELETEITEM: {
       if (wparam >= data->count)
@@ -223,9 +224,9 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       return true;
     }
     case RVM_GETITEMCOUNT:
-      return (result_t)data->count;
+      return (lresult_t)data->count;
     case RVM_GETSELECTION:
-      return (result_t)data->selected;
+      return (lresult_t)data->selected;
     case RVM_SETSELECTION:
       if ((int)wparam >= 0 && wparam < data->count) {
         data->selected = (int)wparam;
@@ -250,7 +251,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       }
       return false;
     case RVM_GETCOLUMNWIDTH:
-      return (result_t)data->column_width;
+      return (lresult_t)data->column_width;
     case RVM_GETITEMDATA:
       if (wparam < data->count && lparam) {
         *(reportview_item_t *)lparam = data->items[wparam];
@@ -258,7 +259,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       }
       return false;
     case RVM_HITTEST:
-      return (result_t)report_hit_index(win, data, wparam);
+      return (lresult_t)report_hit_index(win, data, wparam);
     case RVM_SETITEMDATA: {
       reportview_item_t *item = (reportview_item_t *)lparam;
       if (!item || wparam >= data->count)
@@ -281,14 +282,14 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data->columns[i].width = col->width;        // Initial effective width
       data->column_count++;
       rv_invalidate(win, data);
-      return (result_t)i;
+      return (lresult_t)i;
     }
     case RVM_CLEARCOLUMNS:
       data->column_count = 0;
       rv_invalidate(win, data);
       return true;
     case RVM_GETCOLUMNCOUNT:
-      return (result_t)data->column_count;
+      return (lresult_t)data->column_count;
     case RVM_SETREPORTCOLUMNWIDTH: {
       uint32_t ci = (uint32_t)wparam;
       if (ci >= data->column_count)
@@ -301,7 +302,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       uint32_t ci = (uint32_t)wparam;
       if (ci >= data->column_count)
         return 0;
-      return (result_t)data->columns[ci].width;
+      return (lresult_t)data->columns[ci].width;
     }
     case RVM_SETREDRAW:
       if (wparam) {
@@ -379,6 +380,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         int w = rv_get_report_column_width(data, (int)i, avail_w);
         data->columns[i].width = (uint32_t)w;
       }
+
       report_sync_scroll(win, data);
       rv_invalidate(win, data);
       return false;
@@ -407,7 +409,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           rv_notify(win, data, cur, RVN_DELETE);
           return true;
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
       if (next != cur && next >= 0) {
         data->selected = next;
@@ -423,6 +425,6 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       win->userdata2 = NULL;
       return true;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

@@ -90,7 +90,7 @@ typedef struct {
   bool result;
 } new_branch_state_t;
 
-static result_t new_branch_proc(window_t *win, uint32_t msg,
+static lresult_t new_branch_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
@@ -163,7 +163,7 @@ static result_t new_branch_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

@@ -179,7 +179,7 @@ bool         app_close_all_documents(window_t *parent_win);
 extern menu_def_t  kMenus[];
 extern const int   kNumMenus;
 void handle_menu_command(uint16_t id);
-result_t app_menubar_proc(window_t *win, uint32_t msg,
+lresult_t app_menubar_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam);
 void create_menubar(void);
 
@@ -187,7 +187,7 @@ void create_menubar(void);
 // View — main window (view_main.c)
 // ============================================================
 
-result_t main_win_proc(window_t *win, uint32_t msg,
+lresult_t main_win_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam);
 task_doc_t *create_document(const char *filename);
 void        close_document(task_doc_t *doc);
@@ -202,7 +202,7 @@ void        doc_update_title(task_doc_t *doc);
 #define TASKLIST_STATUS_W    70
 #define TASKLIST_PRIORITY_W  60
 
-result_t tasklist_proc(window_t *win, uint32_t msg,
+lresult_t tasklist_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam);
 void     tasklist_refresh(window_t *list_win);
 

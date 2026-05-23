@@ -203,7 +203,7 @@ void gc_update_status(void) {
 // Main window procedure
 // ============================================================
 
-result_t gc_main_proc(window_t *win, uint32_t msg,
+lresult_t gc_main_proc(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam) {
   gc_state_t *gc = (gc_state_t *)win->userdata;
 
@@ -459,6 +459,6 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

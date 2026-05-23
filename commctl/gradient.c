@@ -19,7 +19,7 @@ typedef struct {
   uint32_t right_color;
 } gradient_state_t;
 
-result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   gradient_state_t *s = (gradient_state_t *)win->userdata;
   switch (msg) {
     case evCreate: {
@@ -43,6 +43,6 @@ result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

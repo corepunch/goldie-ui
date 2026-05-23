@@ -155,7 +155,7 @@ void gc_diff_refresh(void) {
 // Window procedure
 // ============================================================
 
-result_t gc_diff_proc(window_t *win, uint32_t msg,
+lresult_t gc_diff_proc(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
@@ -314,6 +314,6 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

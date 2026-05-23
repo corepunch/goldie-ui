@@ -157,7 +157,7 @@ static int lv_strip_value_at(const lv_strip_state_t *st,
   return -1;
 }
 
-result_t lv_strip_component_proc(window_t *win, uint32_t msg,
+lresult_t lv_strip_component_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   lv_strip_state_t *st = (lv_strip_state_t *)win->userdata;
   switch (msg) {
@@ -184,7 +184,7 @@ result_t lv_strip_component_proc(window_t *win, uint32_t msg,
     case lvStripGetValue: {
       int v = lv_strip_value_at(st, wparam);
       if (lparam) *(int *)lparam = v;
-      return (result_t)(uint32_t)((v < 0) ? 0xFFFFFFFFu : (uint32_t)v);
+      return (lresult_t)(uint32_t)((v < 0) ? 0xFFFFFFFFu : (uint32_t)v);
     }
     case evPaint:
       if (st) lv_draw_strip_window(win, st);

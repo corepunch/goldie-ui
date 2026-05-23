@@ -42,7 +42,7 @@ static void bl_sync_preview(bl_state_t *st) {
     layer_clear_preview_effect(st->doc, st->layer_idx);
 }
 
-static result_t blur_dlg_proc(window_t *win, uint32_t msg,
+static lresult_t blur_dlg_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   bl_state_t *st = (bl_state_t *)win->userdata;
 
@@ -117,7 +117,7 @@ static result_t blur_dlg_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

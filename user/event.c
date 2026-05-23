@@ -13,7 +13,7 @@
 #include "../kernel/kernel.h"
 
 // External functions
-extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void move_window(window_t *win, int x, int y);
 extern void resize_window(window_t *win, int new_w, int new_h);
@@ -82,8 +82,26 @@ static int resize_anchor[2];
 // Handle mouse events on child windows.
 // x, y are in the parent window's client coordinate system.
 // Each child receives coords in its own client coordinate system (WinAPI style).
+static bool window_is_ancestor_of(window_t *ancestor, window_t *node) {
+  for (window_t *it = node; it; it = it->parent) {
+    if (it == ancestor)
+      return true;
+  }
+  return false;
+}
+
 static int handle_mouse(int msg, window_t *win, int x, int y, void *lparam) {
+  lresult_t hit_res = send_message(win, evHitTest,
+                                   MAKEDWORD((uint16_t)x, (uint16_t)y), NULL);
+  window_t *hit = (hit_res && hit_res != 1)
+                  ? (window_t *)(intptr_t)hit_res
+                  : NULL;
+  if (!hit || hit == win)
+    return false;
+
   for (window_t *c = win->children; c; c = c->next) {
+    if (!window_is_ancestor_of(c, hit))
+      continue;
     if (!CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h))
       continue;
     int lx = x - c->frame.x;

@@ -16,7 +16,7 @@
 static int click_count = 0;
 
 // Simple window procedure for our hello world window
-result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       // Create a label
@@ -65,7 +65,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
       return true;
       
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

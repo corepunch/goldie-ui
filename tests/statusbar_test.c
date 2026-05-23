@@ -13,7 +13,7 @@
 
 #define TEST_PASS(msg) printf("PASS: %s\n", msg)
 
-result_t statusbar_test_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t statusbar_test_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     switch (msg) {
         case evCreate:
             return true;
@@ -21,7 +21,7 @@ result_t statusbar_test_proc(window_t *win, uint32_t msg, uint32_t wparam, void 
             g_ui_runtime.running = false;
             return true;
         default:
-            return false;
+            return default_winproc(win, msg, wparam, lparam);
     }
 }
 

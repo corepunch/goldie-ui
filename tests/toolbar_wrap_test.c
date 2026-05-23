@@ -10,7 +10,7 @@
 
 // ---- helpers ----------------------------------------------------------------
 
-static result_t noop_proc(window_t *win, uint32_t msg,
+static lresult_t noop_proc(window_t *win, uint32_t msg,
                            uint32_t wparam, void *lparam) {
     (void)win; (void)wparam; (void)lparam;
     if (msg == evCreate || msg == evDestroy) return 1;
@@ -20,7 +20,7 @@ static result_t noop_proc(window_t *win, uint32_t msg,
 // Window proc that records the last tbButtonClick ident.
 static int g_last_click_ident = -1;
 static int g_click_count = 0;
-static result_t click_capture_proc(window_t *win, uint32_t msg,
+static lresult_t click_capture_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
     (void)win; (void)lparam;
     if (msg == evCreate || msg == evDestroy) return 1;

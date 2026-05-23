@@ -149,7 +149,7 @@ static void draw_toolbox_button(toolbox_state_t *st, int idx,
 }
 
 // Toolbox window procedure.
-result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     // ── Lifecycle ─────────────────────────────────────────────────────────
     case evCreate: {
@@ -360,6 +360,7 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
       buf[TOOLBOX_TOOLTIP_MAX - 1] = '\0';
       return true;
     }
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

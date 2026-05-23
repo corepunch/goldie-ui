@@ -197,7 +197,7 @@ static void paint_layers(window_t *win, layers_win_state_t *st) {
 // Window procedure
 // ============================================================
 
-result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   layers_win_state_t *st = (layers_win_state_t *)win->userdata;
   (void)lparam;
   switch (msg) {
@@ -283,8 +283,8 @@ result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
         canvas_doc_t *doc = g_app->active_doc;
         if (id == ID_LAYER_BLEND_COMBO && lparam && doc->layer.active >= 0 &&
             doc->layer.active < doc->layer.count) {
-          result_t sel = send_message((window_t *)lparam, cbGetCurrentSelection, 0, NULL);
-          if (sel != (result_t)kComboBoxError) {
+          lresult_t sel = send_message((window_t *)lparam, cbGetCurrentSelection, 0, NULL);
+          if (sel != (lresult_t)kComboBoxError) {
             cmd_layer_set_blend_mode(doc, doc->layer.active, (layer_blend_mode_t)sel);
             invalidate_window(win);
             return true;
@@ -314,7 +314,7 @@ result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
   return false;
 }

@@ -14,7 +14,7 @@
 static int      g_update_count = 0;
 static window_t *g_last_edit   = NULL;
 
-static result_t edit_parent_proc(window_t *win, uint32_t msg,
+static lresult_t edit_parent_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
     (void)win;
     if (msg == evCreate || msg == evDestroy) return 1;

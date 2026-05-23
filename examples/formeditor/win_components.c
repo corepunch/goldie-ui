@@ -68,110 +68,12 @@ static int components_win_h(void) {
 
 #ifndef SHAREDIR
 static void components_hide_ghost(void) {}
-static void components_update_ghost(int ident, int sx, int sy) {
-  (void)ident;
-  (void)sx;
-  (void)sy;
-}
 static void components_load_strip(void) {}
 #else
-#if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
-static const reportview_item_t *components_item_by_ident(int ident) {
-  for (int i = 0; i < g_comp_tool_count; i++) {
-    if ((int)g_comp_tools[i].userdata == ident)
-      return &g_comp_tools[i];
-  }
-  return NULL;
-}
-#endif
-
 static void components_hide_ghost(void) {
 #if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
   if (g_ghost.win && window_has_state(g_ghost.win, WINDOW_STATE_VISIBLE))
     show_window(g_ghost.win, false);
-#endif
-}
-
-#if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
-static result_t components_drag_ghost_proc(window_t *win, uint32_t msg,
-                                           uint32_t wparam, void *lparam) {
-  (void)wparam;
-  (void)lparam;
-  switch (msg) {
-    case evCreate:
-      win->flags |= WINDOW_NOTABSTOP;
-      return true;
-    case evPaint: {
-      int w = win->frame.w;
-      int h = win->frame.h;
-      fill_rect(0x663A7DFF, R(0, 0, w, h));
-      fill_rect(0xCC3A7DFF, R(0, 0, w, 1));
-      fill_rect(0xCC3A7DFF, R(0, h - 1, w, 1));
-      fill_rect(0xCC3A7DFF, R(0, 0, 1, h));
-      fill_rect(0xCC3A7DFF, R(w - 1, 0, 1, h));
-
-      int px = 4;
-      int py = (h - FE_TOOL_ICON_SIZE) / 2;
-      if (g_ghost.icon >= SYSICON_BASE) {
-        draw_icon16(g_ghost.icon, px, py, 0xFFFFFFFF);
-      } else if (g_tool_strip_loaded && g_tool_strip.tex && g_tool_strip.cols > 0) {
-        int col_idx = g_ghost.icon % g_tool_strip.cols;
-        int row_idx = g_ghost.icon / g_tool_strip.cols;
-        float u0 = (float)(col_idx * g_tool_strip.icon_w) / (float)g_tool_strip.sheet_w;
-        float v0 = (float)(row_idx * g_tool_strip.icon_h) / (float)g_tool_strip.sheet_h;
-        float u1 = u0 + (float)g_tool_strip.icon_w / (float)g_tool_strip.sheet_w;
-        float v1 = v0 + (float)g_tool_strip.icon_h / (float)g_tool_strip.sheet_h;
-        draw_sprite_region((int)g_tool_strip.tex,
-                           R(px, py, g_tool_strip.icon_w, g_tool_strip.icon_h),
-                           UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
-      }
-      draw_text(FONT_SMALL, g_ghost.text,
-                px + FE_TOOL_ICON_SIZE + 6,
-                (h - text_char_height(FONT_SMALL)) / 2,
-                0xFFFFFFFF);
-      return true;
-    }
-    default:
-      return false;
-  }
-}
-#endif
-
-static void components_update_ghost(int ident, int sx, int sy) {
-#if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
-  const reportview_item_t *item = components_item_by_ident(ident);
-  if (!item)
-    return;
-
-  if (!g_ghost.win) {
-    g_ghost.win = create_window("",
-        WINDOW_NOTITLE | WINDOW_NORESIZE |
-        WINDOW_NOTRAYBUTTON | WINDOW_NOFILL | WINDOW_NOACTIVATE |
-        WINDOW_TRANSPARENT,
-        MAKERECT(0, 0, 10, 10),
-        NULL, components_drag_ghost_proc, g_app ? g_app->hinstance : 0, NULL);
-    if (!g_ghost.win)
-      return;
-    show_window(g_ghost.win, false);
-  }
-
-  g_ghost.tool_ident = ident;
-  g_ghost.icon = item->icon;
-  snprintf(g_ghost.text, sizeof(g_ghost.text), "%s", item->text ? item->text : "");
-
-  int text_w = text_strwidth(FONT_SMALL, g_ghost.text);
-  int w = FE_TOOL_ICON_SIZE + 14 + text_w;
-  int h = MAX(FE_TOOL_ICON_SIZE + 8, FONT_SIZE_SMALL + 10);
-  if (w < 48) w = 48;
-  if (h < 24) h = 24;
-  move_window(g_ghost.win, sx - w / 2, sy - h / 2);
-  resize_window(g_ghost.win, w, h);
-  show_window(g_ghost.win, true);
-  invalidate_window(g_ghost.win);
-#else
-  (void)ident;
-  (void)sx;
-  (void)sy;
 #endif
 }
 
@@ -261,6 +163,8 @@ static void populate_tool_list(window_t *win) {
   }
 }
 
+#if 0
+// Disabled for now: retained for future drag/drop redesign.
 static int components_tool_ident_at(window_t *win, uint32_t wparam) {
   int idx = (int)send_message(win, RVM_HITTEST, wparam, NULL);
   if (idx < 0)
@@ -270,6 +174,7 @@ static int components_tool_ident_at(window_t *win, uint32_t wparam) {
     return -1;
   return (int)item.userdata;
 }
+#endif
 
 static void components_palette_sync_list(window_t *win) {
   components_palette_state_t *st = win ? (components_palette_state_t *)win->userdata : NULL;
@@ -291,6 +196,8 @@ static void components_palette_sync_list(window_t *win) {
   populate_tool_list(st->list_win);
 }
 
+#if 0
+// Disabled for now: retained for future drag/drop redesign.
 static ipoint16_t window_local_point_to_screen(window_t *win, int lx, int ly) {
   if (!win)
     return (ipoint16_t){0, 0};
@@ -299,6 +206,7 @@ static ipoint16_t window_local_point_to_screen(window_t *win, int lx, int ly) {
       (int16_t)(window_screen_y(win) + ly - win->vscroll.pos),
   };
 }
+#endif
 
 window_t *formeditor_create_components_palette(hinstance_t hinstance) {
   window_t *tp = create_window(
@@ -326,7 +234,7 @@ void formeditor_rebuild_tool_palette(void) {
 #endif
 }
 
-result_t win_components_proc(window_t *win, uint32_t msg,
+lresult_t win_components_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   components_palette_state_t *st = (components_palette_state_t *)win->userdata;
   switch (msg) {
@@ -370,87 +278,88 @@ result_t win_components_proc(window_t *win, uint32_t msg,
       }
       return false;
 
-    case evParentNotify: {
-      if (!st || !st->list_win || !lparam)
-        return false;
-      parent_notify_t *pn = (parent_notify_t *)lparam;
-      if (pn->child != st->list_win)
-        return false;
-
-      switch (pn->child_msg) {
-        case evLeftButtonDown: {
-          int ident = components_tool_ident_at(st->list_win, pn->child_wparam);
-          if (ident < 0)
-            return false;
-          g_drag = (palette_drag_state_t){
-            .pending = true,
-            .dragging = false,
-            .tool_ident = ident,
-            .start_local = {(int16_t)LOWORD(pn->child_wparam), (int16_t)HIWORD(pn->child_wparam)},
-          };
-          if (g_app)
-            g_app->current_tool = ident;
-          set_capture(st->list_win);
-          return false;
-        }
-        case evMouseMove:
-          if (!g_drag.pending)
-            return false;
-          if (!g_drag.dragging) {
-            int lx = (int16_t)LOWORD(pn->child_wparam);
-            int ly = (int16_t)HIWORD(pn->child_wparam);
-            int dx = lx - g_drag.start_local.x;
-            int dy = ly - g_drag.start_local.y;
-            if ((dx < 0 ? -dx : dx) < FE_DRAG_THRESHOLD &&
-                (dy < 0 ? -dy : dy) < FE_DRAG_THRESHOLD)
-              return false;
-            g_drag.dragging = true;
-          }
-          {
-            int lx = (int16_t)LOWORD(pn->child_wparam);
-            int ly = (int16_t)HIWORD(pn->child_wparam);
-            ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
-            window_t *target = canvas_find_component_drop_target(g_app ? g_app->active_form : NULL,
-                                                                 g_drag.tool_ident,
-                                                                 screen.x, screen.y);
-            if (g_app && g_app->active_form) {
-              canvas_set_component_drag_hover(g_app->active_form, target != NULL, target);
-            }
-            components_update_ghost(g_drag.tool_ident, screen.x, screen.y);
-          }
-          return false;
-        case evLeftButtonUp:
-          if (!g_drag.pending)
-            return false;
-          if (g_drag.dragging) {
-            int lx = (int16_t)LOWORD(pn->child_wparam);
-            int ly = (int16_t)HIWORD(pn->child_wparam);
-            ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
-            int sx = screen.x;
-            int sy = screen.y;
-            window_t *target = canvas_find_component_drop_target(g_app ? g_app->active_form : NULL,
-                                                                 g_drag.tool_ident,
-                                                                 sx, sy);
-            if (g_app && g_app->active_form && target)
-              canvas_drop_component_to_target(g_app->active_form, g_drag.tool_ident, target, sx, sy);
-            if (g_app && g_app->active_form) {
-              window_t *doc = g_app->active_form;
-              if (doc && doc->children)
-                invalidate_window(doc->children);
-              if (g_app->windows[FE_WIN_TOOL])
-                send_message(g_app->windows[FE_WIN_TOOL], bxSetActiveItem, (uint32_t)ID_TOOL_SELECT, NULL);
-            }
-          }
-          components_hide_ghost();
-          g_drag = (palette_drag_state_t){0};
-          set_capture(NULL);
-          return false;
-        default:
-          return false;
-      }
-    }
+    // Disabled: drag-via-parent-notify path was removed intentionally.
+    // case evParentNotify: {
+    //   if (!st || !st->list_win || !lparam)
+    //     return false;
+    //   parent_notify_t *pn = (parent_notify_t *)lparam;
+    //   if (pn->child != st->list_win)
+    //     return false;
+    //
+    //   switch (pn->child_msg) {
+    //     case evLeftButtonDown: {
+    //       int ident = components_tool_ident_at(st->list_win, pn->child_wparam);
+    //       if (ident < 0)
+    //         return false;
+    //       g_drag = (palette_drag_state_t){
+    //         .pending = true,
+    //         .dragging = false,
+    //         .tool_ident = ident,
+    //         .start_local = {(int16_t)LOWORD(pn->child_wparam), (int16_t)HIWORD(pn->child_wparam)},
+    //       };
+    //       if (g_app)
+    //         g_app->current_tool = ident;
+    //       set_capture(st->list_win);
+    //       return false;
+    //     }
+    //     case evMouseMove:
+    //       if (!g_drag.pending)
+    //         return false;
+    //       if (!g_drag.dragging) {
+    //         int lx = (int16_t)LOWORD(pn->child_wparam);
+    //         int ly = (int16_t)HIWORD(pn->child_wparam);
+    //         int dx = lx - g_drag.start_local.x;
+    //         int dy = ly - g_drag.start_local.y;
+    //         if ((dx < 0 ? -dx : dx) < FE_DRAG_THRESHOLD &&
+    //             (dy < 0 ? -dy : dy) < FE_DRAG_THRESHOLD)
+    //           return false;
+    //         g_drag.dragging = true;
+    //       }
+    //       {
+    //         int lx = (int16_t)LOWORD(pn->child_wparam);
+    //         int ly = (int16_t)HIWORD(pn->child_wparam);
+    //         ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
+    //         window_t *target = canvas_find_component_drop_target(g_app ? g_app->active_form : NULL,
+    //                                                              g_drag.tool_ident,
+    //                                                              screen.x, screen.y);
+    //         if (g_app && g_app->active_form) {
+    //           canvas_set_component_drag_hover(g_app->active_form, target != NULL, target);
+    //         }
+    //         components_update_ghost(g_drag.tool_ident, screen.x, screen.y);
+    //       }
+    //       return false;
+    //     case evLeftButtonUp:
+    //       if (!g_drag.pending)
+    //         return false;
+    //       if (g_drag.dragging) {
+    //         int lx = (int16_t)LOWORD(pn->child_wparam);
+    //         int ly = (int16_t)HIWORD(pn->child_wparam);
+    //         ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
+    //         int sx = screen.x;
+    //         int sy = screen.y;
+    //         window_t *target = canvas_find_component_drop_target(g_app ? g_app->active_form : NULL,
+    //                                                              g_drag.tool_ident,
+    //                                                              sx, sy);
+    //         if (g_app && g_app->active_form && target)
+    //           canvas_drop_component_to_target(g_app->active_form, g_drag.tool_ident, target, sx, sy);
+    //         if (g_app && g_app->active_form) {
+    //           window_t *doc = g_app->active_form;
+    //           if (doc && doc->children)
+    //             invalidate_window(doc->children);
+    //           if (g_app->windows[FE_WIN_TOOL])
+    //             send_message(g_app->windows[FE_WIN_TOOL], bxSetActiveItem, (uint32_t)ID_TOOL_SELECT, NULL);
+    //         }
+    //       }
+    //       components_hide_ghost();
+    //       g_drag = (palette_drag_state_t){0};
+    //       set_capture(NULL);
+    //       return false;
+    //     default:
+    //       return false;
+    //   }
+    // }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

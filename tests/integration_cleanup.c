@@ -7,7 +7,7 @@
 #include "../ui.h"
 
 // Simple window procedure
-result_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       // Create some child windows to test cleanup
@@ -26,7 +26,7 @@ result_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       return true;
       
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

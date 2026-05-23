@@ -15,7 +15,7 @@ static int test_click_count = 0;
 static uint32_t test_last_button_id = 0;
 
 // Window procedure that mimics the hello world example
-result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       // Create a button and assign it an ID
@@ -43,7 +43,7 @@ result_t test_hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
       return true;
       
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

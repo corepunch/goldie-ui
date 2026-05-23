@@ -250,7 +250,7 @@ void handle_menu_command(uint16_t id) {
 // Menu bar window procedure
 // ============================================================
 
-result_t app_menubar_proc(window_t *win, uint32_t msg,
+lresult_t app_menubar_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCommand:

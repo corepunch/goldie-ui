@@ -37,7 +37,7 @@ int message_box(window_t *parent, const char *text,
     return fe_next_message_box_result;
 }
 
-static result_t fe_noop_proc(window_t *win, uint32_t msg,
+static lresult_t fe_noop_proc(window_t *win, uint32_t msg,
                              uint32_t wparam, void *lparam) {
     (void)win;
     (void)msg;
@@ -70,7 +70,7 @@ typedef struct {
 
 static fe_paint_probe_state_t g_paint_probe = {0};
 
-static result_t fe_paint_probe_proc(window_t *win, uint32_t msg,
+static lresult_t fe_paint_probe_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
     (void)wparam;
     (void)lparam;
@@ -91,7 +91,7 @@ static result_t fe_paint_probe_proc(window_t *win, uint32_t msg,
           g_paint_probe.last_paint_frame = win->frame;
           return true;
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
     }
 }
 

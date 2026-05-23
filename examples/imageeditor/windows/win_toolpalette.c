@@ -160,7 +160,7 @@ static void palette_draw_swatches(window_t *win) {
   fill_rect(0xFF000000, reset_black);
 }
 
-static result_t palette_root_proc(window_t *win, uint32_t msg,
+static lresult_t palette_root_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   palette_state_t *st = palette_state(win);
   switch (msg) {
@@ -255,11 +255,11 @@ static result_t palette_root_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
-result_t win_tool_palette_proc(window_t *win, uint32_t msg,
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   return palette_root_proc(win, msg, wparam, lparam);
 }

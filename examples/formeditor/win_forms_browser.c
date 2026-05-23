@@ -109,7 +109,7 @@ static void forms_delete_active(void) {
   forms_browser_refresh();
 }
 
-result_t win_forms_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_forms_browser_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   forms_browser_state_t *st = (forms_browser_state_t *)win->userdata;
   (void)lparam;
@@ -150,7 +150,7 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
           forms_delete_active();
           return true;
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
 
     case evResize:
@@ -186,6 +186,6 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

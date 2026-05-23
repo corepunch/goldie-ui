@@ -410,18 +410,20 @@ extern app_state_t *g_app;
 // Window procedures
 // ============================================================
 
-result_t editor_menubar_proc(window_t *win, uint32_t msg,
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam);
-result_t win_components_proc(window_t *win, uint32_t msg,
+lresult_t win_components_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam);
-result_t win_tool_palette_proc(window_t *win, uint32_t msg,
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam);
-result_t win_property_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_property_browser_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam);
-result_t win_forms_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_forms_browser_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam);
-result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam);
+lresult_t win_canvas_proc(window_t *win, uint32_t msg,
+                          uint32_t wparam, void *lparam);
 void canvas_rebuild_live_controls(window_t *doc);
 void canvas_set_component_drag_hover(window_t *doc, bool active, window_t *target);
 window_t *canvas_find_component_drop_target(window_t *doc, int type,
@@ -488,7 +490,6 @@ void form_doc_update_title(window_t *doc);
 void form_doc_activate(window_t *doc);
 void form_doc_show_only(window_t *doc);
 irect16_t form_doc_frame_for_size(int form_w, int form_h, uint32_t form_flags);
-result_t doc_win_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 bool fe_project_load(const char *path);
 bool fe_project_save(const char *path);

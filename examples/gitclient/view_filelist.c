@@ -105,9 +105,9 @@ void gc_files_refresh(void) {
 // Window procedure
 // ============================================================
 
-result_t gc_files_proc(window_t *win, uint32_t msg,
+lresult_t gc_files_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam) {
-  result_t r = win_reportview(win, msg, wparam, lparam);
+  lresult_t r = win_reportview(win, msg, wparam, lparam);
 
   if (msg == evCreate) {
     send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);

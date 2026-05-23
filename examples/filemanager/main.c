@@ -15,7 +15,7 @@
 //   FLN_NAVDIR  → update the window status bar with the new path
 //   FLN_FILEOPEN → launch a terminal for .lua scripts
 // ---------------------------------------------------------------------------
-static result_t filemanager_proc(window_t *win, uint32_t msg,
+static lresult_t filemanager_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:

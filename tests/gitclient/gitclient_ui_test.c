@@ -158,7 +158,7 @@ static void gc_test_teardown(void) {
 // Skips gc_main_proc's evCreate (which creates the full visual hierarchy and
 // loads the VGA font) but wires win->userdata = g_gc so that gc_main_proc can
 // find gc->log_win / gc->files_win etc. when handling evCommand or evOpenRepo.
-static result_t test_main_proc(window_t *win, uint32_t msg,
+static lresult_t test_main_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
     if (msg == evCreate) {
         win->userdata = g_gc;

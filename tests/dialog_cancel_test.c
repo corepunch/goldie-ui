@@ -32,7 +32,7 @@ static bool g_cancel_received = false;
 // command from a "Cancel" child it calls end_dialog, which destroys the
 // dialog window (and all its children, including the button that is still
 // on the call stack).
-static result_t dialog_proc(window_t *win, uint32_t msg,
+static lresult_t dialog_proc(window_t *win, uint32_t msg,
                              uint32_t wparam, void *lparam) {
     switch (msg) {
         case evCreate:
@@ -52,7 +52,7 @@ static result_t dialog_proc(window_t *win, uint32_t msg,
         case evDestroy:
             return 1;
         default:
-            return 0;
+            return default_winproc(win, msg, wparam, lparam);
     }
 }
 
@@ -115,7 +115,7 @@ void test_dialog_cancel_no_crash(void) {
 // Parent proc for the regular-click test.
 static int g_cmd_count = 0;
 
-static result_t regular_parent_proc(window_t *win, uint32_t msg,
+static lresult_t regular_parent_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
     (void)win; (void)lparam;
     if (msg == evCommand &&

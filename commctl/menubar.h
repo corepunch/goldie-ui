@@ -41,6 +41,6 @@ typedef struct {
 //   LOWORD(wparam) = the selected item's id field
 #define kMenuBarNotificationItemClick 300
 
-result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #endif  /* __UI_MENUBAR_H__ */

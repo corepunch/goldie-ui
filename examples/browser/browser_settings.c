@@ -184,7 +184,7 @@ bool browser_settings_save(const browser_state_t *st) {
   return axSettingsSave(BROWSER_SETTINGS_FILE, text, (size_t)n) ? true : false;
 }
 
-static result_t browser_settings_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t browser_settings_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   browser_settings_dialog_state_t *ds = (browser_settings_dialog_state_t *)win->userdata;
 
   switch (msg) {
@@ -229,7 +229,7 @@ static result_t browser_settings_proc(window_t *win, uint32_t msg, uint32_t wpar
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

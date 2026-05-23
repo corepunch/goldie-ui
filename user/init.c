@@ -222,8 +222,7 @@ bitmap_strip_t *ui_get_sysicon_strip(void) {
   return (g_sysicon_strip.tex != 0) ? &g_sysicon_strip : NULL;
 }
 
-static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  (void)win;
+static lresult_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   (void)wparam;
   (void)lparam;
   switch (msg) {
@@ -232,9 +231,9 @@ static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *
                 R(0, 0,
                   ui_get_system_metrics(kSystemMetricScreenWidth),
                   ui_get_system_metrics(kSystemMetricScreenHeight)));
-      return true;
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
+  return default_winproc(win, msg, wparam, lparam);
 }
 
 // Initialize graphics context (platform + OpenGL)

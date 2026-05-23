@@ -13,7 +13,7 @@
 static int  g_sel_change_count = 0;
 static int  g_last_sel_id      = -1;
 
-static result_t cb_parent_proc(window_t *win, uint32_t msg,
+static lresult_t cb_parent_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
     (void)win; (void)lparam;
     if (msg == evCreate || msg == evDestroy) return 1;
@@ -51,8 +51,8 @@ void test_cb_add_string(void) {
     window_t *cb = make_combobox(parent, 1);
     ASSERT_NOT_NULL(cb);
 
-    result_t r1 = send_message(cb, cbAddString, 0, "Alpha");
-    result_t r2 = send_message(cb, cbAddString, 0, "Beta");
+    lresult_t r1 = send_message(cb, cbAddString, 0, "Alpha");
+    lresult_t r2 = send_message(cb, cbAddString, 0, "Beta");
     ASSERT_TRUE(r1);
     ASSERT_TRUE(r2);
 
@@ -76,7 +76,7 @@ void test_cb_get_list_box_text(void) {
     send_message(cb, cbAddString, 0, "Second");
 
     char buf[64] = {0};
-    result_t r = send_message(cb, cbGetListBoxText, 0, buf);
+    lresult_t r = send_message(cb, cbGetListBoxText, 0, buf);
     ASSERT_TRUE(r);
     ASSERT_STR_EQUAL(buf, "First");
 
@@ -104,7 +104,7 @@ void test_cb_get_list_box_text_out_of_range(void) {
     send_message(cb, cbAddString, 0, "OnlyItem");
 
     char buf[64] = {0};
-    result_t r = send_message(cb, cbGetListBoxText, 5, buf);
+    lresult_t r = send_message(cb, cbGetListBoxText, 5, buf);
     ASSERT_FALSE(r);
 
     destroy_window(parent);
@@ -123,7 +123,7 @@ void test_cb_no_selection_initially(void) {
     window_t *cb = make_combobox(parent, 4);
     ASSERT_NOT_NULL(cb);
 
-    result_t sel = send_message(cb, cbGetCurrentSelection, 0, NULL);
+    lresult_t sel = send_message(cb, cbGetCurrentSelection, 0, NULL);
     ASSERT_EQUAL((int)sel, (int)kComboBoxError);
 
     destroy_window(parent);
@@ -146,10 +146,10 @@ void test_cb_set_and_get_selection(void) {
     send_message(cb, cbAddString, 0, "One");
     send_message(cb, cbAddString, 0, "Two");
 
-    result_t r = send_message(cb, cbSetCurrentSelection, 1, NULL);
+    lresult_t r = send_message(cb, cbSetCurrentSelection, 1, NULL);
     ASSERT_TRUE(r);
 
-    result_t sel = send_message(cb, cbGetCurrentSelection, 0, NULL);
+    lresult_t sel = send_message(cb, cbGetCurrentSelection, 0, NULL);
     ASSERT_EQUAL((int)sel, 1);
 
     // After selection, the title should reflect the selected item
@@ -174,7 +174,7 @@ void test_cb_set_selection_out_of_range(void) {
     send_message(cb, cbAddString, 0, "A");
     send_message(cb, cbAddString, 0, "B");
 
-    result_t r = send_message(cb, cbSetCurrentSelection, 99, NULL);
+    lresult_t r = send_message(cb, cbSetCurrentSelection, 99, NULL);
     ASSERT_FALSE(r);
 
     destroy_window(parent);
@@ -198,17 +198,17 @@ void test_cb_clear(void) {
     send_message(cb, cbSetCurrentSelection, 0, NULL);
 
     // Verify items exist
-    result_t sel_before = send_message(cb, cbGetCurrentSelection, 0, NULL);
+    lresult_t sel_before = send_message(cb, cbGetCurrentSelection, 0, NULL);
     ASSERT_EQUAL((int)sel_before, 0);
 
     send_message(cb, cbClear, 0, NULL);
 
     // After clear, no selection possible
-    result_t sel_after = send_message(cb, cbGetCurrentSelection, 0, NULL);
+    lresult_t sel_after = send_message(cb, cbGetCurrentSelection, 0, NULL);
     ASSERT_EQUAL((int)sel_after, (int)kComboBoxError);
 
     // Re-adding should work from scratch
-    result_t r = send_message(cb, cbAddString, 0, "New");
+    lresult_t r = send_message(cb, cbAddString, 0, "New");
     ASSERT_TRUE(r);
 
     destroy_window(parent);
@@ -237,7 +237,7 @@ void test_cb_down_arrow_selects_first_item(void) {
     ASSERT_EQUAL((int)send_message(cb, cbGetCurrentSelection, 0, NULL),
                  (int)kComboBoxError);
 
-    result_t r = send_message(cb, evKeyDown, AX_KEY_DOWNARROW, NULL);
+    lresult_t r = send_message(cb, evKeyDown, AX_KEY_DOWNARROW, NULL);
     ASSERT_TRUE(r);
 
     ASSERT_EQUAL((int)send_message(cb, cbGetCurrentSelection, 0, NULL), 0);

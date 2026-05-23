@@ -242,7 +242,7 @@ static void db_browser_observer(fe_event_type_t event, window_t *doc, void *ctx)
   }
 }
 
-static result_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   db_browser_state_t *dbs = (db_browser_state_t *)win->userdata;
   
   switch (msg) {
@@ -331,7 +331,7 @@ static result_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
     }
     
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

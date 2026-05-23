@@ -305,7 +305,7 @@ void layout_grid_arrange_window(window_t *win, const irect16_t *rect) {
   free(row_y);
 }
 
-static result_t layout_init_default_grid_columns(window_t *win) {
+static lresult_t layout_init_default_grid_columns(window_t *win) {
   if (!win)
     return true;
   if (!win->children) {
@@ -329,7 +329,7 @@ static result_t layout_init_default_grid_columns(window_t *win) {
   return true;
 }
 
-result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCanParent: {
       (void)wparam;
@@ -375,14 +375,14 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
     case evPaint:
       layout_paint_children(win);
       return true;
-    case evParentNotify:
-      return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
+    // case evParentNotify:
+    //   return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
-result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       win->flags |= WINDOW_AUTO_LAYOUT;
@@ -436,13 +436,12 @@ result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
       return true;
     case evPaint:
-      layout_paint_children(win);
-      return true;
+      return default_winproc(win, msg, wparam, lparam);
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
-result_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_gridview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   return win_grid(win, msg, wparam, lparam);
 }

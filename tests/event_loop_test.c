@@ -131,7 +131,7 @@ void test_wakeup_coalescing_rearms_after_consume(void) {
 static int msg_sink_count = 0;
 static uint32_t msg_sink_last = 0;
 
-static result_t noop_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t noop_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   (void)win; (void)wparam; (void)lparam;
   if (msg == evPaint || msg == evNCPaint) {
     msg_sink_count++;
@@ -143,12 +143,12 @@ static result_t noop_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
 // Window procedures for test_post_message_different_targets_both_delivered.
 static int count_proc_a = 0, count_proc_b = 0;
 
-static result_t proc_a(window_t *w, uint32_t msg, uint32_t wp, void *lp) {
+static lresult_t proc_a(window_t *w, uint32_t msg, uint32_t wp, void *lp) {
   (void)w; (void)wp; (void)lp;
   if (msg == evPaint) count_proc_a++;
   return 1;
 }
-static result_t proc_b(window_t *w, uint32_t msg, uint32_t wp, void *lp) {
+static lresult_t proc_b(window_t *w, uint32_t msg, uint32_t wp, void *lp) {
   (void)w; (void)wp; (void)lp;
   if (msg == evPaint) count_proc_b++;
   return 1;

@@ -307,7 +307,7 @@ static int fl_hit_index(window_t *win, filelist_data_t *data, uint32_t wparam) {
   return (index >= 0 && index < data->count) ? index : -1;
 }
 
-result_t win_filelist(window_t *win, uint32_t msg,
+lresult_t win_filelist(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam) {
   filelist_data_t *data = (filelist_data_t *)win->userdata;
 

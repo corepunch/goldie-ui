@@ -24,7 +24,7 @@ static const accel_t kTestAccels[] = {
 static uint32_t g_last_cmd_wparam = 0;
 static int      g_cmd_count       = 0;
 
-static result_t accel_test_proc(window_t *win, uint32_t msg,
+static lresult_t accel_test_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
     (void)win; (void)lparam;
     if (msg == evCreate || msg == evDestroy) return 1;

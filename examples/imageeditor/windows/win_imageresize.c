@@ -19,7 +19,7 @@ static const ctrl_binding_t k_ir_bindings[] = {
   DDX_COMBO(ID_IMAGE_RESIZE_FILTER, ir_state_t, filter, IMAGE_RESIZE_BILINEAR),
 };
 
-static result_t image_resize_proc(window_t *win, uint32_t msg,
+static lresult_t image_resize_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   ir_state_t *s = (ir_state_t *)win->userdata;
   switch (msg) {
@@ -53,7 +53,7 @@ static result_t image_resize_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

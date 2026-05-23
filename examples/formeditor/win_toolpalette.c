@@ -84,7 +84,7 @@ window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance) {
   return tp;
 }
 
-result_t win_tool_palette_proc(window_t *win, uint32_t msg,
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:

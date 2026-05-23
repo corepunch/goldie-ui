@@ -383,6 +383,7 @@ When refactoring, update all field accesses systematically:
 - Window procedures follow the signature: `result_t (*winproc_t)(window_t *, uint32_t msg, uint32_t wparam, void *lparam)`
 - Common messages include WM_CREATE, WM_DESTROY, WM_PAINT, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_COMMAND
 - Return true from window proc if message was handled, false otherwise
+- **Do not add dispatcher-level safety nets that call `default_winproc` when a proc returns unhandled.** Keep DefWindowProc behavior explicit in each window proc (`default: return default_winproc(...)`) and fix missing delegation at the source proc instead of adding global fallback hacks in `send_message`.
 
 ### Message Parameter Passing (Zero Wrapper Structs)
 

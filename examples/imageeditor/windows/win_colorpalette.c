@@ -28,7 +28,7 @@ void swap_foreground_background_colors(void) {
 // Row height for indexed palette (make it square-ish).
 #define INDEXED_SWATCH_H INDEXED_SWATCH_W
 
-result_t win_color_palette_proc(window_t *win, uint32_t msg,
+lresult_t win_color_palette_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   (void)lparam;
   switch (msg) {
@@ -113,7 +113,7 @@ result_t win_color_palette_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -122,7 +122,7 @@ result_t win_color_palette_proc(window_t *win, uint32_t msg,
 // 32-bit RGBA mode color palette window (original behavior).
 // ──────────────────────────────────────────────────────────────────────
 
-result_t win_color_palette_proc(window_t *win, uint32_t msg,
+lresult_t win_color_palette_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   (void)lparam;
   switch (msg) {
@@ -182,7 +182,7 @@ result_t win_color_palette_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

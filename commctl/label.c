@@ -32,7 +32,7 @@ static uint32_t label_color(const window_t *win) {
   return get_sys_color(brTextNormal);
 }
 
-result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       if (lparam && (uintptr_t)lparam > 0x1000) {
@@ -87,6 +87,7 @@ result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
       return true;
     }
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

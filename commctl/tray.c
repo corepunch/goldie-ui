@@ -16,7 +16,7 @@ typedef enum {
   icon16_count,
 } ed_icon16_t;
 
-result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 void create_button(window_t *tray, window_t *window) {
   irect16_t r = { tray->cursor_pos, 2, 0, 12 };
@@ -63,7 +63,7 @@ static void on_win_destroyed(window_t *win, uint32_t msg, uint32_t wparam, void 
   }
 }
 
-result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       win->cursor_pos = 22;
@@ -74,7 +74,7 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evPaint:
       draw_icon16(icon16_appicon, 4, 1, get_sys_color(brDarkEdge));
       draw_icon16(icon16_appicon, 3, 0, get_sys_color(brTextNormal));
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
         window_t *button = lparam;
@@ -87,7 +87,6 @@ result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       deregister_window_hook(evDestroy, on_win_destroyed, win);
       return true;
     default:
-      break;
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

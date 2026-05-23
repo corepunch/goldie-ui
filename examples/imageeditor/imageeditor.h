@@ -587,11 +587,11 @@ void doc_update_title(canvas_doc_t *doc);
 bool doc_confirm_close(canvas_doc_t *doc, window_t *parent_win);
 
 // Window procedures
-result_t editor_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_canvas_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_tool_palette_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_tool_options_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_color_palette_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_canvas_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_tool_options_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_color_palette_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Zoom support
 void canvas_win_set_zoom(window_t *canvas_win, int new_scale);
@@ -778,7 +778,7 @@ canvas_doc_t *canvas_extract_mask(canvas_doc_t *doc);
 // Layers palette (win_layers.c)
 // ============================================================
 
-result_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_layers_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 window_t *create_layers_window(void);
 
 // Refresh the Layers palette after layer changes.

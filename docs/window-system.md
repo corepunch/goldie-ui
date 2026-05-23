@@ -63,16 +63,16 @@ For child windows `frame.x/y` is relative to the **parent's content area**.
 ## Window Procedure
 
 ```c
-typedef int (*winproc_t)(window_t *win, uint32_t msg,
-                         uint32_t wparam, void *lparam);
+typedef lresult_t (*winproc_t)(window_t *win, uint32_t msg,
+                               uint32_t wparam, void *lparam);
 ```
 
 Return `true` (non-zero) if the message was handled; `false` to allow
-default processing or child dispatch.
+default processing through `default_winproc`.
 
 ```c
-static result_t my_proc(window_t *win, uint32_t msg,
-                        uint32_t wparam, void *lparam) {
+static lresult_t my_proc(window_t *win, uint32_t msg,
+                         uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       /* one-time initialisation; lparam = value passed to create_window */
@@ -84,7 +84,7 @@ static result_t my_proc(window_t *win, uint32_t msg,
       free(win->userdata);
       return true;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 ```

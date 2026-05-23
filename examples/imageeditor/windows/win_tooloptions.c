@@ -251,7 +251,7 @@ static bool shape_row_hit(int mx, int my) {
 
 // ── Window procedure ────────────────────────────────────────────────────────
 
-result_t win_tool_options_proc(window_t *win, uint32_t msg,
+lresult_t win_tool_options_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   (void)lparam;
   switch (msg) {
@@ -337,6 +337,6 @@ result_t win_tool_options_proc(window_t *win, uint32_t msg,
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

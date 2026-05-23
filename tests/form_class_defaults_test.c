@@ -3,7 +3,7 @@
 #include "../ui.h"
 
 // Simple window procedure for test forms
-static result_t test_form_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t test_form_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   (void)win; (void)msg; (void)wparam; (void)lparam;
   return false;
 }

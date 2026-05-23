@@ -14,7 +14,7 @@
 #include "../commctl/commctl.h"
 
 // Minimal reportview for testing
-static result_t test_reportview_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t test_reportview_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       // Simulate a reportview with lots of content (20 items * 20px = 400px)
@@ -31,7 +31,7 @@ static result_t test_reportview_proc(window_t *win, uint32_t msg, uint32_t wpara
     case evPaint:
       return false;
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

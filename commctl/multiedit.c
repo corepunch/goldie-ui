@@ -158,7 +158,7 @@ static irect16_t me_text_screen_rect(window_t *win, window_t *root) {
 // Window procedure
 // ---------------------------------------------------------------------------
 
-result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   me_state_t *s = (me_state_t *)win->userdata;
 
   switch (msg) {
@@ -425,7 +425,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
           return true;
 
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
     }
 
@@ -451,7 +451,7 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (maxlen <= 0) return 0;
       strncpy(dst, s->buf, (size_t)(maxlen - 1));
       dst[maxlen - 1] = '\0';
-      return (result_t)strlen(dst);
+      return (lresult_t)strlen(dst);
     }
 
     // ── evVScroll — scrollbar thumb dragged / arrow clicked ─────────────────
@@ -476,6 +476,6 @@ result_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

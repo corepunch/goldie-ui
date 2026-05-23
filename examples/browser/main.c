@@ -50,8 +50,8 @@ static const menu_def_t kBrowserMenus[] = {
 };
 
 static void browser_handle_menu_command(uint16_t id);
-static result_t browser_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-static result_t browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+static lresult_t browser_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+static lresult_t browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 static browser_state_t *browser_state_from_root(window_t *root) {
   for (browser_state_t *it = g_app.windows; it; it = it->next) {
@@ -261,7 +261,7 @@ static void browser_handle_menu_command(uint16_t id) {
   }
 }
 
-static result_t browser_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t browser_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   if (msg == evCommand) {
     if (HIWORD(wparam) == kMenuBarNotificationItemClick ||
         HIWORD(wparam) == kAcceleratorNotification) {
@@ -272,7 +272,7 @@ static result_t browser_menubar_proc(window_t *win, uint32_t msg, uint32_t wpara
   return win_menubar(win, msg, wparam, lparam);
 }
 
-static result_t browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   browser_state_t *st = (browser_state_t *)win->userdata;
 
   switch (msg) {
@@ -434,7 +434,7 @@ static result_t browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void 
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

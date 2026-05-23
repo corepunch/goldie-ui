@@ -56,10 +56,16 @@ static int runtime_xml_attr_int(xmlNodePtr node, const char *name, int fallback)
   xmlChar *v = xmlGetProp(node, BAD_CAST name);
   if (!v)
     return fallback;
+  const char *s = (const char *)v;
+  while (*s && isspace((unsigned char)*s))
+    s++;
   char *end = NULL;
-  long n = strtol((const char *)v, &end, 0);
+  long n = strtol(s, &end, 0);
+  while (end && *end && isspace((unsigned char)*end))
+    end++;
+  bool ok = (end && *end == '\0');
   xmlFree(v);
-  if (!end || *end != '\0')
+  if (!ok)
     return fallback;
   return (int)n;
 }
@@ -247,6 +253,8 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
     runtime_xml_attr_copy(node, "db_source", source, sizeof(source));
 
   rp->table.db = ui_get_database();
+  if (!rp->table.db)
+    rp->table.db = get_database_by_name("db");
   rp->table.table_id = runtime_table_id_for_source(source);
 
   int col = 0;
@@ -258,7 +266,20 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
 
     char *field = runtime_xml_attr_dup(ctx, c, "field");
     char *title = runtime_xml_attr_dup(ctx, c, "title");
-    int width = runtime_xml_attr_int(c, "width", 80);
+    int width = 80;
+    xmlChar *width_x = xmlGetProp(c, BAD_CAST "width");
+    if (width_x) {
+      const char *s = (const char *)width_x;
+      while (*s && isspace((unsigned char)*s))
+        s++;
+      char *end = NULL;
+      long parsed = strtol(s, &end, 10);
+      while (end && *end && isspace((unsigned char)*end))
+        end++;
+      if (end && *end == '\0' && parsed >= 0 && parsed <= INT32_MAX)
+        width = (int)parsed;
+      xmlFree(width_x);
+    }
 
     if (!field)
       field = runtime_strdup(ctx, "id");
@@ -458,10 +479,11 @@ window_t *fe_create_runtime_form_window(window_t *doc,
     runtime_xml_attr_copy(form_node, "margin", rect_expr, sizeof(rect_expr));
     parse_rect_attr(&def.margin, rect_expr);
 
-    // Runtime toolbar definitions from <toolbars> are not yet hydrated in the
-    // editor preview path; avoid showing an empty toolbar strip.
-    if (def.flags & WINDOW_TOOLBAR)
-      def.flags &= ~WINDOW_TOOLBAR;
+      // The document shell owns toolbar/statusbar chrome in FormEditor preview.
+      // Keep the runtime root content-only so child layout matches the form client area.
+      def.flags &= ~(WINDOW_TOOLBAR | WINDOW_STATUSBAR);
+      def.toolbar_items = NULL;
+      def.toolbar_count = 0;
 
     def.child_count = 0;
     def.children = runtime_build_defs(&ctx, form_node, &def.child_count);

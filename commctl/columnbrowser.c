@@ -173,7 +173,7 @@ static void cb_selection_changed(window_t *win, column_browser_state_t *cbs, int
   send_message(win->parent, evCommand, MAKEDWORD(win->id, 0), win);
 }
 
-static result_t column_list_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t column_list_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   window_t *parent = win->parent;
   if (!parent) return false;
   
@@ -194,11 +194,11 @@ static result_t column_list_proc(window_t *win, uint32_t msg, uint32_t wparam, v
       return false;
     }
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
-result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   column_browser_state_t *cbs = (column_browser_state_t *)win->userdata;
   
   switch (msg) {
@@ -274,6 +274,6 @@ result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *
     }
     
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

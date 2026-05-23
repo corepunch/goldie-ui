@@ -330,7 +330,7 @@ const char* terminal_get_buffer(window_t *win) {
   return s->textbuf->data;
 }
 
-result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   terminal_state_t *s = (terminal_state_t *)win->userdata;
   
   switch (msg) {
@@ -474,6 +474,6 @@ result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     }
     
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

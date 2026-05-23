@@ -11,7 +11,7 @@
 extern window_t *get_root_window(window_t *window);
 
 // Checkbox control window procedure
-result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       win->frame.w = MAX(win->frame.w,
@@ -88,6 +88,7 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       } else {
         return false;
       }
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

@@ -2,14 +2,41 @@
 
 #include "formeditor.h"
 
-static result_t canvas_form_root_proc(window_t *win, uint32_t msg,
+static lresult_t canvas_form_root_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
-  if (msg == evPaint) {
-    irect16_t cr = get_client_rect(win);
-    fill_rect(get_sys_color(brWindowBg), cr);
-    return false;
+  switch (msg) {
+    case evPaint: 
+      return default_winproc(win, msg, wparam, lparam);
+
+    // Keep the runtime canvas root as the mouse target.
+    // Returning handled for hit-test blocks recursion into preview children.
+    case evHitTest:
+      return (lresult_t)(intptr_t)win;
+
+    // Intercept pointer input at the canvas layer so preview controls
+    // remain non-interactive while editing.
+    case evLeftButtonDown:
+    case evLeftButtonDoubleClick:
+    case evLeftButtonUp:
+    case evRightButtonDown:
+    case evRightButtonUp:
+    case evMouseMove:
+    case evWheel:
+      (void)wparam;
+      (void)lparam;
+      return true;
+
+    // Intercept keyboard/text input at the canvas layer.
+    case evKeyDown:
+    case evKeyUp:
+    case evTextInput:
+      (void)wparam;
+      (void)lparam;
+      return true;
+
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return win_space(win, msg, wparam, lparam);
 }
 
 static window_t *canvas_create_runtime_form(window_t *doc) {
@@ -52,4 +79,42 @@ bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target,
   (void)screen_x;
   (void)screen_y;
   return false;
+}
+
+lresult_t win_canvas_proc(window_t *win, uint32_t msg,
+                          uint32_t wparam, void *lparam) {
+  form_doc_state_t *doc = fe_doc_state(win);
+  switch (msg) {
+    case evCreate:
+      return true;
+    case evSetFocus:
+      if (doc && window_has_state(win, WINDOW_STATE_VISIBLE))
+        form_doc_activate(win);
+      return default_winproc(win, msg, wparam, lparam);
+    case evPaint:
+      return default_winproc(win, msg, wparam, lparam);
+    case evResize: {
+      if (win && win->children) {
+        irect16_t cr = get_client_rect(win);
+        int new_w = MAX(1, cr.w);
+        int new_h = MAX(1, cr.h);
+        bool changed = (win->children->frame.w != new_w || win->children->frame.h != new_h);
+        resize_window(win->children, cr.w, cr.h);
+        if (changed) {
+          fe_doc_mark_modified(win);
+          if (g_app)
+            g_app->project.modified = true;
+        }
+      }
+      return default_winproc(win, msg, wparam, lparam);
+    }
+    case evClose:
+      if (!doc)
+        return false;
+      show_window(win, false);
+      forms_browser_refresh();
+      return true;
+    default:
+      return default_winproc(win, msg, wparam, lparam);
+  }
 }

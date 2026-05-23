@@ -144,7 +144,7 @@ static void populate_status_combo(window_t *win) {
 // Window procedure
 // ============================================================
 
-static result_t task_dlg_proc(window_t *win, uint32_t msg,
+static lresult_t task_dlg_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   task_dlg_state_t *s = (task_dlg_state_t *)win->userdata;
 
@@ -216,7 +216,7 @@ static result_t task_dlg_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

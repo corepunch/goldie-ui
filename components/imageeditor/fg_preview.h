@@ -14,7 +14,7 @@ enum {
   fgPreviewSetData = evUser + 340,
 };
 
-result_t fg_preview_component_proc(window_t *win, uint32_t msg,
+lresult_t fg_preview_component_proc(window_t *win, uint32_t msg,
                                    uint32_t wparam, void *lparam);
 
 #endif /* __IMAGEEDITOR_FILTER_GALLERY_PREVIEW_H__ */

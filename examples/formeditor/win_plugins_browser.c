@@ -164,7 +164,7 @@ static void plugins_load_selected(plugins_browser_state_t *st, window_t *owner) 
   formeditor_rebuild_tool_palette();
 }
 
-result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   plugins_browser_state_t *st = (plugins_browser_state_t *)win->userdata;
   (void)lparam;
@@ -205,7 +205,7 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
           plugins_load_selected(st, win);
           return true;
         default:
-          return false;
+          return default_winproc(win, msg, wparam, lparam);
       }
 
     case evResize:
@@ -226,6 +226,6 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

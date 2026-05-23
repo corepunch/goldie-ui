@@ -1,6 +1,7 @@
 // Minimal project XML I/O for window-first form runtime.
 
 #include "formeditor.h"
+#include "../../user/icons.h"
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
@@ -54,6 +55,228 @@ static void fe_load_project_meta(xmlNodePtr root) {
   feio_xml_attr_copy(root, "root", g_app->project.root, sizeof(g_app->project.root));
 }
 
+static int fe_parse_sysicon_name(const char *name) {
+  if (!name || !*name)
+    return sysicon_missing;
+  if (strcmp(name, "sysicon_add") == 0)
+    return sysicon_add;
+  if (strcmp(name, "sysicon_delete") == 0)
+    return sysicon_delete;
+  if (strcmp(name, "sysicon_heart") == 0)
+    return sysicon_heart;
+  if (strcmp(name, "sysicon_comment") == 0)
+    return sysicon_comment;
+  if (strcmp(name, "sysicon_folder") == 0)
+    return sysicon_folder;
+  if (strcmp(name, "sysicon_play") == 0)
+    return sysicon_play;
+  return sysicon_missing;
+}
+
+static uint32_t fe_parse_form_chrome_flags(xmlNodePtr form_node) {
+  char flags_expr[256] = {0};
+  feio_xml_attr_copy(form_node, "flags", flags_expr, sizeof(flags_expr));
+  uint32_t out = 0;
+  if (strstr(flags_expr, "WINDOW_TOOLBAR"))
+    out |= WINDOW_TOOLBAR;
+  if (strstr(flags_expr, "WINDOW_STATUSBAR"))
+    out |= WINDOW_STATUSBAR;
+  return out;
+}
+
+static int fe_build_toolbar_items(xmlNodePtr root, xmlNodePtr form_node,
+                                  toolbar_item_t *items, int max_items) {
+  if (!root || !form_node || !items || max_items <= 0)
+    return 0;
+
+  char toolbar_name[64] = {0};
+  feio_xml_attr_copy(form_node, "toolbar", toolbar_name, sizeof(toolbar_name));
+  if (!toolbar_name[0])
+    return 0;
+
+  xmlNodePtr toolbars_node = NULL;
+  for (xmlNodePtr n = root->children; n; n = n->next) {
+    if (n->type == XML_ELEMENT_NODE &&
+        xmlStrcasecmp(n->name, BAD_CAST "toolbars") == 0) {
+      toolbars_node = n;
+      break;
+    }
+  }
+  if (!toolbars_node)
+    return 0;
+
+  xmlNodePtr toolbar_node = NULL;
+  for (xmlNodePtr n = toolbars_node->children; n; n = n->next) {
+    if (n->type != XML_ELEMENT_NODE ||
+        xmlStrcasecmp(n->name, BAD_CAST "toolbar") != 0)
+      continue;
+    char name_buf[64] = {0};
+    feio_xml_attr_copy(n, "name", name_buf, sizeof(name_buf));
+    if (strcmp(name_buf, toolbar_name) == 0) {
+      toolbar_node = n;
+      break;
+    }
+  }
+  if (!toolbar_node)
+    return 0;
+
+  int count = 0;
+  for (xmlNodePtr n = toolbar_node->children; n && count < max_items; n = n->next) {
+    if (n->type != XML_ELEMENT_NODE)
+      continue;
+    if (xmlStrcasecmp(n->name, BAD_CAST "spacer") == 0) {
+      items[count++] = (toolbar_item_t){ .type = TOOLBAR_ITEM_SPACER, .icon = -1 };
+      continue;
+    }
+    if (xmlStrcasecmp(n->name, BAD_CAST "Button") != 0)
+      continue;
+
+    char icon_name[64] = {0};
+    feio_xml_attr_copy(n, "icon", icon_name, sizeof(icon_name));
+    items[count++] = (toolbar_item_t){
+      .type = TOOLBAR_ITEM_BUTTON,
+      .ident = 0,
+      .icon = fe_parse_sysicon_name(icon_name),
+      .w = 0,
+      .flags = 0,
+      .text = NULL,
+    };
+  }
+
+  return count;
+}
+
+static void fe_apply_form_preview_chrome(window_t *doc, xmlNodePtr root,
+                                         xmlNodePtr form_node, int form_w, int form_h) {
+  if (!doc || !root || !form_node)
+    return;
+
+  uint32_t chrome = fe_parse_form_chrome_flags(form_node);
+  uint32_t old_bits = doc->flags & (WINDOW_TOOLBAR | WINDOW_STATUSBAR);
+  uint32_t new_bits = chrome & (WINDOW_TOOLBAR | WINDOW_STATUSBAR);
+  if (old_bits != new_bits) {
+    doc->flags = (doc->flags & ~(WINDOW_TOOLBAR | WINDOW_STATUSBAR)) | new_bits;
+    irect16_t fr = form_doc_frame_for_size(form_w, form_h, doc->flags);
+    resize_window(doc, fr.w, fr.h);
+  }
+
+  if (doc->flags & WINDOW_TOOLBAR) {
+    toolbar_item_t items[32];
+    memset(items, 0, sizeof(items));
+    int count = fe_build_toolbar_items(root, form_node, items, 32);
+    if (count > 0)
+      send_message(doc, tbSetItems, (uint32_t)count, items);
+  }
+
+  if (doc->flags & WINDOW_STATUSBAR)
+    send_message(doc, evStatusBar, 0, (void *)"Preview");
+}
+
+static db_field_type_t fe_parse_db_field_type(const char *type_str) {
+  if (!type_str || !*type_str)
+    return DB_TYPE_STRING;
+  if (strcmp(type_str, "integer") == 0)
+    return DB_TYPE_INT;
+  if (strcmp(type_str, "int") == 0)
+    return DB_TYPE_INT;
+  if (strcmp(type_str, "number") == 0)
+    return DB_TYPE_FLOAT;
+  if (strcmp(type_str, "float") == 0)
+    return DB_TYPE_FLOAT;
+  return DB_TYPE_STRING;
+}
+
+static void fe_load_databases(xmlNodePtr root) {
+  if (!g_app || !root)
+    return;
+
+  g_app->project.database_count = 0;
+
+  for (xmlNodePtr n = root->children; n; n = n->next) {
+    if (n->type != XML_ELEMENT_NODE)
+      continue;
+    if (xmlStrcasecmp(n->name, BAD_CAST "databases") != 0)
+      continue;
+
+    for (xmlNodePtr db_node = n->children; db_node; db_node = db_node->next) {
+      if (db_node->type != XML_ELEMENT_NODE)
+        continue;
+      if (xmlStrcasecmp(db_node->name, BAD_CAST "database") != 0)
+        continue;
+      if (g_app->project.database_count >= FE_MAX_PROJECT_DATABASES)
+        break;
+
+      form_project_database_t *pdb =
+        &g_app->project.databases[g_app->project.database_count++];
+      memset(pdb, 0, sizeof(*pdb));
+
+      feio_xml_attr_copy(db_node, "name", pdb->name, sizeof(pdb->name));
+      feio_xml_attr_copy(db_node, "class", pdb->class_name, sizeof(pdb->class_name));
+      feio_xml_attr_copy(db_node, "source", pdb->source_path, sizeof(pdb->source_path));
+
+      for (xmlNodePtr t = db_node->children; t; t = t->next) {
+        if (t->type != XML_ELEMENT_NODE)
+          continue;
+        if (xmlStrcasecmp(t->name, BAD_CAST "table") != 0)
+          continue;
+        if (pdb->table_count >= FE_MAX_PROJECT_DB_TABLES)
+          break;
+
+        form_project_db_table_t *pt = &pdb->tables[pdb->table_count];
+        memset(pt, 0, sizeof(*pt));
+        pt->table_id = pdb->table_count;
+        feio_xml_attr_copy(t, "name", pt->name, sizeof(pt->name));
+        feio_xml_attr_copy(t, "model", pt->model, sizeof(pt->model));
+        pdb->table_count++;
+
+        for (xmlNodePtr f = t->children; f; f = f->next) {
+          if (f->type != XML_ELEMENT_NODE)
+            continue;
+          if (xmlStrcasecmp(f->name, BAD_CAST "field") != 0)
+            continue;
+          if (pt->field_count >= FE_MAX_PROJECT_DB_FIELDS)
+            break;
+
+          form_project_db_field_t *pf = &pt->fields[pt->field_count++];
+          memset(pf, 0, sizeof(*pf));
+          feio_xml_attr_copy(f, "name", pf->name, sizeof(pf->name));
+
+          char type_buf[64] = {0};
+          feio_xml_attr_copy(f, "type", type_buf, sizeof(type_buf));
+          pf->type = fe_parse_db_field_type(type_buf);
+          pf->length = feio_xml_attr_int(f, "length", 0);
+
+          char key_buf[16] = {0};
+          feio_xml_attr_copy(f, "key", key_buf, sizeof(key_buf));
+          pf->primary_key = (strcmp(key_buf, "YES") == 0 || strcmp(key_buf, "yes") == 0);
+
+          char rel_buf[128] = {0};
+          feio_xml_attr_copy(f, "relation", rel_buf, sizeof(rel_buf));
+          if (rel_buf[0]) {
+            const char *dot = strchr(rel_buf, '.');
+            if (dot) {
+              size_t table_len = (size_t)(dot - rel_buf);
+              if (table_len >= sizeof(pf->relation_table))
+                table_len = sizeof(pf->relation_table) - 1;
+              memcpy(pf->relation_table, rel_buf, table_len);
+              pf->relation_table[table_len] = '\0';
+              snprintf(pf->relation_field, sizeof(pf->relation_field), "%s", dot + 1);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (ui_get_database() == NULL) {
+    database_t *db = get_database_by_name("db");
+    if (!db && g_app->project.database_count > 0 && g_app->project.databases[0].name[0])
+      db = get_database_by_name(g_app->project.databases[0].name);
+    if (db)
+      ui_set_database(db);
+  }
+}
+
 static void fe_load_form_node(xmlNodePtr form_node) {
   xmlChar *title_x = xmlGetProp(form_node, BAD_CAST "title");
   xmlChar *frame_x = xmlGetProp(form_node, BAD_CAST "frame");
@@ -89,6 +312,8 @@ static void fe_load_form_node(xmlNodePtr form_node) {
   // and editor chrome get mixed.
 
   form_doc_update_title(doc);
+  fe_apply_form_preview_chrome(doc, form_node->doc ? xmlDocGetRootElement(form_node->doc) : NULL,
+                               form_node, w, h);
   canvas_rebuild_live_controls(doc);
 
   if (title_x) xmlFree(title_x);
@@ -102,8 +327,9 @@ bool fe_project_load(const char *path) {
     return false;
 
   xmlDocPtr xdoc = xmlReadFile(path, NULL, XML_PARSE_NOBLANKS);
-  if (!xdoc)
+  if (!xdoc) {
     return false;
+  }
 
   xmlNodePtr root = xmlDocGetRootElement(xdoc);
   if (!root || xmlStrcasecmp(root->name, BAD_CAST "orion") != 0) {
@@ -114,6 +340,7 @@ bool fe_project_load(const char *path) {
   snprintf(g_app->project.filename, sizeof(g_app->project.filename), "%s", path);
   fe_close_all_docs();
   fe_load_project_meta(root);
+  fe_load_databases(root);
 
   for (xmlNodePtr n = root->children; n; n = n->next) {
     if (n->type != XML_ELEMENT_NODE)

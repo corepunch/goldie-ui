@@ -87,7 +87,7 @@ ui_runtime_state_t g_ui_runtime = {
 
 // Forward declarations
 extern void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern int titlebar_height(window_t const *win);
 extern int statusbar_height(window_t const *win);
 
@@ -404,7 +404,11 @@ window_t *find_window(int x, int y) {
       last = win;
       int t = titlebar_height(win);
       if (!window_has_state(win, WINDOW_STATE_DISABLED)) {
-        send_message(win, evHitTest, MAKEDWORD(x - win->frame.x, y - win->frame.y - t), &last);
+        lresult_t hit = send_message(win, evHitTest,
+                                     MAKEDWORD(x - win->frame.x, y - win->frame.y - t),
+                                     NULL);
+        if (hit && hit != 1)
+          last = (window_t *)(intptr_t)hit;
       }
     }
   }
@@ -744,6 +748,10 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     if (!child) continue;
     
     child->id = cd->id;
+    if (cd->size.w > 0)
+      child->layout.layout_fixed_w = cd->size.w;
+    if (cd->size.h > 0)
+      child->layout.layout_fixed_h = cd->size.h;
     child->layout.h_align = child_h_align;
     child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;
@@ -899,6 +907,10 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
                                     &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     child->id = cd->id;
+    if (cd->size.w > 0)
+      child->layout.layout_fixed_w = cd->size.w;
+    if (cd->size.h > 0)
+      child->layout.layout_fixed_h = cd->size.h;
     child->layout.h_align = child_h_align;
     child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;

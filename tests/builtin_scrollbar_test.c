@@ -7,7 +7,7 @@
 #include "test_env.h"
 #include "../ui.h"
 
-static result_t scrolling_window_proc(window_t *win, uint32_t msg,
+static lresult_t scrolling_window_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
   (void)lparam;
   if (msg == evCreate || msg == evDestroy || msg == evPaint) return 1;

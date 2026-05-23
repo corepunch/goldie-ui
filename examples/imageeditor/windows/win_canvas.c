@@ -547,7 +547,7 @@ static void canvas_draw_animation_trace(window_t *win,
   }
 }
 
-result_t win_canvas_proc(window_t *win, uint32_t msg,
+lresult_t win_canvas_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam) {
   canvas_win_state_t *state = (canvas_win_state_t *)win->userdata;
   canvas_doc_t *doc = state ? state->doc : NULL;
@@ -1343,6 +1343,6 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

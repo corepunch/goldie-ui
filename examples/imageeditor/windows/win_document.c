@@ -55,7 +55,7 @@ void imageeditor_document_frame_for_viewport(int viewport_w, int viewport_h,
 // Document window proc
 // ============================================================
 
-static result_t doc_win_proc(window_t *win, uint32_t msg,
+static lresult_t doc_win_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   canvas_doc_t *doc = (canvas_doc_t *)win->userdata;
   switch (msg) {
@@ -90,7 +90,7 @@ static result_t doc_win_proc(window_t *win, uint32_t msg,
       return true;  // prevent the default show_window(win, false)
     }
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

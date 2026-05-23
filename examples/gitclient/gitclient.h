@@ -241,14 +241,14 @@ extern const int   kGCMenuCount;
 
 void gc_create_menubar(void);
 void gc_handle_command(uint16_t id);
-result_t gc_menubar_proc(window_t *win, uint32_t msg,
+lresult_t gc_menubar_proc(window_t *win, uint32_t msg,
                          uint32_t wparam, void *lparam);
 
 // ============================================================
 // View — main window (view_main.c)
 // ============================================================
 
-result_t gc_main_proc(window_t *win, uint32_t msg,
+lresult_t gc_main_proc(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam);
 void gc_open_repo(const char *path);
 void gc_refresh_all(void);
@@ -259,7 +259,7 @@ void gc_layout_panels(window_t *win);
 // View — branches panel (view_branches.c)
 // ============================================================
 
-result_t gc_branches_proc(window_t *win, uint32_t msg,
+lresult_t gc_branches_proc(window_t *win, uint32_t msg,
                            uint32_t wparam, void *lparam);
 void gc_branches_refresh(void);
 
@@ -267,7 +267,7 @@ void gc_branches_refresh(void);
 // View — commit log panel (view_log.c)
 // ============================================================
 
-result_t gc_log_proc(window_t *win, uint32_t msg,
+lresult_t gc_log_proc(window_t *win, uint32_t msg,
                      uint32_t wparam, void *lparam);
 void gc_log_refresh(void);
 
@@ -275,7 +275,7 @@ void gc_log_refresh(void);
 // View — file status panel (view_filelist.c)
 // ============================================================
 
-result_t gc_files_proc(window_t *win, uint32_t msg,
+lresult_t gc_files_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam);
 void gc_files_refresh(void);
 
@@ -283,7 +283,7 @@ void gc_files_refresh(void);
 // View — diff viewer (view_diff.c)
 // ============================================================
 
-result_t gc_diff_proc(window_t *win, uint32_t msg,
+lresult_t gc_diff_proc(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam);
 void gc_diff_refresh(void);
 

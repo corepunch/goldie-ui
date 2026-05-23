@@ -172,7 +172,7 @@ static void open_submenu_popup(window_t *popup, popup_data_t *pd, int index);
 
 // ---- popup window proc ---------------------------------------------------
 
-static result_t popup_proc(window_t *win, uint32_t msg,
+static lresult_t popup_proc(window_t *win, uint32_t msg,
                             uint32_t wparam, void *lparam) {
   popup_data_t *pd = (popup_data_t *)win->userdata;
   switch (msg) {
@@ -357,7 +357,7 @@ static result_t popup_proc(window_t *win, uint32_t msg,
       return true;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 
@@ -459,7 +459,7 @@ static void open_popup(window_t *mb_win, menubar_data_t *data, int idx) {
 
 // ---- menu bar proc -------------------------------------------------------
 
-result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   menubar_data_t *data = (menubar_data_t *)win->userdata;
   switch (msg) {
     case evCreate: {
@@ -549,6 +549,6 @@ result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

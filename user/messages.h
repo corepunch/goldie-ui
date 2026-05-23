@@ -18,11 +18,11 @@ enum {
   evActivate,
   evSetFocus,
   evKillFocus,
+  // Hit-test in client coordinates. Return the hit window as lresult_t
+  // (cast from window_t*), or 0 when no deeper child is hit.
   evHitTest,
-  // Sent to a parent before selected mouse/key events are delivered to a
-  // child window, analogous to WinAPI WM_PARENTNOTIFY but consumable.
-  // wparam = 0; lparam = parent_notify_t*. Return true to consume the event.
-  evParentNotify,
+  // Disabled: parent notify forwarding path is intentionally removed.
+  // evParentNotify,
   evCommand,
   evTextInput,
   evWheel,
@@ -114,7 +114,7 @@ enum {
   // LOWORD(wparam) = button ident; HIWORD(wparam) = tbDropdown; lparam = toolbar window.
   tbDropdown,
   // Text edit getter/setter messages (single-line and multiline controls).
-  // Getter pattern is WinAPI-like: return value in result_t and optionally
+  // Getter pattern is WinAPI-like: return value in lresult_t and optionally
   // mirror it to lparam when non-NULL.
   edGetText,        // wparam=buf_size; lparam=char* dst → copies text, returns length
   edSetText,        // wparam=0; lparam=const char* src → replaces text

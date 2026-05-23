@@ -14,7 +14,7 @@
 extern window_t *get_root_window(window_t *window);
 
 // Text edit control window procedure
-result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       win->frame.w = MAX(win->frame.w, text_strwidth(FONT_SMALL, win->title) + TEXTEDIT_PADDING_HORZ* 2);
@@ -117,11 +117,11 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 
     case edGetText: {
       if (!lparam || wparam == 0)
-        return (result_t)strlen(win->title);
+        return (lresult_t)strlen(win->title);
       size_t sz = (size_t)wparam;
       strncpy((char *)lparam, win->title, sz - 1);
       ((char *)lparam)[sz - 1] = '\0';
-      return (result_t)strlen((char *)lparam);
+      return (lresult_t)strlen((char *)lparam);
     }
 
     case edSetText:
@@ -134,6 +134,8 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return true;
 
+    default:
+      return default_winproc(win, msg, wparam, lparam);
+
   }
-  return false;
 }

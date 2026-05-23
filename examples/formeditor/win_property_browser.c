@@ -69,7 +69,7 @@ window_t *property_browser_create(hinstance_t hinstance) {
   return win;
 }
 
-result_t win_property_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_property_browser_proc(window_t *win, uint32_t msg,
                                    uint32_t wparam, void *lparam) {
   (void)wparam;
   (void)lparam;
@@ -99,6 +99,6 @@ result_t win_property_browser_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

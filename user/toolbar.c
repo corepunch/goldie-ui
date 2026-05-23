@@ -165,7 +165,7 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
   }
 }
 
-static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+static lresult_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   toolbar_state_t *tb = (toolbar_state_t *)win->userdata;
 
   switch (msg) {
@@ -469,7 +469,7 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

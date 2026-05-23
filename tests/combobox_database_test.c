@@ -147,7 +147,7 @@ void test_combobox_manual_population(void) {
     return;
   }
   
-  result_t sel = send_message(cb, cbGetCurrentSelection, 0, NULL);
+  lresult_t sel = send_message(cb, cbGetCurrentSelection, 0, NULL);
   if (sel != 1) {
     FAIL("Expected selection index 1");
     destroy_window(root);

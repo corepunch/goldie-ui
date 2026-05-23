@@ -10,8 +10,8 @@
 #include "commctl.h"
 
 // Forward declare list control procedure  
-extern result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern lresult_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Helper functions (will be moved to ui/user/window.c later)
 extern window_t *get_root_window(window_t *window);
@@ -59,8 +59,8 @@ static void open_dropdown(window_t *win) {
   if (!list)
     return;
 
-  result_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
-  if (sel != (result_t)kComboBoxError)
+  lresult_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
+  if (sel != (lresult_t)kComboBoxError)
     send_message(list, lstSetItem, (uint32_t)sel, NULL);
   show_window(list, true);
   set_capture(list);
@@ -145,7 +145,7 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
 }
 
 // Combobox control window procedure
-result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   combobox_state_t *state = (combobox_state_t *)win->userdata;
   combobox_string_t *texts = state ? state->texts : NULL;
   
@@ -185,9 +185,11 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
+        int base_w = (win->layout.layout_fixed_w > 0) ? win->layout.layout_fixed_w : 60;
+        int base_h = (win->layout.layout_fixed_h > 0) ? win->layout.layout_fixed_h : BUTTON_HEIGHT;
         int text_w = strwidth(win->title) + 16 + 16; /* text + padding + arrow */
-        m->desired_w = MAX(win->frame.w > 0 ? win->frame.w : 60, text_w);
-        m->desired_h = MAX(win->frame.h > 0 ? win->frame.h : BUTTON_HEIGHT, BUTTON_HEIGHT);
+        m->desired_w = MAX(base_w, text_w);
+        m->desired_h = MAX(base_h, BUTTON_HEIGHT);
       }
       return true;
     }
@@ -226,8 +228,8 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return true;
       }
       if (key == AX_KEY_UPARROW) {
-        result_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
-        if (sel != (result_t)kComboBoxError && sel > 0) {
+        lresult_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
+        if (sel != (lresult_t)kComboBoxError && sel > 0) {
           send_message(win, cbSetCurrentSelection, (uint32_t)(sel - 1), NULL);
           invalidate_window(win);
           send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, cbSelectionChange), win);
@@ -235,12 +237,12 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         return true;
       }
       if (key == AX_KEY_DOWNARROW) {
-        result_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
-        if (sel == (result_t)kComboBoxError && win->cursor_pos > 0) {
+        lresult_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
+        if (sel == (lresult_t)kComboBoxError && win->cursor_pos > 0) {
           send_message(win, cbSetCurrentSelection, 0, NULL);
           invalidate_window(win);
           send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, cbSelectionChange), win);
-        } else if (sel != (result_t)kComboBoxError && (uint32_t)(sel + 1) < win->cursor_pos) {
+        } else if (sel != (lresult_t)kComboBoxError && (uint32_t)(sel + 1) < win->cursor_pos) {
           send_message(win, cbSetCurrentSelection, (uint32_t)(sel + 1), NULL);
           invalidate_window(win);
           send_message(get_root_window(win), evCommand, MAKEDWORD(win->id, cbSelectionChange), win);
@@ -321,6 +323,6 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return true;
     default:
-      return win_button(win, msg, wparam, lparam);
+      return default_winproc(win, msg, wparam, lparam);
   }
 }

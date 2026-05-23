@@ -126,7 +126,7 @@ static void onion_sync_ui(window_t *win, const onion_skin_state_t *st) {
   onion_sync_slider(win, st);
 }
 
-static result_t onion_skin_proc(window_t *win, uint32_t msg,
+static lresult_t onion_skin_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   onion_skin_state_t *st = (onion_skin_state_t *)win->userdata;
   switch (msg) {
@@ -215,7 +215,7 @@ static result_t onion_skin_proc(window_t *win, uint32_t msg,
       return false;
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

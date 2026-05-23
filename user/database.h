@@ -7,7 +7,6 @@
 
 // Forward declarations
 typedef struct database_s database_t;
-typedef intptr_t lresult_t;  // Pointer-sized result (like WinAPI LRESULT)
 
 // Database procedure callback type (analogous to winproc_t)
 typedef lresult_t (*dbproc_t)(database_t *, uint32_t, uint32_t, void *);

@@ -26,7 +26,7 @@ typedef struct {
   int orientation;  // SPLIT_VERT or SPLIT_HORZ
 } splitter_data_t;
 
-result_t win_splitter(window_t *win, uint32_t msg,
+lresult_t win_splitter(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam) {
   (void)wparam;
 
@@ -74,7 +74,7 @@ result_t win_splitter(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

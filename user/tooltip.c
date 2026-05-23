@@ -42,7 +42,7 @@ static window_t *g_tooltip_src         = NULL; // window that triggered the pend
 
 // ── Tooltip window procedure ─────────────────────────────────────────────────
 
-static result_t tooltip_win_proc(window_t *win, uint32_t msg,
+static lresult_t tooltip_win_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   (void)wparam; (void)lparam;
   switch (msg) {

@@ -41,50 +41,6 @@ void form_doc_show_only(window_t *doc) {
 }
 
 // ============================================================
-// Document window procedure
-// ============================================================
-
-result_t doc_win_proc(window_t *win, uint32_t msg,
-                              uint32_t wparam, void *lparam) {
-  form_doc_state_t *doc = fe_doc_state(win);
-  (void)wparam;
-  (void)lparam;
-  switch (msg) {
-    case evCreate:
-      return true;
-    case evSetFocus:
-      if (doc && window_has_state(win, WINDOW_STATE_VISIBLE)) form_doc_activate(win);
-      return false;
-    case evPaint:
-      fill_rect(get_sys_color(brWorkspaceBg), R(0, 0, win->frame.w, win->frame.h));
-      return false;
-    case evResize: {
-      if (win && win->children) {
-        irect16_t cr = get_client_rect(win);
-        int new_w = MAX(1, cr.w);
-        int new_h = MAX(1, cr.h);
-        bool changed = (win->children->frame.w != new_w || win->children->frame.h != new_h);
-        resize_window(win->children, cr.w, cr.h);
-        if (changed) {
-          fe_doc_mark_modified(win);
-          if (g_app)
-            g_app->project.modified = true;
-        }
-      }
-      return false;
-    }
-    case evClose: {
-      if (!doc) return false;
-      show_window(win, false);
-      forms_browser_refresh();
-      return true;
-    }
-    default:
-      return false;
-  }
-}
-
-// ============================================================
 // create_form_doc / close_form_doc
 // ============================================================
 
@@ -139,7 +95,11 @@ window_t *create_form_doc(int w, int h) {
       "Untitled",
       WINDOW_HSCROLL | (doc_flags & (WINDOW_TOOLBAR | WINDOW_STATUSBAR)),
       &doc_frame,
-      NULL, doc_win_proc, g_app->hinstance, NULL);
+      NULL, win_canvas_proc, g_app->hinstance, NULL);
+  if (!dwin) {
+    free(doc);
+    return NULL;
+  }
   dwin->userdata = doc;
   dwin->flags = (dwin->flags & ~(WINDOW_AUTO_LAYOUT | WINDOW_STACK_HORIZONTAL)) |
                 (doc_flags & (WINDOW_AUTO_LAYOUT | WINDOW_STACK_HORIZONTAL));

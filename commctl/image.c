@@ -7,7 +7,7 @@
 // Static image control — displays a GL texture.
 // lparam in evCreate is (void*)(uintptr_t)GLuint texture ID.
 // The texture is NOT owned by the control; the caller must free it.
-result_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+lresult_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       win->userdata = lparam;
@@ -22,6 +22,7 @@ result_t win_image(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
       return true;
     }
+    default:
+      return default_winproc(win, msg, wparam, lparam);
   }
-  return false;
 }

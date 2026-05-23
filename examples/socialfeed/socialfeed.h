@@ -118,7 +118,7 @@ bool         app_add_comment(int post_id, int author_id, const char *text);
 // ============================================================
 
 void     handle_menu_command(uint16_t id);
-result_t app_menubar_proc(window_t *win, uint32_t msg,
+lresult_t app_menubar_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam);
 void     create_menubar(void);
 
@@ -133,7 +133,7 @@ void test_new_author_dialog(window_t *parent, database_t *db);
 // View — main window (view_main.c)
 // ============================================================
 
-result_t main_win_proc(window_t *win, uint32_t msg,
+lresult_t main_win_proc(window_t *win, uint32_t msg,
                        uint32_t wparam, void *lparam);
 void     feed_refresh(void);
 void     create_main_window(void);
