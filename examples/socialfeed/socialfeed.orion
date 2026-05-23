@@ -5,6 +5,10 @@
     title="Social Feed Dialogs"
     root="examples/socialfeed">
 
+    <plugins>
+      <plugin name="socialfeed_components" />
+    </plugins>
+
     <menus var="kMenus" count="kNumMenus">
       <menu name="file" label="File">
         <item name="quit" label="Quit" />

@@ -371,4 +371,3 @@ void draw_checkerboard(irect16_t r, int square_px) {
                      UV_RECT(0.0f, 0.0f, uv_x, uv_y),
                      0xFFFFFFFF, 0);
 }
-

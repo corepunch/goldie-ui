@@ -2387,14 +2387,6 @@ void test_fe_sizeless_level_controls_use_full_frame(void) {
 // ── main ──────────────────────────────────────────────────────────────────
 
 int main(void) {
-    printf("Starting test suite: Form Editor CRUD\n");
-    printf("  Testing: Form Editor integration suite ... " COLOR_YELLOW "SKIP" COLOR_RESET ": unstable in current headless run\n\n");
-    printf(COLOR_BLUE "Test Results:\n" COLOR_RESET);
-    printf("  Total:  1\n");
-    printf("  " COLOR_GREEN "Passed: 1" COLOR_RESET "\n\n");
-    printf(COLOR_GREEN "All tests passed!\n" COLOR_RESET);
-    return 0;
-
     TEST_START("Form Editor CRUD");
 
     test_fe_create_doc();

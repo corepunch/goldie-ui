@@ -86,6 +86,8 @@ COMMCTL_LIB = $(LIB_DIR)/libcommctl.$(LIB_EXT)
 COMMDLG_LIB = $(LIB_DIR)/libcommdlg.$(LIB_EXT)
 CORE_LIBS = $(USER_LIB) $(COMMCTL_LIB) $(COMMDLG_LIB) $(KERNEL_LIB)
 
+USER_SRCS = $(filter-out user/dialog.c user/component_registry.c,$(wildcard user/*.c))
+
 # Shared rpath used exactly once per link command to avoid duplicate-rpath warnings.
 RPATH_FLAGS = -Wl,-rpath,$(abspath $(LIB_DIR))
 
@@ -195,8 +197,8 @@ share: $(VGA_FONT_PNG) | $(SHARE_DIR)
 .PHONY: library
 library: $(CORE_LIBS)
 
-$(USER_LIB): $(filter-out user/dialog.c,$(wildcard user/*.c)) $(COMMDLG_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
-	   find user -name "*.c" | grep -v dialog.c | sort | sed 's/.*/#include "&"/' | \
+$(USER_LIB): $(USER_SRCS) $(COMMDLG_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
+	   printf '%s\n' $(sort $(USER_SRCS)) | sed 's/.*/#include "&"/' | \
 		   $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 # Build commdlg static library
 $(COMMDLG_LIB): $(wildcard commdlg/*.c) | $(LIB_DIR)
@@ -218,9 +220,9 @@ examples: share $(EXAMPLE_BINS) $(COMPONENT_PLUGIN_BINS)
 .PHONY: plugins
 plugins: $(COMPONENT_PLUGIN_BINS)
 
-$(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard components/$$*/*.c) $(CORE_LIBS) | $(LIB_DIR)
+$(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard components/$$*/*.c) $(CORE_LIBS) $(GENERATED_HEADERS) | $(LIB_DIR)
 	$(CC) $(CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents/$* -o $@ $(wildcard components/$*/*.c) \
-	    $(LDFLAGS) $(FE_PLUGIN_LDLIBS) $(RPATH_FLAGS) $(LIBS)
+	    $(LDFLAGS) $(FE_PLUGIN_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 
 $(EXAMPLE_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(BIN_DIR) share

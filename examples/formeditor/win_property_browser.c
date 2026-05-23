@@ -227,32 +227,16 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
       }
       break;
     case PROP_ROW_DB_FIELD:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_field(doc, idx, value);
-      }
+      fe_doc_set_element_db_field(doc, el->id, value);
       break;
     case PROP_ROW_DB_SOURCE:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_source(doc, idx, value);
-      }
+      fe_doc_set_element_db_source(doc, el->id, value);
       break;
     case PROP_ROW_DB_DISPLAY:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_display(doc, idx, value);
-      }
+      fe_doc_set_element_db_display(doc, el->id, value);
       break;
     case PROP_ROW_DB_VALUE:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_value(doc, idx, value);
-      }
+      fe_doc_set_element_db_value(doc, el->id, value);
       break;
     default:
       return;

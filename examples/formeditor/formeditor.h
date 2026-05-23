@@ -9,7 +9,6 @@
 
 #include "../../ui.h"
 #include "fe_document.h"  // Document model types
-#include "fe_editor_context.h"  // Editor context for live view mapping
 #include "fe_layout.h"  // Layout computation
 #include "fe_project_io.h"  // XML project I/O
 #include "fe_project.h"  // Project-level document management
@@ -149,6 +148,44 @@ typedef struct {
 } form_plugin_ref_t;
 
 #define FE_MAX_PROJECT_PLUGINS 32
+#define FE_MAX_PROJECT_DATABASES 8
+#define FE_MAX_PROJECT_DB_TABLES 32
+#define FE_MAX_PROJECT_DB_FIELDS 64
+#define FE_MAX_PROJECT_DB_JOINS 16
+
+typedef struct {
+  char name[64];
+  db_field_type_t type;
+  int length;
+  bool primary_key;
+  char relation_table[64];
+  char relation_field[64];
+} form_project_db_field_t;
+
+typedef struct {
+  char name[64];
+  char local_field[64];
+  char foreign_table[64];
+  char foreign_field[64];
+} form_project_db_join_t;
+
+typedef struct {
+  int table_id;
+  char name[64];
+  char model[64];
+  form_project_db_field_t fields[FE_MAX_PROJECT_DB_FIELDS];
+  int field_count;
+  form_project_db_join_t joins[FE_MAX_PROJECT_DB_JOINS];
+  int join_count;
+} form_project_db_table_t;
+
+typedef struct {
+  char name[64];
+  char class_name[64];
+  char source_path[256];
+  form_project_db_table_t tables[FE_MAX_PROJECT_DB_TABLES];
+  int table_count;
+} form_project_database_t;
 
 typedef struct {
   char filename[512];
@@ -156,8 +193,11 @@ typedef struct {
   char title[128];
   char root[256];
   char menus_xml[16384];
+  char databases_xml[16384];
   form_plugin_ref_t plugins[FE_MAX_PROJECT_PLUGINS];
   int plugin_count;
+  form_project_database_t databases[FE_MAX_PROJECT_DATABASES];
+  int database_count;
   bool loaded;
   bool modified;
 } form_project_t;
@@ -222,6 +262,7 @@ typedef struct {
 
 typedef struct {
   form_doc_t *doc;
+  window_t   *form_root_win;
   window_t   *preview_win;
   int         preview_type;
   ipoint16_t  pan;
@@ -230,7 +271,6 @@ typedef struct {
   irect16_t   hover_layout_rc;  // form-space rect for hover highlight
   bool        external_component_drag; // true while toolbox drag hovers the canvas
   drag_state_t drag;
-  fe_editor_context_t editor_ctx;  // Live view mapping
 } canvas_state_t;
 
 // ============================================================
@@ -276,6 +316,7 @@ void forms_browser_refresh(void);
 window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
 window_t *create_database_browser(const irect16_t *frame, window_t *parent);
+void databases_browser_refresh(void);
 
 // ============================================================
 // Document helpers — declared in fe_project.h

@@ -18,7 +18,12 @@ static bool is_valid_toolbox_icon(int icon) {
 
 #define FE_MAX_COMPONENT_PLUGINS 32
 
-static void *g_component_plugin_handles[FE_MAX_COMPONENT_PLUGINS];
+typedef struct {
+  void *handle;
+  fe_plugin_shutdown_fn shutdown_fn;
+} fe_plugin_handle_t;
+
+static fe_plugin_handle_t g_component_plugins[FE_MAX_COMPONENT_PLUGINS];
 static int g_component_plugin_count = 0;
 
 static bool reg_streq(const char *a, const char *b) {
@@ -150,8 +155,17 @@ bool fe_load_component_plugin(const char *path) {
       (fe_plugin_class_count_fn)axDynlibSym(handle, "fe_plugin_class_count");
   fe_plugin_class_desc_fn desc_fn =
       (fe_plugin_class_desc_fn)axDynlibSym(handle, "fe_plugin_class_desc");
+  fe_plugin_init_fn init_fn =
+      (fe_plugin_init_fn)axDynlibSym(handle, "fe_plugin_init");
+  fe_plugin_shutdown_fn shutdown_fn =
+      (fe_plugin_shutdown_fn)axDynlibSym(handle, "fe_plugin_shutdown");
 
   if (!count_fn || !desc_fn) {
+    axDynlibClose(handle);
+    return false;
+  }
+
+  if (init_fn && !init_fn()) {
     axDynlibClose(handle);
     return false;
   }
@@ -167,12 +181,16 @@ bool fe_load_component_plugin(const char *path) {
     register_window_class(&stored);
   }
 
-  g_component_plugin_handles[g_component_plugin_count++] = handle;
+  g_component_plugins[g_component_plugin_count++] =
+      (fe_plugin_handle_t){ .handle = handle, .shutdown_fn = shutdown_fn };
   return true;
 }
 
 void fe_unload_component_plugins(void) {
-  for (int i = g_component_plugin_count - 1; i >= 0; i--)
-    axDynlibClose(g_component_plugin_handles[i]);
+  for (int i = g_component_plugin_count - 1; i >= 0; i--) {
+    if (g_component_plugins[i].shutdown_fn)
+      g_component_plugins[i].shutdown_fn();
+    axDynlibClose(g_component_plugins[i].handle);
+  }
   g_component_plugin_count = 0;
 }

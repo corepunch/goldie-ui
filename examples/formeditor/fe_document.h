@@ -6,6 +6,7 @@
 // Forward declare to avoid circular dependencies
 #define MAX_ELEMENTS  256
 #define CTRL_ID_BASE  1001
+#define FE_MAX_TABLE_COLUMNS 16
 // Note: FE_MAX_COMPONENTS is defined in user/user.h as 128
 
 // ============================================================
@@ -26,6 +27,7 @@ typedef struct {
   uint8_t  v_align;     // vertical alignment; 0 = stretch
   irect16_t padding;    // inner padding for nested layout containers
   irect16_t margin;     // outer margin when auto-layout reflows this element
+  uint8_t  layout_spacing; // spacing between direct children for layout containers
   uint8_t  font;        // label font; FONT_SMALL by default
   bool     font_set;    // font attribute explicitly set in the project
   uint8_t  color;       // label color palette index; 0 = transparent
@@ -36,6 +38,11 @@ typedef struct {
   char     db_source[64];     // Combobox source table: "authors"
   char     db_display[64];    // Combobox display field: "name"
   char     db_value[64];      // Combobox value field: "id"
+
+  int      db_column_count;
+  char     db_column_fields[FE_MAX_TABLE_COLUMNS][64];
+  char     db_column_titles[FE_MAX_TABLE_COLUMNS][64];
+  int      db_column_widths[FE_MAX_TABLE_COLUMNS + 1];
   
   window_t *live_win;    // design-time live control hosted on the canvas (temporary)
 } form_element_t;
@@ -104,20 +111,20 @@ int fe_doc_add_element(form_doc_t *doc, int type, irect16_t frame, uint32_t pare
 // Returns true on success, false if index invalid.
 bool fe_doc_delete_element(form_doc_t *doc, int idx);
 
-// Set element properties.
-// Returns true on success, false if index invalid.
-bool fe_doc_set_element_text(form_doc_t *doc, int idx, const char *text);
-bool fe_doc_set_element_frame(form_doc_t *doc, int idx, irect16_t frame);
-bool fe_doc_set_element_name(form_doc_t *doc, int idx, const char *name);
-bool fe_doc_set_element_align(form_doc_t *doc, int idx, uint8_t h_align, uint8_t v_align);
-bool fe_doc_set_element_font(form_doc_t *doc, int idx, uint8_t font);
-bool fe_doc_set_element_color(form_doc_t *doc, int idx, uint8_t color);
+// Set element properties by control ID.
+// Returns true on success, false if element is not found.
+bool fe_doc_set_element_text(form_doc_t *doc, int element_id, const char *text);
+bool fe_doc_set_element_frame(form_doc_t *doc, int element_id, irect16_t frame);
+bool fe_doc_set_element_name(form_doc_t *doc, int element_id, const char *name);
+bool fe_doc_set_element_align(form_doc_t *doc, int element_id, uint8_t h_align, uint8_t v_align);
+bool fe_doc_set_element_font(form_doc_t *doc, int element_id, uint8_t font);
+bool fe_doc_set_element_color(form_doc_t *doc, int element_id, uint8_t color);
 
-// Database binding setters (NeXTSTEP DBKit style).
-bool fe_doc_set_element_db_field(form_doc_t *doc, int idx, const char *field);
-bool fe_doc_set_element_db_source(form_doc_t *doc, int idx, const char *source);
-bool fe_doc_set_element_db_display(form_doc_t *doc, int idx, const char *display);
-bool fe_doc_set_element_db_value(form_doc_t *doc, int idx, const char *value);
+// Database binding setters (NeXTSTEP DBKit style), by control ID.
+bool fe_doc_set_element_db_field(form_doc_t *doc, int element_id, const char *field);
+bool fe_doc_set_element_db_source(form_doc_t *doc, int element_id, const char *source);
+bool fe_doc_set_element_db_display(form_doc_t *doc, int element_id, const char *display);
+bool fe_doc_set_element_db_value(form_doc_t *doc, int element_id, const char *value);
 
 // ============================================================
 // Element Query

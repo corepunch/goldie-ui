@@ -308,12 +308,20 @@ typedef struct {
 } db_action_def_t;
 
 typedef struct {
+  const char *name;   // outlet identifier
+  const char *type;   // expected object/control type, if known
+  const char *target; // connected view/control name, if known
+} db_outlet_def_t;
+
+typedef struct {
   const db_source_def_t  *sources;
   int                     source_count;
   const db_view_binding_t *bindings;
   int                     binding_count;
   const db_action_def_t  *actions;
   int                     action_count;
+  const db_outlet_def_t  *outlets;
+  int                     outlet_count;
 } db_api_def_t;
 
 typedef result_t (*db_object_proc_t)(const void *object, uint32_t msg,
@@ -337,6 +345,7 @@ const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *
 const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
 const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
 const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
+const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, const char *name);
 bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
                               db_object_proc_t proc, const void *object,
                               const char *field, char *buf, size_t buf_sz);
@@ -383,6 +392,8 @@ typedef int                        (*fe_plugin_class_count_fn)(void);
 typedef const fe_component_desc_t *(*fe_plugin_class_desc_fn)(int i);
 typedef const char                *(*fe_plugin_description_fn)(void);
 typedef uint32_t                   (*fe_plugin_version_fn)(void);
+typedef bool                       (*fe_plugin_init_fn)(void);
+typedef void                       (*fe_plugin_shutdown_fn)(void);
 
 #define FE_PLUGIN_VERSION 1u
 
@@ -439,6 +450,7 @@ typedef struct {
 struct window_s {
   irect16_t frame;
   uint32_t id;
+  uint64_t editor_id;    // optional design-time stable identity; 0 outside editors
   // Runtime style/state flags share one 32-bit word.
   // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;

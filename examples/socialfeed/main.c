@@ -32,10 +32,32 @@ static bool resolve_socialfeed_db_path(char *out, size_t out_sz) {
   if (!out || out_sz == 0) return false;
   out[0] = '\0';
 
+  // First try the build/runtime asset location configured at compile time.
+  // Example binaries are linked with SHAREDIR="../share/<app>".
+  char candidate[SOCIALFEED_PATH_MAX];
+  snprintf(candidate, sizeof(candidate), "%s/socialfeed_seed.xml", SHAREDIR);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
   const char *exe_dir = ui_get_exe_dir();
   if (!exe_dir || !*exe_dir) return false;
 
-  char candidate[SOCIALFEED_PATH_MAX];
+  // Also resolve SHAREDIR relative to the executable directory.
+  snprintf(candidate, sizeof(candidate), "%s/%s/socialfeed_seed.xml", exe_dir, SHAREDIR);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  // Common layout for built examples: <exe_dir>/../share/socialfeed/...
+  snprintf(candidate, sizeof(candidate),
+           "%s/../share/socialfeed/socialfeed_seed.xml", exe_dir);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
 
   snprintf(candidate, sizeof(candidate),
            "%s/../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);

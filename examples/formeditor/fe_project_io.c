@@ -23,6 +23,7 @@
 extern app_state_t *g_app;
 extern void forms_browser_refresh(void);
 extern void plugins_browser_refresh(void);
+extern void databases_browser_refresh(void);
 extern void form_doc_show_only(form_doc_t *doc);
 extern void formeditor_rebuild_tool_palette(void);
 extern form_doc_t *create_form_doc(int w, int h);
@@ -36,8 +37,8 @@ extern void resize_window(window_t *win, int w, int h);
 // Apply window flags and size to the document window
 static void form_doc_apply_window_flags_and_size(form_doc_t *doc) {
   if (!doc || !doc->doc_win) return;
-  doc->doc_win->flags &= ~WINDOW_STATUSBAR;
-  doc->doc_win->flags |= (doc->flags & WINDOW_STATUSBAR);
+  doc->doc_win->flags &= ~(WINDOW_TOOLBAR | WINDOW_STATUSBAR);
+  doc->doc_win->flags |= (doc->flags & (WINDOW_TOOLBAR | WINDOW_STATUSBAR));
   irect16_t frame = form_doc_frame_for_size(doc->form_size.w, doc->form_size.h, doc->flags);
   resize_window(doc->doc_win, frame.w, frame.h);
   if (doc->canvas_win) {
@@ -227,6 +228,61 @@ static const char *color_token(uint8_t color) {
   return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
 }
 
+static db_field_type_t db_field_type_attr(const char *s) {
+  if (!s || !*s) return DB_TYPE_STRING;
+  if (!strcasecmp(s, "integer") || !strcasecmp(s, "int"))
+    return DB_TYPE_INT;
+  if (!strcasecmp(s, "string") || !strcasecmp(s, "text"))
+    return DB_TYPE_STRING;
+  if (!strcasecmp(s, "boolean") || !strcasecmp(s, "bool"))
+    return DB_TYPE_BOOL;
+  if (!strcasecmp(s, "float"))
+    return DB_TYPE_FLOAT;
+  if (!strcasecmp(s, "double"))
+    return DB_TYPE_DOUBLE;
+  return DB_TYPE_STRING;
+}
+
+static bool truthy_attr(const char *s) {
+  return s && (!strcasecmp(s, "yes") || !strcasecmp(s, "true") ||
+               !strcasecmp(s, "1"));
+}
+
+static void split_relation(const char *relation,
+                           char *table, size_t table_sz,
+                           char *field, size_t field_sz) {
+  if (table && table_sz) table[0] = '\0';
+  if (field && field_sz) field[0] = '\0';
+  if (!relation || !*relation)
+    return;
+  const char *dot = strchr(relation, '.');
+  if (!dot) {
+    if (table && table_sz) snprintf(table, table_sz, "%s", relation);
+    return;
+  }
+  if (table && table_sz) {
+    size_t n = (size_t)(dot - relation);
+    if (n >= table_sz) n = table_sz - 1;
+    memcpy(table, relation, n);
+    table[n] = '\0';
+  }
+  if (field && field_sz)
+    snprintf(field, field_sz, "%s", dot + 1);
+}
+
+static void relation_alias(char *out, size_t out_sz, const char *field_name,
+                           const char *foreign_table) {
+  if (!out || out_sz == 0) return;
+  if (field_name && *field_name) {
+    snprintf(out, out_sz, "%s", field_name);
+    size_t n = strlen(out);
+    if (n > 3 && strcmp(out + n - 3, "_id") == 0)
+      out[n - 3] = '\0';
+    return;
+  }
+  snprintf(out, out_sz, "%s", foreign_table ? foreign_table : "");
+}
+
 // ============================================================
 // Flags parsing
 // ============================================================
@@ -235,14 +291,28 @@ static uint32_t flag_value(const char *tok) {
   if (!tok || !*tok || strcmp(tok, "0") == 0) return 0;
   if (strcmp(tok, "BUTTON_DEFAULT") == 0) return BUTTON_DEFAULT;
   if (strcmp(tok, "WINDOW_NOTITLE") == 0) return WINDOW_NOTITLE;
+  if (strcmp(tok, "WINDOW_TRANSPARENT") == 0) return WINDOW_TRANSPARENT;
   if (strcmp(tok, "WINDOW_NOFILL") == 0) return WINDOW_NOFILL;
+  if (strcmp(tok, "WINDOW_ALWAYSONTOP") == 0) return WINDOW_ALWAYSONTOP;
+  if (strcmp(tok, "WINDOW_ALWAYSINBACK") == 0) return WINDOW_ALWAYSINBACK;
+  if (strcmp(tok, "WINDOW_HIDDEN") == 0) return WINDOW_HIDDEN;
   if (strcmp(tok, "WINDOW_NOTABSTOP") == 0) return WINDOW_NOTABSTOP;
+  if (strcmp(tok, "WINDOW_TOOLBAR") == 0) return WINDOW_TOOLBAR;
   if (strcmp(tok, "WINDOW_STATUSBAR") == 0) return WINDOW_STATUSBAR;
   if (strcmp(tok, "WINDOW_DIALOG") == 0) return WINDOW_DIALOG;
   if (strcmp(tok, "WINDOW_NOTRAYBUTTON") == 0) return WINDOW_NOTRAYBUTTON;
   if (strcmp(tok, "WINDOW_NORESIZE") == 0) return WINDOW_NORESIZE;
+  if (strcmp(tok, "WINDOW_NOACTIVATE") == 0) return WINDOW_NOACTIVATE;
   if (strcmp(tok, "WINDOW_HSCROLL") == 0) return WINDOW_HSCROLL;
   if (strcmp(tok, "WINDOW_VSCROLL") == 0) return WINDOW_VSCROLL;
+  if (strcmp(tok, "WINDOW_STACK_HORIZONTAL") == 0) return WINDOW_STACK_HORIZONTAL;
+  if (strcmp(tok, "WINDOW_STACK_VERTICAL") == 0) return WINDOW_STACK_VERTICAL;
+  if (strcmp(tok, "WINDOW_FLEXSPACE") == 0) return WINDOW_FLEXSPACE;
+  if (strcmp(tok, "WINDOW_AUTO_LAYOUT") == 0) return WINDOW_AUTO_LAYOUT;
+  if (strcmp(tok, "WINDOW_LAYOUT_CONTAINER") == 0) return WINDOW_LAYOUT_CONTAINER;
+  if (strcmp(tok, "WINDOW_SIDEBAR") == 0) return WINDOW_SIDEBAR;
+  if (strcmp(tok, "BUTTON_PUSHLIKE") == 0) return BUTTON_PUSHLIKE;
+  if (strcmp(tok, "BUTTON_AUTORADIO") == 0) return BUTTON_AUTORADIO;
   char *end = NULL;
   unsigned long n = strtoul(tok, &end, 0);
   return (end && *end == '\0') ? (uint32_t)n : 0;
@@ -354,13 +424,133 @@ static void project_load_menus(xmlDocPtr xdoc, xmlNodePtr root) {
   }
 }
 
-static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
+static void project_add_relation_join(form_project_db_table_t *table,
+                                      const form_project_db_field_t *field) {
+  if (!table || !field || !field->relation_table[0] ||
+      table->join_count >= FE_MAX_PROJECT_DB_JOINS)
+    return;
+  char alias[64];
+  relation_alias(alias, sizeof(alias), field->name, field->relation_table);
+  for (int i = 0; i < table->join_count; i++) {
+    form_project_db_join_t *join = &table->joins[i];
+    if (!strcmp(join->name, alias) &&
+        !strcmp(join->local_field, field->name) &&
+        !strcmp(join->foreign_table, field->relation_table) &&
+        !strcmp(join->foreign_field, field->relation_field))
+      return;
+  }
+  form_project_db_join_t *join = &table->joins[table->join_count++];
+  snprintf(join->name, sizeof(join->name), "%s", alias);
+  snprintf(join->local_field, sizeof(join->local_field), "%s", field->name);
+  snprintf(join->foreign_table, sizeof(join->foreign_table), "%s", field->relation_table);
+  snprintf(join->foreign_field, sizeof(join->foreign_field), "%s", field->relation_field);
+}
+
+static void project_load_database_node(xmlNodePtr db_node) {
+  if (!g_app || !db_node || g_app->project.database_count >= FE_MAX_PROJECT_DATABASES)
+    return;
+  form_project_database_t *db =
+      &g_app->project.databases[g_app->project.database_count++];
+  memset(db, 0, sizeof(*db));
+  copy_attr(db_node, "name", db->name, sizeof(db->name));
+  copy_attr(db_node, "class", db->class_name, sizeof(db->class_name));
+  copy_attr(db_node, "source", db->source_path, sizeof(db->source_path));
+
+  int table_id = 0;
+  for (xmlNodePtr t = db_node->children; t; t = t->next) {
+    if (t->type != XML_ELEMENT_NODE || xmlStrcmp(t->name, BAD_CAST "table") != 0)
+      continue;
+    if (db->table_count >= FE_MAX_PROJECT_DB_TABLES)
+      break;
+    form_project_db_table_t *table = &db->tables[db->table_count++];
+    memset(table, 0, sizeof(*table));
+    table->table_id = table_id++;
+    copy_attr(t, "name", table->name, sizeof(table->name));
+    copy_attr(t, "model", table->model, sizeof(table->model));
+
+    for (xmlNodePtr f = t->children; f; f = f->next) {
+      if (f->type != XML_ELEMENT_NODE || xmlStrcmp(f->name, BAD_CAST "field") != 0)
+        continue;
+      if (table->field_count >= FE_MAX_PROJECT_DB_FIELDS)
+        break;
+      form_project_db_field_t *field = &table->fields[table->field_count++];
+      memset(field, 0, sizeof(*field));
+      copy_attr(f, "name", field->name, sizeof(field->name));
+      char *type = xml_attr_dup(f, "type");
+      field->type = db_field_type_attr(type);
+      field->length = int_attr(f, "length", 0);
+      char *key = xml_attr_dup(f, "key");
+      field->primary_key = truthy_attr(key);
+      char *relation = xml_attr_dup(f, "relation");
+      split_relation(relation, field->relation_table, sizeof(field->relation_table),
+                     field->relation_field, sizeof(field->relation_field));
+      project_add_relation_join(table, field);
+      free(type);
+      free(key);
+      free(relation);
+    }
+  }
+}
+
+static void project_load_tableview_columns(form_element_t *el, xmlNodePtr table_node) {
+  if (!el || !table_node)
+    return;
+  for (xmlNodePtr c = table_node->children; c; c = c->next) {
+    if (c->type != XML_ELEMENT_NODE || xmlStrcmp(c->name, BAD_CAST "Column") != 0)
+      continue;
+    if (el->db_column_count >= FE_MAX_TABLE_COLUMNS)
+      break;
+    int idx = el->db_column_count++;
+    copy_attr(c, "field", el->db_column_fields[idx], sizeof(el->db_column_fields[idx]));
+    copy_attr(c, "title", el->db_column_titles[idx], sizeof(el->db_column_titles[idx]));
+    el->db_column_widths[idx] = int_attr(c, "width", 0);
+  }
+}
+
+static void project_load_databases(xmlDocPtr xdoc, xmlNodePtr root) {
+  if (!g_app) return;
+  g_app->project.database_count = 0;
+  g_app->project.databases_xml[0] = '\0';
+  for (xmlNodePtr n = root ? root->children : NULL; n; n = n->next) {
+    if (n->type != XML_ELEMENT_NODE)
+      continue;
+    if (xmlStrcmp(n->name, BAD_CAST "database") == 0) {
+      project_load_database_node(n);
+      if (!g_app->project.databases_xml[0]) {
+        xmlBufferPtr buf = xmlBufferCreate();
+        if (buf) {
+          int ok = xmlNodeDump(buf, xdoc, n, 4, 1);
+          if (ok >= 0)
+            snprintf(g_app->project.databases_xml, sizeof(g_app->project.databases_xml),
+                     "%s", (const char *)xmlBufferContent(buf));
+          xmlBufferFree(buf);
+        }
+      }
+    } else if (xmlStrcmp(n->name, BAD_CAST "databases") == 0) {
+      xmlBufferPtr buf = xmlBufferCreate();
+      if (buf) {
+        int ok = xmlNodeDump(buf, xdoc, n, 4, 1);
+        if (ok >= 0)
+          snprintf(g_app->project.databases_xml, sizeof(g_app->project.databases_xml),
+                   "%s", (const char *)xmlBufferContent(buf));
+        xmlBufferFree(buf);
+      }
+      for (xmlNodePtr db = n->children; db; db = db->next) {
+        if (db->type == XML_ELEMENT_NODE && xmlStrcmp(db->name, BAD_CAST "database") == 0)
+          project_load_database_node(db);
+      }
+    }
+  }
+}
+
+static void project_load_controls(form_doc_t *doc, xmlNodePtr node, uint32_t parent_id) {
   for (xmlNodePtr n = node ? node->children : NULL; n; n = n->next) {
     if (n->type != XML_ELEMENT_NODE)
       continue;
     if (xmlStrcmp(n->name, BAD_CAST "requires") == 0)
       continue;
     int type = ctrl_type_from_class_name((const char *)n->name);
+    uint32_t child_parent_id = parent_id;
 
     if (type >= 0 && type < FE_MAX_COMPONENTS && doc->element_count < MAX_ELEMENTS) {
       form_element_t *el = &doc->elements[doc->element_count++];
@@ -373,13 +563,23 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       el->id = fe_doc_resolve_control_id(doc, el->id_expr);
       el->frame.x = int_attr(n, "x", 0);
       el->frame.y = int_attr(n, "y", 0);
-      el->frame.w = int_attr(n, "width", int_attr(n, "w", 10));
-      el->frame.h = int_attr(n, "height", int_attr(n, "h", 8));
-      el->frame.w = MAX(1, el->frame.w);
-      el->frame.h = MAX(1, el->frame.h);
-      el->parent = (uint32_t)int_attr(n, "parent", 0);
+      el->frame.w = int_attr(n, "width", int_attr(n, "w", 0));
+      el->frame.h = int_attr(n, "height", int_attr(n, "h", 0));
+      el->parent = (uint32_t)int_attr(n, "parent", (int)parent_id);
+      child_parent_id = (uint32_t)el->id;
       copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
       el->flags = parse_flags_expr(el->flags_expr);
+      char *orientation = xml_attr_dup(n, "orientation");
+      if (!orientation)
+        orientation = xml_attr_dup(n, "layout_orientation");
+      if (orientation) {
+        if (layout_orientation_attr(orientation, WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL)
+          el->flags |= WINDOW_STACK_HORIZONTAL;
+        else
+          el->flags &= ~WINDOW_STACK_HORIZONTAL;
+      }
+      el->layout_spacing = (uint8_t)int_attr(n, "spacing",
+                                             int_attr(n, "layout_spacing", 0));
       copy_attr(n, "text", el->text, sizeof(el->text));
       copy_attr(n, "name", el->name, sizeof(el->name));
       char *font = xml_attr_dup(n, "font");
@@ -408,10 +608,13 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
       copy_attr(n, "source", el->db_source, sizeof(el->db_source));
       copy_attr(n, "display", el->db_display, sizeof(el->db_display));
       copy_attr(n, "value", el->db_value, sizeof(el->db_value));
+      if (strcmp(ctrl_type_class_name(el->type), "TableView") == 0)
+        project_load_tableview_columns(el, n);
       free(font);
       free(color);
       free(h_align);
       free(v_align);
+      free(orientation);
       // Note: default sizes for auto-layout are applied in fe_layout_reflow,
       // not here, so we preserve loaded w/h for fixed-layout forms
       if (!el->name[0])
@@ -422,8 +625,10 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
         doc->type_counters[type]++;
     }
 
+    if (type >= 0 && strcmp(ctrl_type_class_name(type), "TableView") == 0)
+      continue;
     if (n->children)
-      project_load_controls(doc, n);
+      project_load_controls(doc, n, child_parent_id);
   }
 }
 
@@ -476,7 +681,7 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   copy_attr(form_node, "database", doc->database_name, sizeof(doc->database_name));
   copy_attr(form_node, "table", doc->table_name, sizeof(doc->table_name));
   project_load_requires(doc, form_node);
-  project_load_controls(doc, form_node);
+  project_load_controls(doc, form_node, 0);
   
   // Detect fixed-layout forms: if any element has non-zero x/y, disable auto-layout
   for (int i = 0; i < doc->element_count; i++) {
@@ -486,11 +691,6 @@ static bool project_load_form_node(xmlNodePtr form_node) {
     }
   }
   
-  // Only run auto-layout if enabled (otherwise preserve loaded x/y coordinates)
-  if (doc->flags & WINDOW_AUTO_LAYOUT) {
-    fe_layout_reflow(doc);
-  }
-
   form_doc_apply_window_flags_and_size(doc);
   canvas_rebuild_live_controls(doc);
   doc->modified = false;
@@ -535,6 +735,74 @@ static void xml_attr(FILE *f, const char *name, const char *value) {
 // Project saving helpers
 // ============================================================
 
+static void project_sync_doc_from_window_tree(form_doc_t *doc) {
+  if (!doc)
+    return;
+  for (int i = 0; i < doc->element_count; i++) {
+    form_element_t *el = &doc->elements[i];
+    window_t *win = el->live_win;
+    if (!win || !is_window(win))
+      continue;
+    el->frame = win->frame;
+    el->parent = (win->parent && win->parent->editor_id != 0)
+                   ? (uint32_t)win->parent->editor_id
+                   : 0;
+    el->layout_spacing = win->layout.layout_spacing;
+    el->padding = win->layout.layout_padding;
+    el->margin = win->layout.layout_margin;
+  }
+}
+
+static void project_write_element_attrs(FILE *f, form_doc_t *doc,
+                                        form_element_t *el) {
+  xml_attr(f, "name", el->name);
+  xml_attr(f, "text", el->text);
+  if (el->parent != 0)
+    fprintf(f, " parent=\"%u\"", (unsigned)el->parent);
+  if (el->font_set || el->font != FONT_SMALL)
+    xml_attr(f, "font", font_token(el->font));
+  if (el->color_set || el->color != brTextNormal)
+    xml_attr(f, "color", color_token(el->color));
+  if (!(doc->flags & WINDOW_AUTO_LAYOUT))
+    fprintf(f, " x=\"%d\" y=\"%d\"", el->frame.x, el->frame.y);
+  fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
+  fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
+  fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
+  if (el->layout_spacing != 0)
+    fprintf(f, " spacing=\"%u\"", (unsigned)el->layout_spacing);
+  if (el->flags & WINDOW_STACK_HORIZONTAL)
+    fprintf(f, " orientation=\"%s\"", layout_orientation_token(WINDOW_STACK_HORIZONTAL));
+  if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
+    fprintf(f, " padding=\"%d %d %d %d\"",
+            el->padding.x, el->padding.y, el->padding.w, el->padding.h);
+  if (el->margin.x || el->margin.y || el->margin.w || el->margin.h)
+    fprintf(f, " margin=\"%d %d %d %d\"",
+            el->margin.x, el->margin.y, el->margin.w, el->margin.h);
+  char flags_buf[32];
+  snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, el->flags);
+  xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);
+  if (el->db_field[0])
+    xml_attr(f, "field", el->db_field);
+  if (el->db_source[0])
+    xml_attr(f, "source", el->db_source);
+  if (el->db_display[0])
+    xml_attr(f, "display", el->db_display);
+  if (el->db_value[0])
+    xml_attr(f, "value", el->db_value);
+}
+
+static void project_write_table_columns(FILE *f, const form_element_t *el) {
+  if (!f || !el)
+    return;
+  for (int i = 0; i < el->db_column_count; i++) {
+    fputs("          ", f);
+    fprintf(f, "<Column");
+    xml_attr(f, "field", el->db_column_fields[i]);
+    xml_attr(f, "title", el->db_column_titles[i]);
+    fprintf(f, " width=\"%d\" />\n", el->db_column_widths[i]);
+  }
+}
+
 static void project_save_doc(FILE *f, form_doc_t *doc) {
   const char *label = doc->form_title[0] ? doc->form_title :
                       (doc->form_id[0] ? doc->form_id : "Untitled");
@@ -569,43 +837,18 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     xml_attr(f, "library", doc->required_plugin);
     fprintf(f, " />\n");
   }
+  project_sync_doc_from_window_tree(doc);
   for (int i = 0; i < doc->element_count; i++) {
     form_element_t *el = &doc->elements[i];
     fprintf(f, "        <%s", ctrl_type_class_name(el->type));
-    xml_attr(f, "name", el->name);
-    xml_attr(f, "text", el->text);
-    if (el->parent != 0)
-      fprintf(f, " parent=\"%u\"", (unsigned)el->parent);
-    if (el->font_set || el->font != FONT_SMALL)
-      xml_attr(f, "font", font_token(el->font));
-    if (el->color_set || el->color != brTextNormal)
-      xml_attr(f, "color", color_token(el->color));
-    // Only emit x/y for fixed-layout forms; auto-layout forms recalculate positions
-    if (!(doc->flags & WINDOW_AUTO_LAYOUT)) {
-      fprintf(f, " x=\"%d\" y=\"%d\"", el->frame.x, el->frame.y);
+    project_write_element_attrs(f, doc, el);
+    if (el->db_column_count > 0) {
+      fprintf(f, ">\n");
+      project_write_table_columns(f, el);
+      fprintf(f, "        </%s>\n", ctrl_type_class_name(el->type));
+    } else {
+      fprintf(f, " />\n");
     }
-    fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
-    fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
-    fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
-    if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
-      fprintf(f, " padding=\"%d %d %d %d\"",
-              el->padding.x, el->padding.y, el->padding.w, el->padding.h);
-    if (el->margin.x || el->margin.y || el->margin.w || el->margin.h)
-      fprintf(f, " margin=\"%d %d %d %d\"",
-              el->margin.x, el->margin.y, el->margin.w, el->margin.h);
-    char flags_buf[32];
-    snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, el->flags);
-    xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);
-    // Database binding attributes (NeXTSTEP DBKit-style)
-    if (el->db_field[0])
-      xml_attr(f, "field", el->db_field);
-    if (el->db_source[0])
-      xml_attr(f, "source", el->db_source);
-    if (el->db_display[0])
-      xml_attr(f, "display", el->db_display);
-    if (el->db_value[0])
-      xml_attr(f, "value", el->db_value);
-    fprintf(f, " />\n");
   }
   fprintf(f, "      </form>\n");
 }
@@ -630,6 +873,7 @@ bool fe_project_load(const char *path) {
   copy_attr(root, "root", g_app->project.root, sizeof(g_app->project.root));
 
   project_load_plugins(root);
+  project_load_databases(xdoc, root);
   project_load_menus(xdoc, root);
   formeditor_rebuild_tool_palette();
   project_load_forms(root);
@@ -639,6 +883,7 @@ bool fe_project_load(const char *path) {
   if (g_app->docs) form_doc_show_only(g_app->docs);
   forms_browser_refresh();
   plugins_browser_refresh();
+  databases_browser_refresh();
   xmlFreeDoc(xdoc);
   return true;
 }
@@ -663,6 +908,10 @@ bool fe_project_save(const char *path) {
     fprintf(f, " />\n");
   }
   fprintf(f, "    </plugins>\n\n");
+
+  if (p->databases_xml[0]) {
+    fprintf(f, "%s\n\n", p->databases_xml);
+  }
 
   if (p->menus_xml[0]) {
     fprintf(f, "%s\n\n", p->menus_xml);

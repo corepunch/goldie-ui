@@ -339,7 +339,7 @@
             <Label name="filter_name" text="No filters loaded" flags="WINDOW_NOTITLE | WINDOW_NOFILL" />
           </Column>
           <Column name="filters_col">
-            <ReportView name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
+            <IconGrid name="filters" text="" flags="WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL | WINDOW_FLEXSPACE" />
           </Column>
         </GridView>
         <StackView name="actions" orientation="horizontal" spacing="6">
