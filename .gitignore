@@ -66,3 +66,6 @@ libcglm*
 :memory:
 *.log
 test.xml
+
+# Local test artifact
+test_output.txt
