@@ -247,10 +247,6 @@ lresult_t default_winproc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
         uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
         x += (uint16_t)win->hscroll.pos;
         y += (uint16_t)win->vscroll.pos;
-        if (win->parent) {
-          x += win->frame.x;
-          y += win->frame.y;
-        }
         for (window_t *item = win->children; item; item = item->next) {
           irect16_t r = item->frame;
           if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
