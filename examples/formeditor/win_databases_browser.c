@@ -227,7 +227,7 @@ static void db_browser_refresh(window_t *win) {
   send_message(dbs->browser_win, cbRefresh, 0, NULL);
 }
 
-static void db_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+static void db_browser_observer(fe_event_type_t event, window_t *doc, void *ctx) {
   (void)doc;
   window_t *win = (window_t *)ctx;
   
@@ -344,6 +344,6 @@ window_t *create_database_browser(const irect16_t *frame, window_t *parent) {
 }
 
 void databases_browser_refresh(void) {
-  if (g_app && g_app->databases_win && is_window(g_app->databases_win))
-    db_browser_refresh(g_app->databases_win);
+  if (g_app && g_app->windows[FE_WIN_DATABASES] && is_window(g_app->windows[FE_WIN_DATABASES]))
+    db_browser_refresh(g_app->windows[FE_WIN_DATABASES]);
 }

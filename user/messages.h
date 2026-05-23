@@ -118,6 +118,11 @@ enum {
   // mirror it to lparam when non-NULL.
   edGetText,        // wparam=buf_size; lparam=char* dst → copies text, returns length
   edSetText,        // wparam=0; lparam=const char* src → replaces text
+  // Query a window/control for editable/queryable properties.
+  // wparam = max entries available in lparam table.
+  // lparam = ui_property_entry_t* output table (may be NULL to query count only).
+  // return = total number of properties exposed by the control/window.
+  edQueryProperties,
   // List (popup) messages
   lstSetItem,             // wparam=item index to pre-select in the dropdown list
   // Toolbox control messages (commctl/toolbox.c)

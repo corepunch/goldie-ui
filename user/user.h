@@ -35,6 +35,24 @@ typedef struct {
   void     *child_lparam;
 } parent_notify_t;
 
+typedef enum {
+  UI_PROP_KIND_STRING = 0,
+  UI_PROP_KIND_INT = 1,
+  UI_PROP_KIND_HEX = 2,
+  UI_PROP_KIND_BOOL = 3,
+  UI_PROP_KIND_ENUM = 4,
+  UI_PROP_KIND_ACTION = 5,
+  UI_PROP_KIND_OUTLET = 6,
+} ui_property_kind_t;
+
+typedef struct {
+  uint32_t id;        // stable property identifier within a control class
+  uint16_t kind;      // ui_property_kind_t
+  uint16_t flags;     // reserved for future use (read-only, hidden, etc.)
+  char name[48];      // property label/token
+  char value[128];    // string representation of current value
+} ui_property_entry_t;
+
 // Window hook callback type
 typedef void (*winhook_func_t)(window_t *win, uint32_t msg, uint32_t wparam, void *lparam, void *userdata);
 

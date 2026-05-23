@@ -1,7 +1,6 @@
 // Notification/observer system for Form Editor.
 
 #include "formeditor.h"
-#include "fe_notifications.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,7 +40,7 @@ void fe_unsubscribe(int subscription_id) {
   s_subscriptions[subscription_id].ctx = NULL;
 }
 
-void fe_notify(fe_event_type_t event, form_doc_t *doc) {
+void fe_notify(fe_event_type_t event, window_t *doc) {
   for (int i = 0; i < MAX_SUBSCRIPTIONS; i++) {
     if (s_subscriptions[i].active && s_subscriptions[i].callback) {
       s_subscriptions[i].callback(event, doc, s_subscriptions[i].ctx);

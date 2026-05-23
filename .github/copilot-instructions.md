@@ -25,6 +25,14 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - `examples/` contains example programs demonstrating framework usage
 - `ui.h` is the main header that includes all UI subsystems
 
+### Header File Policy (Required)
+
+- Avoid header sprawl in feature directories.
+- Prefer one public header per directory, named after that directory (for example, `examples/formeditor/formeditor.h`).
+- New feature declarations for that directory should be added to the directory header instead of creating additional `*.h` files.
+- `*.c` files should carry implementation ownership comments (for example, "implemented in win_canvas.c") where this meaning is not obvious from naming.
+- Do not introduce module-local header files unless explicitly requested for cross-directory API boundaries.
+
 ### WinAPI Philosophy
 - The codebase stays close to **WinAPI style** — but uses snake_case for function and type names instead of PascalCase
 - When implementing new features, think "how would this be done in WinAPI?" and follow those patterns

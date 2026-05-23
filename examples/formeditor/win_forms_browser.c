@@ -20,28 +20,19 @@ static const toolbar_item_t kFormsToolbar[] = {
 };
 
 static int forms_doc_count(void) {
-  int n = 0;
-  if (!g_app) return 0;
-  for (form_doc_t *doc = g_app->docs; doc; doc = doc->next)
-    n++;
-  return n;
+  return g_app ? g_app->form_count : 0;
 }
 
-static form_doc_t *forms_doc_at(int idx) {
-  int n = 0;
-  if (!g_app) return NULL;
-  for (form_doc_t *doc = g_app->docs; doc; doc = doc->next) {
-    if (n == idx) return doc;
-    n++;
-  }
-  return NULL;
+static window_t *forms_doc_at(int idx) {
+  if (!g_app || idx < 0 || idx >= g_app->form_count)
+    return NULL;
+  return g_app->forms[idx];
 }
 
-static const char *forms_doc_label(form_doc_t *doc) {
-  if (!doc) return "";
-  if (doc->form_title[0]) return doc->form_title;
-  if (doc->form_id[0]) return doc->form_id;
-  return "Untitled";
+static const char *forms_doc_label(window_t *doc) {
+  if (!doc || !doc->title[0])
+    return "Untitled";
+  return doc->title;
 }
 
 static void forms_browser_rebuild(forms_browser_state_t *st) {
@@ -52,13 +43,16 @@ static void forms_browser_rebuild(forms_browser_state_t *st) {
 
   int idx = 0;
   int selected = -1;
-  for (form_doc_t *doc = g_app ? g_app->docs : NULL; doc; doc = doc->next, idx++) {
+  for (idx = 0; g_app && idx < g_app->form_count; idx++) {
+    window_t *doc = g_app->forms[idx];
+    if (!doc || !fe_doc_state(doc))
+      continue;
     reportview_item_t item = {0};
     item.text = forms_doc_label(doc);
     item.color = get_sys_color(brTextNormal);
     item.userdata = (uint32_t)idx;
     send_message(st->list_win, RVM_ADDITEM, 0, &item);
-    if (g_app && doc == g_app->doc)
+    if (g_app && doc == g_app->active_form)
       selected = idx;
   }
 
@@ -68,12 +62,12 @@ static void forms_browser_rebuild(forms_browser_state_t *st) {
 }
 
 void forms_browser_refresh(void) {
-  if (!g_app || !g_app->forms_win) return;
-  forms_browser_state_t *st = (forms_browser_state_t *)g_app->forms_win->userdata;
+  if (!g_app || !g_app->windows[FE_WIN_FORMS]) return;
+  forms_browser_state_t *st = (forms_browser_state_t *)g_app->windows[FE_WIN_FORMS]->userdata;
   forms_browser_rebuild(st);
 }
 
-static void forms_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+static void forms_browser_observer(fe_event_type_t event, window_t *doc, void *ctx) {
   (void)doc;
   (void)ctx;
   switch (event) {
@@ -90,7 +84,7 @@ static void forms_browser_observer(fe_event_type_t event, form_doc_t *doc, void 
 
 window_t *forms_browser_create(hinstance_t hinstance) {
   window_t *win = create_window("Forms",
-      WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
+      WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
       MAKERECT(FORMS_WIN_X, FORMS_WIN_Y, FORMS_WIN_W, FORMS_WIN_H),
       NULL, win_forms_browser_proc, hinstance, NULL);
   if (win) show_window(win, true);
@@ -99,19 +93,17 @@ window_t *forms_browser_create(hinstance_t hinstance) {
 
 static void forms_add_new(void) {
   if (!g_app) return;
-  form_doc_t *doc = create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
-  if (!doc) return;
+  window_t *doc = create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
   int n = forms_doc_count();
-  snprintf(doc->form_id, sizeof(doc->form_id), "form%d", n);
-  snprintf(doc->form_title, sizeof(doc->form_title), "Form %d", n);
+  snprintf(doc->title, sizeof(doc->title), "Form %d", n);
   fe_doc_mark_modified(doc);
   g_app->project.modified = true;
   forms_browser_refresh();
 }
 
 static void forms_delete_active(void) {
-  if (!g_app || !g_app->doc) return;
-  form_doc_t *doc = g_app->doc;
+  if (!g_app || !g_app->active_form) return;
+  window_t *doc = g_app->active_form;
   close_form_doc(doc);
   g_app->project.modified = true;
   forms_browser_refresh();
@@ -177,12 +169,11 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
       if (notif != RVN_DBLCLK)
         return false;
 
-      form_doc_t *doc = forms_doc_at((int)LOWORD(wparam));
+      window_t *doc = forms_doc_at((int)LOWORD(wparam));
       if (!doc)
         return false;
       form_doc_activate(doc);
-      if (doc->doc_win)
-        show_window(doc->doc_win, true);
+      show_window(doc, true);
       forms_browser_refresh();
       return true;
     }
@@ -190,8 +181,8 @@ result_t win_forms_browser_proc(window_t *win, uint32_t msg,
     case evDestroy:
       if (st)
         fe_unsubscribe(st->subscription_id);
-      if (g_app && g_app->forms_win == win)
-        g_app->forms_win = NULL;
+      if (g_app && g_app->windows[FE_WIN_FORMS] == win)
+        g_app->windows[FE_WIN_FORMS] = NULL;
       return false;
 
     default:

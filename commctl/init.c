@@ -2,7 +2,7 @@
 // Registers all commctl window classes with the user.dll window system
 
 #include "commctl.h"
-#include "../examples/formeditor/controls-icons.h"
+#include "../examples/formeditor/formeditor.h"
 
 // Layout containers (stack, grid, flow, column)
 extern result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

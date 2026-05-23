@@ -29,15 +29,15 @@ static bool load_default_component_plugin(void) {
 }
 
 static void create_app_windows(hinstance_t hinstance) {
-  g_app->menubar_win = set_app_menu(editor_menubar_proc, kMenus, kNumMenus,
-                                    handle_menu_command, hinstance);
+  g_app->windows[FE_WIN_MENUBAR] = set_app_menu(editor_menubar_proc, kMenus, kNumMenus,
+                                                 handle_menu_command, hinstance);
 
   formeditor_rebuild_tool_palette();
 
-  g_app->prop_win = property_browser_create(hinstance);
-  g_app->forms_win = forms_browser_create(hinstance);
-  g_app->plugins_win = plugins_browser_create(hinstance);
-  g_app->databases_win = create_database_browser(
+  g_app->windows[FE_WIN_PROP] = property_browser_create(hinstance);
+  g_app->windows[FE_WIN_FORMS] = forms_browser_create(hinstance);
+  g_app->windows[FE_WIN_PLUGINS] = plugins_browser_create(hinstance);
+  g_app->windows[FE_WIN_DATABASES] = create_database_browser(
     MAKERECT(DATABASES_WIN_X, DATABASES_WIN_Y, DATABASES_WIN_W, DATABASES_WIN_H),
     NULL);
 }
@@ -45,6 +45,9 @@ static void create_app_windows(hinstance_t hinstance) {
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_app = calloc(1, sizeof(app_state_t));
   if (!g_app) return false;
+  g_app->grid_size = 8;
+  g_app->show_grid = true;
+  g_app->snap_to_grid = true;
 
   register_commctl_classes();
   load_default_component_plugin();
@@ -70,8 +73,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   g_app->accel = load_accelerators(kAccelEntries,
       (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0])));
-  if (g_app->menubar_win)
-    send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
+  if (g_app->windows[FE_WIN_MENUBAR])
+    send_message(g_app->windows[FE_WIN_MENUBAR], kMenuBarMessageSetAccelerators, 0, g_app->accel);
 
   if (!project_path || !fe_project_load(project_path))
     create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
@@ -96,16 +99,13 @@ void gem_shutdown(void) {
   free_accelerators(g_app->accel);
   g_app->accel = NULL;
   fe_unload_component_plugins();
-  while (g_app->docs)
-    close_form_doc(g_app->docs);
-  if (g_app->prop_win)
-    destroy_window(g_app->prop_win);
-  if (g_app->forms_win)
-    destroy_window(g_app->forms_win);
-  if (g_app->plugins_win)
-    destroy_window(g_app->plugins_win);
-  if (g_app->databases_win)
-    destroy_window(g_app->databases_win);
+  while (g_app->form_count > 0 && g_app->forms[0]) {
+    close_form_doc(g_app->forms[0]);
+  }
+  for (int i = 0; i < FE_NUM_WINDOWS; i++) {
+    if (g_app->windows[i])
+      destroy_window(g_app->windows[i]);
+  }
   free(g_app);
   g_app = NULL;
 }
@@ -113,4 +113,4 @@ void gem_shutdown(void) {
 GEM_DEFINE("Form Editor", "1.0", gem_init, gem_shutdown, NULL)
 
 GEM_STANDALONE_MAIN("Orion Form Editor", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,
-                    g_app->menubar_win, g_app->accel)
+                    g_app->windows[FE_WIN_MENUBAR], g_app->accel)

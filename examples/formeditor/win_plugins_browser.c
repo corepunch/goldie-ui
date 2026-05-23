@@ -86,12 +86,12 @@ static void plugins_browser_rebuild(plugins_browser_state_t *st) {
 }
 
 void plugins_browser_refresh(void) {
-  if (!g_app || !g_app->plugins_win) return;
-  plugins_browser_state_t *st = (plugins_browser_state_t *)g_app->plugins_win->userdata;
+  if (!g_app || !g_app->windows[FE_WIN_PLUGINS]) return;
+  plugins_browser_state_t *st = (plugins_browser_state_t *)g_app->windows[FE_WIN_PLUGINS]->userdata;
   plugins_browser_rebuild(st);
 }
 
-static void plugins_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+static void plugins_browser_observer(fe_event_type_t event, window_t *doc, void *ctx) {
   (void)doc;
   (void)ctx;
   switch (event) {
@@ -106,7 +106,7 @@ static void plugins_browser_observer(fe_event_type_t event, form_doc_t *doc, voi
 
 window_t *plugins_browser_create(hinstance_t hinstance) {
   window_t *win = create_window("Plugins",
-      WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
+      WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
       MAKERECT(PLUGINS_WIN_X, PLUGINS_WIN_Y, PLUGINS_WIN_W, PLUGINS_WIN_H),
       NULL, win_plugins_browser_proc, hinstance, NULL);
   if (win) show_window(win, true);
@@ -221,8 +221,8 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
     case evDestroy:
       if (st)
         fe_unsubscribe(st->subscription_id);
-      if (g_app && g_app->plugins_win == win)
-        g_app->plugins_win = NULL;
+      if (g_app && g_app->windows[FE_WIN_PLUGINS] == win)
+        g_app->windows[FE_WIN_PLUGINS] = NULL;
       return false;
 
     default:
