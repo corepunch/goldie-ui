@@ -435,12 +435,36 @@ window_t *fe_create_runtime_form_window(window_t *doc,
   def.name = doc->title;
   def.width = (doc->children && doc->children->frame.w > 0) ? doc->children->frame.w : FORM_DEFAULT_W;
   def.height = (doc->children && doc->children->frame.h > 0) ? doc->children->frame.h : FORM_DEFAULT_H;
-  def.flags = doc->flags | WINDOW_NOTITLE | WINDOW_AUTO_LAYOUT;
-  def.layout_spacing = doc->layout.layout_spacing > 0 ? doc->layout.layout_spacing : 4;
-  def.padding = doc->layout.layout_padding;
-  def.margin = doc->layout.layout_margin;
+  def.flags = WINDOW_NOTITLE | WINDOW_AUTO_LAYOUT;
+  def.layout_spacing = 4;
+  def.padding = (irect16_t){0, 0, 0, 0};
+  def.margin = (irect16_t){0, 0, 0, 0};
   def.children = NULL;
   def.child_count = 0;
+
+  xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
+  if (form_node && form_node->type == XML_ELEMENT_NODE &&
+      xmlStrcasecmp(form_node->name, BAD_CAST "form") == 0) {
+    char flags_expr[128] = {0};
+    runtime_xml_attr_copy(form_node, "flags", flags_expr, sizeof(flags_expr));
+    def.flags = WINDOW_NOTITLE | WINDOW_AUTO_LAYOUT | runtime_parse_flags(flags_expr);
+    def.layout_spacing = (uint8_t)runtime_xml_attr_int(form_node, "spacing", 4);
+
+    char rect_expr[64] = {0};
+    runtime_xml_attr_copy(form_node, "padding", rect_expr, sizeof(rect_expr));
+    parse_rect_attr(&def.padding, rect_expr);
+    rect_expr[0] = '\0';
+    runtime_xml_attr_copy(form_node, "margin", rect_expr, sizeof(rect_expr));
+    parse_rect_attr(&def.margin, rect_expr);
+
+    // Runtime toolbar definitions from <toolbars> are not yet hydrated in the
+    // editor preview path; avoid showing an empty toolbar strip.
+    if (def.flags & WINDOW_TOOLBAR)
+      def.flags &= ~WINDOW_TOOLBAR;
+
+    def.child_count = 0;
+    def.children = runtime_build_defs(&ctx, form_node, &def.child_count);
+  }
 
   window_t *root = create_window_from_form(&def, 0, 0, parent, proc, 0, NULL);
 

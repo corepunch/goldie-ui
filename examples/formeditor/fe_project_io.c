@@ -74,19 +74,19 @@ static void fe_load_form_node(xmlNodePtr form_node) {
     return;
   }
 
+  if (doc->userdata2) {
+    xmlFreeNode((xmlNodePtr)doc->userdata2);
+    doc->userdata2 = NULL;
+  }
+  doc->userdata2 = xmlCopyNode(form_node, 1);
+
   feio_xml_attr_copy(form_node, "title", doc->title, sizeof(doc->title));
   if (!doc->title[0])
     feio_xml_attr_copy(form_node, "name", doc->title, sizeof(doc->title));
-  {
-    uint32_t f = (uint32_t)feio_xml_attr_int(form_node, "flags", (int)doc->flags);
-    doc->flags = (doc->flags & ~(WINDOW_AUTO_LAYOUT | WINDOW_STACK_HORIZONTAL)) |
-                 (f & (WINDOW_AUTO_LAYOUT | WINDOW_STACK_HORIZONTAL));
-  }
-  // Legacy attributes kept for compatibility; mode/columns are no longer stored.
-  (void)feio_xml_attr_int(form_node, "layout", 0);
-  (void)feio_xml_attr_int(form_node, "columns", 0);
-  doc->layout.layout_spacing = (uint8_t)feio_xml_attr_int(form_node, "spacing",
-                                                          (int)doc->layout.layout_spacing);
+  // Keep form XML metadata on doc->userdata2 for the preview runtime builder.
+  // The document shell window itself must remain editor-owned and not inherit
+  // runtime form flags/layout (toolbar/statusbar/padding), otherwise preview
+  // and editor chrome get mixed.
 
   form_doc_update_title(doc);
   canvas_rebuild_live_controls(doc);

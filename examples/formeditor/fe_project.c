@@ -194,6 +194,10 @@ void close_form_doc(window_t *doc) {
       g_app->active_form = (g_app->form_count > 0 && g_app->forms[0]) ? g_app->forms[0] : NULL;
   }
   if (is_window(doc)) {
+    if (doc->userdata2) {
+      xmlFreeNode((xmlNodePtr)doc->userdata2);
+      doc->userdata2 = NULL;
+    }
     doc->userdata = NULL;
     destroy_window(doc);
   }

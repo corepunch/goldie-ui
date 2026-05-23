@@ -4,6 +4,11 @@
 
 static result_t canvas_form_root_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
+  if (msg == evPaint) {
+    irect16_t cr = get_client_rect(win);
+    fill_rect(get_sys_color(brWindowBg), cr);
+    return false;
+  }
   return win_space(win, msg, wparam, lparam);
 }
 

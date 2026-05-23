@@ -199,7 +199,7 @@ library: $(CORE_LIBS)
 
 $(USER_LIB): $(USER_SRCS) $(COMMDLG_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
 	   printf '%s\n' $(sort $(USER_SRCS)) | sed 's/.*/#include "&"/' | \
-		   $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+		   $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 # Build commdlg static library
 $(COMMDLG_LIB): $(wildcard commdlg/*.c) | $(LIB_DIR)
 	$(MAKE) -C commdlg CC="$(CC)" CFLAGS="$(CFLAGS)"
@@ -207,11 +207,11 @@ $(COMMDLG_LIB): $(wildcard commdlg/*.c) | $(LIB_DIR)
 
 $(COMMCTL_LIB): $(wildcard commctl/*.c) $(USER_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
 	find commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(LIB_FLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) -Icomponents -x c -o $@ - $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 $(KERNEL_LIB): $(wildcard kernel/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
 	find kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 # Examples
 .PHONY: examples
