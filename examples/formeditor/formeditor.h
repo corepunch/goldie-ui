@@ -132,24 +132,16 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // ============================================================
 
 typedef struct {
-  int      type;        // registered component ID
-  int      id;          // numeric control ID (e.g. 1001)
-  uint32_t parent;      // parent control ID; 0 = form root
-  char     id_expr[32]; // original ID expression from project XML, if any
-  irect16_t frame;      // position and size in form coordinates
-  uint32_t flags;        // reserved for future style flags
+  uint32_t id;              // control ID (matches window->id)
+  int      type;            // registered component ID
+  char     id_expr[32];     // original ID expression from project XML, if any
   char     flags_expr[128]; // original flags expression from project XML, if any
-  char     text[64];     // control caption / label text
-  char     name[32];     // identifier name (e.g. "IDC_BUTTON1")
-  uint8_t  h_align;     // horizontal alignment; 0 = stretch
-  uint8_t  v_align;     // vertical alignment; 0 = stretch
-  irect16_t padding;    // inner padding for nested layout containers
-  irect16_t margin;     // outer margin when auto-layout reflows this element
-  uint8_t  font;        // label font; FONT_SMALL by default
-  bool     font_set;    // font attribute explicitly set in the project
-  uint8_t  color;       // label color palette index; 0 = transparent
-  bool     color_set;   // color attribute explicitly set in the project
-} form_element_t;
+  char     name[32];        // identifier name (e.g. "IDC_BUTTON1")
+  uint8_t  font;            // label font; FONT_SMALL by default
+  bool     font_set;        // font attribute explicitly set in the project
+  uint8_t  color;           // label color palette index; 0 = transparent
+  bool     color_set;       // color attribute explicitly set in the project
+} form_ctrl_meta_t;
 
 typedef enum {
   FE_LAYOUT_NONE = 0,
@@ -158,8 +150,10 @@ typedef enum {
 } fe_layout_type_t;
 
 typedef struct form_doc_t {
-  form_element_t elements[MAX_ELEMENTS];
+  window_t *elements[MAX_ELEMENTS];
   int    element_count;
+  form_ctrl_meta_t ctrl_meta[MAX_ELEMENTS];
+  int    ctrl_meta_count;
   isize16_t form_size;
   uint32_t flags;       // form/window flags exported in form_def_t
   fe_layout_type_t layout_type;
@@ -289,6 +283,9 @@ bool app_add_doc(form_doc_t *doc);
 void app_remove_doc_at(int idx);
 bool app_set_active_doc_index(int idx);
 window_t *formeditor_find_window_by_id(window_t *root, uint32_t id);
+form_ctrl_meta_t *form_doc_meta_for_id(form_doc_t *doc, uint32_t id);
+form_ctrl_meta_t *form_doc_meta_for_window(form_doc_t *doc, const window_t *win);
+int form_doc_type_for_window(form_doc_t *doc, const window_t *win);
 
 // ============================================================
 // Window procedures
@@ -317,6 +314,8 @@ void form_doc_auto_layout_reflow(form_doc_t *doc);
 bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y);
 bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,
                                      int screen_x, int screen_y);
+int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
+                       int insert_index, uint32_t parent_id);
 void formeditor_rebuild_tool_palette(void);
 window_t *formeditor_create_components_palette(hinstance_t hinstance);
 window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance);
@@ -357,6 +356,6 @@ void handle_menu_command(uint16_t id);
 // ============================================================
 
 void show_about_dialog(window_t *parent);
-bool show_props_dialog(window_t *parent, form_element_t *el);
+bool show_props_dialog(window_t *parent, form_doc_t *doc, window_t *el);
 
 #endif // __FORMEDITOR_H__

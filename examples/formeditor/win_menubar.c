@@ -9,6 +9,8 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
+static irect16_t doc_control_form_rect(form_doc_t *doc, window_t *el);
+
 // ============================================================
 // Menu definitions
 // ============================================================
@@ -659,6 +661,7 @@ static void project_load_menus(xmlDocPtr xdoc, xmlNodePtr root) {
       snprintf(g_app->project.menus_xml, sizeof(g_app->project.menus_xml),
                "%s", (const char *)xmlBufferContent(buf));
     }
+
     xmlBufferFree(buf);
     return;
   }
@@ -673,58 +676,72 @@ static void project_load_controls(form_doc_t *doc, xmlNodePtr node) {
     int type = ctrl_type_from_token((const char *)n->name);
 
     if (type >= 0 && type < FE_MAX_COMPONENTS && doc->element_count < MAX_ELEMENTS) {
-      form_element_t *el = &doc->elements[doc->element_count++];
-      memset(el, 0, sizeof(*el));
-      el->type = type;
-      el->h_align = LAYOUT_ALIGN_STRETCH;
-      el->v_align = LAYOUT_ALIGN_STRETCH;
-      el->color = brTextNormal;
-      copy_attr(n, "id", el->id_expr, sizeof(el->id_expr));
-      el->id = project_resolve_control_id(doc, el->id_expr);
-      el->frame.x = int_attr(n, "x", 0);
-      el->frame.y = int_attr(n, "y", 0);
-      el->frame.w = int_attr(n, "width", int_attr(n, "w", 10));
-      el->frame.h = int_attr(n, "height", int_attr(n, "h", 8));
-      el->frame.w = MAX(1, el->frame.w);
-      el->frame.h = MAX(1, el->frame.h);
-      el->parent = (uint32_t)int_attr(n, "parent", 0);
-      copy_attr(n, "flags", el->flags_expr, sizeof(el->flags_expr));
-      el->flags = parse_flags_expr(el->flags_expr);
-      copy_attr(n, "text", el->text, sizeof(el->text));
-      copy_attr(n, "name", el->name, sizeof(el->name));
+      irect16_t frame = {0};
+      frame.x = int_attr(n, "x", 0);
+      frame.y = int_attr(n, "y", 0);
+      frame.w = int_attr(n, "width", int_attr(n, "w", 10));
+      frame.h = int_attr(n, "height", int_attr(n, "h", 8));
+      frame.w = MAX(1, frame.w);
+      frame.h = MAX(1, frame.h);
+      uint32_t parent_id = (uint32_t)int_attr(n, "parent", 0);
+      int idx = canvas_add_element(doc, type, frame, -1, parent_id);
+      if (idx < 0 || idx >= doc->element_count)
+        continue;
+      window_t *el = doc->elements[idx];
+      if (!el)
+        continue;
+      form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
+      if (!meta)
+        continue;
+
+      copy_attr(n, "id", meta->id_expr, sizeof(meta->id_expr));
+      int loaded_id = project_resolve_control_id(doc, meta->id_expr);
+      if (loaded_id > 0) {
+        bool id_in_use = false;
+        for (int j = 0; j < doc->element_count; j++) {
+          if (j != idx && doc->elements[j] && doc->elements[j]->id == (uint32_t)loaded_id) {
+            id_in_use = true;
+            break;
+          }
+        }
+        if (!id_in_use) {
+          el->id = (uint32_t)loaded_id;
+          meta->id = (uint32_t)loaded_id;
+        }
+      }
+      copy_attr(n, "flags", meta->flags_expr, sizeof(meta->flags_expr));
+      el->flags = parse_flags_expr(meta->flags_expr);
+      copy_attr(n, "text", el->title, sizeof(el->title));
+      copy_attr(n, "name", meta->name, sizeof(meta->name));
       char *font = xml_attr_dup(n, "font");
-      el->font = font_attr(font, FONT_SMALL);
-      el->font_set = (font != NULL);
+      meta->font = font_attr(font, FONT_SMALL);
+      meta->font_set = (font != NULL);
       char *color = xml_attr_dup(n, "color");
-      el->color = color_attr(color, brTextNormal);
-      el->color_set = (color != NULL);
-      if (!el->id_expr[0]) {
-        make_control_id_expr(el->id_expr, sizeof(el->id_expr),
-                             doc->form_id, el->name,
-                             ctrl_type_token(el->type), doc->element_count);
+      meta->color = color_attr(color, brTextNormal);
+      meta->color_set = (color != NULL);
+      if (!meta->id_expr[0]) {
+        make_control_id_expr(meta->id_expr, sizeof(meta->id_expr),
+                             doc->form_id, meta->name,
+                             ctrl_type_token(type), idx + 1);
       }
       char *h_align = xml_attr_dup(n, "h-align");
       char *v_align = xml_attr_dup(n, "v-align");
       if (!h_align) h_align = xml_attr_dup(n, "h_align");
       if (!v_align) v_align = xml_attr_dup(n, "v_align");
-      el->h_align = align_h_attr(h_align, el->h_align);
-      el->v_align = align_v_attr(v_align, el->v_align);
-      el->padding = rect_attr(n, "padding",
+      el->layout.h_align = align_h_attr(h_align, el->layout.h_align);
+      el->layout.v_align = align_v_attr(v_align, el->layout.v_align);
+      el->layout.layout_padding = rect_attr(n, "padding",
                               rect_attr(n, "layout_padding", (irect16_t){0, 0, 0, 0}));
-      el->margin = rect_attr(n, "margin",
+      el->layout.layout_margin = rect_attr(n, "margin",
                               rect_attr(n, "layout_margin", (irect16_t){0, 0, 0, 0}));
       free(font);
       free(color);
       free(h_align);
       free(v_align);
-      // Note: default sizes for auto-layout are applied in project_auto_layout_doc,
-      // not here, so we preserve loaded w/h for fixed-layout forms
-      if (!el->name[0])
-        snprintf(el->name, sizeof(el->name), "control%d", doc->element_count);
-      if (el->id >= doc->next_id)
-        doc->next_id = el->id + 1;
-      if (type >= 0 && type < FE_MAX_COMPONENTS)
-        doc->type_counters[type]++;
+      if (!meta->name[0])
+        snprintf(meta->name, sizeof(meta->name), "control%d", idx + 1);
+      if ((int)el->id >= doc->next_id)
+        doc->next_id = (int)el->id + 1;
     }
 
     if (n->children)
@@ -737,18 +754,18 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   
   // Apply component default sizes for auto-layout forms
   for (int i = 0; i < doc->element_count; i++) {
-    form_element_t *el = &doc->elements[i];
-    const fe_component_desc_t *desc = fe_component_by_id(el->type);
+    window_t *el = doc->elements[i];
+    const fe_component_desc_t *desc = fe_component_by_id(form_doc_type_for_window(doc, el));
     if (desc) {
       el->frame.w = MAX(1, desc->default_size.w);
       el->frame.h = MAX(1, desc->default_size.h);
     }
   }
-  form_element_t *roots[MAX_ELEMENTS];
+  window_t *roots[MAX_ELEMENTS];
   int root_count = 0;
   for (int i = 0; i < doc->element_count; i++) {
-    if (doc->elements[i].parent == 0)
-      roots[root_count++] = &doc->elements[i];
+    if (doc->elements[i] && doc->elements[i]->parent == doc->canvas_win)
+      roots[root_count++] = doc->elements[i];
   }
   
   const int gap = doc->spacing > 0 ? doc->spacing : 4;
@@ -772,10 +789,10 @@ static void project_auto_layout_doc(form_doc_t *doc) {
     int base_h = max_h / rows;
     int rem_h = max_h % rows;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = roots[i];
+      window_t *el = roots[i];
       int row = i / cols;
       int col = i % cols;
-      irect16_t margin = el->margin;
+      irect16_t margin = el->layout.layout_margin;
       int cell_w = base_w + (col < rem_w ? 1 : 0);
       int cell_h = base_h + (row < rem_h ? 1 : 0);
       int ow = el->frame.w > 0 ? el->frame.w + margin.x + margin.w : margin.x + margin.w + 1;
@@ -784,15 +801,15 @@ static void project_auto_layout_doc(form_doc_t *doc) {
       int y = content_y + row * (base_h + gap) + (row < rem_h ? row : rem_h);
       int outer_x = x;
       int outer_y = y;
-      int outer_w = (el->h_align == LAYOUT_ALIGN_STRETCH) ? cell_w : MIN(ow, cell_w);
-      int outer_h = (el->v_align == LAYOUT_ALIGN_STRETCH) ? cell_h : MIN(oh, cell_h);
-      if (el->h_align == LAYOUT_ALIGN_CENTER)
+      int outer_w = (el->layout.h_align == LAYOUT_ALIGN_STRETCH) ? cell_w : MIN(ow, cell_w);
+      int outer_h = (el->layout.v_align == LAYOUT_ALIGN_STRETCH) ? cell_h : MIN(oh, cell_h);
+      if (el->layout.h_align == LAYOUT_ALIGN_CENTER)
         outer_x += (cell_w - outer_w) / 2;
-      else if (el->h_align == LAYOUT_ALIGN_END)
+      else if (el->layout.h_align == LAYOUT_ALIGN_END)
         outer_x += cell_w - outer_w;
-      if (el->v_align == LAYOUT_ALIGN_CENTER)
+      if (el->layout.v_align == LAYOUT_ALIGN_CENTER)
         outer_y += (cell_h - outer_h) / 2;
-      else if (el->v_align == LAYOUT_ALIGN_END)
+      else if (el->layout.v_align == LAYOUT_ALIGN_END)
         outer_y += cell_h - outer_h;
       el->frame = (irect16_t){
         outer_x + margin.x,
@@ -807,20 +824,20 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   if (doc->flags & WINDOW_STACK_HORIZONTAL) {
     int x = content_x;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = roots[i];
-      irect16_t margin = el->margin;
+      window_t *el = roots[i];
+      irect16_t margin = el->layout.layout_margin;
       if (i > 0) x += gap;
       int inner_w = el->frame.w > 0 ? el->frame.w : 1;
       int inner_h = el->frame.h > 0 ? el->frame.h : 1;
       int ow = inner_w + margin.x + margin.w;
       int oh = inner_h + margin.y + margin.h;
       int outer_y = content_y;
-      if (el->v_align == LAYOUT_ALIGN_STRETCH) {
+      if (el->layout.v_align == LAYOUT_ALIGN_STRETCH) {
         oh = max_h;
       } else {
         if (oh > max_h) oh = max_h;
-        if (el->v_align == LAYOUT_ALIGN_CENTER) outer_y = content_y + (max_h - oh) / 2;
-        else if (el->v_align == LAYOUT_ALIGN_END) outer_y = content_y + max_h - oh;
+        if (el->layout.v_align == LAYOUT_ALIGN_CENTER) outer_y = content_y + (max_h - oh) / 2;
+        else if (el->layout.v_align == LAYOUT_ALIGN_END) outer_y = content_y + max_h - oh;
       }
       el->frame = (irect16_t){
         x + margin.x,
@@ -833,20 +850,20 @@ static void project_auto_layout_doc(form_doc_t *doc) {
   } else {
     int y = content_y;
     for (int i = 0; i < count; i++) {
-      form_element_t *el = roots[i];
-      irect16_t margin = el->margin;
+      window_t *el = roots[i];
+      irect16_t margin = el->layout.layout_margin;
       if (i > 0) y += gap;
       int inner_w = el->frame.w > 0 ? el->frame.w : 1;
       int inner_h = el->frame.h > 0 ? el->frame.h : 1;
       int ow = inner_w + margin.x + margin.w;
       int oh = inner_h + margin.y + margin.h;
       int outer_x = content_x;
-      if (el->h_align == LAYOUT_ALIGN_STRETCH) {
+      if (el->layout.h_align == LAYOUT_ALIGN_STRETCH) {
         ow = max_w;
       } else {
         if (ow > max_w) ow = max_w;
-        if (el->h_align == LAYOUT_ALIGN_CENTER) outer_x = content_x + (max_w - ow) / 2;
-        else if (el->h_align == LAYOUT_ALIGN_END) outer_x = content_x + max_w - ow;
+        if (el->layout.h_align == LAYOUT_ALIGN_CENTER) outer_x = content_x + (max_w - ow) / 2;
+        else if (el->layout.h_align == LAYOUT_ALIGN_END) outer_x = content_x + max_w - ow;
       }
       el->frame = (irect16_t){
         outer_x + margin.x,
@@ -914,7 +931,8 @@ static bool project_load_form_node(xmlNodePtr form_node) {
   
   // Detect fixed-layout forms: if any element has non-zero x/y, disable auto-layout
   for (int i = 0; i < doc->element_count; i++) {
-    if (doc->elements[i].frame.x != 0 || doc->elements[i].frame.y != 0) {
+    irect16_t fr = doc_control_form_rect(doc, doc->elements[i]);
+    if (fr.x != 0 || fr.y != 0) {
       doc->flags &= ~WINDOW_AUTO_LAYOUT;
       break;
     }
@@ -990,6 +1008,23 @@ static void xml_attr(FILE *f, const char *name, const char *value) {
   fputc('"', f);
 }
 
+static irect16_t doc_control_form_rect(form_doc_t *doc, window_t *el) {
+  if (!doc || !doc->canvas_win || !el)
+    return (irect16_t){0, 0, 0, 0};
+  int x = el->frame.x;
+  int y = el->frame.y;
+  for (window_t *p = el->parent; p && p != doc->canvas_win; p = p->parent) {
+    x += p->frame.x;
+    y += p->frame.y;
+  }
+  canvas_state_t *cs = (canvas_state_t *)doc->canvas_win->userdata;
+  if (cs) {
+    x += cs->pan.x;
+    y += cs->pan.y;
+  }
+  return (irect16_t){(int16_t)x, (int16_t)y, el->frame.w, el->frame.h};
+}
+
 static void project_save_doc(FILE *f, form_doc_t *doc) {
   const char *label = doc->form_title[0] ? doc->form_title :
                       (doc->form_id[0] ? doc->form_id : "Untitled");
@@ -1021,32 +1056,42 @@ static void project_save_doc(FILE *f, form_doc_t *doc) {
     fprintf(f, " />\n");
   }
   for (int i = 0; i < doc->element_count; i++) {
-    form_element_t *el = &doc->elements[i];
-    fprintf(f, "        <%s", ctrl_type_token(el->type));
-    xml_attr(f, "name", el->name);
-    xml_attr(f, "text", el->text);
-    if (el->parent != 0)
-      fprintf(f, " parent=\"%u\"", (unsigned)el->parent);
-    if (el->font_set || el->font != FONT_SMALL)
-      xml_attr(f, "font", font_token(el->font));
-    if (el->color_set || el->color != brTextNormal)
-      xml_attr(f, "color", color_token(el->color));
+    window_t *el = doc->elements[i];
+    if (!el)
+      continue;
+    form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
+    int type = form_doc_type_for_window(doc, el);
+    fprintf(f, "        <%s", ctrl_type_token(type));
+    xml_attr(f, "name", meta ? meta->name : "");
+    xml_attr(f, "text", el->title);
+    if (el->parent && el->parent != doc->canvas_win)
+      fprintf(f, " parent=\"%u\"", (unsigned)el->parent->id);
+    if (meta && (meta->font_set || meta->font != FONT_SMALL))
+      xml_attr(f, "font", font_token(meta->font));
+    if (meta && (meta->color_set || meta->color != brTextNormal))
+      xml_attr(f, "color", color_token(meta->color));
     // Only emit x/y for fixed-layout forms; auto-layout forms recalculate positions
     if (!(doc->flags & WINDOW_AUTO_LAYOUT)) {
-      fprintf(f, " x=\"%d\" y=\"%d\"", el->frame.x, el->frame.y);
+      irect16_t fr = doc_control_form_rect(doc, el);
+      fprintf(f, " x=\"%d\" y=\"%d\"", fr.x, fr.y);
     }
-    fprintf(f, " width=\"%d\" height=\"%d\"", el->frame.w, el->frame.h);
-    fprintf(f, " h-align=\"%s\"", align_h_token(el->h_align));
-    fprintf(f, " v-align=\"%s\"", align_v_token(el->v_align));
-    if (el->padding.x || el->padding.y || el->padding.w || el->padding.h)
+    irect16_t fr = doc_control_form_rect(doc, el);
+    fprintf(f, " width=\"%d\" height=\"%d\"", fr.w, fr.h);
+    fprintf(f, " h-align=\"%s\"", align_h_token(el->layout.h_align));
+    fprintf(f, " v-align=\"%s\"", align_v_token(el->layout.v_align));
+    if (el->layout.layout_padding.x || el->layout.layout_padding.y ||
+        el->layout.layout_padding.w || el->layout.layout_padding.h)
       fprintf(f, " padding=\"%d %d %d %d\"",
-              el->padding.x, el->padding.y, el->padding.w, el->padding.h);
-    if (el->margin.x || el->margin.y || el->margin.w || el->margin.h)
+              el->layout.layout_padding.x, el->layout.layout_padding.y,
+              el->layout.layout_padding.w, el->layout.layout_padding.h);
+    if (el->layout.layout_margin.x || el->layout.layout_margin.y ||
+        el->layout.layout_margin.w || el->layout.layout_margin.h)
       fprintf(f, " margin=\"%d %d %d %d\"",
-              el->margin.x, el->margin.y, el->margin.w, el->margin.h);
+              el->layout.layout_margin.x, el->layout.layout_margin.y,
+              el->layout.layout_margin.w, el->layout.layout_margin.h);
     char flags_buf[32];
-    snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, el->flags);
-    xml_attr(f, "flags", el->flags_expr[0] ? el->flags_expr : flags_buf);
+    snprintf(flags_buf, sizeof(flags_buf), "%" PRIu32, (el->flags & 0x00FFFFFFu));
+    xml_attr(f, "flags", (meta && meta->flags_expr[0]) ? meta->flags_expr : flags_buf);
     fprintf(f, " />\n");
   }
   fprintf(f, "      </form>\n");
@@ -1382,10 +1427,15 @@ static const form_ctrl_def_t kPropsChildren[] = {
   },
 };
 
-// DDX bindings: caption and name edits ↔ form_element_t.text / .name
+typedef struct {
+  char caption[64];
+  char name[32];
+} props_fields_t;
+
+// DDX bindings: caption and name edits.
 static const ctrl_binding_t k_props_bindings[] = {
-  DDX_TEXT(PROPS_ID_CAPTION, form_element_t, text),
-  DDX_TEXT(PROPS_ID_NAME, form_element_t, name),
+  DDX_TEXT(PROPS_ID_CAPTION, props_fields_t, caption),
+  DDX_TEXT(PROPS_ID_NAME, props_fields_t, name),
 };
 
 static const form_def_t kPropsForm = {
@@ -1612,7 +1662,9 @@ static bool show_form_props_dialog(window_t *parent, form_doc_t *doc) {
 }
 
 typedef struct {
-  form_element_t *el;
+  form_doc_t     *doc;
+  window_t       *el;
+  props_fields_t  fields;
   bool            accepted;
 } props_state_t;
 
@@ -1627,14 +1679,16 @@ static result_t props_proc(window_t *win, uint32_t msg,
       // Dynamic type-info label (content is computed at runtime).
       char info[64];
       snprintf(info, sizeof(info), "Type: %s  ID: %d  (%d, %d)  %d x %d",
-               ctrl_type_token(ps->el->type), ps->el->id,
+               ctrl_type_token(form_doc_type_for_window(ps->doc, ps->el)), ps->el->id,
                ps->el->frame.x, ps->el->frame.y, ps->el->frame.w, ps->el->frame.h);
       create_window(info, WINDOW_NOTITLE | WINDOW_NOFILL,
           MAKERECT(4, PROPS_INFO_Y, PROPS_W - 8, CONTROL_HEIGHT),
           win, "label", 0, (void *)(uintptr_t)brTextDisabled);
 
-      // Pre-populate caption/name edits from the element.
-      dialog_push(win, ps->el, k_props_bindings, ARRAY_LEN(k_props_bindings));
+      snprintf(ps->fields.caption, sizeof(ps->fields.caption), "%s", ps->el->title);
+      form_ctrl_meta_t *meta = form_doc_meta_for_window(ps->doc, ps->el);
+      snprintf(ps->fields.name, sizeof(ps->fields.name), "%s", meta ? meta->name : "");
+      dialog_push(win, &ps->fields, k_props_bindings, ARRAY_LEN(k_props_bindings));
       return true;
     }
 
@@ -1644,7 +1698,12 @@ static result_t props_proc(window_t *win, uint32_t msg,
       if (!src) return false;
 
       if (src->id == PROPS_ID_OK) {
-        dialog_pull(win, ps->el, k_props_bindings, ARRAY_LEN(k_props_bindings));
+        dialog_pull(win, &ps->fields, k_props_bindings, ARRAY_LEN(k_props_bindings));
+        snprintf(ps->el->title, sizeof(ps->el->title), "%s", ps->fields.caption);
+        form_ctrl_meta_t *meta = form_doc_meta_for_window(ps->doc, ps->el);
+        if (meta)
+          snprintf(meta->name, sizeof(meta->name), "%s", ps->fields.name);
+        invalidate_window(ps->el);
         ps->accepted = true;
         end_dialog(win, 1);
         return true;
@@ -1660,8 +1719,9 @@ static result_t props_proc(window_t *win, uint32_t msg,
   }
 }
 
-bool show_props_dialog(window_t *parent, form_element_t *el) {
+bool show_props_dialog(window_t *parent, form_doc_t *doc, window_t *el) {
   props_state_t ps = {0};
+  ps.doc      = doc;
   ps.el       = el;
   ps.accepted = false;
   show_dialog_from_form(&kPropsForm, "Element Properties", parent, props_proc, &ps);
@@ -1760,10 +1820,22 @@ void handle_menu_command(uint16_t id) {
       canvas_state_t *cs = (canvas_state_t *)cwin->userdata;
       if (!cs || cs->selected_idx < 0) break;
       int idx = cs->selected_idx;
-      // Remove element by shifting the array
+      window_t *el = doc->elements[idx];
+      if (el && is_window(el))
+        destroy_window(el);
       for (int i = idx; i < doc->element_count - 1; i++)
         doc->elements[i] = doc->elements[i + 1];
       doc->element_count--;
+      doc->elements[doc->element_count] = NULL;
+      uint32_t id = el ? el->id : 0;
+      for (int i = 0; i < doc->ctrl_meta_count; i++) {
+        if (doc->ctrl_meta[i].id == id) {
+          memmove(&doc->ctrl_meta[i], &doc->ctrl_meta[i + 1],
+                  (size_t)(doc->ctrl_meta_count - i - 1) * sizeof(doc->ctrl_meta[0]));
+          doc->ctrl_meta_count--;
+          break;
+        }
+      }
       cs->selected_idx = -1;
       doc->modified = true;
       form_doc_update_title(doc);
@@ -1780,8 +1852,8 @@ void handle_menu_command(uint16_t id) {
       if (!cs || cs->selected_idx < 0) {
         show_form_props_dialog(owner, doc);
       } else {
-        form_element_t *el = &doc->elements[cs->selected_idx];
-        if (show_props_dialog(owner, el)) {
+        window_t *el = doc->elements[cs->selected_idx];
+        if (show_props_dialog(owner, doc, el)) {
           doc->modified = true;
           form_doc_update_title(doc);
           canvas_sync_live_controls(doc);

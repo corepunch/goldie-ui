@@ -113,14 +113,12 @@ static void canvas_clamp_pan(canvas_state_t *s, int win_w, int win_h) {
 }
 
 static bool canvas_child_window_alive(window_t *root, window_t *target);
-static form_element_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id);
-static window_t *canvas_live_window_for_element(form_doc_t *doc, const form_element_t *el);
+static window_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id);
+static window_t *canvas_live_window_for_element(form_doc_t *doc, const window_t *el);
 static bool canvas_doc_has_children(form_doc_t *doc, uint32_t parent_id);
 static bool canvas_parent_is_layout_managed(form_doc_t *doc, uint32_t parent_id);
-static bool canvas_element_parent_is_layout_managed(form_doc_t *doc,
-                                                    const form_element_t *el);
 static irect16_t canvas_element_canvas_rect(form_doc_t *doc, canvas_state_t *s,
-                                            const form_element_t *el);
+                                            const window_t *el);
 window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
                                             int canvas_x, int canvas_y);
 
@@ -133,7 +131,7 @@ window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
 static int hit_test_elements(canvas_state_t *s, int lx, int ly) {
   form_doc_t *doc = s->doc;
   for (int i = doc->element_count - 1; i >= 0; i--) {
-    form_element_t *el = &doc->elements[i];
+    window_t *el = doc->elements[i];
     irect16_t r = canvas_element_canvas_rect(doc, s, el);
     if (lx >= r.x && lx < r.x + r.w && ly >= r.y && ly < r.y + r.h)
       return i;
@@ -153,12 +151,12 @@ static int hit_test_elements_cycle(canvas_state_t *s, int lx, int ly) {
     return -1;
 
   if (s->selected_idx >= 0 && s->selected_idx < s->doc->element_count) {
-    form_element_t *selected = &s->doc->elements[s->selected_idx];
+    window_t *selected = s->doc->elements[s->selected_idx];
     irect16_t selected_rc = canvas_element_canvas_rect(s->doc, s, selected);
     if (lx >= selected_rc.x && lx < selected_rc.x + selected_rc.w &&
         ly >= selected_rc.y && ly < selected_rc.y + selected_rc.h) {
       for (int i = s->selected_idx - 1; i >= 0; i--) {
-        form_element_t *el = &s->doc->elements[i];
+        window_t *el = s->doc->elements[i];
         irect16_t r = canvas_element_canvas_rect(s->doc, s, el);
         if (lx >= r.x && lx < r.x + r.w && ly >= r.y && ly < r.y + r.h)
           return i;
@@ -170,34 +168,21 @@ static int hit_test_elements_cycle(canvas_state_t *s, int lx, int ly) {
 }
 
 static irect16_t canvas_element_canvas_rect(form_doc_t *doc, canvas_state_t *s,
-                                            const form_element_t *el) {
+                                            const window_t *el) {
   if (!doc || !s || !el)
     return (irect16_t){0, 0, 0, 0};
-  window_t *live = canvas_live_window_for_element(doc, el);
-  if (el->parent == 0) {
-    irect16_t r = form_to_canvas_rect(s, el->frame);
-    if (canvas_child_window_alive(doc->canvas_win, live)) {
-      r.w = live->frame.w;
-      r.h = live->frame.h;
-    }
-    return r;
+  int x = el->frame.x;
+  int y = el->frame.y;
+  for (window_t *p = el->parent; p && p != doc->canvas_win; p = p->parent) {
+    x += p->frame.x;
+    y += p->frame.y;
   }
-  form_element_t *parent = canvas_find_element_by_id(doc, el->parent);
-  if (!parent)
-    return form_to_canvas_rect(s, el->frame);
-  irect16_t pr = canvas_element_canvas_rect(doc, s, parent);
-  if (canvas_child_window_alive(doc->canvas_win, live)) {
-    return R(pr.x + live->frame.x,
-             pr.y + live->frame.y,
-             live->frame.w,
-             live->frame.h);
-  }
-  return R(pr.x + el->frame.x, pr.y + el->frame.y, el->frame.w, el->frame.h);
+  return R(x, y, el->frame.w, el->frame.h);
 }
 
 // Compute the 8 handle positions (top-left corners) in window-local coords
 // for the selected element, stored into out[HANDLE_COUNT].
-static void get_handle_rects(canvas_state_t *s, form_element_t *el,
+static void get_handle_rects(canvas_state_t *s, window_t *el,
                               int out_x[HANDLE_COUNT], int out_y[HANDLE_COUNT]) {
   irect16_t r = canvas_element_canvas_rect(s->doc, s, el);
   int left = r.x - 1;
@@ -220,7 +205,7 @@ static void get_handle_rects(canvas_state_t *s, form_element_t *el,
 // Return which resize handle (0-7) is under (lx, ly), or -1 if none.
 static int hit_test_handles(canvas_state_t *s, int lx, int ly) {
   if (s->selected_idx < 0) return -1;
-  form_element_t *el = &s->doc->elements[s->selected_idx];
+  window_t *el = s->doc->elements[s->selected_idx];
   int hx[HANDLE_COUNT], hy[HANDLE_COUNT];
   get_handle_rects(s, el, hx, hy);
   for (int i = 0; i < HANDLE_COUNT; i++) {
@@ -285,8 +270,8 @@ static bool canvas_type_is_grid(int type) {
   return (g >= 0 && type == g) || (gv >= 0 && type == gv);
 }
 
-static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
-                              int insert_index, uint32_t parent_id);
+int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
+                       int insert_index, uint32_t parent_id);
 static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id);
 
 window_t *formeditor_find_window_by_id(window_t *root, uint32_t id) {
@@ -308,13 +293,32 @@ window_t *formeditor_find_window_by_id(window_t *root, uint32_t id) {
   return NULL;
 }
 
-static window_t *canvas_live_window_for_element(form_doc_t *doc, const form_element_t *el) {
+form_ctrl_meta_t *form_doc_meta_for_id(form_doc_t *doc, uint32_t id) {
+  if (!doc || id == 0)
+    return NULL;
+  for (int i = 0; i < doc->ctrl_meta_count; i++) {
+    if (doc->ctrl_meta[i].id == id)
+      return &doc->ctrl_meta[i];
+  }
+  return NULL;
+}
+
+form_ctrl_meta_t *form_doc_meta_for_window(form_doc_t *doc, const window_t *win) {
+  return form_doc_meta_for_id(doc, win ? win->id : 0);
+}
+
+int form_doc_type_for_window(form_doc_t *doc, const window_t *win) {
+  form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, win);
+  return meta ? meta->type : -1;
+}
+
+static window_t *canvas_live_window_for_element(form_doc_t *doc, const window_t *el) {
   if (!doc || !doc->canvas_win || !el)
     return NULL;
   return formeditor_find_window_by_id(doc->canvas_win, (uint32_t)el->id);
 }
 
-static form_element_t *canvas_find_element_for_live_window(window_t *win) {
+static window_t *canvas_find_element_for_live_window(window_t *win) {
   form_doc_t *doc;
   if (!win) return NULL;
 
@@ -359,20 +363,29 @@ static bool canvas_child_window_alive(window_t *root, window_t *target) {
 
 static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
-  form_element_t *el = canvas_find_element_for_live_window(win);
-  winproc_t real_proc = el ? ctrl_type_to_proc(el->type) : NULL;
+  window_t *el = canvas_find_element_for_live_window(win);
+  form_doc_t *doc = NULL;
+  for (window_t *ancestor = win ? win->parent : NULL; ancestor; ancestor = ancestor->parent) {
+    canvas_state_t *s = (canvas_state_t *)ancestor->userdata;
+    if (s && s->doc) {
+      doc = s->doc;
+      break;
+    }
+  }
+  int type = form_doc_type_for_window(doc, el);
+  winproc_t real_proc = ctrl_type_to_proc(type);
 
   switch (msg) {
     case evCreate: {
-      form_element_t *creating_el = (form_element_t *)lparam;
-      if (!real_proc && creating_el)
-        real_proc = ctrl_type_to_proc(creating_el->type);
+      const form_ctrl_meta_t *creating_meta = (const form_ctrl_meta_t *)lparam;
+      if (!real_proc && creating_meta)
+        real_proc = ctrl_type_to_proc(creating_meta->type);
       win->flags |= WINDOW_NOTABSTOP;
-      if (real_proc == win_label && creating_el) {
+      if (real_proc == win_label && creating_meta) {
         label_create_params_t params = {
-          .color_index = creating_el->color,
-          .font = creating_el->font_set ? (ui_font_t)creating_el->font : FONT_SMALL,
-          .color_set = creating_el->color_set,
+          .color_index = creating_meta->color,
+          .font = creating_meta->font_set ? (ui_font_t)creating_meta->font : FONT_SMALL,
+          .color_set = creating_meta->color_set,
         };
         return real_proc(win, msg, wparam, &params);
       }
@@ -386,7 +399,7 @@ static result_t design_live_ctrl_proc(window_t *win, uint32_t msg,
     case evCanParent:
       return real_proc ? real_proc(win, msg, wparam, lparam) : false;
     case evInitChildren:
-      if (el && canvas_type_is_grid(el->type) && el->parent == 0)
+      if (doc && el && canvas_type_is_grid(type) && el->parent == doc->canvas_win)
         return true;
       return real_proc ? real_proc(win, msg, wparam, lparam) : true;
     case evLeftButtonDown:
@@ -507,9 +520,10 @@ static void canvas_update_preview(canvas_state_t *s, int type, irect16_t form_rc
   }
 }
 
-static void canvas_sync_live_element_window(form_doc_t *doc, form_element_t *el) {
+static void canvas_sync_live_element_window(form_doc_t *doc, window_t *el) {
   canvas_state_t *s;
   window_t *live;
+  form_ctrl_meta_t *meta;
   if (!doc || !doc->canvas_win || !el)
     return;
   live = canvas_live_window_for_element(doc, el);
@@ -517,82 +531,27 @@ static void canvas_sync_live_element_window(form_doc_t *doc, form_element_t *el)
     return;
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s) return;
-  if (el->parent == 0) {
-    irect16_t r = form_to_canvas_rect(s, el->frame);
-    move_window(live, r.x, r.y);
-    resize_window(live, el->frame.w, el->frame.h);
-  } else if (!canvas_element_parent_is_layout_managed(doc, el)) {
-    move_window(live, el->frame.x, el->frame.y);
-    resize_window(live, el->frame.w, el->frame.h);
-  }
+  (void)s;
+  meta = form_doc_meta_for_window(doc, el);
   if (live->proc == win_label) {
-    uint32_t packed = label_pack_userdata(el->color,
-                                          el->font_set ? (ui_font_t)el->font : FONT_SMALL,
-                                          el->color_set);
+    uint32_t packed = label_pack_userdata(meta ? meta->color : brTextNormal,
+                                          (meta && meta->font_set) ? (ui_font_t)meta->font : FONT_SMALL,
+                                          meta ? meta->color_set : false);
     if ((uint32_t)(uintptr_t)live->userdata != packed)
       live->userdata = (void *)(uintptr_t)packed;
-  }
-  if (strcmp(live->title, el->text) != 0) {
-    snprintf(live->title, sizeof(live->title), "%s", el->text);
-    invalidate_window(live);
-  }
-}
-
-static void canvas_create_live_element_window(form_doc_t *doc, form_element_t *el) {
-  canvas_state_t *s;
-  window_t *live;
-  if (!doc || !doc->canvas_win || !el) return;
-  s = (canvas_state_t *)doc->canvas_win->userdata;
-  if (!s) return;
-  if (!ctrl_type_to_proc(el->type)) return;
-  window_t *parent = doc->canvas_win;
-  if (el->parent != 0) {
-    form_element_t *pel = canvas_find_element_by_id(doc, el->parent);
-    window_t *plive = canvas_live_window_for_element(doc, pel);
-    if (pel && canvas_child_window_alive(doc->canvas_win, plive))
-      parent = plive;
-  }
-  irect16_t r = (el->parent == 0)
-      ? form_to_canvas_rect(s, el->frame)
-      : R(el->frame.x, el->frame.y, el->frame.w, el->frame.h);
-  live = create_window(el->text, el->flags,
-                       MAKERECT(r.x, r.y, r.w, r.h),
-                       parent, design_live_ctrl_proc, 0, el);
-  if (!live) return;
-  live->id = el->id;
-  live->flags |= WINDOW_NOTABSTOP;
-    if (canvas_type_is_grid(el->type) &&
-      !canvas_doc_has_children(doc, el->id))
-    send_message(live, evInitChildren, 0, NULL);
-  if (live->frame.w > el->frame.w ||
-      live->frame.h > el->frame.h) {
-    el->frame.w = MAX(el->frame.w, live->frame.w);
-    el->frame.h = MAX(el->frame.h, live->frame.h);
-    canvas_sync_live_element_window(doc, el);
   }
 }
 
 void canvas_sync_live_controls(form_doc_t *doc) {
   if (!doc || !doc->canvas_win) return;
   for (int i = 0; i < doc->element_count; i++)
-    canvas_sync_live_element_window(doc, &doc->elements[i]);
+    canvas_sync_live_element_window(doc, doc->elements[i]);
   invalidate_window(doc->canvas_win);
   property_browser_refresh(doc);
 }
 
 void canvas_rebuild_live_controls(form_doc_t *doc) {
-  canvas_state_t *s;
   if (!doc || !doc->canvas_win) return;
-  s = (canvas_state_t *)doc->canvas_win->userdata;
-  if (!s) return;
-
-  while (doc->canvas_win->children)
-    destroy_window(doc->canvas_win->children);
-
-  for (int i = 0; i < doc->element_count; i++) {
-    canvas_create_live_element_window(doc, &doc->elements[i]);
-  }
-
   canvas_sync_live_controls(doc);
 }
 
@@ -600,7 +559,7 @@ void canvas_rebuild_live_controls(form_doc_t *doc) {
 static void draw_handles(window_t *win, canvas_state_t *s) {
   (void)win;
   if (s->selected_idx < 0) return;
-  form_element_t *el = &s->doc->elements[s->selected_idx];
+  window_t *el = s->doc->elements[s->selected_idx];
   int hx[HANDLE_COUNT], hy[HANDLE_COUNT];
   get_handle_rects(s, el, hx, hy);
 
@@ -623,7 +582,7 @@ static void draw_element_outlines(window_t *win, canvas_state_t *s) {
 
   const uint32_t outline = 0x40808080u;  // semi-transparent grey
   for (int i = 0; i < s->doc->element_count; i++) {
-    form_element_t *el = &s->doc->elements[i];
+    window_t *el = s->doc->elements[i];
     irect16_t r = canvas_element_canvas_rect(s->doc, s, el);
     if (r.w <= 0 || r.h <= 0)
       continue;
@@ -656,8 +615,14 @@ static void draw_layout_hover(canvas_state_t *s) {
     return;
   irect16_t hover_rc = s->hover_layout_rc;
   if (!s->external_component_drag && s->doc &&
-      s->hover_layout_idx >= 0 && s->hover_layout_idx < s->doc->element_count)
-    hover_rc = s->doc->elements[s->hover_layout_idx].frame;
+      s->hover_layout_idx >= 0 && s->hover_layout_idx < s->doc->element_count) {
+    hover_rc = (irect16_t){
+      (int16_t)(s->doc->elements[s->hover_layout_idx]->frame.x + s->pan.x),
+      (int16_t)(s->doc->elements[s->hover_layout_idx]->frame.y + s->pan.y),
+      s->doc->elements[s->hover_layout_idx]->frame.w,
+      s->doc->elements[s->hover_layout_idx]->frame.h
+    };
+  }
   if (hover_rc.w <= 0 || hover_rc.h <= 0)
     hover_rc = R(0, 0, s->doc->form_size.w, s->doc->form_size.h);
   if (hover_rc.w <= 0 || hover_rc.h <= 0)
@@ -679,7 +644,12 @@ static void canvas_update_layout_hover(canvas_state_t *s, canvas_pt_t pos) {
   int hit = hit_test_elements(s, pos.x, pos.y);
   if (hit >= 0 && hit < s->doc->element_count) {
     s->hover_layout_idx = hit;
-    s->hover_layout_rc = s->doc->elements[hit].frame;
+    s->hover_layout_rc = (irect16_t){
+      (int16_t)(s->doc->elements[hit]->frame.x + s->pan.x),
+      (int16_t)(s->doc->elements[hit]->frame.y + s->pan.y),
+      s->doc->elements[hit]->frame.w,
+      s->doc->elements[hit]->frame.h
+    };
   }
 }
 
@@ -750,28 +720,19 @@ static int tool_to_ctrl_type(int tool) {
   return -1;
 }
 
-static form_element_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id) {
+static window_t *canvas_find_element_by_id(form_doc_t *doc, uint32_t id) {
   if (!doc || id == 0) return NULL;
   for (int i = 0; i < doc->element_count; i++) {
-    if ((uint32_t)doc->elements[i].id == id)
-      return &doc->elements[i];
+    if (doc->elements[i] && (uint32_t)doc->elements[i]->id == id)
+      return doc->elements[i];
   }
   return NULL;
-}
-
-static bool canvas_element_parent_is_layout_managed(form_doc_t *doc,
-                                                    const form_element_t *el) {
-  if (!doc || !el || el->parent == 0)
-    return false;
-  form_element_t *parent = canvas_find_element_by_id(doc, el->parent);
-  window_t *plive = canvas_live_window_for_element(doc, parent);
-  return parent && plive && (plive->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static bool canvas_parent_is_layout_managed(form_doc_t *doc, uint32_t parent_id) {
   if (!doc || parent_id == 0)
     return false;
-  form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
+  window_t *parent = canvas_find_element_by_id(doc, parent_id);
   window_t *plive = canvas_live_window_for_element(doc, parent);
   return parent && plive && (plive->flags & WINDOW_AUTO_LAYOUT);
 }
@@ -816,7 +777,9 @@ static bool canvas_doc_has_children(form_doc_t *doc, uint32_t parent_id) {
   if (!doc || parent_id == 0)
     return false;
   for (int i = 0; i < doc->element_count; i++) {
-    if (doc->elements[i].parent == parent_id)
+    if (doc->elements[i] &&
+        doc->elements[i]->parent &&
+        (uint32_t)doc->elements[i]->parent->id == parent_id)
       return true;
   }
   return false;
@@ -851,12 +814,15 @@ window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
     return NULL;
   }
 
-  for (form_element_t *el = &doc->elements[hit]; el; el = canvas_find_element_by_id(doc, el->parent)) {
+  for (window_t *el = doc->elements[hit]; el; ) {
     window_t *target = canvas_live_window_for_element(doc, el);
     if (!target)
-      continue;
+      break;
     if (!fe_component_rejects_parent(c, target))
       return target;
+    if (!el->parent || el->parent == doc->canvas_win)
+      break;
+    el = canvas_find_element_by_id(doc, (uint32_t)el->parent->id);
   }
 
   if (canvas_x >= 0 && canvas_y >= 0 &&
@@ -870,7 +836,7 @@ window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
 static bool canvas_seed_grid_children(form_doc_t *doc, int grid_index) {
   if (!doc || grid_index < 0 || grid_index >= doc->element_count)
     return false;
-  form_element_t *grid = &doc->elements[grid_index];
+  window_t *grid = doc->elements[grid_index];
   if (canvas_doc_has_children(doc, grid->id))
     return true;
   int column_type = canvas_component_id_for_token("column");
@@ -892,7 +858,7 @@ static bool canvas_seed_grid_children(form_doc_t *doc, int grid_index) {
 static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id) {
   if (!doc || parent_id == 0)
     return;
-  form_element_t *parent = canvas_find_element_by_id(doc, parent_id);
+  window_t *parent = canvas_find_element_by_id(doc, parent_id);
   window_t *plive = canvas_live_window_for_element(doc, parent);
   if (!parent || !plive || !(plive->flags & WINDOW_AUTO_LAYOUT))
     return;
@@ -902,8 +868,8 @@ static void canvas_sync_live_parent_layout(form_doc_t *doc, uint32_t parent_id) 
 // ============================================================
 // Add a new element to the document
 // ============================================================
-static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
-                              int insert_index, uint32_t parent_id) {
+int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
+                       int insert_index, uint32_t parent_id) {
   const fe_component_desc_t *c = fe_component_by_id(type);
   if (doc->element_count >= MAX_ELEMENTS) return -1;
   if (!c || type < 0 || type >= FE_MAX_COMPONENTS) return -1;
@@ -915,39 +881,56 @@ static int canvas_add_element(form_doc_t *doc, int type, irect16_t frame,
   int index = doc->element_count;
   if (insert_index >= 0 && insert_index < doc->element_count)
     index = insert_index;
-  if (index < doc->element_count) {
-    memmove(&doc->elements[index + 1],
-            &doc->elements[index],
-            (size_t)(doc->element_count - index) * sizeof(doc->elements[0]));
+
+  uint32_t id = (uint32_t)doc->next_id;
+  window_t *parent = doc->canvas_win;
+  if (parent_id != 0) {
+    window_t *pel = canvas_find_element_by_id(doc, parent_id);
+    if (pel && canvas_child_window_alive(doc->canvas_win, pel))
+      parent = pel;
   }
-  form_element_t *el = &doc->elements[index];
-  *el = (form_element_t){0};
-  el->type  = type;
-  el->id    = doc->next_id++;
-  el->parent = parent_id;
-  el->frame = frame;
-  el->flags = 0;
-  el->h_align = LAYOUT_ALIGN_STRETCH;
-  el->v_align = LAYOUT_ALIGN_STRETCH;
-  el->font = FONT_SMALL;
-  el->font_set = false;
-  el->color = brTextNormal;
-  el->color_set = false;
 
   int n = ++doc->type_counters[type];
-  // Caption (text shown inside the control)
-  ctrl_make_caption(type, n, el->text, sizeof(el->text));
-  // Identifier name (used by the generated form resource).
+  char caption[64];
+  ctrl_make_caption(type, n, caption, sizeof(caption));
   char pfx[8];
   strncpy(pfx, c->name_prefix, sizeof(pfx) - 1);
   pfx[sizeof(pfx)-1] = '\0';
-  snprintf(el->name, sizeof(el->name), "%s%d", pfx, n);
+  char name[32];
+  snprintf(name, sizeof(name), "%s%d", pfx, n);
+
+  if (doc->ctrl_meta_count >= MAX_ELEMENTS) {
+    doc->type_counters[type]--;
+    return -1;
+  }
+  form_ctrl_meta_t meta = {0};
+  meta.id = id;
+  meta.type = type;
+  meta.font = FONT_SMALL;
+  meta.color = brTextNormal;
+  snprintf(meta.name, sizeof(meta.name), "%s", name);
+
+  window_t *el = create_window(caption, 0, &frame, parent, design_live_ctrl_proc, 0, &meta);
+  if (!el) {
+    doc->type_counters[type]--;
+    return -1;
+  }
+  el->id = id;
+  el->flags |= WINDOW_NOTABSTOP;
+  el->layout.h_align = LAYOUT_ALIGN_STRETCH;
+  el->layout.v_align = LAYOUT_ALIGN_STRETCH;
+
+  if (index < doc->element_count)
+    memmove(&doc->elements[index + 1], &doc->elements[index],
+            (size_t)(doc->element_count - index) * sizeof(doc->elements[0]));
 
   doc->element_count++;
+  doc->ctrl_meta[doc->ctrl_meta_count++] = meta;
+  doc->next_id++;
+  doc->elements[index] = el;
   canvas_state_t *s = doc->canvas_win ? (canvas_state_t *)doc->canvas_win->userdata : NULL;
   if (s)
     s->selected_idx = index;
-  canvas_create_live_element_window(doc, el);
   if (canvas_type_is_grid(type))
     canvas_seed_grid_children(doc, index);
   canvas_sync_live_parent_layout(doc, parent_id);
@@ -971,8 +954,8 @@ static uint32_t canvas_target_parent_id(form_doc_t *doc, window_t *target) {
 
   for (window_t *it = target; it; it = it->parent) {
     for (int i = 0; i < doc->element_count; i++) {
-      if ((uint32_t)doc->elements[i].id == (uint32_t)it->id)
-        return (uint32_t)doc->elements[i].id;
+      if (doc->elements[i] && (uint32_t)doc->elements[i]->id == (uint32_t)it->id)
+        return (uint32_t)doc->elements[i]->id;
     }
     if (it == doc->canvas_win)
       break;
@@ -998,9 +981,9 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
   s = (canvas_state_t *)doc->canvas_win->userdata;
   if (!s)
     return false;
-  c = (ctrl_type >= 0 && ctrl_type < FE_MAX_COMPONENTS)
-    ? fe_component_by_id(ctrl_type)
-    : NULL;
+  if (ctrl_type < 0 || ctrl_type >= FE_MAX_COMPONENTS)
+    ctrl_type = -1;
+  c = (ctrl_type >= 0) ? fe_component_by_id(ctrl_type) : NULL;
   if (!c) {
     ctrl_type = tool_to_ctrl_type(type);
     if (ctrl_type < 0 || ctrl_type >= FE_MAX_COMPONENTS)
@@ -1082,17 +1065,14 @@ void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *tar
   } else {
     s->hover_layout_idx = -1;
     for (window_t *it = target; it; it = it->parent) {
-      form_element_t *el = NULL;
       for (int i = 0; i < doc->element_count; i++) {
-        if ((uint32_t)doc->elements[i].id == (uint32_t)it->id) {
-          el = &doc->elements[i];
+        if (doc->elements[i] && (uint32_t)doc->elements[i]->id == (uint32_t)it->id) {
+          s->hover_layout_idx = i;
           break;
         }
       }
-      if (el) {
-        s->hover_layout_idx = (int)(el - doc->elements);
+      if (s->hover_layout_idx >= 0)
         break;
-      }
       if (it == doc->canvas_win)
         break;
     }
@@ -1156,7 +1136,7 @@ static const handle_edges_t k_handle_edges[HANDLE_COUNT] = {
 
 static void canvas_apply_resize(canvas_state_t *s, int dx, int dy) {
   form_doc_t     *doc = s->doc;
-  form_element_t *el  = &doc->elements[s->selected_idx];
+  window_t *el  = doc->elements[s->selected_idx];
   irect16_t start = s->drag.resize.frame;
   int handle = s->drag.resize.handle;
   if (handle < 0 || handle >= HANDLE_COUNT) return;
@@ -1334,7 +1314,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         // Check resize handles first
         int handle = hit_test_handles(s, lx, ly);
         if (handle >= 0 && s->selected_idx >= 0) {
-          form_element_t *el = &doc->elements[s->selected_idx];
+          window_t *el = doc->elements[s->selected_idx];
           s->drag = (drag_state_t){
             .mode = DRAG_RESIZE,
             .resize = {
@@ -1352,7 +1332,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
         s->selected_idx = hit;
         property_browser_refresh(doc);
         if (hit >= 0) {
-          form_element_t *el = &doc->elements[hit];
+          window_t *el = doc->elements[hit];
           s->drag = (drag_state_t){
             .mode = DRAG_MOVE,
             .move = {
@@ -1406,7 +1386,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       int ly = (int16_t)HIWORD(wparam);
 
       if (s->drag.mode == DRAG_MOVE && s->selected_idx >= 0) {
-        form_element_t *el = &doc->elements[s->selected_idx];
+        window_t *el = doc->elements[s->selected_idx];
         int nx = snap(doc, s->drag.move.frame.x + (lx - s->drag.move.start.x));
         int ny = snap(doc, s->drag.move.frame.y + (ly - s->drag.move.start.y));
         if (nx < 0) nx = 0;

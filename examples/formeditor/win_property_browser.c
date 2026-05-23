@@ -40,12 +40,12 @@ static const char *prop_ctrl_type_name(int type) {
   return c ? c->display_name : "Control";
 }
 
-static form_element_t *prop_selected_element(form_doc_t *doc) {
+static window_t *prop_selected_element(form_doc_t *doc) {
   if (!doc || !doc->canvas_win) return NULL;
   canvas_state_t *cs = (canvas_state_t *)doc->canvas_win->userdata;
   if (!cs || cs->selected_idx < 0 || cs->selected_idx >= doc->element_count)
     return NULL;
-  return &doc->elements[cs->selected_idx];
+  return doc->elements[cs->selected_idx];
 }
 
 static void prop_add_row(window_t *list, const char *name, const char *value,
@@ -136,8 +136,8 @@ static const char *prop_font_name(uint8_t font) {
   return enum_token_name(font, kPropFontTokens, ARRAY_LEN(kPropFontTokens), "small");
 }
 
-static bool prop_is_label(form_element_t *el) {
-  const fe_component_desc_t *c = el ? fe_component_by_id(el->type) : NULL;
+static bool prop_is_label(form_doc_t *doc, window_t *el) {
+  const fe_component_desc_t *c = el ? fe_component_by_id(form_doc_type_for_window(doc, el)) : NULL;
   return c && c->class_name && strcmp(c->class_name, "label") == 0;
 }
 
@@ -147,7 +147,8 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
 
   window_t *edit = pbs->edit_win;
   form_doc_t *doc = app_active_doc();
-  form_element_t *el = prop_selected_element(doc);
+  window_t *el = prop_selected_element(doc);
+  form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
   uint32_t prop_id = pbs->edit_prop_id;
   char value[sizeof(edit->title)];
   snprintf(value, sizeof(value), "%s", edit->title);
@@ -162,20 +163,24 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
 
   switch (prop_id) {
     case PROP_ROW_NAME:
-      snprintf(el->name, sizeof(el->name), "%s", value);
+      if (meta)
+        snprintf(meta->name, sizeof(meta->name), "%s", value);
       break;
     case PROP_ROW_CAPTION:
-      snprintf(el->text, sizeof(el->text), "%s", value);
+      snprintf(el->title, sizeof(el->title), "%s", value);
+      invalidate_window(el);
       break;
     case PROP_ROW_H_ALIGN:
-      el->h_align = prop_parse_h_align(value, el->h_align);
+      el->layout.h_align = prop_parse_h_align(value, el->layout.h_align);
       break;
     case PROP_ROW_V_ALIGN:
-      el->v_align = prop_parse_v_align(value, el->v_align);
+      el->layout.v_align = prop_parse_v_align(value, el->layout.v_align);
       break;
     case PROP_ROW_FONT:
-      el->font = prop_parse_font(value, el->font);
-      el->font_set = true;
+      if (meta) {
+        meta->font = prop_parse_font(value, meta->font);
+        meta->font_set = true;
+      }
       break;
     case PROP_ROW_LEFT:
       el->frame.x = prop_parse_int(value, el->frame.x);
@@ -274,21 +279,21 @@ static void prop_begin_edit(prop_browser_state_t *pbs, int row) {
   set_focus(pbs->edit_win);
 }
 
-static void prop_fill_for_element(window_t *list, form_element_t *el) {
+static void prop_fill_for_element(form_doc_t *doc, window_t *list, window_t *el) {
+  form_ctrl_meta_t *meta = form_doc_meta_for_window(doc, el);
   char buf[32];
 
-  prop_add_row(list, "(Name)", el->name, PROP_ROW_NAME);
-  prop_add_row(list, "Caption", el->text, PROP_ROW_CAPTION);
-  prop_add_row(list, "Type", prop_ctrl_type_name(el->type), PROP_ROW_TYPE);
-  if (prop_is_label(el))
-    prop_add_row(list, "Font", prop_font_name(el->font), PROP_ROW_FONT);
+  prop_add_row(list, "(Name)", meta ? meta->name : "", PROP_ROW_NAME);
+  prop_add_row(list, "Caption", el->title, PROP_ROW_CAPTION);
+  prop_add_row(list, "Type", prop_ctrl_type_name(form_doc_type_for_window(doc, el)), PROP_ROW_TYPE);
+  if (prop_is_label(doc, el))
+    prop_add_row(list, "Font", prop_font_name(meta ? meta->font : FONT_SMALL), PROP_ROW_FONT);
 
   snprintf(buf, sizeof(buf), "%d", el->id);
   prop_add_row(list, "ID", buf, PROP_ROW_ID);
-  form_doc_t *doc = app_active_doc();
   if (doc && (doc->flags & WINDOW_AUTO_LAYOUT)) {
-    prop_add_row(list, "Horizontal alignment", prop_h_align_name(el->h_align), PROP_ROW_H_ALIGN);
-    prop_add_row(list, "Vertical alignment", prop_v_align_name(el->v_align), PROP_ROW_V_ALIGN);
+    prop_add_row(list, "Horizontal alignment", prop_h_align_name(el->layout.h_align), PROP_ROW_H_ALIGN);
+    prop_add_row(list, "Vertical alignment", prop_v_align_name(el->layout.v_align), PROP_ROW_V_ALIGN);
   } else {
     snprintf(buf, sizeof(buf), "%d", el->frame.x);
     prop_add_row(list, "Left", buf, PROP_ROW_LEFT);
@@ -315,9 +320,9 @@ void property_browser_refresh(form_doc_t *doc) {
   send_message(list, RVM_SETREDRAW, 0, NULL);
   send_message(list, RVM_CLEAR, 0, NULL);
 
-  form_element_t *el = prop_selected_element(doc);
+  window_t *el = prop_selected_element(doc);
   if (el) {
-    prop_fill_for_element(list, el);
+    prop_fill_for_element(doc, list, el);
   } else {
     prop_add_row(list, "Selection", "(None)", PROP_ROW_NONE);
   }
