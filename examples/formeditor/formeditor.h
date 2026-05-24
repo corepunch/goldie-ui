@@ -456,6 +456,8 @@ void fe_doc_update_title(window_t *doc);
 
 int fe_doc_add_element(window_t *doc, int type, irect16_t frame, uint32_t parent_id);
 bool fe_doc_delete_element(window_t *doc, int idx);
+bool fe_doc_drop_create_component(int component_id,
+                                  window_t *parent_target);
 
 bool fe_doc_set_element_text(window_t *doc, int element_id, const char *text);
 bool fe_doc_set_element_frame(window_t *doc, int element_id, irect16_t frame);
@@ -514,6 +516,9 @@ void fe_notify(fe_event_type_t event, window_t *doc);
 // ============================================================
 
 void handle_menu_command(uint16_t id);
+bool fe_controller_drop_create(window_t *doc,
+                               const ui_drag_item_payload_t *payload,
+                               window_t *target);
 
 extern menu_def_t  kMenus[];
 extern const int   kNumMenus;

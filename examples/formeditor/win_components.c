@@ -257,10 +257,7 @@ lresult_t win_components_proc(window_t *win, uint32_t msg,
           int ident = (int)item.userdata;
           if (HIWORD(wparam) == RVN_BEGINDRAG) {
             ui_drag_item_payload_t payload = {
-              .pending = true,
-              .dragging = true,
               .tool_ident = ident,
-              .start_local = {0, 0},
             };
 
             ui_drag_item_set((item.text && item.text[0]) ? item.text : "Component", &payload);

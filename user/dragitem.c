@@ -7,6 +7,7 @@
 static window_t *g_drag_item_win = NULL;
 static window_t *g_drag_item_target = NULL;
 static ui_drag_item_payload_t g_drag_item_payload = {0};
+static bool g_drag_item_active = false;
 
 #define DRAG_ITEM_PAD_X    4
 #define DRAG_ITEM_PAD_Y    2
@@ -77,6 +78,7 @@ void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
   else
     g_drag_item_payload = (ui_drag_item_payload_t){0};
   g_drag_item_target = NULL;
+  g_drag_item_active = true;
 
   irect16_t r;
   ui_drag_item_measure_rect(text, g_ui_runtime.mouse_x, g_ui_runtime.mouse_y, &r);
@@ -108,7 +110,7 @@ void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
 void ui_drag_item_move(int sx, int sy) {
   window_t *target;
 
-  if (!g_drag_item_win)
+  if (!g_drag_item_win || !g_drag_item_active)
     return;
   irect16_t r;
   ui_drag_item_measure_rect(g_drag_item_win->title, sx, sy, &r);
@@ -130,11 +132,14 @@ void ui_drag_item_move(int sx, int sy) {
 void ui_drag_item_clear(void) {
   if (!g_drag_item_win)
     return;
-  ui_drag_item_notify_target(g_drag_item_target, evMouseDrop,
-                             g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
+  if (g_drag_item_active) {
+    ui_drag_item_notify_target(g_drag_item_target, evMouseDrop,
+                               g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
+  }
   window_t *drag_win = g_drag_item_win;
   g_drag_item_win = NULL;
   g_drag_item_target = NULL;
+  g_drag_item_active = false;
   destroy_window(drag_win);
   g_drag_item_payload = (ui_drag_item_payload_t){0};
 }

@@ -4,6 +4,59 @@
 
 #include "formeditor.h"
 
+static bool fe_doc_target_accepts_drop(window_t *target) {
+  if (!target)
+    return false;
+  window_t *root = get_root_window(target);
+  if (!root)
+    return false;
+  if (target == root)
+    return true;
+  return (target->flags & WINDOW_LAYOUT_CONTAINER) != 0;
+}
+
+bool fe_doc_drop_create_component(int component_id,
+                                  window_t *parent_target) {
+  window_t *doc = parent_target ? get_root_window(parent_target) : NULL;
+  const fe_component_desc_t *desc = fe_component_at(component_id);
+  if (!doc || !desc || !desc->class_name || !desc->proc) {
+    fprintf(stderr, "fe_doc_drop_create_component: invalid component_id %d\n", component_id);
+    return false;
+  }
+  if ((desc->capabilities & FE_COMPONENT_PLACEABLE) == 0) {
+    fprintf(stderr, "fe_doc_drop_create_component: component '%s' is not placeable\n", desc->class_name);
+    return false;
+  }
+  if (!fe_doc_target_accepts_drop(parent_target)) {
+    fprintf(stderr, "fe_doc_drop_create_component: invalid drop parent\n");
+    return false;
+  }
+
+  int w = desc->default_layout_size.w > 0 ? desc->default_layout_size.w : 96;
+  int h = desc->default_layout_size.h > 0 ? desc->default_layout_size.h : 24;
+  window_t *child = create_window(
+      desc->class_name,
+      0,
+      MAKERECT(0, 0, w, h),
+      parent_target,
+      desc->class_name,
+      0,
+      NULL);
+  if (!child) {
+    fprintf(stderr, "fe_doc_drop_create_component: failed to create component '%s'\n", desc->class_name);
+    return false;
+  }
+
+  window_layout_sync(doc);
+  invalidate_window(doc);
+
+  fe_doc_mark_modified(doc);
+  if (g_app)
+    g_app->project.modified = true;
+  fe_notify(FE_EVENT_ELEMENT_ADDED, doc);
+  return true;
+}
+
 window_t *fe_doc_create(const char *form_id, int w, int h) {
   (void)form_id;
   (void)w;

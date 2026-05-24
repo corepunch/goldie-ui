@@ -102,3 +102,29 @@ void handle_menu_command(uint16_t id) {
     }
   }
 }
+
+bool fe_controller_drop_create(window_t *doc,
+                               const ui_drag_item_payload_t *payload,
+                               window_t *target) {
+  if (!doc || !payload)
+    return false;
+  if (payload->tool_ident < 0)
+    return false;
+  if (!target)
+    return false;
+
+  const fe_component_desc_t *desc = fe_component_at(payload->tool_ident);
+  if (!desc)
+    return false;
+  if (fe_component_rejects_parent(desc, target))
+    return false;
+
+  if (!fe_doc_drop_create_component(payload->tool_ident, target))
+    return false;
+
+  if (doc->children)
+    invalidate_window(doc->children);
+  property_browser_refresh(doc);
+  forms_browser_refresh();
+  return true;
+}

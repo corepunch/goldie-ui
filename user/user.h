@@ -646,10 +646,7 @@ void move_to_top(window_t* win);
 // Global drag-item visual owned by Orion. Implemented as a lightweight
 // no-activate top-level window that follows the cursor.
 typedef struct {
-  bool pending;
-  bool dragging;
   int tool_ident;
-  ipoint16_t start_local;
 } ui_drag_item_payload_t;
 
 void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload);
