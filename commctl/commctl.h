@@ -78,21 +78,49 @@ lresult_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 lresult_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 lresult_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
-// Column browser (NSBrowser-style multi-column hierarchical navigation).
-// Data source callback pattern for populating columns dynamically.
+// Column browser (NXBrowser/NSBrowser-style multi-column hierarchical navigation).
+// The browser owns one single-column reportview per visible column. A passive
+// delegate supplies row counts and cell contents, like NEXTSTEP's NXBrowser
+// delegate methods.
 typedef struct {
-  int (*get_child_count)(void *ctx, int column, int parent_idx);
-  const char *(*get_child_title)(void *ctx, int column, int parent_idx, int child_idx);
-  bool (*is_leaf)(void *ctx, int column, int idx);
   void *userdata;
-} column_browser_datasource_t;
+  int  (*number_of_rows)(void *ctx, window_t *browser, int column);
+  bool (*load_cell)(void *ctx, window_t *browser, int column, int row,
+                    reportview_item_t *item);
+  bool (*is_leaf)(void *ctx, window_t *browser, int column, int row);
+  const char *(*title_of_column)(void *ctx, window_t *browser, int column);
+  int  (*width_of_column)(void *ctx, window_t *browser, int column);
+  bool (*column_is_valid)(void *ctx, window_t *browser, int column);
+  void (*did_select)(void *ctx, window_t *browser, int column, int row);
+  void (*did_scroll)(void *ctx, window_t *browser);
+} column_browser_delegate_t;
 
 enum {
-  cbSetDataSource = evUser + 300,  // lparam = column_browser_datasource_t*
-  cbRefresh,                        // Rebuild all columns from current path
-  cbGetSelection,                   // wparam = column; returns selected index or -1
-  cbSetPath,                        // lparam = int[] path array, wparam = length
-  cbGetColumnCount,                 // Returns number of visible columns
+  CBM_SETDELEGATE = evUser + 300,   // lparam = const column_browser_delegate_t*
+  CBM_LOADCOLUMNZERO,               // load/reset column zero; unloads later columns
+  CBM_ADDCOLUMN,                    // append a column to the right of lastColumn
+  CBM_RELOADCOLUMN,                 // wparam = column
+  CBM_DISPLAYCOLUMN,                // wparam = column; layouts and scrolls into range
+  CBM_DISPLAYALLCOLUMNS,            // layouts all loaded columns
+  CBM_SETLASTCOLUMN,                // wparam = last loaded column; unloads later columns
+  CBM_GETLASTCOLUMN,                // returns last loaded column or -1
+  CBM_GETSELECTEDCOLUMN,            // returns last column with selected row or -1
+  CBM_GETSELECTION,                 // wparam = column; returns selected row or -1
+  CBM_GETCOLUMNWINDOW,              // wparam = column; returns window_t*
+  CBM_SETCOLUMNWIDTH,               // wparam = column; lparam = (void*)(intptr_t)width
+  CBM_GETCOLUMNWIDTH,               // wparam = column; returns width
+  CBM_SETMINCOLUMNWIDTH,            // wparam = width
+  CBM_GETMINCOLUMNWIDTH,            // returns width
+  CBM_SETMAXVISIBLECOLUMNS,         // wparam = count
+  CBM_GETMAXVISIBLECOLUMNS,         // returns count
+  CBM_GETCOLUMNCOUNT,               // returns loaded column count
+  CBM_VALIDATEVISIBLECOLUMNS,       // invokes delegate validation and reloads invalid columns
+};
+
+enum {
+  CBN_SELCHANGE = 260,
+  CBN_DBLCLK,
+  CBN_SCROLL,
 };
 
 lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

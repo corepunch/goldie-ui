@@ -1,5 +1,5 @@
 // Database object window for FormEditor.
-// Shows database objects using a horizontal set of single-column lists.
+// Shows database objects using the shared ColumnBrowser control.
 
 #include "formeditor.h"
 #include "../../commctl/commctl.h"
@@ -14,119 +14,9 @@ enum {
   DBOBJ_LEVEL_DATABASE = 0,
   DBOBJ_LEVEL_TABLE,
   DBOBJ_LEVEL_FIELD,
-  DBOBJ_LEVEL_COUNT
 };
 
-typedef struct {
-  window_t *columns[DBOBJ_LEVEL_COUNT];
-  int selected_db_idx;
-  int selected_table_idx;
-} db_objects_state_t;
-
 static window_t *g_db_objects_win = NULL;
-
-static int dbobj_column_width(int level) {
-  switch (level) {
-    case DBOBJ_LEVEL_DATABASE: return DBOBJ_COL_DB_W;
-    case DBOBJ_LEVEL_TABLE:    return DBOBJ_COL_TABLE_W;
-    case DBOBJ_LEVEL_FIELD:    return DBOBJ_COL_FIELD_W;
-    default:                   return DBOBJ_COL_TABLE_W;
-  }
-}
-
-static const char *dbobj_column_title(int level) {
-  switch (level) {
-    case DBOBJ_LEVEL_DATABASE: return "Database";
-    case DBOBJ_LEVEL_TABLE:    return "Table";
-    case DBOBJ_LEVEL_FIELD:    return "Column";
-    default:                   return "";
-  }
-}
-
-static void dbobj_layout_columns(window_t *win, db_objects_state_t *st) {
-  if (!win || !st)
-    return;
-
-  irect16_t cr = get_client_rect(win);
-  if (cr.w < 1 || cr.h < 1)
-    return;
-
-  int total_w = 0;
-  for (int level = 0; level < DBOBJ_LEVEL_COUNT; level++) {
-    window_t *col = st->columns[level];
-    if (col) {
-      int w = col->layout.layout_fixed_w > 0 ? col->layout.layout_fixed_w : dbobj_column_width(level);
-      total_w += w;
-    }
-  }
-
-  if (total_w < cr.w)
-    total_w = cr.w;
-
-  int max_pos = total_w - cr.w;
-  if (max_pos < 0)
-    max_pos = 0;
-  if ((int)win->hscroll.pos > max_pos)
-    win->hscroll.pos = (uint32_t)max_pos;
-
-  int x = -(int)win->hscroll.pos;
-  for (int level = 0; level < DBOBJ_LEVEL_COUNT; level++) {
-    window_t *col = st->columns[level];
-    if (col) {
-      int w = col->layout.layout_fixed_w > 0 ? col->layout.layout_fixed_w : dbobj_column_width(level);
-      col->frame = R(x, 0, w, cr.h);
-      x += w;
-    }
-  }
-
-  scroll_info_t si;
-  si.fMask = SIF_ALL;
-  si.nMin = 0;
-  si.nMax = total_w;
-  si.nPage = (uint32_t)cr.w;
-  si.nPos = (int)win->hscroll.pos;
-  set_scroll_info(win, SB_HORZ, &si, false);
-
-  invalidate_window(win);
-}
-
-static window_t *dbobj_ensure_column(window_t *win, db_objects_state_t *st, int level) {
-  if (!win || !st || level < 0 || level >= DBOBJ_LEVEL_COUNT)
-    return NULL;
-
-  window_t *col = st->columns[level];
-  if (col)
-    return col;
-
-  int w = dbobj_column_width(level);
-  col = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
-                      MAKERECT(0, 0, w, get_client_rect(win).h),
-                      win, win_reportview, 0, NULL);
-  if (!col)
-    return NULL;
-  col->layout.layout_fixed_w = w;
-
-  send_message(col, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
-  send_message(col, RVM_SETCOLUMNTITLESVISIBLE, 1, NULL);
-  reportview_column_t c0 = { dbobj_column_title(level), w };
-  send_message(col, RVM_ADDCOLUMN, 0, &c0);
-
-  st->columns[level] = col;
-  return col;
-}
-
-static void dbobj_remove_columns_from(db_objects_state_t *st, int first_level) {
-  if (!st)
-    return;
-  if (first_level < 0)
-    first_level = 0;
-  for (int level = DBOBJ_LEVEL_COUNT - 1; level >= first_level; level--) {
-    window_t *col = st->columns[level];
-    st->columns[level] = NULL;
-    if (col)
-      destroy_window(col);
-  }
-}
 
 static db_t *db_project_at(int idx) {
   if (!g_app || idx < 0 || idx >= g_app->project.database_count)
@@ -141,191 +31,134 @@ static const db_schema_def_t *db_schema_at(int idx) {
   return (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
 }
 
-static void dbobj_add_row(window_t *list, const char *text, uint32_t userdata) {
-  if (!list)
-    return;
-  reportview_item_t item = {
-    .text = text ? text : "",
-    .color = get_sys_color(brTextNormal),
-    .userdata = userdata,
-    .subitem_count = 0,
-  };
-  send_message(list, RVM_ADDITEM, 0, &item);
-  FE_DBOBJ_LOG("add row: '%s' (userdata=%u)", item.text, userdata);
+static const db_table_schema_t *dbobj_selected_table(window_t *browser) {
+  int db_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_DATABASE, NULL);
+  int table_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_TABLE, NULL);
+  const db_schema_def_t *schema = db_schema_at(db_idx);
+  if (!schema || !schema->tables || table_idx < 0 || table_idx >= schema->table_count)
+    return NULL;
+  return &schema->tables[table_idx];
 }
 
-static void dbobj_rebuild_field_list(window_t *win, db_objects_state_t *st) {
-  if (!win || !st)
-    return;
+static int dbobj_number_of_rows(void *ctx, window_t *browser, int column) {
+  (void)ctx;
 
-  window_t *field_list = dbobj_ensure_column(win, st, DBOBJ_LEVEL_FIELD);
-  if (!field_list)
-    return;
-
-  send_message(field_list, RVM_CLEAR, 0, NULL);
-
-  const db_schema_def_t *schema = db_schema_at(st->selected_db_idx);
-  if (!schema || st->selected_table_idx < 0 || st->selected_table_idx >= schema->table_count) {
-    dbobj_add_row(field_list, "No columns", 0);
-    return;
+  if (column == DBOBJ_LEVEL_DATABASE) {
+    int count = g_app ? g_app->project.database_count : 0;
+    return count > 0 ? count : 1;
   }
 
-  const db_table_schema_t *table = &schema->tables[st->selected_table_idx];
-  FE_DBOBJ_LOG("rebuild field list: db_idx=%d table_idx=%d field_count=%d",
-               st->selected_db_idx, st->selected_table_idx, table->field_count);
-  if (!table->fields || table->field_count <= 0) {
-    dbobj_add_row(field_list, "No columns", 0);
-    return;
+  if (column == DBOBJ_LEVEL_TABLE) {
+    int db_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_DATABASE, NULL);
+    const db_schema_def_t *schema = db_schema_at(db_idx);
+    return (schema && schema->tables && schema->table_count > 0) ? schema->table_count : 1;
   }
 
-  for (int i = 0; i < table->field_count; i++) {
-    const char *name = table->fields[i].name ? table->fields[i].name : "Column";
-    dbobj_add_row(field_list, name, (uint32_t)i);
+  if (column == DBOBJ_LEVEL_FIELD) {
+    const db_table_schema_t *table = dbobj_selected_table(browser);
+    return (table && table->fields && table->field_count > 0) ? table->field_count : 1;
   }
+
+  return 0;
 }
 
-static void dbobj_rebuild_table_list(window_t *win, db_objects_state_t *st) {
-  if (!win || !st)
-    return;
+static bool dbobj_load_cell(void *ctx, window_t *browser, int column, int row,
+                            reportview_item_t *item) {
+  (void)ctx;
+  if (!item)
+    return false;
 
-  dbobj_remove_columns_from(st, DBOBJ_LEVEL_FIELD);
+  item->color = get_sys_color(brTextNormal);
+  item->userdata = (uint32_t)row;
 
-  window_t *table_list = dbobj_ensure_column(win, st, DBOBJ_LEVEL_TABLE);
-  if (!table_list)
-    return;
-
-  send_message(table_list, RVM_CLEAR, 0, NULL);
-
-  const db_schema_def_t *schema = db_schema_at(st->selected_db_idx);
-  if (!schema) {
-    dbobj_add_row(table_list, "No tables", 0);
-    st->selected_table_idx = -1;
-    return;
+  if (column == DBOBJ_LEVEL_DATABASE) {
+    db_t *db = db_project_at(row);
+    item->text = (db && db->name && db->name[0]) ? db->name : "Database";
+    if (!db)
+      item->text = "DB list alive (no databases loaded)";
+    return true;
   }
 
-  FE_DBOBJ_LOG("rebuild table list: db_idx=%d table_count=%d", st->selected_db_idx, schema->table_count);
-  if (!schema->tables || schema->table_count <= 0) {
-    dbobj_add_row(table_list, "No tables", 0);
-    st->selected_table_idx = -1;
-    return;
-  }
-
-  for (int i = 0; i < schema->table_count; i++) {
-    const char *name = schema->tables[i].name ? schema->tables[i].name : "Table";
-    dbobj_add_row(table_list, name, (uint32_t)i);
-  }
-
-  if (st->selected_table_idx < 0 || st->selected_table_idx >= schema->table_count)
-    st->selected_table_idx = -1;
-  if (st->selected_table_idx >= 0) {
-    send_message(table_list, RVM_SETSELECTION, (uint32_t)st->selected_table_idx, NULL);
-    dbobj_rebuild_field_list(win, st);
-  }
-}
-
-static void dbobj_rebuild_lists(window_t *win, db_objects_state_t *st) {
-  if (!win || !st)
-    return;
-
-  dbobj_remove_columns_from(st, DBOBJ_LEVEL_TABLE);
-
-  window_t *db_list = dbobj_ensure_column(win, st, DBOBJ_LEVEL_DATABASE);
-  if (!db_list)
-    return;
-
-  send_message(db_list, RVM_CLEAR, 0, NULL);
-
-  int count = g_app ? g_app->project.database_count : 0;
-  FE_DBOBJ_LOG("rebuild db list: database_count=%d", count);
-  if (count <= 0) {
-    dbobj_add_row(db_list, "DB list alive (no databases loaded)", 0);
-    st->selected_db_idx = -1;
-    st->selected_table_idx = -1;
-    return;
-  }
-
-  for (int i = 0; i < count; i++) {
-    db_t *db = db_project_at(i);
-    const char *name = (db && db->name && db->name[0]) ? db->name : "Database";
-    dbobj_add_row(db_list, name, (uint32_t)i);
-  }
-
-  if (st->selected_db_idx < 0 || st->selected_db_idx >= count) {
-    st->selected_db_idx = -1;
-    st->selected_table_idx = -1;
-    return;
-  }
-
-  send_message(db_list, RVM_SETSELECTION, (uint32_t)st->selected_db_idx, NULL);
-  dbobj_rebuild_table_list(win, st);
-}
-
-static lresult_t win_db_objects_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  db_objects_state_t *st = (db_objects_state_t *)win->userdata;
-  (void)wparam;
-  switch (msg) {
-    case evCreate: {
-      st = allocate_window_data(win, sizeof(db_objects_state_t));
-      if (!st)
-        return false;
-      st->selected_db_idx = -1;
-      st->selected_table_idx = -1;
-
-      if (!dbobj_ensure_column(win, st, DBOBJ_LEVEL_DATABASE))
-        return false;
-
-      dbobj_rebuild_lists(win, st);
-      dbobj_layout_columns(win, st);
+  if (column == DBOBJ_LEVEL_TABLE) {
+    int db_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_DATABASE, NULL);
+    const db_schema_def_t *schema = db_schema_at(db_idx);
+    if (!schema || !schema->tables || row < 0 || row >= schema->table_count) {
+      item->text = "No tables";
       return true;
     }
+    item->text = schema->tables[row].name ? schema->tables[row].name : "Table";
+    return true;
+  }
 
-    case evCommand:
-      if (st && lparam == st->columns[DBOBJ_LEVEL_DATABASE] && HIWORD(wparam) == RVN_SELCHANGE) {
-        int row = (int)LOWORD(wparam);
-        db_t *db = db_project_at(row);
-        FE_DBOBJ_LOG("db list selection changed: row=%d db=%p", row, (void *)db);
-        if (db) {
-          st->selected_db_idx = row;
-          st->selected_table_idx = -1;
-          ui_set_database(db);
-          dbobj_rebuild_table_list(win, st);
-          dbobj_layout_columns(win, st);
-        }
-        return true;
-      }
-      if (st && lparam == st->columns[DBOBJ_LEVEL_TABLE] && HIWORD(wparam) == RVN_SELCHANGE) {
-        int row = (int)LOWORD(wparam);
-        const db_schema_def_t *schema = db_schema_at(st->selected_db_idx);
-        FE_DBOBJ_LOG("table list selection changed: row=%d", row);
-        if (schema && row >= 0 && row < schema->table_count) {
-          st->selected_table_idx = row;
-          dbobj_rebuild_field_list(win, st);
-          dbobj_layout_columns(win, st);
-        }
-        return true;
-      }
-      if (st && lparam == st->columns[DBOBJ_LEVEL_FIELD] && HIWORD(wparam) == RVN_SELCHANGE)
-        return true;
-      return false;
-
-    case evResize:
-      dbobj_layout_columns(win, st);
+  if (column == DBOBJ_LEVEL_FIELD) {
+    const db_table_schema_t *table = dbobj_selected_table(browser);
+    if (!table || !table->fields || row < 0 || row >= table->field_count) {
+      item->text = "No columns";
       return true;
+    }
+    item->text = table->fields[row].name ? table->fields[row].name : "Column";
+    return true;
+  }
 
-    case evHScroll:
-      win->hscroll.pos = (uint32_t)wparam;
-      dbobj_layout_columns(win, st);
-      return true;
+  return false;
+}
 
-    case evDestroy:
-      if (g_db_objects_win == win)
-        g_db_objects_win = NULL;
-      return false;
+static bool dbobj_is_leaf(void *ctx, window_t *browser, int column, int row) {
+  (void)ctx;
+  (void)browser;
 
-    default:
-      return default_winproc(win, msg, wparam, lparam);
+  if (column == DBOBJ_LEVEL_DATABASE)
+    return db_project_at(row) == NULL;
+  if (column == DBOBJ_LEVEL_TABLE)
+    return dbobj_selected_table(browser) == NULL;
+  return true;
+}
+
+static const char *dbobj_title_of_column(void *ctx, window_t *browser, int column) {
+  (void)ctx;
+  (void)browser;
+
+  switch (column) {
+    case DBOBJ_LEVEL_DATABASE: return "Database";
+    case DBOBJ_LEVEL_TABLE:    return "Table";
+    case DBOBJ_LEVEL_FIELD:    return "Column";
+    default:                   return "";
   }
 }
+
+static int dbobj_width_of_column(void *ctx, window_t *browser, int column) {
+  (void)ctx;
+  (void)browser;
+
+  switch (column) {
+    case DBOBJ_LEVEL_DATABASE: return DBOBJ_COL_DB_W;
+    case DBOBJ_LEVEL_TABLE:    return DBOBJ_COL_TABLE_W;
+    case DBOBJ_LEVEL_FIELD:    return DBOBJ_COL_FIELD_W;
+    default:                   return DBOBJ_COL_TABLE_W;
+  }
+}
+
+static void dbobj_did_select(void *ctx, window_t *browser, int column, int row) {
+  (void)ctx;
+  (void)browser;
+
+  if (column != DBOBJ_LEVEL_DATABASE)
+    return;
+
+  db_t *db = db_project_at(row);
+  FE_DBOBJ_LOG("db list selection changed: row=%d db=%p", row, (void *)db);
+  if (db)
+    ui_set_database(db);
+}
+
+static const column_browser_delegate_t g_dbobj_delegate = {
+  .number_of_rows = dbobj_number_of_rows,
+  .load_cell = dbobj_load_cell,
+  .is_leaf = dbobj_is_leaf,
+  .title_of_column = dbobj_title_of_column,
+  .width_of_column = dbobj_width_of_column,
+  .did_select = dbobj_did_select,
+};
 
 void formeditor_show_database_object_window(int db_index) {
   if (!g_app)
@@ -340,20 +173,16 @@ void formeditor_show_database_object_window(int db_index) {
   if (!g_db_objects_win || !is_window(g_db_objects_win)) {
     g_db_objects_win = create_window("Databases", WINDOW_NOTRAYBUTTON | WINDOW_HSCROLL,
                                      MAKERECT(DOC_START_X + 20, DOC_START_Y + 20, 420, 260),
-                                     NULL, win_db_objects_proc, g_app->hinstance, NULL);
+                                     NULL, win_column_browser, g_app->hinstance, NULL);
     if (!g_db_objects_win)
       return;
     show_window(g_db_objects_win, true);
   }
 
   snprintf(g_db_objects_win->title, sizeof(g_db_objects_win->title), "Databases");
-  db_objects_state_t *st = (db_objects_state_t *)g_db_objects_win->userdata;
-  if (st) {
-    st->selected_db_idx = -1;
-    st->selected_table_idx = -1;
-    dbobj_rebuild_lists(g_db_objects_win, st);
-    dbobj_layout_columns(g_db_objects_win, st);
-  }
+  send_message(g_db_objects_win, CBM_SETDELEGATE, 0, (void *)&g_dbobj_delegate);
+  send_message(g_db_objects_win, CBM_SETMINCOLUMNWIDTH, DBOBJ_COL_DB_W, NULL);
+  send_message(g_db_objects_win, CBM_LOADCOLUMNZERO, 0, NULL);
 
   move_to_top(g_db_objects_win);
   invalidate_window(g_db_objects_win);

@@ -369,6 +369,7 @@ void test_fe_database_browser_cascades_reportviews(void) {
   ASSERT_NOT_NULL(db_list);
   ASSERT_EQUAL((int)send_message(db_list, RVM_GETITEMCOUNT, 0, NULL), 1);
 
+  send_message(db_list, RVM_SETSELECTION, 0, NULL);
   send_message(browser, evCommand, MAKEDWORD(0, RVN_SELCHANGE), db_list);
   ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 2);
 
@@ -376,6 +377,7 @@ void test_fe_database_browser_cascades_reportviews(void) {
   ASSERT_NOT_NULL(table_list);
   ASSERT_EQUAL((int)send_message(table_list, RVM_GETITEMCOUNT, 0, NULL), 1);
 
+  send_message(table_list, RVM_SETSELECTION, 0, NULL);
   send_message(browser, evCommand, MAKEDWORD(0, RVN_SELCHANGE), table_list);
   ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 3);
 
@@ -384,6 +386,7 @@ void test_fe_database_browser_cascades_reportviews(void) {
   ASSERT_EQUAL((int)send_message(field_list, RVM_GETITEMCOUNT, 0, NULL),
                (int)ARRAY_LEN(fe_test_db_fields));
 
+  send_message(db_list, RVM_SETSELECTION, 0, NULL);
   send_message(browser, evCommand, MAKEDWORD(0, RVN_SELCHANGE), db_list);
   ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 2);
 
