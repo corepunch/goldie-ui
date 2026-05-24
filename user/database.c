@@ -135,46 +135,46 @@ lresult_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *l
 
 // ── Declarative database API helpers (from .orion metadata) ─────────────────
 
-const db_source_def_t *db_api_find_source(const db_api_def_t *api, const char *name) {
-  if (!api || !name || !api->sources || api->source_count <= 0) return NULL;
+const db_source_def_t *db_api_find_source(const db_api_def_t *api, uint32_t source_id) {
+  if (!api || !api->sources || api->source_count <= 0 || source_id == 0) return NULL;
   for (int i = 0; i < api->source_count; i++) {
-    if (api->sources[i].name && strcmp(api->sources[i].name, name) == 0)
+    if (api->sources[i].source_id == source_id)
       return &api->sources[i];
   }
   return NULL;
 }
 
-const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name) {
-  if (!api || !name || !api->bindings || api->binding_count <= 0) return NULL;
+const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, uint32_t binding_id) {
+  if (!api || !api->bindings || api->binding_count <= 0 || binding_id == 0) return NULL;
   for (int i = 0; i < api->binding_count; i++) {
-    if (api->bindings[i].name && strcmp(api->bindings[i].name, name) == 0)
+    if (api->bindings[i].binding_id == binding_id)
       return &api->bindings[i];
   }
   return NULL;
 }
 
-const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view) {
-  if (!api || !view || !api->bindings || api->binding_count <= 0) return NULL;
+const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, uint32_t view_id) {
+  if (!api || !api->bindings || api->binding_count <= 0 || view_id == 0) return NULL;
   for (int i = 0; i < api->binding_count; i++) {
-    if (api->bindings[i].view && strcmp(api->bindings[i].view, view) == 0)
+    if (api->bindings[i].view_id == view_id)
       return &api->bindings[i];
   }
   return NULL;
 }
 
-const db_action_def_t *db_api_find_action(const db_api_def_t *api, const char *name) {
-  if (!api || !name || !api->actions || api->action_count <= 0) return NULL;
+const db_action_def_t *db_api_find_action(const db_api_def_t *api, uint32_t action_id) {
+  if (!api || !api->actions || api->action_count <= 0 || action_id == 0) return NULL;
   for (int i = 0; i < api->action_count; i++) {
-    if (api->actions[i].name && strcmp(api->actions[i].name, name) == 0)
+    if (api->actions[i].action_id == action_id)
       return &api->actions[i];
   }
   return NULL;
 }
 
-const db_outlet_def_t *db_api_find_outlet(const db_api_def_t *api, const char *name) {
-  if (!api || !name || !api->outlets || api->outlet_count <= 0) return NULL;
+const db_outlet_def_t *db_api_find_outlet(const db_api_def_t *api, uint32_t outlet_id) {
+  if (!api || !api->outlets || api->outlet_count <= 0 || outlet_id == 0) return NULL;
   for (int i = 0; i < api->outlet_count; i++) {
-    if (api->outlets[i].name && strcmp(api->outlets[i].name, name) == 0)
+    if (api->outlets[i].outlet_id == outlet_id)
       return &api->outlets[i];
   }
   return NULL;
@@ -182,15 +182,15 @@ const db_outlet_def_t *db_api_find_outlet(const db_api_def_t *api, const char *n
 
 bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
                               db_object_proc_t proc, const void *object,
-                              const char *field, char *buf, size_t buf_sz) {
-  if (!bindings || binding_count <= 0 || !proc || !object || !field || !buf || buf_sz == 0)
+                              uint32_t field_id, char *buf, size_t buf_sz) {
+  if (!bindings || binding_count <= 0 || !proc || !object || !buf || buf_sz == 0 || field_id == 0)
     return false;
   // HIWORD(wparam) is 16-bit in the Action-Message DDX contract.
   if (buf_sz > 0xffffu)
     return false;
   
   for (int i = 0; i < binding_count; i++) {
-    if (!bindings[i].field || strcmp(bindings[i].field, field) != 0)
+    if (bindings[i].field_id != field_id)
       continue;
     
     buf[0] = '\0';

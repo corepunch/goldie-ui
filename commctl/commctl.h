@@ -49,8 +49,8 @@ lresult_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 typedef struct {
   database_t *db;            // Database instance (NULL = populate manually)
   int table_id;              // TABLE_* enum value for source table
-  const char *display_field; // Field name to show in dropdown (e.g. "name")
-  const char *value_field;   // Field name for actual value (e.g. "id")
+  uint32_t display_field_id; // Field id to show in dropdown (e.g. ID_DB_*_NAME)
+  uint32_t value_field_id;   // Field id for actual value (e.g. ID_DB_*_ID)
 } combobox_params_t;
 
 // Combobox internal state (shared with list control for dropdown)
@@ -109,9 +109,10 @@ typedef struct {
   int table_id;                // TABLE_* enum value
   int filter_field;            // Field to filter by (0 = fetch all)
   intptr_t filter_value;       // Value to match
-  const char **field_names;    // Column field names (NULL-terminated)
-  const char **column_titles;  // Column display titles (NULL-terminated)
+  const uint32_t *field_ids;   // Column field ids
+  const char **column_titles;  // Column display titles
   const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
+  int column_count;            // Number of table columns
 } tableview_params_t;
 
 lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

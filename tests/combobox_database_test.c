@@ -74,7 +74,7 @@ static lresult_t test_db_proc(database_t *db, uint32_t msg, uint32_t wparam, voi
     
     case dbGetFieldBindings: {
       static const db_field_msg_binding_t bindings[] = {
-        {.column_id = 0, .field = "name"}
+        {.field_id = 1, .column_id = 0}
       };
       if (lparam) *(int*)lparam = 1;
       return (lresult_t)bindings;

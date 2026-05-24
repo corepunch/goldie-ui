@@ -8,7 +8,7 @@
 
 typedef struct {
   tableview_params_t table;
-  const char *fields[FE_MAX_TABLE_COLUMNS + 1];
+  uint32_t field_ids[FE_MAX_TABLE_COLUMNS + 1];
   const char *titles[FE_MAX_TABLE_COLUMNS + 1];
   int widths[FE_MAX_TABLE_COLUMNS + 1];
   combobox_params_t combo;
@@ -130,6 +130,34 @@ static int runtime_table_id_for_source(const char *source) {
       return table->table_id;
   }
   return -1;
+}
+
+static uint32_t runtime_field_id_for_table(int table_id, const char *field_name) {
+  if (table_id < 0 || !field_name || !*field_name)
+    return 0;
+
+  database_t *db = ui_get_database();
+  if (!db)
+    db = get_database_by_name("db");
+  if (!db)
+    return 0;
+
+  const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
+  if (!schema)
+    return 0;
+
+  for (int t = 0; t < schema->table_count; t++) {
+    const db_table_schema_t *table = &schema->tables[t];
+    if ((int)table->table_id != table_id)
+      continue;
+    for (int f = 0; f < table->field_count; f++) {
+      if (table->fields[f].name && strcmp(table->fields[f].name, field_name) == 0)
+        return table->fields[f].field_id;
+    }
+    return 0;
+  }
+
+  return 0;
 }
 
 static runtime_params_t *runtime_next_params(runtime_build_ctx_t *ctx) {
@@ -294,23 +322,23 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
     if (!title)
       title = field;
 
-    rp->fields[col] = field;
+    rp->field_ids[col] = runtime_field_id_for_table(rp->table.table_id, field);
     rp->titles[col] = title;
     rp->widths[col] = width;
     col++;
   }
 
   if (col == 0) {
-    rp->fields[0] = runtime_strdup(ctx, "id");
+    rp->field_ids[0] = runtime_field_id_for_table(rp->table.table_id, "id");
     rp->titles[0] = runtime_strdup(ctx, "ID");
     rp->widths[0] = 80;
     col = 1;
   }
 
-  rp->widths[col] = -1;
-  rp->table.field_names = rp->fields;
+  rp->table.field_ids = rp->field_ids;
   rp->table.column_titles = rp->titles;
   rp->table.column_widths = rp->widths;
+  rp->table.column_count = col;
   *out_lparam = &rp->table;
 }
 
@@ -334,8 +362,8 @@ static void runtime_fill_combo_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
 
   rp->combo.db = ui_get_database();
   rp->combo.table_id = runtime_table_id_for_source(source);
-  rp->combo.display_field = display;
-  rp->combo.value_field = value;
+  rp->combo.display_field_id = runtime_field_id_for_table(rp->combo.table_id, display ? display : "");
+  rp->combo.value_field_id = runtime_field_id_for_table(rp->combo.table_id, value ? value : "");
   *out_lparam = &rp->combo;
 }
 

@@ -16,9 +16,10 @@
 //     .table_id = TABLE_POSTS,
 //     .filter_field = 0,
 //     .filter_value = 0,
-//     .field_names = (const char *[]){"title", "author", "like_count", NULL},
-//     .column_titles = (const char *[]){"Title", "Author", "Likes", NULL},
-//     .column_widths = (const int[]){0, 80, 50, -1}
+//     .field_ids = (const uint32_t[]){ ID_DB_DB_POSTS_TITLE, ID_DB_DB_AUTHORS_NAME, ID_DB_DB_POSTS_LIKE_COUNT },
+//     .column_titles = (const char *[]){"Title", "Author", "Likes"},
+//     .column_widths = (const int[]){0, 80, 50},
+//     .column_count = 3,
 //   };
 //   window_t *tv = create_window("", WINDOW_NOTITLE | WINDOW_VSCROLL,
 //                                MAKERECT(0, 0, w, h), parent,
@@ -35,7 +36,7 @@ typedef struct {
   intptr_t filter_value;
   
   // Column metadata (copied from params)
-  char **field_names;
+  uint32_t *field_ids;
   char **column_titles;
   int *column_widths;
   int column_count;
@@ -48,17 +49,6 @@ typedef struct {
 
 // Forward declarations
 static void tv_refresh(window_t *win, tableview_state_t *s);
-
-// ══════════════════════════════════════════════════════════════════════════
-// Helper: Count NULL-terminated string array
-// ══════════════════════════════════════════════════════════════════════════
-
-static int count_strings(const char **strs) {
-  if (!strs) return 0;
-  int count = 0;
-  while (strs[count]) count++;
-  return count;
-}
 
 // ══════════════════════════════════════════════════════════════════════════
 // Helper: Copy string array
@@ -90,6 +80,18 @@ static int *copy_int_array(const int *src, int count) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// Helper: Copy uint32 array
+// ══════════════════════════════════════════════════════════════════════════
+
+static uint32_t *copy_u32_array(const uint32_t *src, int count) {
+  if (!src || count <= 0) return NULL;
+  uint32_t *dst = calloc((size_t)count, sizeof(uint32_t));
+  if (!dst) return NULL;
+  memcpy(dst, src, (size_t)count * sizeof(uint32_t));
+  return dst;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // Helper: Free string array
 // ══════════════════════════════════════════════════════════════════════════
 
@@ -105,12 +107,12 @@ static void free_string_array(char **arr) {
 // ══════════════════════════════════════════════════════════════════════════
 
 static bool tv_get_field_text(tableview_state_t *s, void *record,
-                                 const char *field, char *buf, size_t buf_sz) {
-  if (!s || !record || !field || !buf || buf_sz == 0) return false;
+                                 uint32_t field_id, char *buf, size_t buf_sz) {
+  if (!s || !record || !buf || buf_sz == 0 || field_id == 0) return false;
   
   // Use DDX-style field extraction via database object proc
   return db_object_get_field_text(s->bindings, s->binding_count,
-                                  s->obj_proc, record, field, buf, buf_sz);
+                                  s->obj_proc, record, field_id, buf, buf_sz);
 }
 
 // Removed: tv_apply_column_widths() - now inherited from reportview evResize
@@ -131,7 +133,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
     send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
     for (int i = 0; i < s->column_count; i++) {
       reportview_column_t col = {
-        .title = s->column_titles[i] ? s->column_titles[i] : s->field_names[i],
+        .title = s->column_titles[i] ? s->column_titles[i] : "",
         .width = (uint32_t)((s->column_widths && s->column_widths[i] > 0) ? s->column_widths[i] : 0),
       };
       send_message(win, RVM_ADDCOLUMN, 0, &col);
@@ -160,7 +162,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
     
     // Extract field values for all columns
     for (int col = 0; col < s->column_count; col++) {
-      if (!tv_get_field_text(s, record, s->field_names[col],
+      if (!tv_get_field_text(s, record, s->field_ids[col],
                              cell_buf[col], sizeof(cell_buf[col]))) {
         cell_buf[col][0] = '\0';
       }
@@ -213,7 +215,7 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         params = (tableview_params_t *)lparam;
       }
       
-      if (!params || !params->field_names) {
+      if (!params || !params->field_ids || params->column_count <= 0) {
         // Keep the control alive as a plain reportview to avoid forwarding
         // messages into an uninitialized base state.
         return true;
@@ -247,21 +249,21 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       }
       
       // Copy column metadata
-      s->column_count = count_strings(params->field_names);
+      s->column_count = params->column_count;
       if (s->column_count <= 0) {
         free(s);
         win->userdata = NULL;
         return true;
       }
       
-      s->field_names = copy_string_array(params->field_names, s->column_count);
+      s->field_ids = copy_u32_array(params->field_ids, s->column_count);
       s->column_titles = params->column_titles
         ? copy_string_array(params->column_titles, s->column_count)
-        : copy_string_array(params->field_names, s->column_count);  // Use field names as titles
+        : NULL;
       s->column_widths = copy_int_array(params->column_widths, s->column_count);
       
-      if (!s->field_names || !s->column_titles) {
-        free_string_array(s->field_names);
+      if (!s->field_ids || (params->column_titles && !s->column_titles)) {
+        free(s->field_ids);
         free_string_array(s->column_titles);
         free(s->column_widths);
         free(s);
@@ -282,7 +284,7 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     
     case evDestroy:
       if (s) {
-        free_string_array(s->field_names);
+        free(s->field_ids);
         free_string_array(s->column_titles);
         free(s->column_widths);
         free(s);

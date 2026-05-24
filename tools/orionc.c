@@ -330,13 +330,110 @@ static void singular_type(char *out, size_t cap, const char *table, const char *
   snprintf(out, cap, "db_%s_t", id);
 }
 
+static void singular_name(char *out, size_t cap, const char *name) {
+  char id[96];
+  ident(id, sizeof(id), name, false);
+  size_t n = strlen(id);
+  if (n > 1 && id[n - 1] == 's')
+    id[n - 1] = 0;
+  snprintf(out, cap, "%s", id);
+}
+
+static void db_id_prefix(char *out, size_t cap, const char *db_name) {
+  char up[96];
+  ident(up, sizeof(up), nz(db_name, "db"), true);
+  snprintf(out, cap, "ID_DB_%s", up);
+}
+
 static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
   if (!db) return;
-  int table_i = 0;
+  int table_i = 1;
+  int field_i = 1;
+  int model_i = 1;
+  int source_i = 1;
+  int action_i = 1;
+  char *db_name = attr(db, "name");
+  char idp[128];
+  db_id_prefix(idp, sizeof(idp), db_name);
+
+  // ID macros for models/sources/actions are emitted first for stable references.
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *table = attr(t, "name");
+    char *model = attr(t, "model");
+    char table_up[96], model_up[96], singular[96];
+    ident(table_up, sizeof(table_up), nz(table, "table"), true);
+    singular_name(singular, sizeof(singular), nz(table, "table"));
+    ident(model_up, sizeof(model_up), model && *model ? model : singular, true);
+    OUT("#define %s_MODEL_%s %d\n", idp, model_up, model_i++);
+    OUT("#define %s_SOURCE_%s %d\n", idp, table_up, source_i++);
+    OUT("#define %s_ACTION_FETCH_%s %d\n", idp, table_up, action_i++);
+    OUT("#define %s_ACTION_INSERT_%s %d\n", idp, table_up, action_i++);
+    OUT("#define %s_ACTION_UPDATE_%s %d\n", idp, table_up, action_i++);
+    OUT("#define %s_ACTION_DELETE_%s %d\n", idp, table_up, action_i++);
+    free(table);
+    free(model);
+  }
+  LINE("\n");
+
   EACH_ELEMENT(t, db) if (elem(t, "table")) {
     char *table = attr(t, "name"), *model = attr(t, "model"), type[128], meta[128];
     if (!table || !*table) { free(table); free(model); continue; }
     singular_type(type, sizeof(type), table, model); ident(meta, sizeof(meta), nz(model, table), false);
+    char table_up[96];
+    ident(table_up, sizeof(table_up), table, true);
+    OUT("#define %s_%s %d\n", idp, table_up, table_i);
+
+    // Field ids for this table.
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *name = attr(field, "name");
+      char field_up[96];
+      ident(field_up, sizeof(field_up), nz(name, "field"), true);
+      OUT("#define %s_%s_%s %d\n", idp, table_up, field_up, field_i++);
+      free(name);
+    }
+
+    // Join alias ids for relation fields expose foreign fields as alias.field ids.
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *relation = attr(field, "relation");
+      if (relation && *relation) {
+        char rel_table[96] = {0};
+        const char *dot = strchr(relation, '.');
+        if (dot) snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(dot - relation), relation);
+        if (rel_table[0]) {
+          char alias[96], alias_up[96], rel_up[96];
+          singular_name(alias, sizeof(alias), rel_table);
+          ident(alias_up, sizeof(alias_up), alias, true);
+          ident(rel_up, sizeof(rel_up), rel_table, true);
+          EACH_ELEMENT(rt, db) if (elem(rt, "table")) {
+            char *rt_name = attr(rt, "name");
+            if (rt_name && strcmp(rt_name, rel_table) == 0) {
+              EACH_ELEMENT(rf, rt) if (elem(rf, "field")) {
+                char *rf_name = attr(rf, "name");
+                char rf_up[96];
+                bool shadowed_local = false;
+                char alias_field[128];
+                snprintf(alias_field, sizeof(alias_field), "%s_%s", alias, nz(rf_name, "field"));
+                EACH_ELEMENT(local_f, t) if (elem(local_f, "field")) {
+                  char *local_name = attr(local_f, "name");
+                  if (local_name && strcmp(local_name, alias_field) == 0)
+                    shadowed_local = true;
+                  free(local_name);
+                  if (shadowed_local)
+                    break;
+                }
+                ident(rf_up, sizeof(rf_up), nz(rf_name, "field"), true);
+                if (!shadowed_local)
+                  OUT("#define %s_%s_%s_%s %s_%s_%s\n", idp, table_up, alias_up, rf_up, idp, rel_up, rf_up);
+                free(rf_name);
+              }
+            }
+            free(rt_name);
+          }
+        }
+      }
+      free(relation);
+    }
+
     OUT("typedef struct {\n");
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *name = attr(field, "name"), *kind = attr(field, "type"), *len = attr(field, "length"); const field_type_t *ft = field_type(kind);
@@ -350,16 +447,57 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
       free(name); free(kind); free(len);
     }
     OUT("};\n");
-    char up[128]; ident(up, sizeof(up), table, true); OUT("#define TABLE_%s %d\n", up, table_i++);
+    OUT("#define TABLE_%s %s_%s\n", table_up, idp, table_up);
+    table_i++;
     free(table); free(model);
   }
-  if (table_i) OUT("#define TABLE_COUNT %d\n\n", table_i);
+  if (table_i > 1) OUT("#define TABLE_COUNT %d\n\n", table_i - 1);
   OUT("static const db_api_def_t %s_database_api = { NULL, 0, NULL, 0, NULL, 0 };\n\n", prefix);
+  free(db_name);
 }
 
 static void table_name_from_source(char *out, size_t cap, const char *source) {
   const char *dot = source ? strchr(source, '.') : NULL; snprintf(out, cap, "%s", dot ? dot + 1 : nz(source, "table"));
   char *next = strchr(out, '.'); if (next) *next = 0;
+}
+
+static bool table_name_from_table_id(char *out, size_t cap, xmlNodePtr db, const char *table_name) {
+  if (!db || !table_name || !*table_name)
+    return false;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *name = attr(t, "name");
+    bool ok = name && strcmp(name, table_name) == 0;
+    free(name);
+    if (ok) {
+      snprintf(out, cap, "%s", table_name);
+      return true;
+    }
+  }
+  return false;
+}
+
+static void field_id_expr_from_source(char *out, size_t cap, xmlNodePtr db, const char *db_name, const char *source, const char *field) {
+  char table[128], db_up[96], table_up[96], field_up[96];
+  table_name_from_source(table, sizeof(table), source);
+  ident(db_up, sizeof(db_up), nz(db_name, "db"), true);
+  if (field && strchr(field, '.')) {
+    char alias[96] = {0};
+    const char *dot = strchr(field, '.');
+    snprintf(alias, sizeof(alias), "%.*s", (int)(dot - field), field);
+    ident(table_up, sizeof(table_up), nz(table, "table"), true);
+    char alias_up[96];
+    ident(alias_up, sizeof(alias_up), alias, true);
+    ident(field_up, sizeof(field_up), dot + 1, true);
+    snprintf(out, cap, "ID_DB_%s_%s_%s_%s", db_up, table_up, alias_up, field_up);
+    return;
+  }
+  if (!table_name_from_table_id(table, sizeof(table), db, table)) {
+    snprintf(out, cap, "0");
+    return;
+  }
+  ident(table_up, sizeof(table_up), table, true);
+  ident(field_up, sizeof(field_up), nz(field, "id"), true);
+  snprintf(out, cap, "ID_DB_%s_%s_%s", db_up, table_up, field_up);
 }
 
 // count_table_fields — count number of fields in a database table
@@ -378,23 +516,32 @@ static int count_table_fields(xmlNodePtr db, const char *table_name) {
   return 0;
 }
 
-static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form) {
+static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form, xmlNodePtr database, const char *db_name) {
   EACH_ELEMENT(c, parent) {
     if (elem(c, "tableview")) {
       char *name = attr(c, "name"), *source = attrs_first(c, "source", "database");
       char param[256], table[128], table_id[128]; snprintf(param, sizeof(param), "%s_%s_tableview_params", form, nz(name, "unnamed"));
       table_name_from_source(table, sizeof(table), source); ident(table_id, sizeof(table_id), table, true);
-      OUT("static const char *%s_fields[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "field"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
+      OUT("static const uint32_t %s_field_ids[] = { ", param);
+      EACH_ELEMENT(col, c) if (elem(col, "column")) {
+        char *v = attr(col, "field");
+        char id_expr[256];
+        field_id_expr_from_source(id_expr, sizeof(id_expr), database, db_name, source, v);
+        OUT("%s, ", id_expr);
+        free(v);
+      }
+      LINE("};\n");
       OUT("static const char *%s_titles[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "title"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
-      OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("-1 };\n");
-      OUT("static const tableview_params_t %s = { NULL, TABLE_%s, 0, 0, %s_fields, %s_titles, %s_widths };\n\n", param, table_id, param, param, param);
+      OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("};\n");
+      int col_count = 0; EACH_ELEMENT(col, c) if (elem(col, "column")) col_count++;
+      OUT("static const tableview_params_t %s = { NULL, TABLE_%s, 0, 0, %s_field_ids, %s_titles, %s_widths, %d };\n\n", param, table_id, param, param, param, col_count);
       free(name); free(source);
     }
-    emit_tableviews(f, c, form);
+    emit_tableviews(f, c, form, database, db_name);
   }
 }
 
-static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
+static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form, xmlNodePtr database, const char *db_name) {
   EACH_ELEMENT(c, parent) {
     if (elem(c, "combobox")) {
       char *name = attr(c, "name"), *source = attr(c, "source");
@@ -403,21 +550,21 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
       // Only generate params if source/display/value are all present
       if (source && display && value) {
         char param[256], table[128], table_id[128];
-        char display_q[ORIONC_STRING_SIZE], value_q[ORIONC_STRING_SIZE];
+        char display_id[256], value_id[256];
         
         snprintf(param, sizeof(param), "%s_%s_combobox_params", form, nz(name, "unnamed"));
         table_name_from_source(table, sizeof(table), source);
         ident(table_id, sizeof(table_id), table, true);
-        cstr(display_q, sizeof(display_q), display);
-        cstr(value_q, sizeof(value_q), value);
+        field_id_expr_from_source(display_id, sizeof(display_id), database, db_name, source, display);
+        field_id_expr_from_source(value_id, sizeof(value_id), database, db_name, source, value);
         
         OUT("static const combobox_params_t %s = { NULL, TABLE_%s, %s, %s };\n\n",
-            param, table_id, display_q, value_q);
+            param, table_id, display_id, value_id);
       }
       
       free(name); free(source); free(display); free(value);
     }
-    emit_comboboxes(f, c, form);
+    emit_comboboxes(f, c, form, database, db_name);
   }
 }
 
@@ -512,8 +659,10 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
   if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
-  emit_tableviews(f, form, form_id);
-  emit_comboboxes(f, form, form_id);
+  char *db_name = database ? attr(database, "name") : NULL;
+  emit_tableviews(f, form, form_id, database, db_name ? db_name : "db");
+  emit_comboboxes(f, form, form_id, database, db_name ? db_name : "db");
+  free(db_name);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
   int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
   emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");

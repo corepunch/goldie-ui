@@ -61,24 +61,27 @@ typedef struct {
 
 // Design-time schema metadata for editor/database browsers.
 typedef struct {
+  uint32_t field_id;         // Generated ID_DB_* field id
   const char *name;            // Field name (e.g., "author_id")
   db_field_type_t type;        // Field type
   int length;                  // String buffer size; else 0
   bool primary_key;            // true for key fields
-  const char *relation_table;  // Foreign table, if this field references one
-  const char *relation_field;  // Foreign field, if this field references one
+  uint32_t relation_table_id;  // Foreign table id, if this field references one
+  uint32_t relation_field_id;  // Foreign field id, if this field references one
 } db_field_schema_t;
 
 typedef struct {
+  uint32_t join_id;          // Generated ID_DB_* join id/alias id
   const char *name;          // Join alias (e.g., "author")
-  const char *local_field;   // Local FK field (e.g., "author_id")
-  const char *foreign_table; // Referenced table (e.g., "authors")
-  const char *foreign_field; // Referenced field (e.g., "id")
+  uint32_t local_field_id;   // Local FK field id (e.g., author_id)
+  uint32_t foreign_table_id; // Referenced table id (e.g., authors)
+  uint32_t foreign_field_id; // Referenced field id (e.g., id)
 } db_join_schema_t;
 
 typedef struct {
-  int table_id;                         // TABLE_* value
+  uint32_t table_id;                    // TABLE_* / ID_DB_* table id
   const char *name;                     // Table name (e.g., "posts")
+  uint32_t model_id;                    // Generated model id
   const char *model;                    // Optional logical model name
   const db_field_schema_t *fields;
   int field_count;
@@ -98,20 +101,20 @@ typedef struct {
 // This metadata is model/view-agnostic and can be consumed by applications to
 // drive fetch actions and view bindings without hard-coded column setup.
 typedef struct {
-  const char *name;   // source name, e.g. "feed_posts"
-  const char *model;  // logical model name, e.g. "post"
+  uint32_t source_id;  // generated source id
+  uint32_t model_id;   // generated model id
 } db_source_def_t;
 
 typedef struct {
-  const char *field;  // model field key, e.g. "title"
+  uint32_t    field_id; // model field id, e.g. ID_DB_*_POSTS_TITLE
   const char *title;  // view column title
   int         width;  // preferred column width; <=0 means auto/flex
 } db_binding_column_t;
 
 typedef struct {
-  const char                *name;   // binding identifier
-  const char                *source; // source name this binding reads from
-  const char                *view;   // target view/control name
+  uint32_t                   binding_id; // binding identifier
+  uint32_t                   source_id;  // source id this binding reads from
+  uint32_t                   view_id;    // target view/control id
   const db_binding_column_t *columns;
   int                        column_count;
 } db_view_binding_t;
@@ -125,16 +128,16 @@ typedef enum {
 } db_action_kind_t;
 
 typedef struct {
-  const char       *name;   // action identifier
+  uint32_t          action_id; // action identifier
   db_action_kind_t  kind;   // fetch/insert/update/delete/custom
-  const char       *source; // source name this action targets
-  const char       *target; // target view/control or route name
+  uint32_t          source_id; // source id this action targets
+  uint32_t          target_id; // target view/control or route id
 } db_action_def_t;
 
 typedef struct {
-  const char *name;   // outlet identifier
-  const char *type;   // expected object/control type, if known
-  const char *target; // connected view/control name, if known
+  uint32_t outlet_id; // outlet identifier
+  uint32_t type_id;   // expected object/control type id, if known
+  uint32_t target_id; // connected view/control id, if known
 } db_outlet_def_t;
 
 typedef struct {
@@ -161,7 +164,7 @@ typedef enum {
 // Field-to-column lookup used by db_object_get_field_text().
 // The mapped column_id is packed into LOWORD(wparam).
 typedef struct {
-  const char *field;
+  uint32_t    field_id;
   uint16_t    column_id;
 } db_field_msg_binding_t;
 
@@ -187,14 +190,14 @@ void destroy_database(database_t *db);
 lresult_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Declarative database API helpers
-const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
-const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
-const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
-const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
-const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, const char *name);
+const db_source_def_t  *db_api_find_source(const db_api_def_t *api, uint32_t source_id);
+const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, uint32_t binding_id);
+const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, uint32_t view_id);
+const db_action_def_t  *db_api_find_action(const db_api_def_t *api, uint32_t action_id);
+const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, uint32_t outlet_id);
 bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
                               db_object_proc_t proc, const void *object,
-                              const char *field, char *buf, size_t buf_sz);
+                              uint32_t field_id, char *buf, size_t buf_sz);
 
 // Result list helpers
 void free_result_list(void *head);

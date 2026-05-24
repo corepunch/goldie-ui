@@ -69,7 +69,7 @@ static void open_dropdown(window_t *win) {
 
 // Helper: Populate combobox from database using combobox_params_t
 static void cb_populate_from_database(window_t *win, const combobox_params_t *params) {
-  if (!params || !params->display_field || !params->value_field) {
+  if (!params || params->display_field_id == 0 || params->value_field_id == 0) {
     return;
   }
   
@@ -124,7 +124,7 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
     // So we must dereference to get the actual record pointer.
     void *record = *(void **)node->data;
     bool success = db_object_get_field_text(bindings, binding_count, obj_proc,
-                                  record, params->display_field,
+                                  record, params->display_field_id,
                                   display_buf, sizeof(display_buf));
     
     if (success && display_buf[0] != '\0') {
@@ -133,7 +133,7 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
       // Store value_field (e.g., ID) for foreign key binding
       char value_buf[64];
       if (db_object_get_field_text(bindings, binding_count, obj_proc,
-                                    record, params->value_field,
+                                    record, params->value_field_id,
                                     value_buf, sizeof(value_buf))) {
         state->values[count] = atoi(value_buf);
       }

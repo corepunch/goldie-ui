@@ -8,6 +8,8 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 
+#define STATIC_ARRAY(a) (a), ARRAY_LEN(a)
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Internal Context (stored in database_t->userdata)
 // Uses generated types from orionc: db_author_t, db_post_t, db_comment_t
@@ -367,107 +369,91 @@ static lresult_t comment_object_proc(const void *object, uint32_t msg,
 
 // Field bindings for each table
 static const db_field_msg_binding_t author_field_bindings[] = {
-  { "id", COL_AUTHOR_ID },
-  { "name", COL_AUTHOR_NAME },
-  { "avatar", COL_AUTHOR_AVATAR },
+  { ID_DB_DB_AUTHORS_ID, COL_AUTHOR_ID },
+  { ID_DB_DB_AUTHORS_NAME, COL_AUTHOR_NAME },
+  { ID_DB_DB_AUTHORS_AVATAR, COL_AUTHOR_AVATAR },
 };
 
 static const db_field_msg_binding_t post_field_bindings[] = {
-  { "id", COL_POST_ID },
-  { "author_id", COL_POST_AUTHOR_ID },
-  { "title", COL_POST_TITLE },
-  { "body", COL_POST_BODY },
-  { "likes", COL_POST_LIKE_COUNT },
-  { "like_count", COL_POST_LIKE_COUNT },  // Alias
-  { "comment_count", COL_POST_COMMENT_COUNT },
-  { "author", COL_POST_AUTHOR_ID },  // Alias for join queries
-  { "author.name", COL_POST_AUTHOR_NAME },  // Join field
+  { ID_DB_DB_POSTS_ID, COL_POST_ID },
+  { ID_DB_DB_POSTS_AUTHOR_ID, COL_POST_AUTHOR_ID },
+  { ID_DB_DB_POSTS_TITLE, COL_POST_TITLE },
+  { ID_DB_DB_POSTS_BODY, COL_POST_BODY },
+  { ID_DB_DB_POSTS_LIKE_COUNT, COL_POST_LIKE_COUNT },
+  { ID_DB_DB_POSTS_COMMENT_COUNT, COL_POST_COMMENT_COUNT },
+  { ID_DB_DB_POSTS_AUTHOR_NAME, COL_POST_AUTHOR_NAME },
 };
 
 static const db_field_msg_binding_t comment_field_bindings[] = {
-  { "id", COL_COMMENT_ID },
-  { "post_id", COL_COMMENT_POST_ID },
-  { "author_id", COL_COMMENT_AUTHOR_ID },
-  { "text", COL_COMMENT_TEXT },
-  { "likes", COL_COMMENT_LIKE_COUNT },
-  { "like_count", COL_COMMENT_LIKE_COUNT },  // Alias
-  { "author", COL_COMMENT_AUTHOR_ID },  // Alias for join queries
-  { "author.name", COL_COMMENT_AUTHOR_NAME },  // Join field
+  { ID_DB_DB_COMMENTS_ID, COL_COMMENT_ID },
+  { ID_DB_DB_COMMENTS_POST_ID, COL_COMMENT_POST_ID },
+  { ID_DB_DB_COMMENTS_AUTHOR_ID, COL_COMMENT_AUTHOR_ID },
+  { ID_DB_DB_COMMENTS_TEXT, COL_COMMENT_TEXT },
+  { ID_DB_DB_COMMENTS_LIKE_COUNT, COL_COMMENT_LIKE_COUNT },
+  { ID_DB_DB_COMMENTS_AUTHOR_NAME, COL_COMMENT_AUTHOR_NAME },
 };
 
 // Design-time schema metadata exposed through dbGetSchema.
 static const db_field_schema_t author_schema_fields[] = {
-  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
-  { "name", DB_TYPE_STRING, 64, false, NULL, NULL },
-  { "avatar", DB_TYPE_STRING, 256, false, NULL, NULL },
+  { ID_DB_DB_AUTHORS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
+  { ID_DB_DB_AUTHORS_NAME, "name", DB_TYPE_STRING, 64, false, 0, 0 },
+  { ID_DB_DB_AUTHORS_AVATAR, "avatar", DB_TYPE_STRING, 256, false, 0, 0 },
 };
 
 static const db_field_schema_t post_schema_fields[] = {
-  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
-  { "author_id", DB_TYPE_INT, 0, false, "authors", "id" },
-  { "title", DB_TYPE_STRING, 256, false, NULL, NULL },
-  { "body", DB_TYPE_STRING, 2048, false, NULL, NULL },
-  { "like_count", DB_TYPE_INT, 0, false, NULL, NULL },
-  { "comment_count", DB_TYPE_INT, 0, false, NULL, NULL },
+  { ID_DB_DB_POSTS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
+  { ID_DB_DB_POSTS_AUTHOR_ID, "author_id", DB_TYPE_INT, 0, false, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
+  { ID_DB_DB_POSTS_TITLE, "title", DB_TYPE_STRING, 256, false, 0, 0 },
+  { ID_DB_DB_POSTS_BODY, "body", DB_TYPE_STRING, 2048, false, 0, 0 },
+  { ID_DB_DB_POSTS_LIKE_COUNT, "like_count", DB_TYPE_INT, 0, false, 0, 0 },
+  { ID_DB_DB_POSTS_COMMENT_COUNT, "comment_count", DB_TYPE_INT, 0, false, 0, 0 },
 };
 
 static const db_field_schema_t comment_schema_fields[] = {
-  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
-  { "post_id", DB_TYPE_INT, 0, false, "posts", "id" },
-  { "author_id", DB_TYPE_INT, 0, false, "authors", "id" },
-  { "text", DB_TYPE_STRING, 1024, false, NULL, NULL },
-  { "like_count", DB_TYPE_INT, 0, false, NULL, NULL },
+  { ID_DB_DB_COMMENTS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
+  { ID_DB_DB_COMMENTS_POST_ID, "post_id", DB_TYPE_INT, 0, false, ID_DB_DB_POSTS, ID_DB_DB_POSTS_ID },
+  { ID_DB_DB_COMMENTS_AUTHOR_ID, "author_id", DB_TYPE_INT, 0, false, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
+  { ID_DB_DB_COMMENTS_TEXT, "text", DB_TYPE_STRING, 1024, false, 0, 0 },
+  { ID_DB_DB_COMMENTS_LIKE_COUNT, "like_count", DB_TYPE_INT, 0, false, 0, 0 },
 };
 
 static const db_join_schema_t post_schema_joins[] = {
-  { "author", "author_id", "authors", "id" },
+  { ID_DB_DB_POSTS_AUTHOR_NAME, "author", ID_DB_DB_POSTS_AUTHOR_ID, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
 };
 
 static const db_join_schema_t comment_schema_joins[] = {
-  { "post", "post_id", "posts", "id" },
-  { "author", "author_id", "authors", "id" },
+  { ID_DB_DB_COMMENTS_POST_ID, "post", ID_DB_DB_COMMENTS_POST_ID, ID_DB_DB_POSTS, ID_DB_DB_POSTS_ID },
+  { ID_DB_DB_COMMENTS_AUTHOR_NAME, "author", ID_DB_DB_COMMENTS_AUTHOR_ID, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
 };
 
 static const db_table_schema_t socialfeed_schema_tables[] = {
-  { TABLE_AUTHORS, "authors", "author",
-    author_schema_fields, (int)(sizeof(author_schema_fields) / sizeof(author_schema_fields[0])),
-    NULL, 0 },
-  { TABLE_POSTS, "posts", "post",
-    post_schema_fields, (int)(sizeof(post_schema_fields) / sizeof(post_schema_fields[0])),
-    post_schema_joins, (int)(sizeof(post_schema_joins) / sizeof(post_schema_joins[0])) },
-  { TABLE_COMMENTS, "comments", "comment",
-    comment_schema_fields, (int)(sizeof(comment_schema_fields) / sizeof(comment_schema_fields[0])),
-    comment_schema_joins, (int)(sizeof(comment_schema_joins) / sizeof(comment_schema_joins[0])) },
+  { TABLE_AUTHORS, "authors", ID_DB_DB_MODEL_AUTHOR, "author", STATIC_ARRAY(author_schema_fields), NULL, 0 },
+  { TABLE_POSTS, "posts", ID_DB_DB_MODEL_POST, "post", STATIC_ARRAY(post_schema_fields), STATIC_ARRAY(post_schema_joins) },
+  { TABLE_COMMENTS, "comments", ID_DB_DB_MODEL_COMMENT, "comment", STATIC_ARRAY(comment_schema_fields), STATIC_ARRAY(comment_schema_joins) },
 };
 
-static db_schema_def_t db_simple_xml_schema = {
-  NULL,
-  NULL,
-  NULL,
-  socialfeed_schema_tables,
-  (int)(sizeof(socialfeed_schema_tables) / sizeof(socialfeed_schema_tables[0])),
-};
+static db_schema_def_t db_simple_xml_schema = { NULL, NULL, NULL, STATIC_ARRAY(socialfeed_schema_tables) };
 
 static const db_source_def_t db_simple_xml_sources[] = {
-  { "db.authors", "author" },
-  { "db.posts", "post" },
-  { "db.comments", "comment" },
+  { ID_DB_DB_SOURCE_AUTHORS, ID_DB_DB_MODEL_AUTHOR },
+  { ID_DB_DB_SOURCE_POSTS, ID_DB_DB_MODEL_POST },
+  { ID_DB_DB_SOURCE_COMMENTS, ID_DB_DB_MODEL_COMMENT },
 };
 
 static const db_action_def_t db_simple_xml_actions[] = {
-  { "fetch_feed", DB_ACTION_FETCH, "db.posts", "feed" },
-  { "fetch_comments", DB_ACTION_FETCH, "db.comments", "comments" },
-  { "db.posts.insert", DB_ACTION_INSERT, "db.posts", NULL },
-  { "db.comments.insert", DB_ACTION_INSERT, "db.comments", NULL },
+  { ID_DB_DB_ACTION_FETCH_POSTS, DB_ACTION_FETCH, ID_DB_DB_SOURCE_POSTS, ID_MAIN_WINDOW_FEED },
+  { ID_DB_DB_ACTION_FETCH_COMMENTS, DB_ACTION_FETCH, ID_DB_DB_SOURCE_COMMENTS, ID_POST_DETAIL_COMMENTS },
+  { ID_DB_DB_ACTION_INSERT_POSTS, DB_ACTION_INSERT, ID_DB_DB_SOURCE_POSTS, 0 },
+  { ID_DB_DB_ACTION_INSERT_COMMENTS, DB_ACTION_INSERT, ID_DB_DB_SOURCE_COMMENTS, 0 },
 };
 
 static const db_api_def_t db_simple_xml_api = {
   db_simple_xml_sources,
-  (int)(sizeof(db_simple_xml_sources) / sizeof(db_simple_xml_sources[0])),
+  ARRAY_LEN(db_simple_xml_sources),
   NULL,
   0,
   db_simple_xml_actions,
-  (int)(sizeof(db_simple_xml_actions) / sizeof(db_simple_xml_actions[0])),
+  ARRAY_LEN(db_simple_xml_actions),
   NULL,
   0,
 };
