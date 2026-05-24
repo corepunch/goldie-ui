@@ -49,6 +49,85 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - **Prefer class/proc-driven behavior over global mode switches.** In WinAPI style, behavior belongs to window classes and message handlers, not to app-wide enum dispatchers.
 - **For layout engines, split by responsibility.** Avoid one monolithic layout function with long `if (stack)`, `if (grid)`, `if (column)` chains. Keep shared math in helpers, but keep container-specific measure/arrange logic in focused functions tied to each container type.
 
+### Feature Implementation Playbook (Required)
+
+- **Write the minimum code that delivers the behavior.** If the same functionality can be achieved with fewer moving parts, prefer the smaller design.
+- **One concern, one owner.** Keep view responsibilities in views (hit-test/target resolution), controller responsibilities in controllers (validation/dispatch), and model responsibilities in model/document code (state mutation).
+- **Resolve targets once.** Do not repeat hit-testing or target selection in multiple layers.
+- **Keep payloads semantic-only.** Pass identifiers and intent; keep lifecycle/transient state in the subsystem that owns it.
+- **Prefer flags over new booleans when the framework already has flags for the same behavior.** If WinAPI-style flags or existing Orion flags represent the state, use those flags instead of introducing parallel `bool` fields.
+- **No parallel runtime/editor models.** Avoid duplicated representations for the same concept (for example, live window tree plus separate element tree with drift risk).
+- **No runtime XML mutation for editor interactions.** Runtime editing should work on runtime state; XML stays in IO/load/save boundaries.
+- **Prefer existing messages/flags/classes first.** Add new APIs only when existing primitives cannot express the behavior cleanly.
+- **Delete superseded paths in the same change.** Do not keep old and new codepaths alive unless explicitly requested.
+- **Use WinAPI-style flow as default.** Message-driven control flow, explicit ownership, and thin dispatch layers are the baseline.
+- **Apply this to new domains (database support included).** Implement vertical slices that are small and direct: resolve target -> validate command -> mutate state -> relayout/refresh.
+
+**Examples (Required Reading for New Features):**
+
+```c
+// Target resolution: do it once in canvas/view, pass resolved target forward.
+// WRONG: controller re-runs hit-test.
+window_t *target = canvas_find_component_drop_target(doc, type, x, y);
+return fe_controller_drop_create(doc, &payload, target);
+
+// RIGHT: canvas resolves; controller validates + dispatches only.
+bool fe_controller_drop_create(window_t *doc,
+                               const ui_drag_item_payload_t *payload,
+                               window_t *target) {
+  if (!doc || !payload || !target) return false;
+  return fe_doc_drop_create_component(payload->tool_ident, target);
+}
+```
+
+```c
+// Payload design: semantic-only payload.
+// WRONG: payload carries drag lifecycle state.
+typedef struct {
+  int tool_ident;
+  bool dragging;
+  bool entered_target;
+} ui_drag_item_payload_t;
+
+// RIGHT: payload carries only command intent.
+typedef struct {
+  int tool_ident;
+} ui_drag_item_payload_t;
+```
+
+```c
+// Flags over duplicate bools.
+// WRONG: add a parallel bool that duplicates an existing flag.
+typedef struct {
+  bool auto_layout_enabled;
+} form_props_state_t;
+
+if (st->auto_layout_enabled)
+  doc->flags |= WINDOW_AUTO_LAYOUT;
+
+// RIGHT: use the existing window flags as source of truth.
+if (doc->flags & WINDOW_AUTO_LAYOUT) {
+  // auto-layout behavior
+}
+```
+
+```c
+// Reuse built-ins instead of creating parallel mechanisms.
+// WRONG: custom toolbar/palette click plumbing for standard toolbar behavior.
+// RIGHT: WINDOW_TOOLBAR + tbAddButtons + tbButtonClick.
+window_t *w = create_window("Doc", WINDOW_TOOLBAR, &rc, parent, proc, hinst, NULL);
+send_message(w, tbAddButtons, count, buttons);
+```
+
+```c
+// Scrollbars: use built-in flags for scrollable content windows.
+// WRONG: create custom child scrollbars for normal scrolling needs.
+// RIGHT: set WINDOW_HSCROLL/WINDOW_VSCROLL and handle evHScroll/evVScroll.
+window_t *view = create_window("View",
+    WINDOW_HSCROLL | WINDOW_VSCROLL,
+    &rc, parent, view_proc, hinst, NULL);
+```
+
 ### Declarative Forms Must Be Self-Contained (Critical)
 
 **Principle:** When declarative forms use full path syntax (`field="db.table.field"`), they must be completely self-contained. Never require external context as function parameters when the form already knows that context.
