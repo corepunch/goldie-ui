@@ -66,7 +66,7 @@ Add database and table definitions (usually at top of .orion file):
 ```
 
 **orionc generates:**
-- `TABLE_POSTS` enum constant
+- `ID_DB_POSTS` enum constant
 - `tableview_params_t` struct with field bindings
 - Control IDs: `ID_MAIN_WINDOW_CONTENT`, `ID_MAIN_WINDOW_FEED`
 
@@ -113,7 +113,7 @@ void create_main_window(void) {
   
   // Manual data population - MOST COMPLEX PART
   lresult_t res = send_db_message(g_app->db, dbFetch,
-                                  MAKEDWORD(TABLE_POSTS, 0), NULL);
+                                  MAKEDWORD(ID_DB_POSTS, 0), NULL);
   result_node_t *node = (result_node_t *)res;
   while (node) {
     post_t *post = (post_t *)node->record;
@@ -256,7 +256,7 @@ void populate_feed_view(void) {
   
   // Fetch all posts from database
   lresult_t res = send_db_message(g_app->db, dbFetch,
-                                  MAKEDWORD(TABLE_POSTS, 0), NULL);
+                                  MAKEDWORD(ID_DB_POSTS, 0), NULL);
   result_node_t *node = (result_node_t *)res;
   
   // Manually format and add each row

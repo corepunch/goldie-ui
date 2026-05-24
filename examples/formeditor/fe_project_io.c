@@ -75,11 +75,22 @@ static int fe_parse_sysicon_name(const char *name) {
 static uint32_t fe_parse_form_chrome_flags(xmlNodePtr form_node) {
   char flags_expr[256] = {0};
   feio_xml_attr_copy(form_node, "flags", flags_expr, sizeof(flags_expr));
+
+  char buf[256];
+  snprintf(buf, sizeof(buf), "%s", flags_expr);
   uint32_t out = 0;
-  if (strstr(flags_expr, "WINDOW_TOOLBAR"))
-    out |= WINDOW_TOOLBAR;
-  if (strstr(flags_expr, "WINDOW_STATUSBAR"))
-    out |= WINDOW_STATUSBAR;
+  char *save = NULL;
+  for (char *tok = strtok_r(buf, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+    while (*tok == ' ' || *tok == '\t' || *tok == '\n' || *tok == '\r')
+      tok++;
+    size_t n = strlen(tok);
+    while (n > 0 && (tok[n - 1] == ' ' || tok[n - 1] == '\t' || tok[n - 1] == '\n' || tok[n - 1] == '\r'))
+      tok[--n] = '\0';
+    if (strcasecmp(tok, "toolbar") == 0)
+      out |= WINDOW_TOOLBAR;
+    else if (strcasecmp(tok, "statusbar") == 0)
+      out |= WINDOW_STATUSBAR;
+  }
   return out;
 }
 

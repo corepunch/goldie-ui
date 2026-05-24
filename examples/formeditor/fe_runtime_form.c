@@ -182,20 +182,22 @@ static bool str_ieq(const char *a, const char *b) {
 
 static flags_t runtime_flag_from_name(const char *name) {
   if (!name || !*name) return 0;
-  if (str_ieq(name, "WINDOW_AUTO_LAYOUT")) return WINDOW_AUTO_LAYOUT;
-  if (str_ieq(name, "WINDOW_STACK_HORIZONTAL")) return WINDOW_STACK_HORIZONTAL;
-  if (str_ieq(name, "WINDOW_STACK_VERTICAL")) return WINDOW_STACK_VERTICAL;
-  if (str_ieq(name, "WINDOW_FLEXSPACE")) return WINDOW_FLEXSPACE;
-  if (str_ieq(name, "WINDOW_VSCROLL")) return WINDOW_VSCROLL;
-  if (str_ieq(name, "WINDOW_HSCROLL")) return WINDOW_HSCROLL;
-  if (str_ieq(name, "WINDOW_NOTITLE")) return WINDOW_NOTITLE;
-  if (str_ieq(name, "WINDOW_NOFILL")) return WINDOW_NOFILL;
-  if (str_ieq(name, "WINDOW_DIALOG")) return WINDOW_DIALOG;
-  if (str_ieq(name, "WINDOW_TOOLBAR")) return WINDOW_TOOLBAR;
-  if (str_ieq(name, "WINDOW_STATUSBAR")) return WINDOW_STATUSBAR;
-  if (str_ieq(name, "WINDOW_NORESIZE")) return WINDOW_NORESIZE;
-  if (str_ieq(name, "WINDOW_NOTRAYBUTTON")) return WINDOW_NOTRAYBUTTON;
-  if (str_ieq(name, "BUTTON_DEFAULT")) return BUTTON_DEFAULT;
+  if (str_ieq(name, "autolayout")) return WINDOW_AUTO_LAYOUT;
+  if (str_ieq(name, "stackh")) return WINDOW_STACK_HORIZONTAL;
+  if (str_ieq(name, "stackv")) return WINDOW_STACK_VERTICAL;
+  if (str_ieq(name, "flexspace")) return WINDOW_FLEXSPACE;
+  if (str_ieq(name, "vscroll")) return WINDOW_VSCROLL;
+  if (str_ieq(name, "hscroll")) return WINDOW_HSCROLL;
+  if (str_ieq(name, "notitle")) return WINDOW_NOTITLE;
+  if (str_ieq(name, "nofill")) return WINDOW_NOFILL;
+  if (str_ieq(name, "dialog")) return WINDOW_DIALOG;
+  if (str_ieq(name, "toolbar")) return WINDOW_TOOLBAR;
+  if (str_ieq(name, "statusbar")) return WINDOW_STATUSBAR;
+  if (str_ieq(name, "noresize")) return WINDOW_NORESIZE;
+  if (str_ieq(name, "notraybutton")) return WINDOW_NOTRAYBUTTON;
+  if (str_ieq(name, "notabstop")) return WINDOW_NOTABSTOP;
+  if (str_ieq(name, "default")) return BUTTON_DEFAULT;
+  if (str_ieq(name, "pushlike")) return BUTTON_PUSHLIKE;
   return 0;
 }
 
@@ -211,14 +213,14 @@ static flags_t runtime_parse_flags(const char *expr) {
   flags_t out = 0;
   const char *p = expr;
   while (*p) {
-    while (*p && (isspace((unsigned char)*p) || *p == '|'))
+    while (*p && (isspace((unsigned char)*p) || *p == ','))
       p++;
     if (!*p)
       break;
 
     char tok[96];
     int n = 0;
-    while (*p && *p != '|') {
+    while (*p && *p != ',') {
       if (n < (int)sizeof(tok) - 1)
         tok[n++] = *p;
       p++;

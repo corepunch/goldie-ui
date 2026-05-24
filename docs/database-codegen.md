@@ -43,19 +43,18 @@ Generate C struct definitions from `.orion` database schemas, making the schema 
 #ifndef __SOCIALFEED_GENERATED_H__
 #define __SOCIALFEED_GENERATED_H__
 
-// Menu IDs
+// Menu IDs (enum-style, base-relative)
 enum {
-  ID_FILE_QUIT = 1000,
-  ID_POST_NEW,
+  ID_FILE_QUIT = (ID_COMMAND_BASE + 1),
+  ID_POST_NEW = (ID_COMMAND_BASE + 2),
   // ...
 };
 
-// Table identifiers
+// Database identifiers (enum-style, no TABLE_* aliases)
 enum {
-  TABLE_AUTHORS = 0,
-  TABLE_POSTS,
-  TABLE_COMMENTS,
-  TABLE_COUNT
+  ID_DB_AUTHORS = 1,
+  ID_DB_POSTS = 2,
+  ID_DB_COMMENTS = 3,
 };
 
 // Generated structs (from <database> schema)
@@ -113,7 +112,7 @@ extern const form_def_t socialfeed_new_post_form;
 
 ### 2. Parse `<table>` Elements  
 - Extract table name, model name
-- Generate `TABLE_*` enum constants
+- Generate `ID_DB_*` enum constants
 - Enumerate `<field>` children
 
 ### 3. Parse `<field>` Elements
@@ -165,12 +164,12 @@ author_t author = { .name = "Alice", .avatar = "alice.png" };
 post_t post = { .title = "Hello", .body = "World" };
 
 // Table IDs from generated enum:
-send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+send_db_message(db, dbInsert, ID_DB_AUTHORS, &author);
 
 // Field bindings auto-available:
 tableview_params_t params = {
   .db = db,
-  .table_id = TABLE_POSTS,
+  .table_id = ID_DB_POSTS,
   .field_names = (const char *[]){"title", "author", "like_count", NULL},
 };
 ```

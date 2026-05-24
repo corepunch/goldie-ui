@@ -71,6 +71,81 @@ static const enum_token_t kColors[] = {
 
 static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }
 static const char *nz(const char *s, const char *d) { return (s && *s) ? s : d; }
+static bool g_orionc_failed = false;
+
+typedef struct {
+  const char *token;
+  const char *expr;
+} flag_token_t;
+
+static const flag_token_t kShortFlagTokens[] = {
+  {"autolayout", "WINDOW_AUTO_LAYOUT"},
+  {"stackh", "WINDOW_STACK_HORIZONTAL"},
+  {"stackv", "WINDOW_STACK_VERTICAL"},
+  {"flexspace", "WINDOW_FLEXSPACE"},
+  {"vscroll", "WINDOW_VSCROLL"},
+  {"hscroll", "WINDOW_HSCROLL"},
+  {"notitle", "WINDOW_NOTITLE"},
+  {"nofill", "WINDOW_NOFILL"},
+  {"dialog", "WINDOW_DIALOG"},
+  {"toolbar", "WINDOW_TOOLBAR"},
+  {"statusbar", "WINDOW_STATUSBAR"},
+  {"noresize", "WINDOW_NORESIZE"},
+  {"notraybutton", "WINDOW_NOTRAYBUTTON"},
+  {"notabstop", "WINDOW_NOTABSTOP"},
+  {"default", "BUTTON_DEFAULT"},
+  {"pushlike", "BUTTON_PUSHLIKE"},
+};
+
+static const char *orionc_flag_expr_from_token(const char *token) {
+  if (!token || !*token)
+    return NULL;
+  for (int i = 0; i < ARRAY_LEN(kShortFlagTokens); i++) {
+    if (strcasecmp(token, kShortFlagTokens[i].token) == 0)
+      return kShortFlagTokens[i].expr;
+  }
+  return NULL;
+}
+
+static void orionc_append_flag_expr(char *dst, size_t cap, const char *expr) {
+  if (!dst || cap == 0 || !expr || !*expr)
+    return;
+  if (strcmp(dst, "0") == 0)
+    snprintf(dst, cap, "%s", expr);
+  else
+    snprintf(dst + strlen(dst), cap - strlen(dst), " | %s", expr);
+}
+
+static bool orionc_parse_short_flags(char *out, size_t cap, const char *raw, const char *context) {
+  if (!out || cap == 0)
+    return false;
+  snprintf(out, cap, "0");
+  if (!raw || !*raw)
+    return true;
+
+  char buf[256];
+  snprintf(buf, sizeof(buf), "%s", raw);
+  char *save = NULL;
+  for (char *tok = strtok_r(buf, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+    while (*tok == ' ' || *tok == '\t' || *tok == '\n' || *tok == '\r')
+      tok++;
+    size_t n = strlen(tok);
+    while (n > 0 && (tok[n - 1] == ' ' || tok[n - 1] == '\t' || tok[n - 1] == '\n' || tok[n - 1] == '\r'))
+      tok[--n] = '\0';
+    if (!tok[0])
+      continue;
+
+    const char *expr = orionc_flag_expr_from_token(tok);
+    if (!expr) {
+      fprintf(stderr, "orionc_alt: unknown short flag token '%s' in %s\n", tok, nz(context, "flags"));
+      g_orionc_failed = true;
+      return false;
+    }
+    orionc_append_flag_expr(out, cap, expr);
+  }
+
+  return true;
+}
 static bool elem(xmlNodePtr n, const char *name) {
   return n && n->type == XML_ELEMENT_NODE && xmlStrcasecmp(n->name, BAD_CAST name) == 0;
 }
@@ -197,9 +272,13 @@ static bool is_control(xmlNodePtr parent, xmlNodePtr n) {
 }
 static bool has_controls(xmlNodePtr n) { EACH_ELEMENT(c, n) if (is_control(n, c)) return true; return false; }
 
-static void emit_defines(FILE *f, const ids_t *ids, const char *base) {
-  for (int i = 0; i < ids->n; i++) OUT("#define %s (%s + %d)\n", ids->v[i].name, base, i + 1);
-  if (ids->n) LINE("\n");
+static void emit_enum_ids(FILE *f, const ids_t *ids, const char *base) {
+  if (ids->n <= 0)
+    return;
+  LINE("enum {\n");
+  for (int i = 0; i < ids->n; i++)
+    OUT("  %s = (%s + %d),\n", ids->v[i].name, base, i + 1);
+  LINE("};\n\n");
 }
 
 static void collect_menu_ids(ids_t *ids, xmlNodePtr menu, const char *scope) {
@@ -312,10 +391,11 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
     EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
       char *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text");
-      char id[256] = "0", textq[ORIONC_STRING_SIZE], menu_scope[128];
+      char id[256] = "0", textq[ORIONC_STRING_SIZE], menu_scope[128], item_flags[256];
+      orionc_parse_short_flags(item_flags, sizeof(item_flags), flags, "toolbar item flags");
       if (!elem(it, "separator") && !elem(it, "spacer")) { ident(menu_scope, sizeof(menu_scope), nz(menu, scope), true); scoped(id, sizeof(id), menu_scope, name, text); }
       if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
-      OUT("  { %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq);
+      OUT("  { %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), item_flags, textq);
       free(menu); free(name); free(icon); free(w); free(flags); free(text);
     }
     OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
@@ -339,6 +419,44 @@ static void singular_name(char *out, size_t cap, const char *name) {
   snprintf(out, cap, "%s", id);
 }
 
+static xmlNodePtr db_find_table_node(xmlNodePtr db, const char *table_name) {
+  if (!db || !table_name || !*table_name)
+    return NULL;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *name = attr(t, "name");
+    bool ok = name && strcmp(name, table_name) == 0;
+    free(name);
+    if (ok)
+      return t;
+  }
+  return NULL;
+}
+
+static bool table_has_field_named(xmlNodePtr table, const char *field_name) {
+  if (!table || !field_name || !*field_name)
+    return false;
+  EACH_ELEMENT(field, table) if (elem(field, "field")) {
+    char *name = attr(field, "name");
+    bool ok = name && strcmp(name, field_name) == 0;
+    free(name);
+    if (ok)
+      return true;
+  }
+  return false;
+}
+
+static bool join_alias_field_available(xmlNodePtr table, const char *table_name, const char *alias, const char *foreign_field) {
+  char alias_field[128];
+  snprintf(alias_field, sizeof(alias_field), "%s_%s", nz(alias, "alias"), nz(foreign_field, "field"));
+  if (!table_has_field_named(table, alias_field))
+    return true;
+  fprintf(stderr,
+          "orionc_alt: table '%s' relation alias '%s' field '%s' conflicts with local field '%s'\n",
+          nz(table_name, "table"), nz(alias, "alias"), nz(foreign_field, "field"), alias_field);
+  g_orionc_failed = true;
+  return false;
+}
+
 static void db_id_prefix(char *out, size_t cap, const char *db_name) {
   char up[96];
   ident(up, sizeof(up), nz(db_name, "db"), true);
@@ -356,7 +474,8 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
   char idp[128];
   db_id_prefix(idp, sizeof(idp), db_name);
 
-  // ID macros for models/sources/actions are emitted first for stable references.
+  // IDs for models/sources/actions are emitted first for stable references.
+  LINE("enum {\n");
   EACH_ELEMENT(t, db) if (elem(t, "table")) {
     char *table = attr(t, "name");
     char *model = attr(t, "model");
@@ -364,16 +483,16 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     ident(table_up, sizeof(table_up), nz(table, "table"), true);
     singular_name(singular, sizeof(singular), nz(table, "table"));
     ident(model_up, sizeof(model_up), model && *model ? model : singular, true);
-    OUT("#define %s_MODEL_%s %d\n", idp, model_up, model_i++);
-    OUT("#define %s_SOURCE_%s %d\n", idp, table_up, source_i++);
-    OUT("#define %s_ACTION_FETCH_%s %d\n", idp, table_up, action_i++);
-    OUT("#define %s_ACTION_INSERT_%s %d\n", idp, table_up, action_i++);
-    OUT("#define %s_ACTION_UPDATE_%s %d\n", idp, table_up, action_i++);
-    OUT("#define %s_ACTION_DELETE_%s %d\n", idp, table_up, action_i++);
+    OUT("  %s_MODEL_%s = %d,\n", idp, model_up, model_i++);
+    OUT("  %s_SOURCE_%s = %d,\n", idp, table_up, source_i++);
+    OUT("  %s_ACTION_FETCH_%s = %d,\n", idp, table_up, action_i++);
+    OUT("  %s_ACTION_INSERT_%s = %d,\n", idp, table_up, action_i++);
+    OUT("  %s_ACTION_UPDATE_%s = %d,\n", idp, table_up, action_i++);
+    OUT("  %s_ACTION_DELETE_%s = %d,\n", idp, table_up, action_i++);
     free(table);
     free(model);
   }
-  LINE("\n");
+  LINE("};\n\n");
 
   EACH_ELEMENT(t, db) if (elem(t, "table")) {
     char *table = attr(t, "name"), *model = attr(t, "model"), type[128], meta[128];
@@ -381,27 +500,34 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     singular_type(type, sizeof(type), table, model); ident(meta, sizeof(meta), nz(model, table), false);
     char table_up[96];
     ident(table_up, sizeof(table_up), table, true);
-    OUT("#define %s_%s %d\n", idp, table_up, table_i);
+    LINE("enum {\n");
+    OUT("  %s_%s = %d,\n", idp, table_up, table_i);
 
     // Field ids for this table.
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *name = attr(field, "name");
       char field_up[96];
       ident(field_up, sizeof(field_up), nz(name, "field"), true);
-      OUT("#define %s_%s_%s %d\n", idp, table_up, field_up, field_i++);
+      OUT("  %s_%s_%s = %d,\n", idp, table_up, field_up, field_i++);
       free(name);
     }
 
     // Join alias ids for relation fields expose foreign fields as alias.field ids.
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *relation = attr(field, "relation");
+      char *alias_attr = attr(field, "alias");
       if (relation && *relation) {
         char rel_table[96] = {0};
+        char rel_field[96] = {0};
         const char *dot = strchr(relation, '.');
-        if (dot) snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(dot - relation), relation);
+        if (dot) {
+          snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(dot - relation), relation);
+          snprintf(rel_field, sizeof(rel_field), "%s", dot + 1);
+        }
         if (rel_table[0]) {
           char alias[96], alias_up[96], rel_up[96];
-          singular_name(alias, sizeof(alias), rel_table);
+          if (alias_attr && *alias_attr) snprintf(alias, sizeof(alias), "%s", alias_attr);
+          else singular_name(alias, sizeof(alias), rel_table);
           ident(alias_up, sizeof(alias_up), alias, true);
           ident(rel_up, sizeof(rel_up), rel_table, true);
           EACH_ELEMENT(rt, db) if (elem(rt, "table")) {
@@ -410,20 +536,13 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
               EACH_ELEMENT(rf, rt) if (elem(rf, "field")) {
                 char *rf_name = attr(rf, "name");
                 char rf_up[96];
-                bool shadowed_local = false;
-                char alias_field[128];
-                snprintf(alias_field, sizeof(alias_field), "%s_%s", alias, nz(rf_name, "field"));
-                EACH_ELEMENT(local_f, t) if (elem(local_f, "field")) {
-                  char *local_name = attr(local_f, "name");
-                  if (local_name && strcmp(local_name, alias_field) == 0)
-                    shadowed_local = true;
-                  free(local_name);
-                  if (shadowed_local)
-                    break;
+                if (strcmp(nz(rf_name, "field"), rel_field) == 0) {
+                  free(rf_name);
+                  continue;
                 }
                 ident(rf_up, sizeof(rf_up), nz(rf_name, "field"), true);
-                if (!shadowed_local)
-                  OUT("#define %s_%s_%s_%s %s_%s_%s\n", idp, table_up, alias_up, rf_up, idp, rel_up, rf_up);
+                if (join_alias_field_available(t, table, alias, rf_name))
+                  OUT("  %s_%s_%s_%s = %s_%s_%s,\n", idp, table_up, alias_up, rf_up, idp, rel_up, rf_up);
                 free(rf_name);
               }
             }
@@ -432,7 +551,9 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
         }
       }
       free(relation);
+      free(alias_attr);
     }
+    LINE("};\n");
 
     OUT("typedef struct {\n");
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
@@ -443,15 +564,142 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     OUT("} %s;\n\nstatic const db_field_meta_t %s_fields[] = {\n", type, meta);
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *name = attr(field, "name"), *kind = attr(field, "type"), *len = attr(field, "length"); const field_type_t *ft = field_type(kind);
-      OUT("  { \"%s\", %s, offsetof(%s, %s), %d },\n", name, ft->db, type, name, eq(ft->c, "char") ? (len ? atoi(len) : ft->size) : 0);
+      char field_up[96];
+      ident(field_up, sizeof(field_up), nz(name, "field"), true);
+      OUT("  { %s_%s_%s, \"%s\", %s, offsetof(%s, %s), %d },\n",
+          idp, table_up, field_up, name, ft->db, type, name,
+          eq(ft->c, "char") ? (len ? atoi(len) : ft->size) : 0);
       free(name); free(kind); free(len);
     }
     OUT("};\n");
-    OUT("#define TABLE_%s %s_%s\n", table_up, idp, table_up);
+
+    OUT("static const db_field_schema_t %s_schema_fields[] = {\n", meta);
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *name = attr(field, "name");
+      char *kind = attr(field, "type");
+      char *len = attr(field, "length");
+      char *key = attr(field, "key");
+      char *relation = attr(field, "relation");
+      const field_type_t *ft = field_type(kind);
+      char field_up[96];
+      char rel_table[96] = {0};
+      char rel_field[96] = {0};
+      char rel_table_up[96] = {0};
+      char rel_field_up[96] = {0};
+      char relation_table_id[160] = "0";
+      char relation_field_id[160] = "0";
+      ident(field_up, sizeof(field_up), nz(name, "field"), true);
+      if (relation && *relation) {
+        const char *dot = strchr(relation, '.');
+        if (dot) {
+          snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(dot - relation), relation);
+          snprintf(rel_field, sizeof(rel_field), "%s", dot + 1);
+        }
+      }
+      if (rel_table[0]) ident(rel_table_up, sizeof(rel_table_up), rel_table, true);
+      if (rel_field[0]) ident(rel_field_up, sizeof(rel_field_up), rel_field, true);
+      if (rel_table_up[0] && rel_field_up[0]) {
+        snprintf(relation_table_id, sizeof(relation_table_id), "%s_%s", idp, rel_table_up);
+        snprintf(relation_field_id, sizeof(relation_field_id), "%s_%s_%s", idp, rel_table_up, rel_field_up);
+      }
+      OUT("  { %s_%s_%s, \"%s\", %s, %d, %s, %s, %s },\n",
+          idp, table_up, field_up, name, ft->db,
+          eq(ft->c, "char") ? (len ? atoi(len) : ft->size) : 0,
+          key && eq(key, "YES") ? "true" : "false",
+          relation_table_id,
+          relation_field_id);
+      free(name);
+      free(kind);
+      free(len);
+      free(key);
+      free(relation);
+    }
+    OUT("};\n");
+
+    int join_count = 0;
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *relation = attr(field, "relation");
+      char *alias_attr = attr(field, "alias");
+      if (relation && *relation)
+        join_count++;
+      free(relation);
+      free(alias_attr);
+    }
+
+    if (join_count > 0) {
+      OUT("static const db_join_schema_t %s_schema_joins[] = {\n", meta);
+      EACH_ELEMENT(field, t) if (elem(field, "field")) {
+        char *name = attr(field, "name");
+        char *relation = attr(field, "relation");
+        char *alias_attr = attr(field, "alias");
+        if (relation && *relation) {
+          char rel_table[96] = {0};
+          const char *dot = strchr(relation, '.');
+          if (dot) snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(dot - relation), relation);
+          if (rel_table[0]) {
+            char alias[96], alias_up[96], rel_up[96], local_field_up[96];
+            if (alias_attr && *alias_attr) snprintf(alias, sizeof(alias), "%s", alias_attr);
+            else singular_name(alias, sizeof(alias), rel_table);
+            ident(alias_up, sizeof(alias_up), alias, true);
+            ident(rel_up, sizeof(rel_up), rel_table, true);
+            ident(local_field_up, sizeof(local_field_up), nz(name, "field"), true);
+            EACH_ELEMENT(rt, db) if (elem(rt, "table")) {
+              char *rt_name = attr(rt, "name");
+              if (rt_name && strcmp(rt_name, rel_table) == 0) {
+                OUT("  { %s_%s_%s, \"%s\", %s_%s_%s, %s_%s, %s_%s_ID },\n",
+                    idp, table_up, local_field_up, alias,
+                    idp, table_up, local_field_up,
+                    idp, rel_up,
+                    idp, rel_up);
+              }
+              free(rt_name);
+            }
+          }
+        }
+        free(name);
+        free(relation);
+        free(alias_attr);
+      }
+      OUT("};\n");
+    }
     table_i++;
     free(table); free(model);
   }
-  if (table_i > 1) OUT("#define TABLE_COUNT %d\n\n", table_i - 1);
+  OUT("static const db_table_schema_t %s_schema_tables[] = {\n", prefix);
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *table = attr(t, "name");
+    char *model = attr(t, "model");
+    char meta[128], table_up[96], singular[96], model_up[96], join_name[160];
+    const char *model_name;
+    const char *joins_expr;
+    int join_count = 0;
+    if (!table || !*table) { free(table); free(model); continue; }
+    ident(meta, sizeof(meta), nz(model, table), false);
+    ident(table_up, sizeof(table_up), table, true);
+    singular_name(singular, sizeof(singular), nz(table, "table"));
+    model_name = model && *model ? model : singular;
+    ident(model_up, sizeof(model_up), model_name, true);
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *relation = attr(field, "relation");
+      char *alias_attr = attr(field, "alias");
+      if (relation && *relation)
+        join_count++;
+      free(relation);
+      free(alias_attr);
+    }
+    snprintf(join_name, sizeof(join_name), "%s_schema_joins", meta);
+    joins_expr = join_count > 0 ? join_name : "NULL";
+    OUT("  { %s_%s, \"%s\", %s_MODEL_%s, \"%s\", STATIC_ARRAY(%s_schema_fields), %s, %d },\n",
+      idp, table_up, table, idp, model_up,
+        model_name,
+        meta,
+        joins_expr,
+        join_count > 0 ? join_count : 0);
+    free(table);
+    free(model);
+  }
+  OUT("};\n");
+  OUT("static db_schema_def_t %s_database_schema = { NULL, NULL, NULL, STATIC_ARRAY(%s_schema_tables) };\n\n", prefix, prefix);
   OUT("static const db_api_def_t %s_database_api = { NULL, 0, NULL, 0, NULL, 0 };\n\n", prefix);
   free(db_name);
 }
@@ -464,40 +712,110 @@ static void table_name_from_source(char *out, size_t cap, const char *source) {
 static bool table_name_from_table_id(char *out, size_t cap, xmlNodePtr db, const char *table_name) {
   if (!db || !table_name || !*table_name)
     return false;
-  EACH_ELEMENT(t, db) if (elem(t, "table")) {
-    char *name = attr(t, "name");
-    bool ok = name && strcmp(name, table_name) == 0;
-    free(name);
-    if (ok) {
-      snprintf(out, cap, "%s", table_name);
-      return true;
-    }
-  }
-  return false;
+  if (!db_find_table_node(db, table_name))
+    return false;
+  snprintf(out, cap, "%s", table_name);
+  return true;
 }
 
-static void field_id_expr_from_source(char *out, size_t cap, xmlNodePtr db, const char *db_name, const char *source, const char *field) {
+static bool field_id_expr_from_source(char *out, size_t cap, xmlNodePtr db, const char *db_name, const char *source, const char *field) {
   char table[128], db_up[96], table_up[96], field_up[96];
   table_name_from_source(table, sizeof(table), source);
   ident(db_up, sizeof(db_up), nz(db_name, "db"), true);
+  xmlNodePtr source_table = db_find_table_node(db, table);
+  if (!source_table) {
+    fprintf(stderr, "orionc_alt: source '%s' references unknown table '%s'\n", nz(source, ""), table);
+    g_orionc_failed = true;
+    snprintf(out, cap, "0");
+    return false;
+  }
   if (field && strchr(field, '.')) {
     char alias[96] = {0};
+    char rel_table[96] = {0};
+    char matched_rel_table[96] = {0};
+    char matched_rel_field[96] = {0};
+    char matched_local_field[96] = {0};
     const char *dot = strchr(field, '.');
+    int matches = 0;
     snprintf(alias, sizeof(alias), "%.*s", (int)(dot - field), field);
+    EACH_ELEMENT(relf, source_table) if (elem(relf, "field")) {
+      char *local_name = attr(relf, "name");
+      char *relation = attr(relf, "relation");
+      char *alias_attr = attr(relf, "alias");
+      char rel_alias[96] = {0};
+      char rel_field[96] = {0};
+      if (relation && *relation) {
+        const char *relation_dot = strchr(relation, '.');
+        if (relation_dot) {
+          snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(relation_dot - relation), relation);
+          snprintf(rel_field, sizeof(rel_field), "%s", relation_dot + 1);
+          if (alias_attr && *alias_attr) snprintf(rel_alias, sizeof(rel_alias), "%s", alias_attr);
+          else singular_name(rel_alias, sizeof(rel_alias), rel_table);
+          if (strcmp(rel_alias, alias) == 0) {
+            matches++;
+            snprintf(matched_rel_table, sizeof(matched_rel_table), "%s", rel_table);
+            snprintf(matched_rel_field, sizeof(matched_rel_field), "%s", rel_field);
+            snprintf(matched_local_field, sizeof(matched_local_field), "%s", nz(local_name, "field"));
+          }
+        }
+      }
+      free(local_name);
+      free(relation);
+      free(alias_attr);
+      if (matches > 1)
+        break;
+    }
+    if (matches == 0) {
+      fprintf(stderr, "orionc_alt: field '%s' references unknown relation alias '%s' on source '%s'\n",
+              nz(field, ""), alias, nz(source, ""));
+      g_orionc_failed = true;
+      snprintf(out, cap, "0");
+      return false;
+    }
+    if (matches > 1) {
+      fprintf(stderr, "orionc_alt: relation alias '%s' is ambiguous on source '%s'\n",
+              alias, nz(source, ""));
+      g_orionc_failed = true;
+      snprintf(out, cap, "0");
+      return false;
+    }
+    if (matched_rel_field[0] && strcmp(dot + 1, matched_rel_field) == 0) {
+      char local_field_up[96];
+      ident(table_up, sizeof(table_up), nz(table, "table"), true);
+      ident(local_field_up, sizeof(local_field_up), matched_local_field, true);
+      snprintf(out, cap, "ID_%s_%s_%s", db_up, table_up, local_field_up);
+      return true;
+    }
+        xmlNodePtr foreign_table = db_find_table_node(db, matched_rel_table);
+    if (!foreign_table || !table_has_field_named(foreign_table, dot + 1)) {
+      fprintf(stderr, "orionc_alt: field '%s' references unknown joined field '%s' on table '%s'\n",
+            nz(field, ""), dot + 1, matched_rel_table);
+      g_orionc_failed = true;
+      snprintf(out, cap, "0");
+      return false;
+    }
     ident(table_up, sizeof(table_up), nz(table, "table"), true);
     char alias_up[96];
     ident(alias_up, sizeof(alias_up), alias, true);
     ident(field_up, sizeof(field_up), dot + 1, true);
     snprintf(out, cap, "ID_%s_%s_%s_%s", db_up, table_up, alias_up, field_up);
-    return;
+    return true;
+  }
+  if (!table_has_field_named(source_table, nz(field, "id"))) {
+    fprintf(stderr, "orionc_alt: field '%s' does not exist on source '%s'\n",
+            nz(field, ""), nz(source, ""));
+    g_orionc_failed = true;
+    snprintf(out, cap, "0");
+    return false;
   }
   if (!table_name_from_table_id(table, sizeof(table), db, table)) {
     snprintf(out, cap, "0");
-    return;
+    return false;
   }
   ident(table_up, sizeof(table_up), table, true);
   ident(field_up, sizeof(field_up), nz(field, "id"), true);
   snprintf(out, cap, "ID_%s_%s_%s", db_up, table_up, field_up);
+  return true;
 }
 
 // count_table_fields — count number of fields in a database table
@@ -516,17 +834,32 @@ static int count_table_fields(xmlNodePtr db, const char *table_name) {
   return 0;
 }
 
-static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form, xmlNodePtr database, const char *db_name) {
+static bool emit_tableviews(FILE *f, xmlNodePtr parent, const char *form, xmlNodePtr database, const char *db_name) {
   EACH_ELEMENT(c, parent) {
     if (elem(c, "tableview")) {
       char *name = attr(c, "name"), *source = attrs_first(c, "source", "database");
+      char *master_key = attr(c, "master-key");
+      char db_up[96];
       char param[256], table[128], table_id[128]; snprintf(param, sizeof(param), "%s_%s_tableview_params", form, nz(name, "unnamed"));
+      char filter_expr[256] = "0";
+      ident(db_up, sizeof(db_up), db_name, true);
       table_name_from_source(table, sizeof(table), source); ident(table_id, sizeof(table_id), table, true);
+      if (master_key && *master_key && !field_id_expr_from_source(filter_expr, sizeof(filter_expr), database, db_name, source, master_key)) {
+        free(name);
+        free(source);
+        free(master_key);
+        return false;
+      }
       OUT("static const uint32_t %s_field_ids[] = { ", param);
       EACH_ELEMENT(col, c) if (elem(col, "column")) {
         char *v = attr(col, "field");
         char id_expr[256];
-        field_id_expr_from_source(id_expr, sizeof(id_expr), database, db_name, source, v);
+        if (!field_id_expr_from_source(id_expr, sizeof(id_expr), database, db_name, source, v)) {
+          free(v);
+          free(name);
+          free(source);
+          return false;
+        }
         OUT("%s, ", id_expr);
         free(v);
       }
@@ -534,14 +867,16 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form, xmlNod
       OUT("static const char *%s_titles[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "title"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
       OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("};\n");
       int col_count = 0; EACH_ELEMENT(col, c) if (elem(col, "column")) col_count++;
-      OUT("static const tableview_params_t %s = { NULL, TABLE_%s, 0, 0, %s_field_ids, %s_titles, %s_widths, %d };\n\n", param, table_id, param, param, param, col_count);
-      free(name); free(source);
+      OUT("static const tableview_params_t %s = { NULL, ID_%s_%s, %s, 0, %s_field_ids, %s_titles, %s_widths, %d };\n\n", param, db_up, table_id, filter_expr, param, param, param, col_count);
+      free(name); free(source); free(master_key);
     }
-    emit_tableviews(f, c, form, database, db_name);
+    if (!emit_tableviews(f, c, form, database, db_name))
+      return false;
   }
+  return true;
 }
 
-static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form, xmlNodePtr database, const char *db_name) {
+static bool emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form, xmlNodePtr database, const char *db_name) {
   EACH_ELEMENT(c, parent) {
     if (elem(c, "combobox")) {
       char *name = attr(c, "name"), *source = attr(c, "source");
@@ -549,23 +884,30 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form, xmlNod
       
       // Only generate params if source/display/value are all present
       if (source && display && value) {
+        char db_up[96];
         char param[256], table[128], table_id[128];
         char display_id[256], value_id[256];
         
         snprintf(param, sizeof(param), "%s_%s_combobox_params", form, nz(name, "unnamed"));
+        ident(db_up, sizeof(db_up), db_name, true);
         table_name_from_source(table, sizeof(table), source);
         ident(table_id, sizeof(table_id), table, true);
-        field_id_expr_from_source(display_id, sizeof(display_id), database, db_name, source, display);
-        field_id_expr_from_source(value_id, sizeof(value_id), database, db_name, source, value);
+        if (!field_id_expr_from_source(display_id, sizeof(display_id), database, db_name, source, display) ||
+            !field_id_expr_from_source(value_id, sizeof(value_id), database, db_name, source, value)) {
+          free(name); free(source); free(display); free(value);
+          return false;
+        }
         
-        OUT("static const combobox_params_t %s = { NULL, TABLE_%s, %s, %s };\n\n",
-            param, table_id, display_id, value_id);
+        OUT("static const combobox_params_t %s = { NULL, ID_%s_%s, %s, %s };\n\n",
+            param, db_up, table_id, display_id, value_id);
       }
       
       free(name); free(source); free(display); free(value);
     }
-    emit_comboboxes(f, c, form, database, db_name);
+    if (!emit_comboboxes(f, c, form, database, db_name))
+      return false;
   }
+  return true;
 }
 
 static const char *binding_getter(const char *klass) {
@@ -600,9 +942,11 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
       snprintf(klass, sizeof(klass), "TextEdit");
     if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
     rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
-    // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)
-    const char *auto_flex = (elem(c, "space") || elem(c, "multiedit")) ? " | WINDOW_FLEXSPACE" : "";
-    snprintf(flags, sizeof(flags), "(%s)%s%s", nz(a.v[A_FLAGS], "0"), enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL ? " | WINDOW_STACK_HORIZONTAL" : "", auto_flex);
+    orionc_parse_short_flags(flags, sizeof(flags), a.v[A_FLAGS], "control flags");
+    if (enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL)
+      orionc_append_flag_expr(flags, sizeof(flags), "WINDOW_STACK_HORIZONTAL");
+    if (elem(c, "space") || elem(c, "multiedit"))
+      orionc_append_flag_expr(flags, sizeof(flags), "WINDOW_FLEXSPACE");
     snprintf(spacing, sizeof(spacing), "%u", byte_attr(a.v[A_SPACING], ORIONC_DEFAULT_SPACING));
     snprintf(font, sizeof(font), "%s", eq(a.v[A_FONT], "system") ? "FONT_SYSTEM" : eq(a.v[A_FONT], "icon") ? "FONT_ICON" : "FONT_SMALL");
     snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));
@@ -655,33 +999,36 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
 
 static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr database) {
   char *name = attr(form, "name"), *title = attr(form, "title"), *flags = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *spacing = attrs_first(form, "spacing", "layout_spacing");
+  char form_flags[256];
+  orionc_parse_short_flags(form_flags, sizeof(form_flags), flags, "form flags");
   rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE];
   if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
   char *db_name = database ? attr(database, "name") : NULL;
-  emit_tableviews(f, form, form_id, database, db_name ? db_name : "db");
-  emit_comboboxes(f, form, form_id, database, db_name ? db_name : "db");
+  if (!emit_tableviews(f, form, form_id, database, db_name ? db_name : "db")) return false;
+  if (!emit_comboboxes(f, form, form_id, database, db_name ? db_name : "db")) return false;
   free(db_name);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
   int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
   emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");
   emit_bindings(f, prefix, form_id, &bindings);
-  OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
-      prefix, form_id, titleq, sz.w, sz.h, nz(flags, "0"), byte_attr(spacing, ORIONC_DEFAULT_SPACING),
+    OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
+      prefix, form_id, titleq, sz.w, sz.h, form_flags, byte_attr(spacing, ORIONC_DEFAULT_SPACING),
       pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h, prefix, form_id, count);
   if (toolbar && *toolbar) { char tb[128]; ident(tb, sizeof(tb), toolbar, true); OUT(", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", tb, tb); }
   else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
   if (bindings.n) {
-    char table_id[128], meta[128]; 
+    char db_up[96], table_id[128], meta[128]; 
+    ident(db_up, sizeof(db_up), bindings.db, true);
     ident(table_id, sizeof(table_id), bindings.table, true);
     ident(meta, sizeof(meta), bindings.table, false);
     int field_count = count_table_fields(database, bindings.table);
-    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = %s, .cancel_id = %s, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s, .db_fields = %s_fields, .db_field_count = %d",
+    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = %s, .cancel_id = %s, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = ID_%s_%s, .db_fields = %s_fields, .db_field_count = %d",
         prefix, form_id, bindings.n, 
         btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
         btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0",
-        bindings.db, bindings.table, table_id, meta, field_count);
+        bindings.db, bindings.table, db_up, table_id, meta, field_count);
   } else {
     OUT(", .bindings = NULL, .binding_count = 0, .ok_id = %s, .cancel_id = %s, .db_name = NULL, .db_table = NULL, .db_table_id = 0, .db_fields = NULL, .db_field_count = 0",
         btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
@@ -714,10 +1061,12 @@ int main(int argc, char **argv) {
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"), form_id[128]; if (!only || eq(name, only)) { ident(form_id, sizeof(form_id), name, false); collect_control_ids(&controls, form, form_id); } free(name); }
   tpl(f, "/* Generated by orionc_alt from {{input}}. */\n#ifndef {{guard}}\n#define {{guard}}\n\n#include \"ui.h\"\n#include \"user/icons.h\"\n\n",
       (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
-  emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
+  emit_enum_ids(f, &commands, "ID_COMMAND_BASE"); emit_enum_ids(f, &controls, "ID_CONTROL_BASE");
   emit_menus(f, menus); emit_toolbars(f, toolbars); emit_database(f, database, pre);
+  if (g_orionc_failed) return 1;
   int emitted = 0;
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; emitted++; } free(name); }
+  if (g_orionc_failed) return 1;
   OUT("#endif /* %s */\n", guard);
   fclose(f); xmlFreeDoc(doc);
   if (!emitted) { fprintf(stderr, "orionc_alt: no forms emitted from %s\n", input); return 1; }

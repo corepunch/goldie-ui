@@ -36,7 +36,7 @@ typedef struct {
 // Fetch record from database
 static void fetch_author(database_t *db, int id, author_dlg_state_t *state) {
   author_t *record = (author_t *)send_db_message(db, dbFind, 
-                                                  MAKEDWORD(TABLE_AUTHORS, 0), 
+                                                  MAKEDWORD(ID_DB_AUTHORS, 0), 
                                                   (void *)(intptr_t)id);
   if (record) {
     state->author_id = record->id;
@@ -68,9 +68,9 @@ static void save_author(database_t *db, const author_dlg_state_t *state) {
   strncpy(record.avatar, state->avatar, sizeof(record.avatar));
   
   if (state->author_id > 0) {
-    send_db_message(db, dbUpdate, MAKEDWORD(TABLE_AUTHORS, state->author_id), &record);
+    send_db_message(db, dbUpdate, MAKEDWORD(ID_DB_AUTHORS, state->author_id), &record);
   } else {
-    send_db_message(db, dbInsert, TABLE_AUTHORS, &record);
+    send_db_message(db, dbInsert, ID_DB_AUTHORS, &record);
   }
 }
 
@@ -233,7 +233,7 @@ static const form_def_t myapp_edit_author_form = {
   // Database metadata
   .db_name = "db",
   .db_table = "authors",
-  .db_table_id = TABLE_AUTHORS,
+  .db_table_id = ID_DB_AUTHORS,
   .db_fields = authors_fields,
   .db_field_count = 3,
 };
