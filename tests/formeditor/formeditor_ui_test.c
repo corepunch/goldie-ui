@@ -93,8 +93,67 @@ static window_t *fe_find_child_by_title(window_t *parent, const char *title) {
   return NULL;
 }
 
+static int fe_child_count_by_proc(window_t *parent, winproc_t proc) {
+  int count = 0;
+  for (window_t *child = parent ? parent->children : NULL; child; child = child->next) {
+    if (child->proc == proc)
+      count++;
+  }
+  return count;
+}
+
+static window_t *fe_child_at_by_proc(window_t *parent, winproc_t proc, int index) {
+  int i = 0;
+  for (window_t *child = parent ? parent->children : NULL; child; child = child->next) {
+    if (child->proc != proc)
+      continue;
+    if (i == index)
+      return child;
+    i++;
+  }
+  return NULL;
+}
+
+static window_t *fe_find_root_by_title(const char *title) {
+  for (window_t *win = g_ui_runtime.windows; win; win = win->next) {
+    if (strcmp(win->title, title) == 0)
+      return win;
+  }
+  return NULL;
+}
+
 static window_t *fe_browser_list(window_t *browser) {
   return browser ? browser->children : NULL;
+}
+
+static const db_field_schema_t fe_test_db_fields[] = {
+  { .field_id = 1, .name = "id", .type = DB_TYPE_INT, .primary_key = true },
+  { .field_id = 2, .name = "title", .type = DB_TYPE_STRING, .length = 64 },
+};
+
+static const db_table_schema_t fe_test_db_tables[] = {
+  {
+    .table_id = 1,
+    .name = "posts",
+    .fields = fe_test_db_fields,
+    .field_count = ARRAY_LEN(fe_test_db_fields),
+  },
+};
+
+static const db_schema_def_t fe_test_db_schema = {
+  .name = "db",
+  .class_name = "test",
+  .tables = fe_test_db_tables,
+  .table_count = ARRAY_LEN(fe_test_db_tables),
+};
+
+static lresult_t fe_test_db_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
+  (void)db;
+  (void)wparam;
+  (void)lparam;
+  if (msg == dbGetSchema)
+    return (lresult_t)&fe_test_db_schema;
+  return true;
 }
 
 void test_fe_create_doc_tracks_active_form(void) {
@@ -286,6 +345,52 @@ void test_fe_plugins_browser_lists_project_plugins(void) {
   PASS();
 }
 
+void test_fe_database_browser_cascades_reportviews(void) {
+  TEST("database browser: selection spawns independent reportview columns");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  database_t db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  g_app->project.databases[0] = &db;
+  g_app->project.database_count = 1;
+
+  formeditor_show_database_object_window(0);
+
+  window_t *browser = fe_find_root_by_title("Databases");
+  ASSERT_NOT_NULL(browser);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 1);
+
+  window_t *db_list = fe_child_at_by_proc(browser, win_reportview, 0);
+  ASSERT_NOT_NULL(db_list);
+  ASSERT_EQUAL((int)send_message(db_list, RVM_GETITEMCOUNT, 0, NULL), 1);
+
+  send_message(browser, evCommand, MAKEDWORD(0, RVN_SELCHANGE), db_list);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 2);
+
+  window_t *table_list = fe_child_at_by_proc(browser, win_reportview, 1);
+  ASSERT_NOT_NULL(table_list);
+  ASSERT_EQUAL((int)send_message(table_list, RVM_GETITEMCOUNT, 0, NULL), 1);
+
+  send_message(browser, evCommand, MAKEDWORD(0, RVN_SELCHANGE), table_list);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 3);
+
+  window_t *field_list = fe_child_at_by_proc(browser, win_reportview, 2);
+  ASSERT_NOT_NULL(field_list);
+  ASSERT_EQUAL((int)send_message(field_list, RVM_GETITEMCOUNT, 0, NULL),
+               (int)ARRAY_LEN(fe_test_db_fields));
+
+  send_message(browser, evCommand, MAKEDWORD(0, RVN_SELCHANGE), db_list);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 2);
+
+  fe_teardown();
+  PASS();
+}
+
 int main(void) {
   TEST_START("Form Editor Window-First Smoke");
 
@@ -298,6 +403,7 @@ int main(void) {
   test_fe_forms_browser_lists_open_documents();
   test_fe_property_browser_refresh_populates_rows();
   test_fe_plugins_browser_lists_project_plugins();
+  test_fe_database_browser_cascades_reportviews();
 
   TEST_END();
 }
