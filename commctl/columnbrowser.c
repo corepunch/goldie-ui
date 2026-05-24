@@ -43,6 +43,17 @@ static const char *cb_column_title(window_t *win, column_browser_state_t *st, in
   return "";
 }
 
+static void cb_sync_hscroll(window_t *win, int total_w, int page_w) {
+  scroll_info_t si = {
+    .fMask = SIF_ALL,
+    .nMin = 0,
+    .nMax = total_w,
+    .nPage = (uint32_t)page_w,
+    .nPos = (int)win->hscroll.pos,
+  };
+  set_scroll_info(win, SB_HORZ, &si, false);
+}
+
 static void cb_layout_columns(window_t *win, column_browser_state_t *st) {
   if (!win || !st)
     return;
@@ -56,6 +67,12 @@ static void cb_layout_columns(window_t *win, column_browser_state_t *st) {
     if (st->columns[column])
       total_w += cb_column_width(win, st, column);
   }
+  if (total_w < cr.w)
+    total_w = cr.w;
+
+  cb_sync_hscroll(win, total_w, cr.w);
+
+  cr = get_client_rect(win);
   if (total_w < cr.w)
     total_w = cr.w;
 
@@ -75,13 +92,7 @@ static void cb_layout_columns(window_t *win, column_browser_state_t *st) {
     x += w;
   }
 
-  scroll_info_t si = {0};
-  si.fMask = SIF_ALL;
-  si.nMin = 0;
-  si.nMax = total_w;
-  si.nPage = (uint32_t)cr.w;
-  si.nPos = (int)win->hscroll.pos;
-  set_scroll_info(win, SB_HORZ, &si, false);
+  cb_sync_hscroll(win, total_w, cr.w);
 
   invalidate_window(win);
 }
@@ -153,6 +164,10 @@ static bool cb_populate_column(window_t *win, column_browser_state_t *st, int co
       st->delegate.load_cell(st->delegate.userdata, win, column, row, &item);
     if (!item.text)
       item.text = "";
+    if (st->delegate.is_leaf &&
+        !st->delegate.is_leaf(st->delegate.userdata, win, column, row)) {
+      item.flags |= RVI_DISCLOSURE;
+    }
     send_message(col, RVM_ADDITEM, 0, &item);
   }
 
@@ -348,6 +363,31 @@ lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void 
     case evResize:
       cb_layout_columns(win, st);
       return true;
+
+    case evHitTest: {
+      uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
+      for (window_t *item = win->children; item; item = item->next) {
+        irect16_t r = item->frame;
+        if ((item->flags & WINDOW_NOTABSTOP) ||
+            x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h)
+          continue;
+        lresult_t hit = send_message(item, evHitTest,
+                                     MAKEDWORD((uint16_t)(x - r.x),
+                                               (uint16_t)(y - r.y)),
+                                     NULL);
+        return hit ? (hit == 1 ? (lresult_t)(intptr_t)item : hit)
+                   : (lresult_t)(intptr_t)item;
+      }
+      return false;
+    }
+
+    case evPaint: {
+      uint32_t scroll_x = win->hscroll.pos;
+      win->hscroll.pos = 0;
+      lresult_t result = default_winproc(win, msg, wparam, lparam);
+      win->hscroll.pos = scroll_x;
+      return result;
+    }
 
     case evHScroll:
       win->hscroll.pos = (uint32_t)wparam;

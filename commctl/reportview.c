@@ -114,8 +114,20 @@ static void report_paint(window_t *win, reportview_data_t *data) {
         uint32_t idx = col - 1;
         src = (idx < it->subitem_count && it->subitems[idx]) ? it->subitems[idx] : "";
       }
-      draw_text_clipped(FONT_SMALL, src, &(irect16_t){col_x, y, col_w, ENTRY_HEIGHT},
+      int text_w = col_w;
+      if (col == 0 && (it->flags & RVI_DISCLOSURE))
+        text_w = MAX(1, col_w - THEME_ICON_SIZE - TEXT_PADDING_LEFT);
+      draw_text_clipped(FONT_SMALL, src, &(irect16_t){col_x, y, text_w, ENTRY_HEIGHT},
                         fg, TEXT_PADDING_LEFT);
+      if (col == 0 && (it->flags & RVI_DISCLOSURE)) {
+        irect16_t icon_r = {
+          col_x + col_w - THEME_ICON_SIZE - 2,
+          y + (ENTRY_HEIGHT - THEME_ICON_SIZE) / 2,
+          THEME_ICON_SIZE,
+          THEME_ICON_SIZE
+        };
+        draw_theme_icon_in_rect(THEME_ICON_SCROLL_RIGHT, icon_r, fg);
+      }
     }
 
     col_x += col_w;

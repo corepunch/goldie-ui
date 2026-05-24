@@ -59,7 +59,12 @@ typedef struct {
   uint32_t userdata;
   const char *subitems[REPORTVIEW_MAX_SUBITEMS];
   uint32_t subitem_count;
+  uint32_t flags;
 } reportview_item_t;
+
+enum {
+  RVI_DISCLOSURE = 1u << 0, // draw a right-side arrow hint for rows that expand
+};
 
 // ReportView notifications
 enum {

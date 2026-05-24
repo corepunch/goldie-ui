@@ -317,8 +317,8 @@ void draw_builtin_scrollbars(window_t *win) {
 
   window_t *root = get_root_window(win);
   int root_t = titlebar_height(root);
-  int base_x = window_screen_x(win) - root->frame.x;
-  int base_y = window_screen_y(win) - (root->frame.y + root_t);
+  int base_x = win->parent ? window_screen_x(win) - root->frame.x : (int)root->hscroll.pos;
+  int base_y = win->parent ? window_screen_y(win) - (root->frame.y + root_t) : 0;
 
   bool h_merged = has_h && (win->flags & WINDOW_STATUSBAR);
   int content_h = win->frame.h - t - s;

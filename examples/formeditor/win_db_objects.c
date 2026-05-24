@@ -9,11 +9,13 @@
 #define DBOBJ_COL_DB_W 120
 #define DBOBJ_COL_TABLE_W 120
 #define DBOBJ_COL_FIELD_W 140
+#define DBOBJ_COL_RECORD_W 160
 
 enum {
   DBOBJ_LEVEL_DATABASE = 0,
   DBOBJ_LEVEL_TABLE,
   DBOBJ_LEVEL_FIELD,
+  DBOBJ_LEVEL_RELATED_RECORD,
 };
 
 static window_t *g_db_objects_win = NULL;
@@ -40,6 +42,61 @@ static const db_table_schema_t *dbobj_selected_table(window_t *browser) {
   return &schema->tables[table_idx];
 }
 
+static db_t *dbobj_selected_db(window_t *browser) {
+  int db_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_DATABASE, NULL);
+  return db_project_at(db_idx);
+}
+
+static const db_field_schema_t *dbobj_selected_field(window_t *browser) {
+  int field_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_FIELD, NULL);
+  const db_table_schema_t *table = dbobj_selected_table(browser);
+  if (!table || !table->fields || field_idx < 0 || field_idx >= table->field_count)
+    return NULL;
+  return &table->fields[field_idx];
+}
+
+static const db_table_schema_t *dbobj_table_by_id(const db_schema_def_t *schema, uint32_t table_id) {
+  if (!schema || !schema->tables || schema->table_count <= 0 || table_id == 0)
+    return NULL;
+  for (int i = 0; i < schema->table_count; i++) {
+    if (schema->tables[i].table_id == table_id)
+      return &schema->tables[i];
+  }
+  return NULL;
+}
+
+static const db_table_schema_t *dbobj_selected_related_table(window_t *browser) {
+  int db_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_DATABASE, NULL);
+  const db_schema_def_t *schema = db_schema_at(db_idx);
+  const db_field_schema_t *field = dbobj_selected_field(browser);
+  if (!field || field->relation_table_id == 0)
+    return NULL;
+  return dbobj_table_by_id(schema, field->relation_table_id);
+}
+
+static const db_field_schema_t *dbobj_display_field(const db_table_schema_t *table) {
+  const db_field_schema_t *fallback = NULL;
+  if (!table || !table->fields || table->field_count <= 0)
+    return NULL;
+  for (int i = 0; i < table->field_count; i++) {
+    const db_field_schema_t *field = &table->fields[i];
+    if (!fallback && !field->primary_key)
+      fallback = field;
+    if (!field->primary_key && field->type == DB_TYPE_STRING)
+      return field;
+  }
+  return fallback ? fallback : &table->fields[0];
+}
+
+static result_node_t *dbobj_fetch_related_records(window_t *browser) {
+  db_t *db = dbobj_selected_db(browser);
+  const db_table_schema_t *related_table = dbobj_selected_related_table(browser);
+  if (!db || !related_table)
+    return NULL;
+  return (result_node_t *)send_db_message(db, dbFetch,
+    MAKEDWORD(related_table->table_id, 0), (void *)(intptr_t)0);
+}
+
 static int dbobj_number_of_rows(void *ctx, window_t *browser, int column) {
   (void)ctx;
 
@@ -57,6 +114,13 @@ static int dbobj_number_of_rows(void *ctx, window_t *browser, int column) {
   if (column == DBOBJ_LEVEL_FIELD) {
     const db_table_schema_t *table = dbobj_selected_table(browser);
     return (table && table->fields && table->field_count > 0) ? table->field_count : 1;
+  }
+
+  if (column == DBOBJ_LEVEL_RELATED_RECORD) {
+    result_node_t *records = dbobj_fetch_related_records(browser);
+    int count = count_result_list(records);
+    free_result_list(records);
+    return count > 0 ? count : 1;
   }
 
   return 0;
@@ -96,7 +160,44 @@ static bool dbobj_load_cell(void *ctx, window_t *browser, int column, int row,
       item->text = "No columns";
       return true;
     }
-    item->text = table->fields[row].name ? table->fields[row].name : "Column";
+    const db_field_schema_t *field = &table->fields[row];
+    item->text = field->name ? field->name : "Column";
+    if (field->relation_table_id != 0 && table->joins) {
+      for (int i = 0; i < table->join_count; i++) {
+        if (table->joins[i].local_field_id == field->field_id && table->joins[i].name) {
+          item->text = table->joins[i].name;
+          break;
+        }
+      }
+    }
+    return true;
+  }
+
+  if (column == DBOBJ_LEVEL_RELATED_RECORD) {
+    db_t *db = dbobj_selected_db(browser);
+    const db_table_schema_t *related_table = dbobj_selected_related_table(browser);
+    const db_field_schema_t *display_field = dbobj_display_field(related_table);
+    result_node_t *records = dbobj_fetch_related_records(browser);
+    int idx = 0;
+    for (result_node_t *node = records; node; node = (result_node_t *)node->next, idx++) {
+      if (idx != row)
+        continue;
+      void *record = *(void **)node->data;
+      char text_buf[256];
+      text_buf[0] = '\0';
+      if (db && related_table && display_field && record &&
+          db_get_schema_field_text(db, related_table->table_id, record,
+                                   display_field->field_id, text_buf, sizeof(text_buf)) &&
+          text_buf[0] != '\0') {
+        item->text = text_buf;
+      } else {
+        item->text = "Record";
+      }
+      free_result_list(records);
+      return true;
+    }
+    free_result_list(records);
+    item->text = "No records";
     return true;
   }
 
@@ -105,12 +206,23 @@ static bool dbobj_load_cell(void *ctx, window_t *browser, int column, int row,
 
 static bool dbobj_is_leaf(void *ctx, window_t *browser, int column, int row) {
   (void)ctx;
-  (void)browser;
 
   if (column == DBOBJ_LEVEL_DATABASE)
     return db_project_at(row) == NULL;
-  if (column == DBOBJ_LEVEL_TABLE)
-    return dbobj_selected_table(browser) == NULL;
+  if (column == DBOBJ_LEVEL_TABLE) {
+    int db_idx = (int)send_message(browser, CBM_GETSELECTION, DBOBJ_LEVEL_DATABASE, NULL);
+    const db_schema_def_t *schema = db_schema_at(db_idx);
+    if (!schema || !schema->tables || row < 0 || row >= schema->table_count)
+      return true;
+    const db_table_schema_t *table = &schema->tables[row];
+    return !table->fields || table->field_count <= 0;
+  }
+  if (column == DBOBJ_LEVEL_FIELD) {
+    const db_table_schema_t *table = dbobj_selected_table(browser);
+    if (!table || !table->fields || row < 0 || row >= table->field_count)
+      return true;
+    return table->fields[row].relation_table_id == 0;
+  }
   return true;
 }
 
@@ -122,6 +234,10 @@ static const char *dbobj_title_of_column(void *ctx, window_t *browser, int colum
     case DBOBJ_LEVEL_DATABASE: return "Database";
     case DBOBJ_LEVEL_TABLE:    return "Table";
     case DBOBJ_LEVEL_FIELD:    return "Column";
+    case DBOBJ_LEVEL_RELATED_RECORD: {
+      const db_table_schema_t *table = dbobj_selected_related_table(browser);
+      return table && table->name ? table->name : "Records";
+    }
     default:                   return "";
   }
 }
@@ -134,6 +250,7 @@ static int dbobj_width_of_column(void *ctx, window_t *browser, int column) {
     case DBOBJ_LEVEL_DATABASE: return DBOBJ_COL_DB_W;
     case DBOBJ_LEVEL_TABLE:    return DBOBJ_COL_TABLE_W;
     case DBOBJ_LEVEL_FIELD:    return DBOBJ_COL_FIELD_W;
+    case DBOBJ_LEVEL_RELATED_RECORD: return DBOBJ_COL_RECORD_W;
     default:                   return DBOBJ_COL_TABLE_W;
   }
 }
