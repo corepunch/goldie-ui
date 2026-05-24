@@ -82,6 +82,8 @@ enum {
   // Framework drag-item move/drop notifications.
   // wparam = MAKEDWORD(client_x, client_y) in the target window's local space
   // lparam = ui_drag_item_payload_t*
+  evMouseDragEnter,
+  evMouseDragLeave,
   evMouseDrag,
   evMouseDrop,
   evUser = 1000

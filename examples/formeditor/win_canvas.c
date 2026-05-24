@@ -115,6 +115,12 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       if (!canvas_drag_overlay_update(win, LOWORD(wparam), HIWORD(wparam)))
         canvas_drag_overlay_clear(win);
       return true;
+    case evMouseDragEnter:
+      (void)canvas_drag_overlay_update(win, LOWORD(wparam), HIWORD(wparam));
+      return true;
+    case evMouseDragLeave:
+      canvas_drag_overlay_clear(win);
+      return true;
     case evMouseDrop:
       canvas_drag_overlay_clear(win);
       return true;

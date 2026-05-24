@@ -5,6 +5,7 @@
 #include "draw.h"
 
 static window_t *g_drag_item_win = NULL;
+static window_t *g_drag_item_target = NULL;
 static ui_drag_item_payload_t g_drag_item_payload = {0};
 
 #define DRAG_ITEM_PAD_X    4
@@ -46,11 +47,15 @@ static void ui_drag_item_measure_rect(const char *text, int sx, int sy,
   *out = (irect16_t){(int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h};
 }
 
-static void ui_drag_item_notify(uint32_t msg, int sx, int sy) {
+static window_t *ui_drag_item_pick_target(int sx, int sy) {
   window_t *hit = find_window(sx, sy);
   window_t *target = hit ? get_root_window(hit) : NULL;
   if (!target)
     target = g_ui_runtime.focused ? get_root_window(g_ui_runtime.focused) : NULL;
+  return target;
+}
+
+static void ui_drag_item_notify_target(window_t *target, uint32_t msg, int sx, int sy) {
   if (!target)
     return;
   ipoint16_t client = window_client_origin_xy(target);
@@ -71,6 +76,7 @@ void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
     g_drag_item_payload = *payload;
   else
     g_drag_item_payload = (ui_drag_item_payload_t){0};
+  g_drag_item_target = NULL;
 
   irect16_t r;
   ui_drag_item_measure_rect(text, g_ui_runtime.mouse_x, g_ui_runtime.mouse_y, &r);
@@ -100,6 +106,8 @@ void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
 }
 
 void ui_drag_item_move(int sx, int sy) {
+  window_t *target;
+
   if (!g_drag_item_win)
     return;
   irect16_t r;
@@ -109,15 +117,24 @@ void ui_drag_item_move(int sx, int sy) {
     g_drag_item_win->frame.h = r.h;
   }
   move_window(g_drag_item_win, r.x, r.y);
-  ui_drag_item_notify(evMouseDrag, sx, sy);
+
+  target = ui_drag_item_pick_target(sx, sy);
+  if (target != g_drag_item_target) {
+    ui_drag_item_notify_target(g_drag_item_target, evMouseDragLeave, sx, sy);
+    g_drag_item_target = target;
+    ui_drag_item_notify_target(g_drag_item_target, evMouseDragEnter, sx, sy);
+  }
+  ui_drag_item_notify_target(g_drag_item_target, evMouseDrag, sx, sy);
 }
 
 void ui_drag_item_clear(void) {
   if (!g_drag_item_win)
     return;
-  ui_drag_item_notify(evMouseDrop, g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
+  ui_drag_item_notify_target(g_drag_item_target, evMouseDrop,
+                             g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
   window_t *drag_win = g_drag_item_win;
   g_drag_item_win = NULL;
+  g_drag_item_target = NULL;
   destroy_window(drag_win);
   g_drag_item_payload = (ui_drag_item_payload_t){0};
 }
