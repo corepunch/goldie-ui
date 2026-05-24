@@ -532,8 +532,8 @@ void test_toolbar_button_click_fires_command(void) {
     PASS();
 }
 
-void test_toolbar_notitle_nonclient_mouseup_fires(void) {
-    TEST("WINDOW_NOTITLE toolbar: NonClientLeftButtonUp activates child");
+void test_toolbar_notitle_toolbar_band_starts_drag_instead_of_click(void) {
+    TEST("WINDOW_NOTITLE toolbar: toolbar band is draggable, not clickable");
 
     test_env_init();
 
@@ -553,6 +553,7 @@ void test_toolbar_notitle_nonclient_mouseup_fires(void) {
     toolbar_state_t *tb = require_toolbar_state(win);
     ASSERT_NOT_NULL(tb);
     irect16_t r = tb->item_rects[0];
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
 
     // Compute a hit point inside the button's screen frame.
     // btn->frame.x/y are toolbar-band-relative; for WINDOW_NOTITLE title_h=0,
@@ -561,12 +562,13 @@ void test_toolbar_notitle_nonclient_mouseup_fires(void) {
     int hit_x = win->frame.x + r.x + r.w / 2;
     int hit_y = (win->frame.y + title_h) + r.y + r.h / 2;
 
-    // Exercise the real event-dispatch path for title-less tool windows.
+    // Title-less palettes intentionally use the toolbar band as drag chrome.
+    // The click must not be routed as a toolbar button activation.
     dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonDown);
     dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonUp);
 
-    ASSERT_EQUAL(g_click_count, 1);
-    ASSERT_EQUAL(g_last_click_ident, 77);
+    ASSERT_EQUAL(g_click_count, 0);
+    ASSERT_EQUAL(g_last_click_ident, -1);
 
     destroy_window(win);
     test_env_shutdown();
@@ -760,7 +762,7 @@ int main(int argc, char *argv[]) {
     test_toolbar_set_items_separator();
     test_toolbar_set_items_spacer();
     test_toolbar_button_click_fires_command();
-    test_toolbar_notitle_nonclient_mouseup_fires();
+    test_toolbar_notitle_toolbar_band_starts_drag_instead_of_click();
     test_toolbar_textedit_click_focuses_and_enters_editing();
     test_titlebar_click_does_not_focus_toolbar_textedit();
     test_toolbar_destroy_clears_children();

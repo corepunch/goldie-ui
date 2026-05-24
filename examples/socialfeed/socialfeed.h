@@ -36,11 +36,11 @@
 // Example usage:
 //   // Insert
 //   author_t author = { .name = "alice" };
-//   author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+//   author_t *inserted = (author_t *)send_db_message(db, dbInsert, ID_DB_AUTHORS, &author);
 //
 //   // Fetch all posts
 //   result_node_t *posts = (result_node_t *)send_db_message(db, dbFetch,
-//     MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+//     MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)0);
 //   int count = count_result_list(posts);
 //   free_result_list(posts);
 //

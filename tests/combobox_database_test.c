@@ -5,9 +5,6 @@
 #include "test_env.h"
 #include "../ui.h"
 
-// Simple test database setup
-static database_t *g_test_db = NULL;
-
 typedef struct {
   int id;
   char name[64];
@@ -18,72 +15,6 @@ static test_author_t g_authors[] = {
   {2, "Bob"},
   {3, "Charlie"}
 };
-
-// Object proc for test authors (must be defined outside test_db_proc)
-static lresult_t test_author_obj_proc(const void *obj, uint32_t msg, uint32_t wparam, void *lparam) {
-  if (msg == dbObjGetFieldText) {
-    const test_author_t *author = (const test_author_t *)obj;
-    uint16_t column_id = LOWORD(wparam);
-    size_t buf_sz = (size_t)HIWORD(wparam);
-    char *buf = (char *)lparam;
-    
-    if (column_id == 0 && buf && buf_sz > 0) {  // name field
-      strncpy(buf, author->name, buf_sz - 1);
-      buf[buf_sz - 1] = '\0';
-      return 1;
-    }
-  }
-  return 0;
-}
-
-// Simple database proc for testing
-static lresult_t test_db_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
-  (void)db;  // unused
-  
-  switch (msg) {
-    case dbFetch: {
-      int table_id = LOWORD(wparam);
-      if (table_id != 1) return 0;  // TABLE_AUTHORS = 1
-      
-      // Build result list with pointers to records (matching socialfeed pattern)
-      result_node_t *head = NULL;
-      result_node_t *tail = NULL;
-      
-      for (int i = 0; i < 3; i++) {
-        result_node_t *node = malloc(sizeof(result_node_t) + sizeof(test_author_t *));
-        if (!node) break;
-        
-        // Store pointer to author record (not the struct itself)
-        *(test_author_t **)node->data = &g_authors[i];
-        node->next = NULL;
-        
-        if (!head) {
-          head = tail = node;
-        } else {
-          tail->next = node;
-          tail = node;
-        }
-      }
-      
-      return (lresult_t)head;
-    }
-    
-    case dbGetObjectProc: {
-      return (lresult_t)test_author_obj_proc;
-    }
-    
-    case dbGetFieldBindings: {
-      static const db_field_msg_binding_t bindings[] = {
-        {.field_id = 1, .column_id = 0}
-      };
-      if (lparam) *(int*)lparam = 1;
-      return (lresult_t)bindings;
-    }
-    
-    default:
-      return 0;
-  }
-}
 
 // Test manual combobox population
 void test_combobox_manual_population(void) {

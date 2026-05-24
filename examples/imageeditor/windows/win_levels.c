@@ -208,7 +208,7 @@ static void lv_sync_edit_fields(lv_state_t *st) {
   if (!st || !st->dlg_win) return;
   memset(&ddx, 0, sizeof(ddx));
   lv_ddx_from_comp(st, &ddx);
-  dialog_push(st->dlg_win, &ddx, k_lv_bindings, ARRAY_LEN(k_lv_bindings));
+  dialog_push(st->dlg_win, &ddx, STATIC_ARRAY(k_lv_bindings));
 }
 
 static bool lv_pull_bindings_for_command(lv_state_t *st, uint16_t command) {

@@ -180,26 +180,131 @@ const db_outlet_def_t *db_api_find_outlet(const db_api_def_t *api, uint32_t outl
   return NULL;
 }
 
-bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
-                              db_object_proc_t proc, const void *object,
-                              uint32_t field_id, char *buf, size_t buf_sz) {
-  if (!bindings || binding_count <= 0 || !proc || !object || !buf || buf_sz == 0 || field_id == 0)
-    return false;
-  // HIWORD(wparam) is 16-bit in the Action-Message DDX contract.
-  if (buf_sz > 0xffffu)
-    return false;
-  
-  for (int i = 0; i < binding_count; i++) {
-    if (bindings[i].field_id != field_id)
-      continue;
-    
-    buf[0] = '\0';
-    uint32_t packed = MAKEDWORD(bindings[i].column_id, (uint16_t)buf_sz);
-    lresult_t result = proc(object, dbObjGetFieldText, packed, buf);
-    return result ? true : false;
+static const db_table_schema_t *db_find_table_schema(const db_schema_def_t *schema, uint32_t table_id) {
+  if (!schema || !schema->tables || schema->table_count <= 0 || table_id == 0)
+    return NULL;
+  for (int i = 0; i < schema->table_count; i++) {
+    if (schema->tables[i].table_id == table_id)
+      return &schema->tables[i];
   }
-  
-  return false;
+  return NULL;
+}
+
+static const db_field_schema_t *db_find_field_schema(const db_table_schema_t *table, uint32_t field_id) {
+  if (!table || !table->fields || table->field_count <= 0 || field_id == 0)
+    return NULL;
+  for (int i = 0; i < table->field_count; i++) {
+    if (table->fields[i].field_id == field_id)
+      return &table->fields[i];
+  }
+  return NULL;
+}
+
+static const db_field_meta_t *db_find_field_meta(const db_field_meta_t *fields, int field_count, uint32_t field_id) {
+  if (!fields || field_count <= 0 || field_id == 0)
+    return NULL;
+  for (int i = 0; i < field_count; i++) {
+    if (fields[i].field_id == field_id)
+      return &fields[i];
+  }
+  return NULL;
+}
+
+static bool db_resolve_joined_field(database_t *db, const db_table_schema_t *table,
+                                    uint32_t field_id, const db_join_schema_t **join_out,
+                                    const db_field_meta_t **foreign_field_out) {
+  if (!db || !table || !table->joins || table->join_count <= 0 || field_id == 0 ||
+      !join_out || !foreign_field_out)
+    return false;
+
+  const db_join_schema_t *match = NULL;
+  const db_field_meta_t *match_field = NULL;
+  for (int i = 0; i < table->join_count; i++) {
+    int foreign_field_count = 0;
+    const db_field_meta_t *foreign_fields = (const db_field_meta_t *)send_db_message(
+      db, dbGetFieldMeta, table->joins[i].foreign_table_id, &foreign_field_count);
+    const db_field_meta_t *foreign_field = db_find_field_meta(foreign_fields, foreign_field_count, field_id);
+    if (!foreign_field)
+      continue;
+    if (match)
+      return false;
+    match = &table->joins[i];
+    match_field = foreign_field;
+  }
+
+  if (!match || !match_field)
+    return false;
+  *join_out = match;
+  *foreign_field_out = match_field;
+  return true;
+}
+
+static bool db_format_field_value(const db_field_meta_t *field, const void *record, char *buf, size_t buf_sz) {
+  if (!field || !record || !buf || buf_sz == 0)
+    return false;
+  const void *field_ptr = (const char *)record + field->offset;
+  switch (field->type) {
+    case DB_TYPE_INT:
+      snprintf(buf, buf_sz, "%d", *(const int *)field_ptr);
+      return true;
+    case DB_TYPE_STRING:
+      snprintf(buf, buf_sz, "%s", (const char *)field_ptr);
+      return true;
+    case DB_TYPE_BOOL:
+      snprintf(buf, buf_sz, "%s", *(const bool *)field_ptr ? "true" : "false");
+      return true;
+    case DB_TYPE_FLOAT:
+      snprintf(buf, buf_sz, "%g", *(const float *)field_ptr);
+      return true;
+    case DB_TYPE_DOUBLE:
+      snprintf(buf, buf_sz, "%g", *(const double *)field_ptr);
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool db_get_schema_field_text(database_t *db, uint32_t table_id, const void *record,
+                              uint32_t field_id, char *buf, size_t buf_sz) {
+  if (!db || table_id == 0 || !record || field_id == 0 || !buf || buf_sz == 0)
+    return false;
+
+  const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
+  const db_table_schema_t *table = db_find_table_schema(schema, table_id);
+  int field_count = 0;
+  const db_field_meta_t *fields = (const db_field_meta_t *)send_db_message(db, dbGetFieldMeta, table_id, &field_count);
+  if (!table || !fields || field_count <= 0)
+    return false;
+
+  const db_field_meta_t *field = db_find_field_meta(fields, field_count, field_id);
+  if (field)
+    return db_format_field_value(field, record, buf, buf_sz);
+
+  const db_join_schema_t *join = NULL;
+  const db_field_meta_t *foreign_field = NULL;
+  if (!db_resolve_joined_field(db, table, field_id, &join, &foreign_field))
+    return false;
+
+  const db_field_meta_t *local_field = db_find_field_meta(fields, field_count, join->local_field_id);
+  if (!local_field || local_field->type != DB_TYPE_INT)
+    return false;
+
+  const db_field_schema_t *local_schema = db_find_field_schema(table, join->local_field_id);
+
+  int relation_id = *(const int *)((const char *)record + local_field->offset);
+  if (relation_id == 0)
+    return false;
+
+  void *foreign_record = (void *)send_db_message(db, dbFind,
+    MAKEDWORD(join->foreign_table_id,
+              local_schema && local_schema->relation_field_id ? local_schema->relation_field_id : 0),
+    (void *)(intptr_t)relation_id);
+  if (!foreign_record)
+    return false;
+  if (!foreign_field)
+    return false;
+
+  return db_format_field_value(foreign_field, foreign_record, buf, buf_sz);
 }
 
 // ── Result list helpers ──────────────────────────────────────────────────────

@@ -31,4 +31,8 @@ enum {
     ID_COMMAND_BASE = 2000,
 };
 
+#ifndef STATIC_ARRAY
+#define STATIC_ARRAY(a) (a), ARRAY_LEN(a)
+#endif
+
 #endif

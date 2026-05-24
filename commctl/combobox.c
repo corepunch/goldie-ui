@@ -88,19 +88,6 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
     return;
   }
   
-  // Get object proc and field bindings for this table
-  db_object_proc_t obj_proc = (db_object_proc_t)send_db_message(db, dbGetObjectProc,
-    (uint32_t)params->table_id, NULL);
-  
-  int binding_count = 0;
-  const db_field_msg_binding_t *bindings = (const db_field_msg_binding_t *)send_db_message(
-    db, dbGetFieldBindings, (uint32_t)params->table_id, &binding_count);
-  
-  if (!obj_proc || !bindings) {
-    free_result_list(results);
-    return;
-  }
-  
   combobox_state_t *state = (combobox_state_t *)win->userdata;
   if (!state) {
     free_result_list(results);
@@ -123,16 +110,16 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
     // Example: *(db_author_t **)node->data = &ctx->authors[i];
     // So we must dereference to get the actual record pointer.
     void *record = *(void **)node->data;
-    bool success = db_object_get_field_text(bindings, binding_count, obj_proc,
-                                  record, params->display_field_id,
-                                  display_buf, sizeof(display_buf));
+    bool success = db_get_schema_field_text(db, (uint32_t)params->table_id,
+                    record, params->display_field_id,
+                    display_buf, sizeof(display_buf));
     
     if (success && display_buf[0] != '\0') {
       send_message(win, cbAddString, 0, display_buf);
       
       // Store value_field (e.g., ID) for foreign key binding
       char value_buf[64];
-      if (db_object_get_field_text(bindings, binding_count, obj_proc,
+      if (db_get_schema_field_text(db, (uint32_t)params->table_id,
                                     record, params->value_field_id,
                                     value_buf, sizeof(value_buf))) {
         state->values[count] = atoi(value_buf);

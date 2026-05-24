@@ -33,12 +33,12 @@ typedef struct {
 static void update_header_labels(window_t *win, post_detail_t *s) {
   // Fetch post from database on-demand
   db_post_t *p = (db_post_t *)send_db_message(g_app->db, dbFind,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)s->post_id);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)s->post_id);
   if (!p) return;
   
   // Fetch author name
   db_author_t *author = (db_author_t *)send_db_message(g_app->db, dbFind,
-    MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)p->author_id);
+    MAKEDWORD(ID_DB_AUTHORS, 0), (void *)(intptr_t)p->author_id);
   const char *author_name = author ? author->name : "Unknown";
 
   set_window_item_text(win, ID_POST_DETAIL_LBL_TITLE,    "%s",  p->title);
@@ -70,7 +70,8 @@ static lresult_t post_detail_proc(window_t *win, uint32_t msg,
       if (s->comments_win) {
         // Database is auto-propagated during form creation.
         // Just set the filter to show only comments for this post.
-        send_message(s->comments_win, tvSetFilter, 1, (void*)(intptr_t)s->post_id);
+        send_message(s->comments_win, tvSetFilter,
+                     ID_DB_COMMENTS_POST_ID, (void *)(intptr_t)s->post_id);
       }
       
       update_header_labels(win, s);

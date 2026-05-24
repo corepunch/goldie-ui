@@ -38,7 +38,7 @@ static const form_def_t author_edit_form = {
   // Database metadata (would be auto-filled by orionc from field= attribute)
   .db_name = "db",
   .db_table = "authors",
-  .db_table_id = TABLE_AUTHORS,
+  .db_table_id = ID_DB_AUTHORS,
   .db_fields = (const void *)authors_fields,
   .db_field_count = 3,
 };

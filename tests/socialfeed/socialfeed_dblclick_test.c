@@ -28,7 +28,7 @@ static db_post_t *insert_post(const char *title, int likes, int comments) {
   };
   snprintf(post.title, sizeof(post.title), "%s", title);
   snprintf(post.body, sizeof(post.body), "%s body", title);
-  return (db_post_t *)send_db_message(g_app->db, dbInsert, TABLE_POSTS, &post);
+  return (db_post_t *)send_db_message(g_app->db, dbInsert, ID_DB_POSTS, &post);
 }
 
 static void test_row_index_maps_to_post_id(void) {

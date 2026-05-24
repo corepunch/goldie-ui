@@ -36,7 +36,7 @@ static lresult_t add_mask_proc(window_t *win, uint32_t msg,
         send_message(cb, cbAddString, 0, (void *)"Background Color");
         send_message(cb, cbAddString, 0, (void *)"Foreground Color");
       }
-      dialog_push(win, s, kAddMaskBindings, ARRAY_LEN(kAddMaskBindings));
+      dialog_push(win, s, STATIC_ARRAY(kAddMaskBindings));
       return true;
     }
 
@@ -45,7 +45,7 @@ static lresult_t add_mask_proc(window_t *win, uint32_t msg,
         window_t *src = (window_t *)lparam;
         if (!src) return false;
         if (src->id == ID_ADD_MASK_OK) {
-          dialog_pull(win, s, kAddMaskBindings, ARRAY_LEN(kAddMaskBindings));
+          dialog_pull(win, s, STATIC_ARRAY(kAddMaskBindings));
           s->accepted = true;
           end_dialog(win, 1);
           return true;

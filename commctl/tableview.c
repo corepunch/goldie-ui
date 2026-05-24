@@ -13,7 +13,7 @@
 // Example usage:
 //   tableview_params_t params = {
 //     .db = g_db,
-//     .table_id = TABLE_POSTS,
+//     .table_id = ID_DB_POSTS,
 //     .filter_field = 0,
 //     .filter_value = 0,
 //     .field_ids = (const uint32_t[]){ ID_DB_POSTS_TITLE, ID_DB_AUTHORS_NAME, ID_DB_POSTS_LIKE_COUNT },
@@ -40,11 +40,6 @@ typedef struct {
   char **column_titles;
   int *column_widths;
   int column_count;
-  
-  // DDX-style field extraction
-  db_object_proc_t obj_proc;          // Object handler proc for this table
-  const db_field_msg_binding_t *bindings;  // Field bindings for this table
-  int binding_count;
 } tableview_state_t;
 
 // Forward declarations
@@ -108,11 +103,8 @@ static void free_string_array(char **arr) {
 
 static bool tv_get_field_text(tableview_state_t *s, void *record,
                                  uint32_t field_id, char *buf, size_t buf_sz) {
-  if (!s || !record || !buf || buf_sz == 0 || field_id == 0) return false;
-  
-  // Use DDX-style field extraction via database object proc
-  return db_object_get_field_text(s->bindings, s->binding_count,
-                                  s->obj_proc, record, field_id, buf, buf_sz);
+  if (!s || !s->db || !record || !buf || buf_sz == 0 || field_id == 0) return false;
+  return db_get_schema_field_text(s->db, (uint32_t)s->table_id, record, field_id, buf, buf_sz);
 }
 
 // Removed: tv_apply_column_widths() - now inherited from reportview evResize
@@ -233,21 +225,6 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       s->filter_field = params->filter_field;
       s->filter_value = params->filter_value;
       
-      // Get object proc and field bindings from database (DDX pattern!)
-      // Skip if db is NULL (will be set later)
-      if (s->db) {
-        s->obj_proc = (db_object_proc_t)send_db_message(s->db, dbGetObjectProc,
-                                                         (uint32_t)s->table_id, NULL);
-        s->bindings = (const db_field_msg_binding_t *)send_db_message(s->db, dbGetFieldBindings,
-                                                                       (uint32_t)s->table_id, &s->binding_count);
-        
-        if (!s->obj_proc || !s->bindings) {
-          free(s);
-          win->userdata = NULL;
-          return true;
-        }
-      }
-      
       // Copy column metadata
       s->column_count = params->column_count;
       if (s->column_count <= 0) {
@@ -302,13 +279,8 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     case evSetDatabase:
       if (s && lparam) {
         s->db = (database_t *)lparam;
-        // Get object proc and field bindings
-        s->obj_proc = (db_object_proc_t)send_db_message(s->db, dbGetObjectProc,
-                                                         (uint32_t)s->table_id, NULL);
-        s->bindings = (const db_field_msg_binding_t *)send_db_message(s->db, dbGetFieldBindings,
-                                                                       (uint32_t)s->table_id, &s->binding_count);
         // Refresh from database
-        if (s->obj_proc && s->bindings) {
+        if (s->db) {
           tv_refresh(win, s);
         }
       }

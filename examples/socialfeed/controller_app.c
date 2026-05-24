@@ -41,7 +41,7 @@ bool app_delete_post(int index) {
   
   // Fetch all posts to get the post at index
   result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)0);
   if (!posts) return false;
   
   // Navigate to the post at index
@@ -59,14 +59,14 @@ bool app_delete_post(int index) {
   free_result_list(posts);
   
   // Delete from database
-  bool success = send_db_message(g_app->db, dbDelete, TABLE_POSTS,
+  bool success = send_db_message(g_app->db, dbDelete, ID_DB_POSTS,
                                  (void *)(intptr_t)post_id) != 0;
   
   if (success) {
     // Update selected index
     int post_count = count_result_list(
       (result_node_t *)send_db_message(g_app->db, dbFetch,
-        MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0));
+        MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)0));
     if (g_app->selected_idx >= post_count)
       g_app->selected_idx = post_count - 1;
   }
@@ -83,7 +83,7 @@ bool app_like_post(int post_id) {
   
   // Fetch the post from database
   db_post_t *post = (db_post_t *)send_db_message(g_app->db, dbFind,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)post_id);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)post_id);
   
   if (!post) return false;
   
@@ -91,7 +91,7 @@ bool app_like_post(int post_id) {
   post->like_count++;
   
   // Update in database
-  bool success = send_db_message(g_app->db, dbUpdate, TABLE_POSTS, post) != 0;
+  bool success = send_db_message(g_app->db, dbUpdate, ID_DB_POSTS, post) != 0;
   
   return success;
 }
@@ -105,7 +105,7 @@ bool app_like_comment(int comment_id) {
   
   // Fetch the comment from database
   db_comment_t *comment = (db_comment_t *)send_db_message(g_app->db, dbFind,
-    MAKEDWORD(TABLE_COMMENTS, 0), (void *)(intptr_t)comment_id);
+    MAKEDWORD(ID_DB_COMMENTS, 0), (void *)(intptr_t)comment_id);
   
   if (!comment) return false;
   
@@ -113,7 +113,7 @@ bool app_like_comment(int comment_id) {
   comment->like_count++;
   
   // Update in database
-  bool success = send_db_message(g_app->db, dbUpdate, TABLE_COMMENTS, comment) != 0;
+  bool success = send_db_message(g_app->db, dbUpdate, ID_DB_COMMENTS, comment) != 0;
   
   return success;
 }
@@ -132,7 +132,7 @@ int app_get_post_id_from_index(int index) {
   
   // Fetch all posts from database
   result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)0);
   if (!posts) return 0;
   
   // Navigate to the requested index
@@ -159,7 +159,7 @@ void app_update_status(void) {
   
   // Fetch post count from database
   result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)0);
   int post_count = count_result_list(posts);
   free_result_list(posts);
   
@@ -188,16 +188,16 @@ bool app_add_comment(int post_id, int author_id, const char *text) {
   
   // Insert into database
   db_comment_t *inserted = (db_comment_t *)send_db_message(
-    g_app->db, dbInsert, TABLE_COMMENTS, &db_comment);
+    g_app->db, dbInsert, ID_DB_COMMENTS, &db_comment);
   
   if (!inserted) return false;
   
   // Update post's comment count in database
   db_post_t *post = (db_post_t *)send_db_message(g_app->db, dbFind,
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)post_id);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)post_id);
   if (post) {
     post->comment_count++;
-    send_db_message(g_app->db, dbUpdate, TABLE_POSTS, post);
+    send_db_message(g_app->db, dbUpdate, ID_DB_POSTS, post);
   }
   
   SF_DEBUG("comment added: post_id=%d comment_id=%d", post_id, inserted->id);

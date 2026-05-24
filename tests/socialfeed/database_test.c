@@ -40,7 +40,7 @@ void test_author_crud(void) {
   strcpy(author_data.name, "testuser");
   strcpy(author_data.avatar, "avatar.png");
   
-  db_author_t *inserted = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author_data);
+  db_author_t *inserted = (db_author_t *)send_db_message(db, dbInsert, ID_DB_AUTHORS, &author_data);
   
   if (!inserted) {
     destroy_database(db);
@@ -53,7 +53,7 @@ void test_author_crud(void) {
   
   // Find by ID
   db_author_t *found = (db_author_t *)send_db_message(db, dbFind,
-    MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)inserted->id);
+    MAKEDWORD(ID_DB_AUTHORS, 0), (void *)(intptr_t)inserted->id);
   
   if (!found) {
     destroy_database(db);
@@ -65,23 +65,23 @@ void test_author_crud(void) {
   
   // Find by name
   db_author_t *found2 = (db_author_t *)send_db_message(db, dbFind,
-    MAKEDWORD(TABLE_AUTHORS, 1), "testuser");
+    MAKEDWORD(ID_DB_AUTHORS, 1), "testuser");
   
   ASSERT(found2 != NULL, "find by name should succeed");
   ASSERT_EQUAL(found2->id, inserted->id);
   
   // Update
   strcpy(found->name, "updated_user");
-  send_db_message(db, dbUpdate, TABLE_AUTHORS, found);
+  send_db_message(db, dbUpdate, ID_DB_AUTHORS, found);
   ASSERT_STR_EQUAL(found->name, "updated_user");
   
   // Delete
   int delete_id = found->id;
-  send_db_message(db, dbDelete, TABLE_AUTHORS, (void *)(intptr_t)delete_id);
+  send_db_message(db, dbDelete, ID_DB_AUTHORS, (void *)(intptr_t)delete_id);
   
   // Verify deleted
   db_author_t *should_be_null = (db_author_t *)send_db_message(db, dbFind,
-    MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)delete_id);
+    MAKEDWORD(ID_DB_AUTHORS, 0), (void *)(intptr_t)delete_id);
   
   ASSERT(should_be_null == NULL, "deleted record should not be found");
   
@@ -99,7 +99,7 @@ void test_post_operations(void) {
   // Create author first
   db_author_t author = { .id = 0 };
   strcpy(author.name, "postauthor");
-  db_author_t *author_ptr = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+  db_author_t *author_ptr = (db_author_t *)send_db_message(db, dbInsert, ID_DB_AUTHORS, &author);
   
   if (!author_ptr) {
     destroy_database(db);
@@ -114,7 +114,7 @@ void test_post_operations(void) {
   post.like_count = 0;
   post.comment_count = 0;
   
-  db_post_t *post_ptr = (db_post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
+  db_post_t *post_ptr = (db_post_t *)send_db_message(db, dbInsert, ID_DB_POSTS, &post);
   
   ASSERT(post_ptr != NULL, "post insert should succeed");
   ASSERT(post_ptr->id > 0, "post should have auto-increment ID");
@@ -122,7 +122,7 @@ void test_post_operations(void) {
   
   // Fetch all posts
   result_node_t *results = (result_node_t *)send_db_message(db, dbFetch, 
-    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    MAKEDWORD(ID_DB_POSTS, 0), (void *)(intptr_t)0);
   
   int count = count_result_list(results);
   ASSERT(count > 0, "should fetch at least one post");
@@ -132,7 +132,7 @@ void test_post_operations(void) {
   
   // Update post likes
   post_ptr->like_count = 42;
-  send_db_message(db, dbUpdate, TABLE_POSTS, post_ptr);
+  send_db_message(db, dbUpdate, ID_DB_POSTS, post_ptr);
   ASSERT_EQUAL(post_ptr->like_count, 42);
   
   destroy_database(db);
@@ -149,25 +149,25 @@ void test_comment_and_denormalized_fields(void) {
   // Create author and post
   db_author_t author = { .id = 0 };
   strcpy(author.name, "commenter");
-  db_author_t *a_ptr = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+  db_author_t *a_ptr = (db_author_t *)send_db_message(db, dbInsert, ID_DB_AUTHORS, &author);
   
   db_post_t post = { .id = 0, .author_id = a_ptr->id, .comment_count = 0 };
   strcpy(post.title, "Post");
-  db_post_t *p_ptr = (db_post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
+  db_post_t *p_ptr = (db_post_t *)send_db_message(db, dbInsert, ID_DB_POSTS, &post);
   
   int initial_count = p_ptr->comment_count;
   
   // Add comment (should auto-increment post comment_count)
   db_comment_t comment = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
   strcpy(comment.text, "Great post!");
-  db_comment_t *c_ptr = (db_comment_t *)send_db_message(db, dbInsert, TABLE_COMMENTS, &comment);
+  db_comment_t *c_ptr = (db_comment_t *)send_db_message(db, dbInsert, ID_DB_COMMENTS, &comment);
   
   ASSERT(c_ptr != NULL, "comment insert should succeed");
   ASSERT_EQUAL(p_ptr->comment_count, initial_count + 1);
   
   // Delete comment (should decrement post comment_count)
   int comment_id = c_ptr->id;
-  send_db_message(db, dbDelete, TABLE_COMMENTS, (void *)(intptr_t)comment_id);
+  send_db_message(db, dbDelete, ID_DB_COMMENTS, (void *)(intptr_t)comment_id);
   ASSERT_EQUAL(p_ptr->comment_count, initial_count);
   
   destroy_database(db);
@@ -185,22 +185,22 @@ void test_cascading_delete(void) {
   // Create author, post, and comments
   db_author_t author = { .id = 0 };
   strcpy(author.name, "cascade_test");
-  db_author_t *a_ptr = (db_author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+  db_author_t *a_ptr = (db_author_t *)send_db_message(db, dbInsert, ID_DB_AUTHORS, &author);
   
   db_post_t post = { .id = 0, .author_id = a_ptr->id };
   strcpy(post.title, "To Be Deleted");
-  db_post_t *p_ptr = (db_post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post);
+  db_post_t *p_ptr = (db_post_t *)send_db_message(db, dbInsert, ID_DB_POSTS, &post);
   
   // Add two comments
   for (int i = 0; i < 2; i++) {
     db_comment_t c = { .id = 0, .post_id = p_ptr->id, .author_id = a_ptr->id };
     sprintf(c.text, "Comment %d", i + 1);
-    send_db_message(db, dbInsert, TABLE_COMMENTS, &c);
+    send_db_message(db, dbInsert, ID_DB_COMMENTS, &c);
   }
   
   // Count comments before delete
   result_node_t *results_before = (result_node_t *)send_db_message(db, dbFetch, 
-    MAKEDWORD(TABLE_COMMENTS, 2), (void *)(intptr_t)p_ptr->id);
+    MAKEDWORD(ID_DB_COMMENTS, ID_DB_COMMENTS_POST_ID), (void *)(intptr_t)p_ptr->id);
   
   int count_before = count_result_list(results_before);
   ASSERT_EQUAL(count_before, 2);
@@ -208,7 +208,7 @@ void test_cascading_delete(void) {
   
   // Delete post (should cascade delete comments)
   int post_id = p_ptr->id;
-  send_db_message(db, dbDelete, TABLE_POSTS, (void *)(intptr_t)post_id);
+  send_db_message(db, dbDelete, ID_DB_POSTS, (void *)(intptr_t)post_id);
 
   /* Current database backend does not guarantee eager comment pruning here;
    * keep the test as a smoke check for delete execution. */
@@ -231,7 +231,7 @@ void test_dirty_tracking(void) {
   // Insert should mark dirty
   db_author_t author = { .id = 0 };
   strcpy(author.name, "dirtytest");
-  ASSERT_NOT_NULL(send_db_message(db, dbInsert, TABLE_AUTHORS, &author));
+  ASSERT_NOT_NULL(send_db_message(db, dbInsert, ID_DB_AUTHORS, &author));
   
   lresult_t after_insert = send_db_message(db, dbGetDirty, 0, NULL);
   ASSERT_TRUE(after_insert == 0 || after_insert != 0);

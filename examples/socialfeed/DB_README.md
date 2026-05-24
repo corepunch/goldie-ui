@@ -75,33 +75,33 @@ destroy_database(db);
 post_t post_data = { .author_id = 1 };
 strcpy(post_data.title, "Hello World");
 strcpy(post_data.body, "First post!");
-post_t *post = (post_t *)send_db_message(db, dbInsert, TABLE_POSTS, &post_data);
+post_t *post = (post_t *)send_db_message(db, dbInsert, ID_DB_POSTS, &post_data);
 
 // ── Find ──────────────────────────────────────────────────────
 find_params_t find = {
-  .table_id = TABLE_AUTHORS,
+  .table_id = ID_DB_AUTHORS,
   .search_field = 1,  // by name
   .search_value.str_value = "alice"
 };
 author_t *author_ptr = NULL;
 find.result_out = (void **)&author_ptr;
-send_db_message(db, dbFind, TABLE_AUTHORS, &find);
+send_db_message(db, dbFind, ID_DB_AUTHORS, &find);
 
 // ── Update ────────────────────────────────────────────────────
 post->like_count++;
-send_db_message(db, dbUpdate, TABLE_POSTS, post);
+send_db_message(db, dbUpdate, ID_DB_POSTS, post);
 
 // ── Delete ────────────────────────────────────────────────────
-send_db_message(db, dbDelete, TABLE_POSTS, (void *)(intptr_t)post_id);
+send_db_message(db, dbDelete, ID_DB_POSTS, (void *)(intptr_t)post_id);
 
 // ── Fetch (query) ─────────────────────────────────────────────
 fetch_params_t fetch = { 
-  .table_id = TABLE_COMMENTS, 
+  .table_id = ID_DB_COMMENTS, 
   .filter_field = 2,  // filter by post_id
   .filter_value = post_id 
 };
 void **results = NULL;
-int count = send_db_message(db, dbFetch, TABLE_COMMENTS, &fetch);
+int count = send_db_message(db, dbFetch, ID_DB_COMMENTS, &fetch);
 results = fetch.results_out;
 for (int i = 0; i < count; i++) {
   comment_t *c = (comment_t *)results[i];
@@ -154,8 +154,8 @@ db_free(db);
 ```c
 DB_CLASS(db_simple_xml);  // register once
 database_t *db = create_database("feed", "db_simple_xml", "seed.xml");
-send_db_message(db, dbInsert, TABLE_POSTS, &post_data);
-send_db_message(db, dbFind, TABLE_AUTHORS, &find_params);
+send_db_message(db, dbInsert, ID_DB_POSTS, &post_data);
+send_db_message(db, dbFind, ID_DB_AUTHORS, &find_params);
 destroy_database(db);  // auto-saves if dirty
 ```
 
@@ -179,7 +179,7 @@ The binding system uses this API automatically:
 
 When the user clicks "Post", the framework:
 1. Collects values from bound controls
-2. Calls `send_db_message(db, dbInsert, TABLE_POSTS, &post_data)`
+2. Calls `send_db_message(db, dbInsert, ID_DB_POSTS, &post_data)`
 3. Updates the feed tableview automatically
 4. Marks database dirty for next save
 

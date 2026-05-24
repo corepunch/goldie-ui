@@ -45,7 +45,7 @@ static lresult_t new_layer_proc(window_t *win, uint32_t msg,
         send_message(cb, cbAddString, 0, (void *)"Foreground Color");
       }
       // Push initial selection (default = transparent, index 0).
-      dialog_push(win, s, kNewLayerBindings, ARRAY_LEN(kNewLayerBindings));
+      dialog_push(win, s, STATIC_ARRAY(kNewLayerBindings));
       return true;
     }
 
@@ -54,7 +54,7 @@ static lresult_t new_layer_proc(window_t *win, uint32_t msg,
         window_t *src = (window_t *)lparam;
         if (!src) return false;
         if (src->id == ID_NEW_LAYER_OK) {
-          dialog_pull(win, s, kNewLayerBindings, ARRAY_LEN(kNewLayerBindings));
+          dialog_pull(win, s, STATIC_ARRAY(kNewLayerBindings));
           s->accepted = true;
           end_dialog(win, 1);
           return true;

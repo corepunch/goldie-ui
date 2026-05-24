@@ -31,7 +31,7 @@ static lresult_t image_resize_proc(window_t *win, uint32_t msg,
         send_message(cb, cbAddString, 0, (void *)"Nearest Neighbor");
         send_message(cb, cbAddString, 0, (void *)"Bilinear");
       }
-      dialog_push(win, s, k_ir_bindings, ARRAY_LEN(k_ir_bindings));
+      dialog_push(win, s, STATIC_ARRAY(k_ir_bindings));
       return true;
     }
 
@@ -40,7 +40,7 @@ static lresult_t image_resize_proc(window_t *win, uint32_t msg,
         window_t *src = (window_t *)lparam;
         if (!src) return false;
         if (src->id == ID_IMAGE_RESIZE_OK) {
-          dialog_pull(win, s, k_ir_bindings, ARRAY_LEN(k_ir_bindings));
+          dialog_pull(win, s, STATIC_ARRAY(k_ir_bindings));
           s->accepted = true;
           end_dialog(win, 1);
           return true;

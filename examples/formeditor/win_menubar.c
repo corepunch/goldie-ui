@@ -158,7 +158,7 @@ static lresult_t grid_dlg_proc(window_t *win, uint32_t msg,
                      g_app->snap_to_grid ? btnStateChecked : btnStateUnchecked, NULL);
       // Push grid_size via DDX.
       grid_size_data_t gsd = { g_app->grid_size };
-      dialog_push(win, &gsd, k_grid_bindings, ARRAY_LEN(k_grid_bindings));
+      dialog_push(win, &gsd, STATIC_ARRAY(k_grid_bindings));
       return true;
     }
     case evCommand: {
@@ -170,7 +170,7 @@ static lresult_t grid_dlg_proc(window_t *win, uint32_t msg,
           return false;
         // Pull grid_size via DDX.
         grid_size_data_t gsd = { g_app->grid_size };
-        dialog_pull(win, &gsd, k_grid_bindings, ARRAY_LEN(k_grid_bindings));
+        dialog_pull(win, &gsd, STATIC_ARRAY(k_grid_bindings));
         if (gsd.grid_size < GRID_SIZE_MIN) gsd.grid_size = GRID_SIZE_MIN;
         if (gsd.grid_size > GRID_SIZE_MAX) gsd.grid_size = GRID_SIZE_MAX;
         g_app->grid_size = gsd.grid_size;
@@ -416,7 +416,7 @@ static lresult_t form_props_proc(window_t *win, uint32_t msg,
       win->userdata = ps;
       if (ps && g_app && g_app->active_form) {
         form_props_fill_layout_combos(win);
-        dialog_push(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
+        dialog_push(win, ps, STATIC_ARRAY(k_form_props_bindings));
       }
       return true;
     case evCommand: {
@@ -428,7 +428,7 @@ static lresult_t form_props_proc(window_t *win, uint32_t msg,
           window_t *doc = g_app->active_form;
           bool old_auto_layout = (doc->flags & WINDOW_AUTO_LAYOUT) != 0;
           flags_t old_orient = doc->flags & WINDOW_STACK_HORIZONTAL;
-          dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
+          dialog_pull(win, ps, STATIC_ARRAY(k_form_props_bindings));
           if (ps->auto_layout_enabled)
             doc->flags |= WINDOW_AUTO_LAYOUT;
           else

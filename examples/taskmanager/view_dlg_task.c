@@ -172,7 +172,7 @@ static lresult_t task_dlg_proc(window_t *win, uint32_t msg,
           set_window_item_text(win, ID_TASK_DUEDATE_CTRL, "%s", due_buf);
         }
       }
-      dialog_push(win, s, k_task_bindings, ARRAY_LEN(k_task_bindings));
+      dialog_push(win, s, STATIC_ARRAY(k_task_bindings));
       return true;
     }
 
@@ -188,7 +188,7 @@ static lresult_t task_dlg_proc(window_t *win, uint32_t msg,
             return true;
           }
 
-          dialog_pull(win, s, k_task_bindings, ARRAY_LEN(k_task_bindings));
+          dialog_pull(win, s, STATIC_ARRAY(k_task_bindings));
 
           // Due date: optional uint32_t — not in binding table (needs custom parsing).
           window_t *edue = get_window_item(win, ID_TASK_DUEDATE_CTRL);
