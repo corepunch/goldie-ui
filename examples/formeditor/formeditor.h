@@ -10,6 +10,8 @@
 
 #include "../../ui.h"
 
+typedef database_t db_t;
+
 // ============================================================
 // Layout constants
 // ============================================================
@@ -166,12 +168,6 @@ typedef enum IC_ICONS {
 #define PLUGINS_WIN_W     PROPBROWSER_WIN_W
 #define PLUGINS_WIN_H     120
 
-// Database browser (NSBrowser-style).
-#define DATABASES_WIN_X   PROPBROWSER_WIN_X
-#define DATABASES_WIN_Y   (PLUGINS_WIN_Y + PLUGINS_WIN_H + 4)
-#define DATABASES_WIN_W   PROPBROWSER_WIN_W
-#define DATABASES_WIN_H   (SCREEN_H - DATABASES_WIN_Y - 4)
-
 // Document window initial position
 // frame.y is the window top; place it 8px below the menu bar.
 #define DOC_START_X       (PALETTE_WIN_X + PALETTE_WIN_W + 10)
@@ -250,43 +246,6 @@ typedef struct {
 
 #define FE_MAX_PROJECT_PLUGINS 32
 #define FE_MAX_PROJECT_DATABASES 8
-#define FE_MAX_PROJECT_DB_TABLES 32
-#define FE_MAX_PROJECT_DB_FIELDS 64
-#define FE_MAX_PROJECT_DB_JOINS 16
-
-typedef struct {
-  char name[64];
-  db_field_type_t type;
-  int length;
-  bool primary_key;
-  char relation_table[64];
-  char relation_field[64];
-} form_project_db_field_t;
-
-typedef struct {
-  char name[64];
-  char local_field[64];
-  char foreign_table[64];
-  char foreign_field[64];
-} form_project_db_join_t;
-
-typedef struct {
-  int table_id;
-  char name[64];
-  char model[64];
-  form_project_db_field_t fields[FE_MAX_PROJECT_DB_FIELDS];
-  int field_count;
-  form_project_db_join_t joins[FE_MAX_PROJECT_DB_JOINS];
-  int join_count;
-} form_project_db_table_t;
-
-typedef struct {
-  char name[64];
-  char class_name[64];
-  char source_path[256];
-  form_project_db_table_t tables[FE_MAX_PROJECT_DB_TABLES];
-  int table_count;
-} form_project_database_t;
 
 typedef struct {
   char filename[512];
@@ -294,10 +253,9 @@ typedef struct {
   char title[128];
   char root[256];
   char menus_xml[16384];
-  char databases_xml[16384];
   form_plugin_ref_t plugins[FE_MAX_PROJECT_PLUGINS];
   int plugin_count;
-  form_project_database_t databases[FE_MAX_PROJECT_DATABASES];
+  db_t *databases[FE_MAX_PROJECT_DATABASES];
   int database_count;
   bool loaded;
   bool modified;
@@ -309,7 +267,6 @@ typedef enum {
   FE_WIN_PROP,
   FE_WIN_FORMS,
   FE_WIN_PLUGINS,
-  FE_WIN_DATABASES,
   FE_NUM_WINDOWS
 } fe_window_idx_t;
 
@@ -412,26 +369,17 @@ extern app_state_t *g_app;
 // Window procedures
 // ============================================================
 
-lresult_t editor_menubar_proc(window_t *win, uint32_t msg,
-                              uint32_t wparam, void *lparam);
-lresult_t win_components_proc(window_t *win, uint32_t msg,
-                              uint32_t wparam, void *lparam);
-lresult_t win_tool_palette_proc(window_t *win, uint32_t msg,
-                               uint32_t wparam, void *lparam);
-lresult_t win_property_browser_proc(window_t *win, uint32_t msg,
-                                    uint32_t wparam, void *lparam);
-lresult_t win_forms_browser_proc(window_t *win, uint32_t msg,
-                                uint32_t wparam, void *lparam);
-lresult_t win_plugins_browser_proc(window_t *win, uint32_t msg,
-                                  uint32_t wparam, void *lparam);
-lresult_t win_canvas_proc(window_t *win, uint32_t msg,
-                          uint32_t wparam, void *lparam);
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_components_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_property_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_forms_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_plugins_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_canvas_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void canvas_rebuild_live_controls(window_t *doc);
 void canvas_set_component_drag_hover(window_t *doc, bool active, window_t *target);
-window_t *canvas_find_component_drop_target(window_t *doc, int type,
-                                            int canvas_x, int canvas_y);
-bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target,
-                                     int screen_x, int screen_y);
+window_t *canvas_find_component_drop_target(window_t *doc, int type, int canvas_x, int canvas_y);
+bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target, int screen_x, int screen_y);
 void formeditor_rebuild_tool_palette(void);
 window_t *formeditor_create_components_palette(hinstance_t hinstance);
 window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance);
@@ -441,9 +389,8 @@ window_t *forms_browser_create(hinstance_t hinstance);
 void forms_browser_refresh(void);
 window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
-window_t *create_database_browser(const irect16_t *frame, window_t *parent,
-                                 hinstance_t hinstance);
-void databases_browser_refresh(void);
+void formeditor_show_database_object_window(int db_index);
+void formeditor_close_database_object_window(void);
 
 // ============================================================
 // Document model helpers
@@ -456,8 +403,7 @@ void fe_doc_update_title(window_t *doc);
 
 int fe_doc_add_element(window_t *doc, int type, irect16_t frame, uint32_t parent_id);
 bool fe_doc_delete_element(window_t *doc, int idx);
-bool fe_doc_drop_create_component(int component_id,
-                                  window_t *parent_target);
+bool fe_doc_drop_create_component(int component_id, window_t *parent_target);
 
 bool fe_doc_set_element_text(window_t *doc, int element_id, const char *text);
 bool fe_doc_set_element_frame(window_t *doc, int element_id, irect16_t frame);
@@ -466,22 +412,13 @@ bool fe_doc_set_element_align(window_t *doc, int element_id, uint8_t h_align, ui
 bool fe_doc_set_element_font(window_t *doc, int element_id, uint8_t font);
 bool fe_doc_set_element_color(window_t *doc, int element_id, uint8_t color);
 
-bool fe_doc_set_element_db_field(window_t *doc, int element_id, const char *field);
-bool fe_doc_set_element_db_source(window_t *doc, int element_id, const char *source);
-bool fe_doc_set_element_db_display(window_t *doc, int element_id, const char *display);
-bool fe_doc_set_element_db_value(window_t *doc, int element_id, const char *value);
-
 form_element_t *fe_doc_find_element(window_t *doc, uint32_t id);
 int fe_doc_find_element_index(window_t *doc, uint32_t id);
 form_element_t *fe_doc_get_element(window_t *doc, int idx);
 int fe_doc_element_count(const window_t *doc);
 
 int fe_doc_resolve_control_id(window_t *doc, const char *expr);
-void fe_doc_make_control_id_expr(char *out, size_t out_sz,
-                                 const char *form_id,
-                                 const char *name,
-                                 const char *class_name,
-                                 int ordinal);
+void fe_doc_make_control_id_expr(char *out, size_t out_sz, const char *form_id, const char *name, const char *class_name, int ordinal);
 
 // ============================================================
 // Layout / project / runtime form APIs
@@ -499,9 +436,7 @@ irect16_t form_doc_frame_for_size(int form_w, int form_h, uint32_t form_flags);
 bool fe_project_load(const char *path);
 bool fe_project_save(const char *path);
 
-window_t *fe_create_runtime_form_window(window_t *doc,
-                                        window_t *parent,
-                                        winproc_t proc);
+window_t *fe_create_runtime_form_window(window_t *doc, window_t *parent, winproc_t proc);
 
 // ============================================================
 // Notifications API
@@ -516,9 +451,7 @@ void fe_notify(fe_event_type_t event, window_t *doc);
 // ============================================================
 
 void handle_menu_command(uint16_t id);
-bool fe_controller_drop_create(window_t *doc,
-                               const ui_drag_item_payload_t *payload,
-                               window_t *target);
+bool fe_controller_drop_create(window_t *doc, const ui_drag_item_payload_t *payload, window_t *target);
 
 extern menu_def_t  kMenus[];
 extern const int   kNumMenus;

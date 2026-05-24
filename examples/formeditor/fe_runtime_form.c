@@ -106,7 +106,7 @@ static void parse_rect_attr(irect16_t *out, const char *s) {
 }
 
 static int runtime_table_id_for_source(const char *source) {
-  if (!source || !*source || !g_app)
+  if (!source || !*source)
     return -1;
 
   const char *table_name = source;
@@ -114,12 +114,20 @@ static int runtime_table_id_for_source(const char *source) {
   if (dot && dot[1])
     table_name = dot + 1;
 
-  for (int d = 0; d < g_app->project.database_count; d++) {
-    form_project_database_t *db = &g_app->project.databases[d];
-    for (int t = 0; t < db->table_count; t++) {
-      if (strcmp(db->tables[t].name, table_name) == 0)
-        return db->tables[t].table_id;
-    }
+  database_t *db = ui_get_database();
+  if (!db)
+    db = get_database_by_name("db");
+  if (!db)
+    return -1;
+
+  const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
+  if (!schema)
+    return -1;
+
+  for (int t = 0; t < schema->table_count; t++) {
+    const db_table_schema_t *table = &schema->tables[t];
+    if (table->name && strcmp(table->name, table_name) == 0)
+      return table->table_id;
   }
   return -1;
 }

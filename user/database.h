@@ -6,6 +6,11 @@
 #include <stdbool.h>
 
 // Forward declarations
+#ifndef UI_LRESULT_T_DEFINED
+#define UI_LRESULT_T_DEFINED
+typedef intptr_t lresult_t;
+#endif
+
 typedef struct database_s database_t;
 
 // Database procedure callback type (analogous to winproc_t)
@@ -89,6 +94,77 @@ typedef struct {
   int table_count;
 } db_schema_def_t;
 
+// Declarative database API metadata emitted from .orion documents.
+// This metadata is model/view-agnostic and can be consumed by applications to
+// drive fetch actions and view bindings without hard-coded column setup.
+typedef struct {
+  const char *name;   // source name, e.g. "feed_posts"
+  const char *model;  // logical model name, e.g. "post"
+} db_source_def_t;
+
+typedef struct {
+  const char *field;  // model field key, e.g. "title"
+  const char *title;  // view column title
+  int         width;  // preferred column width; <=0 means auto/flex
+} db_binding_column_t;
+
+typedef struct {
+  const char                *name;   // binding identifier
+  const char                *source; // source name this binding reads from
+  const char                *view;   // target view/control name
+  const db_binding_column_t *columns;
+  int                        column_count;
+} db_view_binding_t;
+
+typedef enum {
+  DB_ACTION_FETCH = 1,
+  DB_ACTION_INSERT,
+  DB_ACTION_UPDATE,
+  DB_ACTION_DELETE,
+  DB_ACTION_CUSTOM,
+} db_action_kind_t;
+
+typedef struct {
+  const char       *name;   // action identifier
+  db_action_kind_t  kind;   // fetch/insert/update/delete/custom
+  const char       *source; // source name this action targets
+  const char       *target; // target view/control or route name
+} db_action_def_t;
+
+typedef struct {
+  const char *name;   // outlet identifier
+  const char *type;   // expected object/control type, if known
+  const char *target; // connected view/control name, if known
+} db_outlet_def_t;
+
+typedef struct {
+  const db_source_def_t   *sources;
+  int                      source_count;
+  const db_view_binding_t *bindings;
+  int                      binding_count;
+  const db_action_def_t   *actions;
+  int                      action_count;
+  const db_outlet_def_t   *outlets;
+  int                      outlet_count;
+} db_api_def_t;
+
+typedef lresult_t (*db_object_proc_t)(const void *object, uint32_t msg,
+                                      uint32_t wparam, void *lparam);
+
+// Action verbs for database object handlers (Action-Message DDX pattern).
+// msg carries the verb; wparam carries packed payload metadata.
+typedef enum {
+  dbObjGetFieldText = 1,
+  dbObjSetFieldText,
+} db_object_action_t;
+
+// Field-to-column lookup used by db_object_get_field_text().
+// The mapped column_id is packed into LOWORD(wparam).
+typedef struct {
+  const char *field;
+  uint16_t    column_id;
+} db_field_msg_binding_t;
+
 // Database class descriptor
 typedef struct {
   const char *class_name;  // "SimpleXMLDatabase", etc.
@@ -109,6 +185,16 @@ struct database_s {
 database_t *create_database(const char *name, const char *class_name, const char *source_path);
 void destroy_database(database_t *db);
 lresult_t send_db_message(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+
+// Declarative database API helpers
+const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
+const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
+const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
+const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
+const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, const char *name);
+bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
+                              db_object_proc_t proc, const void *object,
+                              const char *field, char *buf, size_t buf_sz);
 
 // Result list helpers
 void free_result_list(void *head);

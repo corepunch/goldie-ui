@@ -8,7 +8,6 @@
 extern app_state_t *g_app;
 extern void forms_browser_refresh(void);
 extern void plugins_browser_refresh(void);
-extern void databases_browser_refresh(void);
 extern void form_doc_show_only(window_t *doc);
 extern window_t *create_form_doc(int w, int h);
 extern void close_form_doc(window_t *doc);
@@ -172,24 +171,11 @@ static void fe_apply_form_preview_chrome(window_t *doc, xmlNodePtr root,
     send_message(doc, evStatusBar, 0, (void *)"Preview");
 }
 
-static db_field_type_t fe_parse_db_field_type(const char *type_str) {
-  if (!type_str || !*type_str)
-    return DB_TYPE_STRING;
-  if (strcmp(type_str, "integer") == 0)
-    return DB_TYPE_INT;
-  if (strcmp(type_str, "int") == 0)
-    return DB_TYPE_INT;
-  if (strcmp(type_str, "number") == 0)
-    return DB_TYPE_FLOAT;
-  if (strcmp(type_str, "float") == 0)
-    return DB_TYPE_FLOAT;
-  return DB_TYPE_STRING;
-}
-
 static void fe_load_databases(xmlNodePtr root) {
   if (!g_app || !root)
     return;
 
+  memset(g_app->project.databases, 0, sizeof(g_app->project.databases));
   g_app->project.database_count = 0;
 
   for (xmlNodePtr n = root->children; n; n = n->next) {
@@ -206,72 +192,22 @@ static void fe_load_databases(xmlNodePtr root) {
       if (g_app->project.database_count >= FE_MAX_PROJECT_DATABASES)
         break;
 
-      form_project_database_t *pdb =
-        &g_app->project.databases[g_app->project.database_count++];
-      memset(pdb, 0, sizeof(*pdb));
+      char db_name[64] = {0};
+      feio_xml_attr_copy(db_node, "name", db_name, sizeof(db_name));
+      if (!db_name[0])
+        continue;
 
-      feio_xml_attr_copy(db_node, "name", pdb->name, sizeof(pdb->name));
-      feio_xml_attr_copy(db_node, "class", pdb->class_name, sizeof(pdb->class_name));
-      feio_xml_attr_copy(db_node, "source", pdb->source_path, sizeof(pdb->source_path));
-
-      for (xmlNodePtr t = db_node->children; t; t = t->next) {
-        if (t->type != XML_ELEMENT_NODE)
-          continue;
-        if (xmlStrcasecmp(t->name, BAD_CAST "table") != 0)
-          continue;
-        if (pdb->table_count >= FE_MAX_PROJECT_DB_TABLES)
-          break;
-
-        form_project_db_table_t *pt = &pdb->tables[pdb->table_count];
-        memset(pt, 0, sizeof(*pt));
-        pt->table_id = pdb->table_count;
-        feio_xml_attr_copy(t, "name", pt->name, sizeof(pt->name));
-        feio_xml_attr_copy(t, "model", pt->model, sizeof(pt->model));
-        pdb->table_count++;
-
-        for (xmlNodePtr f = t->children; f; f = f->next) {
-          if (f->type != XML_ELEMENT_NODE)
-            continue;
-          if (xmlStrcasecmp(f->name, BAD_CAST "field") != 0)
-            continue;
-          if (pt->field_count >= FE_MAX_PROJECT_DB_FIELDS)
-            break;
-
-          form_project_db_field_t *pf = &pt->fields[pt->field_count++];
-          memset(pf, 0, sizeof(*pf));
-          feio_xml_attr_copy(f, "name", pf->name, sizeof(pf->name));
-
-          char type_buf[64] = {0};
-          feio_xml_attr_copy(f, "type", type_buf, sizeof(type_buf));
-          pf->type = fe_parse_db_field_type(type_buf);
-          pf->length = feio_xml_attr_int(f, "length", 0);
-
-          char key_buf[16] = {0};
-          feio_xml_attr_copy(f, "key", key_buf, sizeof(key_buf));
-          pf->primary_key = (strcmp(key_buf, "YES") == 0 || strcmp(key_buf, "yes") == 0);
-
-          char rel_buf[128] = {0};
-          feio_xml_attr_copy(f, "relation", rel_buf, sizeof(rel_buf));
-          if (rel_buf[0]) {
-            const char *dot = strchr(rel_buf, '.');
-            if (dot) {
-              size_t table_len = (size_t)(dot - rel_buf);
-              if (table_len >= sizeof(pf->relation_table))
-                table_len = sizeof(pf->relation_table) - 1;
-              memcpy(pf->relation_table, rel_buf, table_len);
-              pf->relation_table[table_len] = '\0';
-              snprintf(pf->relation_field, sizeof(pf->relation_field), "%s", dot + 1);
-            }
-          }
-        }
-      }
+      db_t *db = get_database_by_name(db_name);
+      if (!db)
+        continue;
+      g_app->project.databases[g_app->project.database_count++] = db;
     }
   }
 
   if (ui_get_database() == NULL) {
-    database_t *db = get_database_by_name("db");
-    if (!db && g_app->project.database_count > 0 && g_app->project.databases[0].name[0])
-      db = get_database_by_name(g_app->project.databases[0].name);
+    db_t *db = get_database_by_name("db");
+    if (!db && g_app->project.database_count > 0)
+      db = g_app->project.databases[0];
     if (db)
       ui_set_database(db);
   }
@@ -364,7 +300,6 @@ bool fe_project_load(const char *path) {
   g_app->project.modified = false;
   forms_browser_refresh();
   plugins_browser_refresh();
-  databases_browser_refresh();
 
   xmlFreeDoc(xdoc);
   return true;

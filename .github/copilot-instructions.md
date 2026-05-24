@@ -325,6 +325,7 @@ for (int i = 0; i < NUM_TOOLS; i++) {
 - Header files use include guards with pattern `#ifndef __UI_SUBSYSTEM_H__`
 - Prefer standard C types (int, bool, etc.) with stdint.h types when size matters (uint32_t, uint16_t)
 - Use forward declarations to minimize header dependencies
+- Do not line-wrap function declarations/prototypes. Keep each declaration on one line.
 
 ### Struct Design
 

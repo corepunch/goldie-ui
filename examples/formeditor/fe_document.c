@@ -137,34 +137,6 @@ bool fe_doc_set_element_color(window_t *doc, int element_id, uint8_t color) {
   return false;
 }
 
-bool fe_doc_set_element_db_field(window_t *doc, int element_id, const char *field) {
-  (void)doc;
-  (void)element_id;
-  (void)field;
-  return false;
-}
-
-bool fe_doc_set_element_db_source(window_t *doc, int element_id, const char *source) {
-  (void)doc;
-  (void)element_id;
-  (void)source;
-  return false;
-}
-
-bool fe_doc_set_element_db_display(window_t *doc, int element_id, const char *display) {
-  (void)doc;
-  (void)element_id;
-  (void)display;
-  return false;
-}
-
-bool fe_doc_set_element_db_value(window_t *doc, int element_id, const char *value) {
-  (void)doc;
-  (void)element_id;
-  (void)value;
-  return false;
-}
-
 form_element_t *fe_doc_find_element(window_t *doc, uint32_t id) {
   (void)doc;
   (void)id;

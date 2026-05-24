@@ -12,9 +12,14 @@
 // Forward declarations
 typedef struct window_s window_t;
 typedef struct irect16_s irect16_t;
-typedef struct database_s database_t;
 typedef uint32_t flags_t;
+#ifndef UI_LRESULT_T_DEFINED
+#define UI_LRESULT_T_DEFINED
 typedef intptr_t lresult_t;
+#endif
+
+#include "database.h"
+#include "ddx.h"
 
 // Application instance handle (analogous to WinAPI HINSTANCE).
 // Each gem/app process receives a unique hinstance_t when loaded.
@@ -147,96 +152,6 @@ typedef struct {
   uint8_t layout_spacing;
 } windef_t;
 
-// ── Dialog Data Exchange (DDX) ──────────────────────────────────────────────
-// Analogous to MFC DDX / WinAPI dialog-data routines.
-// Describe each control-to-field mapping in a static ctrl_binding_t array,
-// then call dialog_push() on create and dialog_pull() on accept.
-
-// Returns the number of elements in a statically-sized array.
-#define ARRAY_LEN(a) ((int)(sizeof(a) / sizeof((a)[0])))
-
-// Returns sizeof(((type *)0)->field) — the byte size of a struct field.
-#define sizeof_field(type, field) ((size_t)(sizeof(((type *)0)->field)))
-
-typedef struct ctrl_binding_s ctrl_binding_t;
-typedef void (*ddx_bind_push_fn)(window_t *dlg, const ctrl_binding_t *binding,
-                                 const void *state);
-typedef void (*ddx_bind_pull_fn)(window_t *dlg, const ctrl_binding_t *binding,
-                                 void *state);
-
-typedef struct ctrl_binding_s {
-  uint32_t    ctrl_id; // numeric child control ID
-  uint16_t    command; // evCommand notification to listen for (HIWORD(wparam)); 0 = any
-  uint32_t    getter;  // control getter message for message-based bindings (edGetText, cbGetCurrentSelection, etc.)
-  size_t      offset;  // offsetof(state_t, field)
-  size_t      wparam;  // getter message wparam (edGetText: buffer size; cbGetCurrentSelection: default index when selection < 0)
-  ddx_bind_push_fn push; // optional push callback (state -> control)
-  ddx_bind_pull_fn pull; // optional pull callback (control -> state)
-} ctrl_binding_t;
-
-// Built-in DDX callbacks for common scalar/text fields.
-void ddx_push_int(window_t *dlg, const ctrl_binding_t *b, const void *state);
-void ddx_pull_int(window_t *dlg, const ctrl_binding_t *b, void *state);
-void ddx_push_float(window_t *dlg, const ctrl_binding_t *b, const void *state);
-void ddx_pull_float(window_t *dlg, const ctrl_binding_t *b, void *state);
-void ddx_push_u8(window_t *dlg, const ctrl_binding_t *b, const void *state);
-void ddx_pull_u8(window_t *dlg, const ctrl_binding_t *b, void *state);
-void ddx_push_text(window_t *dlg, const ctrl_binding_t *b, const void *state);
-void ddx_pull_text(window_t *dlg, const ctrl_binding_t *b, void *state);
-void ddx_push_combo(window_t *dlg, const ctrl_binding_t *b, const void *state);
-void ddx_pull_combo(window_t *dlg, const ctrl_binding_t *b, void *state);
-void ddx_push_check(window_t *dlg, const ctrl_binding_t *b, const void *state);
-void ddx_pull_check(window_t *dlg, const ctrl_binding_t *b, void *state);
-
-// DDX_TEXT — binds a textedit control; _Generic dispatches push/pull by field type.
-//   int field          -> ddx_push_int   / ddx_pull_int
-//   float field        -> ddx_push_float / ddx_pull_float
-//   unsigned char field-> ddx_push_u8    / ddx_pull_u8
-//   char[] / other     -> ddx_push_text  / ddx_pull_text
-#define DDX_TEXT(id_, state_type, field) \
-  (ctrl_binding_t){ \
-    .ctrl_id = (id_), \
-    .command = edUpdate, \
-    .getter  = 0, \
-    .offset  = offsetof(state_type, field), \
-    .wparam  = sizeof_field(state_type, field), \
-    .push = _Generic((((state_type *)0)->field), \
-      int: ddx_push_int, \
-      float: ddx_push_float, \
-      unsigned char: ddx_push_u8, \
-      default: ddx_push_text), \
-    .pull = _Generic((((state_type *)0)->field), \
-      int: ddx_pull_int, \
-      float: ddx_pull_float, \
-      unsigned char: ddx_pull_u8, \
-      default: ddx_pull_text), \
-  }
-
-// DDX_COMBO — binds a combobox control; field must be int (compile error otherwise).
-// default_idx is used when combobox has no valid current selection.
-#define DDX_COMBO(id_, state_type, field, default_idx) \
-  (ctrl_binding_t){ \
-    .ctrl_id = (id_), \
-    .command = cbSelectionChange, \
-    .getter  = 0, \
-    .offset  = offsetof(state_type, field), \
-    .wparam  = (default_idx), \
-    .push = _Generic((((state_type *)0)->field), int: ddx_push_combo), \
-    .pull = _Generic((((state_type *)0)->field), int: ddx_pull_combo), \
-  }
-
-// DDX_CHECK — binds a checkbox control; field must be bool or int (compile error otherwise).
-#define DDX_CHECK(id_, state_type, field) \
-  (ctrl_binding_t){ \
-    .ctrl_id = (id_), \
-    .command = btnClicked, \
-    .getter  = 0, \
-    .offset  = offsetof(state_type, field), \
-    .wparam  = 0, \
-    .push = _Generic((((state_type *)0)->field), bool: ddx_push_check, int: ddx_push_check), \
-    .pull = _Generic((((state_type *)0)->field), bool: ddx_pull_check, int: ddx_pull_check), \
-  }
-
 // Describes one child control in a form definition (analogous to DLGITEMTEMPLATE).
 // Controls may themselves contain nested child definitions so that layout
 // containers such as stack/grid can be expressed as explicit components.
@@ -293,86 +208,6 @@ typedef struct {
   const void             *db_fields;     // db_field_meta_t array for this table
   int                     db_field_count; // number of fields in db_fields[]
 } form_def_t;
-
-// Declarative database API metadata emitted from .orion documents.
-// This metadata is model/view-agnostic and can be consumed by applications to
-// drive fetch actions and view bindings without hard-coded column setup.
-typedef struct {
-  const char *name;   // source name, e.g. "feed_posts"
-  const char *model;  // logical model name, e.g. "post"
-} db_source_def_t;
-
-typedef struct {
-  const char *field;  // model field key, e.g. "title"
-  const char *title;  // view column title
-  int         width;  // preferred column width; <=0 means auto/flex
-} db_binding_column_t;
-
-typedef struct {
-  const char               *name;   // binding identifier
-  const char               *source; // source name this binding reads from
-  const char               *view;   // target view/control name
-  const db_binding_column_t *columns;
-  int                       column_count;
-} db_view_binding_t;
-
-typedef enum {
-  DB_ACTION_FETCH = 1,
-  DB_ACTION_INSERT,
-  DB_ACTION_UPDATE,
-  DB_ACTION_DELETE,
-  DB_ACTION_CUSTOM,
-} db_action_kind_t;
-
-typedef struct {
-  const char       *name;   // action identifier
-  db_action_kind_t  kind;   // fetch/insert/update/delete/custom
-  const char       *source; // source name this action targets
-  const char       *target; // target view/control or route name
-} db_action_def_t;
-
-typedef struct {
-  const char *name;   // outlet identifier
-  const char *type;   // expected object/control type, if known
-  const char *target; // connected view/control name, if known
-} db_outlet_def_t;
-
-typedef struct {
-  const db_source_def_t  *sources;
-  int                     source_count;
-  const db_view_binding_t *bindings;
-  int                     binding_count;
-  const db_action_def_t  *actions;
-  int                     action_count;
-  const db_outlet_def_t  *outlets;
-  int                     outlet_count;
-} db_api_def_t;
-
-typedef lresult_t (*db_object_proc_t)(const void *object, uint32_t msg,
-                                     uint32_t wparam, void *lparam);
-
-// Action verbs for database object handlers (Action-Message DDX pattern).
-// msg carries the verb; wparam carries packed payload metadata.
-typedef enum {
-  dbObjGetFieldText = 1,
-  dbObjSetFieldText,
-} db_object_action_t;
-
-// Field-to-column lookup used by db_object_get_field_text().
-// The mapped column_id is packed into LOWORD(wparam).
-typedef struct {
-  const char *field;
-  uint16_t    column_id;
-} db_field_msg_binding_t;
-
-const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
-const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
-const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
-const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
-const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, const char *name);
-bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
-                              db_object_proc_t proc, const void *object,
-                              const char *field, char *buf, size_t buf_sz);
 
 typedef struct {
   uint32_t color_index;   // palette index for label text color; 0 = transparent

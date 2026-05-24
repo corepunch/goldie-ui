@@ -9,9 +9,19 @@
 #define FORMS_ID_NEW     1
 #define FORMS_ID_DELETE  2
 
+typedef enum {
+  OBJECT_ROW_FORM = 1,
+  OBJECT_ROW_DATABASE = 2,
+} object_row_kind_t;
+
+#define OBJECT_ROWS_MAX (MAX_ELEMENTS + FE_MAX_PROJECT_DATABASES)
+
 typedef struct {
   window_t *list_win;
   int       subscription_id;
+  int       row_count;
+  uint8_t   row_kind[OBJECT_ROWS_MAX];
+  int16_t   row_index[OBJECT_ROWS_MAX];
 } forms_browser_state_t;
 
 static const toolbar_item_t kFormsToolbar[] = {
@@ -35,30 +45,69 @@ static const char *forms_doc_label(window_t *doc) {
   return doc->title;
 }
 
+static const char *project_database_label(int idx) {
+  if (!g_app || idx < 0 || idx >= g_app->project.database_count)
+    return "Unnamed";
+  db_t *db = g_app->project.databases[idx];
+  const char *name = db ? db->name : NULL;
+  return (name && name[0]) ? name : "Unnamed";
+}
+
+static void objects_row_add(forms_browser_state_t *st,
+                            object_row_kind_t kind,
+                            int idx,
+                            const char *label,
+                            uint32_t color,
+                            bool selected) {
+  if (!st || !st->list_win || st->row_count >= OBJECT_ROWS_MAX)
+    return;
+
+  reportview_item_t item = {0};
+  item.text = label;
+  item.color = color;
+  item.userdata = (uint32_t)st->row_count;
+  send_message(st->list_win, RVM_ADDITEM, 0, &item);
+
+  st->row_kind[st->row_count] = (uint8_t)kind;
+  st->row_index[st->row_count] = (int16_t)idx;
+  if (selected)
+    send_message(st->list_win, RVM_SETSELECTION, (uint32_t)st->row_count, NULL);
+  st->row_count++;
+}
+
 static void forms_browser_rebuild(forms_browser_state_t *st) {
   if (!st || !st->list_win) return;
 
   send_message(st->list_win, RVM_SETREDRAW, 0, NULL);
   send_message(st->list_win, RVM_CLEAR, 0, NULL);
+  st->row_count = 0;
 
-  int idx = 0;
-  int selected = -1;
-  for (idx = 0; g_app && idx < g_app->form_count; idx++) {
+  for (int idx = 0; g_app && idx < g_app->form_count; idx++) {
     window_t *doc = g_app->forms[idx];
     if (!doc || !fe_doc_state(doc))
       continue;
-    reportview_item_t item = {0};
-    item.text = forms_doc_label(doc);
-    item.color = get_sys_color(brTextNormal);
-    item.userdata = (uint32_t)idx;
-    send_message(st->list_win, RVM_ADDITEM, 0, &item);
-    if (g_app && doc == g_app->active_form)
-      selected = idx;
+    char label[576];
+    snprintf(label, sizeof(label), "Form: %s", forms_doc_label(doc));
+    objects_row_add(st,
+                    OBJECT_ROW_FORM,
+                    idx,
+                    label,
+                    get_sys_color(brTextNormal),
+                    g_app && doc == g_app->active_form);
+  }
+
+  for (int idx = 0; g_app && idx < g_app->project.database_count; idx++) {
+    char label[576];
+    snprintf(label, sizeof(label), "Database: %s", project_database_label(idx));
+    objects_row_add(st,
+                    OBJECT_ROW_DATABASE,
+                    idx,
+                    label,
+                    get_sys_color(brTextNormal),
+                    false);
   }
 
   send_message(st->list_win, RVM_SETREDRAW, 1, NULL);
-  if (selected >= 0)
-    send_message(st->list_win, RVM_SETSELECTION, (uint32_t)selected, NULL);
 }
 
 void forms_browser_refresh(void) {
@@ -83,7 +132,7 @@ static void forms_browser_observer(fe_event_type_t event, window_t *doc, void *c
 }
 
 window_t *forms_browser_create(hinstance_t hinstance) {
-  window_t *win = create_window("Forms",
+  window_t *win = create_window("Objects",
       WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
       MAKERECT(FORMS_WIN_X, FORMS_WIN_Y, FORMS_WIN_W, FORMS_WIN_H),
       NULL, win_forms_browser_proc, hinstance, NULL);
@@ -130,7 +179,7 @@ lresult_t win_forms_browser_proc(window_t *win, uint32_t msg,
       send_message(st->list_win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
       send_message(st->list_win, RVM_SETCOLUMNTITLESVISIBLE, 0, NULL);
       {
-        reportview_column_t c0 = { "Form", 0 };
+        reportview_column_t c0 = { "Object", 0 };
         send_message(st->list_win, RVM_ADDCOLUMN, 0, &c0);
       }
 
@@ -169,16 +218,30 @@ lresult_t win_forms_browser_proc(window_t *win, uint32_t msg,
       if (notif != RVN_DBLCLK)
         return false;
 
-      window_t *doc = forms_doc_at((int)LOWORD(wparam));
-      if (!doc)
+      int row = (int)LOWORD(wparam);
+      if (row < 0 || !st || row >= st->row_count)
         return false;
-      form_doc_activate(doc);
-      show_window(doc, true);
-      forms_browser_refresh();
-      return true;
+
+      if (st->row_kind[row] == OBJECT_ROW_FORM) {
+        window_t *doc = forms_doc_at(st->row_index[row]);
+        if (!doc)
+          return false;
+        form_doc_activate(doc);
+        show_window(doc, true);
+        forms_browser_refresh();
+        return true;
+      }
+
+      if (st->row_kind[row] == OBJECT_ROW_DATABASE) {
+        formeditor_show_database_object_window(st->row_index[row]);
+        return true;
+      }
+
+      return false;
     }
 
     case evDestroy:
+      formeditor_close_database_object_window();
       if (st)
         fe_unsubscribe(st->subscription_id);
       if (g_app && g_app->windows[FE_WIN_FORMS] == win)

@@ -37,9 +37,6 @@ static void create_app_windows(hinstance_t hinstance) {
   g_app->windows[FE_WIN_PROP] = property_browser_create(hinstance);
   g_app->windows[FE_WIN_FORMS] = forms_browser_create(hinstance);
   g_app->windows[FE_WIN_PLUGINS] = plugins_browser_create(hinstance);
-  g_app->windows[FE_WIN_DATABASES] = create_database_browser(
-    MAKERECT(DATABASES_WIN_X, DATABASES_WIN_Y, DATABASES_WIN_W, DATABASES_WIN_H),
-    NULL, hinstance);
 }
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
@@ -102,10 +99,17 @@ void gem_shutdown(void) {
   if (!g_app) return;
   free_accelerators(g_app->accel);
   g_app->accel = NULL;
-  fe_unload_component_plugins();
+
+  // Shutdown can trigger document-close notifications that refresh the
+  // Objects browser. Clear DB rows first to avoid dereferencing plugin-owned
+  // database pointers during teardown.
+  memset(g_app->project.databases, 0, sizeof(g_app->project.databases));
+  g_app->project.database_count = 0;
+
   while (g_app->form_count > 0 && g_app->forms[0]) {
     close_form_doc(g_app->forms[0]);
   }
+  fe_unload_component_plugins();
   for (int i = 0; i < FE_NUM_WINDOWS; i++) {
     if (g_app->windows[i])
       destroy_window(g_app->windows[i]);

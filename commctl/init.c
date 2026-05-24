@@ -21,7 +21,6 @@ extern lresult_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void
 extern lresult_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern lresult_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern lresult_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 #define CLASS_DESC(class_name_lit, name_prefix_lit, toolbox_icon_val, \
@@ -128,9 +127,6 @@ static const fe_component_desc_t k_commctl_classes[] = {
   CLASS_DESC("Splitter", "IDC_SPL", 0,
              6, 6, 0, 0, 0,
              0, win_splitter),
-  CLASS_DESC("ColumnBrowser", "IDC_CBR", 0,
-             160, 200, 0, 200, 0,
-             0, win_column_browser),
 };
 
 #undef CLASS_DESC
