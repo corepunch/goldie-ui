@@ -63,7 +63,10 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   int header_h = rv_report_header_height(data);
   int body_h = cr.h - header_h;
   int scroll_y = (int)win->vscroll.pos;
+  bool focused = (g_ui_runtime.focused == win);
   uint32_t bg_col = get_sys_color(brColumnViewBg);
+  uint32_t sel_bg_col = get_sys_color(focused ? brTextNormal : brSelectionInactive);
+  uint32_t sel_fg_col = get_sys_color(brWindowBg);
 
   int first_row = (body_h > 0) ? (scroll_y / ENTRY_HEIGHT) : 0;
   int last_row = (body_h > 0) ? ((scroll_y + body_h + ENTRY_HEIGHT - 1) / ENTRY_HEIGHT) : 0;
@@ -80,7 +83,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   if (data->selected >= first_row && data->selected < last_row) {
     int y = header_h + data->selected * ENTRY_HEIGHT - scroll_y;
     if (y < header_h) y = header_h;
-    fill_rect(get_sys_color(brTextNormal), R(0, y, eff_w, ENTRY_HEIGHT - 1));
+    fill_rect(sel_bg_col, R(0, y, eff_w, ENTRY_HEIGHT - 1));
   }
 
   int scr_x = window_screen_x(win);
@@ -101,7 +104,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
     set_clip_rect(NULL, (irect16_t){scr_x + col_x, scr_y + header_h, col_w, body_h_local});
     for (int row = first_row; row < last_row; row++) {
       reportview_item_t *it = &data->items[row];
-      uint32_t fg = (row == data->selected) ? get_sys_color(brWindowBg)
+      uint32_t fg = (row == data->selected) ? sel_fg_col
                   : it->color ? it->color : get_sys_color(brTextNormal);
       int y = header_h + row * ENTRY_HEIGHT - scroll_y;
       const char *src = "";

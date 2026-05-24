@@ -428,8 +428,9 @@ typedef enum {
   brBorderActive         = 21,  // active item border
   brFolderText           = 22,  // folder entry text in file lists
   brColumnViewBg         = 23,  // report/icon column view background
-  brModalOverlay         = 24,  // modal owner dimming overlay (ARGB with alpha)
-  brCount                = 25
+  brSelectionInactive    = 24,  // unfocused list/report selection background
+  brModalOverlay         = 25,  // modal owner dimming overlay (ARGB with alpha)
+  brCount                = 26
 } sys_color_idx_t;
 
 // Runtime-accessible theme table (defined in user/theme.c).
