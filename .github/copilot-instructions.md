@@ -63,6 +63,20 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - **Use WinAPI-style flow as default.** Message-driven control flow, explicit ownership, and thin dispatch layers are the baseline.
 - **Apply this to new domains (database support included).** Implement vertical slices that are small and direct: resolve target -> validate command -> mutate state -> relayout/refresh.
 
+### Refactor Compression Direction
+
+When shrinking or simplifying existing code, prefer the same direction used in the socialfeed database refactor:
+- **Compress repeated logic into local helpers** instead of copying the same loop or branch structure several times.
+- **Move variation into parameters or table data**, not into new wrapper functions for each type or case.
+- **Remove thin named wrappers** when they only forward to a generic helper and do not add behavior.
+- **Keep behavior-specific side effects in place** while genericizing the common mechanics around them.
+- **Prefer table-driven dispatch over branch-heavy message handlers** when the table shapes are similar.
+- **Collapse repeated load/save/fetch/insert patterns** into one same-file helper when the ownership stays local.
+- **Delete superseded paths in the same change**; do not keep old and new forms of the same logic alive.
+- **Strive for smaller code by reducing shape duplication**, not by moving code to another file just to hide it.
+
+The goal is a smaller surface area with the same behavior: one canonical path for the common mechanics, and only the domain-specific differences left inline.
+
 **Examples (Required Reading for New Features):**
 
 ```c
