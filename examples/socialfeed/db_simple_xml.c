@@ -209,49 +209,27 @@ static bool comment_delete(simple_xml_context_t *ctx, int id) {
 // Object Procedures (DDX-style field extraction)
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Column IDs for Action-Message DDX
-enum {
-  COL_AUTHOR_ID = 0,
-  COL_AUTHOR_NAME,
-  COL_AUTHOR_AVATAR,
-  
-  COL_POST_ID = 100,
-  COL_POST_AUTHOR_ID,
-  COL_POST_TITLE,
-  COL_POST_BODY,
-  COL_POST_LIKE_COUNT,
-  COL_POST_COMMENT_COUNT,
-  COL_POST_AUTHOR_NAME,  // Join: author.name
-  
-  COL_COMMENT_ID = 200,
-  COL_COMMENT_POST_ID,
-  COL_COMMENT_AUTHOR_ID,
-  COL_COMMENT_TEXT,
-  COL_COMMENT_LIKE_COUNT,
-  COL_COMMENT_AUTHOR_NAME,  // Join: author.name
-};
-
 // Object proc for db_author_t records
 static lresult_t author_object_proc(const void *object, uint32_t msg,
                                    uint32_t wparam, void *lparam) {
   const db_author_t *a = (const db_author_t *)object;
   char *buf = (char *)lparam;
-  uint16_t column_id = LOWORD(wparam);
+  uint32_t field_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
   
   if (!a || !buf || buf_sz == 0) return false;
   
   switch (msg) {
     case dbObjGetFieldText:
-      switch (column_id) {
-        case COL_AUTHOR_ID:
+      switch (field_id) {
+        case ID_DB_AUTHORS_ID:
           snprintf(buf, buf_sz, "%d", a->id);
           return true;
-        case COL_AUTHOR_NAME:
+        case ID_DB_AUTHORS_NAME:
           strncpy(buf, a->name, buf_sz - 1);
           buf[buf_sz - 1] = '\0';
           return true;
-        case COL_AUTHOR_AVATAR:
+        case ID_DB_AUTHORS_AVATAR:
           strncpy(buf, a->avatar, buf_sz - 1);
           buf[buf_sz - 1] = '\0';
           return true;
@@ -268,35 +246,35 @@ static lresult_t post_object_proc(const void *object, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
   const db_post_t *p = (const db_post_t *)object;
   char *buf = (char *)lparam;
-  uint16_t column_id = LOWORD(wparam);
+  uint32_t field_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
   
   if (!p || !buf || buf_sz == 0) return false;
   
   switch (msg) {
     case dbObjGetFieldText:
-      switch (column_id) {
-        case COL_POST_ID:
+      switch (field_id) {
+        case ID_DB_POSTS_ID:
           snprintf(buf, buf_sz, "%d", p->id);
           return true;
-        case COL_POST_AUTHOR_ID:
+        case ID_DB_POSTS_AUTHOR_ID:
           snprintf(buf, buf_sz, "%d", p->author_id);
           return true;
-        case COL_POST_TITLE:
+        case ID_DB_POSTS_TITLE:
           strncpy(buf, p->title, buf_sz - 1);
           buf[buf_sz - 1] = '\0';
           return true;
-        case COL_POST_BODY:
+        case ID_DB_POSTS_BODY:
           strncpy(buf, p->body, buf_sz - 1);
           buf[buf_sz - 1] = '\0';
           return true;
-        case COL_POST_LIKE_COUNT:
+        case ID_DB_POSTS_LIKE_COUNT:
           snprintf(buf, buf_sz, "%d", p->like_count);
           return true;
-        case COL_POST_COMMENT_COUNT:
+        case ID_DB_POSTS_COMMENT_COUNT:
           snprintf(buf, buf_sz, "%d", p->comment_count);
           return true;
-        case COL_POST_AUTHOR_NAME: {
+        case ID_DB_POSTS_AUTHOR_NAME: {
           // Join: Look up author by author_id and return name
           if (g_db_ctx) {
             db_author_t *author = author_find_by_id(g_db_ctx, p->author_id);
@@ -322,31 +300,31 @@ static lresult_t comment_object_proc(const void *object, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
   const db_comment_t *c = (const db_comment_t *)object;
   char *buf = (char *)lparam;
-  uint16_t column_id = LOWORD(wparam);
+  uint32_t field_id = LOWORD(wparam);
   size_t buf_sz = (size_t)HIWORD(wparam);
   
   if (!c || !buf || buf_sz == 0) return false;
   
   switch (msg) {
     case dbObjGetFieldText:
-      switch (column_id) {
-        case COL_COMMENT_ID:
+      switch (field_id) {
+        case ID_DB_COMMENTS_ID:
           snprintf(buf, buf_sz, "%d", c->id);
           return true;
-        case COL_COMMENT_POST_ID:
+        case ID_DB_COMMENTS_POST_ID:
           snprintf(buf, buf_sz, "%d", c->post_id);
           return true;
-        case COL_COMMENT_AUTHOR_ID:
+        case ID_DB_COMMENTS_AUTHOR_ID:
           snprintf(buf, buf_sz, "%d", c->author_id);
           return true;
-        case COL_COMMENT_TEXT:
+        case ID_DB_COMMENTS_TEXT:
           strncpy(buf, c->text, buf_sz - 1);
           buf[buf_sz - 1] = '\0';
           return true;
-        case COL_COMMENT_LIKE_COUNT:
+        case ID_DB_COMMENTS_LIKE_COUNT:
           snprintf(buf, buf_sz, "%d", c->like_count);
           return true;
-        case COL_COMMENT_AUTHOR_NAME: {
+        case ID_DB_COMMENTS_AUTHOR_NAME: {
           // Join: Look up author by author_id and return name
           if (g_db_ctx) {
             db_author_t *author = author_find_by_id(g_db_ctx, c->author_id);
@@ -369,82 +347,82 @@ static lresult_t comment_object_proc(const void *object, uint32_t msg,
 
 // Field bindings for each table
 static const db_field_msg_binding_t author_field_bindings[] = {
-  { ID_DB_DB_AUTHORS_ID, COL_AUTHOR_ID },
-  { ID_DB_DB_AUTHORS_NAME, COL_AUTHOR_NAME },
-  { ID_DB_DB_AUTHORS_AVATAR, COL_AUTHOR_AVATAR },
+  { ID_DB_AUTHORS_ID, ID_DB_AUTHORS_ID },
+  { ID_DB_AUTHORS_NAME, ID_DB_AUTHORS_NAME },
+  { ID_DB_AUTHORS_AVATAR, ID_DB_AUTHORS_AVATAR },
 };
 
 static const db_field_msg_binding_t post_field_bindings[] = {
-  { ID_DB_DB_POSTS_ID, COL_POST_ID },
-  { ID_DB_DB_POSTS_AUTHOR_ID, COL_POST_AUTHOR_ID },
-  { ID_DB_DB_POSTS_TITLE, COL_POST_TITLE },
-  { ID_DB_DB_POSTS_BODY, COL_POST_BODY },
-  { ID_DB_DB_POSTS_LIKE_COUNT, COL_POST_LIKE_COUNT },
-  { ID_DB_DB_POSTS_COMMENT_COUNT, COL_POST_COMMENT_COUNT },
-  { ID_DB_DB_POSTS_AUTHOR_NAME, COL_POST_AUTHOR_NAME },
+  { ID_DB_POSTS_ID, ID_DB_POSTS_ID },
+  { ID_DB_POSTS_AUTHOR_ID, ID_DB_POSTS_AUTHOR_ID },
+  { ID_DB_POSTS_TITLE, ID_DB_POSTS_TITLE },
+  { ID_DB_POSTS_BODY, ID_DB_POSTS_BODY },
+  { ID_DB_POSTS_LIKE_COUNT, ID_DB_POSTS_LIKE_COUNT },
+  { ID_DB_POSTS_COMMENT_COUNT, ID_DB_POSTS_COMMENT_COUNT },
+  { ID_DB_POSTS_AUTHOR_NAME, ID_DB_POSTS_AUTHOR_NAME },
 };
 
 static const db_field_msg_binding_t comment_field_bindings[] = {
-  { ID_DB_DB_COMMENTS_ID, COL_COMMENT_ID },
-  { ID_DB_DB_COMMENTS_POST_ID, COL_COMMENT_POST_ID },
-  { ID_DB_DB_COMMENTS_AUTHOR_ID, COL_COMMENT_AUTHOR_ID },
-  { ID_DB_DB_COMMENTS_TEXT, COL_COMMENT_TEXT },
-  { ID_DB_DB_COMMENTS_LIKE_COUNT, COL_COMMENT_LIKE_COUNT },
-  { ID_DB_DB_COMMENTS_AUTHOR_NAME, COL_COMMENT_AUTHOR_NAME },
+  { ID_DB_COMMENTS_ID, ID_DB_COMMENTS_ID },
+  { ID_DB_COMMENTS_POST_ID, ID_DB_COMMENTS_POST_ID },
+  { ID_DB_COMMENTS_AUTHOR_ID, ID_DB_COMMENTS_AUTHOR_ID },
+  { ID_DB_COMMENTS_TEXT, ID_DB_COMMENTS_TEXT },
+  { ID_DB_COMMENTS_LIKE_COUNT, ID_DB_COMMENTS_LIKE_COUNT },
+  { ID_DB_COMMENTS_AUTHOR_NAME, ID_DB_COMMENTS_AUTHOR_NAME },
 };
 
 // Design-time schema metadata exposed through dbGetSchema.
 static const db_field_schema_t author_schema_fields[] = {
-  { ID_DB_DB_AUTHORS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
-  { ID_DB_DB_AUTHORS_NAME, "name", DB_TYPE_STRING, 64, false, 0, 0 },
-  { ID_DB_DB_AUTHORS_AVATAR, "avatar", DB_TYPE_STRING, 256, false, 0, 0 },
+  { ID_DB_AUTHORS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
+  { ID_DB_AUTHORS_NAME, "name", DB_TYPE_STRING, 64, false, 0, 0 },
+  { ID_DB_AUTHORS_AVATAR, "avatar", DB_TYPE_STRING, 256, false, 0, 0 },
 };
 
 static const db_field_schema_t post_schema_fields[] = {
-  { ID_DB_DB_POSTS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
-  { ID_DB_DB_POSTS_AUTHOR_ID, "author_id", DB_TYPE_INT, 0, false, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
-  { ID_DB_DB_POSTS_TITLE, "title", DB_TYPE_STRING, 256, false, 0, 0 },
-  { ID_DB_DB_POSTS_BODY, "body", DB_TYPE_STRING, 2048, false, 0, 0 },
-  { ID_DB_DB_POSTS_LIKE_COUNT, "like_count", DB_TYPE_INT, 0, false, 0, 0 },
-  { ID_DB_DB_POSTS_COMMENT_COUNT, "comment_count", DB_TYPE_INT, 0, false, 0, 0 },
+  { ID_DB_POSTS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
+  { ID_DB_POSTS_AUTHOR_ID, "author_id", DB_TYPE_INT, 0, false, ID_DB_AUTHORS, ID_DB_AUTHORS_ID },
+  { ID_DB_POSTS_TITLE, "title", DB_TYPE_STRING, 256, false, 0, 0 },
+  { ID_DB_POSTS_BODY, "body", DB_TYPE_STRING, 2048, false, 0, 0 },
+  { ID_DB_POSTS_LIKE_COUNT, "like_count", DB_TYPE_INT, 0, false, 0, 0 },
+  { ID_DB_POSTS_COMMENT_COUNT, "comment_count", DB_TYPE_INT, 0, false, 0, 0 },
 };
 
 static const db_field_schema_t comment_schema_fields[] = {
-  { ID_DB_DB_COMMENTS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
-  { ID_DB_DB_COMMENTS_POST_ID, "post_id", DB_TYPE_INT, 0, false, ID_DB_DB_POSTS, ID_DB_DB_POSTS_ID },
-  { ID_DB_DB_COMMENTS_AUTHOR_ID, "author_id", DB_TYPE_INT, 0, false, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
-  { ID_DB_DB_COMMENTS_TEXT, "text", DB_TYPE_STRING, 1024, false, 0, 0 },
-  { ID_DB_DB_COMMENTS_LIKE_COUNT, "like_count", DB_TYPE_INT, 0, false, 0, 0 },
+  { ID_DB_COMMENTS_ID, "id", DB_TYPE_INT, 0, true, 0, 0 },
+  { ID_DB_COMMENTS_POST_ID, "post_id", DB_TYPE_INT, 0, false, ID_DB_POSTS, ID_DB_POSTS_ID },
+  { ID_DB_COMMENTS_AUTHOR_ID, "author_id", DB_TYPE_INT, 0, false, ID_DB_AUTHORS, ID_DB_AUTHORS_ID },
+  { ID_DB_COMMENTS_TEXT, "text", DB_TYPE_STRING, 1024, false, 0, 0 },
+  { ID_DB_COMMENTS_LIKE_COUNT, "like_count", DB_TYPE_INT, 0, false, 0, 0 },
 };
 
 static const db_join_schema_t post_schema_joins[] = {
-  { ID_DB_DB_POSTS_AUTHOR_NAME, "author", ID_DB_DB_POSTS_AUTHOR_ID, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
+  { ID_DB_POSTS_AUTHOR_NAME, "author", ID_DB_POSTS_AUTHOR_ID, ID_DB_AUTHORS, ID_DB_AUTHORS_ID },
 };
 
 static const db_join_schema_t comment_schema_joins[] = {
-  { ID_DB_DB_COMMENTS_POST_ID, "post", ID_DB_DB_COMMENTS_POST_ID, ID_DB_DB_POSTS, ID_DB_DB_POSTS_ID },
-  { ID_DB_DB_COMMENTS_AUTHOR_NAME, "author", ID_DB_DB_COMMENTS_AUTHOR_ID, ID_DB_DB_AUTHORS, ID_DB_DB_AUTHORS_ID },
+  { ID_DB_COMMENTS_POST_ID, "post", ID_DB_COMMENTS_POST_ID, ID_DB_POSTS, ID_DB_POSTS_ID },
+  { ID_DB_COMMENTS_AUTHOR_NAME, "author", ID_DB_COMMENTS_AUTHOR_ID, ID_DB_AUTHORS, ID_DB_AUTHORS_ID },
 };
 
 static const db_table_schema_t socialfeed_schema_tables[] = {
-  { TABLE_AUTHORS, "authors", ID_DB_DB_MODEL_AUTHOR, "author", STATIC_ARRAY(author_schema_fields), NULL, 0 },
-  { TABLE_POSTS, "posts", ID_DB_DB_MODEL_POST, "post", STATIC_ARRAY(post_schema_fields), STATIC_ARRAY(post_schema_joins) },
-  { TABLE_COMMENTS, "comments", ID_DB_DB_MODEL_COMMENT, "comment", STATIC_ARRAY(comment_schema_fields), STATIC_ARRAY(comment_schema_joins) },
+  { TABLE_AUTHORS, "authors", ID_DB_MODEL_AUTHOR, "author", STATIC_ARRAY(author_schema_fields), NULL, 0 },
+  { TABLE_POSTS, "posts", ID_DB_MODEL_POST, "post", STATIC_ARRAY(post_schema_fields), STATIC_ARRAY(post_schema_joins) },
+  { TABLE_COMMENTS, "comments", ID_DB_MODEL_COMMENT, "comment", STATIC_ARRAY(comment_schema_fields), STATIC_ARRAY(comment_schema_joins) },
 };
 
 static db_schema_def_t db_simple_xml_schema = { NULL, NULL, NULL, STATIC_ARRAY(socialfeed_schema_tables) };
 
 static const db_source_def_t db_simple_xml_sources[] = {
-  { ID_DB_DB_SOURCE_AUTHORS, ID_DB_DB_MODEL_AUTHOR },
-  { ID_DB_DB_SOURCE_POSTS, ID_DB_DB_MODEL_POST },
-  { ID_DB_DB_SOURCE_COMMENTS, ID_DB_DB_MODEL_COMMENT },
+  { ID_DB_SOURCE_AUTHORS, ID_DB_MODEL_AUTHOR },
+  { ID_DB_SOURCE_POSTS, ID_DB_MODEL_POST },
+  { ID_DB_SOURCE_COMMENTS, ID_DB_MODEL_COMMENT },
 };
 
 static const db_action_def_t db_simple_xml_actions[] = {
-  { ID_DB_DB_ACTION_FETCH_POSTS, DB_ACTION_FETCH, ID_DB_DB_SOURCE_POSTS, ID_MAIN_WINDOW_FEED },
-  { ID_DB_DB_ACTION_FETCH_COMMENTS, DB_ACTION_FETCH, ID_DB_DB_SOURCE_COMMENTS, ID_POST_DETAIL_COMMENTS },
-  { ID_DB_DB_ACTION_INSERT_POSTS, DB_ACTION_INSERT, ID_DB_DB_SOURCE_POSTS, 0 },
-  { ID_DB_DB_ACTION_INSERT_COMMENTS, DB_ACTION_INSERT, ID_DB_DB_SOURCE_COMMENTS, 0 },
+  { ID_DB_ACTION_FETCH_POSTS, DB_ACTION_FETCH, ID_DB_SOURCE_POSTS, ID_MAIN_WINDOW_FEED },
+  { ID_DB_ACTION_FETCH_COMMENTS, DB_ACTION_FETCH, ID_DB_SOURCE_COMMENTS, ID_POST_DETAIL_COMMENTS },
+  { ID_DB_ACTION_INSERT_POSTS, DB_ACTION_INSERT, ID_DB_SOURCE_POSTS, 0 },
+  { ID_DB_ACTION_INSERT_COMMENTS, DB_ACTION_INSERT, ID_DB_SOURCE_COMMENTS, 0 },
 };
 
 static const db_api_def_t db_simple_xml_api = {
@@ -813,23 +791,20 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
     case dbGetDirty:
       return db->dirty ? 1 : 0;
     
-    case dbGetObjectProc: {
+    case dbGetObjectProc:
       // wparam = table_id; returns object proc for that table
-      int table_id = (int)wparam;
-      switch (table_id) {
+      switch (wparam) {
         case TABLE_AUTHORS:  return (lresult_t)author_object_proc;
         case TABLE_POSTS:    return (lresult_t)post_object_proc;
         case TABLE_COMMENTS: return (lresult_t)comment_object_proc;
         default: return (lresult_t)NULL;
       }
-    }
     
     case dbGetFieldBindings: {
       // wparam = table_id; lparam = int* count_out; returns db_field_msg_binding_t*
-      int table_id = (int)wparam;
       int *count_out = (int *)lparam;
       
-      switch (table_id) {
+      switch (wparam) {
         case TABLE_AUTHORS:
           if (count_out) *count_out = sizeof(author_field_bindings) / sizeof(author_field_bindings[0]);
           return (lresult_t)author_field_bindings;

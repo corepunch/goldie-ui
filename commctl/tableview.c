@@ -16,7 +16,7 @@
 //     .table_id = TABLE_POSTS,
 //     .filter_field = 0,
 //     .filter_value = 0,
-//     .field_ids = (const uint32_t[]){ ID_DB_DB_POSTS_TITLE, ID_DB_DB_AUTHORS_NAME, ID_DB_DB_POSTS_LIKE_COUNT },
+//     .field_ids = (const uint32_t[]){ ID_DB_POSTS_TITLE, ID_DB_AUTHORS_NAME, ID_DB_POSTS_LIKE_COUNT },
 //     .column_titles = (const char *[]){"Title", "Author", "Likes"},
 //     .column_widths = (const int[]){0, 80, 50},
 //     .column_count = 3,

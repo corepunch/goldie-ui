@@ -342,7 +342,7 @@ static void singular_name(char *out, size_t cap, const char *name) {
 static void db_id_prefix(char *out, size_t cap, const char *db_name) {
   char up[96];
   ident(up, sizeof(up), nz(db_name, "db"), true);
-  snprintf(out, cap, "ID_DB_%s", up);
+  snprintf(out, cap, "ID_%s", up);
 }
 
 static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
@@ -488,7 +488,7 @@ static void field_id_expr_from_source(char *out, size_t cap, xmlNodePtr db, cons
     char alias_up[96];
     ident(alias_up, sizeof(alias_up), alias, true);
     ident(field_up, sizeof(field_up), dot + 1, true);
-    snprintf(out, cap, "ID_DB_%s_%s_%s_%s", db_up, table_up, alias_up, field_up);
+    snprintf(out, cap, "ID_%s_%s_%s_%s", db_up, table_up, alias_up, field_up);
     return;
   }
   if (!table_name_from_table_id(table, sizeof(table), db, table)) {
@@ -497,7 +497,7 @@ static void field_id_expr_from_source(char *out, size_t cap, xmlNodePtr db, cons
   }
   ident(table_up, sizeof(table_up), table, true);
   ident(field_up, sizeof(field_up), nz(field, "id"), true);
-  snprintf(out, cap, "ID_DB_%s_%s_%s", db_up, table_up, field_up);
+  snprintf(out, cap, "ID_%s_%s_%s", db_up, table_up, field_up);
 }
 
 // count_table_fields — count number of fields in a database table

@@ -326,6 +326,8 @@ for (int i = 0; i < NUM_TOOLS; i++) {
 - Prefer standard C types (int, bool, etc.) with stdint.h types when size matters (uint32_t, uint16_t)
 - Use forward declarations to minimize header dependencies
 - Do not line-wrap function declarations/prototypes. Keep each declaration on one line.
+- Do not introduce variables that are used only once; inline the expression/value at the use site.
+- In message handlers, do not create one-use aliases for `wparam`/`lparam` just to switch/branch. Prefer `switch (wparam)` or `switch (LOWORD(wparam))` directly unless the value is reused.
 
 ### Struct Design
 
