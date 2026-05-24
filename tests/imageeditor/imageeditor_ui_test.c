@@ -110,6 +110,16 @@ static int count_all_windows(window_t *list) {
     return n;
 }
 
+static int g_canvas_probe_paint_count = 0;
+
+static lresult_t canvas_paint_probe_proc(window_t *win, uint32_t msg,
+                                         uint32_t wparam, void *lparam) {
+    (void)win; (void)wparam; (void)lparam;
+    if (msg == evPaint)
+        g_canvas_probe_paint_count++;
+    return true;
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 // create_document allocates a canvas_doc_t, creates document + canvas windows,
@@ -129,6 +139,31 @@ void test_ie_create_document(void) {
     ASSERT_FALSE(doc->modified);
     ASSERT_TRUE(is_window(doc->win));
     ASSERT_NOT_NULL(g_app->main_toolbar_win);
+
+    ie_teardown();
+    PASS();
+}
+
+// Painting a document window must continue into its canvas child; otherwise the
+// document frame appears but the image content is never drawn.
+void test_ie_document_paint_reaches_canvas_child(void) {
+    TEST("document paint: dispatches to canvas child");
+
+    ie_setup();
+
+    canvas_doc_t *doc = create_document(NULL, 32, 32);
+    ASSERT_NOT_NULL(doc);
+    ASSERT_NOT_NULL(doc->win);
+    ASSERT_NOT_NULL(doc->canvas_win);
+
+    winproc_t saved_proc = doc->canvas_win->proc;
+    g_canvas_probe_paint_count = 0;
+    doc->canvas_win->proc = canvas_paint_probe_proc;
+
+    send_message(doc->win, evPaint, 0, NULL);
+
+    doc->canvas_win->proc = saved_proc;
+    ASSERT_EQUAL(g_canvas_probe_paint_count, 1);
 
     ie_teardown();
     PASS();
@@ -2187,6 +2222,7 @@ int main(int argc, char *argv[]) {
     TEST_START("Image Editor UI – headless integration tests");
 
     test_ie_create_document();
+    test_ie_document_paint_reaches_canvas_child();
     test_ie_close_document();
     test_ie_close_multiple_documents();
     test_ie_document_windows_cascade();
