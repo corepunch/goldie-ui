@@ -231,8 +231,8 @@ bool scrollbar_handle_builtin_mouse(window_t *win, uint32_t msg, uint32_t wparam
   if (msg != evLeftButtonDown && msg != evLeftButtonDoubleClick) return false;
   if (!has_h && !has_v) return false;
 
-  int cx = sb_mouse_axis_coord(wparam, false);
-  int cy = sb_mouse_axis_coord(wparam, true);
+  int cx = sb_mouse_axis_coord(wparam, false) - (int)win->hscroll.pos;
+  int cy = sb_mouse_axis_coord(wparam, true)  - (int)win->vscroll.pos;
 
   if (has_h && cy >= h_y_min && cy < h_y_max && cx >= h_x_min && cx < win->frame.w) {
     if (!win->hscroll.enabled) return true;

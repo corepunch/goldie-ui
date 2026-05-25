@@ -129,6 +129,7 @@ static window_t *fe_browser_list(window_t *browser) {
 static window_t *fe_paint_probe_browser = NULL;
 static int fe_paint_probe_count = 0;
 static int fe_paint_probe_bad_scroll_count = 0;
+static int fe_test_db_fetch_count = 0;
 
 static void fe_columnbrowser_paint_probe(window_t *win, uint32_t msg, uint32_t wparam,
                                          void *lparam, void *userdata) {
@@ -163,6 +164,12 @@ static const db_field_schema_t fe_test_author_fields[] = {
   { .field_id = 5, .name = "name", .type = DB_TYPE_STRING, .length = 64 },
 };
 
+static const db_field_schema_t fe_test_comment_fields[] = {
+  { .field_id = 6, .name = "id", .type = DB_TYPE_INT, .primary_key = true },
+  { .field_id = 7, .name = "post_id", .type = DB_TYPE_INT, .relation_table_id = 1, .relation_field_id = 1 },
+  { .field_id = 8, .name = "text", .type = DB_TYPE_STRING, .length = 256 },
+};
+
 static const db_field_meta_t fe_test_author_meta[] = {
   { 4, "id", DB_TYPE_INT, offsetof(fe_test_author_t, id), 0 },
   { 5, "name", DB_TYPE_STRING, offsetof(fe_test_author_t, name), 64 },
@@ -170,6 +177,10 @@ static const db_field_meta_t fe_test_author_meta[] = {
 
 static const db_join_schema_t fe_test_post_joins[] = {
   { 3, "author", 3, 2, 4 },
+};
+
+static const db_join_schema_t fe_test_comment_joins[] = {
+  { 7, "post", 7, 1, 1 },
 };
 
 static fe_test_author_t fe_test_authors[] = {
@@ -192,6 +203,14 @@ static const db_table_schema_t fe_test_db_tables[] = {
     .fields = fe_test_author_fields,
     .field_count = ARRAY_LEN(fe_test_author_fields),
   },
+  {
+    .table_id = 3,
+    .name = "comments",
+    .fields = fe_test_comment_fields,
+    .field_count = ARRAY_LEN(fe_test_comment_fields),
+    .joins = fe_test_comment_joins,
+    .join_count = ARRAY_LEN(fe_test_comment_joins),
+  },
 };
 
 static const db_schema_def_t fe_test_db_schema = {
@@ -211,6 +230,7 @@ static lresult_t fe_test_db_proc(database_t *db, uint32_t msg, uint32_t wparam, 
     return (lresult_t)fe_test_author_meta;
   }
   if (msg == dbFetch && LOWORD(wparam) == 2) {
+    fe_test_db_fetch_count++;
     result_node_t *head = NULL;
     result_node_t *tail = NULL;
     for (int i = 0; i < (int)ARRAY_LEN(fe_test_authors); i++) {
@@ -226,6 +246,10 @@ static lresult_t fe_test_db_proc(database_t *db, uint32_t msg, uint32_t wparam, 
       tail = node;
     }
     return (lresult_t)head;
+  }
+  if (msg == dbFetch) {
+    fe_test_db_fetch_count++;
+    return 0;
   }
   return true;
 }
@@ -432,6 +456,7 @@ void test_fe_database_browser_cascades_reportviews(void) {
   };
   g_app->project.databases[0] = &db;
   g_app->project.database_count = 1;
+  fe_test_db_fetch_count = 0;
 
   formeditor_show_database_object_window(0);
 
@@ -478,13 +503,52 @@ void test_fe_database_browser_cascades_reportviews(void) {
   send_message(browser, evCommand, MAKEDWORD(2, RVN_SELCHANGE), field_list);
   ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 4);
 
-  window_t *record_list = fe_child_at_by_proc(browser, win_reportview, 3);
-  ASSERT_NOT_NULL(record_list);
-  ASSERT_EQUAL((int)send_message(record_list, RVM_GETITEMCOUNT, 0, NULL),
-               (int)ARRAY_LEN(fe_test_authors));
-  reportview_item_t record_item = {0};
-  ASSERT_TRUE(send_message(record_list, RVM_GETITEMDATA, 0, &record_item));
-  ASSERT_STR_EQUAL(record_item.text, "alice");
+  window_t *related_field_list = fe_child_at_by_proc(browser, win_reportview, 3);
+  ASSERT_NOT_NULL(related_field_list);
+  ASSERT_EQUAL((int)send_message(related_field_list, RVM_GETITEMCOUNT, 0, NULL),
+               (int)ARRAY_LEN(fe_test_author_fields));
+  reportview_item_t related_field_item = {0};
+  ASSERT_TRUE(send_message(related_field_list, RVM_GETITEMDATA, 0, &related_field_item));
+  ASSERT_STR_EQUAL(related_field_item.text, "id");
+
+  send_message(table_list, RVM_SETSELECTION, 2, NULL);
+  send_message(browser, evCommand, MAKEDWORD(2, RVN_SELCHANGE), table_list);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 3);
+
+  field_list = fe_child_at_by_proc(browser, win_reportview, 2);
+  ASSERT_NOT_NULL(field_list);
+  ASSERT_EQUAL((int)send_message(field_list, RVM_GETITEMCOUNT, 0, NULL),
+               (int)ARRAY_LEN(fe_test_comment_fields));
+  reportview_item_t comment_relation_item = {0};
+  ASSERT_TRUE(send_message(field_list, RVM_GETITEMDATA, 1, &comment_relation_item));
+  ASSERT_STR_EQUAL(comment_relation_item.text, "post");
+  ASSERT_TRUE((comment_relation_item.flags & RVI_DISCLOSURE) != 0);
+
+  send_message(field_list, RVM_SETSELECTION, 1, NULL);
+  send_message(browser, evCommand, MAKEDWORD(1, RVN_SELCHANGE), field_list);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 4);
+
+  window_t *post_field_list = fe_child_at_by_proc(browser, win_reportview, 3);
+  ASSERT_NOT_NULL(post_field_list);
+  ASSERT_EQUAL((int)send_message(post_field_list, RVM_GETITEMCOUNT, 0, NULL),
+               (int)ARRAY_LEN(fe_test_post_fields));
+  reportview_item_t post_relation_item = {0};
+  ASSERT_TRUE(send_message(post_field_list, RVM_GETITEMDATA, 2, &post_relation_item));
+  ASSERT_STR_EQUAL(post_relation_item.text, "author");
+  ASSERT_TRUE((post_relation_item.flags & RVI_DISCLOSURE) != 0);
+
+  send_message(post_field_list, RVM_SETSELECTION, 2, NULL);
+  send_message(browser, evCommand, MAKEDWORD(2, RVN_SELCHANGE), post_field_list);
+  ASSERT_EQUAL(fe_child_count_by_proc(browser, win_reportview), 5);
+
+  window_t *author_field_list = fe_child_at_by_proc(browser, win_reportview, 4);
+  ASSERT_NOT_NULL(author_field_list);
+  ASSERT_EQUAL((int)send_message(author_field_list, RVM_GETITEMCOUNT, 0, NULL),
+               (int)ARRAY_LEN(fe_test_author_fields));
+  reportview_item_t author_field_item = {0};
+  ASSERT_TRUE(send_message(author_field_list, RVM_GETITEMDATA, 0, &author_field_item));
+  ASSERT_STR_EQUAL(author_field_item.text, "id");
+  ASSERT_EQUAL(fe_test_db_fetch_count, 0);
   ASSERT_TRUE(browser->hscroll.visible);
 
   irect16_t browser_cr = get_client_rect(browser);
@@ -521,15 +585,33 @@ void test_fe_database_browser_cascades_reportviews(void) {
   };
   dispatch_message(&hscroll_drag);
   ASSERT_TRUE((int)browser->hscroll.pos > 0);
+  ui_event_t hscroll_up = {
+    .message = kEventLeftButtonUp,
+    .x = (hscroll_x + 12) * UI_WINDOW_SCALE,
+    .y = hscroll_y * UI_WINDOW_SCALE,
+  };
+  dispatch_message(&hscroll_up);
+  ASSERT_FALSE(browser->hscroll.dragging);
   ASSERT_EQUAL(db_list->frame.h, get_client_rect(browser).h);
 
   int max_hscroll = browser->hscroll.max_val - (int)browser->hscroll.page;
   if (max_hscroll < 0)
     max_hscroll = 0;
+  if (max_hscroll > 1) {
+    int middle_hscroll = max_hscroll / 2;
+    send_message(browser, evHScroll, (uint32_t)middle_hscroll, NULL);
+    hscroll_x = browser->frame.x + browser_cr.w - 2;
+    hscroll_y = browser->frame.y + titlebar_height(browser) + browser_cr.h + 1;
+    hscroll_down.x = hscroll_x * UI_WINDOW_SCALE;
+    hscroll_down.y = hscroll_y * UI_WINDOW_SCALE;
+    dispatch_message(&hscroll_down);
+    ASSERT_TRUE((int)browser->hscroll.pos > middle_hscroll);
+  }
+
   send_message(browser, evHScroll, (uint32_t)max_hscroll, NULL);
-  int field_hit_x = browser->frame.x + field_list->frame.x + 10;
+  int field_hit_x = browser->frame.x + author_field_list->frame.x + 10;
   int field_hit_y = browser->frame.y + titlebar_height(browser) + 10;
-  ASSERT_TRUE(find_window(field_hit_x, field_hit_y) == field_list);
+  ASSERT_TRUE(find_window(field_hit_x, field_hit_y) == author_field_list);
 
   fe_paint_probe_browser = browser;
   fe_paint_probe_count = 0;
