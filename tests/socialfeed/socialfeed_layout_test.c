@@ -35,9 +35,15 @@ static void test_post_detail_layout(void) {
     
     // Find children
     window_t *tableview = get_window_item(dlg, ID_POST_DETAIL_COMMENTS);
+    window_t *author_col = get_window_item(dlg, ID_POST_DETAIL_COLUMN0);
+    window_t *text_col = get_window_item(dlg, ID_POST_DETAIL_COLUMN1);
+    window_t *likes_col = get_window_item(dlg, ID_POST_DETAIL_COLUMN2);
     window_t *actions = get_window_item(dlg, ID_POST_DETAIL_ACTIONS);
     
     ASSERT_NOT_NULL(tableview);
+    ASSERT_NOT_NULL(author_col);
+    ASSERT_NOT_NULL(text_col);
+    ASSERT_NOT_NULL(likes_col);
     ASSERT_NOT_NULL(actions);
     
     // Verify tableview has WINDOW_FLEXSPACE
@@ -58,6 +64,20 @@ static void test_post_detail_layout(void) {
     // Verify actions is positioned below tableview (not overlapping)
     ASSERT(actions->frame.y > tableview->frame.y, "actions should be below tableview");
     ASSERT(actions->frame.y >= tableview->frame.y + tableview->frame.h, "actions should not overlap tableview");
+
+    // Table columns are real child windows for FormEditor hit-testing, but
+    // they share the report/table view's single scrolling surface.
+    ASSERT(author_col->parent == tableview, "author column should be a tableview child");
+    ASSERT(text_col->parent == tableview, "text column should be a tableview child");
+    ASSERT(likes_col->parent == tableview, "likes column should be a tableview child");
+    ASSERT(author_col->frame.x == 0, "first column should start at x=0");
+    ASSERT(author_col->frame.w == 70, "author column should keep fixed width");
+    ASSERT(likes_col->frame.w == 45, "likes column should keep fixed width");
+    ASSERT(text_col->frame.x == author_col->frame.w, "text column should follow author column");
+    ASSERT(likes_col->frame.x == text_col->frame.x + text_col->frame.w, "likes column should follow text column");
+    ASSERT(author_col->frame.h == tableview->frame.h, "column height should match tableview");
+    ASSERT(text_col->frame.h == tableview->frame.h, "column height should match tableview");
+    ASSERT(likes_col->frame.h == tableview->frame.h, "column height should match tableview");
     
     // Cleanup
     destroy_window(dlg);

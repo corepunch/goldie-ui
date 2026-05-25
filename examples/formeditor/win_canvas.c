@@ -71,6 +71,8 @@ static window_t *canvas_find_database_field_drop_target(window_t *doc,
                                                         int canvas_x,
                                                         int canvas_y) {
   for (window_t *p = canvas_hit_child(doc, canvas_x, canvas_y); p; p = p->parent) {
+    if (p->proc == win_reportcolumn)
+      return p;
     if (p->proc == win_tableview)
       return p;
     if (p == doc)

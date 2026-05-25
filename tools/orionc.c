@@ -268,9 +268,13 @@ static void read_control_attrs(xmlNodePtr n, attrs_t *a) {
 
 static void free_attrs(attrs_t *a) { for (int i = 0; i < ARRAY_LEN(a->v); i++) free(a->v[i]); }
 static bool is_control(xmlNodePtr parent, xmlNodePtr n) {
-  return n && n->type == XML_ELEMENT_NODE && !elem(n, "requires") && !(elem(parent, "tableview") && elem(n, "column"));
+  return n && n->type == XML_ELEMENT_NODE && !elem(n, "requires");
 }
 static bool has_controls(xmlNodePtr n) { EACH_ELEMENT(c, n) if (is_control(n, c)) return true; return false; }
+
+static bool report_column_node(xmlNodePtr parent, xmlNodePtr n) {
+  return elem(n, "column") && (elem(parent, "reportview") || elem(parent, "tableview"));
+}
 
 static void emit_enum_ids(FILE *f, const ids_t *ids, const char *base) {
   if (ids->n <= 0)
@@ -1048,8 +1052,11 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
   EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
     attrs_t a; rect_t sz = size_attr(c), pad = {0}, mar = {0}; char id[256], klass[128], classq[ORIONC_STRING_SIZE], textq[ORIONC_STRING_SIZE], nameq[ORIONC_STRING_SIZE], flags[256], spacing[16], font[16], color[16], lparam[256] = "NULL";
     read_control_attrs(c, &a); control_id(id, sizeof(id), form, a.v[A_NAME], (char *)c->name, ordinal++); ident(klass, sizeof(klass), (char *)c->name, false);
+    bool is_report_column = report_column_node(parent, c);
     if (elem(c, "textbox"))
       snprintf(klass, sizeof(klass), "TextEdit");
+    if (is_report_column)
+      snprintf(klass, sizeof(klass), "ReportColumn");
     if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
     rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
     orionc_parse_short_flags(flags, sizeof(flags), a.v[A_FLAGS], "control flags");
@@ -1062,7 +1069,7 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));
     if (elem(c, "tableview")) snprintf(lparam, sizeof(lparam), "&%s_%s_tableview_params", form, nz(a.v[A_NAME], "unnamed"));
     if (elem(c, "combobox") && attr(c, "source")) snprintf(lparam, sizeof(lparam), "&%s_%s_combobox_params", form, nz(a.v[A_NAME], "unnamed"));
-    if (a.v[A_FIELD]) add_binding(bindings, id, a.v[A_FIELD], klass);
+    if (a.v[A_FIELD] && !is_report_column) add_binding(bindings, id, a.v[A_FIELD], klass);
     
     // Track button IDs for ok_id/cancel_id form metadata
     if (elem(c, "button") && btn_ids) {
@@ -1079,13 +1086,17 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
       }
     }
     
-    cstr(classq, sizeof(classq), klass); cstr(textq, sizeof(textq), a.v[A_TEXT]); cstr(nameq, sizeof(nameq), a.v[A_NAME]);
+    char *report_column_title = is_report_column ? attr(c, "title") : NULL;
+    cstr(classq, sizeof(classq), klass);
+    cstr(textq, sizeof(textq), is_report_column ? nz(report_column_title, a.v[A_TEXT]) : a.v[A_TEXT]);
+    cstr(nameq, sizeof(nameq), a.v[A_NAME]);
     OUT("  { %s, %s, { %d, %d }, %s, %s, %s, %u, %u, NULL, 0, %s, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %s, %s, %s, %s, %s },\n",
         classq, id, sz.w, sz.h, flags, textq, nameq,
         (unsigned)enum_parse_token(a.v[A_HA], kAlignH, ARRAY_LEN(kAlignH), 0),
         (unsigned)enum_parse_token(a.v[A_VA], kAlignV, ARRAY_LEN(kAlignV), 0),
         spacing, pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h,
         nz(parent_id, "0"), font, a.v[A_FONT] ? "true" : "false", color, a.v[A_COLOR] ? "true" : "false", lparam);
+    free(report_column_title);
     (*count)++;
     emit_controls_ex(f, c, form, id, bindings, count, btn_ids);
     free_attrs(&a);

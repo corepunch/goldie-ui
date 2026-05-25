@@ -44,6 +44,7 @@ typedef struct {
 
 // Forward declarations
 static void tv_refresh(window_t *win, tableview_state_t *s);
+static void tv_sync_columns(window_t *win, tableview_state_t *s);
 
 // ══════════════════════════════════════════════════════════════════════════
 // Helper: Copy string array
@@ -107,7 +108,23 @@ static bool tv_get_field_text(tableview_state_t *s, void *record,
   return db_get_schema_field_text(s->db, (uint32_t)s->table_id, record, field_id, buf, buf_sz);
 }
 
-// Removed: tv_apply_column_widths() - now inherited from reportview evResize
+static void tv_sync_columns(window_t *win, tableview_state_t *s) {
+  if (!win || !s)
+    return;
+
+  int existing_cols = (int)send_message(win, RVM_GETCOLUMNCOUNT, 0, NULL);
+  if (existing_cols == s->column_count)
+    return;
+
+  send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
+  for (int i = 0; i < s->column_count; i++) {
+    reportview_column_t col = {
+      .title = s->column_titles && s->column_titles[i] ? s->column_titles[i] : "",
+      .width = (uint32_t)((s->column_widths && s->column_widths[i] > 0) ? s->column_widths[i] : 0),
+    };
+    send_message(win, RVM_ADDCOLUMN, 0, &col);
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // Refresh: Fetch records from database and populate reportview
@@ -119,19 +136,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   // Clear existing items
   send_message(win, RVM_CLEAR, 0, NULL);
   
-  // Setup columns (on first refresh or if column count changed)
-  int existing_cols = (int)send_message(win, RVM_GETCOLUMNCOUNT, 0, NULL);
-  if (existing_cols != s->column_count) {
-    send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
-    for (int i = 0; i < s->column_count; i++) {
-      reportview_column_t col = {
-        .title = s->column_titles[i] ? s->column_titles[i] : "",
-        .width = (uint32_t)((s->column_widths && s->column_widths[i] > 0) ? s->column_widths[i] : 0),
-      };
-      send_message(win, RVM_ADDCOLUMN, 0, &col);
-    }
-    // Column widths will be calculated by reportview's evResize when window is sized
-  }
+  tv_sync_columns(win, s);
   
   // Fetch records from database (Zero Wrapper Structs API!)
   result_node_t *results = (result_node_t *)send_db_message(s->db, dbFetch,
@@ -250,6 +255,7 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       
       // Setup as reportview
       send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+      tv_sync_columns(win, s);
       
       // Initial refresh (only if db is set)
       if (s->db) {

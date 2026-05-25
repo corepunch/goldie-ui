@@ -6,6 +6,8 @@
 #include "../user/draw.h"
 #include "../user/theme.h"
 
+lresult_t win_reportcolumn(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
 static int report_content_height(reportview_data_t *data) {
   return rv_report_header_height(data) + (int)data->count * ENTRY_HEIGHT;
 }
@@ -34,6 +36,50 @@ static void report_sync_scroll(window_t *win, reportview_data_t *data) {
   si.nPos = (int)win->vscroll.pos;
   set_scroll_info(win, SB_VERT, &si, false);
   win->vscroll.enabled = needs_scroll;
+}
+
+static bool report_child_is_column(window_t *child) {
+  return child && child->proc == win_reportcolumn;
+}
+
+static void report_layout_column_children(window_t *win, reportview_data_t *data) {
+  if (!win || !data)
+    return;
+
+  irect16_t cr = get_client_rect(win);
+  int x = 0;
+  int col = 0;
+  for (window_t *child = win->children; child; child = child->next) {
+    if (!report_child_is_column(child))
+      continue;
+    int w = (col < (int)data->column_count)
+              ? rv_get_report_column_width(data, col, cr.w)
+              : 0;
+    child->frame = R(x, 0, w, cr.h);
+    if (col < (int)data->column_count)
+      x += w;
+    col++;
+  }
+}
+
+static void report_init_columns_from_children(window_t *win, reportview_data_t *data) {
+  if (!win || !data || data->column_count > 0)
+    return;
+
+  for (window_t *child = win->children; child; child = child->next) {
+    if (!report_child_is_column(child))
+      continue;
+    if (data->column_count >= MAX_REPORTVIEW_COLUMNS)
+      break;
+    uint32_t i = data->column_count++;
+    strncpy(data->columns[i].title, child->title, MAX_REPORTVIEW_TITLE - 1);
+    data->columns[i].title[MAX_REPORTVIEW_TITLE - 1] = '\0';
+    int width = child->layout.layout_fixed_w > 0 ? child->layout.layout_fixed_w : child->frame.w;
+    if (width < 0)
+      width = 0;
+    data->columns[i].width_spec = (uint32_t)width;
+    data->columns[i].width = (uint32_t)width;
+  }
 }
 
 static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {
@@ -168,7 +214,9 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       data->dragging = false;
       data->drag_index = RV_INVALID_SELECTION;
       data->drag_start = (ipoint16_t){0, 0};
+      report_init_columns_from_children(win, data);
       report_sync_scroll(win, data);
+      report_layout_column_children(win, data);
       return true;
     }
     case evMeasure: {
@@ -340,11 +388,13 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       data->columns[i].width_spec = col->width;  // Store original spec
       data->columns[i].width = col->width;        // Initial effective width
       data->column_count++;
+      report_layout_column_children(win, data);
       rv_invalidate(win, data);
       return (lresult_t)i;
     }
     case RVM_CLEARCOLUMNS:
       data->column_count = 0;
+      report_layout_column_children(win, data);
       rv_invalidate(win, data);
       return true;
     case RVM_GETCOLUMNCOUNT:
@@ -354,6 +404,7 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       if (ci >= data->column_count)
         return false;
       data->columns[ci].width = (uint32_t)(uintptr_t)lparam;
+      report_layout_column_children(win, data);
       rv_invalidate(win, data);
       return true;
     }
@@ -423,6 +474,7 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
           data->columns[i].width = (uint32_t)w;
         }
       }
+      report_layout_column_children(win, data);
       report_sync_scroll(win, data);
       return true;
     }
@@ -440,6 +492,7 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
         data->columns[i].width = (uint32_t)w;
       }
 
+      report_layout_column_children(win, data);
       report_sync_scroll(win, data);
       rv_invalidate(win, data);
       return false;
@@ -483,6 +536,37 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
       free(data);
       win->userdata2 = NULL;
       return true;
+    default:
+      return default_winproc(win, msg, wparam, lparam);
+  }
+}
+
+lresult_t win_reportcolumn(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  switch (msg) {
+    case evCreate:
+      win->flags |= WINDOW_NOTITLE | WINDOW_NOFILL;
+      return true;
+
+    case evPaint:
+      return true;
+
+    case evHitTest:
+      return (lresult_t)(intptr_t)win;
+
+    case evWheel:
+      return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;
+
+    case evLeftButtonDown:
+    case evLeftButtonDoubleClick:
+    case evMouseMove:
+    case evLeftButtonUp: {
+      if (!win->parent)
+        return false;
+      uint32_t parent_wp = MAKEDWORD((uint16_t)((int16_t)LOWORD(wparam) + win->frame.x),
+                                     (uint16_t)((int16_t)HIWORD(wparam) + win->frame.y));
+      return send_message(win->parent, msg, parent_wp, lparam);
+    }
+
     default:
       return default_winproc(win, msg, wparam, lparam);
   }

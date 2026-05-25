@@ -372,16 +372,24 @@ static void runtime_fill_combo_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
 static bool runtime_is_control_node(xmlNodePtr parent, xmlNodePtr node) {
   if (!node || node->type != XML_ELEMENT_NODE)
     return false;
-  if (parent && xmlStrcasecmp(parent->name, BAD_CAST "TableView") == 0 &&
-      xmlStrcasecmp(node->name, BAD_CAST "Column") == 0) {
-    return false;
-  }
   return true;
 }
 
-static const char *runtime_map_class_name(const char *xml_name) {
+static bool runtime_is_report_column_node(xmlNodePtr node) {
+  if (!node || xmlStrcasecmp(node->name, BAD_CAST "Column") != 0)
+    return false;
+  xmlNodePtr parent = node->parent;
+  return parent &&
+         (xmlStrcasecmp(parent->name, BAD_CAST "TableView") == 0 ||
+          xmlStrcasecmp(parent->name, BAD_CAST "ReportView") == 0);
+}
+
+static const char *runtime_map_class_name(xmlNodePtr node) {
+  const char *xml_name = node ? (const char *)node->name : NULL;
   if (!xml_name || !*xml_name)
     return "";
+  if (runtime_is_report_column_node(node))
+    return "ReportColumn";
   if (str_ieq(xml_name, "TextBox"))
     return "TextEdit";
   return xml_name;
@@ -405,6 +413,8 @@ static void runtime_fill_def(runtime_build_ctx_t *ctx, xmlNodePtr node,
 
   char *flags_expr = runtime_xml_attr_dup(ctx, node, "flags");
   char *text = runtime_xml_attr_dup(ctx, node, "text");
+  if (!text && runtime_is_report_column_node(node))
+    text = runtime_xml_attr_dup(ctx, node, "title");
   char *name = runtime_xml_attr_dup(ctx, node, "name");
   char *h_align = runtime_xml_attr_dup(ctx, node, "h-align");
   if (!h_align) h_align = runtime_xml_attr_dup(ctx, node, "h_align");
@@ -448,9 +458,11 @@ static void runtime_fill_def(runtime_build_ctx_t *ctx, xmlNodePtr node,
   }
 
   out->children = runtime_build_defs(ctx, node, &out->child_count);
-  const char *mapped = runtime_map_class_name((const char *)node->name);
+  const char *mapped = runtime_map_class_name(node);
   out->class_name = runtime_strdup(ctx, mapped);
-  if (out->child_count > 0)
+  if (out->child_count > 0 &&
+      xmlStrcasecmp(node->name, BAD_CAST "TableView") != 0 &&
+      xmlStrcasecmp(node->name, BAD_CAST "ReportView") != 0)
     out->flags |= WINDOW_AUTO_LAYOUT;
 }
 

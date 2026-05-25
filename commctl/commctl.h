@@ -148,6 +148,7 @@ typedef struct {
 } tableview_params_t;
 
 lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_reportcolumn(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Auto-layout container windows.
 typedef struct {
