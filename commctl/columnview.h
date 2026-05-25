@@ -56,7 +56,7 @@ typedef struct {
   const char *text;
   int icon;
   uint32_t color;
-  uint32_t userdata;
+  uintptr_t userdata;
   const char *subitems[REPORTVIEW_MAX_SUBITEMS];
   uint32_t subitem_count;
   uint32_t flags;

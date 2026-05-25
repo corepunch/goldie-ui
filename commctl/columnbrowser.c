@@ -37,12 +37,6 @@ static int cb_column_width(window_t *win, column_browser_state_t *st, int column
   return w;
 }
 
-static const char *cb_column_title(window_t *win, column_browser_state_t *st, int column) {
-  if (win && st && st->delegate.title_of_column)
-    return st->delegate.title_of_column(st->delegate.userdata, win, column);
-  return "";
-}
-
 static void cb_sync_hscroll(window_t *win, int total_w, int page_w) {
   scroll_info_t si = {
     .fMask = SIF_ALL,
@@ -93,7 +87,6 @@ static void cb_layout_columns(window_t *win, column_browser_state_t *st) {
   }
 
   cb_sync_hscroll(win, total_w, cr.w);
-
   invalidate_window(win);
 }
 
@@ -113,8 +106,8 @@ static window_t *cb_ensure_column(window_t *win, column_browser_state_t *st, int
 
   col->layout.layout_fixed_w = w;
   send_message(col, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
-  send_message(col, RVM_SETCOLUMNTITLESVISIBLE, 1, NULL);
-  reportview_column_t c0 = { cb_column_title(win, st, column), (uint32_t)w };
+  send_message(col, RVM_SETCOLUMNTITLESVISIBLE, 0, NULL);
+  reportview_column_t c0 = { "", (uint32_t)w };
   send_message(col, RVM_ADDCOLUMN, 0, &c0);
 
   st->columns[column] = col;
@@ -147,7 +140,7 @@ static bool cb_populate_column(window_t *win, column_browser_state_t *st, int co
   col->layout.layout_fixed_w = w;
   send_message(col, RVM_CLEAR, 0, NULL);
   send_message(col, RVM_CLEARCOLUMNS, 0, NULL);
-  reportview_column_t c0 = { cb_column_title(win, st, column), (uint32_t)w };
+  reportview_column_t c0 = { "", (uint32_t)w };
   send_message(col, RVM_ADDCOLUMN, 0, &c0);
 
   int count = st->delegate.number_of_rows
@@ -159,7 +152,7 @@ static bool cb_populate_column(window_t *win, column_browser_state_t *st, int co
   for (int row = 0; row < count; row++) {
     reportview_item_t item = {0};
     item.color = get_sys_color(brTextNormal);
-    item.userdata = (uint32_t)row;
+    item.userdata = (uintptr_t)row;
     if (st->delegate.load_cell)
       st->delegate.load_cell(st->delegate.userdata, win, column, row, &item);
     if (!item.text)
@@ -213,12 +206,10 @@ static void cb_handle_selection(window_t *win, column_browser_state_t *st,
   bool leaf = st->delegate.is_leaf
             ? st->delegate.is_leaf(st->delegate.userdata, win, column, row)
             : true;
-  if (leaf) {
-    cb_remove_columns_after(st, column);
-  } else {
-    cb_remove_columns_after(st, column);
+
+  cb_remove_columns_after(st, column);
+  if (!leaf)
     cb_populate_column(win, st, column + 1);
-  }
 
   cb_layout_columns(win, st);
   cb_notify(win, code == RVN_DBLCLK ? CBN_DBLCLK : CBN_SELCHANGE, column);
