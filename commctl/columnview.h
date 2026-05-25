@@ -39,6 +39,7 @@ enum {
   RVM_SETPRESERVEICONCOLORS, // wparam = 0 tint icons with row color; non-zero draw strip colors
   RVM_SETICONTEXTGAP,      // wparam = pixels between icon slot and item text in icon-list mode
   RVM_HITTEST,             // wparam = MAKEDWORD(client_x, client_y); returns item index or -1
+  RVM_GETITEMRECT,         // wparam = item index; lparam = irect16_t* client rect
 };
 
 enum {

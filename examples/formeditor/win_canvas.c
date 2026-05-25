@@ -42,11 +42,19 @@ static irect16_t client_rect_in_host(window_t *host, window_t *target) {
   };
 }
 
-static bool canvas_drag_overlay_update(window_t *doc, int local_x, int local_y) {
+static bool canvas_payload_is_control(const ui_drag_item_payload_t *payload) {
+  return payload && payload->item_type == UI_DRAG_ITEM_CONTROL_CLASS;
+}
+
+static bool canvas_drag_overlay_update(window_t *doc,
+                                       const ui_drag_item_payload_t *payload,
+                                       int local_x, int local_y) {
   form_doc_state_t *st = fe_doc_state(doc);
-  if (!doc || !st)
+  if (!doc || !st || !canvas_payload_is_control(payload))
     return false;
-  window_t *target = canvas_find_component_drop_target(doc, -1, local_x, local_y);
+  int component_id = (int)payload->item_class;
+  window_t *target = canvas_find_component_drop_target(doc, component_id,
+                                                       local_x, local_y);
   if (target) {
     st->drag_overlay_active = true;
     st->drag_overlay_rect = client_rect_in_host(doc, target);
@@ -76,27 +84,33 @@ void canvas_set_component_drag_hover(window_t *doc, bool active, window_t *targe
   (void)target;
 }
 
-static window_t *canvas_normalize_drop_target(window_t *doc, window_t *hit) {
-  if (!doc || !hit)
-    return NULL;
-  for (window_t *p = hit; p; p = p->parent) {
-    if (p == doc)
-      return doc;
-    if (p->flags & WINDOW_LAYOUT_CONTAINER)
-      return p;
-  }
-  return NULL;
-}
-
 window_t *canvas_find_component_drop_target(window_t *doc, int type,
                                             int canvas_x, int canvas_y) {
-  (void)type;
   if (!doc)
     return NULL;
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_CONTROL_CLASS,
+    .item_class = type >= 0 ? (uint32_t)type : 0,
+    .item_id = type >= 0 ? (uint32_t)type : 0,
+  };
   lresult_t hit_res = default_winproc(doc, evHitTest,
                                       MAKEDWORD((uint16_t)canvas_x, (uint16_t)canvas_y),
                                       NULL);
-  return canvas_normalize_drop_target(doc, (window_t *)(intptr_t)hit_res);
+  window_t *hit = (window_t *)(intptr_t)hit_res;
+  if (!hit) {
+    irect16_t cr = get_client_rect(doc);
+    if (canvas_x < 0 || canvas_y < 0 || canvas_x >= cr.w || canvas_y >= cr.h)
+      return NULL;
+    hit = doc;
+  }
+  for (window_t *p = hit; p; p = p->parent) {
+    if (send_message(p, evAcceptsDrop,
+                     MAKEDWORD(UI_DRAG_ITEM_CONTROL_CLASS, (uint16_t)payload.item_class),
+                     &payload)) {
+      return p;
+    }
+  }
+  return NULL;
 }
 
 bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target,
@@ -104,7 +118,9 @@ bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target,
   if (!doc)
     return false;
   ui_drag_item_payload_t payload = {
-    .tool_ident = type,
+    .item_type = UI_DRAG_ITEM_CONTROL_CLASS,
+    .item_class = type >= 0 ? (uint32_t)type : 0,
+    .item_id = type >= 0 ? (uint32_t)type : 0,
   };
   ipoint16_t client = window_client_origin_xy(doc);
   int local_x = screen_x - client.x + doc->hscroll.pos;
@@ -131,25 +147,26 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       }
       return true;
     case evMouseDrag:
-      if (!payload) {
+      if (!canvas_payload_is_control(payload)) {
         canvas_drag_overlay_clear(win);
         return true;
-      } else if (!canvas_drag_overlay_update(win, LOWORD(wparam), HIWORD(wparam))) {
+      } else if (!canvas_drag_overlay_update(win, payload, LOWORD(wparam), HIWORD(wparam))) {
         canvas_drag_overlay_clear(win);
       }
       return true;
     case evMouseDragEnter:
-      if (payload) {
-        (void)canvas_drag_overlay_update(win, LOWORD(wparam), HIWORD(wparam));
+      if (canvas_payload_is_control(payload)) {
+        (void)canvas_drag_overlay_update(win, payload, LOWORD(wparam), HIWORD(wparam));
       }
       return true;
     case evMouseDragLeave:
       canvas_drag_overlay_clear(win);
       return true;
     case evMouseDrop:
-      if (payload) {
+      if (canvas_payload_is_control(payload)) {
+        int component_id = (int)payload->item_class;
         window_t *drop_target = canvas_find_component_drop_target(
-            win, payload->tool_ident, LOWORD(wparam), HIWORD(wparam));
+            win, component_id, LOWORD(wparam), HIWORD(wparam));
         (void)fe_controller_drop_create(win, payload, drop_target);
       }
       canvas_drag_overlay_clear(win);

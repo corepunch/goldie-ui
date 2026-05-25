@@ -4,17 +4,6 @@
 
 #include "formeditor.h"
 
-static bool fe_doc_target_accepts_drop(window_t *target) {
-  if (!target)
-    return false;
-  window_t *root = get_root_window(target);
-  if (!root)
-    return false;
-  if (target == root)
-    return true;
-  return (target->flags & WINDOW_LAYOUT_CONTAINER) != 0;
-}
-
 bool fe_doc_drop_create_component(int component_id,
                                   window_t *parent_target) {
   window_t *doc = parent_target ? get_root_window(parent_target) : NULL;
@@ -27,11 +16,6 @@ bool fe_doc_drop_create_component(int component_id,
     fprintf(stderr, "fe_doc_drop_create_component: component '%s' is not placeable\n", desc->class_name);
     return false;
   }
-  if (!fe_doc_target_accepts_drop(parent_target)) {
-    fprintf(stderr, "fe_doc_drop_create_component: invalid drop parent\n");
-    return false;
-  }
-
   int w = desc->default_layout_size.w > 0 ? desc->default_layout_size.w : 96;
   int h = desc->default_layout_size.h > 0 ? desc->default_layout_size.h : 24;
   window_t *child = create_window(

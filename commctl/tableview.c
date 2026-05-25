@@ -294,6 +294,13 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       }
       return true;
 
+    case evAcceptsDrop:
+      return LOWORD(wparam) == UI_DRAG_ITEM_DATABASE_FIELD;
+
+    case evMouseDrop:
+      return lparam &&
+             ((ui_drag_item_payload_t *)lparam)->item_type == UI_DRAG_ITEM_DATABASE_FIELD;
+
     // evArrange and evResize now inherited from reportview
     // (reportview evResize automatically recalculates column widths)
     

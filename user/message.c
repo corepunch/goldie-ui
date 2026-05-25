@@ -262,6 +262,15 @@ lresult_t default_winproc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
         }
       }
       break;
+    case evAcceptsDrop: {
+      uint32_t item_type = LOWORD(wparam);
+      if (item_type == UI_DRAG_ITEM_CONTROL_CLASS &&
+          (!win->parent ||
+           (win->flags & (WINDOW_LAYOUT_CONTAINER | WINDOW_AUTO_LAYOUT)))) {
+        return true;
+      }
+      break;
+    }
     case evNCLeftButtonUp:
       (void)toolbar_handle_notitle_nc_left_button_up(win, wparam);
       return true;

@@ -481,10 +481,16 @@ void move_to_top(window_t* win);
 // Global drag-item visual owned by Orion. Implemented as a lightweight
 // no-activate top-level window that follows the cursor.
 typedef struct {
-  int tool_ident;
+  uint32_t item_type;   // UI_DRAG_ITEM_*.
+  uint32_t item_class;  // Class/category within type, packed into HIWORD(wparam).
+  uint32_t item_id;     // Stable item identifier within that class/category.
 } ui_drag_item_payload_t;
 
 void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload);
+// Start a drag item whose rendered text begins at the given screen position.
+void ui_drag_item_set_text_origin(const char *text,
+                                  const ui_drag_item_payload_t *payload,
+                                  int screen_x, int screen_y);
 void ui_drag_item_move(int sx, int sy);
 void ui_drag_item_clear(void);
 

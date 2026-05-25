@@ -196,11 +196,54 @@ static void dbobj_did_select(void *ctx, window_t *browser, int column, int row) 
     ui_set_database(db);
 }
 
+static bool dbobj_load_drag_payload(void *ctx, window_t *browser, int column, int row,
+                                    const reportview_item_t *item,
+                                    ui_drag_item_payload_t *payload) {
+  (void)ctx;
+  (void)item;
+  if (!payload || row < 0)
+    return false;
+
+  memset(payload, 0, sizeof(*payload));
+
+  if (column == 0) {
+    db_t *db = dbobj_db_at(row);
+    if (!db)
+      return false;
+    payload->item_type = UI_DRAG_ITEM_DATABASE;
+    payload->item_id = (uint32_t)row;
+    return true;
+  }
+
+  if (column == 1) {
+    int db_idx = (int)send_message(browser, CBM_GETSELECTION, 0, NULL);
+    const db_schema_def_t *schema = dbobj_schema_at(db_idx);
+    if (!schema || row >= schema->table_count)
+      return false;
+    const db_table_schema_t *table = &schema->tables[row];
+    payload->item_type = UI_DRAG_ITEM_DATABASE_TABLE;
+    payload->item_class = table->table_id;
+    payload->item_id = table->table_id;
+    return true;
+  }
+
+  const db_table_schema_t *table = dbobj_parent_table(browser, column);
+  if (!table || row >= table->field_count)
+    return false;
+
+  const db_field_schema_t *field = &table->fields[row];
+  payload->item_type = UI_DRAG_ITEM_DATABASE_FIELD;
+  payload->item_class = table->table_id;
+  payload->item_id = field->field_id;
+  return true;
+}
+
 static const column_browser_delegate_t g_dbobj_delegate = {
   .number_of_rows = dbobj_number_of_rows,
   .load_cell      = dbobj_load_cell,
   .is_leaf        = dbobj_is_leaf,
   .width_of_column = dbobj_width_of_column,
+  .load_drag_payload = dbobj_load_drag_payload,
   .did_select     = dbobj_did_select,
 };
 

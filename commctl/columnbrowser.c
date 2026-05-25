@@ -216,6 +216,36 @@ static void cb_handle_selection(window_t *win, column_browser_state_t *st,
   cb_notify(win, code == RVN_DBLCLK ? CBN_DBLCLK : CBN_SELCHANGE, column);
 }
 
+static bool cb_handle_begin_drag(window_t *win, column_browser_state_t *st,
+                                 int column, int row) {
+  if (!win || !st || column < 0 || row < 0 || !st->columns[column])
+    return false;
+
+  reportview_item_t item = {0};
+  if (!send_message(st->columns[column], RVM_GETITEMDATA, (uint32_t)row, &item))
+    return false;
+
+  ui_drag_item_payload_t payload = {0};
+  if (!st->delegate.load_drag_payload ||
+      !st->delegate.load_drag_payload(st->delegate.userdata, win, column, row,
+                                      &item, &payload)) {
+    return false;
+  }
+
+  window_t *col = st->columns[column];
+  irect16_t row_rect = {0};
+  if (!send_message(col, RVM_GETITEMRECT, (uint32_t)row, &row_rect))
+    return false;
+  ipoint16_t origin = window_client_origin_xy(col);
+  int label_x = origin.x + row_rect.x + COLUMNVIEW_WIN_PADDING;
+  int label_y = origin.y + row_rect.y +
+                (row_rect.h - text_char_height(FONT_SMALL)) / 2;
+  ui_drag_item_set_text_origin((item.text && item.text[0]) ? item.text : "Item",
+                               &payload, label_x, label_y);
+  cb_notify(win, CBN_BEGINDRAG, column);
+  return true;
+}
+
 lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   column_browser_state_t *st = (column_browser_state_t *)win->userdata;
 
@@ -343,9 +373,13 @@ lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void 
       return true;
 
     case evCommand:
-      if (st && (HIWORD(wparam) == RVN_SELCHANGE || HIWORD(wparam) == RVN_DBLCLK)) {
+      if (st && (HIWORD(wparam) == RVN_SELCHANGE ||
+                 HIWORD(wparam) == RVN_DBLCLK ||
+                 HIWORD(wparam) == RVN_BEGINDRAG)) {
         int column = cb_column_of_window(st, (window_t *)lparam);
         if (column >= 0) {
+          if (HIWORD(wparam) == RVN_BEGINDRAG)
+            return cb_handle_begin_drag(win, st, column, (int)LOWORD(wparam));
           cb_handle_selection(win, st, column, (int)LOWORD(wparam), HIWORD(wparam));
           return true;
         }

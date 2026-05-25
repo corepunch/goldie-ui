@@ -5,6 +5,15 @@
 
 // Window messages
 enum {
+  UI_DRAG_ITEM_NONE = 0,
+  UI_DRAG_ITEM_CONTROL_CLASS,
+  UI_DRAG_ITEM_CONTROL,
+  UI_DRAG_ITEM_DATABASE,
+  UI_DRAG_ITEM_DATABASE_TABLE,
+  UI_DRAG_ITEM_DATABASE_FIELD, // includes relation/join fields
+};
+
+enum {
   evCreate,
   evDestroy,
   evShowWindow,
@@ -79,6 +88,11 @@ enum {
   // this to populate themselves; other recipients ignore it.
   // wparam = 0; lparam = database_t *.
   evSetDatabase,
+  // Query whether a window accepts the current framework drag payload.
+  // wparam = MAKEDWORD(ui_drag_item_type, item_class)
+  // lparam = ui_drag_item_payload_t*
+  // Return true to become the drag/drop target.
+  evAcceptsDrop,
   // Framework drag-item move/drop notifications.
   // wparam = MAKEDWORD(client_x, client_y) in the target window's local space
   // lparam = ui_drag_item_payload_t*

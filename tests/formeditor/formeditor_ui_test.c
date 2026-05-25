@@ -362,20 +362,29 @@ void test_fe_drop_component_into_layout_container(void) {
   ASSERT_NOT_NULL(g_app);
   window_t *doc = fe_active_doc();
   int grid_type = fe_component_id_for_class_name("GridView");
+  int column_type = fe_component_id_for_class_name("Column");
   int button_type = fe_component_id_for_class_name("Button");
   ipoint16_t origin = window_client_origin_xy(doc);
 
   ASSERT_TRUE(grid_type >= 0);
+  ASSERT_TRUE(column_type >= 0);
   ASSERT_TRUE(button_type >= 0);
   ASSERT_TRUE(canvas_drop_component_to_target(doc, grid_type, doc, origin.x + 20, origin.y + 20));
 
   window_t *grid = fe_find_child_by_title(doc, "GridView");
   ASSERT_NOT_NULL(grid);
-  ASSERT_TRUE(canvas_drop_component_to_target(doc, button_type, grid, origin.x + 30, origin.y + 30));
+  ASSERT_FALSE(canvas_drop_component_to_target(doc, button_type, grid, origin.x + 30, origin.y + 30));
+  ASSERT_TRUE(canvas_drop_component_to_target(doc, column_type, grid, origin.x + 30, origin.y + 30));
 
-  window_t *button = fe_find_child_by_title(grid, "Button");
+  window_t *column = fe_find_child_by_title(grid, "Column");
+  ASSERT_NOT_NULL(column);
+  ASSERT_TRUE(column->parent == grid);
+
+  ASSERT_TRUE(canvas_drop_component_to_target(doc, button_type, column, origin.x + 40, origin.y + 40));
+
+  window_t *button = fe_find_child_by_title(column, "Button");
   ASSERT_NOT_NULL(button);
-  ASSERT_TRUE(button->parent == grid);
+  ASSERT_TRUE(button->parent == column);
 
   fe_teardown();
   PASS();

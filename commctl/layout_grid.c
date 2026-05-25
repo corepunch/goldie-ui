@@ -331,6 +331,8 @@ static lresult_t layout_init_default_grid_columns(window_t *win) {
 
 lresult_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
+    case evAcceptsDrop:
+      return LOWORD(wparam) == UI_DRAG_ITEM_CONTROL_CLASS;
     case evCanParent: {
       (void)wparam;
       window_t *target = (window_t *)lparam;
@@ -382,8 +384,17 @@ lresult_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
   }
 }
 
+static bool grid_accepts_drop(uint32_t wparam) {
+  if (LOWORD(wparam) != UI_DRAG_ITEM_CONTROL_CLASS)
+    return false;
+  const fe_component_desc_t *desc = fe_component_at((int)HIWORD(wparam));
+  return desc && desc->proc == win_column;
+}
+
 lresult_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
+    case evAcceptsDrop:
+      return grid_accepts_drop(wparam);
     case evCreate: {
       win->flags |= WINDOW_AUTO_LAYOUT;
       win->flags &= ~WINDOW_STACK_HORIZONTAL;

@@ -108,18 +108,28 @@ bool fe_controller_drop_create(window_t *doc,
                                window_t *target) {
   if (!doc || !payload)
     return false;
-  if (payload->tool_ident < 0)
+
+  if (payload->item_type != UI_DRAG_ITEM_CONTROL_CLASS)
+    return false;
+
+  int component_id = (int)payload->item_class;
+  if (component_id < 0)
     return false;
   if (!target)
     return false;
 
-  const fe_component_desc_t *desc = fe_component_at(payload->tool_ident);
+  const fe_component_desc_t *desc = fe_component_at(component_id);
   if (!desc)
     return false;
+  if (!send_message(target, evAcceptsDrop,
+                    MAKEDWORD(UI_DRAG_ITEM_CONTROL_CLASS, (uint16_t)component_id),
+                    (void *)payload)) {
+    return false;
+  }
   if (fe_component_rejects_parent(desc, target))
     return false;
 
-  if (!fe_doc_drop_create_component(payload->tool_ident, target))
+  if (!fe_doc_drop_create_component(component_id, target))
     return false;
 
   if (doc->children)

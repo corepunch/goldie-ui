@@ -8,6 +8,8 @@ static window_t *g_drag_item_win = NULL;
 static window_t *g_drag_item_target = NULL;
 static ui_drag_item_payload_t g_drag_item_payload = {0};
 static bool g_drag_item_active = false;
+static int g_drag_item_offset_x = 0;
+static int g_drag_item_offset_y = 0;
 
 #define DRAG_ITEM_PAD_X    4
 #define DRAG_ITEM_PAD_Y    2
@@ -37,8 +39,8 @@ static void ui_drag_item_measure_rect(const char *text, int sx, int sy,
                                       irect16_t *out) {
   int w = text_strwidth(FONT_SMALL, text) + DRAG_ITEM_PAD_X * 2;
   int h = text_char_height(FONT_SMALL) + DRAG_ITEM_PAD_Y * 2;
-  int x = sx + DRAG_ITEM_OFFSET_X;
-  int y = sy + DRAG_ITEM_OFFSET_Y;
+  int x = sx + g_drag_item_offset_x;
+  int y = sy + g_drag_item_offset_y;
   int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
   int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
   if (x + w > sw) x = sw - w;
@@ -48,12 +50,29 @@ static void ui_drag_item_measure_rect(const char *text, int sx, int sy,
   *out = (irect16_t){(int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h};
 }
 
+static bool ui_drag_item_target_accepts(window_t *candidate) {
+  if (!candidate || candidate == g_drag_item_win)
+    return false;
+  return send_message(candidate, evAcceptsDrop,
+                      MAKEDWORD((uint16_t)g_drag_item_payload.item_type,
+                                (uint16_t)g_drag_item_payload.item_class),
+                      &g_drag_item_payload) != 0;
+}
+
 static window_t *ui_drag_item_pick_target(int sx, int sy) {
   window_t *hit = find_window(sx, sy);
-  window_t *target = hit ? get_root_window(hit) : NULL;
-  if (!target)
-    target = g_ui_runtime.focused ? get_root_window(g_ui_runtime.focused) : NULL;
-  return target;
+  if (hit == g_drag_item_win)
+    hit = g_ui_runtime.focused;
+
+  for (window_t *p = hit; p; p = p->parent) {
+    if (ui_drag_item_target_accepts(p))
+      return p;
+  }
+
+  window_t *focused_root = g_ui_runtime.focused
+                         ? get_root_window(g_ui_runtime.focused)
+                         : NULL;
+  return ui_drag_item_target_accepts(focused_root) ? focused_root : NULL;
 }
 
 static void ui_drag_item_notify_target(window_t *target, uint32_t msg, int sx, int sy) {
@@ -67,11 +86,16 @@ static void ui_drag_item_notify_target(window_t *target, uint32_t msg, int sx, i
                &g_drag_item_payload);
 }
 
-void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
+static void ui_drag_item_set_with_offset(const char *text,
+                                         const ui_drag_item_payload_t *payload,
+                                         int offset_x, int offset_y) {
   if (!text || !text[0]) {
     ui_drag_item_clear();
     return;
   }
+
+  g_drag_item_offset_x = offset_x;
+  g_drag_item_offset_y = offset_y;
 
   if (payload)
     g_drag_item_payload = *payload;
@@ -107,6 +131,19 @@ void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
   invalidate_window(g_drag_item_win);
 }
 
+void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload) {
+  ui_drag_item_set_with_offset(text, payload,
+                               DRAG_ITEM_OFFSET_X, DRAG_ITEM_OFFSET_Y);
+}
+
+void ui_drag_item_set_text_origin(const char *text,
+                                  const ui_drag_item_payload_t *payload,
+                                  int screen_x, int screen_y) {
+  ui_drag_item_set_with_offset(text, payload,
+                               screen_x - DRAG_ITEM_PAD_X - g_ui_runtime.mouse_x,
+                               screen_y - DRAG_ITEM_PAD_Y - g_ui_runtime.mouse_y);
+}
+
 void ui_drag_item_move(int sx, int sy) {
   window_t *target;
 
@@ -140,6 +177,8 @@ void ui_drag_item_clear(void) {
   g_drag_item_win = NULL;
   g_drag_item_target = NULL;
   g_drag_item_active = false;
+  g_drag_item_offset_x = 0;
+  g_drag_item_offset_y = 0;
   destroy_window(drag_win);
   g_drag_item_payload = (ui_drag_item_payload_t){0};
 }

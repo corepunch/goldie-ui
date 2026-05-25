@@ -91,6 +91,9 @@ typedef struct {
   const char *(*title_of_column)(void *ctx, window_t *browser, int column);
   int  (*width_of_column)(void *ctx, window_t *browser, int column);
   bool (*column_is_valid)(void *ctx, window_t *browser, int column);
+  bool (*load_drag_payload)(void *ctx, window_t *browser, int column, int row,
+                            const reportview_item_t *item,
+                            ui_drag_item_payload_t *payload);
   void (*did_select)(void *ctx, window_t *browser, int column, int row);
   void (*did_scroll)(void *ctx, window_t *browser);
 } column_browser_delegate_t;
@@ -121,6 +124,7 @@ enum {
   CBN_SELCHANGE = 260,
   CBN_DBLCLK,
   CBN_SCROLL,
+  CBN_BEGINDRAG,
 };
 
 lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
