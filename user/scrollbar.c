@@ -5,6 +5,11 @@
 
 static void draw_theme_icon_in_rect_scrollbar(int id, irect16_t r, uint32_t col);
 
+static uint32_t sb_thumb_color(const win_sb_t *sb) {
+  return sb && sb->enabled ? get_sys_color(brLightEdge)
+                           : get_sys_color(brScrollbarDisabled);
+}
+
 static int ui_sb_clamp_range(win_sb_t const *sb, int pos) {
   int max_pos = sb->max_val - sb->page;
   if (max_pos < sb->min_val) max_pos = sb->min_val;
@@ -289,14 +294,12 @@ void scrollbar_draw_statusbar_merged_hscroll(window_t *win, irect16_t row, int s
     if (eff_track > 0) {
       int tl = ui_sb_thumb_len(sb, eff_track);
       int to = ui_sb_thumb_off(sb, eff_track, tl);
-      uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-      fill_rect(thumb_col, R(left_arr.x + left_arr.w + to, row.y, tl, row.h));
+      fill_rect(sb_thumb_color(sb), R(left_arr.x + left_arr.w + to, row.y, tl, row.h));
     }
   } else {
     int tl = ui_sb_thumb_len(sb, bw);
     int to = ui_sb_thumb_off(sb, bw, tl);
-    uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-    fill_rect(thumb_col, R(sx + to, row.y, tl, row.h));
+    fill_rect(sb_thumb_color(sb), R(sx + to, row.y, tl, row.h));
   }
 }
 
@@ -339,14 +342,12 @@ void draw_builtin_scrollbars(window_t *win) {
       if (eff_track > 0) {
         int tl = ui_sb_thumb_len(sb, eff_track);
         int to = ui_sb_thumb_off(sb, eff_track, tl);
-        uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-        fill_rect(thumb_col, R(left_arr.x + left_arr.w + to, hbar.y, tl, SCROLLBAR_WIDTH));
+        fill_rect(sb_thumb_color(sb), R(left_arr.x + left_arr.w + to, hbar.y, tl, SCROLLBAR_WIDTH));
       }
     } else {
       int tl = ui_sb_thumb_len(sb, bw);
       int to = ui_sb_thumb_off(sb, bw, tl);
-      uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-      fill_rect(thumb_col, R(hbar.x + to, hbar.y, tl, SCROLLBAR_WIDTH));
+      fill_rect(sb_thumb_color(sb), R(hbar.x + to, hbar.y, tl, SCROLLBAR_WIDTH));
     }
   }
 
@@ -366,14 +367,12 @@ void draw_builtin_scrollbars(window_t *win) {
       if (eff_track > 0) {
         int tl = ui_sb_thumb_len(sb, eff_track);
         int to = ui_sb_thumb_off(sb, eff_track, tl);
-        uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-        fill_rect(thumb_col, R(vbar.x, top_arr.y + top_arr.h + to, SCROLLBAR_WIDTH, tl));
+        fill_rect(sb_thumb_color(sb), R(vbar.x, top_arr.y + top_arr.h + to, SCROLLBAR_WIDTH, tl));
       }
     } else {
       int tl = ui_sb_thumb_len(sb, bh);
       int to = ui_sb_thumb_off(sb, bh, tl);
-      uint32_t thumb_col = sb->enabled ? get_sys_color(brLightEdge) : get_sys_color(brDarkEdge);
-      fill_rect(thumb_col, R(vbar.x, vbar.y + to, SCROLLBAR_WIDTH, tl));
+      fill_rect(sb_thumb_color(sb), R(vbar.x, vbar.y + to, SCROLLBAR_WIDTH, tl));
     }
   }
 

@@ -105,9 +105,10 @@ static window_t *cb_ensure_column(window_t *win, column_browser_state_t *st, int
     return NULL;
 
   col->layout.layout_fixed_w = w;
+  show_scroll_bar(col, SB_VERT, true);
   send_message(col, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
   send_message(col, RVM_SETCOLUMNTITLESVISIBLE, 0, NULL);
-  reportview_column_t c0 = { "", (uint32_t)w };
+  reportview_column_t c0 = { "", 0 };
   send_message(col, RVM_ADDCOLUMN, 0, &c0);
 
   st->columns[column] = col;
@@ -140,7 +141,7 @@ static bool cb_populate_column(window_t *win, column_browser_state_t *st, int co
   col->layout.layout_fixed_w = w;
   send_message(col, RVM_CLEAR, 0, NULL);
   send_message(col, RVM_CLEARCOLUMNS, 0, NULL);
-  reportview_column_t c0 = { "", (uint32_t)w };
+  reportview_column_t c0 = { "", 0 };
   send_message(col, RVM_ADDCOLUMN, 0, &c0);
 
   int count = st->delegate.number_of_rows

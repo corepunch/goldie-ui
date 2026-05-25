@@ -430,7 +430,8 @@ typedef enum {
   brColumnViewBg         = 23,  // report/icon column view background
   brSelectionInactive    = 24,  // unfocused list/report selection background
   brModalOverlay         = 25,  // modal owner dimming overlay (ARGB with alpha)
-  brCount                = 26
+  brScrollbarDisabled    = 26,  // disabled scrollbar thumb
+  brCount                = 27
 } sys_color_idx_t;
 
 // Runtime-accessible theme table (defined in user/theme.c).

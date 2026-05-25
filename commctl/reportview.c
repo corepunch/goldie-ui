@@ -22,6 +22,7 @@ static void report_sync_scroll(window_t *win, reportview_data_t *data) {
   int max_scroll_px = total_h - cr.h;
   if (max_scroll_px < 0)
     max_scroll_px = 0;
+  bool needs_scroll = max_scroll_px > 0;
   if ((int)win->vscroll.pos > max_scroll_px)
     win->vscroll.pos = (uint32_t)max_scroll_px;
 
@@ -32,6 +33,7 @@ static void report_sync_scroll(window_t *win, reportview_data_t *data) {
   si.nPage = (uint32_t)cr.h;
   si.nPos = (int)win->vscroll.pos;
   set_scroll_info(win, SB_VERT, &si, false);
+  win->vscroll.enabled = needs_scroll;
 }
 
 static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {

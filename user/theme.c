@@ -33,6 +33,7 @@ uint32_t g_sys_colors[brCount] = {
   [brColumnViewBg]         = 0xff544e47,   // blue-gray for report/icon column views
   [brSelectionInactive]    = 0xffa6a6a6,   // slightly dimmer than focused list selection
   [brModalOverlay]         = 0x40402000,   // modal owner dim overlay (semi-transparent)
+  [brScrollbarDisabled]    = 0xff3c3c3c,   // quiet disabled scrollbar thumb
 };
 
 void set_sys_colors(int count, const int *indices, const uint32_t *colors) {

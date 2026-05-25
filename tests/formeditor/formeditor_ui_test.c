@@ -550,6 +550,12 @@ void test_fe_database_browser_cascades_reportviews(void) {
   ASSERT_STR_EQUAL(author_field_item.text, "id");
   ASSERT_EQUAL(fe_test_db_fetch_count, 0);
   ASSERT_TRUE(browser->hscroll.visible);
+  for (int i = 0; i < 5; i++) {
+    window_t *column = fe_child_at_by_proc(browser, win_reportview, i);
+    ASSERT_NOT_NULL(column);
+    ASSERT_TRUE(column->vscroll.visible);
+    ASSERT_FALSE(column->vscroll.enabled);
+  }
 
   irect16_t browser_cr = get_client_rect(browser);
   int hscroll_x = browser->frame.x + browser_cr.w - 2;
