@@ -413,23 +413,20 @@ free(record_buf);
 ```xml
 <database name="db" class="SimpleXMLDatabase">
   <table name="authors">
-    <field name="id" type="integer" key="YES"/>
     <field name="name" type="string" length="64"/>
     <field name="avatar" type="string" length="256"/>
   </table>
   
   <table name="posts">
-    <field name="id" type="integer" key="YES"/>
-    <field name="author_id" type="integer" relation="authors.id"/>
+    <field name="author" type="relationship" relation="authors"/>
     <field name="title" type="string" length="256"/>
     <field name="body" type="string" length="2048"/>
     <field name="like_count" type="integer"/>
   </table>
   
   <table name="comments">
-    <field name="id" type="integer" key="YES"/>
-    <field name="post_id" type="integer" relation="posts.id"/>
-    <field name="author_id" type="integer" relation="authors.id"/>
+    <field name="post" type="relationship" relation="posts"/>
+    <field name="author" type="relationship" relation="authors"/>
     <field name="text" type="string" length="1024"/>
   </table>
 </database>

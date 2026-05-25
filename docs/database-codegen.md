@@ -15,14 +15,12 @@ Generate C struct definitions from `.orion` database schemas, making the schema 
 ```xml
 <database name="db" class="SimpleXMLDatabase" source="socialfeed_seed.xml">
   <table name="authors" model="author">
-    <field name="id" type="integer" key="YES"/>
     <field name="name" type="string" length="64"/>
     <field name="avatar" type="string" length="256"/>
   </table>
   
   <table name="posts" model="post">
-    <field name="id" type="integer" key="YES"/>
-    <field name="author_id" type="integer" relation="authors.id"/>
+    <field name="author" type="relationship" relation="authors"/>
     <field name="title" type="string" length="256"/>
     <field name="body" type="string" length="2048"/>
     <field name="like_count" type="integer"/>
@@ -95,14 +93,16 @@ extern const form_def_t socialfeed_new_post_form;
 | `boolean` | `bool` | From `<stdbool.h>` |
 | `float` | `float` | Single precision |
 | `double` | `double` | Double precision |
+| `relationship` | `int32_t` | Generates a `{name}_id` foreign-key field |
 
 ## Field Attributes
 
 - `name` — Field identifier (required)
 - `type` — Data type (required)
 - `length` — String buffer size (required for `type="string"`)
-- `key="YES"` — Primary key marker
-- `relation="table.field"` — Foreign key relationship
+- `relation="table"` — Relationship target table; references its generated `id`
+- `relation="table.field"` — Relationship target table and field
+- `key="YES"` — Primary key marker; `id` is generated automatically when omitted
 
 ## orionc Implementation Tasks
 
