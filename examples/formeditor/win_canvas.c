@@ -46,15 +46,54 @@ static bool canvas_payload_is_control(const ui_drag_item_payload_t *payload) {
   return payload && payload->item_type == UI_DRAG_ITEM_CONTROL_CLASS;
 }
 
+static bool canvas_payload_is_database_field(const ui_drag_item_payload_t *payload) {
+  return payload && payload->item_type == UI_DRAG_ITEM_DATABASE_FIELD;
+}
+
+static window_t *canvas_hit_child(window_t *doc, int canvas_x, int canvas_y) {
+  if (!doc)
+    return NULL;
+
+  lresult_t hit_res = default_winproc(doc, evHitTest,
+                                      MAKEDWORD((uint16_t)canvas_x, (uint16_t)canvas_y),
+                                      NULL);
+  window_t *hit = (window_t *)(intptr_t)hit_res;
+  if (!hit) {
+    irect16_t cr = get_client_rect(doc);
+    if (canvas_x < 0 || canvas_y < 0 || canvas_x >= cr.w || canvas_y >= cr.h)
+      return NULL;
+    hit = doc;
+  }
+  return hit;
+}
+
+static window_t *canvas_find_database_field_drop_target(window_t *doc,
+                                                        int canvas_x,
+                                                        int canvas_y) {
+  for (window_t *p = canvas_hit_child(doc, canvas_x, canvas_y); p; p = p->parent) {
+    if (p->proc == win_tableview)
+      return p;
+    if (p == doc)
+      break;
+  }
+  return NULL;
+}
+
 static bool canvas_drag_overlay_update(window_t *doc,
                                        const ui_drag_item_payload_t *payload,
                                        int local_x, int local_y) {
   form_doc_state_t *st = fe_doc_state(doc);
-  if (!doc || !st || !canvas_payload_is_control(payload))
+  if (!doc || !st || !payload)
     return false;
-  int component_id = (int)payload->item_class;
-  window_t *target = canvas_find_component_drop_target(doc, component_id,
-                                                       local_x, local_y);
+
+  window_t *target = NULL;
+  if (canvas_payload_is_control(payload)) {
+    int component_id = (int)payload->item_class;
+    target = canvas_find_component_drop_target(doc, component_id, local_x, local_y);
+  } else if (canvas_payload_is_database_field(payload)) {
+    target = canvas_find_database_field_drop_target(doc, local_x, local_y);
+  }
+
   if (target) {
     st->drag_overlay_active = true;
     st->drag_overlay_rect = client_rect_in_host(doc, target);
@@ -93,17 +132,7 @@ window_t *canvas_find_component_drop_target(window_t *doc, int type,
     .item_class = type >= 0 ? (uint32_t)type : 0,
     .item_id = type >= 0 ? (uint32_t)type : 0,
   };
-  lresult_t hit_res = default_winproc(doc, evHitTest,
-                                      MAKEDWORD((uint16_t)canvas_x, (uint16_t)canvas_y),
-                                      NULL);
-  window_t *hit = (window_t *)(intptr_t)hit_res;
-  if (!hit) {
-    irect16_t cr = get_client_rect(doc);
-    if (canvas_x < 0 || canvas_y < 0 || canvas_x >= cr.w || canvas_y >= cr.h)
-      return NULL;
-    hit = doc;
-  }
-  for (window_t *p = hit; p; p = p->parent) {
+  for (window_t *p = canvas_hit_child(doc, canvas_x, canvas_y); p; p = p->parent) {
     if (send_message(p, evAcceptsDrop,
                      MAKEDWORD(UI_DRAG_ITEM_CONTROL_CLASS, (uint16_t)payload.item_class),
                      &payload)) {
@@ -139,6 +168,10 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       // Keep document canvas as the normal input target.
       // Drag preview targeting uses default_winproc(evHitTest) explicitly.
       return (lresult_t)(intptr_t)win;
+    case evAcceptsDrop:
+      if (canvas_payload_is_database_field(payload))
+        return true;
+      return default_winproc(win, msg, wparam, lparam);
     case evPaint:
       default_winproc(win, msg, wparam, lparam);
       if (doc && doc->drag_overlay_active) {
@@ -147,7 +180,8 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       }
       return true;
     case evMouseDrag:
-      if (!canvas_payload_is_control(payload)) {
+      if (!canvas_payload_is_control(payload) &&
+          !canvas_payload_is_database_field(payload)) {
         canvas_drag_overlay_clear(win);
         return true;
       } else if (!canvas_drag_overlay_update(win, payload, LOWORD(wparam), HIWORD(wparam))) {
@@ -155,7 +189,8 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       }
       return true;
     case evMouseDragEnter:
-      if (canvas_payload_is_control(payload)) {
+      if (canvas_payload_is_control(payload) ||
+          canvas_payload_is_database_field(payload)) {
         (void)canvas_drag_overlay_update(win, payload, LOWORD(wparam), HIWORD(wparam));
       }
       return true;

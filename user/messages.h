@@ -278,7 +278,7 @@ typedef struct {
 // is drawn between the sidebar and the content area during evNCPaint.
 #define WINDOW_SIDEBAR      (1 << 16)
 #define WINDOW_NOACTIVATE   (1 << 17)  // do not steal keyboard focus when shown
-#define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab-key focus cycle (WS_TABSTOP equivalent)
+#define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab focus and mouse hit-testing
 #define WINDOW_STACK_HORIZONTAL (1 << 19)  // auto-layout stack flows left-to-right
 #define WINDOW_FLEXSPACE    (1 << 20)  // space/spring child that absorbs leftover horizontal room
 #define WINDOW_AUTO_LAYOUT  (1 << 21)  // enable automatic measure/arrange for children

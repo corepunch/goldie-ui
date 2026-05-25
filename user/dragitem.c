@@ -61,8 +61,6 @@ static bool ui_drag_item_target_accepts(window_t *candidate) {
 
 static window_t *ui_drag_item_pick_target(int sx, int sy) {
   window_t *hit = find_window(sx, sy);
-  if (hit == g_drag_item_win)
-    hit = g_ui_runtime.focused;
 
   for (window_t *p = hit; p; p = p->parent) {
     if (ui_drag_item_target_accepts(p))
@@ -116,7 +114,7 @@ static void ui_drag_item_set_with_offset(const char *text,
     }
     g_drag_item_win = create_window(
         "", WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_ALWAYSONTOP |
-            WINDOW_NOTRAYBUTTON | WINDOW_NOACTIVATE,
+            WINDOW_NOTRAYBUTTON | WINDOW_NOACTIVATE | WINDOW_NOTABSTOP,
         &r, NULL, ui_drag_item_win_proc, owner_hinst, NULL);
     if (!g_drag_item_win)
       return;

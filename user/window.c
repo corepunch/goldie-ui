@@ -401,6 +401,7 @@ window_t *find_window(int x, int y) {
   window_t *last = NULL;
   for (window_t *win = g_ui_runtime.windows; win; win = win->next) {
     if (!window_has_state(win, WINDOW_STATE_VISIBLE)) continue;
+    if (win->flags & WINDOW_NOTABSTOP) continue;
     if (CONTAINS(x, y, win->frame.x, win->frame.y, win->frame.w, win->frame.h)) {
       last = win;
       int t = titlebar_height(win);
@@ -978,4 +979,3 @@ void enable_window(window_t *win, bool enable) {
   window_set_state(win, WINDOW_STATE_DISABLED, !enable);
   invalidate_window(win);
 }
-
