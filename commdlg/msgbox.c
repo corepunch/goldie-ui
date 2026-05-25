@@ -170,9 +170,11 @@ static lresult_t mb_proc(window_t *win, uint32_t msg,
     }
 
     case evCommand: {
-      if (HIWORD(wparam) != btnClicked) return false;
+      if (HIWORD(wparam) != btnClicked)
+        return default_winproc(win, msg, wparam, lparam);
       window_t *btn = (window_t *)lparam;
-      if (!btn) return true;
+      if (!btn)
+        return default_winproc(win, msg, wparam, lparam);
 
       int code = IDCANCEL;
       if      (btn->id == MB_ID_OK)     code = IDOK;
@@ -186,7 +188,7 @@ static lresult_t mb_proc(window_t *win, uint32_t msg,
     }
 
     default:
-      return false;
+      return default_winproc(win, msg, wparam, lparam);
   }
 }
 

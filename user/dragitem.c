@@ -16,11 +16,18 @@ static int g_drag_item_offset_y = 0;
 #define DRAG_ITEM_OFFSET_X 14
 #define DRAG_ITEM_OFFSET_Y 14
 
+static void ui_drag_item_reset_state(void);
+
 static lresult_t ui_drag_item_win_proc(window_t *win, uint32_t msg,
                                        uint32_t wparam, void *lparam) {
   (void)wparam;
   (void)lparam;
   switch (msg) {
+    case evDestroy:
+      if (g_drag_item_win == win)
+        ui_drag_item_reset_state();
+      return true;
+
     case evPaint:
       fill_rect(0xFFE7E7E7, R(0, 0, win->frame.w, win->frame.h));
       fill_rect(0xFF202020, R(0, 0, win->frame.w, 1));
@@ -33,6 +40,43 @@ static lresult_t ui_drag_item_win_proc(window_t *win, uint32_t msg,
     default:
       return default_winproc(win, msg, wparam, lparam);
   }
+}
+
+static void ui_drag_item_reset_state(void) {
+  g_drag_item_win = NULL;
+  g_drag_item_target = NULL;
+  g_ui_runtime.drag_item_target = NULL;
+  g_drag_item_active = false;
+  g_drag_item_offset_x = 0;
+  g_drag_item_offset_y = 0;
+  g_drag_item_payload = (ui_drag_item_payload_t){0};
+}
+
+static bool ui_drag_item_tree_contains(window_t *root, window_t *needle) {
+  if (!root || !needle)
+    return false;
+  if (root == needle)
+    return true;
+  for (window_t *child = root->children; child; child = child->next) {
+    if (ui_drag_item_tree_contains(child, needle))
+      return true;
+  }
+  toolbar_state_t *tb = window_toolbar_state(root);
+  for (window_t *child = tb ? tb->children : NULL; child; child = child->next) {
+    if (ui_drag_item_tree_contains(child, needle))
+      return true;
+  }
+  return false;
+}
+
+static bool ui_drag_item_window_is_live(window_t *win) {
+  if (!win)
+    return false;
+  for (window_t *root = g_ui_runtime.windows; root; root = root->next) {
+    if (ui_drag_item_tree_contains(root, win))
+      return true;
+  }
+  return false;
 }
 
 static void ui_drag_item_measure_rect(const char *text, int sx, int sy,
@@ -107,15 +151,21 @@ static window_t *ui_drag_item_pick_target(int sx, int sy) {
   return ui_drag_item_target_accepts(focused_root) ? focused_root : NULL;
 }
 
-static void ui_drag_item_notify_target(window_t *target, uint32_t msg, int sx, int sy) {
-  if (!target)
+static void ui_drag_item_notify_target_payload(window_t *target, uint32_t msg,
+                                               int sx, int sy,
+                                               const ui_drag_item_payload_t *payload) {
+  if (!target || !ui_drag_item_window_is_live(target) || !payload)
     return;
   ipoint16_t client = window_client_origin_xy(target);
   int local_x = sx - client.x + target->hscroll.pos;
   int local_y = sy - client.y + target->vscroll.pos;
   send_message(target, msg,
                MAKEDWORD((uint16_t)local_x, (uint16_t)local_y),
-               &g_drag_item_payload);
+               (void *)payload);
+}
+
+static void ui_drag_item_notify_target(window_t *target, uint32_t msg, int sx, int sy) {
+  ui_drag_item_notify_target_payload(target, msg, sx, sy, &g_drag_item_payload);
 }
 
 static void ui_drag_item_set_with_offset(const char *text,
@@ -129,10 +179,14 @@ static void ui_drag_item_set_with_offset(const char *text,
   g_drag_item_offset_x = offset_x;
   g_drag_item_offset_y = offset_y;
 
+  if (g_drag_item_win && !ui_drag_item_window_is_live(g_drag_item_win))
+    ui_drag_item_reset_state();
+
   if (payload)
     g_drag_item_payload = *payload;
   else
     g_drag_item_payload = (ui_drag_item_payload_t){0};
+
   g_drag_item_target = NULL;
   g_ui_runtime.drag_item_target = NULL;
   g_drag_item_active = true;
@@ -182,6 +236,10 @@ void ui_drag_item_move(int sx, int sy) {
 
   if (!g_drag_item_win || !g_drag_item_active)
     return;
+  if (!ui_drag_item_window_is_live(g_drag_item_win)) {
+    ui_drag_item_reset_state();
+    return;
+  }
   irect16_t r;
   ui_drag_item_measure_rect(g_drag_item_win->title, sx, sy, &r);
   if (g_drag_item_win->frame.w != r.w || g_drag_item_win->frame.h != r.h) {
@@ -201,19 +259,27 @@ void ui_drag_item_move(int sx, int sy) {
 }
 
 void ui_drag_item_clear(void) {
-  if (!g_drag_item_win)
+  if (!g_drag_item_win) {
+    ui_drag_item_reset_state();
     return;
-  if (g_drag_item_active) {
-    ui_drag_item_notify_target(g_drag_item_target, evMouseDrop,
-                               g_ui_runtime.mouse_x, g_ui_runtime.mouse_y);
   }
+
   window_t *drag_win = g_drag_item_win;
-  g_drag_item_win = NULL;
-  g_drag_item_target = NULL;
-  g_ui_runtime.drag_item_target = NULL;
-  g_drag_item_active = false;
-  g_drag_item_offset_x = 0;
-  g_drag_item_offset_y = 0;
-  destroy_window(drag_win);
-  g_drag_item_payload = (ui_drag_item_payload_t){0};
+  window_t *drop_target = g_drag_item_target;
+  ui_drag_item_payload_t payload = g_drag_item_payload;
+  bool should_drop = g_drag_item_active;
+  int sx = g_ui_runtime.mouse_x;
+  int sy = g_ui_runtime.mouse_y;
+
+  ui_drag_item_reset_state();
+
+  if (drag_win && ui_drag_item_window_is_live(drag_win))
+    destroy_window(drag_win);
+
+  if (should_drop && drop_target && ui_drag_item_window_is_live(drop_target)) {
+    g_ui_runtime.drag_item_target = drop_target;
+    ui_drag_item_notify_target_payload(drop_target, evMouseDrop, sx, sy, &payload);
+    if (g_ui_runtime.drag_item_target == drop_target)
+      g_ui_runtime.drag_item_target = NULL;
+  }
 }

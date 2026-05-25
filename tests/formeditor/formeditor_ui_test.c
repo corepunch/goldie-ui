@@ -910,7 +910,14 @@ void test_fe_drop_database_field_rejects_other_database(void) {
     .source_name = "other",
   };
 
-  ASSERT_FALSE(fe_controller_drop_create(doc, &payload, column));
+  ipoint16_t column_origin = window_client_origin_xy(column);
+  g_ui_runtime.mouse_x = column_origin.x + 1;
+  g_ui_runtime.mouse_y = column_origin.y + 1;
+  ui_drag_item_set("name", &payload);
+  ui_drag_item_move(column_origin.x + 1, column_origin.y + 1);
+  ASSERT_TRUE(g_ui_runtime.drag_item_target == column);
+  ui_drag_item_clear();
+
   ASSERT_EQUAL(fe_test_message_box_count, 1);
   ASSERT_STR_EQUAL(fe_test_message_box_caption, "Database Field");
   ASSERT_STR_EQUAL(fe_test_message_box_text,
@@ -1052,6 +1059,41 @@ void test_fe_drop_database_field_rejects_unavailable_database(void) {
   PASS();
 }
 
+void test_fe_drag_item_clear_tolerates_destroyed_ghost(void) {
+  TEST("drag item: clear tolerates ghost destroyed during shutdown");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_CONTROL_CLASS,
+    .item_class = 1,
+    .item_id = 1,
+  };
+
+  g_ui_runtime.mouse_x = 32;
+  g_ui_runtime.mouse_y = 32;
+  ui_drag_item_set("Button", &payload);
+
+  window_t *ghost = NULL;
+  for (window_t *w = g_ui_runtime.windows; w; w = w->next) {
+    if ((w->flags & WINDOW_NOACTIVATE) && (w->flags & WINDOW_NOTABSTOP) &&
+        strcmp(w->title, "Button") == 0) {
+      ghost = w;
+      break;
+    }
+  }
+  ASSERT_NOT_NULL(ghost);
+
+  destroy_window(ghost);
+  ui_drag_item_clear();
+
+  ASSERT_NULL(g_ui_runtime.drag_item_target);
+
+  fe_teardown();
+  PASS();
+}
+
 void test_fe_tableview_preview_resolves_joined_column(void) {
   TEST("tableview preview: joined column displays relation field");
 
@@ -1123,6 +1165,7 @@ int main(void) {
   test_fe_drop_database_field_rejects_other_database();
   test_fe_drop_database_field_rejects_unjoined_table();
   test_fe_drop_database_field_rejects_unavailable_database();
+  test_fe_drag_item_clear_tolerates_destroyed_ghost();
   test_fe_tableview_preview_resolves_joined_column();
 
   TEST_END();
