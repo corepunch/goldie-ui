@@ -5,6 +5,7 @@
 #include "examples/formeditor/formeditor.h"
 #include "commctl/commctl.h"
 
+#include <libxml/parser.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -114,6 +115,40 @@ static window_t *fe_child_at_by_proc(window_t *parent, winproc_t proc, int index
   return NULL;
 }
 
+static window_t *fe_descendant_at_by_proc(window_t *parent, winproc_t proc, int *index) {
+  if (!parent || !index)
+    return NULL;
+  for (window_t *child = parent->children; child; child = child->next) {
+    if (child->proc == proc) {
+      if (*index == 0)
+        return child;
+      (*index)--;
+    }
+    window_t *found = fe_descendant_at_by_proc(child, proc, index);
+    if (found)
+      return found;
+  }
+  return NULL;
+}
+
+static xmlNodePtr fe_test_first_child_named(xmlNodePtr parent, const char *name) {
+  for (xmlNodePtr child = parent ? parent->children : NULL; child; child = child->next) {
+    if (child->type == XML_ELEMENT_NODE &&
+        xmlStrcasecmp(child->name, BAD_CAST name) == 0)
+      return child;
+  }
+  return NULL;
+}
+
+static char *fe_test_attr_dup(xmlNodePtr node, const char *name) {
+  xmlChar *v = node ? xmlGetProp(node, BAD_CAST name) : NULL;
+  if (!v)
+    return NULL;
+  char *out = strdup((const char *)v);
+  xmlFree(v);
+  return out;
+}
+
 static window_t *fe_find_root_by_title(const char *title) {
   for (window_t *win = g_ui_runtime.windows; win; win = win->next) {
     if (strcmp(win->title, title) == 0)
@@ -175,6 +210,12 @@ static const db_field_meta_t fe_test_author_meta[] = {
   { 5, "name", DB_TYPE_STRING, offsetof(fe_test_author_t, name), 64 },
 };
 
+static const db_field_meta_t fe_test_post_meta[] = {
+  { 1, "id", DB_TYPE_INT, offsetof(fe_test_post_t, id), 0 },
+  { 2, "title", DB_TYPE_STRING, offsetof(fe_test_post_t, title), 64 },
+  { 3, "author_id", DB_TYPE_INT, offsetof(fe_test_post_t, author_id), 0 },
+};
+
 static const db_join_schema_t fe_test_post_joins[] = {
   { 3, "author", 3, 2, 4 },
 };
@@ -186,6 +227,11 @@ static const db_join_schema_t fe_test_comment_joins[] = {
 static fe_test_author_t fe_test_authors[] = {
   { 1, "alice" },
   { 2, "bob" },
+};
+
+static fe_test_post_t fe_test_posts[] = {
+  { 1, "First Post", 1 },
+  { 2, "Second Post", 2 },
 };
 
 static const db_table_schema_t fe_test_db_tables[] = {
@@ -224,10 +270,44 @@ static lresult_t fe_test_db_proc(database_t *db, uint32_t msg, uint32_t wparam, 
   (void)db;
   if (msg == dbGetSchema)
     return (lresult_t)&fe_test_db_schema;
+  if (msg == dbGetFieldMeta && wparam == 1) {
+    if (lparam)
+      *(int *)lparam = ARRAY_LEN(fe_test_post_meta);
+    return (lresult_t)fe_test_post_meta;
+  }
   if (msg == dbGetFieldMeta && wparam == 2) {
     if (lparam)
       *(int *)lparam = ARRAY_LEN(fe_test_author_meta);
     return (lresult_t)fe_test_author_meta;
+  }
+  if (msg == dbFind && LOWORD(wparam) == 2) {
+    int search_field = HIWORD(wparam);
+    int search_value = (int)(intptr_t)lparam;
+    if (search_field == 0 || search_field == 4) {
+      for (int i = 0; i < (int)ARRAY_LEN(fe_test_authors); i++) {
+        if (fe_test_authors[i].id == search_value)
+          return (lresult_t)&fe_test_authors[i];
+      }
+    }
+    return 0;
+  }
+  if (msg == dbFetch && LOWORD(wparam) == 1) {
+    fe_test_db_fetch_count++;
+    result_node_t *head = NULL;
+    result_node_t *tail = NULL;
+    for (int i = 0; i < (int)ARRAY_LEN(fe_test_posts); i++) {
+      result_node_t *node = malloc(sizeof(result_node_t) + sizeof(void *));
+      if (!node) {
+        free_result_list(head);
+        return 0;
+      }
+      node->next = NULL;
+      *(void **)node->data = &fe_test_posts[i];
+      if (tail) tail->next = node;
+      else head = node;
+      tail = node;
+    }
+    return (lresult_t)head;
   }
   if (msg == dbFetch && LOWORD(wparam) == 2) {
     fe_test_db_fetch_count++;
@@ -646,6 +726,136 @@ void test_fe_database_browser_cascades_reportviews(void) {
   PASS();
 }
 
+void test_fe_drop_database_field_binds_table_column(void) {
+  TEST("database field drop: binds tableview column XML");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  database_t db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  g_app->project.databases[0] = &db;
+  g_app->project.database_count = 1;
+  ui_set_database(&db);
+
+  window_t *doc = fe_active_doc();
+  ASSERT_NOT_NULL(doc);
+
+  const char *xml =
+      "<form name=\"main\" title=\"Main\" width=\"320\" height=\"180\">"
+      "  <TableView name=\"feed\" source=\"db.posts\" flags=\"vscroll,flexspace\">"
+      "    <Column field=\"title\" title=\"Title\" width=\"80\"/>"
+      "    <Column field=\"id\" title=\"ID\" width=\"40\"/>"
+      "  </TableView>"
+      "</form>";
+  xmlDocPtr xdoc = xmlReadMemory(xml, (int)strlen(xml), "drop-test.orion", NULL, XML_PARSE_NONET);
+  ASSERT_NOT_NULL(xdoc);
+  xmlNodePtr root = xmlDocGetRootElement(xdoc);
+  ASSERT_NOT_NULL(root);
+  if (doc->userdata2)
+    xmlFreeNode((xmlNodePtr)doc->userdata2);
+  doc->userdata2 = xmlCopyNode(root, 1);
+  xmlFreeDoc(xdoc);
+
+  canvas_rebuild_live_controls(doc);
+  window_layout_sync(doc);
+
+  int column_index = 0;
+  window_t *column = fe_descendant_at_by_proc(doc, win_reportcolumn, &column_index);
+  ASSERT_NOT_NULL(column);
+
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_DATABASE_FIELD,
+    .item_class = 2, // authors
+    .item_id = 5,    // authors.name
+  };
+  ASSERT_TRUE(send_message(column, evAcceptsDrop,
+                           MAKEDWORD(UI_DRAG_ITEM_DATABASE_FIELD, payload.item_class),
+                           &payload));
+  ipoint16_t column_origin = window_client_origin_xy(column);
+  g_ui_runtime.mouse_x = column_origin.x + 1;
+  g_ui_runtime.mouse_y = column_origin.y + 1;
+  ui_drag_item_set("name", &payload);
+  ui_drag_item_move(column_origin.x + 1, column_origin.y + 1);
+  ASSERT_TRUE(g_ui_runtime.drag_item_target == column);
+  ui_drag_item_clear();
+
+  xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
+  xmlNodePtr table_node = fe_test_first_child_named(form_node, "TableView");
+  xmlNodePtr column_node = fe_test_first_child_named(table_node, "Column");
+  ASSERT_NOT_NULL(column_node);
+
+  char *field = fe_test_attr_dup(column_node, "field");
+  char *title = fe_test_attr_dup(column_node, "title");
+  ASSERT_NOT_NULL(field);
+  ASSERT_NOT_NULL(title);
+  ASSERT_STR_EQUAL(field, "author.name");
+  ASSERT_STR_EQUAL(title, "Author Name");
+  ASSERT_TRUE(fe_doc_state(doc)->modified);
+  ASSERT_TRUE(g_app->project.modified);
+  free(field);
+  free(title);
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_tableview_preview_resolves_joined_column(void) {
+  TEST("tableview preview: joined column displays relation field");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  database_t db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  g_app->project.databases[0] = &db;
+  g_app->project.database_count = 1;
+  ui_set_database(&db);
+
+  window_t *doc = fe_active_doc();
+  ASSERT_NOT_NULL(doc);
+
+  const char *xml =
+      "<form name=\"main\" title=\"Main\" width=\"320\" height=\"180\">"
+      "  <TableView name=\"feed\" source=\"db.posts\" flags=\"vscroll,flexspace\">"
+      "    <Column field=\"title\" title=\"Title\" width=\"120\"/>"
+      "    <Column field=\"author.name\" title=\"Author\" width=\"80\"/>"
+      "  </TableView>"
+      "</form>";
+  xmlDocPtr xdoc = xmlReadMemory(xml, (int)strlen(xml), "preview-test.orion", NULL, XML_PARSE_NONET);
+  ASSERT_NOT_NULL(xdoc);
+  xmlNodePtr root = xmlDocGetRootElement(xdoc);
+  ASSERT_NOT_NULL(root);
+  if (doc->userdata2)
+    xmlFreeNode((xmlNodePtr)doc->userdata2);
+  doc->userdata2 = xmlCopyNode(root, 1);
+  xmlFreeDoc(xdoc);
+
+  canvas_rebuild_live_controls(doc);
+  window_layout_sync(doc);
+
+  int table_index = 0;
+  window_t *table = fe_descendant_at_by_proc(doc, win_tableview, &table_index);
+  ASSERT_NOT_NULL(table);
+  send_message(table, tvRefresh, 0, NULL);
+
+  ASSERT_EQUAL((int)send_message(table, RVM_GETITEMCOUNT, 0, NULL), 2);
+  reportview_item_t item = {0};
+  ASSERT_TRUE(send_message(table, RVM_GETITEMDATA, 0, &item));
+  ASSERT_STR_EQUAL(item.text, "First Post");
+  ASSERT_TRUE(item.subitem_count >= 1);
+  ASSERT_STR_EQUAL(item.subitems[0], "alice");
+
+  fe_teardown();
+  PASS();
+}
+
 int main(void) {
   TEST_START("Form Editor Window-First Smoke");
 
@@ -659,6 +869,8 @@ int main(void) {
   test_fe_property_browser_refresh_populates_rows();
   test_fe_plugins_browser_lists_project_plugins();
   test_fe_database_browser_cascades_reportviews();
+  test_fe_drop_database_field_binds_table_column();
+  test_fe_tableview_preview_resolves_joined_column();
 
   TEST_END();
 }

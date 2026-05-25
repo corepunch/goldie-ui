@@ -109,6 +109,16 @@ bool fe_controller_drop_create(window_t *doc,
   if (!doc || !payload)
     return false;
 
+  if (payload->item_type == UI_DRAG_ITEM_DATABASE_FIELD) {
+    if (!fe_doc_bind_database_field_to_column(doc, payload, target))
+      return false;
+    if (doc->children)
+      invalidate_window(doc->children);
+    property_browser_refresh(doc);
+    forms_browser_refresh();
+    return true;
+  }
+
   if (payload->item_type != UI_DRAG_ITEM_CONTROL_CLASS)
     return false;
 

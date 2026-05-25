@@ -67,20 +67,6 @@ static window_t *canvas_hit_child(window_t *doc, int canvas_x, int canvas_y) {
   return hit;
 }
 
-static window_t *canvas_find_database_field_drop_target(window_t *doc,
-                                                        int canvas_x,
-                                                        int canvas_y) {
-  for (window_t *p = canvas_hit_child(doc, canvas_x, canvas_y); p; p = p->parent) {
-    if (p->proc == win_reportcolumn)
-      return p;
-    if (p->proc == win_tableview)
-      return p;
-    if (p == doc)
-      break;
-  }
-  return NULL;
-}
-
 static bool canvas_drag_overlay_update(window_t *doc,
                                        const ui_drag_item_payload_t *payload,
                                        int local_x, int local_y) {
@@ -93,7 +79,7 @@ static bool canvas_drag_overlay_update(window_t *doc,
     int component_id = (int)payload->item_class;
     target = canvas_find_component_drop_target(doc, component_id, local_x, local_y);
   } else if (canvas_payload_is_database_field(payload)) {
-    target = canvas_find_database_field_drop_target(doc, local_x, local_y);
+    target = g_ui_runtime.drag_item_target;
   }
 
   if (target) {
@@ -171,8 +157,6 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       // Drag preview targeting uses default_winproc(evHitTest) explicitly.
       return (lresult_t)(intptr_t)win;
     case evAcceptsDrop:
-      if (canvas_payload_is_database_field(payload))
-        return true;
       return default_winproc(win, msg, wparam, lparam);
     case evPaint:
       default_winproc(win, msg, wparam, lparam);
@@ -205,6 +189,8 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
         window_t *drop_target = canvas_find_component_drop_target(
             win, component_id, LOWORD(wparam), HIWORD(wparam));
         (void)fe_controller_drop_create(win, payload, drop_target);
+      } else if (canvas_payload_is_database_field(payload)) {
+        (void)fe_controller_drop_create(win, payload, g_ui_runtime.drag_item_target);
       }
       canvas_drag_overlay_clear(win);
       return true;

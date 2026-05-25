@@ -404,6 +404,9 @@ void fe_doc_update_title(window_t *doc);
 int fe_doc_add_element(window_t *doc, int type, irect16_t frame, uint32_t parent_id);
 bool fe_doc_delete_element(window_t *doc, int idx);
 bool fe_doc_drop_create_component(int component_id, window_t *parent_target);
+bool fe_doc_bind_database_field_to_column(window_t *doc,
+                                          const ui_drag_item_payload_t *payload,
+                                          window_t *target);
 
 bool fe_doc_set_element_text(window_t *doc, int element_id, const char *text);
 bool fe_doc_set_element_frame(window_t *doc, int element_id, irect16_t frame);

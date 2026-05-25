@@ -7,6 +7,7 @@
 #include "../user/theme.h"
 
 lresult_t win_reportcolumn(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 static int report_content_height(reportview_data_t *data) {
   return rv_report_header_height(data) + (int)data->count * ENTRY_HEIGHT;
@@ -552,6 +553,31 @@ lresult_t win_reportcolumn(window_t *win, uint32_t msg, uint32_t wparam, void *l
 
     case evHitTest:
       return (lresult_t)(intptr_t)win;
+
+    case evAcceptsDrop: {
+      ui_drag_item_payload_t *payload = (ui_drag_item_payload_t *)lparam;
+      return payload &&
+             payload->item_type == UI_DRAG_ITEM_DATABASE_FIELD &&
+             win->parent &&
+             win->parent->proc == win_tableview;
+    }
+
+    case evMouseDragEnter:
+    case evMouseDragLeave:
+    case evMouseDrag:
+    case evMouseDrop: {
+      ui_drag_item_payload_t *payload = (ui_drag_item_payload_t *)lparam;
+      if (!payload || payload->item_type != UI_DRAG_ITEM_DATABASE_FIELD)
+        return false;
+      window_t *root = get_root_window(win);
+      if (!root || root == win)
+        return false;
+      ipoint16_t win_client = window_client_origin_xy(win);
+      ipoint16_t root_client = window_client_origin_xy(root);
+      int root_x = win_client.x + (int16_t)LOWORD(wparam) - root_client.x + (int)root->hscroll.pos;
+      int root_y = win_client.y + (int16_t)HIWORD(wparam) - root_client.y + (int)root->vscroll.pos;
+      return send_message(root, msg, MAKEDWORD((uint16_t)root_x, (uint16_t)root_y), lparam);
+    }
 
     case evWheel:
       return win->parent ? send_message(win->parent, msg, wparam, lparam) : false;

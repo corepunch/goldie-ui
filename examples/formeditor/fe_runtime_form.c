@@ -150,6 +150,60 @@ static uint32_t runtime_field_id_for_table(int table_id, const char *field_name)
     const db_table_schema_t *table = &schema->tables[t];
     if ((int)table->table_id != table_id)
       continue;
+
+    const char *dot = strchr(field_name, '.');
+    if (dot) {
+      char alias[96];
+      snprintf(alias, sizeof(alias), "%.*s", (int)(dot - field_name), field_name);
+      const char *joined_field_name = dot + 1;
+      const db_join_schema_t *match = NULL;
+      int matches = 0;
+      for (int j = 0; j < table->join_count; j++) {
+        const db_join_schema_t *join = &table->joins[j];
+        if (join->name && strcmp(join->name, alias) == 0) {
+          match = join;
+          matches++;
+        }
+      }
+      if (matches != 1 || !match)
+        return 0;
+
+      if (match->foreign_field_id) {
+        const db_table_schema_t *foreign_table = NULL;
+        for (int ft = 0; ft < schema->table_count; ft++) {
+          if (schema->tables[ft].table_id == match->foreign_table_id) {
+            foreign_table = &schema->tables[ft];
+            break;
+          }
+        }
+        const db_field_schema_t *relation_field = NULL;
+        for (int ff = 0; foreign_table && ff < foreign_table->field_count; ff++) {
+          if (foreign_table->fields[ff].field_id == match->foreign_field_id) {
+            relation_field = &foreign_table->fields[ff];
+            break;
+          }
+        }
+        if (relation_field && relation_field->name &&
+            strcmp(relation_field->name, joined_field_name) == 0) {
+          return match->local_field_id;
+        }
+      }
+
+      for (int ft = 0; ft < schema->table_count; ft++) {
+        const db_table_schema_t *foreign_table = &schema->tables[ft];
+        if (foreign_table->table_id != match->foreign_table_id)
+          continue;
+        for (int ff = 0; ff < foreign_table->field_count; ff++) {
+          if (foreign_table->fields[ff].name &&
+              strcmp(foreign_table->fields[ff].name, joined_field_name) == 0) {
+            return foreign_table->fields[ff].field_id;
+          }
+        }
+        return 0;
+      }
+      return 0;
+    }
+
     for (int f = 0; f < table->field_count; f++) {
       if (table->fields[f].name && strcmp(table->fields[f].name, field_name) == 0)
         return table->fields[f].field_id;

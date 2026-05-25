@@ -59,8 +59,42 @@ static bool ui_drag_item_target_accepts(window_t *candidate) {
                       &g_drag_item_payload) != 0;
 }
 
+static bool ui_drag_item_screen_in_child(window_t *parent, window_t *child, int sx, int sy) {
+  if (!parent || !child || !window_has_state(child, WINDOW_STATE_VISIBLE))
+    return false;
+  ipoint16_t origin = window_client_origin_xy(parent);
+  int px = sx - origin.x + (int)parent->hscroll.pos;
+  int py = sy - origin.y + (int)parent->vscroll.pos;
+  return px >= child->frame.x && py >= child->frame.y &&
+         px < child->frame.x + child->frame.w &&
+         py < child->frame.y + child->frame.h;
+}
+
+static window_t *ui_drag_item_pick_descendant_target(window_t *root, int sx, int sy) {
+  if (!root)
+    return NULL;
+
+  window_t *match = NULL;
+  for (window_t *child = root->children; child; child = child->next) {
+    if (child == g_drag_item_win || !ui_drag_item_screen_in_child(root, child, sx, sy))
+      continue;
+
+    window_t *nested = ui_drag_item_pick_descendant_target(child, sx, sy);
+    if (nested)
+      match = nested;
+    else if (ui_drag_item_target_accepts(child))
+      match = child;
+  }
+  return match;
+}
+
 static window_t *ui_drag_item_pick_target(int sx, int sy) {
   window_t *hit = find_window(sx, sy);
+  window_t *root = hit ? get_root_window(hit) : NULL;
+
+  window_t *descendant = ui_drag_item_pick_descendant_target(root, sx, sy);
+  if (descendant)
+    return descendant;
 
   for (window_t *p = hit; p; p = p->parent) {
     if (ui_drag_item_target_accepts(p))
@@ -100,6 +134,7 @@ static void ui_drag_item_set_with_offset(const char *text,
   else
     g_drag_item_payload = (ui_drag_item_payload_t){0};
   g_drag_item_target = NULL;
+  g_ui_runtime.drag_item_target = NULL;
   g_drag_item_active = true;
 
   irect16_t r;
@@ -159,6 +194,7 @@ void ui_drag_item_move(int sx, int sy) {
   if (target != g_drag_item_target) {
     ui_drag_item_notify_target(g_drag_item_target, evMouseDragLeave, sx, sy);
     g_drag_item_target = target;
+    g_ui_runtime.drag_item_target = target;
     ui_drag_item_notify_target(g_drag_item_target, evMouseDragEnter, sx, sy);
   }
   ui_drag_item_notify_target(g_drag_item_target, evMouseDrag, sx, sy);
@@ -174,6 +210,7 @@ void ui_drag_item_clear(void) {
   window_t *drag_win = g_drag_item_win;
   g_drag_item_win = NULL;
   g_drag_item_target = NULL;
+  g_ui_runtime.drag_item_target = NULL;
   g_drag_item_active = false;
   g_drag_item_offset_x = 0;
   g_drag_item_offset_y = 0;

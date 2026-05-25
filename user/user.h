@@ -461,6 +461,7 @@ typedef struct {
   window_t *resizing;
   window_t *toolbar_down_win;
   window_t *modal_overlay_parent;
+  window_t *drag_item_target;
   int       mouse_x;
   int       mouse_y;
   int       default_window_x;
