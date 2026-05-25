@@ -39,11 +39,14 @@ KEY IMPROVEMENTS:
 CODE EXAMPLE:
 -------------
 // Enable status bar when creating window
+register_window_class_once(&(fe_component_desc_t){
+    .class_name = "file_manager",
+    .proc = window_proc,
+});
 window_t *win = create_window("File Manager", 
     WINDOW_STATUSBAR,  // Add this flag
     MAKERECT(20, 20, 340, 400), 
-    NULL, window_proc, NULL);
+    NULL, "file_manager", NULL, NULL);
 
 // Update status bar text
 send_message(win, evStatusBar, 0, "/home/user/workspace");
-

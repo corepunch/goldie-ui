@@ -51,13 +51,17 @@ static const toolbox_item_t kMyTools[] = {
 //    Width  = TOOLBOX_COLS * TOOLBOX_BTN_SIZE  (= 2 * 22 = 44 px by default)
 //    Height = TITLEBAR_HEIGHT + ceil(n/2) * TOOLBOX_BTN_SIZE
 int rows = (MY_TOOL_COUNT + TOOLBOX_COLS - 1) / TOOLBOX_COLS;
+register_window_class_once(&(fe_component_desc_t){
+    .class_name = "my_toolbox",
+    .proc = my_toolbox_proc,
+});
 window_t *tool_win = create_window(
     "Tools",
     WINDOW_NORESIZE | WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON,
     MAKERECT(4, 40,
              TOOLBOX_COLS * TOOLBOX_BTN_SIZE,
              TITLEBAR_HEIGHT + rows * TOOLBOX_BTN_SIZE),
-    NULL, my_toolbox_proc, hinstance, NULL);
+    NULL, "my_toolbox", hinstance, NULL);
 ```
 
 ---

@@ -93,8 +93,12 @@ static result_t my_proc(window_t *win, uint32_t msg,
 
 int main(void) {
   ui_init_graphics(0, "Hello", 640, 480);
+  register_window_class_once(&(fe_component_desc_t){
+    .class_name = "hello_window",
+    .proc = my_proc,
+  });
   window_t *win = create_window("Hello", 0, MAKERECT(50,50,300,200),
-                                NULL, my_proc, NULL);
+                                NULL, "hello_window", NULL, NULL);
   show_window(win, true);
   ui_event_t e;
   while (ui_is_running()) {

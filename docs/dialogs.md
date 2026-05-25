@@ -219,7 +219,7 @@ static result_t my_proc(window_t *win, uint32_t msg,
 
 **Key rules:**
 
-- Do **not** call `create_window(…, win_button, …)` inside a form's
+- Do **not** call `create_window(…, "button", …)` inside a form's
   `evCreate` when a `form_ctrl_def_t` entry can describe the same
   control.  Children declared in the form already exist when the message fires.
 - Prefer fixed **size hints** (`.size = {w, h}`) only where a control needs a

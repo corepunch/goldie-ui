@@ -27,8 +27,12 @@ This is the WinAPI equivalent of creating a window with `WS_HSCROLL` /
 ### Enabling built-in scrollbars
 
 ```c
+register_window_class_once(&(fe_component_desc_t){
+    .class_name = "my_view",
+    .proc = my_view_proc,
+});
 window_t *view = create_window("View", WINDOW_HSCROLL | WINDOW_VSCROLL,
-    MAKERECT(x, y, w, h), parent, my_view_proc, NULL);
+    MAKERECT(x, y, w, h), parent, "my_view", NULL, NULL);
 ```
 
 ### Setting the scroll range and position (`SetScrollInfo` equivalent)
@@ -161,12 +165,12 @@ inside a custom layout), use `win_scrollbar`.  Orientation is set via
 // Horizontal bar
 window_t *hsb = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, h - 8, w - 8, 8),
-    parent, win_scrollbar, (void *)0 /* SB_HORZ */);
+    parent, "scrollbar", NULL, (void *)0 /* SB_HORZ */);
 
 // Vertical bar
 window_t *vsb = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(w - 8, 0, 8, h - 8),
-    parent, win_scrollbar, (void *)1 /* SB_VERT */);
+    parent, "scrollbar", NULL, (void *)1 /* SB_VERT */);
 
 // Set info
 scrollbar_info_t info = { .min_val = 0, .max_val = 200, .page = 50, .pos = 0 };
@@ -191,7 +195,7 @@ case evCommand:
 
 | ❌ Wrong | ✅ Correct |
 |---|---|
-| `create_window("", WINDOW_HSCROLL, …, win_scrollbar, NULL)` — setting `WINDOW_HSCROLL` on the scrollbar child | `create_window("", 0, …, win_scrollbar, (void *)0)` — pass orientation via `lparam` |
+| `create_window("", WINDOW_HSCROLL, …, "scrollbar", NULL, NULL)` — setting `WINDOW_HSCROLL` on the scrollbar child | `create_window("", 0, …, "scrollbar", NULL, (void *)0)` — pass orientation via `lparam` |
 | Creating `win_scrollbar` children when you want built-in scrollbars | Add `WINDOW_HSCROLL \| WINDOW_VSCROLL` to the parent and call `set_scroll_info()` |
 | Manually painting scrollbar children from the parent proc | Let the framework draw via `WINDOW_HSCROLL \| WINDOW_VSCROLL`; it paints on top automatically |
 | Forwarding mouse events to scrollbar children | Not needed; the framework intercepts clicks in the scrollbar area before calling `win->proc` |

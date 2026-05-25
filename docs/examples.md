@@ -110,8 +110,12 @@ Keyboard shortcuts:
 3. In `main()`:
    ```c
    ui_init_graphics(0, "My App", 800, 600);
+   register_window_class_once(&(fe_component_desc_t){
+     .class_name = "myapp_main",
+     .proc = my_proc,
+   });
    window_t *w = create_window("My App", 0, MAKERECT(50,50,700,500),
-                                NULL, my_proc, NULL);
+                                NULL, "myapp_main", NULL, NULL);
    show_window(w, true);
    ui_event_t e;
    while (ui_is_running()) {

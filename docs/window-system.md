@@ -33,9 +33,20 @@ window_t *create_window(
     flags_t     flags,
     irect16_t const *frame,     // MAKERECT(x, y, w, h)
     window_t   *parent,      // NULL = top-level
-    winproc_t   proc,
+    const char *class_name,  // registered class name
+    hinstance_t hinstance,
     void       *lparam       // forwarded to evCreate
 );
+```
+
+Built-in classes (for example `"button"`, `"textedit"`, `"reportview"`) are
+registered by the framework. Custom classes must be registered first:
+
+```c
+register_window_class_once(&(fe_component_desc_t){
+  .class_name = "my_window",
+  .proc = my_proc,
+});
 ```
 
 `frame` coordinates are in **logical pixels** (screen pixels ÷ `UI_WINDOW_SCALE`).
@@ -93,8 +104,12 @@ static result_t my_proc(window_t *win, uint32_t msg,
 
 ```c
 // Create
+register_window_class_once(&(fe_component_desc_t){
+  .class_name = "main_window",
+  .proc = my_proc,
+});
 window_t *win = create_window("Title", 0, MAKERECT(100,100,400,300),
-                               NULL, my_proc, NULL);
+                               NULL, "main_window", NULL, NULL);
 show_window(win, true);
 
 // Destroy (sends evDestroy, frees children, then frees win)
@@ -160,9 +175,9 @@ static result_t open_proc(window_t *win, uint32_t msg,
       win->userdata = lparam;  // open_state_t * passed via param
       // Create child controls
       create_window("OK", 0, MAKERECT(10, 60, 60, BUTTON_HEIGHT),
-                    win, win_button, NULL);
+                    win, "button", NULL, NULL);
       create_window("Cancel", 0, MAKERECT(80, 60, 60, BUTTON_HEIGHT),
-                    win, win_button, NULL);
+                    win, "button", NULL, NULL);
       return true;
 
     case evCommand:
@@ -266,9 +281,13 @@ irect16_t wr = {0, 0, 320, 120};
 adjust_window_rect(&wr, WINDOW_DIALOG | WINDOW_NORESIZE);
 wr = center_window_rect(wr, owner_win);
 
+register_window_class_once(&(fe_component_desc_t){
+  .class_name = "options_dialog",
+  .proc = options_proc,
+});
 window_t *dlg = create_window("Options",
   WINDOW_DIALOG | WINDOW_NORESIZE,
-  &wr, NULL, options_proc, 0, state);
+  &wr, NULL, "options_dialog", 0, state);
 ```
 
 ## Built-in Scrollbars

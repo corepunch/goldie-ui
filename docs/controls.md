@@ -6,7 +6,7 @@ nav_order: 8
 
 # Controls
 
-All controls are window procedures registered with `commctl.h`.  Create them
+All controls are registered window classes. Create them
 as child windows of a parent; notifications are sent to the **root window**
 via `evCommand`.
 
@@ -18,7 +18,7 @@ See [Scrollbars](scrollbars) for the complete scrollbar documentation covering b
 // Standalone scrollbar – orientation set via lparam: 0=horizontal, 1=vertical
 window_t *vsb = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(w - 8, 0, 8, h - 8),
-    parent, win_scrollbar, (void *)1 /* SB_VERT */);
+    parent, "scrollbar", NULL, (void *)1 /* SB_VERT */);
 
 scrollbar_info_t info = { .min_val = 0, .max_val = 200, .page = 50, .pos = 0 };
 send_message(vsb, sbSetInfo, 0, &info);
@@ -41,7 +41,7 @@ built-in scrollbars.
 ```c
 window_t *btn = create_window("Click Me", 0,
     MAKERECT(10, 10, 80, BUTTON_HEIGHT),
-    parent, win_button, NULL);
+    parent, "button", NULL, NULL);
 
 // Receive click in parent's proc:
 case evCommand:
@@ -54,7 +54,7 @@ case evCommand:
 ```c
 window_t *chk = create_window("Enable fog", 0,
     MAKERECT(10, 30, 120, BUTTON_HEIGHT),
-    parent, win_checkbox, NULL);
+    parent, "checkbox", NULL, NULL);
 
 // Query / set checked state
 send_message(chk, btnSetCheck, btnStateChecked, NULL);
@@ -67,7 +67,7 @@ int state = send_message(chk, btnGetCheck, 0, NULL);
 ```c
 window_t *ed = create_window("", WINDOW_NOTITLE,
     MAKERECT(10, 50, 200, CONTROL_HEIGHT),
-    parent, win_textedit, NULL);
+    parent, "textedit", NULL, NULL);
 
 // Read current text
 const char *text = ed->title;
@@ -83,7 +83,7 @@ case evCommand:
 ```c
 create_window("Name:", WINDOW_NOTITLE,
     MAKERECT(10, 10, 60, CONTROL_HEIGHT),
-    parent, win_label, NULL);
+    parent, "label", NULL, NULL);
 ```
 
 ## Combobox
@@ -91,7 +91,7 @@ create_window("Name:", WINDOW_NOTITLE,
 ```c
 window_t *cb = create_window("", 0,
     MAKERECT(10, 70, 150, BUTTON_HEIGHT),
-    parent, win_combobox, NULL);
+    parent, "combobox", NULL, NULL);
 
 send_message(cb, cbAddString, 0, (void *)"Option A");
 send_message(cb, cbAddString, 0, (void *)"Option B");
@@ -119,7 +119,7 @@ Used by the file manager, file-picker dialog, and several editor palettes.
 
 window_t *cv = create_window("", WINDOW_NOTITLE | WINDOW_VSCROLL,
     MAKERECT(0, 0, 300, 200),
-    parent, win_reportview, NULL);
+    parent, "reportview", NULL, NULL);
 
 // Add items
 reportview_item_t item = {
@@ -172,10 +172,14 @@ static const menu_def_t kMenus[] = {
 };
 
 // Create menu bar (ALWAYSONTOP, full screen width)
+register_window_class_once(&(fe_component_desc_t){
+    .class_name = "my_menubar",
+    .proc = my_menubar_proc,
+});
 window_t *mb = create_window("",
     WINDOW_NOTITLE | WINDOW_ALWAYSONTOP | WINDOW_NORESIZE | WINDOW_NOTRAYBUTTON,
     MAKERECT(0, 0, screen_w, MENUBAR_HEIGHT),
-    NULL, my_menubar_proc, NULL);
+    NULL, "my_menubar", NULL, NULL);
 send_message(mb, kMenuBarMessageSetMenus, 1, (void *)kMenus);
 show_window(mb, true);
 
@@ -211,7 +215,7 @@ shutdown_console();
 ```c
 window_t *term = create_window("Lua Terminal", 0,
     MAKERECT(50, 50, 500, 300),
-    NULL, win_terminal, NULL);
+    NULL, "terminal", NULL, NULL);
 show_window(term, true);
 
 // Read the Lua output buffer

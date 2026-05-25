@@ -253,11 +253,15 @@ doc_t *create_document(const char *path) {
   if (!doc) return NULL;
   if (path) strncpy(doc->filename, path, sizeof(doc->filename) - 1);
 
+  register_window_class_once(&(fe_component_desc_t){
+      .class_name = "doc_window",
+      .proc = doc_win_proc,
+  });
   doc->win = create_window(
       path ? path : "Untitled",
       WINDOW_STATUSBAR | WINDOW_TOOLBAR,
       MAKERECT(g_app->next_x, g_app->next_y, DOC_WIN_W, DOC_WIN_H),
-      NULL, doc_win_proc, g_app->hinstance, doc);
+      NULL, "doc_window", g_app->hinstance, doc);
   if (!doc->win) { free(doc); return NULL; }
 
   doc->next   = g_app->docs;
@@ -298,11 +302,15 @@ Tool and property panels are `WINDOW_ALWAYSONTOP` top-level windows, typically
 placed just below the menu bar:
 
 ```c
+register_window_class_once(&(fe_component_desc_t){
+    .class_name = "tool_palette",
+    .proc = win_tool_palette_proc,
+});
 window_t *tp = create_window(
     "Tools",
     WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE,
     MAKERECT(4, MENUBAR_HEIGHT + 4, PALETTE_WIN_W, PALETTE_WIN_H),
-    NULL, win_tool_palette_proc, hinstance, NULL);
+    NULL, "tool_palette", hinstance, NULL);
 show_window(tp, true);
 g_app->tool_win = tp;
 ```

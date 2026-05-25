@@ -61,8 +61,12 @@ static result_t my_proc(window_t *win, uint32_t msg,
 
 // ---- gem lifecycle ---------------------------------------------------
 bool gem_init(int argc, char *argv[]) {
+    register_window_class_once(&(fe_component_desc_t){
+        .class_name = "my_app_window",
+        .proc = my_proc,
+    });
     g_win = create_window("My App", 0, MAKERECT(50, 50, SCREEN_W, SCREEN_H),
-                          NULL, my_proc, NULL);
+                          NULL, "my_app_window", NULL, NULL);
     show_window(g_win, true);
     return g_win != NULL;
 }

@@ -107,9 +107,16 @@ Or include specific subsystems:
 
 ### Creating a Window
 
+`create_window` now uses a registered class name. Built-in controls are
+pre-registered; custom window procedures should be registered first.
+
 ```c
 irect16_t frame = {100, 100, 200, 150};
-window_t *win = create_window("My Window", 0, &frame, NULL, my_window_proc, NULL);
+register_window_class_once(&(fe_component_desc_t){
+  .class_name = "my_window",
+  .proc = my_window_proc,
+});
+window_t *win = create_window("My Window", 0, &frame, NULL, "my_window", NULL, NULL);
 show_window(win, true);
 ```
 
@@ -117,19 +124,19 @@ show_window(win, true);
 
 ```c
 // Create a button
-window_t *btn = create_window("Click Me", 0, &btn_frame, parent, win_button, NULL);
+window_t *btn = create_window("Click Me", 0, &btn_frame, parent, "button", NULL, NULL);
 
 // Create a checkbox
-window_t *chk = create_window("Enable Feature", 0, &chk_frame, parent, win_checkbox, NULL);
+window_t *chk = create_window("Enable Feature", 0, &chk_frame, parent, "checkbox", NULL, NULL);
 
 // Create an edit box
-window_t *edit = create_window("Enter text", 0, &edit_frame, parent, win_textedit, NULL);
+window_t *edit = create_window("Enter text", 0, &edit_frame, parent, "textedit", NULL, NULL);
 
 // Create a console window
-window_t *console = create_window("Console", 0, &console_frame, parent, win_console, NULL);
+window_t *console = create_window("Console", 0, &console_frame, parent, "console", NULL, NULL);
 
 // Create a columnview
-window_t *columnview = create_window("", WINDOW_NOTITLE | WINDOW_TRANSPARENT, &cv_frame, parent, win_reportview, NULL);
+window_t *columnview = create_window("", WINDOW_NOTITLE | WINDOW_TRANSPARENT, &cv_frame, parent, "reportview", NULL, NULL);
 ```
 
 ### Async HTTP/HTTPS
@@ -359,7 +366,7 @@ See [Dialogs & DDX](docs/dialogs.md) for the full API reference.
 
 // Create a columnview control
 irect16_t cv_rect = {0, 0, 400, 300};
-window_t *cv = create_window("", WINDOW_NOTITLE | WINDOW_TRANSPARENT, &cv_rect, parent, win_reportview, NULL);
+window_t *cv = create_window("", WINDOW_NOTITLE | WINDOW_TRANSPARENT, &cv_rect, parent, "reportview", NULL, NULL);
 show_window(cv, true);
 
 // Add items to the columnview
@@ -433,7 +440,7 @@ The terminal control supports two modes:
 ```c
 // Create a terminal window that runs a Lua script
 // The script path is passed as lparam in evCreate
-window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, "/path/to/script.lua");
+window_t *terminal = create_window("Terminal", 0, &term_frame, parent, "terminal", NULL, "/path/to/script.lua");
 show_window(terminal, true);
 
 // The terminal automatically handles:
@@ -453,7 +460,7 @@ show_window(terminal, true);
 #### Command Mode
 ```c
 // Create an interactive command terminal (pass NULL as lparam)
-window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, NULL);
+window_t *terminal = create_window("Terminal", 0, &term_frame, parent, "terminal", NULL, NULL);
 show_window(terminal, true);
 
 // Built-in commands:
