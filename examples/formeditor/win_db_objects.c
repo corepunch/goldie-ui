@@ -212,6 +212,7 @@ static bool dbobj_load_drag_payload(void *ctx, window_t *browser, int column, in
       return false;
     payload->item_type = UI_DRAG_ITEM_DATABASE;
     payload->item_id = (uint32_t)row;
+    snprintf(payload->source_name, sizeof(payload->source_name), "%s", db->name ? db->name : "");
     return true;
   }
 
@@ -220,10 +221,14 @@ static bool dbobj_load_drag_payload(void *ctx, window_t *browser, int column, in
     const db_schema_def_t *schema = dbobj_schema_at(db_idx);
     if (!schema || row >= schema->table_count)
       return false;
+    db_t *db = dbobj_db_at(db_idx);
+    if (!db)
+      return false;
     const db_table_schema_t *table = &schema->tables[row];
     payload->item_type = UI_DRAG_ITEM_DATABASE_TABLE;
     payload->item_class = table->table_id;
     payload->item_id = table->table_id;
+    snprintf(payload->source_name, sizeof(payload->source_name), "%s", db->name ? db->name : "");
     return true;
   }
 
@@ -231,10 +236,15 @@ static bool dbobj_load_drag_payload(void *ctx, window_t *browser, int column, in
   if (!table || row >= table->field_count)
     return false;
 
+  int db_idx = (int)send_message(browser, CBM_GETSELECTION, 0, NULL);
+  db_t *db = dbobj_db_at(db_idx);
+  if (!db)
+    return false;
   const db_field_schema_t *field = &table->fields[row];
   payload->item_type = UI_DRAG_ITEM_DATABASE_FIELD;
   payload->item_class = table->table_id;
   payload->item_id = field->field_id;
+  snprintf(payload->source_name, sizeof(payload->source_name), "%s", db->name ? db->name : "");
   return true;
 }
 

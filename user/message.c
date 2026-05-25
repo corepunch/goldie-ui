@@ -208,6 +208,20 @@ lresult_t default_winproc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
         send_message(win->parent, evWheel, parent_wp, lparam);
       }
       return false;
+    case evMouseDragEnter:
+    case evMouseDragLeave:
+    case evMouseDrag:
+    case evMouseDrop:
+      if (win->parent) {
+        int16_t clx = (int16_t)LOWORD(wparam);
+        int16_t cly = (int16_t)HIWORD(wparam);
+        uint32_t parent_wp = MAKEDWORD(
+          (uint16_t)(clx + win->frame.x - win->hscroll.pos + win->parent->hscroll.pos),
+          (uint16_t)(cly + win->frame.y + titlebar_height(win) -
+                     win->vscroll.pos + win->parent->vscroll.pos));
+        return send_message(win->parent, msg, parent_wp, lparam);
+      }
+      return false;
     case evPaintStencil:
       paint_window_stencil(win);
       return true;

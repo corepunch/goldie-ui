@@ -404,9 +404,7 @@ void fe_doc_update_title(window_t *doc);
 int fe_doc_add_element(window_t *doc, int type, irect16_t frame, uint32_t parent_id);
 bool fe_doc_delete_element(window_t *doc, int idx);
 bool fe_doc_drop_create_component(int component_id, window_t *parent_target);
-bool fe_doc_bind_database_field_to_column(window_t *doc,
-                                          const ui_drag_item_payload_t *payload,
-                                          window_t *target);
+bool fe_doc_bind_database_field_to_column(window_t *doc, const ui_drag_item_payload_t *payload, window_t *target, char *error, size_t error_sz);
 
 bool fe_doc_set_element_text(window_t *doc, int element_id, const char *text);
 bool fe_doc_set_element_frame(window_t *doc, int element_id, irect16_t frame);
@@ -414,6 +412,9 @@ bool fe_doc_set_element_name(window_t *doc, int element_id, const char *name);
 bool fe_doc_set_element_align(window_t *doc, int element_id, uint8_t h_align, uint8_t v_align);
 bool fe_doc_set_element_font(window_t *doc, int element_id, uint8_t font);
 bool fe_doc_set_element_color(window_t *doc, int element_id, uint8_t color);
+
+void fe_error_set(char *error, size_t error_sz, const char *message);
+bool fe_resolve_table_column_database_field(xmlNodePtr table_node, const ui_drag_item_payload_t *payload, char *field_expr, size_t field_expr_sz, char *title, size_t title_sz, uint32_t *field_id, char *error, size_t error_sz);
 
 form_element_t *fe_doc_find_element(window_t *doc, uint32_t id);
 int fe_doc_find_element_index(window_t *doc, uint32_t id);

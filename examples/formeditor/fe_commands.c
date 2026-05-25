@@ -110,8 +110,14 @@ bool fe_controller_drop_create(window_t *doc,
     return false;
 
   if (payload->item_type == UI_DRAG_ITEM_DATABASE_FIELD) {
-    if (!fe_doc_bind_database_field_to_column(doc, payload, target))
+    char error[256] = {0};
+    if (!fe_doc_bind_database_field_to_column(doc, payload, target,
+                                              error, sizeof(error))) {
+      message_box(doc,
+                  error[0] ? error : "That database field cannot be bound to this column.",
+                  "Database Field", MB_OK);
       return false;
+    }
     if (doc->children)
       invalidate_window(doc->children);
     property_browser_refresh(doc);

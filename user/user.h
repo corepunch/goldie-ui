@@ -485,6 +485,7 @@ typedef struct {
   uint32_t item_type;   // UI_DRAG_ITEM_*.
   uint32_t item_class;  // Class/category within type, packed into HIWORD(wparam).
   uint32_t item_id;     // Stable item identifier within that class/category.
+  char source_name[64]; // Stable semantic source name for domain payloads.
 } ui_drag_item_payload_t;
 
 void ui_drag_item_set(const char *text, const ui_drag_item_payload_t *payload);

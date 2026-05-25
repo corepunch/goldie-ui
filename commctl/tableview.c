@@ -9,6 +9,7 @@
 // Messages:
 //   tvRefresh - Refresh from database (wparam=0, lparam=0)
 //   tvSetFilter - Change filter (wparam=filter_field, lparam=filter_value)
+//   tvSetColumnBinding - Change column binding (wparam=column, lparam=tableview_column_binding_t*)
 //
 // Example usage:
 //   tableview_params_t params = {
@@ -45,6 +46,7 @@ typedef struct {
 // Forward declarations
 static void tv_refresh(window_t *win, tableview_state_t *s);
 static void tv_sync_columns(window_t *win, tableview_state_t *s);
+static bool tv_set_column_title(tableview_state_t *s, int column, const char *title);
 
 // ══════════════════════════════════════════════════════════════════════════
 // Helper: Copy string array
@@ -96,6 +98,22 @@ static void free_string_array(char **arr) {
   for (int i = 0; arr[i]; i++)
     free(arr[i]);
   free(arr);
+}
+
+static bool tv_set_column_title(tableview_state_t *s, int column, const char *title) {
+  if (!s || column < 0 || column >= s->column_count)
+    return false;
+  if (!s->column_titles) {
+    s->column_titles = calloc((size_t)(s->column_count + 1), sizeof(char *));
+    if (!s->column_titles)
+      return false;
+  }
+  char *copy = strdup(title ? title : "");
+  if (!copy)
+    return false;
+  free(s->column_titles[column]);
+  s->column_titles[column] = copy;
+  return true;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -299,6 +317,19 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         tv_refresh(win, s);
       }
       return true;
+
+    case tvSetColumnBinding: {
+      tableview_column_binding_t *binding = (tableview_column_binding_t *)lparam;
+      uint32_t column = (uint32_t)wparam;
+      if (!s || !binding || column >= (uint32_t)s->column_count || !binding->field_id)
+        return false;
+      s->field_ids[column] = binding->field_id;
+      if (!tv_set_column_title(s, (int)column, binding->title))
+        return false;
+      send_message(win, RVM_CLEARCOLUMNS, 0, NULL);
+      tv_refresh(win, s);
+      return true;
+    }
 
     // evArrange and evResize now inherited from reportview
     // (reportview evResize automatically recalculates column widths)

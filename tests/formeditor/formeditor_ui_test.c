@@ -11,12 +11,19 @@
 
 app_state_t *g_app = NULL;
 
+static int fe_test_message_box_count = 0;
+static char fe_test_message_box_text[256];
+static char fe_test_message_box_caption[128];
+
 int message_box(window_t *parent, const char *text,
                 const char *caption, uint32_t type) {
   (void)parent;
-  (void)text;
-  (void)caption;
   (void)type;
+  fe_test_message_box_count++;
+  snprintf(fe_test_message_box_text, sizeof(fe_test_message_box_text),
+           "%s", text ? text : "");
+  snprintf(fe_test_message_box_caption, sizeof(fe_test_message_box_caption),
+           "%s", caption ? caption : "");
   return IDCANCEL;
 }
 
@@ -40,6 +47,9 @@ static void fe_setup(void) {
   }
 
   test_env_init();
+  fe_test_message_box_count = 0;
+  fe_test_message_box_text[0] = '\0';
+  fe_test_message_box_caption[0] = '\0';
   g_app = calloc(1, sizeof(app_state_t));
   if (!g_app)
     return;
@@ -470,6 +480,45 @@ void test_fe_drop_component_into_layout_container(void) {
   PASS();
 }
 
+void test_fe_drag_component_uses_canvas_drop_path(void) {
+  TEST("component drag: canvas highlights and drops onto document");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+  window_t *doc = fe_active_doc();
+  int button_type = fe_component_id_for_class_name("Button");
+  ipoint16_t origin = window_client_origin_xy(doc);
+
+  ASSERT_TRUE(button_type >= 0);
+
+  int sx = origin.x + 24;
+  int sy = origin.y + 24;
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_CONTROL_CLASS,
+    .item_class = (uint32_t)button_type,
+    .item_id = (uint32_t)button_type,
+  };
+
+  g_ui_runtime.mouse_x = sx;
+  g_ui_runtime.mouse_y = sy;
+  ui_drag_item_set("Button", &payload);
+  ui_drag_item_move(sx, sy);
+
+  ASSERT_NOT_NULL(g_ui_runtime.drag_item_target);
+  ASSERT_TRUE(fe_doc_state(doc)->drag_overlay_active);
+  window_t *drag_target = g_ui_runtime.drag_item_target;
+
+  ui_drag_item_clear();
+
+  int button_index = 0;
+  window_t *button = fe_descendant_at_by_proc(doc, win_button, &button_index);
+  ASSERT_NOT_NULL(button);
+  ASSERT_TRUE(button->parent == drag_target);
+
+  fe_teardown();
+  PASS();
+}
+
 void test_fe_forms_browser_lists_open_documents(void) {
   TEST("forms browser: refresh lists the currently open documents");
 
@@ -727,7 +776,7 @@ void test_fe_database_browser_cascades_reportviews(void) {
 }
 
 void test_fe_drop_database_field_binds_table_column(void) {
-  TEST("database field drop: binds tableview column XML");
+  TEST("database field drop: binds tableview column runtime state");
 
   fe_setup();
   ASSERT_NOT_NULL(g_app);
@@ -766,11 +815,15 @@ void test_fe_drop_database_field_binds_table_column(void) {
   int column_index = 0;
   window_t *column = fe_descendant_at_by_proc(doc, win_reportcolumn, &column_index);
   ASSERT_NOT_NULL(column);
+  int table_index = 0;
+  window_t *table = fe_descendant_at_by_proc(doc, win_tableview, &table_index);
+  ASSERT_NOT_NULL(table);
 
   ui_drag_item_payload_t payload = {
     .item_type = UI_DRAG_ITEM_DATABASE_FIELD,
     .item_class = 2, // authors
     .item_id = 5,    // authors.name
+    .source_name = "db",
   };
   ASSERT_TRUE(send_message(column, evAcceptsDrop,
                            MAKEDWORD(UI_DRAG_ITEM_DATABASE_FIELD, payload.item_class),
@@ -783,21 +836,217 @@ void test_fe_drop_database_field_binds_table_column(void) {
   ASSERT_TRUE(g_ui_runtime.drag_item_target == column);
   ui_drag_item_clear();
 
+  ASSERT_EQUAL((int)send_message(table, RVM_GETITEMCOUNT, 0, NULL), 2);
+  reportview_item_t item = {0};
+  ASSERT_TRUE(send_message(table, RVM_GETITEMDATA, 0, &item));
+  ASSERT_STR_EQUAL(item.text, "alice");
+  ASSERT_TRUE(fe_doc_state(doc)->modified);
+  ASSERT_TRUE(g_app->project.modified);
+
   xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
   xmlNodePtr table_node = fe_test_first_child_named(form_node, "TableView");
   xmlNodePtr column_node = fe_test_first_child_named(table_node, "Column");
   ASSERT_NOT_NULL(column_node);
 
   char *field = fe_test_attr_dup(column_node, "field");
-  char *title = fe_test_attr_dup(column_node, "title");
   ASSERT_NOT_NULL(field);
-  ASSERT_NOT_NULL(title);
-  ASSERT_STR_EQUAL(field, "author.name");
-  ASSERT_STR_EQUAL(title, "Author Name");
-  ASSERT_TRUE(fe_doc_state(doc)->modified);
-  ASSERT_TRUE(g_app->project.modified);
+  ASSERT_STR_EQUAL(field, "title");
   free(field);
-  free(title);
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_drop_database_field_rejects_other_database(void) {
+  TEST("database field drop: rejects fields from another database");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  database_t main_db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  database_t other_db = {
+    .name = "other",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  g_app->project.databases[0] = &main_db;
+  g_app->project.databases[1] = &other_db;
+  g_app->project.database_count = 2;
+  ui_set_database(&main_db);
+
+  window_t *doc = fe_active_doc();
+  ASSERT_NOT_NULL(doc);
+
+  const char *xml =
+      "<form name=\"main\" title=\"Main\" width=\"320\" height=\"180\">"
+      "  <TableView name=\"feed\" source=\"db.posts\" flags=\"vscroll,flexspace\">"
+      "    <Column field=\"title\" title=\"Title\" width=\"80\"/>"
+      "  </TableView>"
+      "</form>";
+  xmlDocPtr xdoc = xmlReadMemory(xml, (int)strlen(xml), "drop-other-db.orion", NULL, XML_PARSE_NONET);
+  ASSERT_NOT_NULL(xdoc);
+  xmlNodePtr root = xmlDocGetRootElement(xdoc);
+  ASSERT_NOT_NULL(root);
+  if (doc->userdata2)
+    xmlFreeNode((xmlNodePtr)doc->userdata2);
+  doc->userdata2 = xmlCopyNode(root, 1);
+  xmlFreeDoc(xdoc);
+
+  canvas_rebuild_live_controls(doc);
+  window_layout_sync(doc);
+
+  int column_index = 0;
+  window_t *column = fe_descendant_at_by_proc(doc, win_reportcolumn, &column_index);
+  ASSERT_NOT_NULL(column);
+
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_DATABASE_FIELD,
+    .item_class = 2, // authors
+    .item_id = 5,    // authors.name
+    .source_name = "other",
+  };
+
+  ASSERT_FALSE(fe_controller_drop_create(doc, &payload, column));
+  ASSERT_EQUAL(fe_test_message_box_count, 1);
+  ASSERT_STR_EQUAL(fe_test_message_box_caption, "Database Field");
+  ASSERT_STR_EQUAL(fe_test_message_box_text,
+                   "That field belongs to a different database than this TableView.");
+
+  xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
+  xmlNodePtr table_node = fe_test_first_child_named(form_node, "TableView");
+  xmlNodePtr column_node = fe_test_first_child_named(table_node, "Column");
+  ASSERT_NOT_NULL(column_node);
+  char *field = fe_test_attr_dup(column_node, "field");
+  ASSERT_NOT_NULL(field);
+  ASSERT_STR_EQUAL(field, "title");
+  free(field);
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_drop_database_field_rejects_unjoined_table(void) {
+  TEST("database field drop: rejects fields from unjoined table");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  database_t db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  g_app->project.databases[0] = &db;
+  g_app->project.database_count = 1;
+  ui_set_database(&db);
+
+  window_t *doc = fe_active_doc();
+  ASSERT_NOT_NULL(doc);
+
+  const char *xml =
+      "<form name=\"main\" title=\"Main\" width=\"320\" height=\"180\">"
+      "  <TableView name=\"feed\" source=\"db.posts\" flags=\"vscroll,flexspace\">"
+      "    <Column field=\"title\" title=\"Title\" width=\"80\"/>"
+      "  </TableView>"
+      "</form>";
+  xmlDocPtr xdoc = xmlReadMemory(xml, (int)strlen(xml), "drop-unjoined.orion", NULL, XML_PARSE_NONET);
+  ASSERT_NOT_NULL(xdoc);
+  xmlNodePtr root = xmlDocGetRootElement(xdoc);
+  ASSERT_NOT_NULL(root);
+  if (doc->userdata2)
+    xmlFreeNode((xmlNodePtr)doc->userdata2);
+  doc->userdata2 = xmlCopyNode(root, 1);
+  xmlFreeDoc(xdoc);
+
+  canvas_rebuild_live_controls(doc);
+  window_layout_sync(doc);
+
+  int column_index = 0;
+  window_t *column = fe_descendant_at_by_proc(doc, win_reportcolumn, &column_index);
+  ASSERT_NOT_NULL(column);
+
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_DATABASE_FIELD,
+    .item_class = 3, // comments
+    .item_id = 8,    // comments.text
+    .source_name = "db",
+  };
+
+  ASSERT_FALSE(fe_controller_drop_create(doc, &payload, column));
+  ASSERT_EQUAL(fe_test_message_box_count, 1);
+  ASSERT_STR_EQUAL(fe_test_message_box_caption, "Database Field");
+  ASSERT_STR_EQUAL(fe_test_message_box_text,
+                   "That field is not on the TableView source table or one of its joined tables.");
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_drop_database_field_rejects_unavailable_database(void) {
+  TEST("database field drop: rejects stale source database");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  database_t db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  g_app->project.databases[0] = &db;
+  g_app->project.database_count = 1;
+  ui_set_database(&db);
+
+  window_t *doc = fe_active_doc();
+  ASSERT_NOT_NULL(doc);
+
+  const char *xml =
+      "<form name=\"main\" title=\"Main\" width=\"320\" height=\"180\">"
+      "  <TableView name=\"feed\" source=\"db.posts\" flags=\"vscroll,flexspace\">"
+      "    <Column field=\"title\" title=\"Title\" width=\"80\"/>"
+      "  </TableView>"
+      "</form>";
+  xmlDocPtr xdoc = xmlReadMemory(xml, (int)strlen(xml), "drop-stale-db.orion", NULL, XML_PARSE_NONET);
+  ASSERT_NOT_NULL(xdoc);
+  xmlNodePtr root = xmlDocGetRootElement(xdoc);
+  ASSERT_NOT_NULL(root);
+  if (doc->userdata2)
+    xmlFreeNode((xmlNodePtr)doc->userdata2);
+  doc->userdata2 = xmlCopyNode(root, 1);
+  xmlFreeDoc(xdoc);
+
+  canvas_rebuild_live_controls(doc);
+  window_layout_sync(doc);
+
+  int column_index = 0;
+  window_t *column = fe_descendant_at_by_proc(doc, win_reportcolumn, &column_index);
+  ASSERT_NOT_NULL(column);
+
+  ui_drag_item_payload_t payload = {
+    .item_type = UI_DRAG_ITEM_DATABASE_FIELD,
+    .item_class = 2, // authors
+    .item_id = 5,    // authors.name
+    .source_name = "missing",
+  };
+
+  ASSERT_FALSE(fe_controller_drop_create(doc, &payload, column));
+  ASSERT_EQUAL(fe_test_message_box_count, 1);
+  ASSERT_STR_EQUAL(fe_test_message_box_caption, "Database Field");
+  ASSERT_STR_EQUAL(fe_test_message_box_text,
+                   "That database field comes from an unavailable database.");
+
+  xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
+  xmlNodePtr table_node = fe_test_first_child_named(form_node, "TableView");
+  xmlNodePtr column_node = fe_test_first_child_named(table_node, "Column");
+  ASSERT_NOT_NULL(column_node);
+  char *field = fe_test_attr_dup(column_node, "field");
+  ASSERT_NOT_NULL(field);
+  ASSERT_STR_EQUAL(field, "title");
+  free(field);
 
   fe_teardown();
   PASS();
@@ -865,11 +1114,15 @@ int main(void) {
   test_fe_component_registry_has_core_controls();
   test_fe_drop_component_to_document_marks_modified();
   test_fe_drop_component_into_layout_container();
+  test_fe_drag_component_uses_canvas_drop_path();
   test_fe_forms_browser_lists_open_documents();
   test_fe_property_browser_refresh_populates_rows();
   test_fe_plugins_browser_lists_project_plugins();
   test_fe_database_browser_cascades_reportviews();
   test_fe_drop_database_field_binds_table_column();
+  test_fe_drop_database_field_rejects_other_database();
+  test_fe_drop_database_field_rejects_unjoined_table();
+  test_fe_drop_database_field_rejects_unavailable_database();
   test_fe_tableview_preview_resolves_joined_column();
 
   TEST_END();

@@ -1,6 +1,6 @@
 // Document helper stubs during window-first migration.
-// The runtime source of truth is the form XML node + live windows, not
-// form_element_t arrays.
+// Editor interactions mutate live windows; XML is used here for load-time
+// metadata lookup while the old form_element_t arrays are retired.
 
 #include "formeditor.h"
 
@@ -13,15 +13,6 @@ static int fe_xml_attr_int(xmlNodePtr node, const char *name, int fallback) {
   bool ok = end && *end == '\0';
   xmlFree(v);
   return ok ? (int)n : fallback;
-}
-
-static char *fe_xml_attr_dup(xmlNodePtr node, const char *name) {
-  xmlChar *v = node ? xmlGetProp(node, BAD_CAST name) : NULL;
-  if (!v)
-    return NULL;
-  char *out = strdup((const char *)v);
-  xmlFree(v);
-  return out;
 }
 
 static bool fe_xml_elem(xmlNodePtr node, const char *name) {
@@ -53,124 +44,45 @@ static xmlNodePtr fe_find_runtime_node_by_id(xmlNodePtr parent,
   return NULL;
 }
 
-static const db_table_schema_t *fe_schema_table_by_id(const db_schema_def_t *schema,
-                                                       uint32_t table_id) {
-  if (!schema || !table_id)
-    return NULL;
-  for (int i = 0; i < schema->table_count; i++) {
-    if (schema->tables[i].table_id == table_id)
-      return &schema->tables[i];
-  }
-  return NULL;
-}
+typedef struct {
+  window_t *column;
+  uint32_t field_id;
+  const char *title;
+} fe_set_column_binding_command_t;
 
-static const db_table_schema_t *fe_schema_table_by_name(const db_schema_def_t *schema,
-                                                         const char *name) {
-  if (!schema || !name || !*name)
-    return NULL;
-  for (int i = 0; i < schema->table_count; i++) {
-    if (schema->tables[i].name && strcmp(schema->tables[i].name, name) == 0)
-      return &schema->tables[i];
-  }
-  return NULL;
-}
-
-static const db_field_schema_t *fe_table_field_by_id(const db_table_schema_t *table,
-                                                      uint32_t field_id) {
-  if (!table || !field_id)
-    return NULL;
-  for (int i = 0; i < table->field_count; i++) {
-    if (table->fields[i].field_id == field_id)
-      return &table->fields[i];
-  }
-  return NULL;
-}
-
-static void fe_table_name_from_source(const char *source, char *out, size_t out_sz) {
-  if (!out || out_sz == 0)
-    return;
-  out[0] = '\0';
-  if (!source || !*source)
-    return;
-  const char *table = strchr(source, '.');
-  table = table ? table + 1 : source;
-  snprintf(out, out_sz, "%s", table);
-  char *next = strchr(out, '.');
-  if (next)
-    *next = '\0';
-}
-
-static const db_table_schema_t *fe_table_for_tableview_node(database_t *db,
-                                                            xmlNodePtr table_node) {
-  const db_schema_def_t *schema = db
-      ? (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL)
-      : NULL;
-  if (!schema || !table_node)
-    return NULL;
-
-  char *source = fe_xml_attr_dup(table_node, "source");
-  if (!source)
-    source = fe_xml_attr_dup(table_node, "database");
-  char table_name[128];
-  fe_table_name_from_source(source, table_name, sizeof(table_name));
-  free(source);
-  return fe_schema_table_by_name(schema, table_name);
-}
-
-static void fe_pretty_field_title(const char *expr, char *out, size_t out_sz) {
-  if (!out || out_sz == 0)
-    return;
-  out[0] = '\0';
-  bool cap_next = true;
-  size_t n = 0;
-  for (const char *p = expr ? expr : ""; *p && n + 1 < out_sz; p++) {
-    if (*p == '.' || *p == '_' || *p == '-') {
-      if (n > 0 && out[n - 1] != ' ')
-        out[n++] = ' ';
-      cap_next = true;
+static int fe_report_column_index(window_t *column) {
+  if (!column || !column->parent)
+    return -1;
+  int index = 0;
+  for (window_t *child = column->parent->children; child; child = child->next) {
+    if (child->proc != win_reportcolumn)
       continue;
-    }
-    char c = *p;
-    if (cap_next && c >= 'a' && c <= 'z')
-      c = (char)(c - 'a' + 'A');
-    out[n++] = c;
-    cap_next = false;
+    if (child == column)
+      return index;
+    index++;
   }
-  out[n] = '\0';
+  return -1;
 }
 
-static bool fe_resolve_field_expr(database_t *db,
-                                  const db_table_schema_t *target_table,
-                                  const ui_drag_item_payload_t *payload,
-                                  char *out, size_t out_sz) {
-  if (!db || !target_table || !payload || !out || out_sz == 0)
-    return false;
-  out[0] = '\0';
-
-  const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
-  const db_table_schema_t *payload_table = fe_schema_table_by_id(schema, payload->item_class);
-  const db_field_schema_t *payload_field = fe_table_field_by_id(payload_table, payload->item_id);
-  if (!payload_table || !payload_field || !payload_field->name)
+static bool fe_doc_apply_set_column_binding(window_t *doc,
+                                            const fe_set_column_binding_command_t *cmd) {
+  if (!doc || !cmd || !cmd->column || !cmd->column->parent || !cmd->field_id)
     return false;
 
-  if (payload_table->table_id == target_table->table_id) {
-    snprintf(out, out_sz, "%s", payload_field->name);
-    return true;
-  }
-
-  const db_join_schema_t *match = NULL;
-  int matches = 0;
-  for (int i = 0; i < target_table->join_count; i++) {
-    const db_join_schema_t *join = &target_table->joins[i];
-    if (join->foreign_table_id == payload_table->table_id) {
-      match = join;
-      matches++;
-    }
-  }
-  if (matches != 1 || !match || !match->name)
+  int column_index = fe_report_column_index(cmd->column);
+  if (column_index < 0)
     return false;
 
-  snprintf(out, out_sz, "%s.%s", match->name, payload_field->name);
+  tableview_column_binding_t binding = {
+    .field_id = cmd->field_id,
+    .title = cmd->title,
+  };
+  if (!send_message(cmd->column->parent, tvSetColumnBinding, (uint32_t)column_index, &binding))
+    return false;
+
+  fe_doc_mark_modified(doc);
+  if (g_app)
+    g_app->project.modified = true;
   return true;
 }
 
@@ -213,38 +125,42 @@ bool fe_doc_drop_create_component(int component_id,
 
 bool fe_doc_bind_database_field_to_column(window_t *doc,
                                           const ui_drag_item_payload_t *payload,
-                                          window_t *target) {
-  if (!doc || !payload || !target || target->proc != win_reportcolumn)
+                                          window_t *target,
+                                          char *error, size_t error_sz) {
+  if (!doc || !payload || !target || target->proc != win_reportcolumn) {
+    fe_error_set(error, error_sz, "Drop database fields onto a TableView column.");
     return false;
+  }
 
   xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
-  if (!fe_xml_elem(form_node, "form"))
+  if (!fe_xml_elem(form_node, "form")) {
+    fe_error_set(error, error_sz, "This document does not have editable form XML.");
     return false;
+  }
 
   uint32_t next_id = CTRL_ID_BASE;
   xmlNodePtr column_node = fe_find_runtime_node_by_id(form_node, target->id, &next_id);
-  if (!fe_xml_elem(column_node, "Column") || !fe_xml_elem(column_node->parent, "TableView"))
+  if (!fe_xml_elem(column_node, "Column") || !fe_xml_elem(column_node->parent, "TableView")) {
+    fe_error_set(error, error_sz, "Drop database fields onto a TableView column.");
     return false;
+  }
 
-  database_t *db = ui_get_database();
-  if (!db)
-    db = get_database_by_name("db");
-  const db_table_schema_t *target_table = fe_table_for_tableview_node(db, column_node->parent);
   char field_expr[128];
-  if (!fe_resolve_field_expr(db, target_table, payload, field_expr, sizeof(field_expr)))
+  char title[128];
+  uint32_t field_id = 0;
+  if (!fe_resolve_table_column_database_field(column_node->parent, payload,
+                                              field_expr, sizeof(field_expr),
+                                              title, sizeof(title),
+                                              &field_id,
+                                              error, error_sz))
     return false;
 
-  char title[128];
-  fe_pretty_field_title(field_expr, title, sizeof(title));
-  xmlSetProp(column_node, BAD_CAST "field", BAD_CAST field_expr);
-  if (title[0])
-    xmlSetProp(column_node, BAD_CAST "title", BAD_CAST title);
-
-  canvas_rebuild_live_controls(doc);
-  fe_doc_mark_modified(doc);
-  if (g_app)
-    g_app->project.modified = true;
-  return true;
+  fe_set_column_binding_command_t cmd = {
+    .column = target,
+    .field_id = field_id,
+    .title = title,
+  };
+  return fe_doc_apply_set_column_binding(doc, &cmd);
 }
 
 window_t *fe_doc_create(const char *form_id, int w, int h) {

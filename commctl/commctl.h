@@ -134,7 +134,13 @@ lresult_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void 
 enum {
   tvRefresh = evUser + 260,
   tvSetFilter,
+  tvSetColumnBinding,
 };
+
+typedef struct {
+  uint32_t field_id;
+  const char *title;
+} tableview_column_binding_t;
 
 typedef struct {
   database_t *db;              // Database instance
