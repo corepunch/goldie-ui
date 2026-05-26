@@ -537,6 +537,36 @@ void test_cv_report_click_no_scroll_child(void) {
     PASS();
 }
 
+void test_cv_report_native_double_click_not_duplicated(void) {
+    TEST("win_reportview report child: native double-click sends one DBLCLK");
+
+    test_env_init();
+    reset_cmd_state();
+
+    window_t *parent = test_env_create_window("P", 0, 0, 300, 200,
+                                               cmd_capture_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cv = make_report_columnview(parent, 300, 200);
+    ASSERT_NOT_NULL(cv);
+    add_items(cv, 5);
+
+    uint32_t row0 = MAKEDWORD(5, TEST_RV_HEADER_HEIGHT);
+    send_message(cv, evLeftButtonDown, row0, NULL);
+    send_message(cv, evLeftButtonUp, row0, NULL);
+    reset_cmd_state();
+
+    send_message(cv, evLeftButtonDown, row0, NULL);
+    send_message(cv, evLeftButtonDoubleClick, row0, NULL);
+
+    ASSERT_EQUAL(g_cmd_count, 1);
+    ASSERT_EQUAL(g_last_notification, RVN_DBLCLK);
+    ASSERT_EQUAL(g_last_index, 0);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 void test_cv_report_wheel_scrolls_child(void) {
     TEST("win_reportview report child: mouse wheel scrolls even with noisy parent");
 
@@ -802,6 +832,7 @@ int main(int argc, char *argv[]) {
     test_cv_keys_on_empty_list_return_false();
     test_cv_down_scrolls_selection_into_view();
     test_cv_report_click_no_scroll_child();
+    test_cv_report_native_double_click_not_duplicated();
     test_cv_report_click_after_scroll_child();
     test_cv_report_wheel_scrolls_child();
     test_cv_large_icon_seticonsize();

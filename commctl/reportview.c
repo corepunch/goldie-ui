@@ -249,19 +249,11 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
         data->drag_start = (ipoint16_t){(int16_t)LOWORD(wparam), (int16_t)HIWORD(wparam)};
         set_capture(win);
 
-        uint32_t now = axGetMilliseconds();
-        if (data->last_click_index == index && (now - data->last_click_time) < RV_DOUBLE_CLICK_MS) {
-          rv_notify(win, data, index, RVN_DBLCLK);
-          rv_reset_click_state(data);
-        } else {
-          int old_selection = data->selected;
-          data->selected = index;
-          data->last_click_time = now;
-          data->last_click_index = index;
-          if (old_selection != data->selected)
-            rv_notify(win, data, index, RVN_SELCHANGE);
-          rv_invalidate(win, data);
-        }
+        int old_selection = data->selected;
+        data->selected = index;
+        if (old_selection != data->selected)
+          rv_notify(win, data, index, RVN_SELCHANGE);
+        rv_invalidate(win, data);
       }
       return true;
     }
@@ -288,8 +280,9 @@ lresult_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
     case evLeftButtonDoubleClick: {
       int index = report_hit_index(win, data, wparam);
       if (rv_valid_index(data, index)) {
-        rv_reset_click_state(data);
+        data->selected = index;
         rv_notify(win, data, index, RVN_DBLCLK);
+        rv_invalidate(win, data);
       }
       return true;
     }
