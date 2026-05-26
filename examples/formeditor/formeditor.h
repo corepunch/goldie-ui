@@ -230,6 +230,7 @@ typedef struct form_doc_state_t {
   bool   modified;
   bool   drag_overlay_active;
   irect16_t drag_overlay_rect;
+  window_t *selected_window;
 } form_doc_state_t;
 
 static inline form_doc_state_t *fe_doc_state(window_t *doc) {

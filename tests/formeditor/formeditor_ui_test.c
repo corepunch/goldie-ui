@@ -116,6 +116,23 @@ static int fe_child_count_by_proc(window_t *parent, winproc_t proc) {
   return count;
 }
 
+static const char *fe_property_value(window_t *list, const char *name) {
+  int count = (int)send_message(list, RVM_GETITEMCOUNT, 0, NULL);
+  static char value[128];
+  value[0] = '\0';
+  for (int i = 0; i < count; i++) {
+    reportview_item_t item = {0};
+    if (!send_message(list, RVM_GETITEMDATA, (uint32_t)i, &item))
+      continue;
+    if (item.text && strcmp(item.text, name) == 0) {
+      snprintf(value, sizeof(value), "%s",
+               item.subitem_count > 0 && item.subitems[0] ? item.subitems[0] : "");
+      return value;
+    }
+  }
+  return NULL;
+}
+
 static window_t *fe_child_at_by_proc(window_t *parent, winproc_t proc, int index) {
   int i = 0;
   for (window_t *child = parent ? parent->children : NULL; child; child = child->next) {
@@ -558,6 +575,72 @@ void test_fe_property_browser_refresh_populates_rows(void) {
   window_t *list = fe_browser_list(browser);
   ASSERT_NOT_NULL(list);
   ASSERT_TRUE((int)send_message(list, RVM_GETITEMCOUNT, 0, NULL) > 0);
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_window_properties_include_field_size(void) {
+  TEST("window properties: descriptors report automatic backing field sizes");
+
+  fe_setup();
+  window_t *doc = fe_active_doc();
+  ASSERT_NOT_NULL(doc);
+
+  ui_property_entry_t props[32];
+  memset(props, 0, sizeof(props));
+  int count = (int)send_message(doc, evGetProperties,
+                                (uint32_t)(sizeof(props) / sizeof(props[0])), props);
+  ASSERT_TRUE(count > 0);
+
+  bool found_title = false;
+  bool found_x = false;
+  for (int i = 0; i < count; i++) {
+    if (props[i].id == UI_PROP_WINDOW_TITLE) {
+      found_title = true;
+      ASSERT_EQUAL((int)props[i].size, (int)sizeof(doc->title));
+    } else if (props[i].id == UI_PROP_WINDOW_X) {
+      found_x = true;
+      ASSERT_EQUAL((int)props[i].size, (int)sizeof(doc->frame.x));
+    }
+  }
+  ASSERT_TRUE(found_title);
+  ASSERT_TRUE(found_x);
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_property_browser_tracks_selected_runtime_control(void) {
+  TEST("property browser: selecting a runtime control shows its descriptor properties");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+  window_t *browser = property_browser_create(0);
+  ASSERT_NOT_NULL(browser);
+  g_app->windows[FE_WIN_PROP] = browser;
+
+  window_t *doc = fe_active_doc();
+  int button_type = fe_component_id_for_class_name("Button");
+  ipoint16_t origin = window_client_origin_xy(doc);
+  ASSERT_TRUE(button_type >= 0);
+  ASSERT_TRUE(canvas_drop_component_to_target(doc, button_type, doc, origin.x + 24, origin.y + 24));
+
+  window_t *button = fe_find_child_by_title(doc, "Button");
+  ASSERT_NOT_NULL(button);
+  send_message(doc, evLeftButtonDown,
+               MAKEDWORD((uint16_t)(button->frame.x + 1), (uint16_t)(button->frame.y + 1)),
+               NULL);
+  ASSERT_TRUE(fe_doc_state(doc)->selected_window == button);
+
+  window_t *list = fe_browser_list(browser);
+  ASSERT_NOT_NULL(list);
+  const char *class_value = fe_property_value(list, "class");
+  ASSERT_NOT_NULL(class_value);
+  ASSERT_STR_EQUAL(class_value, "Button");
+  const char *checked_value = fe_property_value(list, "checked");
+  ASSERT_NOT_NULL(checked_value);
+  ASSERT_STR_EQUAL(checked_value, "false");
 
   fe_teardown();
   PASS();
@@ -1239,6 +1322,8 @@ int main(void) {
   test_fe_drag_component_uses_canvas_drop_path();
   test_fe_forms_browser_lists_open_documents();
   test_fe_property_browser_refresh_populates_rows();
+  test_fe_window_properties_include_field_size();
+  test_fe_property_browser_tracks_selected_runtime_control();
   test_fe_plugins_browser_lists_project_plugins();
   test_fe_database_browser_cascades_reportviews();
   test_fe_drop_database_field_binds_table_column();

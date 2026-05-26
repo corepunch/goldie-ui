@@ -256,6 +256,8 @@ lresult_t default_winproc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
                         (uint16_t)MAX(1, win->frame.h));
     }
+    case evGetProperties:
+      return ui_query_window_props(win, wparam, (ui_property_entry_t *)lparam);
     case evHitTest:
       {
         uint16_t x = LOWORD(wparam), y = HIWORD(wparam);

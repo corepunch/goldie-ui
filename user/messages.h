@@ -143,7 +143,7 @@ enum {
   // wparam = max entries available in lparam table.
   // lparam = ui_property_entry_t* output table (may be NULL to query count only).
   // return = total number of properties exposed by the control/window.
-  edQueryProperties,
+  uiGetProperties,
   // List (popup) messages
   lstSetItem,             // wparam=item index to pre-select in the dropdown list
   // Toolbox control messages (commctl/toolbox.c)
@@ -180,6 +180,8 @@ enum {
   // WINDOW_NOTRAYBUTTON child at (0, 0) and stores it in win->sidebar.
   sbSetContent,
 };
+
+#define evGetProperties uiGetProperties
 
 // Control notification messages
 enum {

@@ -50,6 +50,22 @@ static bool canvas_payload_is_database_field(const ui_drag_item_payload_t *paylo
   return payload && payload->item_type == UI_DRAG_ITEM_DATABASE_FIELD;
 }
 
+static void canvas_select_runtime_window(window_t *doc, window_t *target) {
+  form_doc_state_t *st = fe_doc_state(doc);
+  if (!doc || !st)
+    return;
+  if (target && get_root_window(target) != doc)
+    target = NULL;
+  if (!target)
+    target = doc->children ? doc->children : doc;
+  if (st->selected_window == target)
+    return;
+  st->selected_window = target;
+  invalidate_window(doc);
+  property_browser_refresh(doc);
+  fe_notify(FE_EVENT_SELECTION_CHANGED, doc);
+}
+
 static window_t *canvas_hit_child(window_t *doc, int canvas_x, int canvas_y) {
   if (!doc)
     return NULL;
@@ -95,13 +111,18 @@ static bool canvas_drag_overlay_update(window_t *doc,
 void canvas_rebuild_live_controls(window_t *doc) {
   if (!doc)
     return;
+  form_doc_state_t *st = fe_doc_state(doc);
 
   canvas_drag_overlay_clear(doc);
+  if (st)
+    st->selected_window = NULL;
 
   while (doc->children)
     destroy_window(doc->children);
 
   fe_create_runtime_form_window(doc, doc, default_winproc);  
+  if (st)
+    st->selected_window = doc->children;
   invalidate_window(doc);
 }
 
@@ -160,11 +181,20 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg,
       return default_winproc(win, msg, wparam, lparam);
     case evPaint:
       default_winproc(win, msg, wparam, lparam);
+      if (doc && doc->selected_window && doc->selected_window != win) {
+        canvas_restore_local_draw_space(win);
+        draw_sel_rect(client_rect_in_host(win, doc->selected_window));
+      }
       if (doc && doc->drag_overlay_active) {
         canvas_restore_local_draw_space(win);
         draw_sel_rect(doc->drag_overlay_rect);
       }
       return true;
+    case evLeftButtonDown: {
+      window_t *target = canvas_hit_child(win, LOWORD(wparam), HIWORD(wparam));
+      canvas_select_runtime_window(win, target);
+      return true;
+    }
     case evMouseDrag:
       if (!canvas_payload_is_control(payload) &&
           !canvas_payload_is_database_field(payload)) {

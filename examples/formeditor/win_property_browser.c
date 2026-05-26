@@ -6,10 +6,15 @@ typedef struct {
 } prop_browser_state_t;
 
 static window_t *prop_runtime_target(window_t *doc) {
-  if (!doc || !doc->children)
+  if (!doc)
+    return NULL;
+  form_doc_state_t *st = fe_doc_state(doc);
+  if (st && st->selected_window && get_root_window(st->selected_window) == doc)
+    return st->selected_window;
+  if (!doc->children)
     return NULL;
   // One-window mode: doc->children is the runtime preview root.
-  return doc->children->children ? doc->children->children : doc->children;
+  return doc->children;
 }
 
 static void prop_add_row(window_t *list, const char *name, const char *value) {
@@ -41,7 +46,7 @@ void property_browser_refresh(window_t *doc) {
 
   ui_property_entry_t props[64];
   memset(props, 0, sizeof(props));
-  int count = (int)send_message(target, edQueryProperties,
+  int count = (int)send_message(target, evGetProperties,
                                 (uint32_t)(sizeof(props) / sizeof(props[0])), props);
   if (count <= 0) {
     prop_add_row(pbs->list_win, "Status", "Target does not expose properties");

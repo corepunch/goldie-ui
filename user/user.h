@@ -49,7 +49,7 @@ typedef struct {
 typedef enum {
   UI_PROP_KIND_STRING = 0,
   UI_PROP_KIND_INT = 1,
-  UI_PROP_KIND_HEX = 2,
+  UI_PROP_KIND_STYLE = 2,
   UI_PROP_KIND_BOOL = 3,
   UI_PROP_KIND_ENUM = 4,
   UI_PROP_KIND_ACTION = 5,
@@ -60,9 +60,54 @@ typedef struct {
   uint32_t id;        // stable property identifier within a control class
   uint16_t kind;      // ui_property_kind_t
   uint16_t flags;     // reserved for future use (read-only, hidden, etc.)
+  size_t size;        // storage size/capacity of the backing field
   char name[48];      // property label/token
   char value[128];    // string representation of current value
 } ui_property_entry_t;
+
+typedef enum {
+  UI_PROP_TYPE_STRING = 0,
+  UI_PROP_TYPE_INT,
+  UI_PROP_TYPE_UNSIGNED,
+  UI_PROP_TYPE_STYLE,
+  UI_PROP_TYPE_BOOL,
+  UI_PROP_TYPE_CLASS_PROC,
+} ui_property_type_t;
+
+typedef struct {
+  uint32_t id;
+  uint16_t type;
+  uint16_t flags;
+  size_t offset;
+  size_t size;
+  const char *name;
+} ui_prop_desc_t;
+
+#define UI_PROP_OFFSET(member_) offsetof(window_t, member_)
+#define UI_PROP_SIZE(member_) sizeof(((window_t *)0)->member_)
+#define UI_PROP_FIELD(id_, type_, name_, member_) { (id_), (type_), 0, UI_PROP_OFFSET(member_), UI_PROP_SIZE(member_), (name_) }
+#define UI_PROP_STR(id_, name_, member_) UI_PROP_FIELD((id_), UI_PROP_TYPE_STRING, (name_), member_)
+#define UI_PROP_INT(id_, name_, member_) UI_PROP_FIELD((id_), UI_PROP_TYPE_INT, (name_), member_)
+#define UI_PROP_UNSIGNED(id_, name_, member_) UI_PROP_FIELD((id_), UI_PROP_TYPE_UNSIGNED, (name_), member_)
+#define UI_PROP_STYLE(id_, name_, member_) UI_PROP_FIELD((id_), UI_PROP_TYPE_STYLE, (name_), member_)
+#define UI_PROP_BOOL(id_, name_, member_) UI_PROP_FIELD((id_), UI_PROP_TYPE_BOOL, (name_), member_)
+#define UI_PROP_CLASS(id_, name_, member_) UI_PROP_FIELD((id_), UI_PROP_TYPE_CLASS_PROC, (name_), member_)
+
+enum {
+  UI_PROP_WINDOW_CLASS = 1,
+  UI_PROP_WINDOW_ID,
+  UI_PROP_WINDOW_TITLE,
+  UI_PROP_WINDOW_X,
+  UI_PROP_WINDOW_Y,
+  UI_PROP_WINDOW_WIDTH,
+  UI_PROP_WINDOW_HEIGHT,
+  UI_PROP_WINDOW_FLAGS,
+  UI_PROP_WINDOW_LAYOUT_W,
+  UI_PROP_WINDOW_LAYOUT_H,
+};
+
+int ui_query_props(window_t *win, const ui_prop_desc_t *descs, int desc_count, uint32_t capacity, ui_property_entry_t *out, int start);
+int ui_query_window_props(window_t *win, uint32_t capacity, ui_property_entry_t *out);
 
 // Window hook callback type
 typedef void (*winhook_func_t)(window_t *win, uint32_t msg, uint32_t wparam, void *lparam, void *userdata);
@@ -309,7 +354,6 @@ typedef struct {
 struct window_s {
   irect16_t frame;
   uint32_t id;
-  uint64_t editor_id;    // optional design-time stable identity; 0 outside editors
   // Runtime style/state flags share one 32-bit word.
   // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;

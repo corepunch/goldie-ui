@@ -33,6 +33,14 @@ static void autoradio_select(window_t *win) {
   invalidate_window(win);
 }
 
+enum {
+  UI_PROP_BUTTON_CHECKED = 0x0100,
+};
+
+static const ui_prop_desc_t k_button_props[] = {
+  UI_PROP_BOOL(UI_PROP_BUTTON_CHECKED, "checked", value),
+};
+
 // Button control window procedure (text label buttons).
 lresult_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
@@ -126,6 +134,11 @@ lresult_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
     }
     case btnGetCheck:
       return win->value ? btnStateChecked : btnStateUnchecked;
+    case evGetProperties: {
+      int base = (int)default_winproc(win, msg, wparam, lparam);
+      return ui_query_props(win, k_button_props, ARRAY_LEN(k_button_props),
+                            wparam, (ui_property_entry_t *)lparam, base);
+    }
     default:
       return default_winproc(win, msg, wparam, lparam);
   }
@@ -268,68 +281,6 @@ lresult_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
         win->frame = a->rect;
       }
       return true;
-    }
-    case edQueryProperties: {
-      ui_property_entry_t *props = (ui_property_entry_t *)lparam;
-      int cap = (int)wparam;
-      int out = 0;
-      const fe_component_desc_t *desc = find_window_class_desc_by_proc(win->proc);
-      const char *class_name = desc && desc->class_name ? desc->class_name : "window";
-
-      // Generic baseline properties available on any window.
-      const int total = 8;
-      if (!props || cap <= 0)
-        return total;
-
-      if (out < cap) {
-        props[out].id = 1; props[out].kind = UI_PROP_KIND_STRING; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "class");
-        snprintf(props[out].value, sizeof(props[out].value), "%s", class_name);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 2; props[out].kind = UI_PROP_KIND_INT; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "id");
-        snprintf(props[out].value, sizeof(props[out].value), "%u", win->id);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 3; props[out].kind = UI_PROP_KIND_STRING; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "title");
-        snprintf(props[out].value, sizeof(props[out].value), "%s", win->title);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 4; props[out].kind = UI_PROP_KIND_INT; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "x");
-        snprintf(props[out].value, sizeof(props[out].value), "%d", win->frame.x);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 5; props[out].kind = UI_PROP_KIND_INT; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "y");
-        snprintf(props[out].value, sizeof(props[out].value), "%d", win->frame.y);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 6; props[out].kind = UI_PROP_KIND_INT; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "width");
-        snprintf(props[out].value, sizeof(props[out].value), "%d", win->frame.w);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 7; props[out].kind = UI_PROP_KIND_INT; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "height");
-        snprintf(props[out].value, sizeof(props[out].value), "%d", win->frame.h);
-        out++;
-      }
-      if (out < cap) {
-        props[out].id = 8; props[out].kind = UI_PROP_KIND_HEX; props[out].flags = 0;
-        snprintf(props[out].name, sizeof(props[out].name), "%s", "flags");
-        snprintf(props[out].value, sizeof(props[out].value), "0x%08X", win->flags);
-        out++;
-      }
-      return total;
     }
     case evDestroy:
       return true;
