@@ -85,6 +85,30 @@ static void test_post_detail_layout(void) {
     PASS();
 }
 
+static void test_post_detail_source_resolves_relationship_path(void) {
+    TEST("Post detail: db.posts.comments source resolves detail table and filter");
+
+    ASSERT_EQUAL(post_detail_comments_tableview_params.table_id, ID_DB_COMMENTS);
+    ASSERT_EQUAL(post_detail_comments_tableview_params.filter_field, ID_DB_COMMENTS_POST_ID);
+    ASSERT_EQUAL(posts_schema_fields[2].field_id, ID_DB_POSTS_COMMENTS);
+    ASSERT_TRUE(posts_schema_fields[2].relation_many);
+    ASSERT_EQUAL(posts_schema_fields[2].relation_table_id, ID_DB_COMMENTS);
+
+    const db_table_schema_t *posts =
+        db_schema_find_table_by_name(&socialfeed_database_schema, "posts");
+    const db_table_schema_t *detail = NULL;
+    const db_field_schema_t *filter = NULL;
+    ASSERT_TRUE(db_schema_resolve_many_relationship(&socialfeed_database_schema,
+                                                    posts, "comments",
+                                                    &detail, &filter));
+    ASSERT_NOT_NULL(detail);
+    ASSERT_NOT_NULL(filter);
+    ASSERT_EQUAL(detail->table_id, ID_DB_COMMENTS);
+    ASSERT_EQUAL(filter->field_id, ID_DB_COMMENTS_POST_ID);
+
+    PASS();
+}
+
 // ============================================================
 // Test: New post dialog layout (multiedit + buttons)
 // ============================================================
@@ -234,6 +258,7 @@ int main(void) {
     DB_CLASS(db_simple_xml);
     
     test_post_detail_layout();
+    test_post_detail_source_resolves_relationship_path();
     test_new_post_layout();
     test_new_post_bindings_pull_database_record();
     test_space_element_flexspace();

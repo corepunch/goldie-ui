@@ -8,7 +8,7 @@
 //
 // Messages:
 //   tvRefresh - Refresh from database (wparam=0, lparam=0)
-//   tvSetFilter - Change filter (wparam=filter_field, lparam=filter_value)
+//   tvSetFilter - Change filter (wparam=filter_field or 0 to keep current, lparam=filter_value)
 //   tvSetColumnBinding - Change column binding (wparam=column, lparam=tableview_column_binding_t*)
 //
 // Example usage:
@@ -312,7 +312,8 @@ lresult_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     
     case tvSetFilter:
       if (s) {
-        s->filter_field = (int)wparam;
+        if (wparam != 0)
+          s->filter_field = (int)wparam;
         s->filter_value = (intptr_t)lparam;
         tv_refresh(win, s);
       }

@@ -26,17 +26,6 @@ static const db_table_schema_t *fe_schema_table_by_id(const db_schema_def_t *sch
   return NULL;
 }
 
-static const db_table_schema_t *fe_schema_table_by_name(const db_schema_def_t *schema,
-                                                         const char *name) {
-  if (!schema || !name || !*name)
-    return NULL;
-  for (int i = 0; i < schema->table_count; i++) {
-    if (schema->tables[i].name && strcmp(schema->tables[i].name, name) == 0)
-      return &schema->tables[i];
-  }
-  return NULL;
-}
-
 static const db_field_schema_t *fe_table_field_by_id(const db_table_schema_t *table,
                                                       uint32_t field_id) {
   if (!table || !field_id)
@@ -60,6 +49,31 @@ static void fe_table_name_from_source(const char *source, char *out, size_t out_
   char *next = strchr(out, '.');
   if (next)
     *next = '\0';
+}
+
+static const db_table_schema_t *fe_resolve_tableview_source_table(const db_schema_def_t *schema,
+                                                                  const char *source) {
+  if (!schema || !source || !*source)
+    return NULL;
+
+  char path[256];
+  snprintf(path, sizeof(path), "%s", source);
+  char *parts[4] = {0};
+  int n = 0;
+  for (char *p = strtok(path, "."); p && n < 4; p = strtok(NULL, "."))
+    parts[n++] = p;
+
+  if (n == 1 || n == 2)
+    return db_schema_find_table_by_name(schema, parts[n - 1]);
+
+  if (n == 3) {
+    const db_table_schema_t *master = db_schema_find_table_by_name(schema, parts[1]);
+    const db_table_schema_t *detail = NULL;
+    if (db_schema_resolve_many_relationship(schema, master, parts[2], &detail, NULL))
+      return detail;
+  }
+
+  return NULL;
 }
 
 static void fe_db_name_from_source(const char *source, char *out, size_t out_sz) {
@@ -124,10 +138,15 @@ static const db_table_schema_t *fe_table_for_tableview_node(database_t *db,
   char *source = fe_xml_attr_dup(table_node, "source");
   if (!source)
     source = fe_xml_attr_dup(table_node, "database");
+  const db_table_schema_t *resolved = fe_resolve_tableview_source_table(schema, source);
+  if (resolved) {
+    free(source);
+    return resolved;
+  }
   char table_name[128];
   fe_table_name_from_source(source, table_name, sizeof(table_name));
   free(source);
-  return fe_schema_table_by_name(schema, table_name);
+  return db_schema_find_table_by_name(schema, table_name);
 }
 
 static void fe_pretty_field_title(const char *expr, char *out, size_t out_sz) {
@@ -169,6 +188,10 @@ static bool fe_resolve_field_expr(database_t *db,
   const db_field_schema_t *payload_field = fe_table_field_by_id(payload_table, payload->item_id);
   if (!payload_table || !payload_field || !payload_field->name) {
     fe_error_set(error, error_sz, "That database field is not part of this database schema.");
+    return false;
+  }
+  if (payload_field->relation_many) {
+    fe_error_set(error, error_sz, "Collection relationships cannot be used as TableView columns.");
     return false;
   }
 

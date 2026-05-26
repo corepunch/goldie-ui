@@ -152,6 +152,16 @@ static bool elem(xmlNodePtr n, const char *name) {
 }
 static char *attr(xmlNodePtr n, const char *name) { xmlChar *r = xmlGetProp(n, BAD_CAST name); char *s = r ? strdup((char *)r) : NULL; if (r) xmlFree(r); return s; }
 static char *attrs_first(xmlNodePtr n, const char *a, const char *b) { char *v = attr(n, a); if (v && *v) return v; free(v); return b ? attr(n, b) : NULL; }
+static bool truthy(const char *s) {
+  return s && (strcasecmp(s, "true") == 0 || strcasecmp(s, "yes") == 0 ||
+               strcasecmp(s, "many") == 0 || strcmp(s, "1") == 0);
+}
+static bool attr_truthy(xmlNodePtr n, const char *name) {
+  char *v = attr(n, name);
+  bool ok = truthy(v);
+  free(v);
+  return ok;
+}
 static xmlNodePtr child(xmlNodePtr n, const char *name) { EACH_ELEMENT(c, n) if (elem(c, name)) return c; return NULL; }
 
 static void ident(char *out, size_t cap, const char *s, bool upper) {
@@ -470,6 +480,17 @@ static bool has_suffix(const char *s, const char *suffix) {
   return n >= m && strcmp(s + n - m, suffix) == 0;
 }
 
+static bool is_many_relationship_field(xmlNodePtr field) {
+  char *kind = attr(field, "type");
+  bool ok = eq(kind, "relationship") && attr_truthy(field, "many");
+  free(kind);
+  return ok;
+}
+
+static bool is_storage_field(xmlNodePtr field) {
+  return !is_many_relationship_field(field);
+}
+
 static bool split_relation_ref(const char *relation, char *table, size_t table_cap, char *field, size_t field_cap) {
   if (!relation || !*relation)
     return false;
@@ -509,6 +530,7 @@ static void normalize_relationship_field(xmlNodePtr table, xmlNodePtr field, con
   char *kind = attr(field, "type");
   char *relation = attr(field, "relation");
   char *alias = attr(field, "alias");
+  bool many = attr_truthy(field, "many");
   if (!eq(kind, "relationship"))
     goto done;
 
@@ -519,6 +541,13 @@ static void normalize_relationship_field(xmlNodePtr table, xmlNodePtr field, con
     g_orionc_failed = true;
     goto done;
   }
+
+  char relation_ref[192];
+  snprintf(relation_ref, sizeof(relation_ref), "%s.%s", rel_table, rel_field);
+  xmlSetProp(field, BAD_CAST "relation", BAD_CAST relation_ref);
+
+  if (many)
+    goto done;
 
   char fk_name[128];
   if (has_suffix(nz(name, "field"), "_id"))
@@ -533,11 +562,8 @@ static void normalize_relationship_field(xmlNodePtr table, xmlNodePtr field, con
     goto done;
   }
 
-  char relation_ref[192];
-  snprintf(relation_ref, sizeof(relation_ref), "%s.%s", rel_table, rel_field);
   xmlSetProp(field, BAD_CAST "name", BAD_CAST fk_name);
   xmlSetProp(field, BAD_CAST "type", BAD_CAST "integer");
-  xmlSetProp(field, BAD_CAST "relation", BAD_CAST relation_ref);
   if (!alias || !*alias)
     xmlSetProp(field, BAD_CAST "alias", BAD_CAST nz(name, "field"));
 
@@ -576,6 +602,37 @@ static void db_id_prefix(char *out, size_t cap, const char *db_name) {
   char up[96];
   ident(up, sizeof(up), nz(db_name, "db"), true);
   snprintf(out, cap, "ID_%s", up);
+}
+
+static int db_table_id_value(xmlNodePtr db, const char *table_name) {
+  int table_i = 1;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *name = attr(t, "name");
+    bool match = name && table_name && strcmp(name, table_name) == 0;
+    free(name);
+    if (match)
+      return table_i;
+    table_i++;
+  }
+  return 0;
+}
+
+static int db_field_id_value(xmlNodePtr db, const char *table_name, const char *field_name) {
+  int field_i = 1;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *table = attr(t, "name");
+    bool table_match = table && table_name && strcmp(table, table_name) == 0;
+    free(table);
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *name = attr(field, "name");
+      bool field_match = table_match && name && field_name && strcmp(name, field_name) == 0;
+      free(name);
+      if (field_match)
+        return field_i;
+      field_i++;
+    }
+  }
+  return 0;
 }
 
 static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
@@ -631,7 +688,7 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *relation = attr(field, "relation");
       char *alias_attr = attr(field, "alias");
-      if (relation && *relation) {
+      if (relation && *relation && !attr_truthy(field, "many")) {
         char rel_table[96] = {0};
         char rel_field[96] = {0};
         const char *dot = strchr(relation, '.');
@@ -648,7 +705,7 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
           EACH_ELEMENT(rt, db) if (elem(rt, "table")) {
             char *rt_name = attr(rt, "name");
             if (rt_name && strcmp(rt_name, rel_table) == 0) {
-              EACH_ELEMENT(rf, rt) if (elem(rf, "field")) {
+              EACH_ELEMENT(rf, rt) if (elem(rf, "field") && is_storage_field(rf)) {
                 char *rf_name = attr(rf, "name");
                 char rf_up[96];
                 if (strcmp(nz(rf_name, "field"), rel_field) == 0) {
@@ -671,13 +728,13 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     LINE("};\n");
 
     OUT("typedef struct {\n");
-    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+    EACH_ELEMENT(field, t) if (elem(field, "field") && is_storage_field(field)) {
       char *name = attr(field, "name"), *kind = attr(field, "type"), *len = attr(field, "length"); const field_type_t *ft = field_type(kind);
       if (eq(ft->c, "char")) OUT("  char %s[%d];\n", name, len ? atoi(len) : ft->size); else OUT("  %s %s;\n", ft->c, name);
       free(name); free(kind); free(len);
     }
     OUT("} %s;\n\nstatic const db_field_meta_t %s_fields[] = {\n", type, meta);
-    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+    EACH_ELEMENT(field, t) if (elem(field, "field") && is_storage_field(field)) {
       char *name = attr(field, "name"), *kind = attr(field, "type"), *len = attr(field, "length"); const field_type_t *ft = field_type(kind);
       char field_up[96];
       ident(field_up, sizeof(field_up), nz(name, "field"), true);
@@ -695,7 +752,8 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
       char *len = attr(field, "length");
       char *key = attr(field, "key");
       char *relation = attr(field, "relation");
-      const field_type_t *ft = field_type(kind);
+      bool relation_many = attr_truthy(field, "many");
+      const field_type_t *ft = eq(kind, "relationship") ? field_type("integer") : field_type(kind);
       char field_up[96];
       char rel_table[96] = {0};
       char rel_field[96] = {0};
@@ -714,15 +772,24 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
       if (rel_table[0]) ident(rel_table_up, sizeof(rel_table_up), rel_table, true);
       if (rel_field[0]) ident(rel_field_up, sizeof(rel_field_up), rel_field, true);
       if (rel_table_up[0] && rel_field_up[0]) {
-        snprintf(relation_table_id, sizeof(relation_table_id), "%s_%s", idp, rel_table_up);
-        snprintf(relation_field_id, sizeof(relation_field_id), "%s_%s_%s", idp, rel_table_up, rel_field_up);
+        int rel_table_id = db_table_id_value(db, rel_table);
+        int rel_field_id = db_field_id_value(db, rel_table, rel_field);
+        if (rel_table_id > 0)
+          snprintf(relation_table_id, sizeof(relation_table_id), "%d", rel_table_id);
+        else
+          snprintf(relation_table_id, sizeof(relation_table_id), "%s_%s", idp, rel_table_up);
+        if (rel_field_id > 0)
+          snprintf(relation_field_id, sizeof(relation_field_id), "%d", rel_field_id);
+        else
+          snprintf(relation_field_id, sizeof(relation_field_id), "%s_%s_%s", idp, rel_table_up, rel_field_up);
       }
-      OUT("  { %s_%s_%s, \"%s\", %s, %d, %s, %s, %s },\n",
+      OUT("  { %s_%s_%s, \"%s\", %s, %d, %s, %s, %s, %s },\n",
           idp, table_up, field_up, name, ft->db,
           eq(ft->c, "char") ? (len ? atoi(len) : ft->size) : 0,
           key && eq(key, "YES") ? "true" : "false",
           relation_table_id,
-          relation_field_id);
+          relation_field_id,
+          relation_many ? "true" : "false");
       free(name);
       free(kind);
       free(len);
@@ -735,7 +802,7 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *relation = attr(field, "relation");
       char *alias_attr = attr(field, "alias");
-      if (relation && *relation)
+      if (relation && *relation && !attr_truthy(field, "many"))
         join_count++;
       free(relation);
       free(alias_attr);
@@ -747,7 +814,7 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
         char *name = attr(field, "name");
         char *relation = attr(field, "relation");
         char *alias_attr = attr(field, "alias");
-        if (relation && *relation) {
+        if (relation && *relation && !attr_truthy(field, "many")) {
           char rel_table[96] = {0};
           const char *dot = strchr(relation, '.');
           if (dot) snprintf(rel_table, sizeof(rel_table), "%.*s", (int)(dot - relation), relation);
@@ -797,7 +864,7 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     EACH_ELEMENT(field, t) if (elem(field, "field")) {
       char *relation = attr(field, "relation");
       char *alias_attr = attr(field, "alias");
-      if (relation && *relation)
+      if (relation && *relation && !attr_truthy(field, "many"))
         join_count++;
       free(relation);
       free(alias_attr);
@@ -819,11 +886,6 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
   free(db_name);
 }
 
-static void table_name_from_source(char *out, size_t cap, const char *source) {
-  const char *dot = source ? strchr(source, '.') : NULL; snprintf(out, cap, "%s", dot ? dot + 1 : nz(source, "table"));
-  char *next = strchr(out, '.'); if (next) *next = 0;
-}
-
 static bool table_name_from_table_id(char *out, size_t cap, xmlNodePtr db, const char *table_name) {
   if (!db || !table_name || !*table_name)
     return false;
@@ -833,9 +895,124 @@ static bool table_name_from_table_id(char *out, size_t cap, xmlNodePtr db, const
   return true;
 }
 
+static bool infer_many_relation_filter(xmlNodePtr db, const char *master_table_name,
+                                       const char *relation_name,
+                                       char *detail_table, size_t detail_table_cap,
+                                       char *filter_field, size_t filter_field_cap) {
+  if (!db || !master_table_name || !relation_name || !detail_table || !filter_field)
+    return false;
+
+  xmlNodePtr master = db_find_table_node(db, master_table_name);
+  if (!master)
+    return false;
+
+  char relation_table[128] = {0};
+  EACH_ELEMENT(field, master) if (elem(field, "field")) {
+    char *name = attr(field, "name");
+    bool name_ok = name && strcmp(name, relation_name) == 0;
+    free(name);
+    if (!name_ok)
+      continue;
+
+    char *relation = attr(field, "relation");
+    bool many = attr_truthy(field, "many");
+    if (!many || !relation || !*relation) {
+      free(relation);
+      return false;
+    }
+    char rel_field[128] = {0};
+    bool split_ok = split_relation_ref(relation, relation_table, sizeof(relation_table),
+                                       rel_field, sizeof(rel_field));
+    free(relation);
+    if (!split_ok)
+      return false;
+    break;
+  }
+
+  if (!relation_table[0])
+    return false;
+
+  xmlNodePtr detail = db_find_table_node(db, relation_table);
+  if (!detail)
+    return false;
+
+  char expected_relation[192];
+  snprintf(expected_relation, sizeof(expected_relation), "%s.id", master_table_name);
+  char match[128] = {0};
+  int matches = 0;
+  EACH_ELEMENT(field, detail) if (elem(field, "field")) {
+    if (attr_truthy(field, "many"))
+      continue;
+    char *relation = attr(field, "relation");
+    char *name = attr(field, "name");
+    if (relation && strcmp(relation, expected_relation) == 0 && name && *name) {
+      snprintf(match, sizeof(match), "%s", name);
+      matches++;
+    }
+    free(relation);
+    free(name);
+  }
+  if (matches != 1)
+    return false;
+
+  snprintf(detail_table, detail_table_cap, "%s", relation_table);
+  snprintf(filter_field, filter_field_cap, "%s", match);
+  return true;
+}
+
+static bool resolve_table_source(xmlNodePtr db, const char *source,
+                                 char *table, size_t table_cap,
+                                 char *filter_field, size_t filter_field_cap) {
+  if (table && table_cap > 0)
+    table[0] = '\0';
+  if (filter_field && filter_field_cap > 0)
+    filter_field[0] = '\0';
+  if (!table || table_cap == 0)
+    return false;
+
+  char path[256];
+  snprintf(path, sizeof(path), "%s", nz(source, "table"));
+  char *parts[4] = {0};
+  int n = 0;
+  for (char *p = strtok(path, "."); p && n < 4; p = strtok(NULL, "."))
+    parts[n++] = p;
+
+  if (n == 0)
+    return false;
+  if (n == 1) {
+    snprintf(table, table_cap, "%s", parts[0]);
+    return true;
+  }
+  if (n == 2) {
+    snprintf(table, table_cap, "%s", parts[1]);
+    return true;
+  }
+  if (n == 3) {
+    char inferred_filter[128] = {0};
+    bool ok = infer_many_relation_filter(db, parts[1], parts[2],
+                                         table, table_cap,
+                                         inferred_filter, sizeof(inferred_filter));
+    if (ok && filter_field && filter_field_cap > 0)
+      snprintf(filter_field, filter_field_cap, "%s", inferred_filter);
+    return ok;
+  }
+
+  return false;
+}
+
+static void table_name_from_source(char *out, size_t cap, const char *source) {
+  if (!resolve_table_source(NULL, source, out, cap, NULL, 0)) {
+    const char *dot = source ? strchr(source, '.') : NULL;
+    snprintf(out, cap, "%s", dot ? dot + 1 : nz(source, "table"));
+    char *next = strchr(out, '.');
+    if (next) *next = 0;
+  }
+}
+
 static bool field_id_expr_from_source(char *out, size_t cap, xmlNodePtr db, const char *db_name, const char *source, const char *field) {
   char table[128], db_up[96], table_up[96], field_up[96];
-  table_name_from_source(table, sizeof(table), source);
+  if (!resolve_table_source(db, source, table, sizeof(table), NULL, 0))
+    table_name_from_source(table, sizeof(table), source);
   ident(db_up, sizeof(db_up), nz(db_name, "db"), true);
   xmlNodePtr source_table = db_find_table_node(db, table);
   if (!source_table) {
@@ -940,7 +1117,7 @@ static int count_table_fields(xmlNodePtr db, const char *table_name) {
     char *name = attr(t, "name");
     if (eq(name, table_name)) {
       int count = 0;
-      EACH_ELEMENT(field, t) if (elem(field, "field")) count++;
+      EACH_ELEMENT(field, t) if (elem(field, "field") && is_storage_field(field)) count++;
       free(name);
       return count;
     }
@@ -955,11 +1132,21 @@ static bool emit_tableviews(FILE *f, xmlNodePtr parent, const char *form, xmlNod
       char *name = attr(c, "name"), *source = attrs_first(c, "source", "database");
       char *master_key = attr(c, "master-key");
       char db_up[96];
-      char param[256], table[128], table_id[128]; snprintf(param, sizeof(param), "%s_%s_tableview_params", form, nz(name, "unnamed"));
+      char param[256], table[128], table_id[128], inferred_filter[128] = {0}; snprintf(param, sizeof(param), "%s_%s_tableview_params", form, nz(name, "unnamed"));
       char filter_expr[256] = "0";
       ident(db_up, sizeof(db_up), db_name, true);
-      table_name_from_source(table, sizeof(table), source); ident(table_id, sizeof(table_id), table, true);
-      if (master_key && *master_key && !field_id_expr_from_source(filter_expr, sizeof(filter_expr), database, db_name, source, master_key)) {
+      if (!resolve_table_source(database, source, table, sizeof(table),
+                                inferred_filter, sizeof(inferred_filter))) {
+        fprintf(stderr, "orionc_alt: TableView '%s' source '%s' could not be resolved\n",
+                nz(name, "unnamed"), nz(source, ""));
+        free(name);
+        free(source);
+        free(master_key);
+        return false;
+      }
+      ident(table_id, sizeof(table_id), table, true);
+      const char *filter_field = (master_key && *master_key) ? master_key : inferred_filter;
+      if (filter_field && *filter_field && !field_id_expr_from_source(filter_expr, sizeof(filter_expr), database, db_name, source, filter_field)) {
         free(name);
         free(source);
         free(master_key);

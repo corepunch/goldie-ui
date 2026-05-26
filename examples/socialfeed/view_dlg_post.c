@@ -69,9 +69,9 @@ static lresult_t post_detail_proc(window_t *win, uint32_t msg,
       s->comments_win = get_window_item(win, ID_POST_DETAIL_COMMENTS);
       if (s->comments_win) {
         // Database is auto-propagated during form creation.
-        // Just set the filter to show only comments for this post.
-        send_message(s->comments_win, tvSetFilter,
-                     ID_DB_COMMENTS_POST_ID, (void *)(intptr_t)s->post_id);
+        // The form's source db.posts.comments provides the detail filter field;
+        // this supplies the current master post id.
+        send_message(s->comments_win, tvSetFilter, 0, (void *)(intptr_t)s->post_id);
       }
       
       update_header_labels(win, s);

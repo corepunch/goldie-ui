@@ -53,10 +53,12 @@
         <table name="authors">
           <field name="name" type="string" length="64"/>
           <field name="avatar" type="string" length="256"/>
+          <field name="posts" type="relationship" relation="posts" many="true"/>
         </table>
 
         <table name="posts">
           <field name="author" type="relationship" relation="authors"/>
+          <field name="comments" type="relationship" relation="comments" many="true"/>
           <field name="title" type="string" length="256"/>
           <field name="body" type="string" length="2048"/>
           <field name="like_count" type="integer"/>
@@ -166,10 +168,8 @@
 
         <!-- Bound tableview for comments (reportview-compatible class). -->
         <TableView name="comments"
-                   source="db.comments"
+                   source="db.posts.comments"
                    action="fetch_comments"
-                   master="posts"
-                   master-key="post_id"
                    flags="notitle,nofill,vscroll,flexspace">
           <Column field="author.name" title="Author" width="70" />
           <Column field="text" title="Text" width="0" />

@@ -180,7 +180,7 @@ const db_outlet_def_t *db_api_find_outlet(const db_api_def_t *api, uint32_t outl
   return NULL;
 }
 
-static const db_table_schema_t *db_find_table_schema(const db_schema_def_t *schema, uint32_t table_id) {
+const db_table_schema_t *db_schema_find_table_by_id(const db_schema_def_t *schema, uint32_t table_id) {
   if (!schema || !schema->tables || schema->table_count <= 0 || table_id == 0)
     return NULL;
   for (int i = 0; i < schema->table_count; i++) {
@@ -190,7 +190,17 @@ static const db_table_schema_t *db_find_table_schema(const db_schema_def_t *sche
   return NULL;
 }
 
-static const db_field_schema_t *db_find_field_schema(const db_table_schema_t *table, uint32_t field_id) {
+const db_table_schema_t *db_schema_find_table_by_name(const db_schema_def_t *schema, const char *name) {
+  if (!schema || !schema->tables || schema->table_count <= 0 || !name || !*name)
+    return NULL;
+  for (int i = 0; i < schema->table_count; i++) {
+    if (schema->tables[i].name && strcmp(schema->tables[i].name, name) == 0)
+      return &schema->tables[i];
+  }
+  return NULL;
+}
+
+const db_field_schema_t *db_table_find_field_by_id(const db_table_schema_t *table, uint32_t field_id) {
   if (!table || !table->fields || table->field_count <= 0 || field_id == 0)
     return NULL;
   for (int i = 0; i < table->field_count; i++) {
@@ -198,6 +208,58 @@ static const db_field_schema_t *db_find_field_schema(const db_table_schema_t *ta
       return &table->fields[i];
   }
   return NULL;
+}
+
+const db_field_schema_t *db_table_find_field_by_name(const db_table_schema_t *table, const char *name) {
+  if (!table || !table->fields || table->field_count <= 0 || !name || !*name)
+    return NULL;
+  for (int i = 0; i < table->field_count; i++) {
+    if (table->fields[i].name && strcmp(table->fields[i].name, name) == 0)
+      return &table->fields[i];
+  }
+  return NULL;
+}
+
+bool db_schema_resolve_many_relationship(const db_schema_def_t *schema,
+                                         const db_table_schema_t *master_table,
+                                         const char *relation_name,
+                                         const db_table_schema_t **detail_table_out,
+                                         const db_field_schema_t **filter_field_out) {
+  if (detail_table_out)
+    *detail_table_out = NULL;
+  if (filter_field_out)
+    *filter_field_out = NULL;
+  if (!schema || !master_table || !relation_name || !*relation_name)
+    return false;
+
+  const db_field_schema_t *relation = db_table_find_field_by_name(master_table, relation_name);
+  if (!relation || !relation->relation_many || relation->relation_table_id == 0)
+    return false;
+
+  const db_table_schema_t *detail_table =
+    db_schema_find_table_by_id(schema, relation->relation_table_id);
+  if (!detail_table)
+    return false;
+
+  const db_field_schema_t *match = NULL;
+  int matches = 0;
+  for (int i = 0; i < detail_table->field_count; i++) {
+    const db_field_schema_t *field = &detail_table->fields[i];
+    if (field->relation_many)
+      continue;
+    if (field->relation_table_id == master_table->table_id) {
+      match = field;
+      matches++;
+    }
+  }
+  if (matches != 1 || !match)
+    return false;
+
+  if (detail_table_out)
+    *detail_table_out = detail_table;
+  if (filter_field_out)
+    *filter_field_out = match;
+  return true;
 }
 
 static const db_field_meta_t *db_find_field_meta(const db_field_meta_t *fields, int field_count, uint32_t field_id) {
@@ -270,7 +332,7 @@ bool db_get_schema_field_text(database_t *db, uint32_t table_id, const void *rec
     return false;
 
   const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
-  const db_table_schema_t *table = db_find_table_schema(schema, table_id);
+  const db_table_schema_t *table = db_schema_find_table_by_id(schema, table_id);
   int field_count = 0;
   const db_field_meta_t *fields = (const db_field_meta_t *)send_db_message(db, dbGetFieldMeta, table_id, &field_count);
   if (!table || !fields || field_count <= 0)
@@ -289,7 +351,7 @@ bool db_get_schema_field_text(database_t *db, uint32_t table_id, const void *rec
   if (!local_field || local_field->type != DB_TYPE_INT)
     return false;
 
-  const db_field_schema_t *local_schema = db_find_field_schema(table, join->local_field_id);
+  const db_field_schema_t *local_schema = db_table_find_field_by_id(table, join->local_field_id);
 
   int relation_id = *(const int *)((const char *)record + local_field->offset);
   if (relation_id == 0)

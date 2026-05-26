@@ -68,6 +68,7 @@ typedef struct {
   bool primary_key;            // true for key fields
   uint32_t relation_table_id;  // Foreign table id, if this field references one
   uint32_t relation_field_id;  // Foreign field id, if this field references one
+  bool relation_many;          // true for inverse/collection relationships
 } db_field_schema_t;
 
 typedef struct {
@@ -178,6 +179,15 @@ const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, uint32_t b
 const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, uint32_t view_id);
 const db_action_def_t  *db_api_find_action(const db_api_def_t *api, uint32_t action_id);
 const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, uint32_t outlet_id);
+const db_table_schema_t *db_schema_find_table_by_id(const db_schema_def_t *schema, uint32_t table_id);
+const db_table_schema_t *db_schema_find_table_by_name(const db_schema_def_t *schema, const char *name);
+const db_field_schema_t *db_table_find_field_by_id(const db_table_schema_t *table, uint32_t field_id);
+const db_field_schema_t *db_table_find_field_by_name(const db_table_schema_t *table, const char *name);
+bool db_schema_resolve_many_relationship(const db_schema_def_t *schema,
+                                         const db_table_schema_t *master_table,
+                                         const char *relation_name,
+                                         const db_table_schema_t **detail_table_out,
+                                         const db_field_schema_t **filter_field_out);
 bool db_get_schema_field_text(database_t *db, uint32_t table_id, const void *record,
                               uint32_t field_id, char *buf, size_t buf_sz);
 

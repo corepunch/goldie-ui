@@ -105,44 +105,79 @@ static void parse_rect_attr(irect16_t *out, const char *s) {
   }
 }
 
-static int runtime_table_id_for_source(const char *source) {
-  if (!source || !*source)
-    return -1;
-
-  const char *table_name = source;
-  const char *dot = strchr(source, '.');
-  if (dot && dot[1])
-    table_name = dot + 1;
-
+static database_t *runtime_current_database(void) {
   database_t *db = ui_get_database();
   if (!db)
     db = get_database_by_name("db");
+  return db;
+}
+
+static const db_schema_def_t *runtime_current_schema(void) {
+  database_t *db = runtime_current_database();
   if (!db)
-    return -1;
+    return NULL;
+  return (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
+}
 
-  const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
+static bool runtime_resolve_table_source(const char *source,
+                                         const db_table_schema_t **table_out,
+                                         const db_field_schema_t **filter_field_out) {
+  if (table_out)
+    *table_out = NULL;
+  if (filter_field_out)
+    *filter_field_out = NULL;
+  if (!source || !*source)
+    return false;
+
+  const db_schema_def_t *schema = runtime_current_schema();
   if (!schema)
-    return -1;
+    return false;
 
-  for (int t = 0; t < schema->table_count; t++) {
-    const db_table_schema_t *table = &schema->tables[t];
-    if (table->name && strcmp(table->name, table_name) == 0)
-      return table->table_id;
+  char path[256];
+  snprintf(path, sizeof(path), "%s", source);
+  char *parts[4] = {0};
+  int n = 0;
+  for (char *p = strtok(path, "."); p && n < 4; p = strtok(NULL, "."))
+    parts[n++] = p;
+
+  if (n == 1 || n == 2) {
+    const char *table_name = parts[n - 1];
+    const db_table_schema_t *table = db_schema_find_table_by_name(schema, table_name);
+    if (!table)
+      return false;
+    if (table_out)
+      *table_out = table;
+    return true;
   }
-  return -1;
+
+  if (n == 3) {
+    const db_table_schema_t *master = db_schema_find_table_by_name(schema, parts[1]);
+    const db_table_schema_t *detail = NULL;
+    const db_field_schema_t *filter = NULL;
+    if (!db_schema_resolve_many_relationship(schema, master, parts[2], &detail, &filter))
+      return false;
+    if (table_out)
+      *table_out = detail;
+    if (filter_field_out)
+      *filter_field_out = filter;
+    return true;
+  }
+
+  return false;
+}
+
+static int runtime_table_id_for_source(const char *source) {
+  const db_table_schema_t *table = NULL;
+  if (!runtime_resolve_table_source(source, &table, NULL) || !table)
+    return -1;
+  return (int)table->table_id;
 }
 
 static uint32_t runtime_field_id_for_table(int table_id, const char *field_name) {
   if (table_id < 0 || !field_name || !*field_name)
     return 0;
 
-  database_t *db = ui_get_database();
-  if (!db)
-    db = get_database_by_name("db");
-  if (!db)
-    return 0;
-
-  const db_schema_def_t *schema = (const db_schema_def_t *)send_db_message(db, dbGetSchema, 0, NULL);
+  const db_schema_def_t *schema = runtime_current_schema();
   if (!schema)
     return 0;
 
@@ -344,10 +379,13 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
   if (!source[0])
     runtime_xml_attr_copy(node, "db_source", source, sizeof(source));
 
-  rp->table.db = ui_get_database();
-  if (!rp->table.db)
-    rp->table.db = get_database_by_name("db");
-  rp->table.table_id = runtime_table_id_for_source(source);
+  const db_table_schema_t *source_table = NULL;
+  const db_field_schema_t *filter_field = NULL;
+  runtime_resolve_table_source(source, &source_table, &filter_field);
+
+  rp->table.db = runtime_current_database();
+  rp->table.table_id = source_table ? (int)source_table->table_id : -1;
+  rp->table.filter_field = filter_field ? (int)filter_field->field_id : 0;
 
   int col = 0;
   for (xmlNodePtr c = node->children; c && col < FE_MAX_TABLE_COLUMNS; c = c->next) {
