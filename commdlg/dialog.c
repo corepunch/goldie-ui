@@ -208,18 +208,35 @@ int dialog_pull_command(window_t *win, void *state,
 // Dialog Data Exchange (DDX) API entry points
 void dialog_push(window_t *win, const void *state,
                  const ctrl_binding_t *b, int n) {
+  if (!win || !state || !b) return;
+  const char *base = (const char *)state;
   for (int i = 0; i < n; i++) {
-    if (b[i].push)
+    if (b[i].push) {
       b[i].push(win, &b[i], state);
+      continue;
+    }
+
+    window_t *ctrl = get_window_item(win, b[i].ctrl_id);
+    if (!ctrl) continue;
+    switch (b[i].getter) {
+      case cbGetCurrentSelection: {
+        int v = *(const int *)(base + b[i].offset);
+        if (v < 0) v = (int)b[i].wparam;
+        send_message(ctrl, cbSetCurrentSelection, (uint32_t)v, NULL);
+        break;
+      }
+      case edGetText:
+        send_message(ctrl, edSetText, 0, (void *)(base + b[i].offset));
+        break;
+      default:
+        break;
+    }
   }
 }
 
 void dialog_pull(window_t *win, void *state,
                  const ctrl_binding_t *b, int n) {
-  for (int i = 0; i < n; i++) {
-    if (b[i].pull)
-      b[i].pull(win, &b[i], state);
-  }
+  (void)dialog_pull_command(win, state, b, n, 0);
 }
 // Moved from user/dialog.c to commdlg/dialog.c
 #include <stdlib.h>
@@ -569,5 +586,8 @@ void ddx_push_combo(window_t *dlg, const ctrl_binding_t *b, const void *state) {
 void ddx_pull_combo(window_t *dlg, const ctrl_binding_t *b, void *state) {
   char *base = (char *)state;
   window_t *ctrl = get_window_item(dlg, b->ctrl_id);
-  // ...rest of code unchanged...
+  int v = -1;
+  if (!ctrl) return;
+  (void)send_message(ctrl, cbGetCurrentSelection, 0, &v);
+  *(int *)(base + b->offset) = (v >= 0) ? v : (int)b->wparam;
 }

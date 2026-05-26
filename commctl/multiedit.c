@@ -17,6 +17,7 @@
 #define ME_BUF_SIZE 2048
 #define ME_PADDING  3
 #define ME_MIN_WIDTH  80
+#define ME_FONT FONT_SMALL
 // Maximum number of characters that can be stored (leave room for the NUL).
 #define ME_MAX_LEN  (ME_BUF_SIZE - 2)
 
@@ -28,7 +29,20 @@ typedef struct {
   int  len;        // strlen(buf)
   int  cursor;     // byte offset of caret in buf
   int  scroll_y;   // vertical scroll in pixels
+  bool multiline;  // false when serving the TextEdit wrapper
 } me_state_t;
+
+static int me_line_height(void) {
+  return text_char_height(ME_FONT);
+}
+
+static int me_char_height(void) {
+  return text_char_height(ME_FONT);
+}
+
+static int me_char_advance(unsigned char c) {
+  return text_char_width(ME_FONT, c);
+}
 
 // ---------------------------------------------------------------------------
 // Internal layout helpers
@@ -37,18 +51,19 @@ typedef struct {
 // Advance one character's worth of wrapping state.  Uses the same algorithm
 // as draw_text_wrapped() / calc_text_height() in user/text.c so that cursor
 // positions exactly match rendered glyph positions.  Mutates *cx/*cy.
-static void me_advance(const char *buf, int i, int max_w, int *cx, int *cy) {
+static void me_advance(me_state_t const *s, int i, int max_w, int *cx, int *cy) {
+  const char *buf = s->buf;
   unsigned char c = (unsigned char)buf[i];
   if (c == '\n') {
     *cx = 0;
-    *cy += SMALL_LINE_HEIGHT;
+    *cy += me_line_height();
   } else if (c == ' ') {
-    *cx += SPACE_WIDTH;
+    *cx += me_char_advance(c);
   } else {
-    int cw = char_width(c);
-    if (cw > 0 && *cx + cw > max_w) {
+    int cw = me_char_advance(c);
+    if (s->multiline && cw > 0 && *cx + cw > max_w) {
       *cx = 0;
-      *cy += SMALL_LINE_HEIGHT;
+      *cy += me_line_height();
     }
     *cx += cw;
   }
@@ -57,17 +72,16 @@ static void me_advance(const char *buf, int i, int max_w, int *cx, int *cy) {
 // Compute visual (cx, cy) of byte offset `cursor` in buf.
 // Coordinates are relative to the text-area origin (0, 0).
 // out_x may be NULL when only the row position is needed.
-static void me_cursor_xy(const char *buf, int cursor, int max_w,
-                          int *out_x, int *out_y) {
+static void me_cursor_xy(me_state_t const *s, int max_w, int *out_x, int *out_y) {
   int cx = 0, cy = 0;
-  for (int i = 0; i < cursor && buf[i]; i++)
-    me_advance(buf, i, max_w, &cx, &cy);
+  for (int i = 0; i < s->cursor && s->buf[i]; i++)
+    me_advance(s, i, max_w, &cx, &cy);
   if (out_x) *out_x = cx;
   *out_y = cy;
 }
 
 // Find byte offset whose visual position is closest to pixel (tx, ty).
-static int me_find_at_xy(const char *buf, int len, int tx, int ty, int max_w) {
+static int me_find_at_xy(me_state_t const *s, int tx, int ty, int max_w) {
   int cx = 0, cy = 0;
   int best = 0, best_d = 0x7fffffff;
 
@@ -77,8 +91,8 @@ static int me_find_at_xy(const char *buf, int len, int tx, int ty, int max_w) {
     if (d < best_d) { best_d = d; best = 0; }
   }
 
-  for (int i = 0; i < len; i++) {
-    me_advance(buf, i, max_w, &cx, &cy);
+  for (int i = 0; i < s->len; i++) {
+    me_advance(s, i, max_w, &cx, &cy);
     if (cy == ty) {
       int d = abs(cx - tx);
       if (d < best_d) { best_d = d; best = i + 1; }
@@ -91,11 +105,15 @@ static int me_find_at_xy(const char *buf, int len, int tx, int ty, int max_w) {
 // Scroll so that the caret is within the visible viewport.
 static void me_ensure_visible(me_state_t *s, int max_w, int vis_h) {
   int cy;
-  me_cursor_xy(s->buf, s->cursor, max_w, NULL, &cy);
+  if (!s->multiline) {
+    s->scroll_y = 0;
+    return;
+  }
+  me_cursor_xy(s, max_w, NULL, &cy);
   if (cy < s->scroll_y)
     s->scroll_y = cy;
-  if (cy + SMALL_LINE_HEIGHT > s->scroll_y + vis_h)
-    s->scroll_y = cy + SMALL_LINE_HEIGHT - vis_h;
+  if (cy + me_line_height() > s->scroll_y + vis_h)
+    s->scroll_y = cy + me_line_height() - vis_h;
   if (s->scroll_y < 0) s->scroll_y = 0;
 }
 
@@ -104,8 +122,11 @@ static void me_ensure_visible(me_state_t *s, int max_w, int vis_h) {
 // the full frame without a title bar; only the vertical scrollbar strip is carved out.
 static void me_text_dims(window_t *win, int *tw, int *th) {
   bool has_v = (win->flags & WINDOW_VSCROLL) && win->vscroll.visible;
-  *tw = win->frame.w - (has_v ? SCROLLBAR_WIDTH : 0) - ME_PADDING * 2;
-  *th = win->frame.h - ME_PADDING * 2;
+  me_state_t *s = (me_state_t *)win->userdata;
+  int pad_x = (s && !s->multiline) ? TEXTEDIT_PADDING_HORZ : ME_PADDING;
+  int pad_y = (s && !s->multiline) ? TEXTEDIT_PADDING_VERT : ME_PADDING;
+  *tw = win->frame.w - (has_v ? SCROLLBAR_WIDTH : 0) - pad_x * 2;
+  *th = win->frame.h - pad_y * 2;
   if (*tw < 1) *tw = 1;
   if (*th < 1) *th = 1;
 }
@@ -115,6 +136,7 @@ static void me_text_dims(window_t *win, int *tw, int *th) {
 // visible (forced by show_scroll_bar in evCreate) but is disabled/greyed out
 // when the entire text fits in the viewport without scrolling.
 static void me_sync_scrollbar(window_t *win, me_state_t *s) {
+  if (!s->multiline) return;
   if (!(win->flags & WINDOW_VSCROLL)) return;
   int tw, th;
   me_text_dims(win, &tw, &th);
@@ -134,14 +156,25 @@ static void me_sync_scrollbar(window_t *win, me_state_t *s) {
   enable_scroll_bar(win, SB_VERT, needs_scroll);
 }
 
+static void me_sync_window_fields(window_t *win, me_state_t const *s) {
+  win->cursor_pos = (uint32_t)s->cursor;
+  if (!s->multiline) {
+    strncpy(win->title, s->buf, sizeof(win->title) - 1);
+    win->title[sizeof(win->title) - 1] = '\0';
+  }
+}
+
 // Compute the absolute screen rect of win's text area.
 // Walks the parent chain so the result is correct even when win is nested
 // inside an intermediate container window (not a direct child of root).
 static irect16_t me_text_screen_rect(window_t *win, window_t *root) {
   int tw, th;
   me_text_dims(win, &tw, &th);
-  int x = win->frame.x + ME_PADDING;
-  int y = win->frame.y + ME_PADDING;
+  me_state_t *s = (me_state_t *)win->userdata;
+  int pad_x = (s && !s->multiline) ? TEXTEDIT_PADDING_HORZ : ME_PADDING;
+  int pad_y = (s && !s->multiline) ? TEXTEDIT_PADDING_VERT : ME_PADDING;
+  int x = win->frame.x + pad_x;
+  int y = win->frame.y + pad_y;
   for (window_t *p = win->parent; p && p != root; p = p->parent) {
     x += p->frame.x;
     y += p->frame.y;
@@ -166,13 +199,15 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     case evCreate: {
       s = (me_state_t *)allocate_window_data(win, sizeof(me_state_t));
       if (!s) return true;
-      // Multiedit participates in auto-layout as a flexible child.
-      win->flags |= WINDOW_FLEXSPACE;
+      s->multiline = (wparam == 0);
+      if (s->multiline)
+        win->flags |= WINDOW_FLEXSPACE;
       strncpy(s->buf, win->title, ME_BUF_SIZE - 1);
       s->buf[ME_BUF_SIZE - 1] = '\0';
       s->len      = (int)strlen(s->buf);
-      s->cursor   = s->len;
+      s->cursor   = s->multiline ? s->len : 0;
       s->scroll_y = 0;
+      me_sync_window_fields(win, s);
       // When WINDOW_VSCROLL is set, lock the bar permanently visible so it is
       // always shown (enabled/disabled to indicate whether scrolling is needed).
       if (win->flags & WINDOW_VSCROLL)
@@ -184,6 +219,12 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
+        if (s && !s->multiline) {
+          m->desired_w = MAX(ME_MIN_WIDTH,
+                             text_strwidth(FONT_SMALL, s->buf) + TEXTEDIT_PADDING_HORZ * 2);
+          m->desired_h = text_char_height(FONT_SMALL) + TEXTEDIT_PADDING_VERT * 2;
+          return true;
+        }
         int avail_w = m->avail_w > 0 ? m->avail_w : ME_MIN_WIDTH;
         if (avail_w < ME_MIN_WIDTH) avail_w = ME_MIN_WIDTH;
         m->desired_w = MAX(ME_MIN_WIDTH,
@@ -221,32 +262,39 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 
       int tw, th;
       me_text_dims(win, &tw, &th);
-      int tx = ME_PADDING;
-      int ty = ME_PADDING;
+      int tx = s->multiline ? ME_PADDING : TEXTEDIT_PADDING_HORZ;
+      int ty = s->multiline ? ME_PADDING : (win->frame.h - me_char_height()) / 2;
 
       // Clip to text area (scissor uses absolute screen coordinates).
       window_t *root = get_root_window(win);
       irect16_t tr = me_text_screen_rect(win, root);
       set_clip_rect(NULL, tr);
 
-      // Draw wrapped text, offset upward by scroll_y.
-      irect16_t vp = { tx, ty - s->scroll_y, tw, th + s->scroll_y };
-      draw_text_wrapped(s->buf, &vp, get_sys_color(brTextNormal));
+      if (s->multiline) {
+        // Draw wrapped text, offset upward by scroll_y.
+        irect16_t vp = { tx, ty - s->scroll_y, tw, th + s->scroll_y };
+        draw_text_wrapped(s->buf, &vp, get_sys_color(brTextNormal));
+      } else {
+        irect16_t text_rect = { tx, ty, tw, th };
+        draw_text_clipped(FONT_SMALL, s->buf, &text_rect, get_sys_color(brTextNormal), 0);
+      }
 
       // Draw caret when focused.
-      if (focused) {
+      if (focused && (s->multiline || window_has_state(win, WINDOW_STATE_EDITING))) {
         int cx, cy;
-        me_cursor_xy(s->buf, s->cursor, tw, &cx, &cy);
+        me_cursor_xy(s, tw, &cx, &cy);
         int cur_y = ty + cy - s->scroll_y;
-        if (cur_y >= ty - SMALL_LINE_HEIGHT && cur_y < ty + th) {
+        if (cur_y >= ty - me_line_height() && cur_y < ty + th) {
           fill_rect(get_sys_color(brTextNormal),
-                    R(tx + cx, cur_y, 2, CHAR_HEIGHT));
+                    R(tx + cx, cur_y, 2, me_char_height()));
         }
       }
 
       // Reset scissor to full control frame so subsequent rendering is unclipped.
+      int pad_x = s->multiline ? ME_PADDING : TEXTEDIT_PADDING_HORZ;
+      int pad_y = s->multiline ? ME_PADDING : TEXTEDIT_PADDING_VERT;
       set_clip_rect(NULL, (irect16_t){
-        tr.x - ME_PADDING, tr.y - ME_PADDING,
+        tr.x - pad_x, tr.y - pad_y,
         win->frame.w, win->frame.h,
       });
 
@@ -259,12 +307,18 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       int tw, th;
       me_text_dims(win, &tw, &th);
       // wparam carries client-local x (LOWORD) and y (HIWORD).
-      int lx = (int)(int16_t)LOWORD(wparam) - ME_PADDING;
-      int ly = (int)(int16_t)HIWORD(wparam) - ME_PADDING + s->scroll_y;
-      int target_y = (ly / SMALL_LINE_HEIGHT) * SMALL_LINE_HEIGHT;
+      if (!s->multiline && g_ui_runtime.focused == win)
+        window_set_state(win, WINDOW_STATE_EDITING, true);
+      int pad_x = s->multiline ? ME_PADDING : TEXTEDIT_PADDING_HORZ;
+      int pad_y = s->multiline ? ME_PADDING : TEXTEDIT_PADDING_VERT;
+      int lx = (int)(int16_t)LOWORD(wparam) - pad_x;
+      int ly = (int)(int16_t)HIWORD(wparam) - pad_y + s->scroll_y;
+      int lh = me_line_height();
+      int target_y = s->multiline ? (ly / lh) * lh : 0;
       if (target_y < 0) target_y = 0;
-      s->cursor = me_find_at_xy(s->buf, s->len, lx, target_y, tw);
+      s->cursor = me_find_at_xy(s, lx, target_y, tw);
       me_ensure_visible(s, tw, th);
+      me_sync_window_fields(win, s);
       invalidate_window(win);
       return true;
     }
@@ -290,6 +344,8 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     // ── Text input ─────────────────────────────────────────────────────────
     case evTextInput: {
       if (!s || !lparam) return true;
+      if (!s->multiline && !window_has_state(win, WINDOW_STATE_EDITING))
+        return true;
       char c = *(const char *)lparam;
       // Accept only printable ASCII; newlines are handled via AX_KEY_ENTER.
       if ((unsigned char)c < 32 || (unsigned char)c > 126) return true;
@@ -300,6 +356,7 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       s->buf[s->cursor] = c;
       s->cursor++;
       s->len++;
+      me_sync_window_fields(win, s);
       int tw, th;
       me_text_dims(win, &tw, &th);
       me_ensure_visible(s, tw, th);
@@ -316,6 +373,19 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       switch (wparam) {
 
         case AX_KEY_ENTER:
+          if (!s->multiline) {
+            if (!window_has_state(win, WINDOW_STATE_EDITING)) {
+              s->cursor = s->len;
+              me_sync_window_fields(win, s);
+              window_set_state(win, WINDOW_STATE_EDITING, true);
+            } else {
+              send_message(get_root_window(win), evCommand,
+                           MAKEDWORD(win->id, edUpdate), win);
+              window_set_state(win, WINDOW_STATE_EDITING, false);
+            }
+            invalidate_window(win);
+            return true;
+          }
           if (s->len < ME_MAX_LEN) {
             memmove(s->buf + s->cursor + 1,
                     s->buf + s->cursor,
@@ -323,6 +393,7 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
             s->buf[s->cursor] = '\n';
             s->cursor++;
             s->len++;
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             me_sync_scrollbar(win, s);
             invalidate_window(win);
@@ -330,12 +401,17 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           return true;
 
         case AX_KEY_BACKSPACE:
+          if (!s->multiline && !window_has_state(win, WINDOW_STATE_EDITING)) {
+            invalidate_window(win);
+            return true;
+          }
           if (s->cursor > 0) {
             memmove(s->buf + s->cursor - 1,
                     s->buf + s->cursor,
                     (size_t)(s->len - s->cursor + 1));
             s->cursor--;
             s->len--;
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             me_sync_scrollbar(win, s);
             invalidate_window(win);
@@ -343,11 +419,14 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           return true;
 
         case AX_KEY_DEL:
+          if (!s->multiline && !window_has_state(win, WINDOW_STATE_EDITING))
+            return true;
           if (s->cursor < s->len) {
             memmove(s->buf + s->cursor,
                     s->buf + s->cursor + 1,
                     (size_t)(s->len - s->cursor));
             s->len--;
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             me_sync_scrollbar(win, s);
             invalidate_window(win);
@@ -355,27 +434,40 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           return true;
 
         case AX_KEY_LEFTARROW:
+          if (!s->multiline && !window_has_state(win, WINDOW_STATE_EDITING)) {
+            invalidate_window(win);
+            return true;
+          }
           if (s->cursor > 0) {
             s->cursor--;
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             invalidate_window(win);
           }
           return true;
 
         case AX_KEY_RIGHTARROW:
+          if (!s->multiline && !window_has_state(win, WINDOW_STATE_EDITING)) {
+            invalidate_window(win);
+            return true;
+          }
           if (s->cursor < s->len) {
             s->cursor++;
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             invalidate_window(win);
           }
           return true;
 
         case AX_KEY_UPARROW: {
+          if (!s->multiline)
+            return window_has_state(win, WINDOW_STATE_EDITING);
           int cx, cy;
-          me_cursor_xy(s->buf, s->cursor, tw, &cx, &cy);
-          int ny = cy - SMALL_LINE_HEIGHT;
+          me_cursor_xy(s, tw, &cx, &cy);
+          int ny = cy - me_line_height();
           if (ny >= 0) {
-            s->cursor = me_find_at_xy(s->buf, s->len, cx, ny, tw);
+            s->cursor = me_find_at_xy(s, cx, ny, tw);
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             invalidate_window(win);
           }
@@ -383,12 +475,15 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         }
 
         case AX_KEY_DOWNARROW: {
+          if (!s->multiline)
+            return window_has_state(win, WINDOW_STATE_EDITING);
           int cx, cy;
-          me_cursor_xy(s->buf, s->cursor, tw, &cx, &cy);
-          int ny = cy + SMALL_LINE_HEIGHT;
-          int new_pos = me_find_at_xy(s->buf, s->len, cx, ny, tw);
+          me_cursor_xy(s, tw, &cx, &cy);
+          int ny = cy + me_line_height();
+          int new_pos = me_find_at_xy(s, cx, ny, tw);
           if (new_pos != s->cursor) {
             s->cursor = new_pos;
+            me_sync_window_fields(win, s);
             me_ensure_visible(s, tw, th);
             invalidate_window(win);
           }
@@ -396,35 +491,56 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         }
 
         case AX_KEY_HOME: {
+          if (!s->multiline)
+            return window_has_state(win, WINDOW_STATE_EDITING);
           // Move to start of the current logical line (scan back to previous \n or buf start).
           int p = s->cursor;
           while (p > 0 && s->buf[p - 1] != '\n') p--;
           s->cursor = p;
+          me_sync_window_fields(win, s);
           me_ensure_visible(s, tw, th);
           invalidate_window(win);
           return true;
         }
 
         case AX_KEY_END: {
+          if (!s->multiline)
+            return window_has_state(win, WINDOW_STATE_EDITING);
           // Move to end of the current logical line (forward to next \n or buf end).
           int p = s->cursor;
           while (p < s->len && s->buf[p] != '\n') p++;
           s->cursor = p;
+          me_sync_window_fields(win, s);
           me_ensure_visible(s, tw, th);
           invalidate_window(win);
           return true;
         }
 
         case AX_KEY_TAB:
+          if (!s->multiline) {
+            if (window_has_state(win, WINDOW_STATE_EDITING)) {
+              send_message(get_root_window(win), evCommand,
+                           MAKEDWORD(win->id, edUpdate), win);
+              window_set_state(win, WINDOW_STATE_EDITING, false);
+              invalidate_window(win);
+            }
+            return false;
+          }
           // Notify parent and yield focus so Tab advances to next control.
           send_message(get_root_window(win), evCommand,
                        MAKEDWORD(win->id, edUpdate), win);
           return false;
 
         case AX_KEY_ESCAPE:
+          if (!s->multiline) {
+            window_set_state(win, WINDOW_STATE_EDITING, false);
+            invalidate_window(win);
+          }
           return true;
 
         default:
+          if (!s->multiline)
+            return window_has_state(win, WINDOW_STATE_EDITING);
           return default_winproc(win, msg, wparam, lparam);
       }
     }
@@ -436,8 +552,10 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       strncpy(s->buf, src, ME_BUF_SIZE - 1);
       s->buf[ME_BUF_SIZE - 1] = '\0';
       s->len      = (int)strlen(s->buf);
-      s->cursor   = s->len;
+      if (s->multiline || s->cursor > s->len)
+        s->cursor = s->len;
       s->scroll_y = 0;
+      me_sync_window_fields(win, s);
       me_sync_scrollbar(win, s);
       invalidate_window(win);
       return true;
@@ -445,7 +563,8 @@ lresult_t win_multiedit(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
 
     // ── edGetText ───────────────────────────────────────────
     case edGetText: {
-      if (!s || !lparam) return 0;
+      if (!s) return 0;
+      if (!lparam || wparam == 0) return (lresult_t)s->len;
       int maxlen = (int)wparam;
       char *dst  = (char *)lparam;
       if (maxlen <= 0) return 0;

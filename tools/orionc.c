@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "../user/enum_parse.h"
 #include "../user/user.h"
@@ -1025,9 +1026,12 @@ static bool emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form, xmlNod
 }
 
 static const char *binding_getter(const char *klass) {
-  if (eq(klass, "textedit") || eq(klass, "multiedit")) return "edGetText";
-  if (eq(klass, "combobox")) return "cbGetCurrentValue";  // Use value_field (ID) not row index
-  if (eq(klass, "checkbox")) return "chkIsChecked";
+  if (klass && (strcasecmp(klass, "textedit") == 0 || strcasecmp(klass, "multiedit") == 0))
+    return "edGetText";
+  if (klass && strcasecmp(klass, "combobox") == 0)
+    return "cbGetCurrentValue";  // Use value_field (ID) not row index
+  if (klass && strcasecmp(klass, "checkbox") == 0)
+    return "chkIsChecked";
   return "0";
 }
 
@@ -1110,8 +1114,8 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
   for (int i = 0; i < b->n; i++) {
     const binding_t *x = &b->v[i];
     OUT("  { %s, 0, %s, offsetof(%s, %s), ", x->ctrl, binding_getter(x->klass), type, x->field);
-    if (eq(x->klass, "textedit") || eq(x->klass, "multiedit")) OUT("sizeof_field(%s, %s)", type, x->field);
-    else if (eq(x->klass, "combobox")) LINE("(size_t)-1");
+    if (strcasecmp(x->klass, "textedit") == 0 || strcasecmp(x->klass, "multiedit") == 0) OUT("sizeof_field(%s, %s)", type, x->field);
+    else if (strcasecmp(x->klass, "combobox") == 0) LINE("(size_t)-1");
     else LINE("0");
     LINE(", NULL, NULL },\n");
   }

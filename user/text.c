@@ -452,6 +452,10 @@ int text_char_height(ui_font_t font) {
   return text_state.big_height ? text_state.big_height : 8;
 }
 
+int text_char_width(ui_font_t font, unsigned char c) {
+  return wrap_char_advance(font, c);
+}
+
 int text_strwidth(ui_font_t font, const char *text) {
   if (!text || !*text) return 0;
   return strnwidth_impl(font, text, (int)strlen(text));
