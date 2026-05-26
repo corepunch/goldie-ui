@@ -252,6 +252,7 @@ typedef struct {
   char name[64];
   char title[128];
   char root[256];
+  void *xml_root;
   char menus_xml[16384];
   form_plugin_ref_t plugins[FE_MAX_PROJECT_PLUGINS];
   int plugin_count;
@@ -415,6 +416,9 @@ bool fe_doc_set_element_color(window_t *doc, int element_id, uint8_t color);
 
 void fe_error_set(char *error, size_t error_sz, const char *message);
 bool fe_resolve_table_column_database_field(xmlNodePtr table_node, const ui_drag_item_payload_t *payload, char *field_expr, size_t field_expr_sz, char *title, size_t title_sz, uint32_t *field_id, char *error, size_t error_sz);
+xmlNodePtr fe_project_table_node_for_column_window(window_t *doc, window_t *target);
+bool fe_project_update_table_column_binding(window_t *doc, window_t *target, const char *field_expr, const char *title);
+bool fe_project_append_component_node(window_t *doc, window_t *parent_target, window_t *child, const char *class_name);
 
 form_element_t *fe_doc_find_element(window_t *doc, uint32_t id);
 int fe_doc_find_element_index(window_t *doc, uint32_t id);
@@ -439,6 +443,8 @@ irect16_t form_doc_frame_for_size(int form_w, int form_h, uint32_t form_flags);
 
 bool fe_project_load(const char *path);
 bool fe_project_save(const char *path);
+void fe_project_clear_xml(void);
+void fe_project_clear_doc_xml(window_t *doc);
 
 window_t *fe_create_runtime_form_window(window_t *doc, window_t *parent, winproc_t proc);
 

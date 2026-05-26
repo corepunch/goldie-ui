@@ -8,6 +8,7 @@
 #include <libxml/parser.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 app_state_t *g_app = NULL;
 
@@ -42,6 +43,7 @@ static void fe_setup(void) {
         destroy_window(g_app->windows[i]);
       g_app->windows[i] = NULL;
     }
+    fe_project_clear_xml();
     free(g_app);
     g_app = NULL;
   }
@@ -69,6 +71,7 @@ static void fe_teardown(void) {
       destroy_window(g_app->windows[i]);
     g_app->windows[i] = NULL;
   }
+  fe_project_clear_xml();
   free(g_app);
   g_app = NULL;
   test_env_shutdown();
@@ -438,6 +441,8 @@ void test_fe_drop_component_to_document_marks_modified(void) {
   ASSERT_TRUE(canvas_drop_component_to_target(doc, button_type, doc, origin.x + 24, origin.y + 24));
   ASSERT_EQUAL(fe_child_count(doc), before + 1);
   ASSERT_NOT_NULL(fe_find_child_by_title(doc, "Button"));
+  xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
+  ASSERT_NOT_NULL(fe_test_first_child_named(form_node, "Button"));
   ASSERT_TRUE(fe_doc_state(doc)->modified);
   ASSERT_TRUE(g_app->project.modified);
 
@@ -850,9 +855,84 @@ void test_fe_drop_database_field_binds_table_column(void) {
 
   char *field = fe_test_attr_dup(column_node, "field");
   ASSERT_NOT_NULL(field);
+  ASSERT_STR_EQUAL(field, "author.name");
+  free(field);
+
+  fe_teardown();
+  PASS();
+}
+
+void test_fe_project_save_round_trips_loaded_orion(void) {
+  TEST("project save: round-trips loaded project XML and full form contents");
+
+  fe_setup();
+  ASSERT_NOT_NULL(g_app);
+
+  char in_path[256];
+  char out_path[256];
+  snprintf(in_path, sizeof(in_path), "/tmp/formeditor_roundtrip_in_%ld.orion", (long)getpid());
+  snprintf(out_path, sizeof(out_path), "/tmp/formeditor_roundtrip_out_%ld.orion", (long)getpid());
+
+  static database_t db = {
+    .name = "db",
+    .class_name = "test",
+    .proc = fe_test_db_proc,
+  };
+  register_database("db", &db);
+
+  FILE *f = fopen(in_path, "wb");
+  ASSERT_NOT_NULL(f);
+  fputs(
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      "<orion version=\"1\" name=\"socialfeed\" title=\"SocialFeed\" root=\"./\">\n"
+      "  <databases>\n"
+      "    <database name=\"db\">\n"
+      "      <table name=\"posts\">\n"
+      "        <field name=\"title\" type=\"string\" length=\"64\"/>\n"
+      "      </table>\n"
+      "    </database>\n"
+      "  </databases>\n"
+      "  <toolbars>\n"
+      "    <toolbar name=\"main\"><Button icon=\"sysicon_add\"/></toolbar>\n"
+      "  </toolbars>\n"
+      "  <forms>\n"
+      "    <form name=\"main\" title=\"Main\" width=\"320\" height=\"180\" flags=\"toolbar\" toolbar=\"main\">\n"
+      "      <TableView name=\"feed\" source=\"db.posts\" flags=\"vscroll,flexspace\">\n"
+      "        <Column field=\"title\" title=\"Title\" width=\"80\"/>\n"
+      "      </TableView>\n"
+      "    </form>\n"
+      "  </forms>\n"
+      "</orion>\n",
+      f);
+  fclose(f);
+
+  ASSERT_TRUE(fe_project_load(in_path));
+  ASSERT_TRUE(fe_project_save(out_path));
+
+  xmlDocPtr saved = xmlReadFile(out_path, NULL, XML_PARSE_NONET);
+  ASSERT_NOT_NULL(saved);
+  xmlNodePtr root = xmlDocGetRootElement(saved);
+  ASSERT_NOT_NULL(root);
+  ASSERT_NOT_NULL(fe_test_first_child_named(root, "databases"));
+  ASSERT_NOT_NULL(fe_test_first_child_named(root, "toolbars"));
+
+  xmlNodePtr forms = fe_test_first_child_named(root, "forms");
+  ASSERT_NOT_NULL(forms);
+  xmlNodePtr form = fe_test_first_child_named(forms, "form");
+  ASSERT_NOT_NULL(form);
+  xmlNodePtr table = fe_test_first_child_named(form, "TableView");
+  ASSERT_NOT_NULL(table);
+  xmlNodePtr column = fe_test_first_child_named(table, "Column");
+  ASSERT_NOT_NULL(column);
+
+  char *field = fe_test_attr_dup(column, "field");
+  ASSERT_NOT_NULL(field);
   ASSERT_STR_EQUAL(field, "title");
   free(field);
 
+  xmlFreeDoc(saved);
+  unlink(in_path);
+  unlink(out_path);
   fe_teardown();
   PASS();
 }
@@ -1165,6 +1245,7 @@ int main(void) {
   test_fe_drop_database_field_rejects_other_database();
   test_fe_drop_database_field_rejects_unjoined_table();
   test_fe_drop_database_field_rejects_unavailable_database();
+  test_fe_project_save_round_trips_loaded_orion();
   test_fe_drag_item_clear_tolerates_destroyed_ghost();
   test_fe_tableview_preview_resolves_joined_column();
 

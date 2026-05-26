@@ -48,6 +48,9 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - **Do not add duplicate declarative knobs for existing behavior.** If layout type is already represented by class/proc (`stack`, `grid`, `column`), do not add another independent selector that encodes the same thing.
 - **Prefer class/proc-driven behavior over global mode switches.** In WinAPI style, behavior belongs to window classes and message handlers, not to app-wide enum dispatchers.
 - **For layout engines, split by responsibility.** Avoid one monolithic layout function with long `if (stack)`, `if (grid)`, `if (column)` chains. Keep shared math in helpers, but keep container-specific measure/arrange logic in focused functions tied to each container type.
+- **Never build a second UI toolkit inside an app or editor.** If Orion already has a window class, common control, layout engine, hit-test path, drag/drop path, selection behavior, dialog helper, or renderer, the app/editor must host or extend that runtime mechanism. Recreating it locally as custom canvas painting, custom element structs, custom property tables, or custom hit-testing is architecture debt, not progress.
+- **Editors inspect and command the runtime; they do not impersonate it.** A visual editor may add selection chrome, validation, inspectors, and document commands, but the thing being previewed/edited should be the real window/control tree whenever possible.
+- **Do not create a duplicate editor hierarchy for runtime windows.** A separate `form_element_t`/node tree that mirrors buttons, edits, lists, columns, geometry, bindings, or child structure is forbidden when the actual Orion window/control tree can carry that state. Duplicate hierarchies drift, require duplicate save/load/hit-test/property code, and are the exact failure mode this project is eliminating.
 
 ### Feature Implementation Playbook (Required)
 
@@ -57,6 +60,8 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - **Keep payloads semantic-only.** Pass identifiers and intent; keep lifecycle/transient state in the subsystem that owns it.
 - **Prefer flags over new booleans when the framework already has flags for the same behavior.** If WinAPI-style flags or existing Orion flags represent the state, use those flags instead of introducing parallel `bool` fields.
 - **No parallel runtime/editor models.** Avoid duplicated representations for the same concept (for example, live window tree plus separate element tree with drift risk).
+- **No shadow controls.** Do not implement editor-only versions of Button/Edit/List/TableView/etc. by repainting and re-hit-testing them on a canvas. Instantiate the real control/window and add the smallest editor overlay needed.
+- **No mirror trees.** Editor state may reference runtime windows or document commands, but must not maintain its own duplicate parent/child tree for the same controls.
 - **No runtime XML mutation for editor interactions.** Runtime editing should work on runtime state; XML stays in IO/load/save boundaries.
 - **Prefer existing messages/flags/classes first.** Add new APIs only when existing primitives cannot express the behavior cleanly.
 - **Delete superseded paths in the same change.** Do not keep old and new codepaths alive unless explicitly requested.
@@ -76,6 +81,18 @@ When shrinking or simplifying existing code, prefer the same direction used in t
 - **Strive for smaller code by reducing shape duplication**, not by moving code to another file just to hide it.
 
 The goal is a smaller surface area with the same behavior: one canonical path for the common mechanics, and only the domain-specific differences left inline.
+
+### Runtime-First Editor Rule (Required)
+
+When building or refactoring design tools such as FormEditor, the editor must stay a thin host around real Orion runtime objects.
+
+- **Preview with real runtime windows.** Use `create_window_from_form()`, registered component classes, common controls, and normal window procedures. Do not draw fake controls into an editor canvas when the runtime control exists.
+- **Reuse runtime hit-testing and message flow.** Drops, hovers, focus, command notifications, scrolling, and child targeting should travel through the window tree and `ev*` messages. Avoid app-level target pickers that know every payload/control type.
+- **Keep editor-only state small and separate.** Selection outlines, drag overlays, validation messages, dirty state, and undo commands belong to the editor. Control geometry, text, columns, bindings, database fields, and layout behavior belong to the same runtime/model paths used by the app.
+- **Push missing capability downward.** If an editor needs hoverable TableView columns, make ReportView/TableView columns real child windows in `commctl/`; do not fake columns in FormEditor. If drag/drop needs per-target policy, add/route `evAcceptDrop`; do not hardcode payload checks in the canvas.
+- **Keep XML as IO, not the live editor substrate.** XML may load/save declarations, but editor interactions should mutate a document/model command or runtime state and then serialize through one save path.
+- **Refactoring example:** the FormEditor window-first migration is the preferred direction. `win_canvas.c` shrank from a large custom form simulator to a small runtime host because it stopped painting, laying out, and hit-testing duplicate controls. `ReportView`/`TableView` columns became child windows, and database field drops moved toward target-owned acceptance/validation. Follow this pattern.
+- **Anti-pattern example:** a FormEditor-specific `form_element_t` tree plus custom canvas painting, custom resize handles, custom property editing, and custom XML save/load for controls that already exist in Orion. That creates drift, more code, and less runtime fidelity.
 
 **Examples (Required Reading for New Features):**
 

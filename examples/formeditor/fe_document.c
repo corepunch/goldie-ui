@@ -1,48 +1,8 @@
 // Document helper stubs during window-first migration.
-// Editor interactions mutate live windows; XML is used here for load-time
-// metadata lookup while the old form_element_t arrays are retired.
+// Editor interactions mutate live windows; project_io owns persistence snapshots
+// while the old form_element_t arrays are retired.
 
 #include "formeditor.h"
-
-static int fe_xml_attr_int(xmlNodePtr node, const char *name, int fallback) {
-  xmlChar *v = node ? xmlGetProp(node, BAD_CAST name) : NULL;
-  if (!v)
-    return fallback;
-  char *end = NULL;
-  long n = strtol((const char *)v, &end, 0);
-  bool ok = end && *end == '\0';
-  xmlFree(v);
-  return ok ? (int)n : fallback;
-}
-
-static bool fe_xml_elem(xmlNodePtr node, const char *name) {
-  return node && node->type == XML_ELEMENT_NODE &&
-         xmlStrcasecmp(node->name, BAD_CAST name) == 0;
-}
-
-static xmlNodePtr fe_find_runtime_node_by_id(xmlNodePtr parent,
-                                             uint32_t target_id,
-                                             uint32_t *next_id) {
-  if (!parent || !next_id)
-    return NULL;
-
-  for (xmlNodePtr node = parent->children; node; node = node->next) {
-    if (node->type != XML_ELEMENT_NODE)
-      continue;
-
-    xmlNodePtr found = fe_find_runtime_node_by_id(node, target_id, next_id);
-    if (found)
-      return found;
-
-    uint32_t id = (uint32_t)fe_xml_attr_int(node, "id", 0);
-    if (!id)
-      id = (*next_id)++;
-    if (id == target_id)
-      return node;
-  }
-
-  return NULL;
-}
 
 typedef struct {
   window_t *column;
@@ -113,6 +73,12 @@ bool fe_doc_drop_create_component(int component_id,
     return false;
   }
 
+  if (!fe_project_append_component_node(doc, parent_target, child, desc->class_name)) {
+    destroy_window(child);
+    fprintf(stderr, "fe_doc_drop_create_component: failed to persist component '%s'\n", desc->class_name);
+    return false;
+  }
+
   window_layout_sync(doc);
   invalidate_window(doc);
 
@@ -132,15 +98,8 @@ bool fe_doc_bind_database_field_to_column(window_t *doc,
     return false;
   }
 
-  xmlNodePtr form_node = (xmlNodePtr)doc->userdata2;
-  if (!fe_xml_elem(form_node, "form")) {
-    fe_error_set(error, error_sz, "This document does not have editable form XML.");
-    return false;
-  }
-
-  uint32_t next_id = CTRL_ID_BASE;
-  xmlNodePtr column_node = fe_find_runtime_node_by_id(form_node, target->id, &next_id);
-  if (!fe_xml_elem(column_node, "Column") || !fe_xml_elem(column_node->parent, "TableView")) {
+  xmlNodePtr table_node = fe_project_table_node_for_column_window(doc, target);
+  if (!table_node) {
     fe_error_set(error, error_sz, "Drop database fields onto a TableView column.");
     return false;
   }
@@ -148,7 +107,7 @@ bool fe_doc_bind_database_field_to_column(window_t *doc,
   char field_expr[128];
   char title[128];
   uint32_t field_id = 0;
-  if (!fe_resolve_table_column_database_field(column_node->parent, payload,
+  if (!fe_resolve_table_column_database_field(table_node, payload,
                                               field_expr, sizeof(field_expr),
                                               title, sizeof(title),
                                               &field_id,
@@ -160,7 +119,11 @@ bool fe_doc_bind_database_field_to_column(window_t *doc,
     .field_id = field_id,
     .title = title,
   };
-  return fe_doc_apply_set_column_binding(doc, &cmd);
+  if (!fe_doc_apply_set_column_binding(doc, &cmd))
+    return false;
+  if (!fe_project_update_table_column_binding(doc, target, field_expr, title))
+    return false;
+  return true;
 }
 
 window_t *fe_doc_create(const char *form_id, int w, int h) {

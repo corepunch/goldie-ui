@@ -38,6 +38,177 @@ static void feio_xml_attr_copy(xmlNodePtr node, const char *name, char *dst, siz
   xmlFree(v);
 }
 
+static bool feio_xml_elem(xmlNodePtr node, const char *name) {
+  return node && node->type == XML_ELEMENT_NODE &&
+         xmlStrcasecmp(node->name, BAD_CAST name) == 0;
+}
+
+static xmlNodePtr feio_first_child_named(xmlNodePtr parent, const char *name) {
+  for (xmlNodePtr n = parent ? parent->children : NULL; n; n = n->next) {
+    if (feio_xml_elem(n, name))
+      return n;
+  }
+  return NULL;
+}
+
+static void feio_xml_set_prop_int(xmlNodePtr node, const char *name, int value) {
+  if (!node || !name)
+    return;
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%d", value);
+  xmlSetProp(node, BAD_CAST name, BAD_CAST buf);
+}
+
+static void feio_clear_children(xmlNodePtr node) {
+  while (node && node->children) {
+    xmlNodePtr child = node->children;
+    xmlUnlinkNode(child);
+    xmlFreeNode(child);
+  }
+}
+
+static int feio_doc_form_width(const window_t *doc) {
+  return (doc && doc->children && doc->children->frame.w > 0)
+           ? doc->children->frame.w
+           : FORM_DEFAULT_W;
+}
+
+static int feio_doc_form_height(const window_t *doc) {
+  return (doc && doc->children && doc->children->frame.h > 0)
+           ? doc->children->frame.h
+           : FORM_DEFAULT_H;
+}
+
+static void feio_doc_clean_title(const window_t *doc, char *out, size_t out_sz) {
+  if (!out || out_sz == 0)
+    return;
+  snprintf(out, out_sz, "%s", (doc && doc->title[0]) ? doc->title : "Form");
+  size_t len = strlen(out);
+  if (len >= 2 && strcmp(out + len - 2, " *") == 0)
+    out[len - 2] = '\0';
+}
+
+static xmlNodePtr feio_ensure_doc_form_node(window_t *doc) {
+  if (!doc)
+    return NULL;
+  xmlNodePtr form = (xmlNodePtr)doc->userdata2;
+  if (feio_xml_elem(form, "form"))
+    return form;
+
+  form = xmlNewNode(NULL, BAD_CAST "form");
+  if (!form)
+    return NULL;
+
+  char title[512];
+  feio_doc_clean_title(doc, title, sizeof(title));
+  xmlSetProp(form, BAD_CAST "name", BAD_CAST (title[0] ? title : "Form"));
+  xmlSetProp(form, BAD_CAST "title", BAD_CAST (title[0] ? title : "Form"));
+  feio_xml_set_prop_int(form, "width", feio_doc_form_width(doc));
+  feio_xml_set_prop_int(form, "height", feio_doc_form_height(doc));
+  doc->userdata2 = form;
+  return form;
+}
+
+static xmlNodePtr feio_find_runtime_node_by_id(xmlNodePtr parent,
+                                               uint32_t target_id,
+                                               uint32_t *next_id) {
+  if (!parent || !next_id)
+    return NULL;
+
+  for (xmlNodePtr node = parent->children; node; node = node->next) {
+    if (node->type != XML_ELEMENT_NODE)
+      continue;
+
+    xmlNodePtr found = feio_find_runtime_node_by_id(node, target_id, next_id);
+    if (found)
+      return found;
+
+    uint32_t id = (uint32_t)feio_xml_attr_int(node, "id", 0);
+    if (!id)
+      id = (*next_id)++;
+    if (id == target_id)
+      return node;
+  }
+
+  return NULL;
+}
+
+static xmlNodePtr feio_xml_node_for_window(window_t *doc, window_t *target) {
+  xmlNodePtr form = (xmlNodePtr)(doc ? doc->userdata2 : NULL);
+  if (!feio_xml_elem(form, "form") || !target)
+    return NULL;
+  if (target == doc || target == doc->children)
+    return form;
+
+  uint32_t next_id = CTRL_ID_BASE;
+  return feio_find_runtime_node_by_id(form, target->id, &next_id);
+}
+
+static void feio_update_form_save_attrs(xmlNodePtr form, const window_t *doc) {
+  if (!form || !doc)
+    return;
+
+  char title[512];
+  feio_doc_clean_title(doc, title, sizeof(title));
+  if (!title[0])
+    snprintf(title, sizeof(title), "Form");
+
+  if (!xmlHasProp(form, BAD_CAST "name"))
+    xmlSetProp(form, BAD_CAST "name", BAD_CAST title);
+  xmlSetProp(form, BAD_CAST "title", BAD_CAST title);
+  feio_xml_set_prop_int(form, "width", feio_doc_form_width(doc));
+  feio_xml_set_prop_int(form, "height", feio_doc_form_height(doc));
+}
+
+static xmlNodePtr feio_copy_form_for_save(const window_t *doc) {
+  if (!doc)
+    return NULL;
+
+  xmlNodePtr form = feio_xml_elem((xmlNodePtr)doc->userdata2, "form")
+                      ? xmlCopyNode((xmlNodePtr)doc->userdata2, 1)
+                      : NULL;
+  if (!form) {
+    form = xmlNewNode(NULL, BAD_CAST "form");
+    if (!form)
+      return NULL;
+  }
+  feio_update_form_save_attrs(form, doc);
+  return form;
+}
+
+static xmlNodePtr feio_project_root_for_save(void) {
+  xmlNodePtr root = g_app && g_app->project.xml_root
+                      ? xmlCopyNode((xmlNodePtr)g_app->project.xml_root, 1)
+                      : NULL;
+  if (!root)
+    root = xmlNewNode(NULL, BAD_CAST "orion");
+  if (!root)
+    return NULL;
+
+  xmlSetProp(root, BAD_CAST "version", BAD_CAST "1");
+  xmlSetProp(root, BAD_CAST "name",
+             BAD_CAST (g_app->project.name[0] ? g_app->project.name : "project"));
+  xmlSetProp(root, BAD_CAST "title",
+             BAD_CAST (g_app->project.title[0] ? g_app->project.title : "Orion Project"));
+  xmlSetProp(root, BAD_CAST "root",
+             BAD_CAST (g_app->project.root[0] ? g_app->project.root : "./"));
+  return root;
+}
+
+void fe_project_clear_xml(void) {
+  if (!g_app || !g_app->project.xml_root)
+    return;
+  xmlFreeNode((xmlNodePtr)g_app->project.xml_root);
+  g_app->project.xml_root = NULL;
+}
+
+void fe_project_clear_doc_xml(window_t *doc) {
+  if (!doc || !doc->userdata2)
+    return;
+  xmlFreeNode((xmlNodePtr)doc->userdata2);
+  doc->userdata2 = NULL;
+}
+
 static void fe_close_all_docs(void) {
   if (!g_app)
     return;
@@ -49,6 +220,9 @@ static void fe_close_all_docs(void) {
 static void fe_load_project_meta(xmlNodePtr root) {
   if (!g_app)
     return;
+  g_app->project.name[0] = '\0';
+  g_app->project.title[0] = '\0';
+  g_app->project.root[0] = '\0';
   feio_xml_attr_copy(root, "name", g_app->project.name, sizeof(g_app->project.name));
   feio_xml_attr_copy(root, "title", g_app->project.title, sizeof(g_app->project.title));
   feio_xml_attr_copy(root, "root", g_app->project.root, sizeof(g_app->project.root));
@@ -182,6 +356,63 @@ static void fe_apply_form_preview_chrome(window_t *doc, xmlNodePtr root,
     send_message(doc, evStatusBar, 0, (void *)"Preview");
 }
 
+xmlNodePtr fe_project_table_node_for_column_window(window_t *doc, window_t *target) {
+  xmlNodePtr column = feio_xml_node_for_window(doc, target);
+  if (!feio_xml_elem(column, "Column") ||
+      !feio_xml_elem(column->parent, "TableView")) {
+    return NULL;
+  }
+  return column->parent;
+}
+
+bool fe_project_update_table_column_binding(window_t *doc, window_t *target,
+                                            const char *field_expr,
+                                            const char *title) {
+  if (!field_expr || !*field_expr)
+    return false;
+
+  xmlNodePtr column = feio_xml_node_for_window(doc, target);
+  if (!feio_xml_elem(column, "Column") ||
+      !feio_xml_elem(column->parent, "TableView")) {
+    return false;
+  }
+
+  xmlSetProp(column, BAD_CAST "field", BAD_CAST field_expr);
+  if (title && *title)
+    xmlSetProp(column, BAD_CAST "title", BAD_CAST title);
+  return true;
+}
+
+bool fe_project_append_component_node(window_t *doc, window_t *parent_target,
+                                      window_t *child, const char *class_name) {
+  if (!doc || !child || !class_name || !*class_name)
+    return false;
+
+  xmlNodePtr form = feio_ensure_doc_form_node(doc);
+  if (!form)
+    return false;
+
+  xmlNodePtr parent_node = feio_xml_node_for_window(doc, parent_target);
+  if (!parent_node)
+    parent_node = form;
+
+  xmlNodePtr node = xmlNewChild(parent_node, NULL, BAD_CAST class_name, NULL);
+  if (!node)
+    return false;
+
+  char name_buf[128];
+  snprintf(name_buf, sizeof(name_buf), "%s_%u", class_name, child->id);
+  xmlSetProp(node, BAD_CAST "name", BAD_CAST name_buf);
+  if (child->title[0])
+    xmlSetProp(node, BAD_CAST "text", BAD_CAST child->title);
+  feio_xml_set_prop_int(node, "id", (int)child->id);
+  if (child->layout.layout_fixed_w > 0)
+    feio_xml_set_prop_int(node, "width", child->layout.layout_fixed_w);
+  if (child->layout.layout_fixed_h > 0)
+    feio_xml_set_prop_int(node, "height", child->layout.layout_fixed_h);
+  return true;
+}
+
 static void fe_load_databases(xmlNodePtr root) {
   if (!g_app || !root)
     return;
@@ -284,8 +515,16 @@ bool fe_project_load(const char *path) {
     return false;
   }
 
+  xmlNodePtr root_copy = xmlCopyNode(root, 1);
+  if (!root_copy) {
+    xmlFreeDoc(xdoc);
+    return false;
+  }
+
   snprintf(g_app->project.filename, sizeof(g_app->project.filename), "%s", path);
   fe_close_all_docs();
+  fe_project_clear_xml();
+  g_app->project.xml_root = root_copy;
   fe_load_project_meta(root);
   fe_load_databases(root);
 
@@ -316,24 +555,6 @@ bool fe_project_load(const char *path) {
   return true;
 }
 
-static void fe_write_form(FILE *f, const window_t *doc) {
-  if (!f || !doc)
-    return;
-
-  char name_buf[512];
-  snprintf(name_buf, sizeof(name_buf), "%s", doc->title[0] ? doc->title : "Form");
-  size_t len = strlen(name_buf);
-  if (len >= 2 && strcmp(name_buf + len - 2, " *") == 0)
-    name_buf[len - 2] = '\0';
-
-  fprintf(f,
-          "    <form name=\"%s\" title=\"%s\" width=\"%d\" height=\"%d\"/>\n",
-      name_buf,
-      doc->title[0] ? doc->title : "Form",
-      doc->children ? doc->children->frame.w : FORM_DEFAULT_W,
-      doc->children ? doc->children->frame.h : FORM_DEFAULT_H);
-}
-
 bool fe_project_save(const char *path) {
   if (!g_app)
     return false;
@@ -342,28 +563,44 @@ bool fe_project_save(const char *path) {
   if (!out || !*out)
     return false;
 
-  FILE *f = fopen(out, "wb");
-  if (!f)
+  xmlDocPtr xdoc = xmlNewDoc(BAD_CAST "1.0");
+  if (!xdoc)
     return false;
 
-  fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-  fprintf(f, "<orion version=\"1\" name=\"%s\" title=\"%s\" root=\"%s\">\n",
-          g_app->project.name[0] ? g_app->project.name : "project",
-          g_app->project.title[0] ? g_app->project.title : "Orion Project",
-          g_app->project.root[0] ? g_app->project.root : "./");
-  fprintf(f, "  <forms>\n");
+  xmlNodePtr root = feio_project_root_for_save();
+  if (!root) {
+    xmlFreeDoc(xdoc);
+    return false;
+  }
+  xmlDocSetRootElement(xdoc, root);
+
+  xmlNodePtr forms = feio_first_child_named(root, "forms");
+  if (!forms)
+    forms = xmlNewChild(root, NULL, BAD_CAST "forms", NULL);
+  if (!forms) {
+    xmlFreeDoc(xdoc);
+    return false;
+  }
+  feio_clear_children(forms);
 
   for (int i = 0; i < g_app->form_count; i++) {
-    window_t *w = g_app->forms[i];
-    if (w)
-      fe_write_form(f, w);
+    xmlNodePtr form = feio_copy_form_for_save(g_app->forms[i]);
+    if (form)
+      xmlAddChild(forms, form);
   }
 
-  fprintf(f, "  </forms>\n");
-  fprintf(f, "</orion>\n");
-  fclose(f);
+  int rc = xmlSaveFormatFileEnc(out, xdoc, "UTF-8", 1);
+  if (rc < 0) {
+    xmlFreeDoc(xdoc);
+    return false;
+  }
+
+  fe_project_clear_xml();
+  g_app->project.xml_root = xmlCopyNode(root, 1);
+  xmlFreeDoc(xdoc);
 
   snprintf(g_app->project.filename, sizeof(g_app->project.filename), "%s", out);
+  g_app->project.loaded = true;
   g_app->project.modified = false;
   return true;
 }

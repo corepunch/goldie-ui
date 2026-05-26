@@ -109,6 +109,7 @@ void gem_shutdown(void) {
   while (g_app->form_count > 0 && g_app->forms[0]) {
     close_form_doc(g_app->forms[0]);
   }
+  fe_project_clear_xml();
   fe_unload_component_plugins();
   for (int i = 0; i < FE_NUM_WINDOWS; i++) {
     if (g_app->windows[i])
