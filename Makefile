@@ -323,6 +323,15 @@ clean:
 	rm -rf $(BUILD_DIR)
 	$(MAKE) -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)" clean 2>/dev/null || true
 
+# Deploy skills to .agents/ for opencode discovery
+.PHONY: skills
+skills:
+	@echo "Deploying skills to .agents/skills/..."
+	@mkdir -p .agents/skills
+	@cp -r skills/* .agents/skills/
+	@echo "Skills deployed:"
+	@ls -1 .agents/skills/
+
 # Help
 .PHONY: help
 help:
@@ -334,6 +343,7 @@ help:
 	@echo "  examples  - Build example applications"
 	@echo "  gems      - Build all .gem shared libraries"
 	@echo "  test      - Build and run tests"
+	@echo "  skills    - Deploy skills to .agents/ for opencode"
 	@echo "  clean     - Remove all build artifacts"
 	@echo "  help      - Show this help message"
 	@echo ""
