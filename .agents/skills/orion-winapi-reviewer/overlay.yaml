@@ -1,0 +1,152 @@
+name: orion-winapi-reviewer
+description: Review Orion code using WinAPI best practices with concrete fixes and severity ratings. Signature phrase: "In WinAPI, we'd do it this way."
+metadata:
+  priority: 4
+  docs:
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-winapi-reviewer/SKILL.md"
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-winapi-reviewer/reference/common-findings.md"
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-winapi-reviewer/reference/winapi-mapping.md"
+  pathPatterns:
+    - "**/*.c"
+    - "**/*.h"
+  bashPatterns:
+    - "\\bmake\\s+(all|examples|test|clean)\\b"
+    - "\\bgcc\\b"
+    - "\\bclang\\b"
+    - "\\bcppcheck\\b"
+    - "\\bpclint\\b"
+  promptSignals:
+    phrases:
+      - "review code"
+      - "check code"
+      - "find bugs"
+      - "code review"
+      - "critique"
+      - "static analysis"
+      - "lint"
+      - "best practice"
+      - "WinAPI"
+      - "resource leak"
+      - "memory leak"
+      - "handle leak"
+      - "severity"
+      - "bug"
+      - "fix this"
+      - "improve"
+      - "refactor"
+      - "clean up"
+      - "🔴"
+      - "🟡"
+      - "🔵"
+      - "must fix"
+      - "should fix"
+      - "nice to have"
+    allOf:
+      - ["code", "review"]
+      - ["find", "bug"]
+    anyOf:
+      - "In WinAPI"
+      - "severity"
+      - "🔴"
+      - "🟡"
+      - "🔵"
+      - "resource leak"
+      - "memory leak"
+      - "window procedure"
+      - "message handling"
+    noneOf: []
+    minScore: 4
+validate:
+  - pattern: "free\\s*\\(\\s*\\w+\\s*\\)\\s*;.*free\\s*\\(\\s*\\w+\\s*\\)\\s*;"
+    message: "🔴 Resource leak: multiple resources freed but no cleanup order shown"
+    severity: error
+  - pattern: "malloc\\s*\\([^)]+\\)\\s*;\\s*(?!.*free)"
+    message: "🔴 Memory leak: malloc without corresponding free"
+    severity: error
+  - pattern: "case\\s+evDestroy.*return\\s+true\\s*;\\s*(?!.*free)"
+    message: "🔴 evDestroy must free allocated resources, not just return true"
+    severity: error
+    skipIfFileContains: "free.*userdata|free_accelerators|destroy"
+  - pattern: "win->userdata\\s*=\\s*[^N]"
+    message: "🟡 Allocating win->userdata without freeing in evDestroy"
+    severity: warn
+    skipIfFileContains: "evDestroy"
+  - pattern: "return\\s+0\\s*;\\s*$"
+    message: "🔴 Window procedure returning 0 instead of calling default_winproc()"
+    severity: error
+    skipIfFileContains: "default_winproc"
+  - pattern: "case\\s+evCommand"
+    message: "🟡 evCommand handler should check HIWORD(wparam) for notification code"
+    severity: warn
+    skipIfFileContains: "HIWORD.*wparam"
+  - pattern: "NULL\\s*==\\s*\\w+|\\w+\\s*==\\s*NULL"
+    message: "🔵 Style: prefer 'if (!ptr)' over 'if (ptr == NULL)'"
+    severity: info
+  - pattern: "#define\\s+\\w+\\s+\\d+"
+    message: "🔵 Style: use enum or constant instead of #define for type-safe values"
+    severity: info
+  - pattern: "goto\\s+\\w+"
+    message: "🟡 Avoid goto - consider structured error handling with early returns"
+    severity: warn
+    skipIfFileContains: "error:|cleanup:"
+  - pattern: "free_result_list\\s*\\(\\s*\\w+\\s*\\)\\s*;"
+    message: "🟡 Always check result is non-NULL before freeing result list"
+    severity: warn
+    skipIfFileContains: "if\\s*\\(\\s*\\w+\\s*\\)"
+  - pattern: "send_db_message\\s*\\([^)]+\\)\\s*;"
+    message: "🟡 Always check send_db_message return value for NULL"
+    severity: warn
+    skipIfFileContains: "if\\s*\\(\\s*\\w+\\s*\\)|ASSERT"
+  - pattern: "ipoint16_t|irect16_t"
+    message: "✓ Praise: Using ipoint16_t/irect16_t for type-safe coordinates"
+    severity: info
+  - pattern: "default_winproc\\s*\\("
+    message: "✓ Praise: Calling default_winproc() for unhandled messages"
+    severity: info
+chainTo:
+  - pattern: "test_.*\\.c|_test\\.c|tests/"
+    targetSkill: orion-test-writer
+    message: "Test file reviewed — consider adding regression tests for fixed issues"
+  - pattern: "write.*new.*code|implement|create.*window"
+    targetSkill: orion-winapi-developer
+    message: "New code needed — loading WinAPI Developer for implementation guidance"
+  - pattern: "db_simple_xml|database_t|dbInsert|dbFetch"
+    targetSkill: orion-app-writer
+    message: "Database code — loading App Writer for database best practices"
+retrieval:
+  aliases:
+    - code review
+    - lint
+    - static analysis
+    - bug finding
+    - code critique
+    - severity rating
+    - best practice
+    - WinAPI review
+  intents:
+    - review this code for bugs
+    - find resource leaks
+    - check for memory leaks
+    - rate severity of issues
+    - suggest fixes
+    - improve code quality
+    - refactor suggestions
+    - identify WinAPI anti-patterns
+    - check message handling
+    - verify resource cleanup
+  entities:
+    - 🔴 Bug
+    - 🟡 Warning
+    - 🔵 Info
+    - resource leak
+    - memory leak
+    - handle leak
+    - default_winproc
+    - evDestroy
+    - free_result_list
+  examples:
+    - review this window procedure for bugs
+    - find all resource leaks
+    - rate severity of these issues
+    - suggest fixes for memory leaks
+    - check this code against WinAPI patterns

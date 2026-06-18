@@ -1,0 +1,129 @@
+name: orion-test-writer
+description: Write and review headless C unit tests for the Orion UI framework using tests/test_framework.h. Use when creating test files, writing assertions, or verifying module behavior.
+metadata:
+  priority: 5
+  docs:
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-test-writer/SKILL.md"
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-test-writer/reference/framework-api.md"
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-test-writer/reference/patterns.md"
+  pathPatterns:
+    - "**/test_*.c"
+    - "**/*_test.c"
+    - "**/tests/**/*.c"
+    - "**/test/**/*.c"
+    - "**/tests/*.c"
+    - "**/test_framework.h"
+    - "**/tests/test_framework.h"
+  bashPatterns:
+    - "\\bmake\\s+test\\b"
+    - "\\bctest\\b"
+    - "\\b./test\\b"
+    - "\\btests?/.*\\.c\\b"
+  promptSignals:
+    phrases:
+      - "write a test"
+      - "add tests"
+      - "unit test"
+      - "headless test"
+      - "assertion"
+      - "assert equal"
+      - "assert not null"
+      - "test framework"
+      - "TEST\\("
+      - "ASSERT_"
+      - "PASS\\("
+      - "TEST_START"
+      - "TEST_END"
+      - "test suite"
+      - "edge case"
+      - "null case"
+      - "boundary case"
+      - "test coverage"
+      - "regression test"
+      - "unit testing"
+    allOf:
+      - ["test", "function"]
+      - ["assert", "equal"]
+    anyOf:
+      - "test_framework.h"
+      - "TEST_START"
+      - "ASSERT_EQUAL"
+      - "ASSERT_NOT_NULL"
+      - "test_example"
+      - "test_"
+    noneOf: []
+    minScore: 5
+validate:
+  - pattern: "#include\\s*[\"<]ui\\.h[\">]"
+    message: "Headless tests should NOT include ui.h unless specifically testing window/message APIs"
+    severity: warn
+    skipIfFileContains: "window_t|send_message|evCreate|evDestroy"
+  - pattern: "void\\s+test_\\w+\\s*\\(\\s*void\\s*\\)"
+    message: "Test functions should be named test_<thing> and take no parameters"
+    severity: info
+  - pattern: "ASSERT_.*\\("
+    message: "ASSERT_* macros return on failure - ensure resources are freed before PASS()"
+    severity: warn
+    skipIfFileContains: "free_result_list"
+  - pattern: "malloc\\s*\\("
+    message: "Tests must free malloc'd memory - use free() before PASS()"
+    severity: error
+    skipIfFileContains: "free\\s*\\("
+  - pattern: "free_result_list\\s*\\(\\s*\\w+\\s*\\)\\s*;"
+    message: "Always verify result is non-NULL before calling free_result_list()"
+    severity: warn
+  - pattern: "TEST_START\\s*\\(\\s*[\"']"
+    message: "TEST() descriptions should be in English and describe expected behavior"
+    severity: info
+  - pattern: "static\\s+\\w+_t\\s+\\w+"
+    message: "Test internals should not be static - tests need access to module internals"
+    severity: warn
+    skipIfFileContains: "test_"
+chainTo:
+  - pattern: "test_db|test_.*db|database_t|send_db_message"
+    targetSkill: orion-app-writer
+    message: "Database test detected — ensure following orion-app-writer patterns for db_simple_xml"
+  - pattern: "window_t|evCreate|evPaint|winproc"
+    targetSkill: orion-winapi-developer
+    message: "Window test detected — loading WinAPI Developer guidance for message handling"
+  - pattern: "review|check.*code|find.*bug|severity"
+    targetSkill: orion-winapi-reviewer
+    message: "Code review context — loading WinAPI Reviewer for severity ratings"
+retrieval:
+  aliases:
+    - unit test
+    - headless test
+    - c test
+    - assertion
+    - test framework
+    - regression test
+    - integration test
+  intents:
+    - write a test for this function
+    - add test coverage
+    - create test suite
+    - test edge cases
+    - verify error handling
+    - write assertions
+    - set up test fixtures
+    - mock dependencies
+    - run all tests
+    - debug failing test
+  entities:
+    - TEST
+    - TEST_START
+    - TEST_END
+    - PASS
+    - ASSERT_EQUAL
+    - ASSERT_NOT_NULL
+    - ASSERT_TRUE
+    - ASSERT_FALSE
+    - free_result_list
+    - test_framework.h
+  examples:
+    - write a test for MAKEDWORD utility
+    - test edge cases for string parsing
+    - test window procedure message handling
+    - test database insert and fetch
+    - add tests for error conditions
+    - write headless test without ui.h

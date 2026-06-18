@@ -1,0 +1,172 @@
+name: orion-app-writer
+description: Writes Orion UI framework apps using C and declarative XML definitions with MVC pattern. Use when building desktop applications with windows, dialogs, databases, and message-based architecture.
+metadata:
+  priority: 5
+  docs:
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-app-writer/SKILL.md"
+  pathPatterns:
+    - "*.orion"
+    - "**/db_simple_xml.c"
+    - "**/examples/*/main.c"
+    - "**/examples/*/*_app.c"
+    - "**/examples/*/*_winproc.c"
+    - "**/examples/*/view_*.c"
+    - "**/examples/*/controller_*.c"
+    - "**/examples/*/ui/*.c"
+    - "**/windows/*.c"
+    - "**/tools/*.c"
+    - "**/commands/*.c"
+    - "**/canvas/*.c"
+    - "**/io/*.c"
+    - "**/filters/*.c"
+    - "**/anim/*.c"
+    - "**/core/*.c"
+  bashPatterns:
+    - "\\bmake\\s+(examples|test|clean|all)\\b"
+    - "\\bmake\\s+-C\\s+examples/\\S+"
+    - "\\borionc\\b"
+    - "\\bbuild/bin/orionc\\b"
+  promptSignals:
+    phrases:
+      - "create a window"
+      - "create dialog"
+      - "add button"
+      - "database schema"
+      - "define table"
+      - "insert record"
+      - "fetch records"
+      - "delete record"
+      - "update record"
+      - "window procedure"
+      - "handle message"
+      - "MVC pattern"
+      - "send message"
+      - "register database"
+      - "menu bar"
+      - "toolbar"
+      - "form definition"
+      - "field type"
+      - "relationship"
+      - "orion framework"
+      - "gem init"
+      - "gem shutdown"
+    allOf:
+      - ["window", "create"]
+      - ["database", "schema"]
+      - ["view", "controller"]
+    anyOf:
+      - "evCreate"
+      - "evDestroy"
+      - "evPaint"
+      - "evCommand"
+      - "send_db_message"
+      - "dbInsert"
+      - "dbFetch"
+      - "dbFind"
+      - "dbUpdate"
+      - "dbDelete"
+    noneOf: []
+    minScore: 5
+validate:
+  - pattern: "return\\s+0\\s*;.*//.*Should\\s+calla?\\s+default_winproc"
+    message: "Window procedure must call default_winproc() for unhandled messages, not return 0"
+    severity: error
+  - pattern: "switch\\s*\\(\\s*msg\\s*\\).*case\\s+evCreate.*return\\s+true"
+    message: "Window procedure should return false in evCreate if using lparam as state pointer"
+    severity: warn
+  - pattern: "win->userdata\\s*=\\s*NULL"
+    message: "Always free win->userdata in evDestroy before setting to NULL"
+    severity: warn
+  - pattern: "free_result_list\\s*\\("
+    message: "Always call free_result_list() after dbFetch() to avoid memory leaks"
+    severity: error
+  - pattern: "send_db_message\\s*\\([^)]+\\)\\s*;"
+    message: "Database operations must check return values - result may be NULL"
+    severity: warn
+  - pattern: "create_database\\s*\\([^)]+\\)\\s*;"
+    message: "create_database() result must be checked for NULL before use"
+    severity: warn
+  - pattern: "type=\"string\""
+    message: "String fields in .orion must have 'length' attribute - e.g., type=\"string\" length=\"64\""
+    severity: error
+    skipIfFileContains: 'type="string" length='
+  - pattern: "type=\"relationship\""
+    message: "Relationship fields must have 'relation' attribute - e.g., type=\"relationship\" relation=\"table_name\""
+    severity: error
+    skipIfFileContains: 'type="relationship" relation='
+  - pattern: "GEM_DEFINE"
+    message: "Always pair GEM_DEFINE() with proper gem_init() and gem_shutdown()"
+    severity: warn
+  - pattern: "DB_CLASS"
+    message: "Database class must be registered with DB_CLASS() before calling create_database()"
+    severity: error
+    skipIfFileContains: "DB_CLASS"
+  - pattern: "case\\s+evDestroy.*return\\s+true\\s*;"
+    message: "evDestroy handler must free win->userdata, not just return true"
+    severity: error
+    skipIfFileContains: "free.*userdata"
+  - pattern: "HIWORD\\s*\\(\\s*wparam\\s*\\)"
+    message: "When handling evCommand, use HIWORD(wparam) for notification code, LOWORD(wparam) for control ID"
+    severity: warn
+  - pattern: "send_message\\s*\\(\\s*\\w+_win\\s*,"
+    message: "For window-to-window messaging, prefer send_message() with proper message IDs"
+    severity: info
+chainTo:
+  - pattern: "test_.*\\.c|_test\\.c|test_"
+    targetSkill: orion-test-writer
+    message: "Test file detected — loading Orion Test Writer guidance for C unit tests"
+  - pattern: "review|critique|check.*code"
+    targetSkill: orion-winapi-reviewer
+    message: "Code review requested — loading Orion WinAPI Reviewer guidance"
+  - pattern: "winproc|window.*procedure|message.*loop|RegisterClass"
+    targetSkill: orion-winapi-developer
+    message: "WinAPI pattern detected — loading Orion WinAPI Developer guidance"
+  - pattern: "db_simple_xml|database_t|dbproc_t"
+    targetSkill: orion-app-writer
+    message: "Database implementation detected — ensure following db_simple_xml patterns"
+retrieval:
+  aliases:
+    - orion app
+    - orion ui
+    - desktop app
+    - windows app
+    - GUI app
+    - MVC app
+    - message passing
+    - declarative UI
+    - XML UI
+  intents:
+    - create a new window with a procedure
+    - add controls to a dialog
+    - define database schema in .orion
+    - implement database CRUD operations
+    - set up menu bar and toolbars
+    - handle button clicks and notifications
+    - implement file dialogs
+    - create list views and table views
+    - add form validation
+    - set up app initialization and shutdown
+    - write unit tests for database operations
+    - migrate from procedural to MVC pattern
+  entities:
+    - window_t
+    - database_t
+    - app_state_t
+    - winproc_t
+    - dbproc_t
+    - send_message
+    - send_db_message
+    - GEM_DEFINE
+    - GEM_STANDALONE_MAIN
+    - DB_CLASS
+    - evCreate
+    - evDestroy
+    - evPaint
+    - evCommand
+  examples:
+    - create a window with a custom draw procedure
+    - set up a database-backed form with validation
+    - implement a menu bar with keyboard shortcuts
+    - handle a button click to save data
+    - create a modal dialog for editing records
+    - implement undo/redo with command pattern

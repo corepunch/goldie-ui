@@ -1,0 +1,158 @@
+name: orion-winapi-developer
+description: Develop Orion framework code and sample apps using WinAPI patterns and mental model. Maps every problem to WinAPI first, then translates to Orion equivalents.
+metadata:
+  priority: 5
+  docs:
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-winapi-developer/SKILL.md"
+    - "file:///Users/igDeveloper/mapview/ui/.agents/skills/orion-winapi-developer/reference/winapi-mapping.md"
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-winapi-developer/reference/messages.md"
+    - "file:///Users/igor/Developer/mapview/ui/.agents/skills/orion-winapi-developer/reference/repository.md"
+  pathPatterns:
+    - "**/kernel/**/*.c"
+    - "**/user/**/*.c"
+    - "**/platform/**/*.c"
+    - "**/commctl/**/*.c"
+    - "**/ui/**/*.c"
+    - "**/main.c"
+    - "**/*_winproc.c"
+    - "**/view_*.c"
+  bashPatterns:
+    - "\\bmake\\s+(all|clean|framework)\\b"
+    - "\\bcmake\\b"
+    - "\\bgcc\\b"
+    - "\\bclang\\b"
+    - "\\b-mno-cygwin\\b"
+  promptSignals:
+    phrases:
+      - "WinAPI"
+      - "window procedure"
+      - "message loop"
+      - "message handling"
+      - "window proc"
+      - "WNDPROC"
+      - "RegisterClass"
+      - "CreateWindow"
+      - "SendMessage"
+      - "PostMessage"
+      - "TranslateMessage"
+      - "DispatchMessage"
+      - "DefWindowProc"
+      - "lresult"
+      - "wparam"
+      - "lparam"
+      - "ipoint16_t"
+      - "irect16_t"
+      - "HIWORD"
+      - "LOWORD"
+      - "MAKEDWORD"
+      - "accelerator"
+      - "keyboard shortcut"
+      - "menu"
+      - "dialog"
+      - "window class"
+    allOf:
+      - ["message", "loop"]
+      - ["window", "procedure"]
+    anyOf:
+      - "evCreate"
+      - "evDestroy"
+      - "evPaint"
+      - "evCommand"
+      - "evResize"
+      - "evKeyDown"
+      - "evMouseDown"
+      - "default_winproc"
+      - "allocate_window_data"
+      - "win->userdata"
+      - "LOWORD(wparam)"
+      - "HIWORD(wparam)"
+    noneOf: []
+    minScore: 5
+validate:
+  - pattern: "evKeyDown"
+    message: "Use accelerator tables for keyboard shortcuts, not raw evKeyDown handling"
+    severity: warn
+    skipIfFileContains: "load_accelerators|translate_accelerator"
+  - pattern: "int\\s+\\w+\\s*=\\s*win->x"
+    message: "Use ipoint16_t/irect16_t instead of bare int coordinates"
+    severity: warn
+    skipIfFileContains: "ipoint16_t|irect16_t|ipoint_t|irect_t"
+  - pattern: "int\\s+\\w+\\s*=\\s*\\w+->x\\s*\\+\\s*\\w+->y"
+    message: "Use irect_t operations for rectangle arithmetic"
+    severity: warn
+    skipIfFileContains: "irect16_t|irect_t"
+  - pattern: "snake_case_t"
+    message: "Type names should be snake_case_t (typedef'd structs)"
+    severity: info
+  - pattern: "SCREAMING_SNAKE_CASE"
+    message: "Constants should be SCREAMING_SNAKE_CASE"
+    severity: info
+  - pattern: "#ifndef\\s+__\\w+_H__"
+    message: "Include guards should use __MODULE_NAME_H__ format"
+    severity: info
+  - pattern: "return\\s+0\\s*;\\s*$"
+    message: "Window procedure returning 0 for unhandled messages - should call default_winproc()"
+    severity: error
+  - pattern: "case\\s+evDestroy"
+    message: "evDestroy must free win->userdata and any allocated resources"
+    severity: error
+    skipIfFileContains: "free.*userdata|free_accelerators"
+  - pattern: "struct\\s+\\w+\\s*\\{"
+    message: "Use typedef'd struct (snake_case_t) instead of plain struct"
+    severity: warn
+    skipIfFileContains: "typedef.*struct"
+  - pattern: "new\\s+\\w+"
+    message: "C99 code should not use 'new' keyword - this looks like C++"
+    severity: error
+chainTo:
+  - pattern: "test_.*\\.c|_test\\.c|tests/"
+    targetSkill: orion-test-writer
+    message: "Test file detected — loading Orion Test Writer guidance"
+  - pattern: "review|critique|check.*code"
+    targetSkill: orion-winapi-reviewer
+    message: "Code review requested — loading Orion WinAPI Reviewer for severity ratings"
+  - pattern: "db_simple_xml|database_t|dbInsert|dbFetch"
+    targetSkill: orion-app-writer
+    message: "Database code detected — loading Orion App Writer for database patterns"
+retrieval:
+  aliases:
+    - WinAPI
+    - windows API
+    - message passing
+    - window procedure
+    - message loop
+    - low-level UI
+    - desktop framework
+    - kernel开发
+  intents:
+    - implement a window procedure
+    - handle window messages
+    - create a custom control
+    - set up message loop
+    - register a window class
+    - handle keyboard shortcuts
+    - implement drag and drop
+    - handle mouse events
+    - create a modal dialog
+    - subclass a window
+  entities:
+    - window_t
+    - winproc_t
+    - lresult_t
+    - ipoint16_t
+    - irect16_t
+    - send_message
+    - post_message
+    - default_winproc
+    - allocate_window_data
+    - load_accelerators
+    - evCreate
+    - evDestroy
+    - evPaint
+    - evCommand
+  examples:
+    - map CreateWindow to create_window
+    - handle WM_SIZE as evResize
+    - use HIWORD/LOWORD for notification codes
+    - implement WNDCLASS equivalent
+    - set up accelerator table for Ctrl+S
