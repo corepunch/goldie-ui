@@ -128,14 +128,31 @@ free_result_list(results);
 8. **Write tests** — database operations, dialog functionality.
 9. **Build and test** — `make examples`, `make test`.
 
+## Quick Start
+
+1. Copy template from `reference/quick-reference.md`
+2. Create `.orion` file following `rules/orion-file.md`
+3. Generate header: `./build/bin/orionc --input myapp.orion --output build/generated/examples/myapp.h --prefix myapp`
+4. Implement files following rules in `rules/` folder
+5. Build: `make examples`
+
 ## Detailed References
 
+### Rules (How-To)
 -   [rules/orion-file.md](rules/orion-file.md) — .orion XML structure, menus, toolbars, databases, forms
 -   [rules/database-schema.md](rules/database-schema.md) — Field types, relationships, table definitions
 -   [rules/view-layer.md](rules/view-layer.md) — Window procedures, messages, controls, dialogs
 -   [rules/controller-layer.md](rules/controller-layer.md) — App state, database operations, business logic
 -   [rules/entry-point.md](rules/entry-point.md) — GEM_DEFINE, gem_init, GEM_STANDALONE_MAIN
 -   [rules/testing.md](rules/testing.md) — Database tests, dialog tests, cleanup
--   [reference/messages.md](reference/messages.md) — Window and database message reference
+
+### API Reference (Lookup)
+-   [reference/quick-reference.md](reference/quick-reference.md) — Fast lookup for common tasks
+-   [reference/window-api.md](reference/window-api.md) — Window creation, management, messaging
+-   [reference/dialog-api.md](reference/dialog-api.md) — Dialogs, forms, DDX, database dialogs
+-   [reference/database-api.md](reference/database-api.md) — Database messages, CRUD, schema
+-   [reference/messages.md](reference/messages.md) — All window and control messages
 -   [reference/controls.md](reference/controls.md) — Available controls and their usage
--   [reference/database-api.md](reference/database-api.md) — Database message API reference
+
+### Gaps
+-   [gaps.md](gaps.md) — Known gaps and areas needing more documentation

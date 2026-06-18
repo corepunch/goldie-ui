@@ -1,158 +1,283 @@
-# Window and Database Message Reference
+# Message Reference
+
+Complete list of window and database messages.
 
 ## Window Messages
 
-### Lifecycle Messages
+### Lifecycle
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `evCreate` | Window created | 0 | State pointer | true on success |
-| `evDestroy` | Window destroyed | 0 | NULL | true to prevent destruction |
-| `evClose` | Window close requested | 0 | NULL | true to prevent closing |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evCreate` | 0 | State pointer | true | Window created |
+| `evDestroy` | 0 | NULL | true | Window destroyed |
+| `evShowWindow` | bool show | 0 | 0 | Window shown/hidden |
+| `evClose` | 0 | NULL | true | Close requested |
 
-### Paint Messages
+### Paint
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `evPaint` | Window needs redraw | 0 | NULL | false to let framework draw |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evPaint` | 0 | NULL | false | Needs redraw |
+| `evNCPaint` | 0 | NULL | 0 | Non-client paint |
+| `evRefreshStencil` | 0 | NULL | 0 | Stencil refresh |
+| `evPaintStencil` | 0 | NULL | 0 | Stencil paint |
 
-### Input Messages
+### Focus
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `evLeftButtonDown` | Left mouse button pressed | key flags | MAKELONG(x, y) | true if handled |
-| `evLeftButtonUp` | Left mouse button released | key flags | MAKELONG(x, y) | true if handled |
-| `evRightButtonDown` | Right mouse button pressed | key flags | MAKELONG(x, y) | true if handled |
-| `evRightButtonUp` | Right mouse button released | key flags | MAKELONG(x, y) | true if handled |
-| `evMouseMove` | Mouse moved | key flags | MAKELONG(x, y) | true if handled |
-| `evKeyDown` | Key pressed | virtual key code | 0 | true if handled |
-| `evKeyUp` | Key released | virtual key code | 0 | true if handled |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evSetFocus` | 0 | 0 | 0 | Gained focus |
+| `evKillFocus` | 0 | 0 | 0 | Lost focus |
+| `evActivate` | state | 0 | 0 | Window activated |
 
-### Notification Messages
+### Mouse
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `evCommand` | Control notification | HIWORD=notification, LOWORD=id | Control pointer | true if handled |
-| `evResize` | Window resized | 0 | NULL | false to let framework handle |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evMouseMove` | keys | MAKELONG(x,y) | 0 | Mouse moved |
+| `evLeftButtonDown` | keys | MAKELONG(x,y) | 0 | Left button down |
+| `evLeftButtonUp` | keys | MAKELONG(x,y) | 0 | Left button up |
+| `evLeftButtonDoubleClick` | keys | MAKELONG(x,y) | 0 | Left double-click |
+| `evRightButtonDown` | keys | MAKELONG(x,y) | 0 | Right button down |
+| `evRightButtonUp` | keys | MAKELONG(x,y) | 0 | Right button up |
+| `evMouseLeave` | 0 | 0 | 0 | Mouse left window |
+| `evHitTest` | MAKELONG(x,y) | 0 | HT_* | Hit test |
 
-### Scroll Messages
+### Keyboard
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `evVScroll` | Vertical scroll | scroll bar code | Scroll position | true if handled |
-| `evHScroll` | Horizontal scroll | scroll bar code | Scroll position | true if handled |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evKeyDown` | vk_code | repeat | 0 | Key pressed |
+| `evKeyUp` | vk_code | 0 | 0 | Key released |
+| `evTextInput` | 0 | text | 0 | Text input |
 
-## Control Notifications
+### Scroll
 
-### Button Notifications
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evHScroll` | code | pos | 0 | Horizontal scroll |
+| `evVScroll` | code | pos | 0 | Vertical scroll |
 
-| Notification | Description | wparam | lparam |
-|--------------|-------------|--------|--------|
-| `btnClicked` | Button clicked | Button ID | Button pointer |
+### Resize
 
-### List/TableView Notifications
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evResize` | 0 | MAKELONG(w,h) | 0 | Window resized |
+| `evDisplayChange` | 0 | 0 | 0 | Display changed |
 
-| Notification | Description | wparam | lparam |
-|--------------|-------------|--------|--------|
-| `RVN_SELCHANGE` | Selection changed | Row index | List pointer |
-| `RVN_DBLCLK` | Double-click | Row index | List pointer |
-| `RVN_DELETE` | Delete requested | Row index | List pointer |
+### Timer
 
-### Edit Notifications
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evTimer` | timer_id | 0 | 0 | Timer expired |
 
-| Notification | Description | wparam | lparam |
-|--------------|-------------|--------|--------|
-| `edUpdate` | Text modified | Edit ID | Edit pointer |
+### Command
 
-### Combobox Notifications
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evCommand` | MAKEDWORD(id,code) | control_ptr | true | Control notification |
 
-| Notification | Description | wparam | lparam |
-|--------------|-------------|--------|--------|
-| `cbSelectionChange` | Selection changed | Combo ID | Combo pointer |
+### Drag and Drop
 
-## Database Messages
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evMouseDragEnter` | keys | MAKELONG(x,y) | 0 | Drag entered |
+| `evMouseDragLeave` | 0 | 0 | 0 | Drag left |
+| `evMouseDrag` | keys | MAKELONG(x,y) | 0 | Drag moving |
+| `evMouseDrop` | keys | MAKELONG(x,y) | 0 | Drop occurred |
 
-### Lifecycle Messages
+### HTTP
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `dbCreate` | Database created | 0 | Source path | 1 on success |
-| `dbDestroy` | Database destroyed | 0 | NULL | 1 on success |
-| `dbLoad` | Load from source | 0 | NULL | 1 on success |
-| `dbSave` | Save to source | 0 | NULL | 1 on success |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evHttpDone` | 0 | response_ptr | 0 | HTTP request complete |
+| `evHttpProgress` | 0 | progress_ptr | 0 | HTTP progress update |
 
-### CRUD Messages
+### Custom
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `dbInsert` | Insert record | Table ID | Record data | Record pointer |
-| `dbUpdate` | Update record | Table ID | Record pointer | 1 on success |
-| `dbDelete` | Delete record | Table ID | Record ID | 1 on success |
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `evUser` | custom | custom | custom | User-defined base |
+| `evStatusBar` | 0 | text_ptr | 0 | Set status bar text |
 
-### Query Messages
+## Control Messages
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `dbFetch` | Fetch records | MAKEDWORD(table, filter_field) | Filter value | Result list |
-| `dbFind` | Find single record | MAKEDWORD(table, search_field) | Search value | Record pointer |
+### Button
 
-### Metadata Messages
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `btnClicked` | 0 | button_ptr | 0 | Button clicked |
+| `btnSetCheck` | state | 0 | 0 | Set check state |
+| `btnGetCheck` | 0 | 0 | state | Get check state |
+| `btnSetImage` | icon_index | strip_ptr | 0 | Set button icon |
+| `btnStateUnchecked` | 0 | 0 | 0 | Checkbox unchecked |
+| `btnStateChecked` | 0 | 0 | 0 | Checkbox checked |
 
-| Message | Description | wparam | lparam | Return |
-|---------|-------------|--------|--------|--------|
-| `dbGetDirty` | Check if dirty | 0 | NULL | 0 or 1 |
-| `dbGetSchema` | Get schema | 0 | 0 | Schema pointer |
-| `dbGetFieldMeta` | Get field metadata | Table ID | Count out | Metadata pointer |
-| `dbGetApi` | Get API definition | 0 | 0 | API pointer |
+### TextBox/Edit
 
-## Common Message Patterns
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `edGetText` | buf_size | char* dst | length | Get text |
+| `edSetText` | 0 | const char* src | 0 | Set text |
+| `edUpdate` | 0 | edit_ptr | 0 | Text modified |
 
-### Handling Button Clicks
+### ComboBox
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `cbAddString` | 0 | string_ptr | index | Add item |
+| `cbGetCurrentSelection` | 0 | int* out | index | Get selection |
+| `cbGetCurrentValue` | 0 | 0 | value | Get value field |
+| `cbSetCurrentSelection` | index | 0 | 0 | Set selection |
+| `cbGetListBoxText` | index | char* buf | length | Get item text |
+| `cbClear` | 0 | 0 | 0 | Clear all items |
+| `cbSelectionChange` | 0 | combo_ptr | 0 | Selection changed |
+
+### ListBox
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `lstSetItem` | index | 0 | 0 | Set selected item |
+
+### TableView/ColumnView
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `RVM_ADDCOLUMN` | column_def | 0 | 0 | Add column |
+| `RVM_ADDITEM` | 0 | item_ptr | 0 | Add item |
+| `RVM_DELETEITEM` | index | 0 | 0 | Delete item |
+| `RVM_GETITEMCOUNT` | 0 | 0 | count | Get item count |
+| `RVM_GETSELECTION` | 0 | 0 | index | Get selection |
+| `RVM_SETSELECTION` | index | 0 | 0 | Set selection |
+| `RVM_CLEAR` | 0 | 0 | 0 | Clear all items |
+| `RVM_SETCOLUMNWIDTH` | width | 0 | 0 | Set column width |
+| `RVM_GETCOLUMNWIDTH` | 0 | 0 | width | Get column width |
+| `RVM_GETITEMDATA` | index | 0 | data | Get item data |
+| `RVM_SETITEMDATA` | index | data | 0 | Set item data |
+| `RVM_SETREDRAW` | enable | 0 | 0 | Enable/disable redraw |
+| `RVN_SELCHANGE` | index | list_ptr | 0 | Selection changed |
+| `RVN_DBLCLK` | index | list_ptr | 0 | Double-click |
+| `RVN_DELETE` | index | list_ptr | 0 | Delete requested |
+
+### TableView (db-aware)
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `tvRefresh` | 0 | 0 | 0 | Refresh from database |
+| `tvSetFilter` | 0 | filter_value | 0 | Set filter value |
+
+### Toolbar
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `tbButtonClick` | button_id | 0 | 0 | Button clicked |
+| `tbSetStrip` | 0 | strip_ptr | 0 | Set icon strip |
+| `tbSetActiveButton` | button_id | 0 | 0 | Set active button |
+| `tbSetButtonSize` | size | 0 | 0 | Set button size |
+| `tbLoadStrip` | tile_size | path_ptr | 0 | Load icon strip |
+| `tbSetItems` | count | items_ptr | 0 | Set toolbar items |
+| `tbDropdown` | button_id | 0 | 0 | Dropdown clicked |
+
+### ScrollBar
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `sbAddWindow` | 0 | window_ptr | 0 | Add scrollable window |
+| `sbSetInfo` | 0 | info_ptr | 0 | Set scroll info |
+| `sbGetPos` | 0 | 0 | position | Get scroll position |
+| `sbSetContent` | 0 | content_ptr | 0 | Set content |
+| `sbChanged` | MAKEDWORD(id,code) | new_pos | 0 | Scroll position changed |
+
+### Slider
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `slSetRange` | 0 | range_ptr | 0 | Set range |
+| `slGetRange` | 0 | range_ptr | 0 | Get range |
+| `slSetCount` | count | 0 | 0 | Set handle count |
+| `slSetPos` | handle | pos | 0 | Set position |
+| `slGetPos` | handle | int* out | pos | Get position |
+| `sliderValueChanged` | 0 | slider_ptr | 0 | Value changed |
+
+### Toolbox
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `bxSetItems` | count | items_ptr | 0 | Set items |
+| `bxSetActiveItem` | item_id | 0 | 0 | Set active item |
+| `bxSetStrip` | 0 | strip_ptr | 0 | Set icon strip |
+| `bxSetButtonSize` | size | 0 | 0 | Set button size |
+| `bxLoadStrip` | tile_size | path_ptr | 0 | Load icon strip |
+| `bxSetIconTintBrush` | br_index | 0 | 0 | Set icon tint |
+| `bxClicked` | MAKEDWORD(id,code) | 0 | 0 | Item clicked |
+
+### Grid
+
+| Message | wparam | lparam | Return | Description |
+|---------|--------|--------|--------|-------------|
+| `grSetColors` | left_rgba | right_rgba | 0 | Set grid colors |
+
+## Notification Codes (evCommand)
+
+### HIWORD(wparam) values
+
+| Code | Description |
+|------|-------------|
+| `btnClicked` | Button clicked |
+| `cbSelectionChange` | ComboBox selection changed |
+| `RVN_SELCHANGE` | TableView selection changed |
+| `RVN_DBLCLK` | TableView double-click |
+| `RVN_DELETE` | TableView delete requested |
+| `edUpdate` | Edit text modified |
+| `sbChanged` | ScrollBar position changed |
+| `bxClicked` | Toolbox item clicked |
+| `sliderValueChanged` | Slider value changed |
+| `tbButtonClick` | Toolbar button clicked |
+| `kMenuBarNotificationItemClick` | Menu item clicked |
+| `kAcceleratorNotification` | Accelerator triggered |
+| `ddxDataChanged` | DDX data changed |
+
+## Key Flags (wparam for mouse messages)
 
 ```c
-case evCommand:
-    if (HIWORD(wparam) == btnClicked) {
-        window_t *source = (window_t *)lparam;
-        switch (source->id) {
-            case ID_MY_BUTTON:
-                // Handle button click
-                return true;
-        }
-    }
-    return false;
+#define MK_LBUTTON   0x0001  // Left button down
+#define MK_RBUTTON   0x0002  // Right button down
+#define MK_SHIFT     0x0004  // Shift key
+#define MK_CONTROL   0x0008  // Control key
+#define MK_MBUTTON   0x0010  // Middle button down
 ```
 
-### Handling List Selection
+## Scroll Bar Codes (wparam for evVScroll/evHScroll)
 
 ```c
-case evCommand:
-    if (HIWORD(wparam) == RVN_SELCHANGE) {
-        int index = (int)(int16_t)LOWORD(wparam);
-        // Handle selection change
-        return true;
-    }
-    return false;
+#define SB_LINEUP        0
+#define SB_LINEDOWN      1
+#define SB_PAGEUP        2
+#define SB_PAGEDOWN      3
+#define SB_THUMBPOSITION 4
+#define SB_THUMBTRACK    5
+#define SB_ENDSCROLL     8
+#define SB_HORZ          0
+#define SB_VERT          1
 ```
 
-### Database Insert
+## Dialog Result Codes
 
 ```c
-item_t item = { .name = "New Item" };
-item_t *inserted = (item_t *)send_db_message(db, dbInsert, ID_DB_ITEMS, &item);
+#define IDOK       1
+#define IDCANCEL   2
+#define IDYES      6
+#define IDNO       7
 ```
 
-### Database Find
+## MAKELONG Macro
 
 ```c
-item_t *found = (item_t *)send_db_message(db, dbFind,
-    MAKEDWORD(ID_DB_ITEMS, 0), (void *)(intptr_t)item_id);
-```
+// Combine two 16-bit values
+#define MAKELONG(low, high) ((LONG)(((WORD)(low)) | ((DWORD)((WORD)(high))) << 16))
 
-### Database Fetch
-
-```c
-result_node_t *items = (result_node_t *)send_db_message(db, dbFetch,
-    MAKEDWORD(ID_DB_ITEMS, 0), (void *)(intptr_t)0);
-int count = count_result_list(items);
-free_result_list(items);
+// Example:
+lparam = MAKELONG(x, y);  // Pack coordinates
+int x = LOWORD(lparam);   // Unpack x
+int y = HIWORD(lparam);   // Unpack y
 ```
