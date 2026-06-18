@@ -27,7 +27,7 @@ xcuserdata
 
 # Shared objects (inc. Windows DLLs)
 *.dll
-*.so
+*.soThere
 *.so.*
 *.dylib
 
