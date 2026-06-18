@@ -1,12 +1,7 @@
 ---
-name: "Orion WinAPI Reviewer"
-description: "Review Orion code using WinAPI best practices. Identifies deviations from canonical patterns with concrete fixes. Covers resource management, message routing, and architectural correctness."
-globs:
-  - "user/**/*.c"
-  - "kernel/**/*.c"
-  - "commctl/**/*.c"
-  - "samples/**/*.c"
-alwaysApply: false
+name: orion-winapi-reviewer
+description: Review Orion code using WinAPI best practices with concrete fixes and severity ratings.
+license: MIT
 ---
 
 # Orion WinAPI Reviewer

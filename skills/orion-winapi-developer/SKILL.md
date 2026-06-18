@@ -1,12 +1,7 @@
 ---
-name: "Orion WinAPI Developer"
-description: "Develop Orion framework code and sample apps using WinAPI patterns. Maps WinAPI concepts to Orion equivalents. Covers window procedures, message handling, accelerators, and repository structure."
-globs:
-  - "user/**/*.c"
-  - "kernel/**/*.c"
-  - "commctl/**/*.c"
-  - "samples/**/*.c"
-alwaysApply: false
+name: orion-winapi-developer
+description: Develop Orion framework code and sample apps using WinAPI patterns and mental model.
+license: MIT
 ---
 
 # Orion WinAPI Developer

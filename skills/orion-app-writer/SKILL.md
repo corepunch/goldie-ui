@@ -1,8 +1,7 @@
 ---
 name: orion-app-writer
-description: Writes Orion UI framework apps — defining .orion files, databases, views, controllers, and tests. Provides project context, framework docs, and usage examples. Applies when working with Orion apps, .orion files, or any project using the Orion UI framework.
-user-invocable: false
-allowed-tools: Bash(make *), Bash(gcc *), Bash(./build/*)
+description: Writes Orion UI framework apps using C and declarative XML definitions with MVC pattern.
+license: MIT
 ---
 
 # Orion App Writer

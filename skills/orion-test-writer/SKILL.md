@@ -1,10 +1,7 @@
 ---
-name: "Orion Test Writer"
-description: "Write and review headless C unit tests for the Orion UI framework. Uses tests/test_framework.h. Focuses on correctness, edge cases, and keeping tests fast and display-free."
-globs:
-  - "tests/**/*.c"
-  - "tests/test_framework.h"
-alwaysApply: false
+name: orion-test-writer
+description: Write and review headless C unit tests for the Orion UI framework using tests/test_framework.h.
+license: MIT
 ---
 
 # Orion Test Writer
