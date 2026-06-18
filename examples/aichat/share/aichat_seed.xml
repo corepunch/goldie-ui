@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aichat>
+    <sessions>
+        <session id="1" title="Welcome Session" created_at="2026-01-01 10:00:00" updated_at="2026-01-01 10:00:00" />
+    </sessions>
+
+    <messages>
+        <message id="1" session_id="1" role="assistant" content="Hello! I'm your AI assistant. How can I help you today?" timestamp="2026-01-01 10:00:00" />
+    </messages>
+</aichat>

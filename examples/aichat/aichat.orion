@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orion
+    version="1"
+    name="aichat"
+    title="AI Chat"
+    root="examples/aichat">
+
+    <plugins>
+        <plugin name="aichat_components" />
+    </plugins>
+
+    <menus var="kMenus" count="kNumMenus">
+        <menu name="file" label="File">
+            <item name="new_session" label="New Session" />
+            <item name="save_transcript" label="Save Transcript..." />
+            <Separator />
+            <item name="quit" label="Quit" />
+        </menu>
+
+        <menu name="session" label="Session">
+            <item name="rename" label="Rename Session..." />
+            <item name="delete" label="Delete Session" />
+            <Separator />
+            <item name="clear" label="Clear Chat" />
+        </menu>
+
+        <menu name="help" label="Help">
+            <item name="about" label="About..." />
+        </menu>
+    </menus>
+
+    <toolbars>
+        <toolbar name="main">
+            <Button name="new_session" menu="file" icon="sysicon_add" text="New Session" />
+            <Button name="save" menu="file" icon="sysicon_save" text="Save" />
+            <spacer />
+            <Button name="delete" menu="session" icon="sysicon_delete" text="Delete" />
+        </toolbar>
+    </toolbars>
+
+    <databases>
+        <database name="db" class="SimpleXMLDatabase" source="examples/aichat/share/aichat_seed.xml">
+            <!-- Sessions table -->
+            <table name="sessions">
+                <field name="title" type="string" length="128"/>
+                <field name="created_at" type="string" length="32"/>
+                <field name="updated_at" type="string" length="32"/>
+                <field name="messages" type="relationship" relation="messages" many="true"/>
+            </table>
+
+            <!-- Messages table -->
+            <table name="messages">
+                <field name="session" type="relationship" relation="sessions"/>
+                <field name="role" type="string" length="16"/>
+                <field name="content" type="string" length="8192"/>
+                <field name="timestamp" type="string" length="32"/>
+            </table>
+        </database>
+    </databases>
+
+    <forms>
+        <!-- Main window with session list and chat area -->
+        <form name="main_window"
+              title="AI Chat"
+              width="800" height="600"
+              flags="toolbar,statusbar"
+              toolbar="main"
+              spacing="0"
+              padding="0">
+            <StackView name="content" orientation="horizontal" spacing="0" flags="flexspace">
+                <!-- Session list panel -->
+                <StackView name="session_panel" spacing="0" flags="flexspace">
+                    <Label name="lbl_sessions" text="Sessions" flags="notitle" />
+                    <TableView name="session_list"
+                               source="db.sessions"
+                               action="fetch_sessions"
+                               flags="notitle,nofill,vscroll,flexspace">
+                        <Column field="title" title="Session" width="0" />
+                        <Column field="updated_at" title="Updated" width="80" />
+                    </TableView>
+                </StackView>
+
+                <!-- Chat area -->
+                <StackView name="chat_panel" spacing="0" flags="flexspace">
+                    <Label name="lbl_chat" text="Chat" flags="notitle" />
+                    <TableView name="message_list"
+                               source="db.messages"
+                               action="fetch_messages"
+                               flags="notitle,nofill,vscroll,flexspace">
+                        <Column field="role" title="Role" width="60" />
+                        <Column field="content" title="Message" width="0" />
+                        <Column field="timestamp" title="Time" width="80" />
+                    </TableView>
+                    
+                    <!-- Input area -->
+                    <StackView name="input_area" orientation="horizontal" spacing="4">
+                        <MultiEdit name="user_input" flags="flexspace" />
+                        <Button name="send" text="Send" action="send_message" flags="default" />
+                    </StackView>
+                </StackView>
+            </StackView>
+        </form>
+
+        <!-- New session dialog -->
+        <form name="new_session"
+              title="New Session"
+              width="300" height="120"
+              spacing="0"
+              padding="8">
+            <StackView name="content" spacing="4">
+                <Label name="lbl_title" text="Session Title:" />
+                <TextBox name="title" field="db.sessions.title" />
+            </StackView>
+            <Separator name="sep" />
+            <StackView name="actions" orientation="horizontal" spacing="6">
+                <Space name="flex_left" />
+                <Button name="ok" text="Create" action="db.sessions.insert" flags="default" />
+                <Button name="cancel" text="Cancel" />
+                <Space name="flex_right" />
+            </StackView>
+        </form>
+
+        <!-- About dialog -->
+        <form name="about_dialog"
+              title="About AI Chat"
+              width="300" height="150"
+              spacing="0"
+              padding="8">
+            <StackView name="content" spacing="4">
+                <Label name="lbl_title" text="AI Chat v1.0" font="system" />
+                <Label name="lbl_desc" text="Chat with AI agent and save transcripts as markdown files." />
+            </StackView>
+            <Separator name="sep" />
+            <StackView name="actions" orientation="horizontal" spacing="6">
+                <Space name="flex" />
+                <Button name="ok" text="OK" flags="default" />
+            </StackView>
+        </form>
+    </forms>
+</orion>
