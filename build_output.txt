@@ -1,6 +1,0 @@
-find user -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -x c -o build/lib/libuser.dylib - -x none  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform -Lbuild/lib -lkernel  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
-clang: warning: '-x none' after last input file has no effect [-Wunused-command-line-argument]
-find commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
-	    gcc -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE -Wno-unused-parameter -Wno-missing-field-initializers -arch arm64 -I/opt/homebrew/include/lua  -DHAVE_LUA -dynamiclib -Icomponents -x c -o build/lib/libcommctl.dylib - -x none  -arch arm64 -Wl,-rpath,/Users/igor/Developer/mapview/ui/build/lib -Lbuild/lib -lplatform -Lbuild/lib -luser -lkernel  -framework OpenGL -L/opt/homebrew/lib -llua -lxml2 -lm 
-clang: warning: '-x none' after last input file has no effect [-Wunused-command-line-argument]
