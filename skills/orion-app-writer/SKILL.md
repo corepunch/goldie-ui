@@ -118,8 +118,8 @@ free_result_list(results);
 ## Workflow
 
 1. **Create .orion file** — define menus, toolbars, databases, forms.
-2. **Implement database** — create `db_simple_xml.c` with message handlers.
-3. **Create header file** — include generated IDs from .orion.
+2. **Create header file** — include generated IDs from .orion.
+3. **Implement database** — use `user/db_simple_xml.h` helpers with table-specific callbacks.
 4. **Implement views** — window procedures for main window, dialogs.
 5. **Implement controller** — app state, business logic functions.
 6. **Create entry point** — `gem_init()`, `gem_shutdown()`, `GEM_DEFINE()`.
@@ -134,6 +134,81 @@ free_result_list(results);
 3. Generate header: `./build/bin/orionc --input myapp.orion --output build/generated/examples/myapp.h --prefix myapp`
 4. Implement files following rules in `rules/` folder
 5. Build: `make examples`
+
+## Framework Shared Code
+
+The Orion framework provides reusable components to reduce boilerplate across apps. Key shared functionality:
+
+### `user/db_simple_xml.h` — Generic XML Database
+
+Framework provides `dbx_*` helper functions for XML-based storage:
+
+| Function | Purpose |
+|----------|---------|
+| `dbx_array_ensure_capacity()` | Auto-grow dynamic arrays |
+| `dbx_array_append_with_auto_id()` | Append with auto-incrementing ID |
+| `dbx_array_append_copy()` | Append a copy of a record |
+| `dbx_array_find_by_id()` | Find record by ID |
+| `dbx_array_delete_by_id()` | Delete record by ID |
+| `dbx_load_table_rows()` | Load table from XML using reflection |
+| `dbx_save_table_rows()` | Save table to XML using reflection |
+| `dbx_fetch_rows()` | Build result list with optional filter |
+| `dbx_main()` | Generic dbproc_t handler |
+
+Usage: Apps define `dbx_table_ops_t` callbacks for their specific tables and call `dbx_main()`.
+
+### `gem_magic.h` — Standard Menubar Procedure
+
+Framework provides `app_menubar_proc()` as a standard menubar window procedure:
+
+```c
+// Standard menubar proc - handles menu clicks and accelerators
+lresult_t app_menubar_proc(window_t *win, uint32_t msg,
+                          uint32_t wparam, void *lparam);
+```
+
+This proc routes `evCommand` with `kMenuBarNotificationItemClick` or `kAcceleratorNotification` to `handle_menu_command()`.
+
+### Standard `app_init()` / `app_shutdown()`
+
+Framework recommends this pattern for app state management:
+
+```c
+app_state_t *app_init(void) {
+    app_state_t *app = calloc(1, sizeof(app_state_t));
+    if (!app) return NULL;
+    app->selected_idx = -1;
+    return app;
+}
+
+void app_shutdown(app_state_t *app) {
+    if (!app) return;
+    if (app->accel)
+        free_accelerators(app->accel);
+    free(app);
+}
+```
+
+### `gem_standard_init()` / `gem_standard_shutdown()` (future)
+
+Standard initialization sequence that:
+- Sets up debug logging
+- Registers DB_CLASS(db_simple_xml)
+- Calls app_init()
+- Registers commctl classes
+- Creates database and registers it
+
+## Code Sharing Between Examples
+
+When adding functionality to multiple examples (e.g., aichat, socialfeed), check if the code belongs in the framework:
+
+1. **`db_simple_xml.c`** — If the code implements XML storage with dynamic arrays, it should use framework helpers from `user/db_simple_xml.h`.
+
+2. **`view_menubar.c`** — If the `app_menubar_proc()` is identical across apps, it should be moved to `gem_magic.h`.
+
+3. **`main.c`** — If `gem_init()` / `gem_shutdown()` are nearly identical, the pattern should be captured in framework macros.
+
+4. **`controller_app.c`** — `app_init()` and `app_shutdown()` are framework concerns; business logic stays in the app.
 
 ## Detailed References
 
