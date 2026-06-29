@@ -1,8 +1,8 @@
 // ANSI SGR (Select Graphic Rendition) color and style parsing.
 // Converts ANSI escape sequences to RGBA colors and 16-color palette indices.
 
-#ifndef __GITCLIENT_ANSI_H__
-#define __GITCLIENT_ANSI_H__
+#ifndef __UI_ANSI_H__
+#define __UI_ANSI_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -37,4 +37,4 @@ void ansi_apply_sgr_codes(const int *codes, int n,
                           int def_fg, int def_bg,
                           bool *bold);
 
-#endif // __GITCLIENT_ANSI_H__
+#endif // __UI_ANSI_H__

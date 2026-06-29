@@ -3,10 +3,9 @@
 // Reads selected file/commit from DB to determine what diff to show.
 
 #include "gitclient.h"
-#include "vga_font.h"
-#include "ansi.h"
-#include "vga_text.h"
-#include "../../kernel/renderer.h"
+#include "../../user/vga_font.h"
+#include "../../user/ansi.h"
+#include "../../user/vga_text.h"
 
 // ============================================================
 // Colours (0xAARRGGBB)

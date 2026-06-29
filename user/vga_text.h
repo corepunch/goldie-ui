@@ -1,8 +1,8 @@
 // VGA text buffer rendering — cell-based operations for RG8 grids.
 // Handles buffer allocation, cell writing, and ANSI-colored text rendering.
 
-#ifndef __GITCLIENT_VGA_TEXT_H__
-#define __GITCLIENT_VGA_TEXT_H__
+#ifndef __UI_VGA_TEXT_H__
+#define __UI_VGA_TEXT_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -22,9 +22,9 @@ int vga_text_utf8_length(unsigned char first_byte);
 // Set a single cell in the RG8 grid
 // ch: character code, fg_idx/bg_idx: color palette indices [0..15]
 void vga_text_set_cell(vga_text_grid_t *grid,
-                       int x, int y,
-                       uint8_t ch,
-                       int fg_idx, int bg_idx);
+                        int x, int y,
+                        uint8_t ch,
+                        int fg_idx, int bg_idx);
 
 // Clear entire grid with given foreground/background colors
 void vga_text_clear_grid(vga_text_grid_t *grid,
@@ -49,4 +49,4 @@ void vga_text_write_ansi_line(const char *line,
                               uint32_t def_fg_col,
                               uint32_t def_bg_col);
 
-#endif // __GITCLIENT_VGA_TEXT_H__
+#endif // __UI_VGA_TEXT_H__

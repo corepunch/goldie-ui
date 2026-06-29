@@ -1,7 +1,7 @@
 // Main window — uses generated form from gitclient.orion.
 
 #include "gitclient.h"
-#include "vga_font.h"
+#include "../../user/vga_font.h"
 
 // ============================================================
 // Layout helpers
