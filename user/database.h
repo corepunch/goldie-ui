@@ -26,6 +26,8 @@ enum {
   dbGetDirty,        // returns dirty flag as lresult_t (0 or 1)
   dbGetObjectProc,   // wparam=table_id; lparam=0 → returns (lresult_t)db_object_proc_t
   dbGetFieldBindings, // wparam=table_id; lparam=int* count_out → returns (lresult_t)db_field_msg_binding_t*
+  dbGetSchema,       // wparam=0; lparam=0 → returns (lresult_t)const db_schema_def_t*
+  dbGetApi,          // wparam=0; lparam=0 → returns (lresult_t)const db_api_def_t*
   dbUser = 1000      // custom database implementations can use dbUser+
 };
 
@@ -52,6 +54,41 @@ typedef struct {
   size_t offset;           // offsetof(struct_t, field)
   int length;              // For strings: buffer size; else 0
 } db_field_meta_t;
+
+// Design-time schema metadata for editor/database browsers.
+typedef struct {
+  const char *name;            // Field name (e.g., "author_id")
+  db_field_type_t type;        // Field type
+  int length;                  // String buffer size; else 0
+  bool primary_key;            // true for key fields
+  const char *relation_table;  // Foreign table, if this field references one
+  const char *relation_field;  // Foreign field, if this field references one
+} db_field_schema_t;
+
+typedef struct {
+  const char *name;          // Join alias (e.g., "author")
+  const char *local_field;   // Local FK field (e.g., "author_id")
+  const char *foreign_table; // Referenced table (e.g., "authors")
+  const char *foreign_field; // Referenced field (e.g., "id")
+} db_join_schema_t;
+
+typedef struct {
+  int table_id;                         // TABLE_* value
+  const char *name;                     // Table name (e.g., "posts")
+  const char *model;                    // Optional logical model name
+  const db_field_schema_t *fields;
+  int field_count;
+  const db_join_schema_t *joins;
+  int join_count;
+} db_table_schema_t;
+
+typedef struct {
+  const char *name;                     // Database instance name
+  const char *class_name;               // Database class/proc name
+  const char *source_path;              // Backing source, if any
+  const db_table_schema_t *tables;
+  int table_count;
+} db_schema_def_t;
 
 // Database class descriptor
 typedef struct {

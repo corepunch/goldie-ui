@@ -18,16 +18,16 @@ typedef struct {
 } browser_settings_dialog_state_t;
 
 static const form_ctrl_def_t kSettingsUrlRow[] = {
-  { .class_name = "label",   .text = "Home URL:",       .name = "lbl_home",
+  { .class_name = "Label",   .text = "Home URL:",       .name = "lbl_home",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "textedit", .id = ID_DLG_HOME_EDIT,   .name = "edit_home",
+  { .class_name = "TextBox", .id = ID_DLG_HOME_EDIT,   .name = "edit_home",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 static const form_ctrl_def_t kSettingsBtnRow[] = {
-  { .class_name = "button", .id = ID_DLG_SAVE,   .flags = BUTTON_DEFAULT, .text = "Save",
+  { .class_name = "Button", .id = ID_DLG_SAVE,   .flags = BUTTON_DEFAULT, .text = "Save",
     .name = "btn_save",   .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "button", .id = ID_DLG_CANCEL, .text = "Cancel",
+  { .class_name = "Button", .id = ID_DLG_CANCEL, .text = "Cancel",
     .name = "btn_cancel", .h_align = LAYOUT_ALIGN_START },
 };
 
@@ -66,13 +66,13 @@ static const form_def_t kSettingsForm = {
 };
 
 static const form_ctrl_def_t kAboutChildren[] = {
-  { .class_name = "label",  .text = "Orion Browser",
+  { .class_name = "Label",  .text = "Orion Browser",
     .name = "lbl_title",   .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "label",  .text = "Version 0.2",
+  { .class_name = "Label",  .text = "Version 0.2",
     .name = "lbl_version", .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "label",  .text = "Minimal HTML browser with local file support.",
+  { .class_name = "Label",  .text = "Minimal HTML browser with local file support.",
     .name = "lbl_desc",    .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "button", .id = ID_ABOUT_OK, .flags = BUTTON_DEFAULT, .text = "OK",
+  { .class_name = "Button", .id = ID_ABOUT_OK, .flags = BUTTON_DEFAULT, .text = "OK",
     .name = "btn_ok",      .h_align = LAYOUT_ALIGN_CENTER },
 };
 

@@ -34,7 +34,7 @@ static bool plugin_ref_exists(const char *name) {
   return false;
 }
 
-static const char *plugin_display_name(const char *name) {
+static const char *plugin_title(const char *name) {
   if (!name || !*name) return "";
   const char *slash = strrchr(name, '/');
   const char *base = slash ? slash + 1 : name;
@@ -75,7 +75,7 @@ static void plugins_browser_rebuild(plugins_browser_state_t *st) {
   if (g_app) {
     for (int i = 0; i < g_app->project.plugin_count; i++) {
       reportview_item_t item = {0};
-      item.text = plugin_display_name(g_app->project.plugins[i].name);
+      item.text = plugin_title(g_app->project.plugins[i].name);
       item.color = get_sys_color(brTextNormal);
       item.userdata = (uint32_t)i;
       send_message(st->list_win, RVM_ADDITEM, 0, &item);

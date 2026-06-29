@@ -16,22 +16,92 @@ typedef struct {
 typedef struct {
   app_state_t *app;
   database_t *db;
+  const db_schema_def_t *schema;
+  const db_api_def_t *api;
+  int selected_db_idx;
   int selected_table_id;
 } db_datasource_ctx_t;
 
 static db_datasource_ctx_t g_db_ctx = {0};
 
+static void db_ctx_refresh_schema(db_datasource_ctx_t *ds) {
+  if (!ds || !ds->db) {
+    if (ds) {
+      ds->schema = NULL;
+      ds->api = NULL;
+    }
+    return;
+  }
+  ds->schema = (const db_schema_def_t *)send_db_message(ds->db, dbGetSchema, 0, NULL);
+  ds->api = (const db_api_def_t *)send_db_message(ds->db, dbGetApi, 0, NULL);
+}
+
+static int db_project_database_count(const db_datasource_ctx_t *ds) {
+  return (ds && ds->app) ? ds->app->project.database_count : 0;
+}
+
+static const form_project_database_t *db_project_database(const db_datasource_ctx_t *ds) {
+  if (!ds || !ds->app || ds->selected_db_idx < 0 ||
+      ds->selected_db_idx >= ds->app->project.database_count)
+    return NULL;
+  return &ds->app->project.databases[ds->selected_db_idx];
+}
+
+static int db_schema_table_count(const db_datasource_ctx_t *ds) {
+  const form_project_database_t *pdb = db_project_database(ds);
+  if (pdb)
+    return pdb->table_count;
+  return (ds && ds->schema) ? ds->schema->table_count : 0;
+}
+
+static bool db_has_actions(const db_datasource_ctx_t *ds) {
+  return ds && ds->api && ds->api->action_count > 0;
+}
+
+static bool db_has_outlets(const db_datasource_ctx_t *ds) {
+  return ds && ds->api && ds->api->outlet_count > 0;
+}
+
+static int db_actions_parent_index(const db_datasource_ctx_t *ds) {
+  return db_has_actions(ds) ? db_schema_table_count(ds) : -1;
+}
+
+static int db_outlets_parent_index(const db_datasource_ctx_t *ds) {
+  int idx = db_schema_table_count(ds);
+  if (db_has_actions(ds)) idx++;
+  return db_has_outlets(ds) ? idx : -1;
+}
+
 // Column browser data source callbacks
 static int db_get_child_count(void *ctx, int column, int parent_idx) {
-  (void)ctx;
-  (void)parent_idx;
+  db_datasource_ctx_t *ds = (db_datasource_ctx_t *)ctx;
   
   if (column == 0) {
-    // Column 0: List of registered databases (for now, just 1)
-    return 1;  // Single "db" database
+    int project_count = db_project_database_count(ds);
+    return project_count > 0 ? project_count : ((ds && ds->db) ? 1 : 0);
   } else if (column == 1) {
-    return 0;
+    if (ds)
+      ds->selected_db_idx = parent_idx;
+    int count = db_schema_table_count(ds);
+    if (db_has_actions(ds)) count++;
+    if (db_has_outlets(ds)) count++;
+    return count;
   } else if (column == 2) {
+    if (!ds)
+      return 0;
+    const form_project_database_t *pdb = db_project_database(ds);
+    if (pdb && parent_idx >= 0 && parent_idx < pdb->table_count) {
+      const form_project_db_table_t *table = &pdb->tables[parent_idx];
+      return table->field_count + table->join_count;
+    }
+    if (ds->schema && parent_idx >= 0 && parent_idx < ds->schema->table_count) {
+      const db_table_schema_t *table = &ds->schema->tables[parent_idx];
+      return table->field_count + table->join_count;
+    }
+    if (parent_idx == db_actions_parent_index(ds))
+      return ds->api->action_count;
+    if (parent_idx == db_outlets_parent_index(ds))
+      return ds->api->outlet_count;
     return 0;
   }
   
@@ -44,12 +114,87 @@ static const char *db_get_child_title(void *ctx, int column, int parent_idx, int
   
   if (column == 0) {
     // Column 0: Database names
-    if (child_idx == 0 && ds->db)
+    if (ds && ds->app && child_idx >= 0 && child_idx < ds->app->project.database_count)
+      return ds->app->project.databases[child_idx].name;
+    if (child_idx == 0 && ds && ds->db)
       return ds->db->name;
     return "?";
   } else if (column == 1) {
+    if (ds)
+      ds->selected_db_idx = parent_idx;
+    const form_project_database_t *pdb = db_project_database(ds);
+    if (pdb && child_idx >= 0 && child_idx < pdb->table_count)
+      return pdb->tables[child_idx].name;
+    if (ds && ds->schema && child_idx >= 0 && child_idx < ds->schema->table_count)
+      return ds->schema->tables[child_idx].name;
+    if (child_idx == db_actions_parent_index(ds))
+      return "Actions";
+    if (child_idx == db_outlets_parent_index(ds))
+      return "Outlets";
     return "?";
   } else if (column == 2) {
+    static char title[160];
+    if (!ds)
+      return "?";
+    const form_project_database_t *pdb = db_project_database(ds);
+    if (pdb && parent_idx >= 0 && parent_idx < pdb->table_count) {
+      const form_project_db_table_t *table = &pdb->tables[parent_idx];
+      if (child_idx >= 0 && child_idx < table->field_count) {
+        const form_project_db_field_t *field = &table->fields[child_idx];
+        if (field->relation_table[0] && field->relation_field[0]) {
+          snprintf(title, sizeof(title), "%s -> %s.%s",
+                   field->name, field->relation_table, field->relation_field);
+          return title;
+        }
+        return field->name;
+      }
+      int join_idx = child_idx - table->field_count;
+      if (join_idx >= 0 && join_idx < table->join_count) {
+        const form_project_db_join_t *join = &table->joins[join_idx];
+        snprintf(title, sizeof(title), "%s.* via %s -> %s.%s",
+                 join->name, join->local_field,
+                 join->foreign_table, join->foreign_field);
+        return title;
+      }
+      return "?";
+    }
+    if (ds->schema && parent_idx >= 0 && parent_idx < ds->schema->table_count) {
+      const db_table_schema_t *table = &ds->schema->tables[parent_idx];
+      if (child_idx >= 0 && child_idx < table->field_count) {
+        const db_field_schema_t *field = &table->fields[child_idx];
+        if (field->relation_table && field->relation_field) {
+          snprintf(title, sizeof(title), "%s -> %s.%s",
+                   field->name, field->relation_table, field->relation_field);
+          return title;
+        }
+        return field->name;
+      }
+      int join_idx = child_idx - table->field_count;
+      if (join_idx >= 0 && join_idx < table->join_count) {
+        const db_join_schema_t *join = &table->joins[join_idx];
+        snprintf(title, sizeof(title), "%s.* via %s -> %s.%s",
+                 join->name, join->local_field,
+                 join->foreign_table, join->foreign_field);
+        return title;
+      }
+      return "?";
+    }
+    if (parent_idx == db_actions_parent_index(ds) && ds->api &&
+        child_idx >= 0 && child_idx < ds->api->action_count) {
+      const db_action_def_t *action = &ds->api->actions[child_idx];
+      snprintf(title, sizeof(title), "%s -> %s",
+               action->name ? action->name : "?",
+               action->target ? action->target : "");
+      return title;
+    }
+    if (parent_idx == db_outlets_parent_index(ds) && ds->api &&
+        child_idx >= 0 && child_idx < ds->api->outlet_count) {
+      const db_outlet_def_t *outlet = &ds->api->outlets[child_idx];
+      snprintf(title, sizeof(title), "%s -> %s",
+               outlet->name ? outlet->name : "?",
+               outlet->target ? outlet->target : "");
+      return title;
+    }
     return "?";
   }
   
@@ -73,10 +218,9 @@ static void db_browser_refresh(window_t *win) {
   
   // Refresh the database reference (in case it changed)
   if (g_app) {
-    // For now, hardcode to socialfeed's database
-    // TODO: Make this dynamic based on loaded plugins
-    g_db_ctx.db = get_database_by_name("db");
+    g_db_ctx.db = ui_get_database();
     g_db_ctx.app = g_app;
+    db_ctx_refresh_schema(&g_db_ctx);
   }
   
   // Refresh browser
@@ -127,9 +271,11 @@ static result_t db_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, vo
       }
       
       // Setup data source
-      g_db_ctx.db = get_database_by_name("db");  // Hardcoded for now
+      g_db_ctx.db = ui_get_database();
       g_db_ctx.app = g_app;
       g_db_ctx.selected_table_id = -1;
+      g_db_ctx.selected_db_idx = -1;
+      db_ctx_refresh_schema(&g_db_ctx);
       
       column_browser_datasource_t datasource = {
         .get_child_count = db_get_child_count,
@@ -195,4 +341,9 @@ window_t *create_database_browser(const irect16_t *frame, window_t *parent) {
     WINDOW_NOTRAYBUTTON,
     frame,
     parent, db_browser_proc, 0, NULL);
+}
+
+void databases_browser_refresh(void) {
+  if (g_app && g_app->databases_win && is_window(g_app->databases_win))
+    db_browser_refresh(g_app->databases_win);
 }

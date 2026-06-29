@@ -31,7 +31,7 @@ static void bl_apply_preview(bl_state_t *st) {
   p.f[0] = 1.0f / (float)MAX(1, st->doc->canvas_w);
   p.f[1] = 0.0f;
   p.f[2] = (float)st->amount;
-  layer_set_preview_effect(st->doc, st->layer_idx, UI_RENDER_EFFECT_BLUR, &p);
+  layer_set_preview_effect(st->doc, st->layer_idx, IE_RENDER_EFFECT_BLUR, &p);
 }
 
 static void bl_sync_preview(bl_state_t *st) {

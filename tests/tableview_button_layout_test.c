@@ -20,22 +20,22 @@ void test_tableview_button_layout(void) {
     
     // Define action button children (horizontal stack)
     static const form_ctrl_def_t action_buttons[] = {
-        {.class_name = "button", .id = 1, .size = {60, 19}, .flags = 0, .text = "Button 1"},
-        {.class_name = "button", .id = 2, .size = {60, 19}, .flags = 0, .text = "Button 2"},
-        {.class_name = "space",  .id = 3, .size = {0, 0},   .flags = WINDOW_FLEXSPACE},
+        {.class_name = "Button", .id = 1, .size = {60, 19}, .flags = 0, .text = "Button 1"},
+        {.class_name = "Button", .id = 2, .size = {60, 19}, .flags = 0, .text = "Button 2"},
+        {.class_name = "Space",  .id = 3, .size = {0, 0},   .flags = WINDOW_FLEXSPACE},
     };
     
     // Define main form structure (vertical stack)
     static const form_ctrl_def_t main_children[] = {
         // Tableview with WINDOW_FLEXSPACE - should expand
-        {.class_name = "reportview", .id = 100, .size = {0, 0},
+        {.class_name = "ReportView", .id = 100, .size = {0, 0},
          .flags = WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL | WINDOW_FLEXSPACE},
         
         // Separator
-        {.class_name = "separator", .id = 101, .size = {0, 1}, .flags = 0},
+        {.class_name = "Separator", .id = 101, .size = {0, 1}, .flags = 0},
         
         // Actions stack (horizontal) - no WINDOW_FLEXSPACE, should stay fixed
-        {.class_name = "stack", .id = 102, .size = {0, 0},
+        {.class_name = "StackView", .id = 102, .size = {0, 0},
          .flags = WINDOW_STACK_HORIZONTAL, .layout_spacing = 4,
          .children = action_buttons, .child_count = 3},
     };

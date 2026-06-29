@@ -385,8 +385,8 @@ static bool selection_modify_mask_gpu(canvas_doc_t *doc, int amount, bool expand
   if (!src_tex) return false;
 
   uint32_t blur_tex = 0;
-  if (!bake_texture_blur((int)src_tex, doc->canvas_w, doc->canvas_h,
-                         amount, &blur_tex)) {
+  if (!imageeditor_bake_texture_blur((int)src_tex, doc->canvas_w, doc->canvas_h,
+                                     amount, &blur_tex)) {
     R_DeleteTexture(src_tex);
     return false;
   }
@@ -396,8 +396,8 @@ static bool selection_modify_mask_gpu(canvas_doc_t *doc, int amount, bool expand
   p.f[0] = expand ? 0.02f : 0.98f;
   p.f[1] = 0.08f;
   uint32_t thresh_tex = 0;
-  if (!bake_texture_effect((int)blur_tex, doc->canvas_w, doc->canvas_h,
-                           UI_RENDER_EFFECT_ALPHA_THRESHOLD, &p, &thresh_tex)) {
+  if (!imageeditor_bake_texture_effect((int)blur_tex, doc->canvas_w, doc->canvas_h,
+                                       IE_RENDER_EFFECT_ALPHA_THRESHOLD, &p, &thresh_tex)) {
     R_DeleteTexture(blur_tex);
     return false;
   }

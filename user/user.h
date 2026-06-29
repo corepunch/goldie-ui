@@ -97,10 +97,20 @@ typedef struct bitmap_strip_s {
 } bitmap_strip_t;
 
 typedef struct toolbar_state_s {
-  window_t *children;      // toolbar child windows (toolbar-band-relative frames)
-  bitmap_strip_t strip;    // optional custom strip set via tbSetStrip/tbLoadStrip
-  uint32_t strip_tex;      // GL texture owned by toolbar host (freed on destroy)
-  int btn_size;            // 0 = TB_SPACING default; >0 = custom square size in px
+  // Owner-draw item list — buttons/separators/spacers/labels/dropdowns drawn inline.
+  toolbar_item_t *items;          // owned copy of the item descriptors (malloc'd)
+  int             item_count;     // number of items in items[]
+  irect16_t      *item_rects;     // computed band-relative rect per item (malloc'd)
+  int             hot_item;       // index of hovered item; -1 = none
+  int             pressed_item;   // index of currently pressed item; -1 = none
+  bool            pressed_in_arrow; // true when the press was in the dropdown arrow zone
+  // Embedded control child windows (COMBOBOX / TEXTEDIT items only).
+  // These are real window_t children with toolbar-band-relative frames.
+  window_t       *children;
+  // Strip for icon rendering (set via tbSetStrip / tbLoadStrip)
+  bitmap_strip_t  strip;
+  uint32_t        strip_tex;    // GL texture owned here; freed on toolbar destroy
+  int             btn_size;     // 0 = TB_SPACING default; >0 = custom square size in px
 } toolbar_state_t;
 
 // Window definition structure (for declarative window creation)
@@ -298,12 +308,20 @@ typedef struct {
 } db_action_def_t;
 
 typedef struct {
+  const char *name;   // outlet identifier
+  const char *type;   // expected object/control type, if known
+  const char *target; // connected view/control name, if known
+} db_outlet_def_t;
+
+typedef struct {
   const db_source_def_t  *sources;
   int                     source_count;
   const db_view_binding_t *bindings;
   int                     binding_count;
   const db_action_def_t  *actions;
   int                     action_count;
+  const db_outlet_def_t  *outlets;
+  int                     outlet_count;
 } db_api_def_t;
 
 typedef result_t (*db_object_proc_t)(const void *object, uint32_t msg,
@@ -327,6 +345,7 @@ const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *
 const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
 const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
 const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
+const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, const char *name);
 bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
                               db_object_proc_t proc, const void *object,
                               const char *field, char *buf, size_t buf_sz);
@@ -373,6 +392,8 @@ typedef int                        (*fe_plugin_class_count_fn)(void);
 typedef const fe_component_desc_t *(*fe_plugin_class_desc_fn)(int i);
 typedef const char                *(*fe_plugin_description_fn)(void);
 typedef uint32_t                   (*fe_plugin_version_fn)(void);
+typedef bool                       (*fe_plugin_init_fn)(void);
+typedef void                       (*fe_plugin_shutdown_fn)(void);
 
 #define FE_PLUGIN_VERSION 1u
 
@@ -401,7 +422,6 @@ typedef uint32_t                   (*fe_plugin_version_fn)(void);
     return (uint32_t)(VERSION); \
   }
 
-bool fe_register_component(const fe_component_desc_t *desc);
 int fe_component_count(void);
 const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
@@ -430,6 +450,7 @@ typedef struct {
 struct window_s {
   irect16_t frame;
   uint32_t id;
+  uint64_t editor_id;    // optional design-time stable identity; 0 outside editors
   // Runtime style/state flags share one 32-bit word.
   // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;
@@ -487,6 +508,9 @@ window_t *create_window_proc(char const *title, flags_t flags, const irect16_t* 
 
 // Window class registry.
 bool register_window_class(const fe_component_desc_t *desc);
+int get_num_window_classes(void);
+const fe_component_desc_t *get_window_class_at_index(int index);
+const fe_component_desc_t *find_window_class_desc_by_proc(winproc_t proc);
 winproc_t find_window_class_proc(const char *class_name);
 const fe_component_desc_t *find_window_class_desc(const char *class_name);
 void register_builtin_window_classes(void);

@@ -9,28 +9,11 @@
 #include "user.h"
 #include "messages.h"
 #include "draw.h"
-#include "image.h"
-#include "icons.h"
-
-// Forward declarations for toolbar child creation.
-// These procs live in commctl but are referenced from user/ via extern linkage.
-extern result_t win_toolbar_button(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_space(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_label(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_combobox(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_textedit(window_t *, uint32_t, uint32_t, void *);
-extern result_t win_button(window_t *, uint32_t, uint32_t, void *);
-extern bitmap_strip_t *ui_get_sysicon_strip(void);
+#include "scrollbar.h"
+#include "toolbar.h"
 
 #define CONTAINS(x, y, x1, y1, w1, h1) \
 ((x1) <= (x) && (y1) <= (y) && (x1) + (w1) > (x) && (y1) + (h1) > (y))
-
-#define SPRITE_REGION(scol, srow, strip) \
-  (float)((scol) * (strip)->icon_w) / (float)(strip)->sheet_w, \
-  (float)((srow) * (strip)->icon_h) / (float)(strip)->sheet_h, \
-  (float)((scol) * (strip)->icon_w + (strip)->icon_w) / (float)(strip)->sheet_w, \
-  (float)((srow) * (strip)->icon_h + (strip)->icon_h) / (float)(strip)->sheet_h
-
 
 // Message queue structure for Orion-posted messages only.
 typedef struct {
@@ -52,251 +35,12 @@ static void free_posted_lparam(uint32_t msg, void *lparam) {
   if (msg == evHttpProgress)
     free(lparam);
 }
-
-
-
-// Separator pseudo-proc: draws a 1-pixel vertical divider line.
-static result_t win_toolbar_sep(window_t *win, uint32_t msg,
-                                 uint32_t wparam, void *lparam) {
-  (void)wparam; (void)lparam;
-  if (msg == evCreate || msg == evDestroy) return 1;
-  if (msg == evPaint) {
-    fill_rect(get_sys_color(brDarkEdge), R(win->frame.x + win->frame.w / 2, win->frame.y + 2, 1, win->frame.h - 4));
-    return 1;
-  }
-  return 0;
-}
-
-static result_t win_toolbar(window_t *win, uint32_t msg,
-                            uint32_t wparam, void *lparam) {
-  (void)wparam;
-  switch (msg) {
-    case evCreate:
-      if (!win->userdata) {
-        allocate_window_data(win, sizeof(toolbar_state_t));
-      }
-      return true;
-    case evDestroy: {
-      toolbar_state_t *tb = (toolbar_state_t *)win->userdata;
-      if (tb && tb->strip_tex) {
-        R_DeleteTexture(tb->strip_tex);
-        tb->strip_tex = 0;
-      }
-      return true;
-    }
-    default:
-      (void)lparam;
-      return false;
-  }
-}
-
-// Destroy all toolbar children of win.
-// Must be called before window teardown so each child's evDestroy can run.
-void clear_toolbar_children(window_t *win);  // defined in window.c
-
-static toolbar_state_t *ensure_toolbar_state(window_t *win) {
-  if (!win || !(win->flags & WINDOW_TOOLBAR)) return NULL;
-  if (!win->toolbar) {
-    irect16_t r = {0, 0, 0, 0};
-    win->toolbar = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL |
-                                      WINDOW_NOTABSTOP | WINDOW_HIDDEN,
-                                 &r, win, win_toolbar, win->hinstance, NULL);
-    if (!win->toolbar) return NULL;
-    
-    // Remove toolbar host from parent->children so layout doesn't see it.
-    // The toolbar host is accessed via win->toolbar, not through the children list.
-    // This matches the behavior of toolbar button children created by create_toolbar_child.
-    {
-      window_t *prev = NULL;
-      window_t *c = win->children;
-      while (c && c != win->toolbar) {
-        prev = c;
-        c = c->next;
-      }
-      if (c == win->toolbar) {
-        if (prev) {
-          prev->next = win->toolbar->next;
-        } else {
-          win->children = win->toolbar->next;
-        }
-        win->toolbar->next = NULL;
-      }
-    }
-  }
-  return window_toolbar_state(win);
-}
-
-static toolbar_state_t *get_toolbar_state(window_t *win) {
-  return window_toolbar_state(win);
-}
-
 static int sidebar_effective_width(window_t const *win) {
   if (!win || !win->sidebar) return 0;
   int w = win->sidebar->layout.layout_fixed_w;
   if (w <= 0) w = win->sidebar->frame.w;
   if (w <= 0) w = SIDEBAR_DEFAULT_WIDTH;
   return w;
-}
-
-// Returns the effective toolbar button size for win.
-static int toolbar_effective_bsz(window_t const *win) {
-  toolbar_state_t *tb = window_toolbar_state((window_t *)win);
-  return (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
-}
-
-// Create one toolbar child window at the given toolbar-band-relative position,
-// then remove it from parent->children (where create_window puts it) so the
-// caller can add it to toolbar state children.
-// Frames are relative to the toolbar band top-left (not screen-absolute).
-// For BUTTON items: sets btnSetImage if a sysicon or custom strip.
-static window_t *create_toolbar_child(window_t *parent, winproc_t proc,
-                                       uint32_t id, flags_t extra_flags,
-                                       const char *title,
-                                       int rel_x, int rel_y, int w, int h,
-                                       int icon) {
-  irect16_t r = {rel_x, rel_y, w, h};
-  // Toolbar children use toolbar-band-relative frames and WINDOW_NOTITLE | WINDOW_NOFILL
-  // so the framework neither draws a title bar nor fills their background.
-  window_t *tc = create_window(title ? title : "",
-                                WINDOW_NOTITLE | WINDOW_NOFILL | extra_flags,
-                                &r, parent, proc, parent->hinstance, NULL);
-  if (!tc) return NULL;
-  tc->id = id;
-  // create_window() appended tc to parent->children; remove it from there so
-  // that the default evPaint handler (which walks children) does
-  // not double-paint toolbar items, and so that clear_window_children does not
-  // double-free them (clear_toolbar_children handles that instead).
-  // Search for tc and splice it out without assuming it is at the tail;
-  // re-entrant create paths may have appended additional siblings after tc.
-  {
-    window_t *prev = NULL;
-    window_t *c = parent->children;
-    while (c && c != tc) {
-      prev = c;
-      c = c->next;
-    }
-    if (c == tc) {
-      if (prev) {
-        prev->next = tc->next;
-      } else {
-        parent->children = tc->next;
-      }
-    }
-  }
-  tc->next = NULL;
-  // Enforce the requested frame dimensions.  Some procs (win_button, win_label)
-  // expand frame.w/h during evCreate to fit their text content.
-  // Clamping here keeps sequential toolbar layout stable regardless of text length
-  // and ensures that an explicitly-provided width (item->w) is always honoured.
-  tc->frame.x = rel_x;
-  tc->frame.y = rel_y;
-  tc->frame.w = w;
-  tc->frame.h = h;
-  // Wire up icon image for button children.
-  if (proc == win_toolbar_button && icon >= 0) {
-    toolbar_state_t *tb = get_toolbar_state(parent);
-    if (icon >= SYSICON_BASE) {
-      bitmap_strip_t *sys = ui_get_sysicon_strip();
-      if (sys) {
-        send_message(tc, btnSetImage,
-                     (uint32_t)(icon - SYSICON_BASE), sys);
-      }
-    } else if (tb && tb->strip.tex != 0) {
-      send_message(tc, btnSetImage,
-                   (uint32_t)icon, &tb->strip);
-    }
-  }
-  return tc;
-}
-
-// Lay out toolbar_item_t[] items and create child windows.
-static void layout_toolbar_items(window_t *parent,
-                                  const toolbar_item_t *items,
-                                  uint32_t n) {
-  toolbar_state_t *tb = ensure_toolbar_state(parent);
-  if (!tb) return;
-  int bsz     = toolbar_effective_bsz(parent);
-  int base_x  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
-  int base_y  = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
-  int field_y = base_y + 2;
-  int field_h = bsz > 4 ? (bsz - 4) : bsz;
-  window_t **tail = &tb->children;
-  while (*tail) tail = &(*tail)->next;
-  for (uint32_t i = 0; i < n; i++) {
-    const toolbar_item_t *item = &items[i];
-    switch (item->type) {
-      case TOOLBAR_ITEM_SPACER:
-        {
-          int w = item->w > 0 ? item->w : TOOLBAR_SPACING_GAP_WIDTH;
-          window_t *tc = create_toolbar_child(parent, win_space,
-                                               (uint32_t)item->ident, 0,
-                                               NULL,
-                                               0, base_y,
-                                               w, bsz, -1);
-          if (!tc) break;
-          *tail = tc; tail = &tc->next;
-        }
-        break;
-      case TOOLBAR_ITEM_SEPARATOR: {
-        int sw = item->w > 0 ? item->w : 6;
-        window_t *tc = create_toolbar_child(parent, win_toolbar_sep,
-                                             (uint32_t)item->ident, 0, NULL,
-                                             0, base_y, sw, bsz, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_BUTTON: {
-        int w = item->w > 0 ? item->w : bsz;
-        int icon = item->icon >= 0 ? item->icon : sysicon_missing;
-        flags_t extra = item->flags & ~(TOOLBAR_BUTTON_FLAG_ACTIVE | TOOLBAR_BUTTON_FLAG_PRESSED);
-        window_t *tc = create_toolbar_child(parent, win_toolbar_button,
-                                             (uint32_t)item->ident,
-                                             extra,
-                                             item->text,
-                                             0, base_y,
-                                             w, bsz, icon);
-        if (!tc) break;
-        if (item->flags & TOOLBAR_BUTTON_FLAG_ACTIVE) tc->value = true;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_LABEL: {
-        int w = item->w > 0 ? item->w : (strwidth(item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
-        window_t *tc = create_toolbar_child(parent, win_label,
-                                             (uint32_t)item->ident, 0,
-                                             item->text,
-                                             0, base_y,
-                                             w, bsz, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_COMBOBOX: {
-        int w = item->w > 0 ? item->w : (bsz * TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT);
-        window_t *tc = create_toolbar_child(parent, win_combobox,
-                                             (uint32_t)item->ident, 0,
-                                             item->text,
-                                             0, field_y,
-                                             w, field_h, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-      case TOOLBAR_ITEM_TEXTEDIT: {
-        int w = item->w > 0 ? item->w : (bsz * 8);
-        window_t *tc = create_toolbar_child(parent, win_textedit,
-                                             (uint32_t)item->ident, 0,
-                                             item->text,
-                                             0, field_y,
-                                             w, field_h, -1);
-        if (!tc) break;
-        *tail = tc; tail = &tc->next;
-        break;
-      }
-    }
-  }
-  layout_flow_horizontal(tb->children, base_x, TOOLBAR_SPACING);
 }
 
 // Window hooks
@@ -330,6 +74,26 @@ extern void paint_window_stencil(window_t const *w);
 extern void repaint_stencil(void);
 extern void set_fullscreen(void);
 extern window_t *get_root_window(window_t *window);
+
+// Forward declarations for kernel/event.c helpers.
+// wake_event_loop() posts a sentinel to make get_message() return 0 (loop exit).
+extern void wake_event_loop(void);
+// dispatch_message() routes a platform or Orion event to its target window proc.
+void dispatch_message(ui_event_t *evt);
+// Forward declarations for kernel/init.c per-frame rendering.
+extern void ui_begin_frame(void);
+extern void ui_end_frame(void);
+
+// Forward declarations
+extern void draw_panel(window_t const *win);
+extern void draw_window_controls(window_t *win);
+extern void draw_statusbar(window_t *win, const char *text);
+extern void draw_bevel(irect16_t r);
+extern void draw_button(irect16_t r, int dx, int dy, bool pressed);
+extern void paint_window_stencil(window_t const *w);
+extern void repaint_stencil(void);
+extern void set_fullscreen(void);
+extern window_t *get_root_window(window_t *window);
 extern int titlebar_height(window_t const *win);
 extern int statusbar_height(window_t const *win);
 // Returns win's frame rect in absolute screen coordinates.
@@ -339,10 +103,14 @@ extern int statusbar_height(window_t const *win);
 // root_titlebar_h should be titlebar_height(root) — callers that already have
 // it pass it in to avoid recomputing.
 static irect16_t win_frame_in_screen(window_t *win, window_t *root, int root_titlebar_h) {
-  if (win == root) return win->frame;
-  return (irect16_t){root->frame.x + win->frame.x,
-                  root->frame.y + root_titlebar_h + win->frame.y,
-                  win->frame.w, win->frame.h};
+  (void)root;
+  (void)root_titlebar_h;
+  return (irect16_t){
+    window_screen_x(win),
+    window_screen_y(win),
+    win->frame.w,
+    win->frame.h
+  };
 }
 
 // Register a window hook
@@ -412,198 +180,6 @@ void remove_from_global_queue(window_t *win) {
   }
 }
 
-// ---- Built-in scrollbar mouse handling --------------------------------------
-//
-// All mouse events are delivered in the receiving window's own client
-// coordinate system (see kernel/event.c), which includes win->scroll[] offset.
-// The coordinate helpers below keep the click/drag math consistent across
-// both scrollbar orientations and avoid duplicating LOWORD/HIWORD handling.
-static int sb_mouse_axis_coord(uint32_t wparam, bool vertical) {
-  return vertical ? (int16_t)HIWORD(wparam) : (int16_t)LOWORD(wparam);
-}
-
-static int sb_mouse_axis_delta(void *lparam, bool vertical) {
-  uint32_t delta = (uint32_t)(uintptr_t)lparam;
-  return vertical ? (int16_t)HIWORD(delta) : (int16_t)LOWORD(delta);
-}
-
-static int builtin_sb_thumb_len_msg(win_sb_t const *sb, int track) {
-  int range = sb->max_val - sb->min_val;
-  if (range <= 0 || sb->page >= range) return track;
-  int tl = track * sb->page / range;
-  return tl < 8 ? 8 : tl;
-}
-
-static int builtin_sb_thumb_off_msg(win_sb_t const *sb, int track, int tl) {
-  int travel = sb->max_val - sb->min_val - sb->page;
-  if (travel <= 0) return 0;
-  int tt = track - tl;
-  if (tt <= 0) return 0;
-  return (sb->pos - sb->min_val) * tt / travel;
-}
-
-static int sb_clamp_msg(win_sb_t const *sb, int pos) {
-  int max_pos = sb->max_val - sb->page;
-  if (max_pos < sb->min_val) max_pos = sb->min_val;
-  if (pos < sb->min_val) return sb->min_val;
-  if (pos > max_pos)     return max_pos;
-  return pos;
-}
-
-// Clamp new_pos, and if it differs from sb->pos apply it, fire scroll_msg, and invalidate.
-// Returns true if the position actually changed.
-static bool sb_try_scroll(window_t *win, win_sb_t *sb, uint32_t scroll_msg, int new_pos) {
-  new_pos = sb_clamp_msg(sb, new_pos);
-  if (new_pos == sb->pos) return false;
-  sb->pos = new_pos;
-  send_message(win, scroll_msg, (uint32_t)new_pos, NULL);
-  invalidate_window(win);
-  return true;
-}
-
-// Update the scroll position while a thumb drag is in progress.
-// The drag state accumulates raw mouse deltas, so scroll changes triggered by
-// the scrollbar itself cannot feed back into the next move event.
-static void sb_handle_drag_move(window_t *win, win_sb_t *sb, uint32_t scroll_msg,
-                                 int mouse_delta, int track) {
-  sb->drag_mouse += mouse_delta;
-  int eff_track = track - 2 * SCROLLBAR_WIDTH;
-  int track_len  = (eff_track > 0 ? eff_track : track);
-  int pos_eff    = sb->drag_mouse;
-  int tl         = builtin_sb_thumb_len_msg(sb, track_len);
-  int tp         = track_len - tl;
-  int tr        = sb->max_val - sb->min_val - sb->page;
-  if (tp > 0 && tr > 0) {
-    sb_try_scroll(win, sb, scroll_msg,
-                  sb->drag_start_pos + (pos_eff - sb->drag_start_mouse) * tr / tp);
-  }
-}
-
-// Dispatch a mouse-down click at position pos within a scrollbar track of total length track.
-// Fires SB_ARROW_STEP scrolls for arrow-button hits, starts a thumb drag, or scrolls by page.
-static void sb_handle_track_click(window_t *win, win_sb_t *sb, uint32_t scroll_msg,
-                                   int pos, int track) {
-  if (track >= 2 * SCROLLBAR_WIDTH) {
-    if (pos < SCROLLBAR_WIDTH) {
-      sb_try_scroll(win, sb, scroll_msg, sb->pos - SB_ARROW_STEP);
-      return;
-    }
-    if (pos >= track - SCROLLBAR_WIDTH) {
-      sb_try_scroll(win, sb, scroll_msg, sb->pos + SB_ARROW_STEP);
-      return;
-    }
-    int eff_track = track - 2 * SCROLLBAR_WIDTH;
-    int pos_eff   = pos - SCROLLBAR_WIDTH;
-    if (eff_track > 0) {
-      int tl = builtin_sb_thumb_len_msg(sb, eff_track);
-      int to = builtin_sb_thumb_off_msg(sb, eff_track, tl);
-      if (pos_eff >= to && pos_eff < to + tl) {
-        sb->dragging         = true;
-        sb->drag_start_mouse = pos_eff;
-        sb->drag_mouse       = pos_eff;
-        sb->drag_start_pos   = sb->pos;
-        set_capture(win);
-      } else {
-        sb_try_scroll(win, sb, scroll_msg,
-                      sb->pos + (pos_eff < to ? -sb->page : sb->page));
-      }
-    }
-  } else {
-    // Narrow track — no room for arrow buttons; plain thumb behaviour
-    int tl = builtin_sb_thumb_len_msg(sb, track);
-    int to = builtin_sb_thumb_off_msg(sb, track, tl);
-    if (pos >= to && pos < to + tl) {
-      sb->dragging         = true;
-      sb->drag_start_mouse = pos;
-      sb->drag_mouse       = pos;
-      sb->drag_start_pos   = sb->pos;
-      set_capture(win);
-    } else {
-      sb_try_scroll(win, sb, scroll_msg,
-                    sb->pos + (pos < to ? -sb->page : sb->page));
-    }
-  }
-}
-
-// Handle mouse events for a window's built-in scrollbars.
-// Returns true if the event was consumed by a scrollbar.
-static bool handle_builtin_scrollbars(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  bool has_h = (win->flags & WINDOW_HSCROLL) && win->hscroll.visible;
-  bool has_v = (win->flags & WINDOW_VSCROLL) && win->vscroll.visible;
-
-  // Non-client heights: mouse coords are delivered in CLIENT space
-  // (y=0 = client top, which excludes the title bar and toolbar rows).
-  // For child windows these are typically 0 (WINDOW_NOTITLE).
-  int t = titlebar_height(win);
-  int s = statusbar_height(win);
-  // Content height = client area + scrollbar strips (but NOT titlebar/statusbar).
-  int content_h = win->frame.h - t - s;
-
-  // When WINDOW_STATUSBAR and WINDOW_HSCROLL are both set, the horizontal bar
-  // is merged into the status-bar row.  In that case its geometry is:
-  //   y range : [content_h, content_h + STATUSBAR_HEIGHT)
-  //   x range : [frame.w*20/100, frame.w)        (right 80 %)
-  //   track   : (frame.w - h_x_min) - vscroll_width
-  bool h_merged = has_h && (win->flags & WINDOW_STATUSBAR);
-  int h_x_min   = h_merged ? SB_STATUS_SPLIT_X(win->frame.w) : 0;
-  int h_y_min   = h_merged ? content_h : content_h - SCROLLBAR_WIDTH;
-  int h_y_max   = h_merged ? content_h + STATUSBAR_HEIGHT : content_h;
-  // In merged mode the resize corner is always at the far right (SCROLLBAR_WIDTH wide),
-  // so always exclude it from the hscroll track.  In non-merged mode only exclude when vscroll is present.
-  int h_track   = (win->frame.w - h_x_min) - (h_merged ? SCROLLBAR_WIDTH : (has_v ? SCROLLBAR_WIDTH : 0));
-
-  // When merged, the vscroll is not shortened by the hscroll row (which lives
-  // in the status bar, outside the content area).
-  int v_track = content_h - (has_h && !h_merged ? SCROLLBAR_WIDTH : 0);
-
-  if (msg == evMouseMove || msg == evLeftButtonUp) {
-    if (win->hscroll.dragging) {
-      int mouse_delta = sb_mouse_axis_delta(lparam, false);
-      if (msg == evMouseMove)
-        sb_handle_drag_move(win, &win->hscroll, evHScroll,
-                            mouse_delta, h_track);
-      else { win->hscroll.dragging = false; set_capture(NULL); }
-      return true;
-    }
-    if (win->vscroll.dragging) {
-      int mouse_delta = sb_mouse_axis_delta(lparam, true);
-      if (msg == evMouseMove)
-        sb_handle_drag_move(win, &win->vscroll, evVScroll, mouse_delta, v_track);
-      else { win->vscroll.dragging = false; set_capture(NULL); }
-      return true;
-    }
-    return false;
-  }
-
-  if (msg != evLeftButtonDown &&
-      msg != evLeftButtonDoubleClick) return false;
-  if (!has_h && !has_v) return false;
-
-  int cx = sb_mouse_axis_coord(wparam, false);
-  int cy = sb_mouse_axis_coord(wparam, true);
-
-  // Horizontal scrollbar hit — always consume geometry even when disabled
-  if (has_h && cy >= h_y_min && cy < h_y_max &&
-      cx >= h_x_min && cx < win->frame.w) {
-    if (!win->hscroll.enabled) return true; // consume click but do nothing
-    int lx = cx - h_x_min;  // position within the hscroll strip
-    if (lx >= h_track) return true; // corner square
-    sb_handle_track_click(win, &win->hscroll, evHScroll, lx, h_track);
-    return true;
-  }
-
-  // Vertical scrollbar hit — always consume geometry even when disabled
-  if (has_v && cx >= win->frame.w - SCROLLBAR_WIDTH && cx < win->frame.w &&
-      cy >= 0 && cy < content_h) {
-    if (!win->vscroll.enabled) return true; // consume click but do nothing
-    if (cy >= v_track) return true; // corner square
-    sb_handle_track_click(win, &win->vscroll, evVScroll, cy, v_track);
-    return true;
-  }
-
-  return false;
-}
-
 static bool parent_notify_message(uint32_t msg) {
   switch (msg) {
     case evLeftButtonDown:
@@ -650,27 +226,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
                           get_sys_color(window_has_focus(win) ? brActiveTitlebarText : brInactiveTitlebarText),
                           TEXT_PADDING_LEFT);
         }
-        if (win->flags&WINDOW_TOOLBAR) {
-          toolbar_state_t *tb = ensure_toolbar_state(win);
-          int bsz      = toolbar_effective_bsz(win);
-          int title_h  = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
-          int total_h  = bsz + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
-          irect16_t tb_rect = {win->frame.x, win->frame.y + title_h, win->frame.w, total_h};
-          irect16_t rect    = rect_inset(tb_rect, TOOLBAR_BEVEL_WIDTH);
-          draw_bevel(rect);
-          fill_rect(get_sys_color(brWindowBg), rect);
-          // Paint each toolbar child with a per-button projection so that
-          // drawing at (0,0) inside the child proc maps to the button's
-          // top-left corner (consistent with how send_message dispatches evPaint
-          // for regular child windows).  tc->frame.x/y are toolbar-band-relative.
-          set_viewport(tb_rect);
-          for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
-            set_projection(-tc->frame.x, -tc->frame.y,
-                           win->frame.w - tc->frame.x, total_h - tc->frame.y);
-            tc->proc(tc, evPaint, 0, NULL);
-          }
-          set_fullscreen();
-        }
+        toolbar_draw_non_client(win);
         if (win->flags&WINDOW_STATUSBAR) {
           draw_statusbar(win, win->statusbar_text);
         }
@@ -701,8 +257,12 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // windows, cx/cy equal the child's frame.x/y so that drawing at (0,0)
         // appears at the child's screen position rather than at the root's
         // client origin.
-        int cx = win->parent ? win->frame.x : 0;
-        int cy = win->parent ? win->frame.y : 0;
+        int cx = 0;
+        int cy = 0;
+        if (win->parent) {
+          cx = window_screen_x(win) - window_screen_x(root);
+          cy = window_screen_y(win) - (window_screen_y(root) + t);
+        }
         set_projection(root->hscroll.pos - cx,
                        -t - cy + root->vscroll.pos,
                        root->frame.w + root->hscroll.pos - cx,
@@ -719,15 +279,6 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
           set_clip_rect(NULL, (irect16_t){wf.x, wf.y + t_win, cr.w, cr.h});
         }
       }
-      break;
-    case tbSetItems:
-      // Replace existing toolbar children with new mixed-type item children.
-      ensure_toolbar_state(win);
-      clear_toolbar_children(win);
-      if (wparam > 0 && lparam) {
-        layout_toolbar_items(win, (const toolbar_item_t *)lparam, wparam);
-      }
-      invalidate_window(win);
       break;
     case sbSetContent: {
       // Create (or replace) the sidebar child window for a WINDOW_SIDEBAR window.
@@ -747,82 +298,13 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       invalidate_window(win);
       break;
     }
+    case tbSetItems:
     case tbSetStrip:
-      {
-      toolbar_state_t *tb = ensure_toolbar_state(win);
-      if (!tb) break;
-      if (lparam) {
-        memcpy(&tb->strip, lparam, sizeof(bitmap_strip_t));
-      } else {
-        memset(&tb->strip, 0, sizeof(bitmap_strip_t));
-      }
-      invalidate_window(win);
+    case tbSetActiveButton:
+    case tbSetButtonSize:
+    case tbLoadStrip:
+      (void)toolbar_handle_message(win, msg, wparam, lparam);
       break;
-      }
-    case tbSetActiveButton: {
-      // Mark the toolbar child whose id == wparam as active (value=true);
-      // clear all others.
-      toolbar_state_t *tb = get_toolbar_state(win);
-      uint32_t ident = wparam;
-      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
-        bool active = (tc->id == ident);
-        if (tc->value != active) {
-          tc->value = active;
-        }
-      }
-      invalidate_window(win);
-      break;
-    }
-    case tbSetButtonSize: {
-      toolbar_state_t *tb = ensure_toolbar_state(win);
-      if (!tb) break;
-      int old_btn_size = tb->btn_size;
-      // Accept 0 (reset to default TB_SPACING) or a positive value >= 8.
-      // Values in [1,7] are rejected: bsz is used as a divisor in toolbar
-      // column-count calculations (win->frame.w / bsz) and very small sizes
-      // would also produce broken layout (sub-pixel buttons, huge row counts).
-      int new_btn_size = (int)wparam;
-      if (new_btn_size != 0 && new_btn_size < 8) new_btn_size = 8;
-      if (old_btn_size != new_btn_size) {
-        tb->btn_size = new_btn_size;
-        post_message(win, evRefreshStencil, 0, NULL);
-        invalidate_window(get_root_window(win));
-      }
-      break;
-    }
-    case tbLoadStrip: {
-      // wparam = icon tile size (square, pixels); lparam = const char* path
-      // Loads a PNG (with native RGBA transparency) and stores it as a GL
-      // texture in toolbar state strip. The toolbar host owns the texture;
-      // freed on toolbar destroy. Requires graphics to be initialized.
-      const char *path = (const char *)lparam;
-      int tile_sz = (int)wparam;
-      if (!path || tile_sz <= 0 || !g_ui_runtime.running) break;
-      toolbar_state_t *tb = ensure_toolbar_state(win);
-      if (!tb) break;
-      int w = 0, h = 0;
-      uint8_t *src = load_image(path, &w, &h);
-      if (!src) break;
-      if (w < tile_sz || h < tile_sz ||
-          (w % tile_sz) != 0 || (h % tile_sz) != 0) {
-        image_free(src);
-        break;
-      }
-      // Use the PNG's native RGBA data: real artist colors and PNG alpha channel.
-      // Free any previously framework-owned texture via the renderer.
-      R_DeleteTexture(tb->strip_tex);
-      uint32_t tex = R_CreateTextureRGBA(w, h, src, R_FILTER_NEAREST, R_WRAP_CLAMP);
-      image_free(src);
-      tb->strip_tex = tex;
-      tb->strip.tex = tex;
-      tb->strip.icon_w = tile_sz;
-      tb->strip.icon_h = tile_sz;
-      tb->strip.cols = w / tile_sz;
-      tb->strip.sheet_w = w;
-      tb->strip.sheet_h = h;
-      invalidate_window(win);
-      break;
-    }
     case evStatusBar:
       if (lparam) {
         strncpy(win->statusbar_text, (const char*)lparam, sizeof(win->statusbar_text) - 1);
@@ -837,7 +319,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
        msg == evLeftButtonDoubleClick ||
        msg == evMouseMove ||
        msg == evLeftButtonUp)) {
-    if (handle_builtin_scrollbars(win, msg, wparam, lparam)) return true;
+    if (scrollbar_handle_builtin_mouse(win, msg, wparam, lparam)) return true;
   }
   if (win->parent && parent_notify_message(msg)) {
     parent_notify_t pn = {
@@ -863,19 +345,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         // wparam = mouse position MAKEDWORD(x,y), lparam = scroll deltas MAKEDWORD(dx,dy)
         if ((win->flags & (WINDOW_HSCROLL | WINDOW_VSCROLL)) &&
             (win->hscroll.visible || win->vscroll.visible)) {
-          if ((win->flags & WINDOW_HSCROLL) && win->hscroll.visible &&
-              win->hscroll.enabled) {
-            int delta = (int16_t)LOWORD((uintptr_t)lparam);
-            sb_try_scroll(win, &win->hscroll, evHScroll,
-                          win->hscroll.pos + delta);
-          }
-          if ((win->flags & WINDOW_VSCROLL) && win->vscroll.visible &&
-              win->vscroll.enabled) {
-            // Negate for natural scroll: positive wheel-up dy decreases offset.
-            int delta = -(int16_t)HIWORD((uintptr_t)lparam);
-            sb_try_scroll(win, &win->vscroll, evVScroll,
-                          win->vscroll.pos + delta);
-          }
+          scrollbar_handle_builtin_wheel(win, lparam);
         } else if (win->parent) {
           // Bubble wheel event to parent, translating window-local mouse
           // coords from the child's client space into the parent's client space.
@@ -944,29 +414,7 @@ int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         }
         break;
       case evNCLeftButtonUp:
-        // For WINDOW_NOTITLE toolbar windows the toolbar band is treated as a
-        // drag area (window_in_drag_area returns true), so LeftButtonDown is
-        // never routed to toolbar children.  Instead the toolbar fires on
-        // release: find the child under the cursor, pre-set pressed, and send
-        // LeftButtonUp so win_toolbar_button fires its command normally.
-        if ((win->flags & WINDOW_TOOLBAR) && (win->flags & WINDOW_NOTITLE)) {
-          toolbar_state_t *tb = get_toolbar_state(win);
-          int sx = (int)(int16_t)LOWORD(wparam);
-          int sy = (int)(int16_t)HIWORD(wparam);
-          // Convert screen-absolute coords to toolbar-band-relative.
-          int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
-          int tb_x = sx - win->frame.x;
-          int tb_y = sy - (win->frame.y + title_h);
-          for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
-            if (CONTAINS(tb_x, tb_y, tc->frame.x, tc->frame.y, tc->frame.w, tc->frame.h)) {
-              window_set_state(tc, WINDOW_STATE_PRESSED, true);
-              send_message(tc, evLeftButtonUp,
-                           MAKEDWORD(tb_x - tc->frame.x, tb_y - tc->frame.y), NULL);
-              break;
-            }
-          }
-          invalidate_window(win);
-        }
+        (void)toolbar_handle_notitle_nc_left_button_up(win, wparam);
         break;
       case evCommand:
         break;
@@ -1079,7 +527,7 @@ void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
 // (typically < 50).
 bool is_valid_window_ptr(window_t *target, window_t *list) {
   for (window_t *w = list; w; w = w->next) {
-    toolbar_state_t *tb = get_toolbar_state(w);
+    toolbar_state_t *tb = toolbar_get_state(w);
     if (w == target) return true;
     if (is_valid_window_ptr(target, w->children)) return true;
     if (is_valid_window_ptr(target, tb ? tb->children : NULL)) return true;

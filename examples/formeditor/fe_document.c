@@ -172,62 +172,81 @@ bool fe_doc_delete_element(form_doc_t *doc, int idx) {
   return true;
 }
 
-bool fe_doc_set_element_text(form_doc_t *doc, int idx, const char *text) {
-  if (!doc || idx < 0 || idx >= doc->element_count || !text)
+static form_element_t *fe_doc_get_element_by_control_id(form_doc_t *doc, int element_id) {
+  if (!doc || element_id <= 0)
+    return NULL;
+  return fe_doc_find_element(doc, (uint32_t)element_id);
+}
+
+bool fe_doc_set_element_text(form_doc_t *doc, int element_id, const char *text) {
+  if (!doc || !text)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   snprintf(el->text, sizeof(el->text), "%s", text);
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_frame(form_doc_t *doc, int idx, irect16_t frame) {
-  if (!doc || idx < 0 || idx >= doc->element_count)
+bool fe_doc_set_element_frame(form_doc_t *doc, int element_id, irect16_t frame) {
+  if (!doc)
     return false;
 
-  doc->elements[idx].frame = frame;
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
+  el->frame = frame;
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_name(form_doc_t *doc, int idx, const char *name) {
-  if (!doc || idx < 0 || idx >= doc->element_count || !name)
+bool fe_doc_set_element_name(form_doc_t *doc, int element_id, const char *name) {
+  if (!doc || !name)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   snprintf(el->name, sizeof(el->name), "%s", name);
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_align(form_doc_t *doc, int idx, uint8_t h_align, uint8_t v_align) {
-  if (!doc || idx < 0 || idx >= doc->element_count)
+bool fe_doc_set_element_align(form_doc_t *doc, int element_id, uint8_t h_align, uint8_t v_align) {
+  if (!doc)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   el->h_align = h_align;
   el->v_align = v_align;
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_font(form_doc_t *doc, int idx, uint8_t font) {
-  if (!doc || idx < 0 || idx >= doc->element_count)
+bool fe_doc_set_element_font(form_doc_t *doc, int element_id, uint8_t font) {
+  if (!doc)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   el->font = font;
   el->font_set = true;
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_color(form_doc_t *doc, int idx, uint8_t color) {
-  if (!doc || idx < 0 || idx >= doc->element_count)
+bool fe_doc_set_element_color(form_doc_t *doc, int element_id, uint8_t color) {
+  if (!doc)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   el->color = color;
   el->color_set = true;
   fe_doc_mark_modified(doc);
@@ -238,41 +257,49 @@ bool fe_doc_set_element_color(form_doc_t *doc, int idx, uint8_t color) {
 // Database Binding Setters
 // ============================================================
 
-bool fe_doc_set_element_db_field(form_doc_t *doc, int idx, const char *field) {
-  if (!doc || idx < 0 || idx >= doc->element_count || !field)
+bool fe_doc_set_element_db_field(form_doc_t *doc, int element_id, const char *field) {
+  if (!doc || !field)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   snprintf(el->db_field, sizeof(el->db_field), "%s", field);
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_db_source(form_doc_t *doc, int idx, const char *source) {
-  if (!doc || idx < 0 || idx >= doc->element_count || !source)
+bool fe_doc_set_element_db_source(form_doc_t *doc, int element_id, const char *source) {
+  if (!doc || !source)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   snprintf(el->db_source, sizeof(el->db_source), "%s", source);
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_db_display(form_doc_t *doc, int idx, const char *display) {
-  if (!doc || idx < 0 || idx >= doc->element_count || !display)
+bool fe_doc_set_element_db_display(form_doc_t *doc, int element_id, const char *display) {
+  if (!doc || !display)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   snprintf(el->db_display, sizeof(el->db_display), "%s", display);
   fe_doc_mark_modified(doc);
   return true;
 }
 
-bool fe_doc_set_element_db_value(form_doc_t *doc, int idx, const char *value) {
-  if (!doc || idx < 0 || idx >= doc->element_count || !value)
+bool fe_doc_set_element_db_value(form_doc_t *doc, int element_id, const char *value) {
+  if (!doc || !value)
     return false;
 
-  form_element_t *el = &doc->elements[idx];
+  form_element_t *el = fe_doc_get_element_by_control_id(doc, element_id);
+  if (!el)
+    return false;
   snprintf(el->db_value, sizeof(el->db_value), "%s", value);
   fe_doc_mark_modified(doc);
   return true;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "user.h"
 #include "database.h"
@@ -170,6 +171,15 @@ const db_action_def_t *db_api_find_action(const db_api_def_t *api, const char *n
   return NULL;
 }
 
+const db_outlet_def_t *db_api_find_outlet(const db_api_def_t *api, const char *name) {
+  if (!api || !name || !api->outlets || api->outlet_count <= 0) return NULL;
+  for (int i = 0; i < api->outlet_count; i++) {
+    if (api->outlets[i].name && strcmp(api->outlets[i].name, name) == 0)
+      return &api->outlets[i];
+  }
+  return NULL;
+}
+
 bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
                               db_object_proc_t proc, const void *object,
                               const char *field, char *buf, size_t buf_sz) {
@@ -251,8 +261,21 @@ bool db_load_field_from_xml(xmlNodePtr node, void *record_base,
       break;
       
     case DB_TYPE_STRING:
-      strncpy((char *)field_ptr, (const char *)value, field->length - 1);
-      ((char *)field_ptr)[field->length - 1] = '\0';
+      {
+        const char *src = (const char *)value;
+        const char *start = src;
+        const char *end = src + strlen(src);
+        while (*start && isspace((unsigned char)*start))
+          start++;
+        while (end > start && isspace((unsigned char)*(end - 1)))
+          end--;
+        size_t len = (size_t)(end - start);
+        size_t cap = (size_t)field->length;
+        if (cap == 0) break;
+        if (len >= cap) len = cap - 1;
+        memcpy((char *)field_ptr, start, len);
+        ((char *)field_ptr)[len] = '\0';
+      }
       break;
       
     case DB_TYPE_BOOL:

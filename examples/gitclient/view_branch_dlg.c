@@ -17,31 +17,31 @@
 
 // Branch name row: label + textedit
 static const form_ctrl_def_t kBranchNameRow[] = {
-  { .class_name = "label",   .text = "Name:", .name = "lbl_name",
+  { .class_name = "Label",   .text = "Name:", .name = "lbl_name",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "textedit", .id = CTL_NAME, .name = "name",
+  { .class_name = "TextBox", .id = CTL_NAME, .name = "name",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 // Branch from row: label + combobox
 static const form_ctrl_def_t kBranchFromRow[] = {
-  { .class_name = "label",   .text = "From:", .name = "lbl_from",
+  { .class_name = "Label",   .text = "From:", .name = "lbl_from",
     .h_align = LAYOUT_ALIGN_START, .v_align = LAYOUT_ALIGN_CENTER },
-  { .class_name = "combobox", .id = CTL_FROM, .name = "from",
+  { .class_name = "ComboBox", .id = CTL_FROM, .name = "from",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_CENTER },
 };
 
 // Button row
 static const form_ctrl_def_t kBranchBtnRow[] = {
-  { .class_name = "button", .id = CTL_CREATE, .flags = BUTTON_DEFAULT, .text = "Create",
+  { .class_name = "Button", .id = CTL_CREATE, .flags = BUTTON_DEFAULT, .text = "Create",
     .name = "ok",     .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "button", .id = CTL_CANCEL, .text = "Cancel",
+  { .class_name = "Button", .id = CTL_CANCEL, .text = "Cancel",
     .name = "cancel", .h_align = LAYOUT_ALIGN_START },
 };
 
 static const form_ctrl_def_t kNewBranchCtrls[] = {
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "name_row",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
@@ -51,7 +51,7 @@ static const form_ctrl_def_t kNewBranchCtrls[] = {
     .child_count        = 2,
   },
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "from_row",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,
@@ -60,10 +60,10 @@ static const form_ctrl_def_t kNewBranchCtrls[] = {
     .children           = kBranchFromRow,
     .child_count        = 2,
   },
-  { .class_name = "checkbox", .id = CTL_CHECKOUT, .text = "Checkout after creation",
+  { .class_name = "CheckBox", .id = CTL_CHECKOUT, .text = "Checkout after creation",
     .name = "co", .h_align = LAYOUT_ALIGN_STRETCH },
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "actions",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,

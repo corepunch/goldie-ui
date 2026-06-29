@@ -43,7 +43,7 @@ static result_t prop_edit_proc(window_t *win, uint32_t msg,
 
 static const char *prop_ctrl_type_name(int type) {
   const fe_component_desc_t *c = fe_component_by_id(type);
-  return c ? c->display_name : "Control";
+  return c ? c->class_name : "Control";
 }
 
 static form_element_t *prop_selected_element(form_doc_t *doc) {
@@ -227,32 +227,16 @@ static void prop_end_edit(prop_browser_state_t *pbs, bool commit) {
       }
       break;
     case PROP_ROW_DB_FIELD:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_field(doc, idx, value);
-      }
+      fe_doc_set_element_db_field(doc, el->id, value);
       break;
     case PROP_ROW_DB_SOURCE:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_source(doc, idx, value);
-      }
+      fe_doc_set_element_db_source(doc, el->id, value);
       break;
     case PROP_ROW_DB_DISPLAY:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_display(doc, idx, value);
-      }
+      fe_doc_set_element_db_display(doc, el->id, value);
       break;
     case PROP_ROW_DB_VALUE:
-      {
-        int idx = fe_doc_find_element_index(doc, el->id);
-        if (idx >= 0)
-          fe_doc_set_element_db_value(doc, idx, value);
-      }
+      fe_doc_set_element_db_value(doc, el->id, value);
       break;
     default:
       return;

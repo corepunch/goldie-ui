@@ -25,9 +25,9 @@ static void build_tool_items(void) {
         (FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX))
       continue;
     g_tools[g_tool_count++] = (toolbox_item_t){
-        .ident = c->toolbox_ident,
+        .ident = i,
         .icon = c->toolbox_icon,
-        .tooltip = c->display_name,
+        .tooltip = c->class_name,
     };
   }
 }

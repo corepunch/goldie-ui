@@ -20,22 +20,22 @@
 
 // Bottom row: amend checkbox + spacer + cancel + commit buttons
 static const form_ctrl_def_t kCommitBottomRow[] = {
-  { .class_name = "checkbox", .id = CTL_AMEND, .text = "Amend last commit",
+  { .class_name = "CheckBox", .id = CTL_AMEND, .text = "Amend last commit",
     .name = "amend", .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "space",    .name = "spacer", .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "button",   .id = CTL_COMMIT, .flags = BUTTON_DEFAULT,
+  { .class_name = "Space",    .name = "spacer", .h_align = LAYOUT_ALIGN_STRETCH },
+  { .class_name = "Button",   .id = CTL_COMMIT, .flags = BUTTON_DEFAULT,
     .text = "Commit", .name = "ok",     .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "button",   .id = CTL_CANCEL, .text = "Cancel",
+  { .class_name = "Button",   .id = CTL_CANCEL, .text = "Cancel",
     .name = "cancel", .h_align = LAYOUT_ALIGN_START },
 };
 
 static const form_ctrl_def_t kCommitCtrls[] = {
-  { .class_name = "label",     .text = "Message:", .name = "lbl_msg",
+  { .class_name = "Label",     .text = "Message:", .name = "lbl_msg",
     .h_align = LAYOUT_ALIGN_START },
-  { .class_name = "multiedit", .id = CTL_MSG,      .name = "msg",
+  { .class_name = "MultiEdit", .id = CTL_MSG,      .name = "msg",
     .h_align = LAYOUT_ALIGN_STRETCH, .v_align = LAYOUT_ALIGN_STRETCH },
   {
-    .class_name         = "stack",
+    .class_name         = "StackView",
     .name               = "actions",
     .flags = WINDOW_STACK_HORIZONTAL,
     .layout_spacing     = 6,

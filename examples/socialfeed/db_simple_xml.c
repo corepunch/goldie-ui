@@ -395,6 +395,83 @@ static const db_field_msg_binding_t comment_field_bindings[] = {
   { "author.name", COL_COMMENT_AUTHOR_NAME },  // Join field
 };
 
+// Design-time schema metadata exposed through dbGetSchema.
+static const db_field_schema_t author_schema_fields[] = {
+  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "name", DB_TYPE_STRING, 64, false, NULL, NULL },
+  { "avatar", DB_TYPE_STRING, 256, false, NULL, NULL },
+};
+
+static const db_field_schema_t post_schema_fields[] = {
+  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "author_id", DB_TYPE_INT, 0, false, "authors", "id" },
+  { "title", DB_TYPE_STRING, 256, false, NULL, NULL },
+  { "body", DB_TYPE_STRING, 2048, false, NULL, NULL },
+  { "like_count", DB_TYPE_INT, 0, false, NULL, NULL },
+  { "comment_count", DB_TYPE_INT, 0, false, NULL, NULL },
+};
+
+static const db_field_schema_t comment_schema_fields[] = {
+  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "post_id", DB_TYPE_INT, 0, false, "posts", "id" },
+  { "author_id", DB_TYPE_INT, 0, false, "authors", "id" },
+  { "text", DB_TYPE_STRING, 1024, false, NULL, NULL },
+  { "like_count", DB_TYPE_INT, 0, false, NULL, NULL },
+};
+
+static const db_join_schema_t post_schema_joins[] = {
+  { "author", "author_id", "authors", "id" },
+};
+
+static const db_join_schema_t comment_schema_joins[] = {
+  { "post", "post_id", "posts", "id" },
+  { "author", "author_id", "authors", "id" },
+};
+
+static const db_table_schema_t socialfeed_schema_tables[] = {
+  { TABLE_AUTHORS, "authors", "author",
+    author_schema_fields, (int)(sizeof(author_schema_fields) / sizeof(author_schema_fields[0])),
+    NULL, 0 },
+  { TABLE_POSTS, "posts", "post",
+    post_schema_fields, (int)(sizeof(post_schema_fields) / sizeof(post_schema_fields[0])),
+    post_schema_joins, (int)(sizeof(post_schema_joins) / sizeof(post_schema_joins[0])) },
+  { TABLE_COMMENTS, "comments", "comment",
+    comment_schema_fields, (int)(sizeof(comment_schema_fields) / sizeof(comment_schema_fields[0])),
+    comment_schema_joins, (int)(sizeof(comment_schema_joins) / sizeof(comment_schema_joins[0])) },
+};
+
+static db_schema_def_t db_simple_xml_schema = {
+  NULL,
+  NULL,
+  NULL,
+  socialfeed_schema_tables,
+  (int)(sizeof(socialfeed_schema_tables) / sizeof(socialfeed_schema_tables[0])),
+};
+
+static const db_source_def_t db_simple_xml_sources[] = {
+  { "db.authors", "author" },
+  { "db.posts", "post" },
+  { "db.comments", "comment" },
+};
+
+static const db_action_def_t db_simple_xml_actions[] = {
+  { "fetch_feed", DB_ACTION_FETCH, "db.posts", "feed" },
+  { "fetch_comments", DB_ACTION_FETCH, "db.comments", "comments" },
+  { "db.posts.insert", DB_ACTION_INSERT, "db.posts", NULL },
+  { "db.comments.insert", DB_ACTION_INSERT, "db.comments", NULL },
+};
+
+static const db_api_def_t db_simple_xml_api = {
+  db_simple_xml_sources,
+  (int)(sizeof(db_simple_xml_sources) / sizeof(db_simple_xml_sources[0])),
+  NULL,
+  0,
+  db_simple_xml_actions,
+  (int)(sizeof(db_simple_xml_actions) / sizeof(db_simple_xml_actions[0])),
+  NULL,
+  0,
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Database Procedure (analogous to winproc_t)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -781,6 +858,15 @@ lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lpa
           return (lresult_t)NULL;
       }
     }
+
+    case dbGetSchema:
+      db_simple_xml_schema.name = db->name;
+      db_simple_xml_schema.class_name = db->class_name;
+      db_simple_xml_schema.source_path = db->source_path;
+      return (lresult_t)&db_simple_xml_schema;
+
+    case dbGetApi:
+      return (lresult_t)&db_simple_xml_api;
   }
   
   return 0;
