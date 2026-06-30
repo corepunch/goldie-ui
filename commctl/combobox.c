@@ -55,9 +55,13 @@ static void open_dropdown(window_t *win) {
     }
   }
   irect16_t rect = {abs_x, abs_y, win->frame.w, 100};
-  window_t *list = create_window("", WINDOW_NOTITLE|WINDOW_NORESIZE|WINDOW_VSCROLL|WINDOW_ALWAYSONTOP|WINDOW_NOTRAYBUTTON, &rect, NULL, win_list, win->hinstance, win);
+  window_t *list = create_window("", WINDOW_NOTITLE|WINDOW_NORESIZE|WINDOW_VSCROLL|WINDOW_ALWAYSONTOP|WINDOW_NOTRAYBUTTON, &rect, NULL, win_list, win->hinstance, NULL);
   if (!list)
     return;
+  list->userdata = win;
+  list->userdata2 = malloc(sizeof(win->title));
+  if (list->userdata2)
+    memcpy(list->userdata2, win->title, sizeof(win->title));
 
   result_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
   if (sel != (result_t)kComboBoxError)

@@ -21,16 +21,6 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   
   switch (msg) {
     case evCreate:
-      win->userdata = lparam;
-      if (lparam) {
-        window_t *owner = (window_t *)lparam;
-        /* Allocate the full fixed-size title buffer so that the paired
-           memcpy restore in the Escape handler copies exactly sizeof(title)
-           bytes and leaves no stale data in the field. */
-        win->userdata2 = malloc(sizeof(owner->title));
-        if (win->userdata2)
-          memcpy(win->userdata2, owner->title, sizeof(owner->title));
-      }
       return true;
     case evDestroy:
       free(win->userdata2);
