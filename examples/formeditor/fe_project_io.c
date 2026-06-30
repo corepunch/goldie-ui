@@ -310,7 +310,6 @@ static uint32_t flag_value(const char *tok) {
   if (strcmp(tok, "WINDOW_FLEXSPACE") == 0) return WINDOW_FLEXSPACE;
   if (strcmp(tok, "WINDOW_AUTO_LAYOUT") == 0) return WINDOW_AUTO_LAYOUT;
   if (strcmp(tok, "WINDOW_LAYOUT_CONTAINER") == 0) return WINDOW_LAYOUT_CONTAINER;
-  if (strcmp(tok, "WINDOW_SIDEBAR") == 0) return WINDOW_SIDEBAR;
   if (strcmp(tok, "BUTTON_PUSHLIKE") == 0) return BUTTON_PUSHLIKE;
   if (strcmp(tok, "BUTTON_AUTORADIO") == 0) return BUTTON_AUTORADIO;
   char *end = NULL;

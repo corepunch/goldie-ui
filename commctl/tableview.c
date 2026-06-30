@@ -25,8 +25,23 @@
 //                                win_tableview, &params);
 
 #include "../ui.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+#ifndef TABLEVIEW_DEBUG
+#define TABLEVIEW_DEBUG 1
+#endif
+
+#if TABLEVIEW_DEBUG
+#define TV_LOG(...) do {                                                      \
+  fprintf(stderr, "[tableview] " __VA_ARGS__);                               \
+  fputc('\n', stderr);                                                        \
+  axLog("[tableview] " __VA_ARGS__);                                         \
+} while (0)
+#else
+#define TV_LOG(...) ((void)0)
+#endif
 
 typedef struct {
   database_t *db;
@@ -120,7 +135,15 @@ static bool tv_get_field_text(tableview_state_t *s, void *record,
 // ══════════════════════════════════════════════════════════════════════════
 
 static void tv_refresh(window_t *win, tableview_state_t *s) {
-  if (!win || !s || !s->db) return;
+  if (!win || !s || !s->db) {
+    TV_LOG("refresh skipped: win=%p state=%p db=%p", (void *)win, (void *)s,
+           s ? (void *)s->db : NULL);
+    return;
+  }
+
+  TV_LOG("refresh begin: id=%u table=%d columns=%d filter=%d:%ld",
+         (unsigned)win->id, s->table_id, s->column_count, s->filter_field,
+         (long)s->filter_value);
   
   // Clear existing items
   send_message(win, RVM_CLEAR, 0, NULL);
@@ -143,7 +166,11 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   result_node_t *results = (result_node_t *)send_db_message(s->db, dbFetch,
     MAKEDWORD(s->table_id, s->filter_field), (void *)s->filter_value);
   
-  if (!results) return;
+  if (!results) {
+    TV_LOG("fetch returned no rows: id=%u table=%d", (unsigned)win->id,
+           s->table_id);
+    return;
+  }
   
   // Allocate cell buffers
   char (*cell_buf)[256] = calloc((size_t)s->column_count, sizeof(*cell_buf));
@@ -154,6 +181,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   
   // Add each record as a row
   int row_idx = 0;
+  int field_failures = 0;
   for (result_node_t *n = results; n; n = (result_node_t *)n->next) {
     void *record = *(void **)n->data;
     if (!record) continue;
@@ -163,6 +191,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
       if (!tv_get_field_text(s, record, s->field_names[col],
                              cell_buf[col], sizeof(cell_buf[col]))) {
         cell_buf[col][0] = '\0';
+        field_failures++;
       }
     }
     
@@ -185,6 +214,8 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   
   free(cell_buf);
   free_result_list(results);
+  TV_LOG("refresh complete: id=%u table=%d rows=%d field_failures=%d",
+         (unsigned)win->id, s->table_id, row_idx, field_failures);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -214,6 +245,8 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       }
       
       if (!params || !params->field_names) {
+        TV_LOG("create has no table params: id=%u lparam=%p",
+               (unsigned)win->id, lparam);
         // Keep the control alive as a plain reportview to avoid forwarding
         // messages into an uninitialized base state.
         return true;
@@ -230,6 +263,8 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->table_id = params->table_id;
       s->filter_field = params->filter_field;
       s->filter_value = params->filter_value;
+      TV_LOG("create: id=%u table=%d db=%p columns=%d", (unsigned)win->id,
+             s->table_id, (void *)s->db, count_strings(params->field_names));
       
       // Get object proc and field bindings from database (DDX pattern!)
       // Skip if db is NULL (will be set later)
@@ -240,6 +275,9 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
                                                                        (uint32_t)s->table_id, &s->binding_count);
         
         if (!s->obj_proc || !s->bindings) {
+          TV_LOG("create metadata missing: id=%u table=%d object_proc=%p bindings=%p count=%d",
+                 (unsigned)win->id, s->table_id, (void *)s->obj_proc,
+                 (void *)s->bindings, s->binding_count);
           free(s);
           win->userdata = NULL;
           return true;
@@ -305,10 +343,19 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
                                                          (uint32_t)s->table_id, NULL);
         s->bindings = (const db_field_msg_binding_t *)send_db_message(s->db, dbGetFieldBindings,
                                                                        (uint32_t)s->table_id, &s->binding_count);
+        TV_LOG("database attached: id=%u table=%d db=%p object_proc=%p bindings=%p count=%d",
+               (unsigned)win->id, s->table_id, (void *)s->db,
+               (void *)s->obj_proc, (void *)s->bindings, s->binding_count);
         // Refresh from database
         if (s->obj_proc && s->bindings) {
           tv_refresh(win, s);
+        } else {
+          TV_LOG("database API incomplete: id=%u table=%d", (unsigned)win->id,
+                 s->table_id);
         }
+      } else {
+        TV_LOG("database attach skipped: id=%u state=%p db=%p",
+               (unsigned)win->id, (void *)s, lparam);
       }
       return true;
     

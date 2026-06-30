@@ -147,12 +147,6 @@ enum {
   // HTTP_INVALID_REQUEST indicates an immediate error (bad URL, OOM, etc.).
   evHttpDone,
   evHttpProgress,
-  // Create or replace the sidebar child window for a WINDOW_SIDEBAR window.
-  // wparam = sidebar width in pixels (0 uses SIDEBAR_DEFAULT_WIDTH).
-  // lparam = winproc_t — the window procedure for the sidebar content window.
-  // The framework creates a WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL |
-  // WINDOW_NOTRAYBUTTON child at (0, 0) and stores it in win->sidebar.
-  sbSetContent,
 };
 
 // Control notification messages
@@ -246,11 +240,7 @@ typedef struct {
 #define BUTTON_PUSHLIKE     (1 << 13)
 #define BUTTON_AUTORADIO    (1 << 14)
 #define BUTTON_DEFAULT      (1 << 15)
-// A window with WINDOW_SIDEBAR has a fixed-width panel anchored to the left of
-// its client area.  The panel is created via sbSetContent and participates in
-// the normal child-window paint/event dispatch.  A 1-pixel vertical separator
-// is drawn between the sidebar and the content area during evNCPaint.
-#define WINDOW_SIDEBAR      (1 << 16)
+// Bit 16 is intentionally unused (the former WINDOW_SIDEBAR special case).
 #define WINDOW_NOACTIVATE   (1 << 17)  // do not steal keyboard focus when shown
 #define WINDOW_NOTABSTOP    (1 << 18)  // exclude from Tab-key focus cycle (WS_TABSTOP equivalent)
 #define WINDOW_STACK_HORIZONTAL (1 << 19)  // auto-layout stack flows left-to-right
@@ -328,8 +318,6 @@ typedef struct {
 #define TITLEBAR_HEIGHT   (FONT_SIZE + 5)
 #define TOOLBAR_HEIGHT    22
 #define STATUSBAR_HEIGHT  (FONT_SIZE + 5)
-// Default width of a WINDOW_SIDEBAR panel in logical pixels.
-#define SIDEBAR_DEFAULT_WIDTH  180
 #define BUTTON_HEIGHT     19
 #define WINDOW_PADDING 4
 #define LINE_PADDING 5

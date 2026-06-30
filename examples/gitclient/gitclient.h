@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "../../ui.h"
+#include "../../components/gitclient/diff_view.h"
 #include "../../commctl/columnview.h"
 #include "../../commctl/menubar.h"
 #include "../../user/accel.h"
@@ -25,7 +26,11 @@
 #endif
 
 #if GITCLIENT_DEBUG
-#define GC_LOG(...) do { axLog("[gitclient] " __VA_ARGS__); } while (0)
+#define GC_LOG(...) do {                                                      \
+  fprintf(stderr, "[gitclient] " __VA_ARGS__);                               \
+  fputc('\n', stderr);                                                        \
+  axLog("[gitclient] " __VA_ARGS__);                                         \
+} while (0)
 #else
 #define GC_LOG(...) ((void)0)
 #endif
@@ -36,11 +41,6 @@
 
 #define SCREEN_W         800
 #define SCREEN_H         480
-
-#define PANEL_SPLITTER   4
-#define PANEL_LEFT_W_DEFAULT   180
-#define PANEL_RIGHT_W_DEFAULT  260
-#define PANEL_VSPLIT_FRAC      60
 
 // ============================================================
 // Custom event messages
@@ -158,15 +158,6 @@ typedef struct {
   window_t    *files_win;
   window_t    *diff_win;
 
-  // Splitter state
-  int          right_w;
-  int          vsplit_y;
-  window_t    *vsplitter_win;
-  window_t    *hsplitter_win;
-  window_t    *dragging_splitter;
-  int          drag_start_mouse;
-  int          drag_start_val;
-
   accel_table_t *accel;
   hinstance_t    hinstance;
 } gc_state_t;
@@ -235,14 +226,11 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
 void gc_open_repo(const char *path);
 void gc_refresh_all(void);
 void gc_update_status(void);
-void gc_layout_panels(window_t *win);
 
 // ============================================================
 // View — diff viewer (view_diff.c)
 // ============================================================
 
-result_t gc_diff_proc(window_t *win, uint32_t msg,
-                      uint32_t wparam, void *lparam);
 void gc_diff_refresh(void);
 
 // ============================================================
