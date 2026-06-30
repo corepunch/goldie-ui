@@ -1,24 +1,8 @@
 #include "diff_view.h"
 #include "../../user/vga_font.h"
 #include "../../user/ansi.h"
-#include "../../kernel/renderer.h"
 
-#define CLR_ADD_BG   0xFF1A3A1A
-#define CLR_ADD_FG   0xFF66FF66
-#define CLR_DEL_BG   0xFF3A1A1A
-#define CLR_DEL_FG   0xFFFF6666
-#define CLR_HUNK_BG  0xFF1A1A3A
-#define CLR_HUNK_FG   0xFF66CCFF
 #define CLR_CTX_BG   0xFF1E1E1E
-#define CLR_CTX_FG   0xFFCCCCCC
-#define CLR_LNUM_BG  0xFF2A2A2A
-#define CLR_LNUM_FG  0xFF888888
-#define CLR_HEADER_BG 0xFF2E2E2E
-#define CLR_HEADER_FG 0xFFAAAAAA
-
-#define LINE_NUM_W    (5 * VGA_CHAR_W)
-
-#define GC_DIFF_USE_PREFIX_COLORS 0
 
 static int visible_lines(window_t *win) {
   return MAX(1, win->frame.h / VGA_CHAR_H);
@@ -53,8 +37,8 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
     case evDestroy: {
       gc_diff_state_t *st = (gc_diff_state_t *)win->userdata;
       if (st) {
-        free(st->lines);
         vga_text_free_grid(&st->grid);
+        free(st->lines);
         free(st);
         win->userdata = NULL;
       }
@@ -108,20 +92,43 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
 
       fill_rect(CLR_CTX_BG, cr);
 
-      if (!st || !st->lines || !st->line_count) {
-        draw_text_small("No diff content.", cr.x + 4, cr.y + 4,
-                        get_sys_color(brTextDisabled));
+      if (!st || !st->lines || st->line_count <= 0)
         return true;
+
+      int vis_cols = cr.w / VGA_CHAR_W;
+      int vis_rows = cr.h / VGA_CHAR_H;
+      if (vis_cols <= 0 || vis_rows <= 0)
+        return true;
+
+      if (!vga_text_ensure_grid(&st->grid, vis_cols, vis_rows))
+        return true;
+
+      vga_text_clear_grid(&st->grid, 7, 0);
+
+      int first = st->scroll_y;
+      int last = first + vis_rows;
+      if (last > st->line_count)
+        last = st->line_count;
+
+      for (int row = 0; row < vis_rows && first + row < st->line_count; row++) {
+        vga_text_write_ansi_line(st->lines[first + row], &st->grid, row,
+                                 0, vis_cols, kAnsi16[7], kAnsi16[0]);
       }
 
-      int start = CLAMP(st->scroll_y, 0, max_scroll_start(win, st));
-      int end   = MIN(start + 50, st->line_count);
-
-      for (int li = start; li < end; li++) {
-        draw_text_small(st->lines[li], cr.x + 4,
-                        cr.y + 4 + (li - start) * 14,
-                        get_sys_color(brTextNormal));
+      if (R_UpdateTextureRG8(st->grid.cells_tex, 0, 0,
+                              st->grid.cells_w, st->grid.cells_h,
+                              st->grid.cells)) {
+        R_VgaBuffer buf = {
+          .vga_buffer = st->grid.cells_tex,
+          .width = st->grid.cells_w,
+          .height = st->grid.cells_h,
+        };
+        R_DrawVGABuffer(&buf, cr.x, cr.y,
+                        st->grid.cells_w * VGA_CHAR_W,
+                        st->grid.cells_h * VGA_CHAR_H,
+                        vga_font_texture_id(), kAnsi16);
       }
+
       return true;
     }
 
