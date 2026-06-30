@@ -87,7 +87,7 @@ ui_runtime_state_t g_ui_runtime = {
 
 // Forward declarations
 extern void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern int titlebar_height(window_t const *win);
 extern int statusbar_height(window_t const *win);
 

@@ -22,7 +22,7 @@
 // ============================================================
 
 #ifndef GITCLIENT_DEBUG
-#define GITCLIENT_DEBUG 1
+#define GITCLIENT_DEBUG 0
 #endif
 
 #if GITCLIENT_DEBUG
