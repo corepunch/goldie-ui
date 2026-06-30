@@ -1266,7 +1266,21 @@ bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target
       // element because of target-local coordinate conversion.
       insert_index = s->hover_layout_idx;
     } else {
-      int hit = hit_test_elements(s, canvas_x, canvas_y);
+      // In auto-layout mode, drop coordinates are in form space but live
+      // windows may have been repositioned by the layout engine.  Use the
+      // element design frames for hit-testing so the drop target matches
+      // the user's intent.
+      int hit = -1;
+      for (int i = doc->element_count - 1; i >= 0; i--) {
+        irect16_t r = form_to_canvas_rect(s, doc->elements[i].frame);
+        if (canvas_x >= r.x && canvas_x < r.x + r.w &&
+            canvas_y >= r.y && canvas_y < r.y + r.h) {
+          hit = i;
+          break;
+        }
+      }
+      if (hit < 0)
+        hit = hit_test_elements(s, canvas_x, canvas_y);
       if (hit >= 0)
         insert_index = hit;
       else if (s->hover_layout_idx >= 0)

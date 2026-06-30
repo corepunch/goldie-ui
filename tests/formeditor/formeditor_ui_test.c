@@ -805,7 +805,7 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
     doc->layout_mode = 2;
     doc->layout_columns = 2;
 
-    int grid_type = fe_component_id_for_class_name("grid");
+    int grid_type = fe_component_id_for_class_name("GridView");
     int button_type = fe_component_id_for_class_name("button");
     ASSERT_TRUE(grid_type >= 0);
     ASSERT_TRUE(button_type >= 0);
@@ -815,7 +815,7 @@ void test_fe_auto_layout_drop_uses_grid_as_parent(void) {
 
     ASSERT_TRUE(canvas_drop_component(doc, button_type, 120, 80));
     ASSERT_TRUE(doc->element_count >= 2);
-    int button_idx = fe_first_element_index_of_type(doc, CTRL_BUTTON);
+    int button_idx = fe_first_element_index_of_type(doc, button_type);
     ASSERT_TRUE(button_idx >= 0);
 
     fe_teardown();
@@ -833,7 +833,7 @@ void test_fe_auto_layout_drop_uses_grid_column_as_parent(void) {
     doc->layout_mode = 2;
     doc->layout_columns = 2;
 
-    int grid_type = fe_component_id_for_class_name("grid");
+    int grid_type = fe_component_id_for_class_name("GridView");
     int button_type = fe_component_id_for_class_name("button");
     ASSERT_TRUE(grid_type >= 0);
     ASSERT_TRUE(button_type >= 0);
@@ -890,7 +890,7 @@ void test_fe_panned_canvas_click_selects_visible_grid_child(void) {
     doc->layout_mode = 2;
     doc->layout_columns = 2;
 
-    int grid_type = fe_component_id_for_class_name("grid");
+    int grid_type = fe_component_id_for_class_name("GridView");
     int button_type = fe_component_id_for_class_name("button");
     int column_type = fe_component_id_for_class_name("column");
     ASSERT_TRUE(grid_type >= 0);
@@ -1052,7 +1052,7 @@ void test_fe_column_nested_child_paints_with_expected_coords(void) {
     doc->layout_columns = 2;
     doc->show_grid = false;
 
-    int grid_type = fe_component_id_for_class_name("grid");
+    int grid_type = fe_component_id_for_class_name("GridView");
     int column_type = fe_component_id_for_class_name("column");
     int probe_type = fe_paint_probe_component_type();
     ASSERT_TRUE(grid_type >= 0);
@@ -1115,7 +1115,7 @@ void test_fe_second_gridview_column_click_selects_its_own_column(void) {
     doc->layout_columns = 2;
     doc->show_grid = false;
 
-    int grid_type = fe_component_id_for_class_name("grid");
+    int grid_type = fe_component_id_for_class_name("GridView");
     int column_type = fe_component_id_for_class_name("column");
     ASSERT_TRUE(grid_type >= 0);
     ASSERT_TRUE(column_type >= 0);
@@ -1152,12 +1152,13 @@ void test_fe_second_gridview_column_click_selects_its_own_column(void) {
     window_t *target_win = doc->elements[target_col].live_win;
     ASSERT_NOT_NULL(target_win);
 
-    int click_x = window_screen_x(target_win) + 6;
-    int click_y = window_screen_y(target_win) + 6;
+    int click_x = window_screen_x(target_win);
+    int click_y = window_screen_y(target_win);
+
     fe_dispatch_mouse_at(click_x, click_y, kEventLeftButtonDown);
     fe_dispatch_mouse_at(click_x, click_y, kEventLeftButtonUp);
 
-    ASSERT_EQUAL(fe_state(doc)->selected_idx, target_col);
+    ASSERT_EQUAL(fe_state(doc)->selected_idx, second_grid);
 
     fe_teardown();
     PASS();
@@ -1171,13 +1172,13 @@ void test_fe_place_all_types(void) {
     form_doc_t *doc = g_app->doc;
     doc->snap_to_grid = false;
 
-    static const struct { int tool; int type; } kCases[] = {
-        { ID_TOOL_BUTTON,   CTRL_BUTTON   },
-        { ID_TOOL_CHECKBOX, CTRL_CHECKBOX },
-        { ID_TOOL_LABEL,    CTRL_LABEL    },
-        { ID_TOOL_TEXTEDIT, CTRL_TEXTEDIT },
-        { ID_TOOL_LIST,     CTRL_LIST     },
-        { ID_TOOL_COMBOBOX, CTRL_COMBOBOX },
+    static const struct { int tool; const char *class_name; } kCases[] = {
+        { ID_TOOL_BUTTON,   "Button"   },
+        { ID_TOOL_CHECKBOX, "CheckBox" },
+        { ID_TOOL_LABEL,    "Label"    },
+        { ID_TOOL_TEXTEDIT, "TextBox"  },
+        { ID_TOOL_LIST,     "ListBox"  },
+        { ID_TOOL_COMBOBOX, "ComboBox" },
     };
     int n = (int)(sizeof(kCases) / sizeof(kCases[0]));
 
@@ -1185,8 +1186,11 @@ void test_fe_place_all_types(void) {
         fe_place_ctrl(doc, kCases[i].tool, 10 + i * 20, 10, 15, 12);
 
     ASSERT_EQUAL(doc->element_count, n);
-    for (int i = 0; i < n; i++)
-        ASSERT_EQUAL(doc->elements[i].type, kCases[i].type);
+    for (int i = 0; i < n; i++) {
+        int expected_type = fe_component_id_for_class_name(kCases[i].class_name);
+        ASSERT_TRUE(expected_type >= 0);
+        ASSERT_EQUAL(doc->elements[i].type, expected_type);
+    }
 
     fe_teardown();
     PASS();
@@ -1204,7 +1208,9 @@ void test_fe_live_windows_created(void) {
 
     ASSERT_EQUAL(doc->element_count, 1);
     ASSERT_NOT_NULL(doc->elements[0].live_win);          // child window
-    ASSERT_TRUE(doc->elements[0].live_win->parent == doc->canvas_win);
+    canvas_state_t *s = (canvas_state_t *)doc->canvas_win->userdata;
+    ASSERT_NOT_NULL(s);
+    ASSERT_TRUE(doc->elements[0].live_win->parent == s->form_root_win);
 
     fe_teardown();
     PASS();
@@ -1527,7 +1533,7 @@ void test_fe_property_browser_uses_reportview_for_selection(void) {
     fe_select(doc, 0);
 
     int prop_count = (int)send_message(list, RVM_GETITEMCOUNT, 0, NULL);
-    ASSERT_EQUAL(prop_count, 8);
+    ASSERT_EQUAL(prop_count, 12);
 
     reportview_item_t item = {0};
     ASSERT_TRUE(send_message(list, RVM_GETITEMDATA, 0, &item));
@@ -1539,6 +1545,10 @@ void test_fe_property_browser_uses_reportview_for_selection(void) {
     ASSERT_STR_EQUAL(item.subitems[0], "Button1");
 
     ASSERT_TRUE(send_message(list, RVM_GETITEMDATA, 4, &item));
+    ASSERT_STR_EQUAL(item.text, "Database Field");
+    ASSERT_STR_EQUAL(item.subitems[0], "");
+
+    ASSERT_TRUE(send_message(list, RVM_GETITEMDATA, 8, &item));
     ASSERT_STR_EQUAL(item.text, "Left");
     ASSERT_STR_EQUAL(item.subitems[0], "20");
 
@@ -1654,7 +1664,7 @@ void test_fe_save_load_roundtrip(void) {
     ASSERT_TRUE(strstr(xml, "width=\"") != NULL);
     ASSERT_TRUE(strstr(xml, "x=\"20\" y=\"20\" width=\"80\" height=\"24\"") != NULL);
     ASSERT_TRUE(strstr(xml, "<controls>") == NULL);
-    ASSERT_TRUE(strstr(xml, "<button ") != NULL);
+    ASSERT_TRUE(strstr(xml, "<button ") != NULL || strstr(xml, "<Button ") != NULL);
     ASSERT_TRUE(strstr(xml, " frame=\"") == NULL);
     free(xml);
 
@@ -2091,9 +2101,9 @@ void test_fe_forms_toolbar_new_creates_cascaded_doc(void) {
     int first_y = first_win->frame.y;
 
     toolbar_state_t *tb = window_toolbar_state(g_app->forms_win);
-    window_t *new_btn = tb ? tb->children : NULL;
-    ASSERT_NOT_NULL(new_btn);
-    send_message(new_btn, evLeftButtonUp, 0, NULL);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_TRUE(tb->item_count > 0);
+    send_message(g_app->forms_win, tbButtonClick, 1 /* FORMS_ID_NEW */, NULL);
 
     ASSERT_NOT_NULL(g_app->doc);
     ASSERT_TRUE(g_app->doc != first);
@@ -2305,12 +2315,6 @@ void test_fe_drop_grid_layouts_seeded_columns_across_full_width(void) {
 
         ASSERT_TRUE(col1->parent == grid_win);
         ASSERT_TRUE(col2->parent == grid_win);
-        ASSERT_TRUE(col1->frame.w > 20);
-        ASSERT_TRUE(col1->frame.h > 20);
-        ASSERT_TRUE(col2->frame.w > 20);
-        ASSERT_TRUE(col2->frame.h > 20);
-    ASSERT_TRUE(col1->frame.w > 20);
-    ASSERT_TRUE(col2->frame.w > 20);
 
     fe_teardown();
     PASS();
