@@ -428,6 +428,34 @@ static const char *binding_getter(const char *klass) {
   return "0";
 }
 
+static const kv_t kWindowFlags[] = {
+  {"notitle", "WINDOW_NOTITLE"}, {"nofill", "WINDOW_NOFILL"},
+  {"vscroll", "WINDOW_VSCROLL"}, {"flexspace", "WINDOW_FLEXSPACE"},
+  {"toolbar", "WINDOW_TOOLBAR"}, {"statusbar", "WINDOW_STATUSBAR"},
+  {"notitlebar", "WINDOW_NOTITLE"}, {"default", "0"},
+};
+
+static void resolve_flags(char *out, size_t cap, const char *raw) {
+  if (!raw || !*raw) { snprintf(out, cap, "0"); return; }
+  char buf[256]; snprintf(buf, sizeof(buf), "%s", raw);
+  out[0] = 0;
+  for (char *tok = strtok(buf, ",|+ "); tok; tok = strtok(NULL, ",|+ ")) {
+    bool found = false;
+    for (int i = 0; i < ARRAY_LEN(kWindowFlags); i++) {
+      if (eq(tok, kWindowFlags[i].key)) {
+        if (out[0]) strcat(out, " | ");
+        strcat(out, kWindowFlags[i].value);
+        found = true; break;
+      }
+    }
+    if (!found) {
+      if (out[0]) strcat(out, " | ");
+      strcat(out, tok);
+    }
+  }
+  if (!out[0]) snprintf(out, cap, "0");
+}
+
 static void binding_record_type(char *out, size_t cap, const char *table) {
   char id[96]; ident(id, sizeof(id), table, false);
   size_t n = strlen(id); if (n > 1 && id[n - 1] == 's') id[n - 1] = 0;
@@ -454,8 +482,9 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
     rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
     // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)
+    char resolved[256]; resolve_flags(resolved, sizeof(resolved), nz(a.v[A_FLAGS], "0"));
     const char *auto_flex = (elem(c, "space") || elem(c, "multiedit")) ? " | WINDOW_FLEXSPACE" : "";
-    snprintf(flags, sizeof(flags), "(%s)%s%s", nz(a.v[A_FLAGS], "0"), enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL ? " | WINDOW_STACK_HORIZONTAL" : "", auto_flex);
+    snprintf(flags, sizeof(flags), "(%s)%s%s", resolved, enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL ? " | WINDOW_STACK_HORIZONTAL" : "", auto_flex);
     snprintf(spacing, sizeof(spacing), "%u", byte_attr(a.v[A_SPACING], ORIONC_DEFAULT_SPACING));
     snprintf(font, sizeof(font), "%s", eq(a.v[A_FONT], "system") ? "FONT_SYSTEM" : eq(a.v[A_FONT], "icon") ? "FONT_ICON" : "FONT_SMALL");
     snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));
@@ -507,11 +536,12 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
 }
 
 static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr database) {
-  char *name = attr(form, "name"), *title = attr(form, "title"), *flags = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *spacing = attrs_first(form, "spacing", "layout_spacing");
-  rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE];
+  char *name = attr(form, "name"), *title = attr(form, "title"), *flags_raw = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *spacing = attrs_first(form, "spacing", "layout_spacing");
+  rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE], flags[256];
   if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
+  resolve_flags(flags, sizeof(flags), nz(flags_raw, "0"));
   emit_tableviews(f, form, form_id);
   emit_comboboxes(f, form, form_id);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
@@ -519,7 +549,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
   emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");
   emit_bindings(f, prefix, form_id, &bindings);
   OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
-      prefix, form_id, titleq, sz.w, sz.h, nz(flags, "0"), byte_attr(spacing, ORIONC_DEFAULT_SPACING),
+      prefix, form_id, titleq, sz.w, sz.h, flags, byte_attr(spacing, ORIONC_DEFAULT_SPACING),
       pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h, prefix, form_id, count);
   if (toolbar && *toolbar) { char tb[128]; ident(tb, sizeof(tb), toolbar, true); OUT(", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", tb, tb); }
   else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
@@ -539,7 +569,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
         btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0");
   }
   LINE(" };\n\n");
-  free(name); free(title); free(flags); free(toolbar); free(spacing);
+  free(name); free(title); free(flags_raw); free(toolbar); free(spacing);
   return true;
 }
 

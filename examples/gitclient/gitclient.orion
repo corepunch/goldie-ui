@@ -66,6 +66,7 @@
     <databases>
         <database name="db" class="gitclient_db">
             <table name="branches">
+                <field name="id" type="integer" key="YES"/>
                 <field name="name" type="string" length="256"/>
                 <field name="hash" type="string" length="41"/>
                 <field name="is_current" type="bool"/>
@@ -73,6 +74,7 @@
             </table>
 
             <table name="commits">
+                <field name="id" type="integer" key="YES"/>
                 <field name="hash" type="string" length="41"/>
                 <field name="author" type="string" length="64"/>
                 <field name="date" type="string" length="20"/>
@@ -80,12 +82,14 @@
             </table>
 
             <table name="files">
+                <field name="id" type="integer" key="YES"/>
                 <field name="path" type="string" length="512"/>
                 <field name="status" type="string" length="2"/>
                 <field name="staged" type="bool"/>
             </table>
 
             <table name="diff">
+                <field name="id" type="integer" key="YES"/>
                 <field name="content" type="string" length="262144"/>
             </table>
         </database>
