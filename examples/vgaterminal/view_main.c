@@ -1,42 +1,189 @@
-// Main window procedure for VGA Terminal emulator.
+// VGA Console — Quake-style command console.
+// Reads keyboard input and dispatches commands from a built-in table.
 
 #include "vgat.h"
-#include "pty.h"
-#include "ansi_parser.h"
-#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+#include <dirent.h>
 
-#define TIMER_ID_DRAIN 1
+// ── Command forward declarations ──────────────────────────────────────────
 
-static vgat_parser_t g_parser;
+static void cmd_echo(vgat_state_t *, int, char **);
+static void cmd_help(vgat_state_t *, int, char **);
+static void cmd_clear(vgat_state_t *, int, char **);
+static void cmd_dir(vgat_state_t *, int, char **);
+static void cmd_pwd (vgat_state_t *, int, char **);
+static void cmd_cd  (vgat_state_t *, int, char **);
+static void cmd_cat (vgat_state_t *, int, char **);
+static void cmd_date(vgat_state_t *, int, char **);
+static void cmd_whoami(vgat_state_t *, int, char **);
 
-static void on_write_cell(void *screen, uint8_t ch, int fg, int bg) {
-  vgat_screen_write_cell((vgat_screen *)screen, ch, fg, bg);
+// ── Command table ─────────────────────────────────────────────────────────
+
+const vgat_cmd_t g_cmds[] = {
+  {"echo",   "Echo text",              cmd_echo},
+  {"help",   "Show available commands",cmd_help},
+  {"clear",  "Clear the console",      cmd_clear},
+  {"dir",    "List directory contents", cmd_dir},
+  {"ls",     "List directory contents", cmd_dir},
+  {"pwd",    "Print working directory", cmd_pwd},
+  {"cd",     "Change directory",       cmd_cd},
+  {"cat",    "Display a file",         cmd_cat},
+  {"date",   "Show date and time",     cmd_date},
+  {"whoami", "Show current user",      cmd_whoami},
+  {NULL, NULL, NULL} // sentinel
+};
+
+// ── Command implementations ───────────────────────────────────────────────
+
+static void cmd_echo(vgat_state_t *st, int argc, char **argv) {
+  for (int i = 1; i < argc; i++) {
+    if (i > 1) vgat_screen_write_string(&st->screen, " ", VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, argv[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  }
+  vgat_screen_newline(&st->screen);
 }
-static void on_newline(void *screen) { vgat_screen_newline((vgat_screen *)screen); }
-static void on_backspace(void *screen) { vgat_screen_backspace((vgat_screen *)screen); }
-static void on_cr(void *screen) { vgat_screen_carriage_return((vgat_screen *)screen); }
-static void on_cursor_left(void *screen) { vgat_screen_cursor_left((vgat_screen *)screen); }
-static void on_cursor_right(void *screen) { vgat_screen_cursor_right((vgat_screen *)screen); }
-static void on_cursor_up(void *screen) { vgat_screen_cursor_up((vgat_screen *)screen); }
-static void on_cursor_down(void *screen) { vgat_screen_cursor_down((vgat_screen *)screen); }
-static void on_set_fg(void *screen, int fg) { (void)screen; (void)fg; }
-static void on_set_bg(void *screen, int bg) { (void)screen; (void)bg; }
-static void on_reset(void *screen) { vgat_screen_reset((vgat_screen *)screen); }
-static void on_save_cursor(void *screen) { vgat_screen_save_cursor((vgat_screen *)screen); }
-static void on_restore_cursor(void *screen) { vgat_screen_restore_cursor((vgat_screen *)screen); }
-static void on_erase_display(void *screen, int mode) { vgat_screen_erase_display((vgat_screen *)screen, mode); }
-static void on_erase_line(void *screen, int mode) { vgat_screen_erase_line((vgat_screen *)screen, mode); }
-static void on_cursor_pos(void *screen, int row, int col) { vgat_screen_cursor_position((vgat_screen *)screen, row, col); }
 
-static void send_escape(int fd, char code) {
-  char buf[3] = { 0x1B, '[', code };
-  vgat_pty_write(fd, buf, 3);
+static void cmd_help(vgat_state_t *st, int argc, char **argv) {
+  (void)argc; (void)argv;
+  vgat_screen_write_string(&st->screen, "Available commands:\n", 10, VGAT_BG_DEFAULT);
+  for (int i = 0; g_cmds[i].name; i++) {
+    char line[128];
+    int n = snprintf(line, sizeof(line), "  %-12s %s\n", g_cmds[i].name, g_cmds[i].help);
+    if (n > 0) vgat_screen_write_string(&st->screen, line, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  }
 }
+
+static void cmd_clear(vgat_state_t *st, int argc, char **argv) {
+  (void)argc; (void)argv;
+  vgat_screen_clear(&st->screen);
+}
+
+static void cmd_dir(vgat_state_t *st, int argc, char **argv) {
+  (void)argc;
+  const char *path = argv[1] ? argv[1] : ".";
+  DIR *d = opendir(path);
+  if (!d) {
+    vgat_screen_write_string(&st->screen, "Cannot open directory: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, path, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+    return;
+  }
+  struct dirent *e;
+  while ((e = readdir(d))) {
+    vgat_screen_write_string(&st->screen, e->d_name, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, "  ", VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  }
+  closedir(d);
+  vgat_screen_newline(&st->screen);
+}
+
+static void cmd_pwd(vgat_state_t *st, int argc, char **argv) {
+  (void)argc; (void)argv;
+  char cwd[1024];
+  if (getcwd(cwd, sizeof(cwd))) {
+    vgat_screen_write_string(&st->screen, cwd, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+  }
+}
+
+static void cmd_cd(vgat_state_t *st, int argc, char **argv) {
+  (void)argc;
+  const char *path = argv[1] ? argv[1] : getenv("HOME");
+  if (!path) path = "/";
+  if (chdir(path) != 0) {
+    vgat_screen_write_string(&st->screen, "cd: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, path, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, ": No such directory\n", 9, VGAT_BG_DEFAULT);
+  }
+}
+
+static void cmd_cat(vgat_state_t *st, int argc, char **argv) {
+  if (argc < 2) {
+    vgat_screen_write_string(&st->screen, "Usage: cat <file>\n", 9, VGAT_BG_DEFAULT);
+    return;
+  }
+  FILE *fp = fopen(argv[1], "r");
+  if (!fp) {
+    vgat_screen_write_string(&st->screen, "cat: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, argv[1], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, ": No such file\n", 9, VGAT_BG_DEFAULT);
+    return;
+  }
+  char buf[256];
+  while (fgets(buf, sizeof(buf), fp)) {
+    vgat_screen_write_string(&st->screen, buf, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  }
+  fclose(fp);
+}
+
+static void cmd_date(vgat_state_t *st, int argc, char **argv) {
+  (void)argc; (void)argv;
+  time_t t = time(NULL);
+  struct tm *tm = localtime(&t);
+  char buf[64];
+  if (strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Z %Y", tm)) {
+    vgat_screen_write_string(&st->screen, buf, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+  }
+}
+
+static void cmd_whoami(vgat_state_t *st, int argc, char **argv) {
+  (void)argc; (void)argv;
+  const char *user = getenv("USER");
+  if (!user) user = getenv("USERNAME");
+  if (!user) user = "unknown";
+  vgat_screen_write_string(&st->screen, user, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  vgat_screen_newline(&st->screen);
+}
+
+// ── Input processing ──────────────────────────────────────────────────────
+
+static void process_input(vgat_state_t *st) {
+  // Echo command to scrollback
+  vgat_screen_write_string(&st->screen, "> ", 10, VGAT_BG_DEFAULT);
+  vgat_screen_write_string(&st->screen, st->input_buf, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  vgat_screen_newline(&st->screen);
+
+  // Trim leading whitespace
+  char *p = st->input_buf;
+  while (*p == ' ' || *p == '\t') p++;
+  if (!*p) return;
+
+  // Parse argv (max 64 args, modifies string in-place)
+  int argc = 0;
+  char *argv[64];
+  bool in = false;
+  for (char *q = p; *q && argc < 64; q++) {
+    if (*q == ' ' || *q == '\t') {
+      *q = '\0';
+      in = false;
+    } else if (!in) {
+      argv[argc++] = q;
+      in = true;
+    }
+  }
+
+  // Dispatch
+  for (int i = 0; g_cmds[i].name; i++) {
+    if (strcmp(argv[0], g_cmds[i].name) == 0) {
+      g_cmds[i].func(st, argc, argv);
+      return;
+    }
+  }
+
+  vgat_screen_write_string(&st->screen, "Unknown command: ", 9, VGAT_BG_DEFAULT);
+  vgat_screen_write_string(&st->screen, argv[0], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  vgat_screen_newline(&st->screen);
+}
+
+// ── Window procedure ──────────────────────────────────────────────────────
 
 result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   vgat_state_t *st = (vgat_state_t *)win->userdata;
 
   switch (msg) {
+
     case evCreate: {
       st = (vgat_state_t *)calloc(1, sizeof(vgat_state_t));
       win->userdata = st;
@@ -45,8 +192,8 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       st->default_fg = kAnsi16[VGAT_FG_DEFAULT];
       st->default_bg = kAnsi16[VGAT_BG_DEFAULT];
       st->scroll_pos = 0;
-      st->master_fd = -1;
-      st->child_pid = -1;
+      st->cursor_visible = true;
+      st->cursor_blink_ctr = 0;
 
       irect16_t cr = get_client_rect(win);
       int cols = cr.w / VGA_CHAR_W;
@@ -61,35 +208,18 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
                ui_get_exe_dir());
       vga_font_init(font_path);
 
-      const char *shell = getenv("SHELL");
-      st->master_fd = vgat_pty_open(shell, rows, cols, &st->child_pid);
-
-      vgat_parser_init(&g_parser, &st->screen,
-                       on_write_cell, on_newline, on_backspace, on_cr,
-                       on_cursor_left, on_cursor_right, on_cursor_up, on_cursor_down,
-                       on_set_fg, on_set_bg, on_reset,
-                       on_save_cursor, on_restore_cursor,
-                       on_erase_display, on_erase_line, on_cursor_pos);
+      // Welcome message
+      vgat_screen_write_string(&st->screen, "VGA Console v1.0\n", 10, VGAT_BG_DEFAULT);
+      vgat_screen_write_string(&st->screen, "Type 'help' for available commands\n", 10, VGAT_BG_DEFAULT);
+      vgat_screen_newline(&st->screen);
 
       st->timer_id = axSetTimer(win, VGAT_TIMER_INTERVAL_MS, NULL, true);
-
-      if (st->master_fd < 0) {
-        const char *msg2 = "PTY not available on this platform";
-        for (int i = 0; msg2[i]; i++)
-          vgat_screen_write_cell(&st->screen, (uint8_t)msg2[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
-        vgat_screen_newline(&st->screen);
-        invalidate_window(win);
-      }
       return true;
     }
 
     case evDestroy: {
       if (st) {
-        if (st->timer_id > 0)
-          axCancelTimer(st->timer_id);
-        if (st->master_fd >= 0) {
-          vgat_pty_close(st->child_pid);
-        }
+        if (st->timer_id > 0) axCancelTimer(st->timer_id);
         vga_font_shutdown();
         vgat_screen_shutdown(&st->screen);
         free(st);
@@ -99,13 +229,12 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
     }
 
     case evTimer: {
-      if (wparam == TIMER_ID_DRAIN && st && st->master_fd >= 0) {
-        uint8_t buf[256];
-        int n = vgat_pty_read(st->master_fd, buf, sizeof(buf));
-        if (n > 0) {
-          vgat_parser_feed(&g_parser, buf, n);
-          invalidate_window(win);
-        }
+      if (!st) return true;
+      st->cursor_blink_ctr++;
+      if (st->cursor_blink_ctr >= (VGAT_CURSOR_BLINK_MS / VGAT_TIMER_INTERVAL_MS)) {
+        st->cursor_blink_ctr = 0;
+        st->cursor_visible = !st->cursor_visible;
+        invalidate_window(win);
       }
       return true;
     }
@@ -122,20 +251,39 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       if (!vga_text_ensure_grid(&grid, vis_cols, vis_rows)) return true;
       vga_text_clear_grid(&grid, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
 
-      int start_row = vis_rows - 1 - st->scroll_pos;
-      if (start_row < 0) start_row = 0;
+      // ── Scrollback output area (top vis_rows-1) ──
+      int content_rows = vis_rows - 1;
+      if (content_rows > 0) {
+        int written = st->screen.cursor_row;
+        int first = written - content_rows - st->scroll_pos;
+        if (first < 0) first = 0;
 
-      for (int row = 0; row < vis_rows; row++) {
-        int screen_row = row + start_row;
-        if (screen_row >= st->screen.total_rows) continue;
-        int phys = (st->screen.head + screen_row) % st->screen.total_rows;
-        for (int col = 0; col < vis_cols; col++) {
-          if (col >= st->screen.cols) break;
-          vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + col];
-          vga_text_set_cell(&grid, col, row, cell->ch, cell->fg, cell->bg);
+        for (int row = 0; row < content_rows; row++) {
+          int logical = first + row;
+          if (logical >= written) break;
+          int phys = (st->screen.head + logical) % st->screen.total_rows;
+          for (int col = 0; col < vis_cols; col++) {
+            if (col >= st->screen.cols) break;
+            vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + col];
+            vga_text_set_cell(&grid, col, row, cell->ch, cell->fg, cell->bg);
+          }
         }
       }
 
+      // ── Input line (last row) ──
+      int input_row = vis_rows - 1;
+      int col = 0;
+      const char *prompt = "> ";
+      for (const char *cp = prompt; *cp && col < vis_cols; cp++, col++)
+        vga_text_set_cell(&grid, col, input_row, *cp, 10, VGAT_BG_DEFAULT);
+
+      for (int i = 0; i < st->input_len && col < vis_cols; i++, col++)
+        vga_text_set_cell(&grid, col, input_row, st->input_buf[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+
+      if (st->cursor_visible && col < vis_cols)
+        vga_text_set_cell(&grid, col, input_row, ' ', VGAT_BG_DEFAULT, VGAT_FG_DEFAULT);
+
+      // ── Render ──
       if (R_UpdateTextureRG8(grid.cells_tex, 0, 0, grid.cells_w, grid.cells_h, grid.cells)) {
         R_VgaBuffer buf = {
           .vga_buffer = grid.cells_tex,
@@ -161,15 +309,14 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
 
       vgat_screen_resize(&st->screen, cols);
 
-      if (st->master_fd >= 0) {
-        vgat_pty_resize(st->master_fd, rows, cols);
-      }
-
+      int content_rows = rows - 1;
+      int written = st->screen.cursor_row;
+      int max_scroll = written > content_rows ? written - content_rows : 0;
       scroll_info_t si = {
         .fMask = SIF_RANGE | SIF_PAGE | SIF_POS,
         .nMin = 0,
-        .nMax = VGAT_SCROLLBACK_LINES,
-        .nPage = (uint32_t)rows,
+        .nMax = max_scroll,
+        .nPage = (uint32_t)content_rows,
         .nPos = st->scroll_pos,
       };
       set_scroll_info(win, SB_VERT, &si, true);
@@ -182,8 +329,9 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       irect16_t cr = get_client_rect(win);
       int vis_rows = cr.h / VGA_CHAR_H;
       if (vis_rows <= 0) vis_rows = 24;
-      int max_scroll = VGAT_SCROLLBACK_LINES - vis_rows;
-      if (max_scroll < 0) max_scroll = 0;
+      int content_rows = vis_rows - 1;
+      int written = st->screen.cursor_row;
+      int max_scroll = written > content_rows ? written - content_rows : 0;
       int new_pos = CLAMP((int)wparam, 0, max_scroll);
       if (new_pos != st->scroll_pos) {
         st->scroll_pos = new_pos;
@@ -200,8 +348,9 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       irect16_t cr = get_client_rect(win);
       int vis_rows = cr.h / VGA_CHAR_H;
       if (vis_rows <= 0) vis_rows = 24;
-      int max_scroll = VGAT_SCROLLBACK_LINES - vis_rows;
-      if (max_scroll < 0) max_scroll = 0;
+      int content_rows = vis_rows - 1;
+      int written = st->screen.cursor_row;
+      int max_scroll = written > content_rows ? written - content_rows : 0;
       int lines = delta < 0 ? 3 : -3;
       int new_pos = CLAMP(st->scroll_pos + lines, 0, max_scroll);
       if (new_pos != st->scroll_pos) {
@@ -214,36 +363,36 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
     }
 
     case evKeyDown: {
-      if (!st || st->master_fd < 0) return false;
-      char buf[8];
-      int len = 0;
-
+      if (!st) return false;
       switch (wparam) {
-        case AX_KEY_ENTER:    buf[len++] = '\r'; break;
-        case AX_KEY_BACKSPACE: buf[len++] = 0x7F; break;
-        case AX_KEY_TAB:     buf[len++] = '\t'; break;
-        case AX_KEY_ESCAPE:  buf[len++] = 0x1B; break;
-        case AX_KEY_UPARROW:    send_escape(st->master_fd, 'A'); return true;
-        case AX_KEY_DOWNARROW:  send_escape(st->master_fd, 'B'); return true;
-        case AX_KEY_RIGHTARROW: send_escape(st->master_fd, 'C'); return true;
-        case AX_KEY_LEFTARROW: send_escape(st->master_fd, 'D'); return true;
-        case AX_KEY_HOME:   buf[len++] = 0x1B; buf[len++] = '['; buf[len++] = 'H'; break;
-        case AX_KEY_END:    buf[len++] = 0x1B; buf[len++] = '['; buf[len++] = 'F'; break;
-        default: return false;
+        case AX_KEY_ENTER:
+          process_input(st);
+          st->input_len = 0;
+          st->input_buf[0] = '\0';
+          invalidate_window(win);
+          return true;
+        case AX_KEY_BACKSPACE:
+          if (st->input_len > 0) {
+            st->input_buf[--st->input_len] = '\0';
+            invalidate_window(win);
+          }
+          return true;
+        default:
+          return false;
       }
-
-      if (len > 0) {
-        vgat_pty_write(st->master_fd, buf, len);
-      }
-      return true;
     }
 
     case evTextInput: {
-      if (!st || st->master_fd < 0) return false;
+      if (!st) return false;
       const char *text = (const char *)lparam;
-      if (text && text[0]) {
-        vgat_pty_write(st->master_fd, text, (int)strlen(text));
+      while (*text && st->input_len < VGAT_INPUT_MAX - 1) {
+        if (*text >= 0x20 && *text < 0x7F) {
+          st->input_buf[st->input_len++] = *text;
+        }
+        text++;
       }
+      st->input_buf[st->input_len] = '\0';
+      invalidate_window(win);
       return true;
     }
 
