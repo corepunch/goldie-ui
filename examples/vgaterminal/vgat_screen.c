@@ -176,3 +176,14 @@ void vgat_screen_cursor_position(vgat_screen *s, int row, int col) {
   s->cursor_row = row;
   s->cursor_col = col;
 }
+
+void vgat_screen_write_string(vgat_screen *s, const char *str, int fg, int bg) {
+  if (!s || !str) return;
+  for (const char *p = str; *p; p++) {
+    if (*p == '\n') {
+      vgat_screen_newline(s);
+    } else {
+      vgat_screen_write_cell(s, (uint8_t)*p, fg, bg);
+    }
+  }
+}

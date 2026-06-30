@@ -127,7 +127,15 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
 
       if (total_cols <= 0 || vis <= 0) return true;
 
-      if (!vga_text_ensure_grid(&st->grid, total_cols, vis)) return true;
+      if (!vga_text_ensure_grid(&st->grid, total_cols, vis)) {
+        // VGA grid unavailable — fall back to plain text
+        for (int li = start; li < end; li++) {
+          draw_text_small(st->lines[li], cr.x + 4,
+                          cr.y + 4 + (li - start) * 14,
+                          get_sys_color(brTextNormal));
+        }
+        return true;
+      }
 
       int def_fg_idx = nearest_ansi_index(CLR_CTX_FG);
       int def_bg_idx = nearest_ansi_index(CLR_CTX_BG);
@@ -165,6 +173,13 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
                         st->grid.cells_h * VGA_CHAR_H,
                         vga_font_texture_id(),
                         kAnsi16);
+      } else {
+        // VGA texture upload failed — fall back to plain text
+        for (int li = start; li < end; li++) {
+          draw_text_small(st->lines[li], cr.x + 4,
+                          cr.y + 4 + (li - start) * 14,
+                          get_sys_color(brTextNormal));
+        }
       }
 
       return true;
