@@ -14,6 +14,8 @@
 #include <signal.h>
 #if defined(__APPLE__)
 #include <util.h>
+#elif defined(__linux__)
+#include <pty.h>
 #else
 #include <libutil.h>
 #endif
