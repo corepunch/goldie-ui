@@ -13,6 +13,8 @@ void gc_load_from_git(void) {
   int branch_count = 0;
   int commit_count = 0;
   int file_count = 0;
+  git_branch_t branches[128];
+  int branch_ids[128] = {0};
 
   send_db_message(gc->db, dbDelete, ID_DB_BRANCHES, (void *)(intptr_t)0);
   send_db_message(gc->db, dbDelete, ID_DB_COMMITS,  (void *)(intptr_t)0);
@@ -20,29 +22,32 @@ void gc_load_from_git(void) {
   send_db_message(gc->db, dbDelete, ID_DB_DIFF,     (void *)(intptr_t)0);
 
   {
-    git_branch_t raw[128];
-    int count = git_get_branches(gc->repo, raw, 128);
+    int count = git_get_branches(gc->repo, branches, 128);
     branch_count = count;
     for (int i = 0; i < count; i++) {
       db_branche_t rec = {0};
-      strncpy(rec.name, raw[i].name, sizeof(rec.name) - 1);
-      rec.is_current = raw[i].is_current;
-      rec.is_remote  = raw[i].is_remote;
-      send_db_message(gc->db, dbInsert, ID_DB_BRANCHES, &rec);
+      strncpy(rec.name, branches[i].name, sizeof(rec.name) - 1);
+      rec.is_current = branches[i].is_current;
+      rec.is_remote  = branches[i].is_remote;
+      db_branche_t *inserted = (db_branche_t *)send_db_message(gc->db, dbInsert, ID_DB_BRANCHES, &rec);
+      if (inserted) branch_ids[i] = inserted->id;
     }
   }
 
   {
-    git_commit_t raw[500];
-    int count = git_get_log(gc->repo, raw, 500);
-    commit_count = count;
-    for (int i = 0; i < count; i++) {
-      db_commit_t rec = {0};
-      strncpy(rec.hash,    raw[i].hash,    sizeof(rec.hash) - 1);
-      strncpy(rec.author,  raw[i].author,  sizeof(rec.author) - 1);
-      strncpy(rec.date,    raw[i].date,    sizeof(rec.date) - 1);
-      strncpy(rec.subject, raw[i].subject, sizeof(rec.subject) - 1);
-      send_db_message(gc->db, dbInsert, ID_DB_COMMITS, &rec);
+    for (int branch = 0; branch < branch_count; branch++) {
+      git_commit_t raw[500];
+      int count = git_get_log_ref(gc->repo, branches[branch].name, raw, 500);
+      commit_count += count;
+      for (int i = 0; i < count; i++) {
+        db_commit_t rec = {0};
+        rec.branch_id = branch_ids[branch];
+        strncpy(rec.hash,    raw[i].hash,    sizeof(rec.hash) - 1);
+        strncpy(rec.author,  raw[i].author,  sizeof(rec.author) - 1);
+        strncpy(rec.date,    raw[i].date,    sizeof(rec.date) - 1);
+        strncpy(rec.subject, raw[i].subject, sizeof(rec.subject) - 1);
+        send_db_message(gc->db, dbInsert, ID_DB_COMMITS, &rec);
+      }
     }
   }
 
@@ -52,6 +57,7 @@ void gc_load_from_git(void) {
     file_count = count;
     for (int i = 0; i < count; i++) {
       db_file_t rec = {0};
+      rec.commit_id = 0;
       strncpy(rec.path, raw[i].path, sizeof(rec.path) - 1);
       rec.status[0] = raw[i].status;
       rec.status[1] = '\0';
@@ -62,6 +68,53 @@ void gc_load_from_git(void) {
 
   GC_LOG("database populated: branches=%d commits=%d files=%d",
          branch_count, commit_count, file_count);
+}
+
+void gc_load_commit_files(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !gc->db) return;
+  if (gc->selected_commit < 0) {
+    gc_load_from_git();
+    return;
+  }
+
+  send_db_message(gc->db, dbDelete, ID_DB_FILES, (void *)(intptr_t)0);
+
+  db_commit_t *c = (db_commit_t *)(intptr_t)send_message(
+    gc->log_win, tvGetSelectedRecord, 0, NULL);
+  if (!c || !c->hash[0]) {
+    return;
+  }
+
+  char buf[64 * 1024] = {0};
+  const char *args[] = {
+    "git", "show", "--name-only", "--pretty=format:", c->hash, NULL
+  };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    return;
+  }
+
+  int file_count = 0;
+  char *line = buf;
+  while (*line) {
+    char *nl = strchr(line, '\n');
+    if (nl) *nl = '\0';
+    if (line[0] && strcmp(line, c->hash) != 0) {
+      db_file_t rec = {0};
+      rec.commit_id = c->id;
+      rec.status[0] = 'M';
+      rec.status[1] = '\0';
+      rec.staged = false;
+      strncpy(rec.path, line, sizeof(rec.path) - 1);
+      send_db_message(gc->db, dbInsert, ID_DB_FILES, &rec);
+      file_count++;
+    }
+    if (!nl) break;
+    line = nl + 1;
+  }
+
+  GC_LOG("commit files populated: commit=%d files=%d", gc->selected_commit,
+         file_count);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

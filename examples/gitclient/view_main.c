@@ -40,8 +40,24 @@ void gc_refresh_all(void) {
 
   if (gc->branches_win)
     send_message(gc->branches_win, tvRefresh, 0, NULL);
+  if (gc->branches_win) {
+    result_node_t *rows = (result_node_t *)send_db_message(
+      gc->db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
+    int row = 0;
+    for (result_node_t *n = rows; n; n = n->next, row++) {
+      db_branche_t *branch = *(db_branche_t **)n->data;
+      if (branch && branch->is_current) {
+        send_message(gc->branches_win, RVM_SETSELECTION, (uint32_t)row, NULL);
+        break;
+      }
+    }
+    free_result_list(rows);
+  }
   if (gc->log_win)
     send_message(gc->log_win, tvRefresh, 0, NULL);
+  if (gc->branches_win && gc->log_win)
+    tableview_handle_master_selection(get_root_window(gc->branches_win),
+                                      gc->branches_win);
   if (gc->files_win)
     send_message(gc->files_win, tvRefresh, 0, NULL);
 
@@ -144,7 +160,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           if (sel != gc->selected_commit) {
             gc->selected_commit = sel;
             gc->selected_file   = -1;
-            send_message(gc->files_win, tvRefresh, 0, NULL);
+            gc_load_commit_files();
             gc_diff_refresh();
           }
         } else if (src == gc->files_win) {

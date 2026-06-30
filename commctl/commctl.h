@@ -102,6 +102,7 @@ result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *
 enum {
   tvRefresh = evUser + 260,
   tvSetFilter,
+  tvGetSelectedRecord,
 };
 
 typedef struct {
@@ -112,9 +113,13 @@ typedef struct {
   const char **field_names;    // Column field names (NULL-terminated)
   const char **column_titles;  // Column display titles (NULL-terminated)
   const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
+  uint32_t master_id;          // Parent TableView control ID (0 = unbound)
+  int master_filter_field;     // Child FK field used by dbFetch
+  const char *master_key;      // Parent field referenced by the FK
 } tableview_params_t;
 
 result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void tableview_handle_master_selection(window_t *root, window_t *master);
 
 // Auto-layout container windows.
 typedef struct {

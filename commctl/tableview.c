@@ -59,6 +59,11 @@ typedef struct {
   db_object_proc_t obj_proc;          // Object handler proc for this table
   const db_field_msg_binding_t *bindings;  // Field bindings for this table
   int binding_count;
+  uint32_t master_id;
+  int master_filter_field;
+  char *master_key;
+  void **rows;
+  int row_count;
 } tableview_state_t;
 
 // Forward declarations
@@ -147,6 +152,9 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   
   // Clear existing items
   send_message(win, RVM_CLEAR, 0, NULL);
+  free(s->rows);
+  s->rows = NULL;
+  s->row_count = 0;
   
   // Setup columns (on first refresh or if column count changed)
   int existing_cols = (int)send_message(win, RVM_GETCOLUMNCOUNT, 0, NULL);
@@ -185,6 +193,10 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   for (result_node_t *n = results; n; n = (result_node_t *)n->next) {
     void *record = *(void **)n->data;
     if (!record) continue;
+    void **grown = realloc(s->rows, (size_t)(s->row_count + 1) * sizeof(void *));
+    if (!grown) break;
+    s->rows = grown;
+    s->rows[s->row_count++] = record;
     
     // Extract field values for all columns
     for (int col = 0; col < s->column_count; col++) {
@@ -263,6 +275,9 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->table_id = params->table_id;
       s->filter_field = params->filter_field;
       s->filter_value = params->filter_value;
+      s->master_id = params->master_id;
+      s->master_filter_field = params->master_filter_field;
+      s->master_key = params->master_key ? strdup(params->master_key) : NULL;
       TV_LOG("create: id=%u table=%d db=%p columns=%d", (unsigned)win->id,
              s->table_id, (void *)s->db, count_strings(params->field_names));
       
@@ -278,6 +293,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
           TV_LOG("create metadata missing: id=%u table=%d object_proc=%p bindings=%p count=%d",
                  (unsigned)win->id, s->table_id, (void *)s->obj_proc,
                  (void *)s->bindings, s->binding_count);
+          free(s->master_key);
           free(s);
           win->userdata = NULL;
           return true;
@@ -287,6 +303,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       // Copy column metadata
       s->column_count = count_strings(params->field_names);
       if (s->column_count <= 0) {
+        free(s->master_key);
         free(s);
         win->userdata = NULL;
         return true;
@@ -302,6 +319,8 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free_string_array(s->field_names);
         free_string_array(s->column_titles);
         free(s->column_widths);
+        free(s->master_key);
+        free(s->rows);
         free(s);
         win->userdata = NULL;
         return true;
@@ -323,6 +342,8 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free_string_array(s->field_names);
         free_string_array(s->column_titles);
         free(s->column_widths);
+        free(s->master_key);
+        free(s->rows);
         free(s);
         win->userdata = NULL;
       }
@@ -367,6 +388,12 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       }
       return true;
 
+    case tvGetSelectedRecord: {
+      int row = (int)send_message(win, RVM_GETSELECTION, 0, NULL);
+      return (s && row >= 0 && row < s->row_count)
+        ? (result_t)(intptr_t)s->rows[row] : 0;
+    }
+
     // evArrange and evResize now inherited from reportview
     // (reportview evResize automatically recalculates column widths)
     
@@ -374,4 +401,34 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     default:
       return win_reportview(win, msg, wparam, lparam);
   }
+}
+
+static bool tv_selected_field(window_t *win, const char *field,
+                              char *buf, size_t buf_sz) {
+  tableview_state_t *s = win ? (tableview_state_t *)win->userdata : NULL;
+  int row = win ? (int)send_message(win, RVM_GETSELECTION, 0, NULL) : -1;
+  return s && row >= 0 && row < s->row_count &&
+         tv_get_field_text(s, s->rows[row], field, buf, buf_sz);
+}
+
+static void tv_refresh_dependents(window_t *win, window_t *master) {
+  for (window_t *child = win ? win->children : NULL; child; child = child->next) {
+    tableview_state_t *s = (tableview_state_t *)child->userdata;
+    if (child->proc == win_tableview && s && s->master_id == master->id) {
+      char value[64] = {0};
+      if (tv_selected_field(master, s->master_key ? s->master_key : "id",
+                            value, sizeof(value))) {
+        send_message(child, tvSetFilter, (uint32_t)s->master_filter_field,
+                     (void *)(intptr_t)strtol(value, NULL, 10));
+      } else {
+        send_message(child, RVM_CLEAR, 0, NULL);
+      }
+    }
+    tv_refresh_dependents(child, master);
+  }
+}
+
+void tableview_handle_master_selection(window_t *root, window_t *master) {
+  if (root && master && master->proc == win_tableview)
+    tv_refresh_dependents(root, master);
 }

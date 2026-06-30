@@ -75,6 +75,7 @@
 
             <table name="commits">
                 <field name="id" type="integer" key="YES"/>
+                <field name="branch_id" type="integer" relation="branches.id"/>
                 <field name="hash" type="string" length="41"/>
                 <field name="author" type="string" length="64"/>
                 <field name="date" type="string" length="20"/>
@@ -83,6 +84,7 @@
 
             <table name="files">
                 <field name="id" type="integer" key="YES"/>
+                <field name="commit_id" type="integer" relation="commits.id"/>
                 <field name="path" type="string" length="512"/>
                 <field name="status" type="string" length="2"/>
                 <field name="staged" type="bool"/>
