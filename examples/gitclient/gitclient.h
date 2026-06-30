@@ -98,16 +98,18 @@ typedef struct git_repo_s git_repo_t;
 
 // Field IDs for commit table
 #define ID_DB_COMMITS_ID         0
-#define ID_DB_COMMITS_HASH       1
-#define ID_DB_COMMITS_AUTHOR     2
-#define ID_DB_COMMITS_DATE       3
-#define ID_DB_COMMITS_SUBJECT    4
+#define ID_DB_COMMITS_BRANCH_ID  1
+#define ID_DB_COMMITS_HASH       2
+#define ID_DB_COMMITS_AUTHOR     3
+#define ID_DB_COMMITS_DATE       4
+#define ID_DB_COMMITS_SUBJECT    5
 
 // Field IDs for file table
 #define ID_DB_FILES_ID           0
-#define ID_DB_FILES_PATH         1
-#define ID_DB_FILES_STATUS       2
-#define ID_DB_FILES_STAGED       3
+#define ID_DB_FILES_COMMIT_ID    1
+#define ID_DB_FILES_PATH         2
+#define ID_DB_FILES_STATUS       3
+#define ID_DB_FILES_STAGED       4
 
 // Field IDs for diff table
 #define ID_DB_DIFF_ID            0
@@ -175,6 +177,7 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
 // ============================================================
 
 void gc_load_from_git(void);
+void gc_load_commit_files(void);
 bool gc_stage_file(const char *path);
 bool gc_unstage_file(const char *path);
 bool gc_commit(const char *message, bool amend);
@@ -192,6 +195,8 @@ bool        git_repo_valid(git_repo_t *repo);
 const char *git_repo_path(git_repo_t *repo);
 
 int  git_get_log(git_repo_t *repo, git_commit_t *out, int max);
+int  git_get_log_ref(git_repo_t *repo, const char *ref,
+                     git_commit_t *out, int max);
 int  git_get_status(git_repo_t *repo, git_file_status_t *out, int max);
 bool git_get_diff(git_repo_t *repo, const char *path,
                   bool staged, char *buf, int buf_sz);

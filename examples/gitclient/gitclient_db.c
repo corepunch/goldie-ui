@@ -26,6 +26,7 @@ static const db_field_schema_t branches_schema_fields[] = {
 
 static const db_field_schema_t commits_schema_fields[] = {
   { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "branch_id", DB_TYPE_INT, 0, false, "branches", "id" },
   { "hash", DB_TYPE_STRING, 41, false, NULL, NULL },
   { "author", DB_TYPE_STRING, 64, false, NULL, NULL },
   { "date", DB_TYPE_STRING, 20, false, NULL, NULL },
@@ -34,6 +35,7 @@ static const db_field_schema_t commits_schema_fields[] = {
 
 static const db_field_schema_t files_schema_fields[] = {
   { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "commit_id", DB_TYPE_INT, 0, false, "commits", "id" },
   { "path", DB_TYPE_STRING, 512, false, NULL, NULL },
   { "status", DB_TYPE_STRING, 2, false, NULL, NULL },
   { "staged", DB_TYPE_BOOL, 0, false, NULL, NULL },
@@ -46,8 +48,8 @@ static const db_field_schema_t diff_schema_fields[] = {
 
 static db_table_schema_t gc_database_tables[] = {
   { TABLE_BRANCHES, "branches", NULL, branches_schema_fields, 5, NULL, 0 },
-  { TABLE_COMMITS,  "commits",  NULL, commits_schema_fields,  5, NULL, 0 },
-  { TABLE_FILES,    "files",    NULL, files_schema_fields,    4, NULL, 0 },
+  { TABLE_COMMITS,  "commits",  NULL, commits_schema_fields,  6, NULL, 0 },
+  { TABLE_FILES,    "files",    NULL, files_schema_fields,    5, NULL, 0 },
   { TABLE_DIFF,     "diff",     NULL, diff_schema_fields,     2, NULL, 0 },
 };
 
@@ -66,11 +68,13 @@ enum {
   GC_COL_BRANCH_IS_CURRENT,
   GC_COL_BRANCH_IS_REMOTE,
   GC_COL_COMMIT_ID,
+  GC_COL_COMMIT_BRANCH_ID,
   GC_COL_COMMIT_HASH,
   GC_COL_COMMIT_AUTHOR,
   GC_COL_COMMIT_DATE,
   GC_COL_COMMIT_SUBJECT,
   GC_COL_FILE_ID,
+  GC_COL_FILE_COMMIT_ID,
   GC_COL_FILE_PATH,
   GC_COL_FILE_STATUS,
   GC_COL_FILE_STAGED,
@@ -133,12 +137,14 @@ static const db_field_msg_binding_t branch_field_bindings[] = {
   { "is_remote", GC_COL_BRANCH_IS_REMOTE },
 };
 static const db_field_msg_binding_t commit_field_bindings[] = {
-  { "id", GC_COL_COMMIT_ID }, { "hash", GC_COL_COMMIT_HASH },
+  { "id", GC_COL_COMMIT_ID }, { "branch_id", GC_COL_COMMIT_BRANCH_ID },
+  { "hash", GC_COL_COMMIT_HASH },
   { "author", GC_COL_COMMIT_AUTHOR }, { "date", GC_COL_COMMIT_DATE },
   { "subject", GC_COL_COMMIT_SUBJECT },
 };
 static const db_field_msg_binding_t file_field_bindings[] = {
-  { "id", GC_COL_FILE_ID }, { "path", GC_COL_FILE_PATH },
+  { "id", GC_COL_FILE_ID }, { "commit_id", GC_COL_FILE_COMMIT_ID },
+  { "path", GC_COL_FILE_PATH },
   { "status", GC_COL_FILE_STATUS }, { "staged", GC_COL_FILE_STAGED },
 };
 static const db_field_msg_binding_t diff_field_bindings[] = {
@@ -242,6 +248,21 @@ static lresult_t fetch_filtered_bool(void *rows, int count, size_t row_size,
     *(void **)node->data = row;
     if (tail) tail->next = node;
     else head = node;
+    tail = node;
+  }
+  return (lresult_t)head;
+}
+
+static lresult_t fetch_filtered_int(void *rows, int count, size_t row_size,
+                                    size_t filter_offset, int filter_value) {
+  result_node_t *head = NULL, *tail = NULL;
+  for (int i = 0; i < count; i++) {
+    char *row = (char *)rows + ((size_t)i * row_size);
+    if (*(int *)(row + filter_offset) != filter_value) continue;
+    result_node_t *node = malloc(sizeof(result_node_t) + sizeof(void *));
+    node->next = NULL;
+    *(void **)node->data = row;
+    if (tail) tail->next = node; else head = node;
     tail = node;
   }
   return (lresult_t)head;
@@ -377,10 +398,20 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
                                      (bool)filter_value);
         return fetch_all(ctx->branches, ctx->branch_count, sizeof(db_branche_t));
       }
-      if (table_id == ID_DB_COMMITS)
+      if (table_id == ID_DB_COMMITS) {
+        if (filter_field == ID_DB_COMMITS_BRANCH_ID)
+          return fetch_filtered_int(ctx->commits, ctx->commit_count,
+                                    sizeof(db_commit_t),
+                                    offsetof(db_commit_t, branch_id), filter_value);
         return fetch_all(ctx->commits, ctx->commit_count, sizeof(db_commit_t));
-      if (table_id == ID_DB_FILES)
+      }
+      if (table_id == ID_DB_FILES) {
+        if (filter_field == ID_DB_FILES_COMMIT_ID)
+          return fetch_filtered_int(ctx->files, ctx->file_count,
+                                    sizeof(db_file_t),
+                                    offsetof(db_file_t, commit_id), filter_value);
         return fetch_all(ctx->files, ctx->file_count, sizeof(db_file_t));
+      }
       if (table_id == ID_DB_DIFF)
         return fetch_all(ctx->diff, ctx->diff_count, sizeof(db_diff_t));
       return (lresult_t)NULL;

@@ -197,7 +197,8 @@ bool git_run_sync(git_repo_t *repo, const char *args[],
 // Public: git log
 // ============================================================
 
-int git_get_log(git_repo_t *repo, git_commit_t *out, int max) {
+int git_get_log_ref(git_repo_t *repo, const char *ref,
+                    git_commit_t *out, int max) {
   if (!repo || !out || max <= 0) return 0;
 
   // Format: hash<US>author<US>date<US>subject<RS>
@@ -215,6 +216,7 @@ int git_get_log(git_repo_t *repo, git_commit_t *out, int max) {
     fmt_arg,
     // String literal — not passed through snprintf, so % is verbatim for git.
     "--date=format:%Y-%m-%d",
+    ref && ref[0] ? ref : NULL,
     NULL
   };
   char buf[64 * 1024];
@@ -274,6 +276,10 @@ int git_get_log(git_repo_t *repo, git_commit_t *out, int max) {
   }
   GC_LOG("git_get_log: %d commits", count);
   return count;
+}
+
+int git_get_log(git_repo_t *repo, git_commit_t *out, int max) {
+  return git_get_log_ref(repo, NULL, out, max);
 }
 
 // ============================================================

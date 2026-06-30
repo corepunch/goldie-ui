@@ -171,6 +171,23 @@ static result_t test_main_proc(window_t *win, uint32_t msg,
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+void test_gc_orion_relations_generate_tableview_masters(void) {
+    TEST("Orion relations: branch -> commit -> file masters are generated");
+
+    ASSERT_EQUAL(main_window_log_tableview_params.master_id,
+                 ID_MAIN_WINDOW_BRANCHES);
+    ASSERT_EQUAL(main_window_log_tableview_params.master_filter_field,
+                 ID_DB_COMMITS_BRANCH_ID);
+    ASSERT_STR_EQUAL(main_window_log_tableview_params.master_key, "id");
+    ASSERT_EQUAL(main_window_files_tableview_params.master_id,
+                 ID_MAIN_WINDOW_LOG);
+    ASSERT_EQUAL(main_window_files_tableview_params.master_filter_field,
+                 ID_DB_FILES_COMMIT_ID);
+    ASSERT_STR_EQUAL(main_window_files_tableview_params.master_key, "id");
+
+    PASS();
+}
+
 // gc_open_repo() is the primary API to load a repository.  It opens the git
 // handle, populates gc->branch_count and gc->commit_count, and refreshes all
 // panel windows.
@@ -750,6 +767,7 @@ int main(int argc, char *argv[]) {
     test_gc_branch_selection_refreshes_log();
 
     // Message-based routing (evCommand / evOpenRepo via gc_main_proc)
+    test_gc_orion_relations_generate_tableview_masters();
     test_gc_evcommand_selchange_log_triggers_files_refresh();
     test_gc_evcommand_selchange_branches_triggers_log_refresh();
     test_gc_evopenmsg_opens_repository();

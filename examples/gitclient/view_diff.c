@@ -29,25 +29,18 @@ void gc_diff_refresh(void) {
   bool staged = false;
 
   if (gc->selected_file >= 0) {
-    result_node_t *files = (result_node_t *)send_db_message(
-      gc->db, dbFetch, MAKEDWORD(ID_DB_FILES, 0), (void *)(intptr_t)0);
-    result_node_t *node = files;
-    for (int i = 0; i < gc->selected_file && node; i++) node = node->next;
-    if (node) {
-      db_file_t *f = *(db_file_t **)node->data;
+    db_file_t *f = (db_file_t *)(intptr_t)send_message(
+      gc->files_win, tvGetSelectedRecord, 0, NULL);
+    if (f) {
       path = f->path;
       staged = f->staged;
     }
-    free_result_list(files);
   }
 
   if (gc->selected_commit >= 0) {
-    result_node_t *commits = (result_node_t *)send_db_message(
-      gc->db, dbFetch, MAKEDWORD(ID_DB_COMMITS, 0), (void *)(intptr_t)0);
-    result_node_t *node = commits;
-    for (int i = 0; i < gc->selected_commit && node; i++) node = node->next;
-    if (node) {
-      db_commit_t *c = *(db_commit_t **)node->data;
+    db_commit_t *c = (db_commit_t *)(intptr_t)send_message(
+      gc->log_win, tvGetSelectedRecord, 0, NULL);
+    if (c) {
       if (path && path[0]) {
         const char *args[] = {
           "git", "show", "--color=always", "--pretty=format:", c->hash,
@@ -61,7 +54,6 @@ void gc_diff_refresh(void) {
         git_run_sync(gc->repo, args, st->diff_buf, sizeof(st->diff_buf));
       }
     }
-    free_result_list(commits);
   } else {
     git_get_diff(gc->repo, path, staged, st->diff_buf, sizeof(st->diff_buf));
   }

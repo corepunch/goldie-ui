@@ -7,6 +7,8 @@
 #include "../user/draw.h"
 #include "../user/theme.h"
 
+void tableview_handle_master_selection(window_t *root, window_t *master);
+
 // Shared helper implementation used by the dedicated view controls.
 
 void rv_invalidate(window_t *win, reportview_data_t *data) {
@@ -38,6 +40,8 @@ void rv_notify(window_t *win, reportview_data_t *data, int index, uint16_t code)
     return;
   send_message(get_root_window(win), evCommand,
                MAKEDWORD(index, code), (void *)win);
+  if (code == RVN_SELCHANGE)
+    tableview_handle_master_selection(get_root_window(win), win);
 }
 
 void rv_reset_click_state(reportview_data_t *data) {

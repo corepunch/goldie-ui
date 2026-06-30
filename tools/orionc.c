@@ -378,7 +378,50 @@ static int count_table_fields(xmlNodePtr db, const char *table_name) {
   return 0;
 }
 
-static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form) {
+static xmlNodePtr find_tableview_for_table(xmlNodePtr parent, const char *table) {
+  EACH_ELEMENT(c, parent) {
+    if (elem(c, "tableview")) {
+      char *source = attrs_first(c, "source", "database");
+      char found[128]; table_name_from_source(found, sizeof(found), source);
+      free(source);
+      if (eq(found, table)) return c;
+    }
+    xmlNodePtr nested = find_tableview_for_table(c, table);
+    if (nested) return nested;
+  }
+  return NULL;
+}
+
+static bool table_relation(xmlNodePtr db, const char *table, int *field_index,
+                           char *foreign_table, size_t table_cap,
+                           char *foreign_field, size_t field_cap) {
+  if (!db) return false;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *name = attr(t, "name");
+    bool match = eq(name, table); free(name);
+    if (!match) continue;
+    int index = 0;
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *relation = attr(field, "relation");
+      if (relation && *relation) {
+        char *dot = strchr(relation, '.');
+        if (dot) {
+          *dot = 0;
+          snprintf(foreign_table, table_cap, "%s", relation);
+          snprintf(foreign_field, field_cap, "%s", dot + 1);
+          *field_index = index;
+          free(relation);
+          return true;
+        }
+      }
+      free(relation); index++;
+    }
+  }
+  return false;
+}
+
+static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
+                            xmlNodePtr database, const char *form) {
   EACH_ELEMENT(c, parent) {
     if (elem(c, "tableview")) {
       char *name = attr(c, "name"), *source = attrs_first(c, "source", "database");
@@ -387,10 +430,26 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form) {
       OUT("static const char *%s_fields[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "field"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
       OUT("static const char *%s_titles[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "title"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
       OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("-1 };\n");
-      OUT("static const tableview_params_t %s = { NULL, TABLE_%s, 0, 0, %s_fields, %s_titles, %s_widths };\n\n", param, table_id, param, param, param);
+      int relation_field = 0; char foreign_table[128] = {0}, foreign_field[128] = {0};
+      xmlNodePtr master = NULL;
+      if (table_relation(database, table, &relation_field, foreign_table,
+                         sizeof(foreign_table), foreign_field, sizeof(foreign_field)))
+        master = find_tableview_for_table(form_node, foreign_table);
+      char master_id[256] = "0";
+      if (master) {
+        char *master_name = attr(master, "name");
+        control_id(master_id, sizeof(master_id), form, master_name,
+                   (char *)master->name, 0);
+        free(master_name);
+      }
+      char master_key_q[ORIONC_STRING_SIZE];
+      cstr(master_key_q, sizeof(master_key_q), foreign_field[0] ? foreign_field : NULL);
+      OUT("static const tableview_params_t %s = { .db = NULL, .table_id = TABLE_%s, .filter_field = 0, .filter_value = 0, .field_names = %s_fields, .column_titles = %s_titles, .column_widths = %s_widths, .master_id = %s, .master_filter_field = %d, .master_key = %s };\n\n",
+          param, table_id, param, param, param, master_id, relation_field,
+          master_key_q);
       free(name); free(source);
     }
-    emit_tableviews(f, c, form);
+    emit_tableviews(f, c, form_node, database, form);
   }
 }
 
@@ -548,7 +607,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
   resolve_flags(flags, sizeof(flags), nz(flags_raw, "0"));
-  emit_tableviews(f, form, form_id);
+  emit_tableviews(f, form, form, database, form_id);
   emit_comboboxes(f, form, form_id);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
   int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
