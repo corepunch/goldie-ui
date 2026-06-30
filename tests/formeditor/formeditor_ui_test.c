@@ -1183,7 +1183,7 @@ void test_fe_place_all_types(void) {
     int n = (int)(sizeof(kCases) / sizeof(kCases[0]));
 
     for (int i = 0; i < n; i++)
-        fe_place_ctrl(doc, kCases[i].tool, 10 + i * 90, 10, 80, 24);
+        fe_place_ctrl(doc, kCases[i].tool, 10 + i * 50, 10, 40, 20);
 
     ASSERT_EQUAL(doc->element_count, n);
     for (int i = 0; i < n; i++) {
