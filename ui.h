@@ -12,12 +12,16 @@
 #include "user/theme.h"
 #include "user/accel.h"
 #include "user/image.h"
+#include "user/database.h"
 
 // Kernel subsystem (event management)
 #include "kernel/kernel.h"
 
 // Common controls subsystem
 #include "commctl/commctl.h"
+
+// Common dialogs subsystem
+#include "commdlg/commdlg.h"
 
 // Shared dialog button IDs.
 enum {

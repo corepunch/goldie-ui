@@ -1,0 +1,518 @@
+#include <stdlib.h>
+#include <string.h>
+
+#include "toolbar.h"
+#include "messages.h"
+#include "draw.h"
+#include "image.h"
+#include "icons.h"
+
+extern bitmap_strip_t *ui_get_sysicon_strip(void);
+
+static int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
+  if (!tb || !tb->item_rects) return -1;
+  for (int i = 0; i < tb->item_count; i++) {
+    irect16_t r = tb->item_rects[i];
+    if (tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h)
+      return i;
+  }
+  return -1;
+}
+
+static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
+  if (!tb || !tb->items) return;
+
+  free(tb->item_rects);
+  tb->item_rects = tb->item_count > 0 ? malloc((size_t)tb->item_count * sizeof(irect16_t)) : NULL;
+
+  int bsz = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+  int x = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
+  int base_y = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
+  int field_y = base_y + 2;
+  int field_h = bsz > 4 ? (bsz - 4) : bsz;
+
+  for (int i = 0; i < tb->item_count; i++) {
+    toolbar_item_t *item = &tb->items[i];
+    int w = 0;
+    int y = base_y;
+    int h = bsz;
+
+    switch (item->type) {
+      case TOOLBAR_ITEM_BUTTON:
+        w = item->w > 0 ? item->w : bsz;
+        break;
+      case TOOLBAR_ITEM_DROPDOWN:
+        w = (item->w > 0 ? item->w : bsz) + DROPDOWN_ARROW_W;
+        break;
+      case TOOLBAR_ITEM_LABEL:
+        w = item->w > 0 ? item->w
+                        : (strwidth(item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
+        break;
+      case TOOLBAR_ITEM_COMBOBOX:
+        w = item->w > 0 ? item->w : (bsz * TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT);
+        y = field_y;
+        h = field_h;
+        break;
+      case TOOLBAR_ITEM_TEXTEDIT:
+        w = item->w > 0 ? item->w : (bsz * 8);
+        y = field_y;
+        h = field_h;
+        break;
+      case TOOLBAR_ITEM_SEPARATOR:
+        w = item->w > 0 ? item->w : 6;
+        break;
+      case TOOLBAR_ITEM_SPACER:
+        w = item->w > 0 ? item->w : TOOLBAR_SPACING_GAP_WIDTH;
+        break;
+      default:
+        w = 0;
+        break;
+    }
+
+    if (tb->item_rects)
+      tb->item_rects[i] = (irect16_t){x, y, w, h};
+    x += w + TOOLBAR_SPACING;
+  }
+
+  for (window_t *tc = tb->children; tc; tc = tc->next) {
+    for (int i = 0; i < tb->item_count; i++) {
+      if ((uint32_t)tb->items[i].ident == tc->id && tb->item_rects) {
+        tc->frame = tb->item_rects[i];
+        break;
+      }
+    }
+  }
+
+  (void)parent;
+}
+
+static void draw_toolbar_icon_in_rect(toolbar_state_t *tb, int icon, irect16_t r, int offset) {
+  bitmap_strip_t *strip = NULL;
+  int idx = icon;
+
+  if (icon >= SYSICON_BASE) {
+    strip = ui_get_sysicon_strip();
+    idx = icon - SYSICON_BASE;
+  } else if (tb && tb->strip.tex != 0) {
+    strip = &tb->strip;
+  }
+
+  if (!strip || strip->cols <= 0 || idx < 0) return;
+
+  int col = idx % strip->cols;
+  int row = idx / strip->cols;
+  float u0 = (float)(col * strip->icon_w) / (float)strip->sheet_w;
+  float v0 = (float)(row * strip->icon_h) / (float)strip->sheet_h;
+  float u1 = u0 + (float)strip->icon_w / (float)strip->sheet_w;
+  float v1 = v0 + (float)strip->icon_h / (float)strip->sheet_h;
+  int ix = r.x + (r.w - strip->icon_w) / 2 + offset;
+  int iy = r.y + (r.h - strip->icon_h) / 2 + offset;
+
+  draw_sprite_region((int)strip->tex,
+                     R(ix, iy, strip->icon_w, strip->icon_h),
+                     UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
+}
+
+static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
+  toolbar_item_t *item = &tb->items[i];
+  irect16_t r = tb->item_rects[i];
+  bool is_pressed = (tb->pressed_item == i);
+  bool is_active = (item->flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0;
+  bool show_pressed = is_pressed || is_active;
+
+  switch (item->type) {
+    case TOOLBAR_ITEM_BUTTON: {
+      irect16_t local = {0, 0, r.w, r.h};
+      draw_button(local, 1, 1, show_pressed);
+      int icon = item->icon >= 0 ? item->icon : sysicon_missing;
+      draw_toolbar_icon_in_rect(tb, icon, local, show_pressed ? 1 : 0);
+      break;
+    }
+    case TOOLBAR_ITEM_DROPDOWN: {
+      int aw = DROPDOWN_ARROW_W;
+      irect16_t btn_part = {0, 0, r.w - aw, r.h};
+      irect16_t arr_part = {r.w - aw, 0, aw, r.h};
+      draw_button(btn_part, 1, 1, show_pressed);
+      int icon = item->icon >= 0 ? item->icon : sysicon_missing;
+      draw_toolbar_icon_in_rect(tb, icon, btn_part, show_pressed ? 1 : 0);
+      bool arrow_pressed = is_pressed && tb->pressed_in_arrow;
+      draw_button(arr_part, 1, 1, arrow_pressed);
+
+      int cx = arr_part.x + arr_part.w / 2;
+      int cy = arr_part.y + arr_part.h / 2 - 1 + (arrow_pressed ? 1 : 0);
+      uint32_t arrow_col = get_sys_color(brTextNormal);
+      fill_rect(arrow_col, R(cx - 3, cy, 7, 1));
+      fill_rect(arrow_col, R(cx - 2, cy + 1, 5, 1));
+      fill_rect(arrow_col, R(cx - 1, cy + 2, 3, 1));
+      fill_rect(arrow_col, R(cx, cy + 3, 1, 1));
+      break;
+    }
+    case TOOLBAR_ITEM_SEPARATOR: {
+      int mx = r.w / 2;
+      fill_rect(get_sys_color(brDarkEdge), R(mx, 2, 1, r.h - 4));
+      fill_rect(get_sys_color(brLightEdge), R(mx + 1, 2, 1, r.h - 4));
+      break;
+    }
+    case TOOLBAR_ITEM_LABEL: {
+      int ty = (r.h - CHAR_HEIGHT) / 2;
+      draw_text_small(item->text ? item->text : "", 2, ty, get_sys_color(brTextNormal));
+      break;
+    }
+    case TOOLBAR_ITEM_SPACER:
+    case TOOLBAR_ITEM_COMBOBOX:
+    case TOOLBAR_ITEM_TEXTEDIT:
+      break;
+  }
+}
+
+static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  toolbar_state_t *tb = (toolbar_state_t *)win->userdata;
+
+  switch (msg) {
+    case evCreate:
+      if (!win->userdata) {
+        allocate_window_data(win, sizeof(toolbar_state_t));
+        tb = (toolbar_state_t *)win->userdata;
+        tb->hot_item = -1;
+        tb->pressed_item = -1;
+      }
+      return true;
+
+    case evDestroy:
+      if (tb) {
+        if (tb->strip_tex) {
+          R_DeleteTexture(tb->strip_tex);
+          tb->strip_tex = 0;
+        }
+        free(tb->items);
+        tb->items = NULL;
+        free(tb->item_rects);
+        tb->item_rects = NULL;
+      }
+      return true;
+
+    case evLeftButtonDown: {
+      if (!tb || !tb->item_rects) return false;
+      int tx = (int16_t)LOWORD(wparam);
+      int ty = (int16_t)HIWORD(wparam);
+      int idx = toolbar_item_hit(tb, tx, ty);
+      if (idx < 0) return false;
+
+      toolbar_item_t *item = &tb->items[idx];
+      if (item->type != TOOLBAR_ITEM_BUTTON && item->type != TOOLBAR_ITEM_DROPDOWN)
+        return false;
+
+      tb->pressed_item = idx;
+      tb->pressed_in_arrow = (item->type == TOOLBAR_ITEM_DROPDOWN) &&
+                             (tx >= tb->item_rects[idx].x + tb->item_rects[idx].w - DROPDOWN_ARROW_W);
+      invalidate_window(win->parent);
+      return true;
+    }
+
+    case evLeftButtonUp: {
+      if (!tb || tb->pressed_item < 0) return false;
+      int tx = (int16_t)LOWORD(wparam);
+      int ty = (int16_t)HIWORD(wparam);
+      int saved_idx = tb->pressed_item;
+      bool saved_in_arrow = tb->pressed_in_arrow;
+
+      tb->pressed_item = -1;
+      tb->pressed_in_arrow = false;
+      invalidate_window(win->parent);
+
+      if (saved_idx >= tb->item_count) return true;
+      int hit = toolbar_item_hit(tb, tx, ty);
+      if (hit != saved_idx) return true;
+
+      toolbar_item_t *item = &tb->items[saved_idx];
+      window_t *root = get_root_window(win);
+      if (item->type == TOOLBAR_ITEM_DROPDOWN && saved_in_arrow) {
+        send_message(root, evCommand,
+                     MAKEDWORD((uint16_t)item->ident, (uint16_t)tbDropdown), win);
+      } else {
+        send_message(root, tbButtonClick, (uint32_t)item->ident, win);
+      }
+      return true;
+    }
+
+    case evMouseMove: {
+      if (!tb) return false;
+      int tx = (int16_t)LOWORD(wparam);
+      int ty = (int16_t)HIWORD(wparam);
+      int old_hot = tb->hot_item;
+      tb->hot_item = toolbar_item_hit(tb, tx, ty);
+      if (tb->hot_item != old_hot)
+        invalidate_window(win->parent);
+      return true;
+    }
+
+    case evMouseLeave:
+      if (tb && tb->hot_item >= 0) {
+        tb->hot_item = -1;
+        invalidate_window(win->parent);
+      }
+      return false;
+
+    default:
+      (void)wparam;
+      (void)lparam;
+      return false;
+  }
+}
+
+toolbar_state_t *toolbar_ensure_state(window_t *win) {
+  if (!win || !(win->flags & WINDOW_TOOLBAR)) return NULL;
+
+  if (!win->toolbar) {
+    irect16_t r = {0, 0, 0, 0};
+    win->toolbar = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL |
+                                         WINDOW_NOTABSTOP | WINDOW_HIDDEN,
+                                 &r, win, win_toolbar, win->hinstance, NULL);
+    if (!win->toolbar) return NULL;
+
+    window_t *prev = NULL;
+    window_t *c = win->children;
+    while (c && c != win->toolbar) {
+      prev = c;
+      c = c->next;
+    }
+    if (c == win->toolbar) {
+      if (prev)
+        prev->next = win->toolbar->next;
+      else
+        win->children = win->toolbar->next;
+      win->toolbar->next = NULL;
+    }
+  }
+
+  return window_toolbar_state(win);
+}
+
+toolbar_state_t *toolbar_get_state(window_t *win) {
+  return window_toolbar_state(win);
+}
+
+int toolbar_effective_bsz(window_t const *win) {
+  toolbar_state_t *tb = window_toolbar_state((window_t *)win);
+  return (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+}
+
+void toolbar_draw_non_client(window_t *win) {
+  if (!win || !(win->flags & WINDOW_TOOLBAR)) return;
+
+  toolbar_state_t *tb = toolbar_ensure_state(win);
+  int bsz = toolbar_effective_bsz(win);
+  int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
+  int total_h = bsz + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
+  irect16_t tb_rect = {win->frame.x, win->frame.y + title_h, win->frame.w, total_h};
+  irect16_t rect = rect_inset(tb_rect, TOOLBAR_BEVEL_WIDTH);
+
+  draw_bevel(rect);
+  fill_rect(get_sys_color(brWindowBg), rect);
+
+  set_viewport(tb_rect);
+  if (tb && tb->items && tb->item_rects) {
+    for (int i = 0; i < tb->item_count; i++) {
+      irect16_t r = tb->item_rects[i];
+      set_projection(-r.x, -r.y, win->frame.w - r.x, total_h - r.y);
+      draw_toolbar_item_at_origin(tb, i);
+    }
+  }
+
+  for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
+    set_projection(-tc->frame.x, -tc->frame.y,
+                   win->frame.w - tc->frame.x, total_h - tc->frame.y);
+    tc->proc(tc, evPaint, 0, NULL);
+  }
+
+  set_fullscreen();
+}
+
+bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  switch (msg) {
+    case tbSetItems: {
+      toolbar_state_t *tb = toolbar_ensure_state(win);
+      if (!tb) return true;
+
+      clear_toolbar_children(win);
+      free(tb->items);
+      tb->items = NULL;
+      tb->item_count = 0;
+      free(tb->item_rects);
+      tb->item_rects = NULL;
+      tb->hot_item = -1;
+      tb->pressed_item = -1;
+
+      if ((int)wparam > 0 && lparam) {
+        int n = (int)wparam;
+        tb->items = malloc((size_t)n * sizeof(toolbar_item_t));
+        if (tb->items) {
+          memcpy(tb->items, lparam, (size_t)n * sizeof(toolbar_item_t));
+          tb->item_count = n;
+        }
+
+        compute_toolbar_item_rects(win, tb);
+
+        window_t **tail = &tb->children;
+        for (int i = 0; i < n && tb->item_rects; i++) {
+          toolbar_item_t *item = &tb->items[i];
+          if (item->type != TOOLBAR_ITEM_COMBOBOX && item->type != TOOLBAR_ITEM_TEXTEDIT)
+            continue;
+
+          const char *cls = (item->type == TOOLBAR_ITEM_COMBOBOX) ? "ComboBox" : "TextBox";
+          irect16_t r = tb->item_rects[i];
+          irect16_t rf = {r.x, r.y, r.w, r.h};
+          window_t *tc = create_window(item->text ? item->text : "",
+                                       WINDOW_NOTITLE | WINDOW_NOFILL,
+                                       &rf, win, cls, win->hinstance, NULL);
+          if (!tc) continue;
+
+          tc->id = (uint32_t)item->ident;
+          tc->frame = r;
+
+          window_t *prev = NULL;
+          window_t *c = win->children;
+          while (c && c != tc) {
+            prev = c;
+            c = c->next;
+          }
+          if (c == tc) {
+            if (prev)
+              prev->next = tc->next;
+            else
+              win->children = tc->next;
+          }
+
+          tc->next = NULL;
+          *tail = tc;
+          tail = &tc->next;
+        }
+      }
+
+      invalidate_window(win);
+      return true;
+    }
+
+    case tbSetStrip: {
+      toolbar_state_t *tb = toolbar_ensure_state(win);
+      if (!tb) return true;
+      if (lparam)
+        memcpy(&tb->strip, lparam, sizeof(bitmap_strip_t));
+      else
+        memset(&tb->strip, 0, sizeof(bitmap_strip_t));
+      invalidate_window(win);
+      return true;
+    }
+
+    case tbSetActiveButton: {
+      toolbar_state_t *tb = toolbar_get_state(win);
+      uint32_t ident = wparam;
+      if (tb && tb->items) {
+        for (int i = 0; i < tb->item_count; i++) {
+          bool active = ((uint32_t)tb->items[i].ident == ident);
+          if (active)
+            tb->items[i].flags |= TOOLBAR_BUTTON_FLAG_ACTIVE;
+          else
+            tb->items[i].flags &= ~TOOLBAR_BUTTON_FLAG_ACTIVE;
+        }
+      }
+      for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next)
+        tc->value = (tc->id == ident);
+      invalidate_window(win);
+      return true;
+    }
+
+    case tbSetButtonSize: {
+      toolbar_state_t *tb = toolbar_ensure_state(win);
+      if (!tb) return true;
+      int old_btn_size = tb->btn_size;
+      int new_btn_size = (int)wparam;
+      if (new_btn_size != 0 && new_btn_size < 8) new_btn_size = 8;
+      if (old_btn_size != new_btn_size) {
+        tb->btn_size = new_btn_size;
+        post_message(win, evRefreshStencil, 0, NULL);
+        invalidate_window(get_root_window(win));
+      }
+      return true;
+    }
+
+    case tbLoadStrip: {
+      const char *path = (const char *)lparam;
+      int tile_sz = (int)wparam;
+      if (!path || tile_sz <= 0 || !g_ui_runtime.running) return true;
+
+      toolbar_state_t *tb = toolbar_ensure_state(win);
+      if (!tb) return true;
+
+      int w = 0;
+      int h = 0;
+      uint8_t *src = load_image(path, &w, &h);
+      if (!src) return true;
+      if (w < tile_sz || h < tile_sz || (w % tile_sz) != 0 || (h % tile_sz) != 0) {
+        image_free(src);
+        return true;
+      }
+
+      R_DeleteTexture(tb->strip_tex);
+      uint32_t tex = R_CreateTextureRGBA(w, h, src, R_FILTER_NEAREST, R_WRAP_CLAMP);
+      image_free(src);
+
+      tb->strip_tex = tex;
+      tb->strip.tex = tex;
+      tb->strip.icon_w = tile_sz;
+      tb->strip.icon_h = tile_sz;
+      tb->strip.cols = w / tile_sz;
+      tb->strip.sheet_w = w;
+      tb->strip.sheet_h = h;
+      invalidate_window(win);
+      return true;
+    }
+
+    default:
+      return false;
+  }
+}
+
+bool toolbar_handle_notitle_nc_left_button_up(window_t *win, uint32_t wparam) {
+  if (!win || !(win->flags & WINDOW_TOOLBAR) || !(win->flags & WINDOW_NOTITLE))
+    return false;
+
+  int sx = (int)(int16_t)LOWORD(wparam);
+  int sy = (int)(int16_t)HIWORD(wparam);
+  int tb_x = sx - win->frame.x;
+  int tb_y = sy - win->frame.y;
+
+  if (win->toolbar) {
+    toolbar_state_t *tb = (toolbar_state_t *)win->toolbar->userdata;
+    if (!tb || tb->pressed_item < 0) {
+      send_message(win->toolbar, evLeftButtonDown,
+                   MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+    }
+    send_message(win->toolbar, evLeftButtonUp,
+                 MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+  }
+
+  invalidate_window(win);
+  return true;
+}
+
+bool toolbar_dispatch_embedded_mouse(window_t *parent, uint32_t msg, int tb_x, int tb_y) {
+  if (!parent) return false;
+
+  toolbar_state_t *tb = toolbar_get_state(parent);
+  for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next) {
+    if (!(tb_x >= tc->frame.x && tb_x < tc->frame.x + tc->frame.w &&
+          tb_y >= tc->frame.y && tb_y < tc->frame.y + tc->frame.h)) {
+      continue;
+    }
+
+    int lx = tb_x - tc->frame.x;
+    int ly = tb_y - tc->frame.y;
+    if (msg == evLeftButtonDown)
+      set_focus(tc);
+    send_message(tc, msg, MAKEDWORD((uint16_t)lx, (uint16_t)ly), NULL);
+    return true;
+  }
+
+  return false;
+}

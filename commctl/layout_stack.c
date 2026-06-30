@@ -8,18 +8,6 @@ extern void layout_grid_arrange_window(window_t *win, const irect16_t *rect);
 extern void layout_flow_measure_window(window_t *win, layout_measure_t *m);
 extern void layout_flow_arrange_window(window_t *win, const irect16_t *rect);
 
-static bool is_stack_proc(const window_t *win) {
-  return win && (win->proc == win_stack || win->proc == win_stackview || win->proc == win_column);
-}
-
-static bool is_grid_proc(const window_t *win) {
-  return win && (win->proc == win_grid || win->proc == win_gridview);
-}
-
-static bool is_flow_proc(const window_t *win) {
-  return win && (win->proc == win_flow || win->proc == win_flowview);
-}
-
 void layout_stack_measure_window(window_t *win, layout_measure_t *m) {
   irect16_t cr = get_client_rect(win);
   if (m) {
@@ -63,6 +51,9 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
   irect16_t cr = rect ? *rect : get_client_rect(win);
   irect16_t content = layout_content_rect(win, cr);
   int gap = layout_spacing_for(win);
+  
+  // Debug: main window and content stack layout
+  // (Removed unused child_count tracking)
 
   if (layout_is_horizontal(win)) {
     int total_fixed = 0;
@@ -102,6 +93,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     int total_fixed = 0;
     int stretch_count = 0;
     int count = 0;
+    
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
       bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
@@ -113,6 +105,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     int remaining = content.h - total_fixed - total_gap;
     if (remaining < 0) remaining = 0;
     int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;
+    
     int y = content.y;
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
       if (y > content.y) y += gap;
@@ -146,51 +139,9 @@ void layout_flow_horizontal(window_t *first, int start_x, int gap) {
   }
 }
 
-void layout_measure_window(window_t *win, layout_measure_t *m) {
-  if (!win || !m) return;
-  if (is_grid_proc(win)) {
-    layout_grid_measure_window(win, m);
-    return;
-  }
-  if (is_flow_proc(win)) {
-    layout_flow_measure_window(win, m);
-    return;
-  }
-  if (is_stack_proc(win) || (win->flags & WINDOW_AUTO_LAYOUT)) {
-    layout_stack_measure_window(win, m);
-    return;
-  }
-  irect16_t cr = get_client_rect(win);
-  if (m->desired_w <= 0) m->desired_w = cr.w > 0 ? cr.w : 1;
-  if (m->desired_h <= 0) m->desired_h = cr.h > 0 ? cr.h : 1;
-}
-
-void layout_arrange_window(window_t *win, const irect16_t *rect) {
-  if (!win) return;
-  if (is_grid_proc(win)) {
-    layout_grid_arrange_window(win, rect);
-    return;
-  }
-  if (is_flow_proc(win)) {
-    layout_flow_arrange_window(win, rect);
-    return;
-  }
-  if (is_stack_proc(win) || (win->flags & WINDOW_AUTO_LAYOUT)) {
-    layout_stack_arrange_window(win, rect);
-  }
-}
-
-void window_layout_sync(window_t *win) {
-  if (!win || !(win->flags & WINDOW_AUTO_LAYOUT))
-    return;
-  irect16_t cr = get_client_rect(win);
-  layout_arrange_window(win, &cr);
-}
-
 result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
-      const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
       win->flags |= WINDOW_AUTO_LAYOUT;
       win->flags &= ~WINDOW_STACK_HORIZONTAL;
       win->layout.layout_spacing = 4;
@@ -198,15 +149,30 @@ result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
       win->layout.h_align = LAYOUT_ALIGN_STRETCH;
       win->layout.v_align = LAYOUT_ALIGN_STRETCH;
-      if (cfg) {
-        if (cfg->orientation & WINDOW_STACK_HORIZONTAL)
-          win->flags |= WINDOW_STACK_HORIZONTAL;
-        else
-          win->flags &= ~WINDOW_STACK_HORIZONTAL;
-        if (cfg->spacing > 0)
-          win->layout.layout_spacing = cfg->spacing;
-        win->layout.layout_padding = cfg->padding;
-        win->layout.layout_margin = cfg->margin;
+      
+      if (lparam) {
+        // Try form_ctrl_def_t* first (from create_window_from_form)
+        const form_ctrl_def_t *cd = (const form_ctrl_def_t *)lparam;
+        // Check if class_name field looks like a realistic pointer (not a small integer/flag)
+        // Real pointers are typically > 16MB on modern systems; flags like WINDOW_STACK_HORIZONTAL (0x80000) are much smaller
+        if (cd->class_name && (uintptr_t)cd->class_name > 0x1000000) {
+          // Parse as form_ctrl_def_t*
+          if (cd->flags & WINDOW_STACK_HORIZONTAL)
+            win->flags |= WINDOW_STACK_HORIZONTAL;
+          if (cd->layout_spacing > 0)
+            win->layout.layout_spacing = cd->layout_spacing;
+          win->layout.layout_padding = cd->padding;
+          win->layout.layout_margin = cd->margin;
+        } else {
+          // Parse as legacy layout_view_config_t* (from direct create_window)
+          const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
+          if (cfg->orientation & WINDOW_STACK_HORIZONTAL)
+            win->flags |= WINDOW_STACK_HORIZONTAL;
+          if (cfg->spacing > 0)
+            win->layout.layout_spacing = cfg->spacing;
+          win->layout.layout_padding = cfg->padding;
+          win->layout.layout_margin = cfg->margin;
+        }
       }
       return true;
     }
@@ -214,7 +180,7 @@ result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (!m)
         return MAKEDWORD(1, 1);
-      layout_measure_window(win, m);
+      layout_stack_measure_window(win, m);
       if (m->desired_w < 1) m->desired_w = 1;
       if (m->desired_h < 1) m->desired_h = 1;
       return MAKEDWORD((uint16_t)m->desired_w, (uint16_t)m->desired_h);
@@ -223,13 +189,17 @@ result_t win_stack(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
       if (a) {
         win->frame = a->rect;
-        window_layout_sync(win);
+        irect16_t cr = get_client_rect(win);
+        layout_stack_arrange_window(win, &cr);
       }
       return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
                        (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
-      window_layout_sync(win);
+      {
+        irect16_t cr = get_client_rect(win);
+        layout_stack_arrange_window(win, &cr);
+      }
       return true;
     case evPaint:
       layout_paint_children(win);

@@ -8,6 +8,12 @@
 #include <stdbool.h>
 
 #include "../../ui.h"
+#include "fe_document.h"  // Document model types
+#include "fe_layout.h"  // Layout computation
+#include "fe_project_io.h"  // XML project I/O
+#include "fe_project.h"  // Project-level document management
+#include "fe_commands.h"  // Command dispatcher
+#include "fe_notifications.h"  // Observer pattern for browser updates
 
 // ============================================================
 // Layout constants
@@ -73,7 +79,13 @@ static inline bool fe_default_auto_layout_enabled(void) {
 #define PLUGINS_WIN_X     PROPBROWSER_WIN_X
 #define PLUGINS_WIN_Y     (PROPBROWSER_WIN_Y + PROPBROWSER_WIN_H + 4)
 #define PLUGINS_WIN_W     PROPBROWSER_WIN_W
-#define PLUGINS_WIN_H     (SCREEN_H - PLUGINS_WIN_Y - 4)
+#define PLUGINS_WIN_H     120
+
+// Database browser (NSBrowser-style).
+#define DATABASES_WIN_X   PROPBROWSER_WIN_X
+#define DATABASES_WIN_Y   (PLUGINS_WIN_Y + PLUGINS_WIN_H + 4)
+#define DATABASES_WIN_W   PROPBROWSER_WIN_W
+#define DATABASES_WIN_H   (SCREEN_H - DATABASES_WIN_Y - 4)
 
 // Document window initial position
 // frame.y is the window top; place it 8px below the menu bar.
@@ -113,8 +125,8 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // Limits
 // ============================================================
 
-#define MAX_ELEMENTS  256
-#define CTRL_ID_BASE  1001
+// Note: MAX_ELEMENTS, CTRL_ID_BASE, and FE_MAX_COMPONENTS
+// are now defined in fe_document.h
 
 // Built-in component indices as registered by formeditor_components.
 // Kept as compatibility aliases for tests and older form editor code; project
@@ -127,60 +139,53 @@ static inline bool fe_default_auto_layout_enabled(void) {
 #define CTRL_COMBOBOX  5
 
 // ============================================================
-// Types
+// Project and App State Types
 // ============================================================
-
-typedef struct {
-  int      type;        // registered component ID
-  int      id;          // numeric control ID (e.g. 1001)
-  uint32_t parent;      // parent control ID; 0 = form root
-  char     id_expr[32]; // original ID expression from project XML, if any
-  irect16_t frame;      // position and size in form coordinates
-  uint32_t flags;        // reserved for future style flags
-  char     flags_expr[128]; // original flags expression from project XML, if any
-  char     text[64];     // control caption / label text
-  char     name[32];     // identifier name (e.g. "IDC_BUTTON1")
-  uint8_t  h_align;     // horizontal alignment; 0 = stretch
-  uint8_t  v_align;     // vertical alignment; 0 = stretch
-  irect16_t padding;    // inner padding for nested layout containers
-  irect16_t margin;     // outer margin when auto-layout reflows this element
-  uint8_t  font;        // label font; FONT_SMALL by default
-  bool     font_set;    // font attribute explicitly set in the project
-  uint8_t  color;       // label color palette index; 0 = transparent
-  bool     color_set;   // color attribute explicitly set in the project
-  window_t *live_win;    // design-time live control hosted on the canvas
-} form_element_t;
-
-typedef struct form_doc_t {
-  form_element_t elements[MAX_ELEMENTS];
-  int    element_count;
-  isize16_t form_size;
-  uint32_t flags;       // form/window flags exported in form_def_t
-  uint8_t layout_mode;  // window_layout_mode_t
-  uint8_t layout_columns; // grid columns (0 = default)
-  uint8_t layout_spacing; // spacing between direct children; 0 = default
-  irect16_t padding;    // inner padding for auto-layout content
-  irect16_t margin;     // outer margin for the form when serialized
-  bool   modified;
-  char   form_id[64];
-  char   form_title[128];
-  char   required_plugin[64];
-  int    next_id;                      // next numeric control ID
-  int    type_counters[FE_MAX_COMPONENTS]; // per-component name counter
-  window_t *canvas_win;
-  window_t *doc_win;
-  struct form_doc_t *next;
-  // Grid settings
-  int    grid_size;       // dot spacing in form pixels (default 8)
-  bool   show_grid;       // paint grid dots on the form surface
-  bool   snap_to_grid;    // snap moves/resizes to grid
-} form_doc_t;
+// Note: form_element_t and form_doc_t are now defined in fe_document.h
 
 typedef struct {
   char name[64];
 } form_plugin_ref_t;
 
 #define FE_MAX_PROJECT_PLUGINS 32
+#define FE_MAX_PROJECT_DATABASES 8
+#define FE_MAX_PROJECT_DB_TABLES 32
+#define FE_MAX_PROJECT_DB_FIELDS 64
+#define FE_MAX_PROJECT_DB_JOINS 16
+
+typedef struct {
+  char name[64];
+  db_field_type_t type;
+  int length;
+  bool primary_key;
+  char relation_table[64];
+  char relation_field[64];
+} form_project_db_field_t;
+
+typedef struct {
+  char name[64];
+  char local_field[64];
+  char foreign_table[64];
+  char foreign_field[64];
+} form_project_db_join_t;
+
+typedef struct {
+  int table_id;
+  char name[64];
+  char model[64];
+  form_project_db_field_t fields[FE_MAX_PROJECT_DB_FIELDS];
+  int field_count;
+  form_project_db_join_t joins[FE_MAX_PROJECT_DB_JOINS];
+  int join_count;
+} form_project_db_table_t;
+
+typedef struct {
+  char name[64];
+  char class_name[64];
+  char source_path[256];
+  form_project_db_table_t tables[FE_MAX_PROJECT_DB_TABLES];
+  int table_count;
+} form_project_database_t;
 
 typedef struct {
   char filename[512];
@@ -188,8 +193,11 @@ typedef struct {
   char title[128];
   char root[256];
   char menus_xml[16384];
+  char databases_xml[16384];
   form_plugin_ref_t plugins[FE_MAX_PROJECT_PLUGINS];
   int plugin_count;
+  form_project_database_t databases[FE_MAX_PROJECT_DATABASES];
+  int database_count;
   bool loaded;
   bool modified;
 } form_project_t;
@@ -202,6 +210,7 @@ typedef struct {
   window_t    *prop_win;
   window_t    *forms_win;
   window_t    *plugins_win;
+  window_t    *databases_win;
   hinstance_t  hinstance;  // owning app instance
   int          current_tool;
   accel_table_t *accel;
@@ -253,6 +262,7 @@ typedef struct {
 
 typedef struct {
   form_doc_t *doc;
+  window_t   *form_root_win;
   window_t   *preview_win;
   int         preview_type;
   ipoint16_t  pan;
@@ -292,7 +302,7 @@ void canvas_sync_live_controls(form_doc_t *doc);
 void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *target);
 window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
                                             int canvas_x, int canvas_y);
-void form_doc_auto_layout_reflow(form_doc_t *doc);
+void form_doc_auto_layout_reflow(form_doc_t *doc);  // Convenience wrapper for fe_layout_reflow
 bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y);
 bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,
                                      int screen_x, int screen_y);
@@ -305,31 +315,23 @@ window_t *forms_browser_create(hinstance_t hinstance);
 void forms_browser_refresh(void);
 window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
+window_t *create_database_browser(const irect16_t *frame, window_t *parent);
+void databases_browser_refresh(void);
 
 // ============================================================
-// Document helpers
+// Document helpers — declared in fe_project.h
 // ============================================================
 
-form_doc_t *create_form_doc(int w, int h);
-void        close_form_doc(form_doc_t *doc);
-void        form_doc_update_title(form_doc_t *doc);
-void        form_doc_activate(form_doc_t *doc);
-void        form_doc_show_only(form_doc_t *doc);
-
 // ============================================================
-// Project I/O
+// Project I/O — declared in fe_project_io.h
 // ============================================================
 
-bool form_project_load(const char *path);
-bool form_project_save(const char *path);
-
 // ============================================================
-// Menu dispatch
+// Menu dispatch — declared in fe_commands.h
 // ============================================================
 
 extern menu_def_t  kMenus[];
 extern const int   kNumMenus;
-void handle_menu_command(uint16_t id);
 
 // ============================================================
 // Dialogs
@@ -337,5 +339,7 @@ void handle_menu_command(uint16_t id);
 
 void show_about_dialog(window_t *parent);
 bool show_props_dialog(window_t *parent, form_element_t *el);
+void show_grid_settings_dialog(window_t *parent, form_doc_t *doc);
+bool show_form_props_dialog(window_t *parent, form_doc_t *doc);
 
 #endif // __FORMEDITOR_H__

@@ -7,1193 +7,570 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../user/user.h"
 #include "../user/enum_parse.h"
+#include "../user/user.h"
 
-#ifndef ARRAY_LEN
+#define ORIONC_MAX_IDS 512
+#define ORIONC_MAX_IDENT 128
+#define ORIONC_DEFAULT_SPACING 4
+#define ORIONC_STRING_SIZE 512
 #define ARRAY_LEN(a) ((int)(sizeof(a) / sizeof((a)[0])))
-#endif
+#define EACH_ELEMENT(n, parent) for (xmlNodePtr n = (parent) ? (parent)->children : NULL; n; n = n->next) if ((n)->type == XML_ELEMENT_NODE)
+#define OUT(...) fprintf(f, __VA_ARGS__)
+#define LINE(s) fputs((s), f)
+
+typedef struct { int x, y, w, h; } rect_t;
+typedef struct { const char *key, *value; } kv_t;
+typedef struct { char name[ORIONC_MAX_IDENT]; } orion_id_t;
+typedef struct { orion_id_t v[ORIONC_MAX_IDS]; int n; } ids_t;
+typedef struct { char *v[10]; } attrs_t;
+enum { A_NAME, A_TEXT, A_FLAGS, A_HA, A_VA, A_ORIENT, A_SPACING, A_FONT, A_COLOR, A_FIELD };
+typedef struct { char ctrl[128], db[64], table[64], field[64], klass[64]; } binding_t;
+typedef struct { binding_t v[128]; int n; char db[64], table[64]; } bindings_t;
+typedef struct { char ok_id[256], cancel_id[256]; } button_ids_t;
 
 typedef struct {
-  int x, y, w, h;
-} frame_t;
+  const char *xml, *c, *db;
+  int size;
+} field_type_t;
 
-typedef struct {
-  char name[128];
-  char value[64];
-} define_t;
-
-typedef struct {
-  define_t items[512];
-  int count;
-} define_list_t;
-
-typedef struct {
-  char items[512][128];
-  int count;
-} ident_list_t;
-
-static const char *base_name(const char *path) {
-  const char *s = strrchr(path, '/');
-  return s ? s + 1 : path;
-}
-
-static bool streq(const char *a, const char *b) {
-  return a && b && strcmp(a, b) == 0;
-}
-
-/* Window class defaults for redundant attribute optimization */
-typedef struct {
-  const char *class_name;
-  int default_height;
-  flags_t default_flags;
-} class_defaults_t;
-
-static const class_defaults_t kClassDefaults[] = {
-  { "button",     19, 0 },
-  { "label",      13, 0 },
-  { "textedit",   13, 0 },
-  { "checkbox",   13, 0 },
-  { "combobox",   13, 0 },
-  { "separator",   1, 0 },
-  { "space",       0, WINDOW_FLEXSPACE },
-  { "reportview", 100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE },
-  { "list",       100, WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE },
-  { "multiedit",  100, WINDOW_VSCROLL | WINDOW_FLEXSPACE },
+static const field_type_t kFieldTypes[] = {
+  { "integer", "int", "DB_TYPE_INT", 0 }, { "int", "int", "DB_TYPE_INT", 0 },
+  { "string", "char", "DB_TYPE_STRING", 256 }, { "boolean", "bool", "DB_TYPE_BOOL", 0 },
+  { "bool", "bool", "DB_TYPE_BOOL", 0 }, { "float", "float", "DB_TYPE_FLOAT", 0 },
+  { "real", "float", "DB_TYPE_FLOAT", 0 }, { "double", "double", "DB_TYPE_DOUBLE", 0 },
 };
 
-static const class_defaults_t *find_class_defaults(const char *class_name) {
-  if (!class_name) return NULL;
-  for (int i = 0; i < (int)(sizeof(kClassDefaults)/sizeof(kClassDefaults[0])); i++) {
-    if (streq(kClassDefaults[i].class_name, class_name))
-      return &kClassDefaults[i];
-  }
-  return NULL;
-}
+static const enum_token_t kAlignH[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH}, {"left", LAYOUT_ALIGN_START},
+  {"start", LAYOUT_ALIGN_START}, {"center", LAYOUT_ALIGN_CENTER},
+  {"right", LAYOUT_ALIGN_END}, {"end", LAYOUT_ALIGN_END},
+};
+static const enum_token_t kAlignV[] = {
+  {"stretch", LAYOUT_ALIGN_STRETCH}, {"top", LAYOUT_ALIGN_START},
+  {"start", LAYOUT_ALIGN_START}, {"center", LAYOUT_ALIGN_CENTER},
+  {"bottom", LAYOUT_ALIGN_END}, {"end", LAYOUT_ALIGN_END},
+};
+static const enum_token_t kOrient[] = {
+  {"vertical", WINDOW_STACK_VERTICAL}, {"horizontal", WINDOW_STACK_HORIZONTAL},
+};
+static const enum_token_t kColors[] = {
+  {"transparent", brTransparent}, {"window-bg", brWindowBg},
+  {"window-dark-bg", brWindowDarkBg}, {"workspace-bg", brWorkspaceBg},
+  {"active-titlebar", brActiveTitlebar}, {"active-titlebar-text", brActiveTitlebarText},
+  {"inactive-titlebar", brInactiveTitlebar}, {"inactive-titlebar-text", brInactiveTitlebarText},
+  {"statusbar-bg", brStatusbarBg}, {"light-edge", brLightEdge},
+  {"dark-edge", brDarkEdge}, {"flare", brFlare}, {"focus-ring", brFocusRing},
+  {"button-bg", brButtonBg}, {"button-inner", brButtonInner},
+  {"button-hover", brButtonHover}, {"text-normal", brTextNormal},
+  {"text-disabled", brTextDisabled}, {"text-error", brTextError},
+  {"text-success", brTextSuccess}, {"border-focus", brBorderFocus},
+  {"border-active", brBorderActive}, {"folder-text", brFolderText},
+  {"column-view-bg", brColumnViewBg}, {"modal-overlay", brModalOverlay},
+};
 
-static bool is_ident_expr(const char *s) {
-  if (!s || !*s) return false;
-  unsigned char c = (unsigned char)*s++;
-  if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_'))
-    return false;
-  while (*s) {
-    c = (unsigned char)*s++;
-    if (!((c >= 'A' && c <= 'Z') ||
-          (c >= 'a' && c <= 'z') ||
-          (c >= '0' && c <= '9') ||
-          c == '_'))
-      return false;
-  }
-  return true;
+static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }
+static const char *nz(const char *s, const char *d) { return (s && *s) ? s : d; }
+static bool elem(xmlNodePtr n, const char *name) {
+  return n && n->type == XML_ELEMENT_NODE && xmlStrcasecmp(n->name, BAD_CAST name) == 0;
 }
+static char *attr(xmlNodePtr n, const char *name) { xmlChar *r = xmlGetProp(n, BAD_CAST name); char *s = r ? strdup((char *)r) : NULL; if (r) xmlFree(r); return s; }
+static char *attrs_first(xmlNodePtr n, const char *a, const char *b) { char *v = attr(n, a); if (v && *v) return v; free(v); return b ? attr(n, b) : NULL; }
+static xmlNodePtr child(xmlNodePtr n, const char *name) { EACH_ELEMENT(c, n) if (elem(c, name)) return c; return NULL; }
 
-static char *attr_dup(xmlNodePtr node, const char *name) {
-  xmlChar *raw = xmlGetProp(node, BAD_CAST name);
-  if (!raw) return NULL;
-  char *s = strdup((const char *)raw);
-  xmlFree(raw);
-  return s;
-}
-
-static const char *nonempty(const char *s, const char *fallback) {
-  return (s && *s) ? s : fallback;
-}
-
-static bool parse_frame(xmlNodePtr node, frame_t *out) {
-  if (!node || !out) return false;
-  
-  /* frame= attribute is no longer supported - use width= and height= */
-  char *w = attr_dup(node, "w");
-  char *h = attr_dup(node, "h");
-  if (!w) w = attr_dup(node, "width");
-  if (!h) h = attr_dup(node, "height");
-  
-  if (w || h) {
-    out->x = 0;
-    out->y = 0;
-    out->w = w ? atoi(w) : 0;
-    out->h = h ? atoi(h) : 0;
-    free(w); free(h);
-    return true;
-  }
-  free(w); free(h);
-  return false;
-}
-
-static bool parse_rect_attr(xmlNodePtr node, const char *name, frame_t *out) {
-  if (!node || !name || !out) return false;
-  char *v = attr_dup(node, name);
-  if (!v) return false;
-  int a = 0, b = 0, c = 0, d = 0;
-  int n = sscanf(v, "%d %d %d %d", &a, &b, &c, &d);
-  free(v);
-  switch (n) {
-    case 1:
-      *out = (frame_t){a, a, a, a};
-      return true;
-    case 2:
-      *out = (frame_t){a, b, a, b};
-      return true;
-    case 4:
-      *out = (frame_t){a, b, c, d};
-      return true;
-    default:
-      return false;
-  }
-}
-
-static void fprint_c_string(FILE *f, const char *s) {
-  fputc('"', f);
-  if (s) {
-    for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
-      switch (*p) {
-        case '\\': fputs("\\\\", f); break;
-        case '"':  fputs("\\\"", f); break;
-        case '\n': fputs("\\n", f); break;
-        case '\r': fputs("\\r", f); break;
-        case '\t': fputs("\\t", f); break;
-        default:
-          if (*p < 0x20)
-            fprintf(f, "\\x%02x", *p);
-          else
-            fputc(*p, f);
-          break;
-      }
-    }
-  }
-  fputc('"', f);
-}
-
-static void fprint_c_string_with_shortcut(FILE *f, const char *label,
-                                          const char *shortcut) {
-  fputc('"', f);
-  const char *parts[3] = { label, (shortcut && *shortcut) ? "\t" : NULL, shortcut };
-  for (int i = 0; i < 3; i++) {
-    const char *s = parts[i];
-    if (!s) continue;
-    for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
-      switch (*p) {
-        case '\\': fputs("\\\\", f); break;
-        case '"':  fputs("\\\"", f); break;
-        case '\n': fputs("\\n", f); break;
-        case '\r': fputs("\\r", f); break;
-        case '\t': fputs("\\t", f); break;
-        default:
-          if (*p < 0x20)
-            fprintf(f, "\\x%02x", *p);
-          else
-            fputc(*p, f);
-          break;
-      }
-    }
-  }
-  fputc('"', f);
-}
-
-static void make_ident(char *out, size_t out_sz, const char *s) {
+static void ident(char *out, size_t cap, const char *s, bool upper) {
   size_t n = 0;
-  if (!out || out_sz == 0) return;
-  for (const unsigned char *p = (const unsigned char *)nonempty(s, "form");
-       *p && n + 1 < out_sz; p++) {
-    bool ok = (*p >= 'a' && *p <= 'z') ||
-              (*p >= 'A' && *p <= 'Z') ||
-              (*p >= '0' && *p <= '9');
-    out[n++] = ok ? (char)*p : '_';
+  for (const unsigned char *p = (const unsigned char *)nz(s, "item"); *p && n + 1 < cap; p++) {
+    bool ok = (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9');
+    char c = ok ? (char)*p : '_';
+    out[n++] = (upper && c >= 'a' && c <= 'z') ? (char)(c - 'a' + 'A') : c;
   }
-  if (n == 0) out[n++] = '_';
-  out[n] = '\0';
+  if (!n) out[n++] = '_';
+  out[n] = 0;
 }
 
-static void make_upper_ident(char *out, size_t out_sz, const char *s) {
-  make_ident(out, out_sz, s);
-  for (char *p = out; p && *p; p++) {
-    if (*p >= 'a' && *p <= 'z')
-      *p = (char)(*p - 'a' + 'A');
+static bool ident_expr(const char *s) {
+  if (!s || !((*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z') || *s == '_')) return false;
+  for (s++; *s; s++) if (!((*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z') || (*s >= '0' && *s <= '9') || *s == '_')) return false;
+  return true;
+}
+
+static bool db_path(const char *s, char *db, size_t db_cap, char *table, size_t table_cap, char *field, size_t field_cap) {
+  const char *a = s ? strchr(s, '.') : NULL, *b = a ? strchr(a + 1, '.') : NULL;
+  if (!a || !b || !a[1] || !b[1]) return false;
+  snprintf(db, db_cap, "%.*s", (int)(a - s), s);
+  snprintf(table, table_cap, "%.*s", (int)(b - a - 1), a + 1);
+  snprintf(field, field_cap, "%s", b + 1);
+  return true;
+}
+
+static void scoped(char *out, size_t cap, const char *scope, const char *name, const char *fallback) {
+  char s[ORIONC_MAX_IDENT], n[ORIONC_MAX_IDENT];
+  ident(s, sizeof(s), nz(scope, "scope"), true);
+  ident(n, sizeof(n), nz(name, nz(fallback, "item")), true);
+  snprintf(out, cap, "ID_%s_%s", s, n);
+}
+
+static void control_id(char *out, size_t cap, const char *form, const char *name, const char *klass, int ordinal) {
+  char fallback[ORIONC_MAX_IDENT];
+  snprintf(fallback, sizeof(fallback), "%s%d", nz(klass, "control"), ordinal);
+  scoped(out, cap, form, name, fallback);
+}
+
+static void cstr(char *out, size_t cap, const char *s) {
+  size_t n = 0;
+  out[n++] = '"';
+  for (const unsigned char *p = (const unsigned char *)nz(s, ""); *p && n + 5 < cap; p++) {
+    if (*p == '\\' || *p == '"') { out[n++] = '\\'; out[n++] = (char)*p; }
+    else if (*p == '\n') { out[n++] = '\\'; out[n++] = 'n'; }
+    else if (*p == '\t') { out[n++] = '\\'; out[n++] = 't'; }
+    else out[n++] = (char)*p;
+  }
+  out[n++] = '"';
+  out[n] = 0;
+}
+
+static void cstr_shortcut(char *out, size_t cap, const char *label, const char *shortcut) {
+  char joined[ORIONC_STRING_SIZE];
+  snprintf(joined, sizeof(joined), "%s%s%s", nz(label, ""), (shortcut && *shortcut) ? "\t" : "", nz(shortcut, ""));
+  cstr(out, cap, joined);
+}
+
+static void tpl(FILE *f, const char *s, const kv_t *kv) {
+  for (const char *p = s; *p;) {
+    const char *open = strstr(p, "{{");
+    if (!open) { fputs(p, f); break; }
+    fwrite(p, 1, (size_t)(open - p), f);
+    const char *close = strstr(open + 2, "}}");
+    if (!close) { fputs(open, f); break; }
+    char key[64];
+    snprintf(key, sizeof(key), "%.*s", (int)(close - open - 2), open + 2);
+    for (int i = 0; kv[i].key; i++) if (eq(kv[i].key, key)) { fputs(kv[i].value, f); break; }
+    p = close + 2;
   }
 }
 
-static void make_control_ident(char *out, size_t out_sz,
-                               const char *form_ident,
-                               const char *control_name,
-                               const char *class_name,
-                               int ordinal) {
-  char form_buf[128];
-  char name_buf[128];
-  make_upper_ident(form_buf, sizeof(form_buf), nonempty(form_ident, "form"));
-  make_upper_ident(name_buf, sizeof(name_buf), nonempty(control_name, nonempty(class_name, "control")));
-  if (ordinal >= 0 && (!control_name || !*control_name)) {
-    snprintf(out, out_sz, "ID_%s_%s%d", form_buf, name_buf, ordinal);
-  } else {
-    snprintf(out, out_sz, "ID_%s_%s", form_buf, name_buf);
+static bool add_id(ids_t *ids, const char *name) {
+  if (!ident_expr(name) || eq(name, "ID_OK") || eq(name, "ID_CANCEL")) return true;
+  for (int i = 0; i < ids->n; i++) if (eq(ids->v[i].name, name)) return true;
+  if (ids->n >= ORIONC_MAX_IDS) return false;
+  snprintf(ids->v[ids->n++].name, ORIONC_MAX_IDENT, "%s", name);
+  return true;
+}
+
+static bool rect_attr(xmlNodePtr n, const char *name, rect_t *r) {
+  char *s = attr(n, name);
+  int a = 0, b = 0, c = 0, d = 0, count = s ? sscanf(s, "%d %d %d %d", &a, &b, &c, &d) : 0;
+  free(s);
+  if (count == 1) *r = (rect_t){a, a, a, a};
+  else if (count == 2) *r = (rect_t){a, b, a, b};
+  else if (count == 4) *r = (rect_t){a, b, c, d};
+  return count == 1 || count == 2 || count == 4;
+}
+
+static rect_t size_attr(xmlNodePtr n) {
+  char *w = attrs_first(n, "w", "width"), *h = attrs_first(n, "h", "height");
+  rect_t r = {0, 0, w ? atoi(w) : 0, h ? atoi(h) : 0};
+  free(w); free(h);
+  return r;
+}
+
+static unsigned byte_attr(const char *s, unsigned def) {
+  char *end = NULL; long v = s ? strtol(s, &end, 0) : def;
+  return (s && end && !*end && v >= 0 && v <= 255) ? (unsigned)v : def;
+}
+
+static void read_control_attrs(xmlNodePtr n, attrs_t *a) {
+  static const struct { int slot; const char *name, *alias; } cfg[] = {
+    {A_NAME, "name", NULL}, {A_TEXT, "text", NULL}, {A_FLAGS, "flags", NULL},
+    {A_HA, "h-align", "h_align"}, {A_VA, "v-align", "v_align"},
+    {A_ORIENT, "orientation", "layout_orientation"}, {A_SPACING, "spacing", "layout_spacing"},
+    {A_FONT, "font", NULL}, {A_COLOR, "color", NULL}, {A_FIELD, "field", NULL},
+  };
+  memset(a, 0, sizeof(*a));
+  for (int i = 0; i < ARRAY_LEN(cfg); i++) a->v[cfg[i].slot] = attrs_first(n, cfg[i].name, cfg[i].alias);
+}
+
+static void free_attrs(attrs_t *a) { for (int i = 0; i < ARRAY_LEN(a->v); i++) free(a->v[i]); }
+static bool is_control(xmlNodePtr parent, xmlNodePtr n) {
+  return n && n->type == XML_ELEMENT_NODE && !elem(n, "requires") && !(elem(parent, "tableview") && elem(n, "column"));
+}
+static bool has_controls(xmlNodePtr n) { EACH_ELEMENT(c, n) if (is_control(n, c)) return true; return false; }
+
+static void emit_defines(FILE *f, const ids_t *ids, const char *base) {
+  for (int i = 0; i < ids->n; i++) OUT("#define %s (%s + %d)\n", ids->v[i].name, base, i + 1);
+  if (ids->n) LINE("\n");
+}
+
+static void collect_menu_ids(ids_t *ids, xmlNodePtr menu, const char *scope) {
+  EACH_ELEMENT(it, menu) {
+    if (elem(it, "submenu")) { collect_menu_ids(ids, it, scope); continue; }
+    if (!elem(it, "item")) continue;
+    char *name = attr(it, "name"), *label = attr(it, "label"), id[256];
+    scoped(id, sizeof(id), scope, name, label);
+    add_id(ids, id);
+    free(name); free(label);
   }
 }
 
-static void make_scoped_ident(char *out, size_t out_sz,
-                              const char *scope_ident,
-                              const char *name,
-                              const char *fallback,
-                              int ordinal) {
-  char scope_buf[128];
-  char name_buf[128];
-  make_upper_ident(scope_buf, sizeof(scope_buf), nonempty(scope_ident, "scope"));
-  make_upper_ident(name_buf, sizeof(name_buf), nonempty(name, nonempty(fallback, "item")));
-  if (ordinal >= 0 && (!name || !*name)) {
-    snprintf(out, out_sz, "ID_%s_%s%d", scope_buf, name_buf, ordinal);
-  } else {
-    snprintf(out, out_sz, "ID_%s_%s", scope_buf, name_buf);
-  }
-}
-
-static bool is_element(xmlNodePtr node, const char *name) {
-  return node && node->type == XML_ELEMENT_NODE &&
-         xmlStrcmp(node->name, BAD_CAST name) == 0;
-}
-
-static xmlNodePtr first_child_element(xmlNodePtr node, const char *name) {
-  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next)
-    if (is_element(c, name)) return c;
+static const char *toolbar_type(xmlNodePtr n) {
+  if (elem(n, "button")) return "TOOLBAR_ITEM_BUTTON";
+  if (elem(n, "label")) return "TOOLBAR_ITEM_LABEL";
+  if (elem(n, "combobox")) return "TOOLBAR_ITEM_COMBOBOX";
+  if (elem(n, "textedit")) return "TOOLBAR_ITEM_TEXTEDIT";
+  if (elem(n, "separator")) return "TOOLBAR_ITEM_SEPARATOR";
+  if (elem(n, "spacer")) return "TOOLBAR_ITEM_SPACER";
   return NULL;
 }
 
-static bool attr_is_true(xmlNodePtr node, const char *name) {
-  char *v = attr_dup(node, name);
-  bool yes = v && (!strcmp(v, "true") || !strcmp(v, "1") || !strcmp(v, "yes"));
-  free(v);
-  return yes;
-}
-
-static const enum_token_t kAlignHTokens[] = {
-  {"stretch", LAYOUT_ALIGN_STRETCH},
-  {"left",    LAYOUT_ALIGN_START},
-  {"start",   LAYOUT_ALIGN_START},
-  {"center",  LAYOUT_ALIGN_CENTER},
-  {"right",   LAYOUT_ALIGN_END},
-  {"end",     LAYOUT_ALIGN_END},
-};
-
-static const enum_token_t kAlignVTokens[] = {
-  {"stretch", LAYOUT_ALIGN_STRETCH},
-  {"top",     LAYOUT_ALIGN_START},
-  {"start",   LAYOUT_ALIGN_START},
-  {"center",  LAYOUT_ALIGN_CENTER},
-  {"bottom",  LAYOUT_ALIGN_END},
-  {"end",     LAYOUT_ALIGN_END},
-};
-
-static const enum_token_t kLayoutOrientationTokens[] = {
-  {"vertical",   WINDOW_STACK_VERTICAL},
-  {"horizontal", WINDOW_STACK_HORIZONTAL},
-};
-
-static const enum_token_t kColorTokens[] = {
-  {"transparent",         brTransparent},
-  {"window-bg",           brWindowBg},
-  {"window-dark-bg",      brWindowDarkBg},
-  {"workspace-bg",        brWorkspaceBg},
-  {"active-titlebar",     brActiveTitlebar},
-  {"active-titlebar-text", brActiveTitlebarText},
-  {"inactive-titlebar",   brInactiveTitlebar},
-  {"inactive-titlebar-text", brInactiveTitlebarText},
-  {"statusbar-bg",        brStatusbarBg},
-  {"light-edge",          brLightEdge},
-  {"dark-edge",           brDarkEdge},
-  {"flare",               brFlare},
-  {"focus-ring",          brFocusRing},
-  {"button-bg",           brButtonBg},
-  {"button-inner",        brButtonInner},
-  {"button-hover",        brButtonHover},
-  {"text-normal",         brTextNormal},
-  {"text-disabled",       brTextDisabled},
-  {"text-error",          brTextError},
-  {"text-success",        brTextSuccess},
-  {"border-focus",        brBorderFocus},
-  {"border-active",       brBorderActive},
-  {"folder-text",         brFolderText},
-  {"column-view-bg",      brColumnViewBg},
-  {"modal-overlay",       brModalOverlay},
-};
-
-static uint8_t align_h_attr(const char *v, uint8_t fallback) {
-  return (uint8_t)enum_parse_token(v, kAlignHTokens, ARRAY_LEN(kAlignHTokens), fallback);
-}
-
-static uint8_t align_v_attr(const char *v, uint8_t fallback) {
-  return (uint8_t)enum_parse_token(v, kAlignVTokens, ARRAY_LEN(kAlignVTokens), fallback);
-}
-
-static const char *align_h_token(uint8_t align) {
-  return enum_token_name(align, kAlignHTokens, ARRAY_LEN(kAlignHTokens), "stretch");
-}
-
-static const char *align_v_token(uint8_t align) {
-  return enum_token_name(align, kAlignVTokens, ARRAY_LEN(kAlignVTokens), "stretch");
-}
-
-static flags_t layout_orientation_attr(const char *v, flags_t fallback) {
-  return (flags_t)enum_parse_token(v, kLayoutOrientationTokens, ARRAY_LEN(kLayoutOrientationTokens), (int)fallback);
-}
-
-static char *attr_dup_first(xmlNodePtr node, const char *a, const char *b) {
-  char *v = attr_dup(node, a);
-  if (v && *v) return v;
-  free(v);
-  return b ? attr_dup(node, b) : NULL;
-}
-
-static uint8_t layout_spacing_attr(const char *v, uint8_t fallback) {
-  if (!v || !*v) return fallback;
-  char *end = NULL;
-  long n = strtol(v, &end, 0);
-  if (end && *end == '\0' && n >= 0 && n <= 255) return (uint8_t)n;
-  return fallback;
-}
-
-static const char *layout_orientation_c_token(flags_t orientation) {
-  return enum_token_name(orientation, (const enum_token_t[]) {
-    {"WINDOW_STACK_VERTICAL",   WINDOW_STACK_VERTICAL},
-    {"WINDOW_STACK_HORIZONTAL", WINDOW_STACK_HORIZONTAL},
-  }, 2, "WINDOW_STACK_VERTICAL");
-}
-
-static uint8_t color_attr(const char *v, uint8_t fallback) {
-  return (uint8_t)enum_parse_token(v, kColorTokens, ARRAY_LEN(kColorTokens), fallback);
-}
-
-static const char *color_c_token(uint8_t color) {
-  return enum_token_name(color, kColorTokens, ARRAY_LEN(kColorTokens), "text-normal");
-}
-
-static bool is_control_node(xmlNodePtr node) {
-  return node && node->type == XML_ELEMENT_NODE && !is_element(node, "requires");
-}
-
-static char *control_class_name(xmlNodePtr node) {
-  return strdup((const char *)node->name);
-}
-
-static bool has_child_controls(xmlNodePtr node) {
-  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
-    if (!is_control_node(c)) continue;
-    return true;
-  }
-  return false;
-}
-
-static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
-                              const char *form_ident, const char *parent_expr,
-                              int *out_count);
-
-static bool emit_control_node(FILE *f, xmlNodePtr c, const char *scope,
-                              const char *ident, const char *parent_expr) {
-  char *klass = control_class_name(c);
-  char *name = attr_dup(c, "name");
-  char *text = attr_dup(c, "text");
-  char *cflags = attr_dup(c, "flags");
-  char *h_align = attr_dup(c, "h-align");
-  char *v_align = attr_dup(c, "v-align");
-  if (!h_align) h_align = attr_dup(c, "h_align");
-  if (!v_align) v_align = attr_dup(c, "v_align");
-  char *layout_orientation = attr_dup_first(c, "orientation", "layout_orientation");
-  char *layout_spacing = attr_dup_first(c, "spacing", "layout_spacing");
-  char *padding = attr_dup_first(c, "padding", "layout_padding");
-  char *margin = attr_dup_first(c, "margin", "layout_margin");
-  char *font = attr_dup(c, "font");
-  char *color = attr_dup(c, "color");
-  frame_t cr = {0, 0, 0, 0};
-  frame_t pad = {0, 0, 0, 0};
-  frame_t mar = {0, 0, 0, 0};
-  bool nested = has_child_controls(c);
-  const char *emit_class = nonempty(klass, "");
-  bool keep_nested_frame = !strcmp(emit_class, "column");
-
-  if (!emit_class || !*emit_class) {
-    free(klass); free(name); free(text); free(cflags);
-    free(h_align); free(v_align);
-    free(layout_orientation); free(layout_spacing);
-    free(padding); free(margin); free(font); free(color);
-    return false;
-  }
-
-  /* All layout is auto now */
-  if (!parse_frame(c, &cr)) {
-    cr = (frame_t){0, 0, 0, 0};
-  } else if (nested && !keep_nested_frame) {
-    cr = (frame_t){0, 0, 0, 0};
-  }
-
-  if (!layout_orientation || !*layout_orientation)
-    layout_orientation = strdup("vertical");
-  if (!layout_spacing || !*layout_spacing) {
-    free(layout_spacing);
-    layout_spacing = strdup("4");
-  }
-
-  if (!parse_rect_attr(c, "padding", &pad))
-    (void)parse_rect_attr(c, "layout_padding", &pad);
-  if (!parse_rect_attr(c, "margin", &mar))
-    (void)parse_rect_attr(c, "layout_margin", &mar);
-  uint8_t font_val = FONT_SMALL;
-  bool font_set = false;
-  uint8_t color_val = brTextNormal;
-  bool color_set = false;
-  if (font && *font) {
-    if (!strcmp(font, "system")) font_val = FONT_SYSTEM;
-    else if (!strcmp(font, "small")) font_val = FONT_SMALL;
-    else if (!strcmp(font, "icon")) font_val = FONT_ICON;
-    font_set = true;
-  }
-  if (color && *color) {
-    color_val = color_attr(color, brTextNormal);
-    color_set = true;
-  }
-
-  bool horizontal = (layout_orientation_attr(layout_orientation, WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL) != 0;
-
-  fputs("  { ", f);
-  fprint_c_string(f, emit_class);
-  if (horizontal) {
-    fprintf(f, ", %s, { %d, %d }, (%s) | WINDOW_STACK_HORIZONTAL, ",
-            nonempty(ident, "0"), cr.w, cr.h, nonempty(cflags, "0"));
-  } else {
-    fprintf(f, ", %s, { %d, %d }, %s, ",
-            nonempty(ident, "0"), cr.w, cr.h, nonempty(cflags, "0"));
-  }
-  fprint_c_string(f, nonempty(text, ""));
-  fputs(", ", f);
-  fprint_c_string(f, nonempty(name, ""));
-  fprintf(f, ", %u, %u, ", (unsigned)align_h_attr(h_align, 0), (unsigned)align_v_attr(v_align, 0));
-  fputs("NULL, 0, ", f);
-  fprintf(f, "%u, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %u, %s, %u, %s },\n",
-          (unsigned)layout_spacing_attr(layout_spacing, 4),
-          pad.x, pad.y, pad.w, pad.h,
-          mar.x, mar.y, mar.w, mar.h,
-          nonempty(parent_expr, "0"),
-          (unsigned)font_val,
-          font_set ? "true" : "false",
-          (unsigned)color_val,
-          color_set ? "true" : "false");
-
-  free(klass); free(name); free(text); free(cflags);
-  free(h_align); free(v_align);
-  free(layout_orientation); free(layout_spacing);
-  free(padding); free(margin); free(font); free(color);
-  return true;
-}
-
-static bool emit_control_tree(FILE *f, xmlNodePtr parent, const char *scope,
-                              const char *form_ident, const char *parent_expr,
-                              int *out_count) {
-  int count = 0;
-  int ordinal = 0;
-  for (xmlNodePtr c = parent ? parent->children : NULL; c; c = c->next) {
-    if (!is_control_node(c)) continue;
-    char *name = attr_dup(c, "name");
-    char *klass = control_class_name(c);
-    char ident[256];
-    make_control_ident(ident, sizeof(ident), form_ident, name, klass, ordinal);
-    free(name);
-    free(klass);
-
-    if (!emit_control_node(f, c, scope, ident, parent_expr))
-      return false;
-    count++;
-    ordinal++;
-    if (has_child_controls(c)) {
-      char *cname = attr_dup(c, "name");
-      char *cclass = control_class_name(c);
-      char next_parent_buf[256];
-      if (is_ident_expr(ident)) {
-        snprintf(next_parent_buf, sizeof(next_parent_buf), "%s", ident);
-      } else {
-        make_control_ident(next_parent_buf, sizeof(next_parent_buf), form_ident,
-                           cname, cclass, ordinal - 1);
-      }
-      const char *next_parent = next_parent_buf;
-      int subcount = 0;
-      if (!emit_control_tree(f, c, scope, form_ident, next_parent, &subcount)) {
-        free(cname);
-        free(cclass);
-        return false;
-      }
-      count += subcount;
-      free(cname);
-      free(cclass);
+static void collect_command_ids(ids_t *ids, xmlNodePtr menus, xmlNodePtr toolbars) {
+  EACH_ELEMENT(m, menus) if (elem(m, "menu")) { char *name = attr(m, "name"), scope[128]; ident(scope, sizeof(scope), name, true); collect_menu_ids(ids, m, scope); free(name); }
+  EACH_ELEMENT(tb, toolbars) if (elem(tb, "toolbar")) {
+    char *tbid = attr(tb, "name"), tb_scope[128]; ident(tb_scope, sizeof(tb_scope), tbid, true);
+    EACH_ELEMENT(it, tb) if (toolbar_type(it) && !elem(it, "separator") && !elem(it, "spacer")) {
+      char *menu = attr(it, "menu"), *name = attr(it, "name"), *text = attr(it, "text"), id[256], scope[128];
+      ident(scope, sizeof(scope), nz(menu, tb_scope), true);
+      scoped(id, sizeof(id), scope, name, text);
+      add_id(ids, id);
+      free(menu); free(name); free(text);
     }
-  }
-  if (out_count) *out_count = count;
-  return true;
-}
-
-static bool collect_define(define_list_t *defs, const char *name,
-                           const char *value) {
-  if (!defs || !is_ident_expr(name) || !value || !*value) return true;
-  for (int i = 0; i < defs->count; i++) {
-    if (!strcmp(defs->items[i].name, name)) {
-      if (!strcmp(defs->items[i].value, value)) return true;
-      fprintf(stderr, "orionc: conflicting values for id '%s' (%s vs %s)\n",
-              name, defs->items[i].value, value);
-      return false;
-    }
-  }
-  if (defs->count >= (int)(sizeof(defs->items) / sizeof(defs->items[0]))) {
-    fprintf(stderr, "orionc: too many generated id defines\n");
-    return false;
-  }
-  snprintf(defs->items[defs->count].name, sizeof(defs->items[defs->count].name),
-           "%s", name);
-  snprintf(defs->items[defs->count].value, sizeof(defs->items[defs->count].value),
-           "%s", value);
-  defs->count++;
-  return true;
-}
-
-static bool collect_ident(ident_list_t *ids, const char *name) {
-  if (!ids || !is_ident_expr(name)) return true;
-  if (!strcmp(name, "ID_OK") || !strcmp(name, "ID_CANCEL"))
-    return true;
-  for (int i = 0; i < ids->count; i++) {
-    if (!strcmp(ids->items[i], name))
-      return true;
-  }
-  if (ids->count >= (int)(sizeof(ids->items) / sizeof(ids->items[0]))) {
-    fprintf(stderr, "orionc: too many generated control ids\n");
-    return false;
-  }
-  snprintf(ids->items[ids->count], sizeof(ids->items[ids->count]), "%s", name);
-  ids->count++;
-  return true;
-}
-
-static bool collect_control_tree_idents(ident_list_t *ids, xmlNodePtr node,
-                                        const char *form_ident) {
-  int ordinal = 0;
-  for (xmlNodePtr c = node ? node->children : NULL; c; c = c->next) {
-    if (!is_control_node(c)) continue;
-    char *cname = attr_dup(c, "name");
-    char *cclass = control_class_name(c);
-    char ident[256];
-    make_control_ident(ident, sizeof(ident), form_ident, cname, cclass, ordinal);
-    bool ok = collect_ident(ids, ident);
-    free(cname);
-    free(cclass);
-    if (!ok) return false;
-    if (!collect_control_tree_idents(ids, c, form_ident)) return false;
-    ordinal++;
-  }
-  return true;
-}
-
-static bool collect_form_idents(ident_list_t *ids, xmlNodePtr form,
-                                const char *form_ident) {
-  return collect_control_tree_idents(ids, form, form_ident);
-}
-
-static void menu_scope_ident(char *out, size_t out_sz, xmlNodePtr node,
-                             const char *parent_scope) {
-  char *name = attr_dup(node, "name");
-  const char *src = nonempty(name, "item");
-  if (parent_scope && *parent_scope) {
-    char scoped[128];
-    make_upper_ident(scoped, sizeof(scoped), src);
-    snprintf(out, out_sz, "%s_%s", parent_scope, scoped);
-  } else {
-    make_upper_ident(out, out_sz, src);
-  }
-  free(name);
-}
-
-static bool collect_menu_node_idents(ident_list_t *ids, xmlNodePtr menu,
-                                     const char *scope) {
-  for (xmlNodePtr it = menu ? menu->children : NULL; it; it = it->next) {
-    if (is_element(it, "submenu")) {
-      if (!collect_menu_node_idents(ids, it, scope)) return false;
-      continue;
-    }
-    if (!is_element(it, "item")) continue;
-    char *name = attr_dup(it, "name");
-    char *label = attr_dup(it, "label");
-    char ident[256];
-    make_scoped_ident(ident, sizeof(ident), scope, name, label, -1);
-    if (!collect_ident(ids, ident)) {
-      free(name); free(label);
-      return false;
-    }
-    free(name);
-    free(label);
-  }
-  return true;
-}
-
-static bool collect_menu_idents(ident_list_t *ids, xmlNodePtr menus) {
-  for (xmlNodePtr m = menus ? menus->children : NULL; m; m = m->next) {
-    if (!is_element(m, "menu")) continue;
-    char *mid = attr_dup(m, "name");
-    char menu_ident[128];
-    make_upper_ident(menu_ident, sizeof(menu_ident), nonempty(mid, "menu"));
-    free(mid);
-    if (!collect_menu_node_idents(ids, m, menu_ident)) return false;
-  }
-  return true;
-}
-
-static const char *toolbar_item_type_for_node(xmlNodePtr node);
-
-static bool collect_toolbar_idents(ident_list_t *ids, xmlNodePtr toolbars) {
-  for (xmlNodePtr tb = toolbars ? toolbars->children : NULL; tb; tb = tb->next) {
-    if (!is_element(tb, "toolbar")) continue;
-    char *tbid = attr_dup(tb, "name");
-    char toolbar_ident[128];
-    make_upper_ident(toolbar_ident, sizeof(toolbar_ident), nonempty(tbid, "toolbar"));
     free(tbid);
-    for (xmlNodePtr it = tb->children; it; it = it->next) {
-      if (!toolbar_item_type_for_node(it)) continue;
-      if (is_element(it, "separator") || is_element(it, "spacer"))
-        continue;
-      char *menu = attr_dup(it, "menu");
-      char *name = attr_dup(it, "name");
-      char *id = NULL;
-      char *label = attr_dup(it, "label");
-      char ident[256];
-      const char *scope = (menu && *menu) ? menu : toolbar_ident;
-      if (menu && *menu) {
-        char menu_scope[128];
-        make_upper_ident(menu_scope, sizeof(menu_scope), menu);
-        if (name && *name) {
-          make_scoped_ident(ident, sizeof(ident), menu_scope, name, label, -1);
-        } else {
-          make_scoped_ident(ident, sizeof(ident), menu_scope, label, "item", -1);
-        }
-      } else {
-        if (name && *name) {
-          make_scoped_ident(ident, sizeof(ident), scope, name, label, -1);
-        } else {
-          make_scoped_ident(ident, sizeof(ident), scope, label, "item", -1);
-        }
-      }
-      if (!collect_ident(ids, ident)) {
-        free(menu); free(name); free(id); free(label);
-        return false;
-      }
-      free(menu);
-      free(name);
-      free(id);
-      free(label);
-    }
   }
-  return true;
 }
 
-static void emit_command_enums(FILE *f, const ident_list_t *ids) {
-  if (!ids || ids->count <= 0) return;
-  fputs("/* Menu and toolbar command IDs generated as symbolic enums. */\n", f);
-  fputs("enum {\n", f);
-  for (int i = 0; i < ids->count; i++) {
-    if (i == 0)
-      fprintf(f, "  %s = ID_COMMAND_BASE + 1%s\n", ids->items[i],
-              (i + 1 < ids->count) ? "," : "");
-    else
-      fprintf(f, "  %s%s\n", ids->items[i], (i + 1 < ids->count) ? "," : "");
+static void collect_control_ids(ids_t *ids, xmlNodePtr parent, const char *form) {
+  int ordinal = 0;
+  EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
+    char *name = attr(c, "name"), id[256];
+    control_id(id, sizeof(id), form, name, (char *)c->name, ordinal++);
+    add_id(ids, id);
+    collect_control_ids(ids, c, form);
+    free(name);
   }
-  fputs("};\n\n", f);
-}
-
-static void emit_control_idents(FILE *f, const ident_list_t *ids) {
-  if (!ids || ids->count <= 0) return;
-  fputs("/* Control IDs generated as symbolic enums. */\n", f);
-  fputs("enum {\n", f);
-  for (int i = 0; i < ids->count; i++) {
-    if (i == 0)
-      fprintf(f, "  %s = ID_CONTROL_BASE + 1%s\n", ids->items[i],
-              (i + 1 < ids->count) ? "," : "");
-    else
-      fprintf(f, "  %s%s\n", ids->items[i], (i + 1 < ids->count) ? "," : "");
-  }
-  fputs("};\n\n", f);
 }
 
 static int count_menu_items(xmlNodePtr menu) {
-  int n = 0;
-  for (xmlNodePtr it = menu ? menu->children : NULL; it; it = it->next)
-    if (is_element(it, "item") || is_element(it, "separator") ||
-        is_element(it, "submenu")) n++;
-  return n;
+  int n = 0; EACH_ELEMENT(it, menu) if (elem(it, "item") || elem(it, "separator") || elem(it, "submenu")) n++; return n;
 }
 
-static void emit_optional_if(FILE *f, xmlNodePtr node) {
-  char *expr = attr_dup(node, "if");
-  if (expr && *expr)
-    fprintf(f, "#if %s\n", expr);
-  free(expr);
+static void emit_if(FILE *f, xmlNodePtr n, bool end) {
+  char *e = attr(n, "if");
+  if (e && *e) OUT(end ? "#endif\n" : "#if %s\n", e);
+  free(e);
 }
 
-static void emit_optional_endif(FILE *f, xmlNodePtr node) {
-  char *expr = attr_dup(node, "if");
-  if (expr && *expr)
-    fputs("#endif\n", f);
-  free(expr);
+static void menu_base(char *out, size_t cap, const char *parent, xmlNodePtr n) {
+  char *name = attr(n, "name"), id[128]; ident(id, sizeof(id), name, true);
+  snprintf(out, cap, "%s_%s", nz(parent, "MENU"), id);
+  free(name);
 }
 
-static void emit_menu_indices(FILE *f, xmlNodePtr menus) {
-  if (!menus) return;
-  int idx = 0;
-  bool emitted = false;
-  for (xmlNodePtr m = menus->children; m; m = m->next) {
-    if (!is_element(m, "menu")) continue;
-    char *id = attr_dup(m, "name");
-    if (is_ident_expr(id)) {
-      if (!emitted) {
-        fputs("/* Top-level menu indices generated from <menu> order. */\n", f);
-        fputs("enum {\n", f);
-        emitted = true;
-      }
-      char ident[128];
-      make_ident(ident, sizeof(ident), id);
-      for (char *p = ident; *p; p++)
-        if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
-      fprintf(f, "  MENU_%s_INDEX = %d,\n", ident, idx);
-    }
-    free(id);
-    idx++;
-  }
-  if (emitted)
-    fputs("};\n\n", f);
-}
-
-static void menu_node_base(char *out, size_t out_sz,
-                           const char *parent_base, xmlNodePtr node) {
-  char *id = attr_dup(node, "name");
-  char ident[128];
-  make_upper_ident(ident, sizeof(ident), nonempty(id, "submenu"));
-  snprintf(out, out_sz, "%s_%s", nonempty(parent_base, "MENU"), ident);
-  free(id);
-}
-
-static bool emit_menu_item_array(FILE *f, xmlNodePtr menu,
-                                 const char *base, const char *command_scope,
-                                 bool is_mutable);
-
-static bool emit_submenu_arrays(FILE *f, xmlNodePtr menu,
-                                const char *parent_base, const char *command_scope,
-                                bool is_mutable) {
-  for (xmlNodePtr it = menu ? menu->children : NULL; it; it = it->next) {
-    if (!is_element(it, "submenu")) continue;
-    char child_base[256];
-    menu_node_base(child_base, sizeof(child_base), parent_base, it);
-    if (!emit_submenu_arrays(f, it, child_base, command_scope, is_mutable))
-      return false;
-    if (!emit_menu_item_array(f, it, child_base, command_scope, is_mutable))
-      return false;
-  }
-  return true;
-}
-
-static bool emit_menu_item_array(FILE *f, xmlNodePtr menu,
-                                 const char *base, const char *command_scope,
-                                 bool is_mutable) {
-  int item_count = count_menu_items(menu);
-  if (item_count <= 0) return true;
-  fprintf(f, "static %smenu_item_t %s_ITEMS[] = {\n",
-          is_mutable ? "" : "const ", base);
-  char *menu_id = attr_dup(menu, "name");
-  char menu_scope[128];
-  make_upper_ident(menu_scope, sizeof(menu_scope), nonempty(command_scope, nonempty(menu_id, "menu")));
-  for (xmlNodePtr it = menu->children; it; it = it->next) {
-    emit_optional_if(f, it);
-    if (is_element(it, "separator")) {
-      fputs("  { NULL, 0, NULL, 0 },\n", f);
-      emit_optional_endif(f, it);
-      continue;
-    }
-    if (is_element(it, "submenu")) {
-      char child_base[256];
-      char *label = attr_dup(it, "label");
-      char *count = attr_dup(it, "count");
-      bool dynamic = attr_is_true(it, "dynamic");
-      int child_count = count_menu_items(it);
-      menu_node_base(child_base, sizeof(child_base), base, it);
-      fputs("  { ", f);
-      fprint_c_string(f, nonempty(label, ""));
-      if (dynamic && child_count <= 0) {
-        fprintf(f, ", 0, NULL, %s },\n", nonempty(count, "0"));
-      } else if (child_count <= 0) {
-        fputs(", 0, NULL, 0 },\n", f);
-      } else if (count && *count) {
-        fprintf(f, ", 0, %s_ITEMS, %s },\n", child_base, count);
-      } else {
-        fprintf(f, ", 0, %s_ITEMS, (int)(sizeof(%s_ITEMS) / sizeof(%s_ITEMS[0])) },\n",
-                child_base, child_base, child_base);
-      }
-      free(label);
-      free(count);
-      emit_optional_endif(f, it);
-      continue;
-    }
-    if (!is_element(it, "item")) {
-      emit_optional_endif(f, it);
-      continue;
-    }
-    char *name = attr_dup(it, "name");
-    char *id = NULL;
-    char *label = attr_dup(it, "label");
-    char *shortcut = attr_dup(it, "shortcut");
-    char item_ident[256];
-    if (name && *name) {
-      make_scoped_ident(item_ident, sizeof(item_ident), menu_scope, name, label, -1);
-    } else {
-      make_scoped_ident(item_ident, sizeof(item_ident), menu_scope, label, "item", -1);
-    }
-    fputs("  { ", f);
-    fprint_c_string_with_shortcut(f, nonempty(label, ""), shortcut);
-    fprintf(f, ", %s, NULL, 0 },\n", item_ident);
-    free(name);
-    free(id);
-    free(label);
-    free(shortcut);
-    emit_optional_endif(f, it);
-  }
-  fputs("};\n\n", f);
-  free(menu_id);
-  return true;
-}
-
-static bool emit_menu_resources(FILE *f, xmlNodePtr menus) {
-  if (!menus) return true;
-  char *menus_var = attr_dup(menus, "var");
-  char *count_var = attr_dup(menus, "count");
-  const char *menu_array = nonempty(menus_var, "kMenus");
-  const char *menu_count = nonempty(count_var, "kNumMenus");
-
-  for (xmlNodePtr m = menus->children; m; m = m->next) {
-    if (!is_element(m, "menu")) continue;
-    char *mid = attr_dup(m, "name");
-    char menu_scope[128];
-    char menu_base[256];
-    make_upper_ident(menu_scope, sizeof(menu_scope), nonempty(mid, "menu"));
-    snprintf(menu_base, sizeof(menu_base), "MENU_%s", menu_scope);
-    free(mid);
-    int item_count = count_menu_items(m);
-    if (item_count <= 0) {
-      continue;
-    }
-    bool is_mutable = attr_is_true(m, "mutable");
-    if (!emit_submenu_arrays(f, m, menu_base, menu_scope, is_mutable) ||
-        !emit_menu_item_array(f, m, menu_base, menu_scope, is_mutable)) {
-      free(menus_var); free(count_var);
-      return false;
-    }
-  }
-
-  fprintf(f, "static menu_def_t %s[] = {\n", menu_array);
-  for (xmlNodePtr m = menus->children; m; m = m->next) {
-    if (!is_element(m, "menu")) continue;
-    char *label = attr_dup(m, "label");
-    char *count = attr_dup(m, "count");
-    char *mid = attr_dup(m, "name");
-    char menu_scope[128];
-    char menu_base[256];
-    make_upper_ident(menu_scope, sizeof(menu_scope), nonempty(mid, "menu"));
-    snprintf(menu_base, sizeof(menu_base), "MENU_%s", menu_scope);
-    bool dynamic = attr_is_true(m, "dynamic");
-    int item_count = count_menu_items(m);
-
-    fputs("  { ", f);
-    fprint_c_string(f, nonempty(label, ""));
-    if (dynamic && item_count <= 0) {
-      fprintf(f, ", NULL, %s },\n", nonempty(count, "0"));
-    } else if (count && *count) {
-      fprintf(f, ", %s_ITEMS, %s },\n", menu_base, count);
-    } else {
-      fprintf(f, ", %s_ITEMS, (int)(sizeof(%s_ITEMS) / sizeof(%s_ITEMS[0])) },\n",
-              menu_base, menu_base, menu_base);
-    }
-    free(label);
-    free(count);
-    free(mid);
-  }
-  fputs("};\n", f);
-  fprintf(f, "static const int %s = (int)(sizeof(%s) / sizeof(%s[0]));\n\n",
-          menu_count, menu_array, menu_array);
-
-  free(menus_var);
-  free(count_var);
-  return true;
-}
-
-static const char *toolbar_item_type_for_node(xmlNodePtr node) {
-  if (is_element(node, "button")) return "TOOLBAR_ITEM_BUTTON";
-  if (is_element(node, "label")) return "TOOLBAR_ITEM_LABEL";
-  if (is_element(node, "combobox")) return "TOOLBAR_ITEM_COMBOBOX";
-  if (is_element(node, "textedit")) return "TOOLBAR_ITEM_TEXTEDIT";
-  if (is_element(node, "separator")) return "TOOLBAR_ITEM_SEPARATOR";
-  if (is_element(node, "spacer")) return "TOOLBAR_ITEM_SPACER";
-  return NULL;
-}
-
-static int count_toolbar_items(xmlNodePtr toolbar) {
-  int n = 0;
-  for (xmlNodePtr it = toolbar ? toolbar->children : NULL; it; it = it->next)
-    if (toolbar_item_type_for_node(it)) n++;
-  return n;
-}
-
-static bool emit_toolbar_resources(FILE *f, xmlNodePtr toolbars) {
-  if (!toolbars) return true;
-
-  for (xmlNodePtr tb = toolbars->children; tb; tb = tb->next) {
-    if (!is_element(tb, "toolbar")) continue;
-    char *tbid = attr_dup(tb, "name");
-    int item_count = count_toolbar_items(tb);
-    if (item_count <= 0) {
-      free(tbid);
-      continue;
-    }
-    if (!tbid || !*tbid) {
-      fprintf(stderr, "orionc: toolbar with items has no name\n");
-      free(tbid);
-      return false;
-    }
-
-    char toolbar_name[128];
-    make_upper_ident(toolbar_name, sizeof(toolbar_name), nonempty(tbid, "toolbar"));
-    fprintf(f, "static const toolbar_item_t TB_%s[] = {\n", toolbar_name);
-
-    for (xmlNodePtr it = tb->children; it; it = it->next) {
-      const char *type = toolbar_item_type_for_node(it);
-      if (!type) continue;
-
-      char *menu = attr_dup(it, "menu");
-      char *name = attr_dup(it, "name");
-      char *id = NULL;
-      char *icon = attr_dup(it, "icon");
-      char *w = attr_dup(it, "w");
-      char *flags = attr_dup(it, "flags");
-      char *text = attr_dup(it, "text");
-      char ident[256];
-      if (menu && *menu) {
-        char menu_scope[128];
-        make_upper_ident(menu_scope, sizeof(menu_scope), menu);
-        if (name && *name) {
-          make_scoped_ident(ident, sizeof(ident), menu_scope, name, text, -1);
-        } else {
-          make_scoped_ident(ident, sizeof(ident), menu_scope, text, "item", -1);
-        }
-      } else if (is_element(it, "separator") || is_element(it, "spacer")) {
-        snprintf(ident, sizeof(ident), "0");
-      } else {
-        if (name && *name) {
-          make_scoped_ident(ident, sizeof(ident), toolbar_name, name, text, -1);
-        } else {
-          make_scoped_ident(ident, sizeof(ident), toolbar_name, text, "item", -1);
-        }
-      }
-      fprintf(f, "  { %s, %s, %s, %s, %s, ",
-              type,
-              nonempty(ident, "0"),
-              nonempty(icon, "-1"),
-              nonempty(w, "0"),
-              nonempty(flags, "0"));
-      if (text && *text)
-        fprint_c_string(f, text);
+static void emit_menu_items(FILE *f, xmlNodePtr menu, const char *base, const char *scope) {
+  EACH_ELEMENT(it, menu) if (elem(it, "submenu")) { char b[256]; menu_base(b, sizeof(b), base, it); emit_menu_items(f, it, b, scope); }
+  if (!count_menu_items(menu)) return;
+  OUT("static const menu_item_t %s_ITEMS[] = {\n", base);
+  EACH_ELEMENT(it, menu) {
+    emit_if(f, it, false);
+    if (elem(it, "separator")) LINE("  { NULL, 0, NULL, 0 },\n");
+    else if (elem(it, "submenu")) {
+      char b[256], label[ORIONC_STRING_SIZE], *raw = attr(it, "label");
+      menu_base(b, sizeof(b), base, it); cstr(label, sizeof(label), raw);
+      if (count_menu_items(it))
+        OUT("  { %s, 0, %s_ITEMS, (int)(sizeof(%s_ITEMS) / sizeof(%s_ITEMS[0])) },\n", label, b, b, b);
       else
-        fputs("NULL", f);
-      fputs(" },\n", f);
-      free(menu);
-      free(name);
-      free(id);
-      free(icon);
-      free(w);
-      free(flags);
-      free(text);
+        OUT("  { %s, 0, NULL, 0 },\n", label);
+      free(raw);
+    } else if (elem(it, "item")) {
+      char *name = attr(it, "name"), *raw = attr(it, "label"), *shortcut = attr(it, "shortcut");
+      char id[256], label[ORIONC_STRING_SIZE]; scoped(id, sizeof(id), scope, name, raw); cstr_shortcut(label, sizeof(label), raw, shortcut);
+      OUT("  { %s, %s, NULL, 0 },\n", label, id);
+      free(name); free(raw); free(shortcut);
     }
-    fputs("};\n", f);
-    fprintf(f, "static const int TB_%s_COUNT = (int)(sizeof(TB_%s) / sizeof(TB_%s[0]));\n",
-            toolbar_name, toolbar_name, toolbar_name);
-    fputc('\n', f);
+    emit_if(f, it, true);
+  }
+  LINE("};\n\n");
+}
+
+static void emit_menus(FILE *f, xmlNodePtr menus) {
+  if (!menus) return;
+  EACH_ELEMENT(m, menus) if (elem(m, "menu")) { char *name = attr(m, "name"), scope[128], base[256]; ident(scope, sizeof(scope), name, true); snprintf(base, sizeof(base), "MENU_%s", scope); emit_menu_items(f, m, base, scope); free(name); }
+  char *var = attrs_first(menus, "var", NULL), *count = attrs_first(menus, "count", NULL);
+  OUT("static menu_def_t %s[] = {\n", nz(var, "kMenus"));
+  EACH_ELEMENT(m, menus) if (elem(m, "menu")) {
+    char *name = attr(m, "name"), *raw = attr(m, "label"), label[ORIONC_STRING_SIZE], scope[128], base[256];
+    ident(scope, sizeof(scope), name, true); snprintf(base, sizeof(base), "MENU_%s", scope); cstr(label, sizeof(label), raw);
+    OUT("  { %s, %s_ITEMS, (int)(sizeof(%s_ITEMS) / sizeof(%s_ITEMS[0])) },\n", label, base, base, base);
+    free(name); free(raw);
+  }
+  OUT("};\n#define %s ((int)(sizeof(%s) / sizeof(%s[0])))\n\n", nz(count, "kNumMenus"), nz(var, "kMenus"), nz(var, "kMenus"));
+  free(var); free(count);
+}
+
+static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
+  EACH_ELEMENT(tb, toolbars) if (elem(tb, "toolbar")) {
+    char *tbid = attr(tb, "name"), scope[128]; ident(scope, sizeof(scope), tbid, true);
+    OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
+    EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
+      char *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text");
+      char id[256] = "0", textq[ORIONC_STRING_SIZE], menu_scope[128];
+      if (!elem(it, "separator") && !elem(it, "spacer")) { ident(menu_scope, sizeof(menu_scope), nz(menu, scope), true); scoped(id, sizeof(id), menu_scope, name, text); }
+      if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
+      OUT("  { %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq);
+      free(menu); free(name); free(icon); free(w); free(flags); free(text);
+    }
+    OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
     free(tbid);
   }
+}
 
+static const field_type_t *field_type(const char *type) { for (int i = 0; i < ARRAY_LEN(kFieldTypes); i++) if (eq(type, kFieldTypes[i].xml)) return &kFieldTypes[i]; return &kFieldTypes[0]; }
+static void singular_type(char *out, size_t cap, const char *table, const char *model) {
+  if (model && *model) { snprintf(out, cap, "%s", model); return; }
+  char id[96]; ident(id, sizeof(id), table, false); size_t n = strlen(id); if (n > 1 && id[n - 1] == 's') id[n - 1] = 0;
+  snprintf(out, cap, "db_%s_t", id);
+}
+
+static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
+  if (!db) return;
+  int table_i = 0;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *table = attr(t, "name"), *model = attr(t, "model"), type[128], meta[128];
+    if (!table || !*table) { free(table); free(model); continue; }
+    singular_type(type, sizeof(type), table, model); ident(meta, sizeof(meta), nz(model, table), false);
+    OUT("typedef struct {\n");
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *name = attr(field, "name"), *kind = attr(field, "type"), *len = attr(field, "length"); const field_type_t *ft = field_type(kind);
+      if (eq(ft->c, "char")) OUT("  char %s[%d];\n", name, len ? atoi(len) : ft->size); else OUT("  %s %s;\n", ft->c, name);
+      free(name); free(kind); free(len);
+    }
+    OUT("} %s;\n\nstatic const db_field_meta_t %s_fields[] = {\n", type, meta);
+    EACH_ELEMENT(field, t) if (elem(field, "field")) {
+      char *name = attr(field, "name"), *kind = attr(field, "type"), *len = attr(field, "length"); const field_type_t *ft = field_type(kind);
+      OUT("  { \"%s\", %s, offsetof(%s, %s), %d },\n", name, ft->db, type, name, eq(ft->c, "char") ? (len ? atoi(len) : ft->size) : 0);
+      free(name); free(kind); free(len);
+    }
+    OUT("};\n");
+    char up[128]; ident(up, sizeof(up), table, true); OUT("#define TABLE_%s %d\n", up, table_i++);
+    free(table); free(model);
+  }
+  if (table_i) OUT("#define TABLE_COUNT %d\n\n", table_i);
+  OUT("static const db_api_def_t %s_database_api = { NULL, 0, NULL, 0, NULL, 0 };\n\n", prefix);
+}
+
+static void table_name_from_source(char *out, size_t cap, const char *source) {
+  const char *dot = source ? strchr(source, '.') : NULL; snprintf(out, cap, "%s", dot ? dot + 1 : nz(source, "table"));
+  char *next = strchr(out, '.'); if (next) *next = 0;
+}
+
+// count_table_fields — count number of fields in a database table
+static int count_table_fields(xmlNodePtr db, const char *table_name) {
+  if (!db || !table_name) return 0;
+  EACH_ELEMENT(t, db) if (elem(t, "table")) {
+    char *name = attr(t, "name");
+    if (eq(name, table_name)) {
+      int count = 0;
+      EACH_ELEMENT(field, t) if (elem(field, "field")) count++;
+      free(name);
+      return count;
+    }
+    free(name);
+  }
+  return 0;
+}
+
+static void emit_tableviews(FILE *f, xmlNodePtr parent, const char *form) {
+  EACH_ELEMENT(c, parent) {
+    if (elem(c, "tableview")) {
+      char *name = attr(c, "name"), *source = attrs_first(c, "source", "database");
+      char param[256], table[128], table_id[128]; snprintf(param, sizeof(param), "%s_%s_tableview_params", form, nz(name, "unnamed"));
+      table_name_from_source(table, sizeof(table), source); ident(table_id, sizeof(table_id), table, true);
+      OUT("static const char *%s_fields[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "field"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
+      OUT("static const char *%s_titles[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "title"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
+      OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("-1 };\n");
+      OUT("static const tableview_params_t %s = { NULL, TABLE_%s, 0, 0, %s_fields, %s_titles, %s_widths };\n\n", param, table_id, param, param, param);
+      free(name); free(source);
+    }
+    emit_tableviews(f, c, form);
+  }
+}
+
+static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
+  EACH_ELEMENT(c, parent) {
+    if (elem(c, "combobox")) {
+      char *name = attr(c, "name"), *source = attr(c, "source");
+      char *display = attr(c, "display"), *value = attr(c, "value");
+      
+      // Only generate params if source/display/value are all present
+      if (source && display && value) {
+        char param[256], table[128], table_id[128];
+        char display_q[ORIONC_STRING_SIZE], value_q[ORIONC_STRING_SIZE];
+        
+        snprintf(param, sizeof(param), "%s_%s_combobox_params", form, nz(name, "unnamed"));
+        table_name_from_source(table, sizeof(table), source);
+        ident(table_id, sizeof(table_id), table, true);
+        cstr(display_q, sizeof(display_q), display);
+        cstr(value_q, sizeof(value_q), value);
+        
+        OUT("static const combobox_params_t %s = { NULL, TABLE_%s, %s, %s };\n\n",
+            param, table_id, display_q, value_q);
+      }
+      
+      free(name); free(source); free(display); free(value);
+    }
+    emit_comboboxes(f, c, form);
+  }
+}
+
+static const char *binding_getter(const char *klass) {
+  if (eq(klass, "textedit") || eq(klass, "multiedit")) return "edGetText";
+  if (eq(klass, "combobox")) return "cbGetCurrentValue";  // Use value_field (ID) not row index
+  if (eq(klass, "checkbox")) return "chkIsChecked";
+  return "0";
+}
+
+static void binding_record_type(char *out, size_t cap, const char *table) {
+  char id[96]; ident(id, sizeof(id), table, false);
+  size_t n = strlen(id); if (n > 1 && id[n - 1] == 's') id[n - 1] = 0;
+  snprintf(out, cap, "db_%s_t", id);
+}
+
+static void add_binding(bindings_t *b, const char *ctrl, const char *path, const char *klass) {
+  if (!b || b->n >= ARRAY_LEN(b->v)) return;
+  binding_t next = {0};
+  if (!db_path(path, next.db, sizeof(next.db), next.table, sizeof(next.table), next.field, sizeof(next.field))) return;
+  snprintf(next.ctrl, sizeof(next.ctrl), "%s", ctrl);
+  snprintf(next.klass, sizeof(next.klass), "%s", klass);
+  if (!b->n) { snprintf(b->db, sizeof(b->db), "%s", next.db); snprintf(b->table, sizeof(b->table), "%s", next.table); }
+  b->v[b->n++] = next;
+}
+
+static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const char *parent_id, bindings_t *bindings, int *count, button_ids_t *btn_ids) {
+  int ordinal = 0;
+  EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
+    attrs_t a; rect_t sz = size_attr(c), pad = {0}, mar = {0}; char id[256], klass[128], classq[ORIONC_STRING_SIZE], textq[ORIONC_STRING_SIZE], nameq[ORIONC_STRING_SIZE], flags[256], spacing[16], font[16], color[16], lparam[256] = "NULL";
+    read_control_attrs(c, &a); control_id(id, sizeof(id), form, a.v[A_NAME], (char *)c->name, ordinal++); ident(klass, sizeof(klass), (char *)c->name, false);
+    if (elem(c, "textbox"))
+      snprintf(klass, sizeof(klass), "TextEdit");
+    if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
+    rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
+    // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)
+    const char *auto_flex = (elem(c, "space") || elem(c, "multiedit")) ? " | WINDOW_FLEXSPACE" : "";
+    snprintf(flags, sizeof(flags), "(%s)%s%s", nz(a.v[A_FLAGS], "0"), enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL ? " | WINDOW_STACK_HORIZONTAL" : "", auto_flex);
+    snprintf(spacing, sizeof(spacing), "%u", byte_attr(a.v[A_SPACING], ORIONC_DEFAULT_SPACING));
+    snprintf(font, sizeof(font), "%s", eq(a.v[A_FONT], "system") ? "FONT_SYSTEM" : eq(a.v[A_FONT], "icon") ? "FONT_ICON" : "FONT_SMALL");
+    snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));
+    if (elem(c, "tableview")) snprintf(lparam, sizeof(lparam), "&%s_%s_tableview_params", form, nz(a.v[A_NAME], "unnamed"));
+    if (elem(c, "combobox") && attr(c, "source")) snprintf(lparam, sizeof(lparam), "&%s_%s_combobox_params", form, nz(a.v[A_NAME], "unnamed"));
+    if (a.v[A_FIELD]) add_binding(bindings, id, a.v[A_FIELD], klass);
+    
+    // Track button IDs for ok_id/cancel_id form metadata
+    if (elem(c, "button") && btn_ids) {
+      char *action = attr(c, "action");
+      if (action && (strstr(action, ".insert") || strstr(action, ".update"))) {
+        snprintf(btn_ids->ok_id, sizeof(btn_ids->ok_id), "%s", id);
+      }
+      free(action);
+      
+      // Detect cancel button by text or name
+      if ((a.v[A_TEXT] && strcasecmp(a.v[A_TEXT], "Cancel") == 0) ||
+          (a.v[A_NAME] && strcasecmp(a.v[A_NAME], "cancel") == 0)) {
+        snprintf(btn_ids->cancel_id, sizeof(btn_ids->cancel_id), "%s", id);
+      }
+    }
+    
+    cstr(classq, sizeof(classq), klass); cstr(textq, sizeof(textq), a.v[A_TEXT]); cstr(nameq, sizeof(nameq), a.v[A_NAME]);
+    OUT("  { %s, %s, { %d, %d }, %s, %s, %s, %u, %u, NULL, 0, %s, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %s, %s, %s, %s, %s },\n",
+        classq, id, sz.w, sz.h, flags, textq, nameq,
+        (unsigned)enum_parse_token(a.v[A_HA], kAlignH, ARRAY_LEN(kAlignH), 0),
+        (unsigned)enum_parse_token(a.v[A_VA], kAlignV, ARRAY_LEN(kAlignV), 0),
+        spacing, pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h,
+        nz(parent_id, "0"), font, a.v[A_FONT] ? "true" : "false", color, a.v[A_COLOR] ? "true" : "false", lparam);
+    (*count)++;
+    emit_controls_ex(f, c, form, id, bindings, count, btn_ids);
+    free_attrs(&a);
+  }
+}
+
+static void emit_bindings(FILE *f, const char *prefix, const char *form, const bindings_t *b) {
+  if (!b || !b->n) return;
+  char type[128]; binding_record_type(type, sizeof(type), b->table);
+  OUT("static const ctrl_binding_t %s_%s_bindings[] = {\n", prefix, form);
+  for (int i = 0; i < b->n; i++) {
+    const binding_t *x = &b->v[i];
+    OUT("  { %s, 0, %s, offsetof(%s, %s), ", x->ctrl, binding_getter(x->klass), type, x->field);
+    if (eq(x->klass, "textedit") || eq(x->klass, "multiedit")) OUT("sizeof_field(%s, %s)", type, x->field);
+    else if (eq(x->klass, "combobox")) LINE("(size_t)-1");
+    else LINE("0");
+    LINE(", NULL, NULL },\n");
+  }
+  LINE("};\n\n");
+}
+
+static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr database) {
+  char *name = attr(form, "name"), *title = attr(form, "title"), *flags = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *spacing = attrs_first(form, "spacing", "layout_spacing");
+  rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE];
+  if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
+  ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
+  rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
+  emit_tableviews(f, form, form_id);
+  emit_comboboxes(f, form, form_id);
+  OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
+  int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
+  emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");
+  emit_bindings(f, prefix, form_id, &bindings);
+  OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
+      prefix, form_id, titleq, sz.w, sz.h, nz(flags, "0"), byte_attr(spacing, ORIONC_DEFAULT_SPACING),
+      pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h, prefix, form_id, count);
+  if (toolbar && *toolbar) { char tb[128]; ident(tb, sizeof(tb), toolbar, true); OUT(", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", tb, tb); }
+  else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
+  if (bindings.n) {
+    char table_id[128], meta[128]; 
+    ident(table_id, sizeof(table_id), bindings.table, true);
+    ident(meta, sizeof(meta), bindings.table, false);
+    int field_count = count_table_fields(database, bindings.table);
+    OUT(", .bindings = %s_%s_bindings, .binding_count = %d, .ok_id = %s, .cancel_id = %s, .db_name = \"%s\", .db_table = \"%s\", .db_table_id = TABLE_%s, .db_fields = %s_fields, .db_field_count = %d",
+        prefix, form_id, bindings.n, 
+        btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
+        btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0",
+        bindings.db, bindings.table, table_id, meta, field_count);
+  } else {
+    OUT(", .bindings = NULL, .binding_count = 0, .ok_id = %s, .cancel_id = %s, .db_name = NULL, .db_table = NULL, .db_table_id = 0, .db_fields = NULL, .db_field_count = 0",
+        btn_ids.ok_id[0] ? btn_ids.ok_id : "0",
+        btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0");
+  }
+  LINE(" };\n\n");
+  free(name); free(title); free(flags); free(toolbar); free(spacing);
   return true;
 }
 
-static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix) {
-  char *id = attr_dup(form, "name");
-  char *title = attr_dup(form, "title");
-  char *flags = attr_dup(form, "flags");
-  char *layout_spacing = attr_dup_first(form, "spacing", "layout_spacing");
-  char *padding = attr_dup_first(form, "padding", "layout_padding");
-  char *margin = attr_dup_first(form, "margin", "layout_margin");
-  /* auto_layout is always true now */
-  frame_t fr = {0, 0, 0, 0};
-  frame_t pad = {0, 0, 0, 0};
-  frame_t mar = {0, 0, 0, 0};
-  if (!parse_frame(form, &fr)) {
-    fprintf(stderr, "orionc: form '%s' requires width= attribute\n", nonempty(id, ""));
-    free(id); free(title); free(flags);
-    free(layout_spacing);
-    free(padding); free(margin);
-    return false;
-  }
-  if (!parse_rect_attr(form, "padding", &pad))
-    (void)parse_rect_attr(form, "layout_padding", &pad);
-  if (!parse_rect_attr(form, "margin", &mar))
-    (void)parse_rect_attr(form, "layout_margin", &mar);
-
-  char id_ident[128];
-  make_ident(id_ident, sizeof(id_ident), id);
-  fprintf(f, "static const form_ctrl_def_t %s_%s_children[] = {\n",
-          prefix, id_ident);
-  int child_count = 0;
-  if (!emit_control_tree(f, form, id_ident, id_ident, "0", &child_count)) {
-    free(id); free(title); free(flags);
-    free(layout_spacing);
-    free(padding); free(margin);
-    return false;
-  }
-  fprintf(f, "};\n\n");
-  fprintf(f, "static const form_def_t %s_%s_form = { .name = ", prefix, id_ident);
-  fprint_c_string(f, nonempty(title, nonempty(id, "")));
-    fprintf(f, ", .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, ",
-      fr.w, fr.h, nonempty(flags, "0"));
-    fprintf(f, ".layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d };\n\n",
-          (unsigned)layout_spacing_attr(layout_spacing, 4),
-          pad.x, pad.y, pad.w, pad.h,
-          mar.x, mar.y, mar.w, mar.h,
-          prefix, id_ident, child_count);
-
-  free(id); free(title); free(flags);
-  free(layout_spacing);
-  free(padding); free(margin);
-  return true;
-}
-
-static void usage(const char *argv0) {
-  fprintf(stderr,
-          "usage: %s --input file.orion --output forms.h --prefix name [--form id]\n",
-          base_name(argv0));
-}
+static void usage(const char *argv0) { fprintf(stderr, "usage: %s --input file.orion --output forms.h --prefix name [--form id]\n", argv0); }
 
 int main(int argc, char **argv) {
-  const char *input = NULL;
-  const char *output = NULL;
-  const char *prefix = "orion";
-  const char *only_form = NULL;
-
+  const char *input = NULL, *output = NULL, *prefix = "orion", *only = NULL;
   for (int i = 1; i < argc; i++) {
-    if (streq(argv[i], "--input") && i + 1 < argc) input = argv[++i];
-    else if (streq(argv[i], "--output") && i + 1 < argc) output = argv[++i];
-    else if (streq(argv[i], "--prefix") && i + 1 < argc) prefix = argv[++i];
-    else if (streq(argv[i], "--form") && i + 1 < argc) only_form = argv[++i];
-    else {
-      usage(argv[0]);
-      return 2;
-    }
+    if (eq(argv[i], "--input") && i + 1 < argc) input = argv[++i];
+    else if (eq(argv[i], "--output") && i + 1 < argc) output = argv[++i];
+    else if (eq(argv[i], "--prefix") && i + 1 < argc) prefix = argv[++i];
+    else if (eq(argv[i], "--form") && i + 1 < argc) only = argv[++i];
+    else { usage(argv[0]); return 2; }
   }
-  if (!input || !output) {
-    usage(argv[0]);
-    return 2;
-  }
-
-  char prefix_ident[128];
-  make_ident(prefix_ident, sizeof(prefix_ident), prefix);
-
+  if (!input || !output) { usage(argv[0]); return 2; }
   xmlDocPtr doc = xmlReadFile(input, NULL, XML_PARSE_NONET);
-  if (!doc) {
-    fprintf(stderr, "orionc: failed to read %s\n", input);
-    return 1;
-  }
-  xmlNodePtr root = xmlDocGetRootElement(doc);
-  if (!is_element(root, "orion")) {
-    fprintf(stderr, "orionc: %s is not an <orion> document\n", input);
-    xmlFreeDoc(doc);
-    return 1;
-  }
-
-  FILE *f = fopen(output, "wb");
-  if (!f) {
-    perror(output);
-    xmlFreeDoc(doc);
-    return 1;
-  }
-
-  char guard[256];
-  make_ident(guard, sizeof(guard), output);
-  for (char *p = guard; *p; p++)
-    if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
-
-  fprintf(f, "/* Generated by orionc from %s. */\n", input);
-  fprintf(f, "#ifndef %s\n#define %s\n\n", guard, guard);
-  fputs("#include \"ui.h\"\n\n", f);
-
+  xmlNodePtr root = doc ? xmlDocGetRootElement(doc) : NULL;
+  if (!elem(root, "orion")) { fprintf(stderr, "orionc_alt: %s is not an <orion> document\n", input); if (doc) xmlFreeDoc(doc); return 1; }
+  FILE *f = fopen(output, "wb"); if (!f) { perror(output); xmlFreeDoc(doc); return 1; }
+  char guard[256], pre[128]; ident(guard, sizeof(guard), output, true); ident(pre, sizeof(pre), prefix, false);
+  xmlNodePtr menus = child(root, "menus"), toolbars = child(root, "toolbars"), forms = child(root, "forms"), databases = child(root, "databases"), database = databases ? child(databases, "database") : child(root, "database");
+  ids_t commands = {0}, controls = {0}; collect_command_ids(&commands, menus, toolbars);
+  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"), form_id[128]; if (!only || eq(name, only)) { ident(form_id, sizeof(form_id), name, false); collect_control_ids(&controls, form, form_id); } free(name); }
+  tpl(f, "/* Generated by orionc_alt from {{input}}. */\n#ifndef {{guard}}\n#define {{guard}}\n\n#include \"ui.h\"\n#include \"user/icons.h\"\n\n",
+      (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
+  emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
+  emit_menus(f, menus); emit_toolbars(f, toolbars); emit_database(f, database, pre);
   int emitted = 0;
-  ident_list_t control_ids = {0};
-  ident_list_t command_ids = {0};
-  xmlNodePtr menus = first_child_element(root, "menus");
-  xmlNodePtr toolbars = first_child_element(root, "toolbars");
-  xmlNodePtr forms = first_child_element(root, "forms");
-
-  if (!collect_menu_idents(&command_ids, menus)) {
-    fclose(f);
-    xmlFreeDoc(doc);
-    return 1;
-  }
-  if (!collect_toolbar_idents(&command_ids, toolbars)) {
-    fclose(f);
-    xmlFreeDoc(doc);
-    return 1;
-  }
-
-  for (xmlNodePtr n = forms ? forms->children : NULL; n; n = n->next) {
-    if (!is_element(n, "form")) continue;
-    char *id = attr_dup(n, "name");
-    bool want = !only_form || streq(id, only_form);
-    free(id);
-    if (!want) continue;
-    char *form_id = attr_dup(n, "name");
-    char form_ident[128];
-    make_ident(form_ident, sizeof(form_ident), nonempty(form_id, "form"));
-    if (!collect_form_idents(&control_ids, n, form_ident)) {
-      free(form_id);
-      fclose(f);
-      xmlFreeDoc(doc);
-      return 1;
-    }
-    free(form_id);
-  }
-  emit_command_enums(f, &command_ids);
-  emit_control_idents(f, &control_ids);
-  emit_menu_indices(f, menus);
-  if (!emit_menu_resources(f, menus)) {
-    fclose(f);
-    xmlFreeDoc(doc);
-    return 1;
-  }
-  if (!emit_toolbar_resources(f, toolbars)) {
-    fclose(f);
-    xmlFreeDoc(doc);
-    return 1;
-  }
-
-  for (xmlNodePtr n = forms ? forms->children : NULL; n; n = n->next) {
-    if (!is_element(n, "form")) continue;
-    char *id = attr_dup(n, "name");
-    bool want = !only_form || streq(id, only_form);
-    free(id);
-    if (!want) continue;
-    if (!emit_form(f, n, prefix_ident)) {
-      fclose(f);
-      xmlFreeDoc(doc);
-      return 1;
-    }
-    emitted++;
-  }
-
-  fprintf(f, "#endif /* %s */\n", guard);
-  fclose(f);
-  xmlFreeDoc(doc);
-
-  if (emitted == 0) {
-    fprintf(stderr, "orionc: no forms emitted from %s\n", input);
-    return 1;
-  }
+  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; emitted++; } free(name); }
+  OUT("#endif /* %s */\n", guard);
+  fclose(f); xmlFreeDoc(doc);
+  if (!emitted) { fprintf(stderr, "orionc_alt: no forms emitted from %s\n", input); return 1; }
   return 0;
 }

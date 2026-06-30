@@ -105,11 +105,24 @@ int rv_report_header_height(const reportview_data_t *data) {
 int rv_get_report_column_width(reportview_data_t *data, int col, int avail_w) {
   if (!data || col < 0 || col >= (int)data->column_count)
     return 80;
-  if (data->columns[col].width != 0)
-    return (int)data->columns[col].width;
-  if (data->column_count == 0)
+  // If column has a fixed width spec (>0), return it
+  if (data->columns[col].width_spec != 0)
+    return (int)data->columns[col].width_spec;
+  // Flex column (width_spec == 0): calculate from available width
+  // Count how many flex columns there are
+  int flex_count = 0;
+  int fixed_total = 0;
+  for (uint32_t i = 0; i < data->column_count; i++) {
+    if (data->columns[i].width_spec == 0)
+      flex_count++;
+    else
+      fixed_total += (int)data->columns[i].width_spec;
+  }
+  if (flex_count == 0)
     return avail_w;
-  return avail_w / (int)data->column_count;
+  int flex_avail = avail_w - fixed_total;
+  if (flex_avail < flex_count) flex_avail = flex_count; // Minimum 1px per flex column
+  return flex_avail / flex_count;
 }
 
 int rv_report_total_width(reportview_data_t *data, int avail_w) {

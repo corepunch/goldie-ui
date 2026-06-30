@@ -15,7 +15,7 @@ static void test_reportview_class_flags_not_overrideable(void) {
   test_env_init();
 
   form_ctrl_def_t reportview_form = {
-    .class_name = "reportview",
+    .class_name = "ReportView",
     .id = 1,
     .size = {0, 0},
     .flags = WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL,
@@ -53,7 +53,7 @@ static void test_space_class_has_flexspace(void) {
   test_env_init();
 
   form_ctrl_def_t space_form = {
-    .class_name = "space",
+    .class_name = "Space",
     .id = 2,
     .size = {0, 0},
     .flags = 0,
@@ -87,7 +87,7 @@ static void test_multiedit_class_has_flexspace(void) {
   test_env_init();
 
   form_ctrl_def_t multiedit_form = {
-    .class_name = "multiedit",
+    .class_name = "MultiEdit",
     .id = 3,
     .size = {0, 0},
     .flags = WINDOW_NOTITLE,
@@ -123,7 +123,7 @@ static void test_flexspace_propagates_up(void) {
   test_env_init();
 
   form_ctrl_def_t reportview_form = {
-    .class_name = "reportview",
+    .class_name = "ReportView",
     .id = 10,
     .size = {0, 0},
     .flags = WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_VSCROLL,
@@ -131,7 +131,7 @@ static void test_flexspace_propagates_up(void) {
     .name = "items",
   };
   form_ctrl_def_t column_form = {
-    .class_name = "stack",
+    .class_name = "StackView",
     .id = 11,
     .size = {0, 0},
     .flags = 0,
@@ -141,7 +141,7 @@ static void test_flexspace_propagates_up(void) {
     .child_count = 1,
   };
   form_ctrl_def_t grid_form = {
-    .class_name = "grid",
+    .class_name = "GridView",
     .id = 12,
     .size = {0, 0},
     .flags = 0,

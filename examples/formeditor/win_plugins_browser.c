@@ -9,6 +9,7 @@
 
 typedef struct {
   window_t *list_win;
+  int       subscription_id;
 } plugins_browser_state_t;
 
 static const toolbar_item_t kPluginsToolbar[] = {
@@ -33,7 +34,7 @@ static bool plugin_ref_exists(const char *name) {
   return false;
 }
 
-static const char *plugin_display_name(const char *name) {
+static const char *plugin_title(const char *name) {
   if (!name || !*name) return "";
   const char *slash = strrchr(name, '/');
   const char *base = slash ? slash + 1 : name;
@@ -74,7 +75,7 @@ static void plugins_browser_rebuild(plugins_browser_state_t *st) {
   if (g_app) {
     for (int i = 0; i < g_app->project.plugin_count; i++) {
       reportview_item_t item = {0};
-      item.text = plugin_display_name(g_app->project.plugins[i].name);
+      item.text = plugin_title(g_app->project.plugins[i].name);
       item.color = get_sys_color(brTextNormal);
       item.userdata = (uint32_t)i;
       send_message(st->list_win, RVM_ADDITEM, 0, &item);
@@ -88,6 +89,19 @@ void plugins_browser_refresh(void) {
   if (!g_app || !g_app->plugins_win) return;
   plugins_browser_state_t *st = (plugins_browser_state_t *)g_app->plugins_win->userdata;
   plugins_browser_rebuild(st);
+}
+
+static void plugins_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+  (void)doc;
+  (void)ctx;
+  switch (event) {
+    case FE_EVENT_PROJECT_MODIFIED:
+    case FE_EVENT_COMPONENT_REGISTRY_CHANGED:
+      plugins_browser_refresh();
+      break;
+    default:
+      break;
+  }
 }
 
 window_t *plugins_browser_create(hinstance_t hinstance) {
@@ -177,6 +191,7 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
 
       send_message(win, tbSetItems, ARRAY_LEN(kPluginsToolbar),
                    (void *)kPluginsToolbar);
+      st->subscription_id = fe_subscribe(plugins_browser_observer, win);
       plugins_browser_rebuild(st);
       return true;
     }
@@ -204,6 +219,8 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
       return false;
 
     case evDestroy:
+      if (st)
+        fe_unsubscribe(st->subscription_id);
       if (g_app && g_app->plugins_win == win)
         g_app->plugins_win = NULL;
       return false;

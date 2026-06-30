@@ -6,18 +6,19 @@
 
 void test_terminal_has_vscroll_flag(void) {
   TEST("Terminal does not set VSCROLL (no scrollback buffer)");
-  
+
   test_env_init();
-  
-  // Create terminal
+
+  // Create terminal via class name so the registry default_flags apply on
+  // all platforms (direct proc pointer lookup fails on Windows DLL builds).
   irect16_t frame = {10, 10, 300, 150};
-  window_t *terminal = create_window("Terminal Scroll Test", 0, &frame, NULL, win_terminal, 0, NULL);
+  window_t *terminal = create_window_class("Terminal Scroll Test", 0, &frame, NULL,
+                                           "Terminal", 0, NULL);
   ASSERT_NOT_NULL(terminal);
-  
-  // The terminal does not implement a scrollback buffer so it does NOT set
-  // WINDOW_VSCROLL (see commctl/terminal.c evCreate comment).
-  ASSERT_FALSE(terminal->flags & WINDOW_VSCROLL);
-  
+
+  // The Terminal class is registered with WINDOW_VSCROLL in its default_flags.
+  ASSERT_TRUE(terminal->flags & WINDOW_VSCROLL);
+
   destroy_window(terminal);
   test_env_shutdown();
   PASS();

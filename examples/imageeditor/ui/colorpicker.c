@@ -1,0 +1,413 @@
+// Color Picker Dialog
+// Opens as a modal dialog via right-click on the color palette.
+// Provides RGB sliders, HSV sliders, and a user-defined color palette.
+
+#include "imageeditor.h"
+
+// ──────────────────────────────────────────────────────────────────
+// Dialog geometry (all coords relative to the dialog content area)
+// ──────────────────────────────────────────────────────────────────
+
+#define CP_WIN_W     240
+
+// Color preview swatches (left column, x = 0..49)
+#define CP_PREV_X      2
+#define CP_NEW_LBL_Y   2
+#define CP_NEW_Y      10   // new-colour swatch top
+#define CP_NEW_H      18
+#define CP_OLD_LBL_Y  31
+#define CP_OLD_Y      39   // old-colour swatch top
+#define CP_OLD_H      18
+#define CP_PREV_W     44   // swatch width
+
+// Slider column layout (x = 50..239)
+#define CP_LBL_X      50   // 1-char label x
+#define CP_TRK_X      58   // gradient track start x
+#define CP_TRK_W     144   // gradient track pixel width
+#define CP_TRK_H       7   // gradient track pixel height
+#define CP_VAL_X     (CP_TRK_X + CP_TRK_W + 3)  // numeric value text x
+
+// Slider row Y positions (top of each track)
+#define CP_Y_R         4
+#define CP_Y_G        15
+#define CP_Y_B        26
+#define CP_Y_H        41
+#define CP_Y_S        52
+#define CP_Y_V        63
+
+// User-palette section
+#define CP_PAL_LBL_Y  78
+#define CP_PAL_Y      88
+#define CP_PAL_SW     22   // swatch width
+#define CP_PAL_SH     12   // swatch height
+
+// Button row
+#define CP_BTN_Y     104
+
+// Generated form control IDs.
+#define CP_ID_SURFACE ID_COLOR_PICKER_SURFACE
+#define CP_ID_OK      ID_COLOR_PICKER_OK
+#define CP_ID_CANCEL  ID_COLOR_PICKER_CANCEL
+#define CP_ID_ADD     ID_COLOR_PICKER_ADD_PALETTE
+
+// ──────────────────────────────────────────────────────────────────
+// HSV conversion helpers
+// ──────────────────────────────────────────────────────────────────
+
+static void rgb_to_hsv(uint32_t c, float *h, float *s, float *v) {
+  float r = COLOR_R(c) / 255.0f, g = COLOR_G(c) / 255.0f, b = COLOR_B(c) / 255.0f;
+  float mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+  float mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+  *v = mx;
+  float delta = mx - mn;
+  if (mx < 1e-6f || delta < 1e-6f) { *s = 0.0f; *h = 0.0f; return; }
+  *s = delta / mx;
+  float hh;
+  if      (mx == r) hh =        (g - b) / delta;
+  else if (mx == g) hh = 2.0f + (b - r) / delta;
+  else              hh = 4.0f + (r - g) / delta;
+  hh /= 6.0f;
+  if (hh < 0.0f) hh += 1.0f;
+  *h = hh;
+}
+
+static uint32_t hsv_to_rgb(float h, float s, float v, uint8_t a) {
+  float r, g, b;
+  if (s < 1e-6f) {
+    r = g = b = v;
+  } else {
+    float hh = h * 6.0f;
+    int   i  = (int)hh % 6;
+    float f  = hh - (int)hh;
+    float p  = v * (1.0f - s);
+    float q  = v * (1.0f - s * f);
+    float t  = v * (1.0f - s * (1.0f - f));
+    switch (i) {
+      case 0: r=v; g=t; b=p; break;
+      case 1: r=q; g=v; b=p; break;
+      case 2: r=p; g=v; b=t; break;
+      case 3: r=p; g=q; b=v; break;
+      case 4: r=t; g=p; b=v; break;
+      default: r=v; g=p; b=q; break;
+    }
+  }
+  return MAKE_COLOR((uint8_t)(r*255.0f),(uint8_t)(g*255.0f),(uint8_t)(b*255.0f),a);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Dialog state
+// ──────────────────────────────────────────────────────────────────
+
+typedef struct {
+  uint32_t orig;       // original colour ("Old" preview)
+  uint32_t cur;        // colour being edited ("New" preview)
+  float  h, s, v;   // HSV kept in sync with cur.rgb
+  int    dragging;   // slider index being dragged (0-5), or -1
+  int    hover_pal;  // palette swatch under cursor, or -1
+  bool   accepted;
+} cp_state_t;
+
+static void sync_hsv(cp_state_t *st) { rgb_to_hsv(st->cur, &st->h, &st->s, &st->v); }
+static void sync_rgb(cp_state_t *st) { st->cur = hsv_to_rgb(st->h, st->s, st->v, COLOR_A(st->cur)); }
+
+static result_t cp_surface_proc(window_t *win, uint32_t msg,
+                                uint32_t wparam, void *lparam);
+
+static const fe_component_desc_t kColorPickerSurfaceDesc = {
+  .class_name = "ColorPickerSurface",
+  .name_prefix = "IDC_CPSURF",
+  .toolbox_icon = 0,
+  .default_size = {CP_WIN_W, CP_BTN_Y},
+  .capabilities = 0,
+  .proc = cp_surface_proc,
+};
+
+// ──────────────────────────────────────────────────────────────────
+// Slider helpers
+// ──────────────────────────────────────────────────────────────────
+
+static const int   kSliderY[6]     = {CP_Y_R, CP_Y_G, CP_Y_B, CP_Y_H, CP_Y_S, CP_Y_V};
+static const char *kSliderLbl[6]   = {"R","G","B","H","S","V"};
+static const int   kSliderMax[6]   = {255, 255, 255, 360, 100, 100};
+
+static int slider_int_val(const cp_state_t *st, int idx) {
+  switch (idx) {
+    case 0: return COLOR_R(st->cur);
+    case 1: return COLOR_G(st->cur);
+    case 2: return COLOR_B(st->cur);
+    case 3: return (int)(st->h * 360.0f + 0.5f);
+    case 4: return (int)(st->s * 100.0f + 0.5f);
+    case 5: return (int)(st->v * 100.0f + 0.5f);
+    default: return 0;
+  }
+}
+
+// Colour for a gradient segment at normalised position t ∈ [0,1]
+static uint32_t slider_grad_col(const cp_state_t *st, int idx, float t) {
+  switch (idx) {
+    case 0: return MAKE_COLOR((uint8_t)(t*255),0,0,0xFF);
+    case 1: return MAKE_COLOR(0,(uint8_t)(t*255),0,0xFF);
+    case 2: return MAKE_COLOR(0,0,(uint8_t)(t*255),0xFF);
+    case 3: return hsv_to_rgb(t, 1.0f, 1.0f, 0xFF);
+    case 4: return hsv_to_rgb(st->h, t, 1.0f, 0xFF);
+    case 5: return hsv_to_rgb(st->h, st->s > 1e-6f ? st->s : 1.0f, t, 0xFF);
+    default: return MAKE_COLOR(0,0,0,0xFF);
+  }
+}
+
+static void draw_slider(int idx, const cp_state_t *st) {
+  int ty = kSliderY[idx];
+
+  // 1-char label
+  draw_text_small(kSliderLbl[idx], CP_LBL_X, ty, get_sys_color(brTextNormal));
+
+  // Gradient track
+  const int SEGS = (idx == 3) ? 36 : 16;
+  for (int seg = 0; seg < SEGS; seg++) {
+    float t0 = (float) seg      / SEGS;
+    float t1 = (float)(seg + 1) / SEGS;
+    int   x0 = CP_TRK_X + (int)(t0 * CP_TRK_W);
+    int   x1 = CP_TRK_X + (int)(t1 * CP_TRK_W);
+    fill_rect((int)slider_grad_col(st, idx, (t0+t1)*0.5f),
+              R(x0, ty, x1 - x0, CP_TRK_H));
+  }
+
+  // Thumb — bright vertical bar at the current value position
+  int val = slider_int_val(st, idx);
+  fill_rect(get_sys_color(brFlare),
+            R(CP_TRK_X + val * CP_TRK_W / kSliderMax[idx] - 1,
+              ty - 1, 3, CP_TRK_H + 2));
+
+  // Numeric value
+  char buf[8];
+  snprintf(buf, sizeof(buf), "%d", val);
+  draw_text_small(buf, CP_VAL_X, ty, get_sys_color(brTextNormal));
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Hit-testing helpers
+// ──────────────────────────────────────────────────────────────────
+
+static int hit_slider(int lx, int ly) {
+  for (int i = 0; i < 6; i++) {
+    int ty = kSliderY[i];
+    if (lx >= CP_TRK_X && lx < CP_TRK_X + CP_TRK_W &&
+        ly >= ty - 2   && ly < ty + CP_TRK_H + 2)
+      return i;
+  }
+  return -1;
+}
+
+static int hit_palette(int lx, int ly) {
+  if (lx < CP_PREV_X) return -1;
+  if (ly < CP_PAL_Y || ly >= CP_PAL_Y + CP_PAL_SH) return -1;
+  int i = (lx - CP_PREV_X) / CP_PAL_SW;
+  if (i < 0 || i >= NUM_USER_COLORS) return -1;
+  return i;
+}
+
+static void drag_slider(cp_state_t *st, int idx, int lx) {
+  int raw = lx - CP_TRK_X;
+  if (raw < 0)        raw = 0;
+  if (raw > CP_TRK_W) raw = CP_TRK_W;
+  int val = raw * kSliderMax[idx] / CP_TRK_W;
+  switch (idx) {
+    case 0: st->cur = MAKE_COLOR((uint8_t)val, COLOR_G(st->cur), COLOR_B(st->cur), COLOR_A(st->cur)); sync_hsv(st); break;
+    case 1: st->cur = MAKE_COLOR(COLOR_R(st->cur), (uint8_t)val, COLOR_B(st->cur), COLOR_A(st->cur)); sync_hsv(st); break;
+    case 2: st->cur = MAKE_COLOR(COLOR_R(st->cur), COLOR_G(st->cur), (uint8_t)val, COLOR_A(st->cur)); sync_hsv(st); break;
+    case 3: st->h = (float)val / 360.0f; sync_rgb(st); break;
+    case 4: st->s = (float)val / 100.0f; sync_rgb(st); break;
+    case 5: st->v = (float)val / 100.0f; sync_rgb(st); break;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Full dialog paint  (returns false so child buttons auto-paint)
+// ──────────────────────────────────────────────────────────────────
+
+static void paint_cp(const cp_state_t *st) {
+  // "New" colour preview
+  draw_text_small("New", CP_PREV_X + 2, CP_NEW_LBL_Y, get_sys_color(brTextDisabled));
+  fill_rect(get_sys_color(brDarkEdge),
+            R(CP_PREV_X - 1, CP_NEW_Y - 1, CP_PREV_W + 2, CP_NEW_H + 2));
+  fill_rect(st->cur, R(CP_PREV_X,     CP_NEW_Y,
+                           CP_PREV_W,      CP_NEW_H));
+
+  // "Old" colour preview
+  draw_text_small("Old", CP_PREV_X + 2, CP_OLD_LBL_Y, get_sys_color(brTextDisabled));
+  fill_rect(get_sys_color(brDarkEdge),
+            R(CP_PREV_X - 1, CP_OLD_Y - 1, CP_PREV_W + 2, CP_OLD_H + 2));
+  fill_rect(st->orig, R(CP_PREV_X,     CP_OLD_Y,
+                           CP_PREV_W,      CP_OLD_H));
+
+  // Separator between RGB and HSV groups
+  fill_rect(get_sys_color(brDarkEdge),
+            R(CP_LBL_X, (CP_Y_B + CP_Y_H) / 2 + 2,
+              CP_TRK_W + (CP_TRK_X - CP_LBL_X), 1));
+
+  // Six sliders
+  for (int i = 0; i < 6; i++)
+    draw_slider(i, st);
+
+  // User palette
+  draw_text_small("Palette:", CP_PREV_X, CP_PAL_LBL_Y, get_sys_color(brTextDisabled));
+  for (int i = 0; i < NUM_USER_COLORS; i++) {
+    int px = CP_PREV_X + i * CP_PAL_SW;
+    bool has = (g_app && i < g_app->num_user_colors);
+    fill_rect(get_sys_color(brDarkEdge), R(px - 1, CP_PAL_Y - 1, CP_PAL_SW + 1, CP_PAL_SH + 2));
+    fill_rect(has ? g_app->user_palette[i] : get_sys_color(brWindowDarkBg),
+              R(px, CP_PAL_Y, CP_PAL_SW - 1, CP_PAL_SH));
+    if (has && i == st->hover_pal)
+      fill_rect(get_sys_color(brFocusRing), R(px, CP_PAL_Y, CP_PAL_SW - 1, 1));
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Paint surface window procedure
+// ──────────────────────────────────────────────────────────────────
+
+static result_t cp_surface_proc(window_t *win, uint32_t msg,
+                                uint32_t wparam, void *lparam) {
+  (void)lparam;
+  cp_state_t *st = (cp_state_t *)get_root_window(win)->userdata;
+  if (!st) return false;
+
+  switch (msg) {
+    case evPaint:
+      paint_cp(st);
+      return true;
+
+    case evLeftButtonDown: {
+      int lx = (int16_t)LOWORD(wparam);
+      int ly = (int16_t)HIWORD(wparam);
+
+      // Slider track hit?
+      int si = hit_slider(lx, ly);
+      if (si >= 0) {
+        st->dragging = si;
+        set_capture(win);
+        drag_slider(st, si, lx);
+        invalidate_window(win);
+        return true;
+      }
+
+      // User-palette swatch hit?
+      int pi = hit_palette(lx, ly);
+      if (pi >= 0 && g_app && pi < g_app->num_user_colors) {
+        st->cur = g_app->user_palette[pi];
+        sync_hsv(st);
+        invalidate_window(win);
+        return true;
+      }
+      return false;
+    }
+
+    case evMouseMove: {
+      int lx = (int16_t)LOWORD(wparam);
+      int ly = (int16_t)HIWORD(wparam);
+
+      if (st->dragging >= 0) {
+        drag_slider(st, st->dragging, lx);
+        invalidate_window(win);
+        return true;
+      }
+
+      int pi = hit_palette(lx, ly);
+      if (pi != st->hover_pal) {
+        st->hover_pal = pi;
+        invalidate_window(win);
+      }
+      // Enable MouseLeave notifications so hover clears when the cursor exits
+      track_mouse(win);
+      return true;
+    }
+
+    case evLeftButtonUp:
+      if (st->dragging >= 0) {
+        drag_slider(st, st->dragging, (int16_t)LOWORD(wparam));
+        st->dragging = -1;
+        set_capture(NULL);
+        invalidate_window(win);
+        return true;
+      }
+      return false;
+
+    case evMouseLeave:
+      if (st->hover_pal >= 0) {
+        st->hover_pal = -1;
+        invalidate_window(win);
+      }
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Dialog window procedure
+// ──────────────────────────────────────────────────────────────────
+
+static result_t cp_proc(window_t *win, uint32_t msg,
+                        uint32_t wparam, void *lparam) {
+  cp_state_t *st = (cp_state_t *)win->userdata;
+
+  switch (msg) {
+    case evCreate:
+      st = (cp_state_t *)lparam;
+      win->userdata = st;
+      sync_hsv(st);
+      return true;
+
+    case evCommand: {
+      if (HIWORD(wparam) != btnClicked) return false;
+      window_t *btn = (window_t *)lparam;
+      if (!btn || !st) return false;
+      if (btn->id == CP_ID_OK) {
+        st->accepted = true;
+        end_dialog(win, 1);
+        return true;
+      }
+      if (btn->id == CP_ID_CANCEL) {
+        end_dialog(win, 0);
+        return true;
+      }
+      if (btn->id == CP_ID_ADD && g_app) {
+        if (g_app->num_user_colors < NUM_USER_COLORS) {
+          g_app->user_palette[g_app->num_user_colors++] = st->cur;
+          window_t *surface = get_window_item(win, CP_ID_SURFACE);
+          if (surface) invalidate_window(surface);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Public API
+// ──────────────────────────────────────────────────────────────────
+
+bool show_color_picker(window_t *parent, uint32_t initial, uint32_t *out) {
+  cp_state_t st = {0};
+  st.orig      = initial;
+  st.cur       = initial;
+  st.dragging  = -1;
+  st.hover_pal = -1;
+  sync_hsv(&st);
+
+  register_window_class(&kColorPickerSurfaceDesc);
+
+  uint32_t result = show_dialog_from_form(&imageeditor_color_picker_form, "Edit Color",
+                                          parent, cp_proc, &st);
+
+  if (result && st.accepted) {
+    *out = st.cur;
+    return true;
+  }
+  return false;
+}

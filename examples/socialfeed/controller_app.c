@@ -16,16 +16,7 @@ app_state_t *app_init(void) {
   app_state_t *app = (app_state_t *)calloc(1, sizeof(app_state_t));
   if (!app) return NULL;
 
-  app->post_cap = POSTS_INIT_CAP;
-  app->posts    = (post_t **)calloc((size_t)app->post_cap, sizeof(post_t *));
-  if (!app->posts) {
-    free(app);
-    return NULL;
-  }
-
-  app->next_id         = 1;
-  app->next_comment_id = 1;
-  app->selected_idx    = -1;
+  app->selected_idx = -1;
   return app;
 }
 
@@ -35,31 +26,10 @@ app_state_t *app_init(void) {
 
 void app_shutdown(app_state_t *app) {
   if (!app) return;
-  for (int i = 0; i < app->post_count; i++)
-    post_free(app->posts[i]);
-  free(app->posts);
+  // Database owns post storage - it cleans up on destroy
   if (app->accel)
     free_accelerators(app->accel);
   free(app);
-}
-
-// ============================================================
-// app_add_post — append a post, grow the array if needed
-// ============================================================
-
-bool app_add_post(post_t *post) {
-  if (!g_app || !post) return false;
-  if (g_app->post_count >= g_app->post_cap) {
-    int new_cap = g_app->post_cap * 2;
-    post_t **newbuf = (post_t **)realloc(g_app->posts,
-                                         (size_t)new_cap * sizeof(post_t *));
-    if (!newbuf) return false;
-    g_app->posts    = newbuf;
-    g_app->post_cap = new_cap;
-  }
-  post->id = g_app->next_id++;
-  g_app->posts[g_app->post_count++] = post;
-  return true;
 }
 
 // ============================================================
@@ -67,23 +37,117 @@ bool app_add_post(post_t *post) {
 // ============================================================
 
 bool app_delete_post(int index) {
-  if (!g_app || index < 0 || index >= g_app->post_count) return false;
-  post_free(g_app->posts[index]);
-  for (int i = index; i < g_app->post_count - 1; i++)
-    g_app->posts[i] = g_app->posts[i + 1];
-  g_app->post_count--;
-  if (g_app->selected_idx >= g_app->post_count)
-    g_app->selected_idx = g_app->post_count - 1;
-  return true;
+  if (!g_app || !g_app->db || index < 0) return false;
+  
+  // Fetch all posts to get the post at index
+  result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+  if (!posts) return false;
+  
+  // Navigate to the post at index
+  result_node_t *node = posts;
+  for (int i = 0; i < index && node; i++)
+    node = node->next;
+  
+  if (!node) {
+    free_result_list(posts);
+    return false;
+  }
+  
+  db_post_t *post = *(db_post_t **)node->data;
+  int post_id = post->id;
+  free_result_list(posts);
+  
+  // Delete from database
+  bool success = send_db_message(g_app->db, dbDelete, TABLE_POSTS,
+                                 (void *)(intptr_t)post_id) != 0;
+  
+  if (success) {
+    // Update selected index
+    int post_count = count_result_list(
+      (result_node_t *)send_db_message(g_app->db, dbFetch,
+        MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0));
+    if (g_app->selected_idx >= post_count)
+      g_app->selected_idx = post_count - 1;
+  }
+  
+  return success;
+}
+
+// ============================================================
+// app_like_post — increment like count in database
+// ============================================================
+
+bool app_like_post(int post_id) {
+  if (!g_app || !g_app->db || post_id <= 0) return false;
+  
+  // Fetch the post from database
+  db_post_t *post = (db_post_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)post_id);
+  
+  if (!post) return false;
+  
+  // Increment like count
+  post->like_count++;
+  
+  // Update in database
+  bool success = send_db_message(g_app->db, dbUpdate, TABLE_POSTS, post) != 0;
+  
+  return success;
+}
+
+// ============================================================
+// app_like_comment — increment like count in database
+// ============================================================
+
+bool app_like_comment(int comment_id) {
+  if (!g_app || !g_app->db || comment_id <= 0) return false;
+  
+  // Fetch the comment from database
+  db_comment_t *comment = (db_comment_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_COMMENTS, 0), (void *)(intptr_t)comment_id);
+  
+  if (!comment) return false;
+  
+  // Increment like count
+  comment->like_count++;
+  
+  // Update in database
+  bool success = send_db_message(g_app->db, dbUpdate, TABLE_COMMENTS, comment) != 0;
+  
+  return success;
 }
 
 // ============================================================
 // app_get_post — bounds-checked accessor
 // ============================================================
 
-post_t *app_get_post(int index) {
-  if (!g_app || index < 0 || index >= g_app->post_count) return NULL;
-  return g_app->posts[index];
+// ============================================================
+// app_get_post_id_from_index — convert feed row to post ID
+// ============================================================
+
+// Get post ID from feed row index (0-based)
+int app_get_post_id_from_index(int index) {
+  if (!g_app || !g_app->db || index < 0) return 0;
+  
+  // Fetch all posts from database
+  result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+  if (!posts) return 0;
+  
+  // Navigate to the requested index
+  result_node_t *node = posts;
+  for (int i = 0; i < index && node; i++)
+    node = node->next;
+  
+  int post_id = 0;
+  if (node) {
+    db_post_t *db_post = *(db_post_t **)node->data;
+    if (db_post) post_id = db_post->id;
+  }
+  
+  free_result_list(posts);
+  return post_id;
 }
 
 // ============================================================
@@ -91,29 +155,51 @@ post_t *app_get_post(int index) {
 // ============================================================
 
 void app_update_status(void) {
-  if (!g_app || !g_app->main_win) return;
+  if (!g_app || !g_app->main_win || !g_app->db) return;
+  
+  // Fetch post count from database
+  result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+  int post_count = count_result_list(posts);
+  free_result_list(posts);
+  
   char buf[64];
   snprintf(buf, sizeof(buf), "%d post%s",
-           g_app->post_count, g_app->post_count == 1 ? "" : "s");
+           post_count, post_count == 1 ? "" : "s");
   send_message(g_app->main_win, evStatusBar, 0, buf);
 }
 
 // ============================================================
-// app_add_comment — assign an ID then add to the post
+// app_add_comment — insert comment into database
 // ============================================================
 
-bool app_add_comment(post_t *post, comment_t *c) {
-  if (!g_app || !post || !c) return false;
-  c->id = g_app->next_comment_id++;
-  return post_add_comment(post, c);
-}
-
-// ============================================================
-// app_add_reply — assign an ID then add to the parent comment
-// ============================================================
-
-bool app_add_reply(comment_t *parent, comment_t *reply) {
-  if (!g_app || !parent || !reply) return false;
-  reply->id = g_app->next_comment_id++;
-  return comment_add_reply(parent, reply);
+bool app_add_comment(int post_id, int author_id, const char *text) {
+  if (!g_app || !g_app->db || post_id <= 0 || !text) return false;
+  
+  // Create database comment record
+  db_comment_t db_comment = {
+    .id = 0,  // Database auto-increments
+    .post_id = post_id,
+    .author_id = author_id,
+    .like_count = 0,
+  };
+  strncpy(db_comment.text, text, sizeof(db_comment.text) - 1);
+  db_comment.text[sizeof(db_comment.text) - 1] = '\0';
+  
+  // Insert into database
+  db_comment_t *inserted = (db_comment_t *)send_db_message(
+    g_app->db, dbInsert, TABLE_COMMENTS, &db_comment);
+  
+  if (!inserted) return false;
+  
+  // Update post's comment count in database
+  db_post_t *post = (db_post_t *)send_db_message(g_app->db, dbFind,
+    MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)post_id);
+  if (post) {
+    post->comment_count++;
+    send_db_message(g_app->db, dbUpdate, TABLE_POSTS, post);
+  }
+  
+  SF_DEBUG("comment added: post_id=%d comment_id=%d", post_id, inserted->id);
+  return true;
 }

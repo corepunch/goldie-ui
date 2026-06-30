@@ -360,13 +360,17 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       layout_arrange_t *a = (layout_arrange_t *)lparam;
       if (a) {
         win->frame = a->rect;
-        window_layout_sync(win);
+        irect16_t cr = get_client_rect(win);
+        layout_stack_arrange_window(win, &cr);
       }
       return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
                        (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
-      window_layout_sync(win);
+      {
+        irect16_t cr = get_client_rect(win);
+        layout_stack_arrange_window(win, &cr);
+      }
       return true;
     case evPaint:
       layout_paint_children(win);
@@ -381,17 +385,26 @@ result_t win_column(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
 result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
-      const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
       win->flags |= WINDOW_AUTO_LAYOUT;
       win->flags &= ~WINDOW_STACK_HORIZONTAL;
       win->layout.layout_spacing = 0;
       win->layout.layout_padding = (irect16_t){0, 0, 0, 0};
       win->layout.layout_margin = (irect16_t){0, 0, 0, 0};
-      if (cfg) {
-        if (cfg->spacing > 0)
-          win->layout.layout_spacing = cfg->spacing;
-        win->layout.layout_padding = cfg->padding;
-        win->layout.layout_margin = cfg->margin;
+      
+      if (lparam) {
+        const form_ctrl_def_t *cd = (const form_ctrl_def_t *)lparam;
+        if (cd->class_name && (uintptr_t)cd->class_name > 0x1000000) {
+          if (cd->layout_spacing > 0)
+            win->layout.layout_spacing = cd->layout_spacing;
+          win->layout.layout_padding = cd->padding;
+          win->layout.layout_margin = cd->margin;
+        } else {
+          const layout_view_config_t *cfg = (const layout_view_config_t *)lparam;
+          if (cfg->spacing > 0)
+            win->layout.layout_spacing = cfg->spacing;
+          win->layout.layout_padding = cfg->padding;
+          win->layout.layout_margin = cfg->margin;
+        }
       }
       return true;
     }
@@ -410,13 +423,17 @@ result_t win_grid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       layout_arrange_t *a = (layout_arrange_t *)lparam;
       if (a) {
         win->frame = a->rect;
-        window_layout_sync(win);
+        irect16_t cr = get_client_rect(win);
+        layout_grid_arrange_window(win, &cr);
       }
       return MAKEDWORD((uint16_t)MAX(1, win->frame.w),
                        (uint16_t)MAX(1, win->frame.h));
     }
     case evResize:
-      window_layout_sync(win);
+      {
+        irect16_t cr = get_client_rect(win);
+        layout_grid_arrange_window(win, &cr);
+      }
       return true;
     case evPaint:
       layout_paint_children(win);

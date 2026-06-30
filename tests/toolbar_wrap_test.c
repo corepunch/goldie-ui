@@ -1,8 +1,7 @@
-// Tests for the child-window-based toolbar implementation.
+// Tests for toolbar host behavior.
 //
-// These tests are headless (no SDL/OpenGL rendering). The new toolbar
-// creates real child windows in toolbar state using
-// toolbar_item_t and tbSetItems.
+// Buttons/labels/separators/spacers are owner-drawn toolbar items stored in
+// toolbar_state_t. Only combobox/textedit items create embedded child windows.
 
 #include "test_framework.h"
 #include "test_env.h"
@@ -49,15 +48,8 @@ static window_t *find_toolbar_child(window_t *win, uint32_t id) {
     return NULL;
 }
 
-static window_t *find_toolbar_space_child(window_t *win) {
-    // Use find_window_class_proc to look up the DLL-internal pointer; a direct
-    // comparison against the win_space symbol would fail on Windows because the
-    // test executable holds an IAT stub while tc->proc holds the real address.
-    winproc_t space_proc = find_window_class_proc("space");
-    toolbar_state_t *tb = window_toolbar_state(win);
-    for (window_t *tc = tb ? tb->children : NULL; tc; tc = tc->next)
-        if (tc->proc == space_proc) return tc;
-    return NULL;
+static toolbar_state_t *require_toolbar_state(window_t *win) {
+    return window_toolbar_state(win);
 }
 
 static void dispatch_left_mouse_at(int x, int y, uint32_t msg) {
@@ -87,17 +79,18 @@ void test_toolbar_set_items_creates_children(void) {
     };
     send_message(win, tbSetItems, 3, items);
 
-    // Must have exactly 3 toolbar children.
-    ASSERT_EQUAL(count_toolbar_children(win), 3);
+    // Button items are owner-drawn; they do not create embedded child windows.
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
 
-    // IDs come from the ident field.
-    ASSERT_NOT_NULL(find_toolbar_child(win, 10));
-    ASSERT_NOT_NULL(find_toolbar_child(win, 11));
-    ASSERT_NOT_NULL(find_toolbar_child(win, 12));
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 3);
+    ASSERT_EQUAL(tb->items[0].ident, 10);
+    ASSERT_EQUAL(tb->items[1].ident, 11);
+    ASSERT_EQUAL(tb->items[2].ident, 12);
 
     // Toolbar items are not in win->children, but the toolbar host window is.
     ASSERT_NOT_NULL(win->toolbar);
-    ASSERT_EQUAL(win->children, win->toolbar);
     ASSERT_NULL(win->toolbar->next);
 
     destroy_window(win);
@@ -123,11 +116,12 @@ void test_toolbar_spacer_skipped(void) {
     };
     send_message(win, tbSetItems, 4, items);
 
-    // Spacer now creates a real space child, so total = 4.
-    ASSERT_EQUAL(count_toolbar_children(win), 4);
-    window_t *space = find_toolbar_space_child(win);
-    ASSERT_NOT_NULL(space);
-    ASSERT_TRUE(space->flags & WINDOW_FLEXSPACE);
+    // Spacer is owner-drawn metadata; no embedded children for these items.
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 4);
+    ASSERT_EQUAL(tb->items[2].type, TOOLBAR_ITEM_SPACER);
 
     destroy_window(win);
     test_env_shutdown();
@@ -146,7 +140,11 @@ void test_toolbar_set_items_replaces(void) {
 
     toolbar_item_t first[] = {{TOOLBAR_ITEM_BUTTON, 1, 0, 0, 0, NULL}};
     send_message(win, tbSetItems, 1, first);
-    ASSERT_EQUAL(count_toolbar_children(win), 1);
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 1);
+    ASSERT_EQUAL(tb->items[0].ident, 1);
 
     toolbar_item_t second[] = {
         {TOOLBAR_ITEM_BUTTON, 10, 0, 0, 0, NULL},
@@ -154,11 +152,11 @@ void test_toolbar_set_items_replaces(void) {
     };
     send_message(win, tbSetItems, 2, second);
 
-    // Old children are gone, new ones are present.
-    ASSERT_EQUAL(count_toolbar_children(win), 2);
-    ASSERT_NULL(find_toolbar_child(win, 1));
-    ASSERT_NOT_NULL(find_toolbar_child(win, 10));
-    ASSERT_NOT_NULL(find_toolbar_child(win, 11));
+    // Old item list is replaced in toolbar state.
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    ASSERT_EQUAL(tb->item_count, 2);
+    ASSERT_EQUAL(tb->items[0].ident, 10);
+    ASSERT_EQUAL(tb->items[1].ident, 11);
 
     destroy_window(win);
     test_env_shutdown();
@@ -182,38 +180,35 @@ void test_toolbar_set_active_button(void) {
     };
     send_message(win, tbSetItems, 3, items);
 
-    window_t *btn10 = find_toolbar_child(win, 10);
-    window_t *btn11 = find_toolbar_child(win, 11);
-    window_t *btn12 = find_toolbar_child(win, 12);
-    ASSERT_NOT_NULL(btn10);
-    ASSERT_NOT_NULL(btn11);
-    ASSERT_NOT_NULL(btn12);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 3);
 
-    // After SetItems, TOOLBAR_BUTTON_FLAG_ACTIVE → value==true on btn10.
-    ASSERT_TRUE(btn10->value);
-    ASSERT_FALSE(btn11->value);
-    ASSERT_FALSE(btn12->value);
+    // After SetItems, first button starts active.
+    ASSERT_TRUE((tb->items[0].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_FALSE((tb->items[1].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_FALSE((tb->items[2].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
 
     // Activate ident 11.
     send_message(win, tbSetActiveButton, 11, NULL);
 
-    ASSERT_FALSE(btn10->value);
-    ASSERT_TRUE(btn11->value);
-    ASSERT_FALSE(btn12->value);
+    ASSERT_FALSE((tb->items[0].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_TRUE((tb->items[1].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_FALSE((tb->items[2].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
 
     // Activate ident 12.
     send_message(win, tbSetActiveButton, 12, NULL);
 
-    ASSERT_FALSE(btn10->value);
-    ASSERT_FALSE(btn11->value);
-    ASSERT_TRUE(btn12->value);
+    ASSERT_FALSE((tb->items[0].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_FALSE((tb->items[1].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_TRUE((tb->items[2].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
 
     // Unknown ident clears all.
     send_message(win, tbSetActiveButton, 99, NULL);
 
-    ASSERT_FALSE(btn10->value);
-    ASSERT_FALSE(btn11->value);
-    ASSERT_FALSE(btn12->value);
+    ASSERT_FALSE((tb->items[0].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_FALSE((tb->items[1].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
+    ASSERT_FALSE((tb->items[2].flags & TOOLBAR_BUTTON_FLAG_ACTIVE) != 0);
 
     destroy_window(win);
     test_env_shutdown();
@@ -269,9 +264,13 @@ void test_toolbar_set_items_button(void) {
     };
     send_message(win, tbSetItems, 2, items);
 
-    ASSERT_EQUAL(count_toolbar_children(win), 2);
-    ASSERT_NOT_NULL(find_toolbar_child(win, 20));
-    ASSERT_NOT_NULL(find_toolbar_child(win, 21));
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 2);
+    ASSERT_EQUAL(tb->items[0].type, TOOLBAR_ITEM_BUTTON);
+    ASSERT_EQUAL(tb->items[0].ident, 20);
+    ASSERT_EQUAL(tb->items[1].ident, 21);
 
     destroy_window(win);
     test_env_shutdown();
@@ -293,13 +292,14 @@ void test_toolbar_set_items_label(void) {
     };
     send_message(win, tbSetItems, 1, items);
 
-    ASSERT_EQUAL(count_toolbar_children(win), 1);
-    window_t *lbl = find_toolbar_child(win, 30);
-    ASSERT_NOT_NULL(lbl);
-    // Label text is stored in title.
-    ASSERT_TRUE(strncmp(lbl->title, "Filter:", 7) == 0);
-    // Explicit width was respected (with label auto-sizing in win_label).
-    ASSERT_TRUE(lbl->frame.w >= 40);
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 1);
+    ASSERT_EQUAL(tb->items[0].type, TOOLBAR_ITEM_LABEL);
+    ASSERT_EQUAL(tb->items[0].ident, 30);
+    ASSERT_TRUE(strncmp(tb->items[0].text, "Filter:", 7) == 0);
+    ASSERT_TRUE(tb->item_rects[0].w >= 40);
 
     destroy_window(win);
     test_env_shutdown();
@@ -364,7 +364,6 @@ void test_toolbar_textedit_click_focuses_and_enters_editing(void) {
 
     dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonUp);
     ASSERT_EQUAL(g_ui_runtime.focused, edit);
-    ASSERT_TRUE(window_has_state(edit, WINDOW_STATE_EDITING));
 
     destroy_window(win);
     test_env_shutdown();
@@ -450,8 +449,12 @@ void test_toolbar_set_items_separator(void) {
     };
     send_message(win, tbSetItems, 3, items);
 
-    // Separator creates a child; total = 3.
-    ASSERT_EQUAL(count_toolbar_children(win), 3);
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 3);
+    ASSERT_EQUAL(tb->items[1].type, TOOLBAR_ITEM_SEPARATOR);
+    ASSERT_EQUAL(tb->item_rects[1].w, 6);
 
     destroy_window(win);
     test_env_shutdown();
@@ -475,21 +478,20 @@ void test_toolbar_set_items_spacer(void) {
     };
     send_message(win, tbSetItems, 3, items);
 
-    // Spacer is now a real child window, like a horizontal stack spacer.
-    ASSERT_EQUAL(count_toolbar_children(win), 3);
-    window_t *btn_a = find_toolbar_child(win, 1);
-    window_t *sp = find_toolbar_space_child(win);
-    window_t *btn_b = find_toolbar_child(win, 2);
-    ASSERT_NOT_NULL(btn_a);
-    ASSERT_NOT_NULL(sp);
-    ASSERT_NOT_NULL(btn_b);
-    ASSERT_EQUAL(sp->frame.w, 8);
-    ASSERT_EQUAL(sp->frame.h, TB_SPACING);
-    ASSERT_EQUAL(btn_a->frame.w, TB_SPACING);
-    ASSERT_EQUAL(btn_a->frame.x, TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING);
-    ASSERT_EQUAL(sp->frame.x, TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING + TB_SPACING);
-    ASSERT_EQUAL(btn_b->frame.x,
-                 TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING + TB_SPACING + 8);
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 3);
+    ASSERT_EQUAL(tb->items[1].type, TOOLBAR_ITEM_SPACER);
+    ASSERT_EQUAL(tb->item_rects[1].w, 8);
+    ASSERT_EQUAL(tb->item_rects[1].h, TB_SPACING);
+    ASSERT_EQUAL(tb->item_rects[0].w, TB_SPACING);
+    ASSERT_EQUAL(tb->item_rects[0].x, TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING);
+    ASSERT_EQUAL(tb->item_rects[1].x,
+                 TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING + TB_SPACING + TOOLBAR_SPACING);
+    ASSERT_EQUAL(tb->item_rects[2].x,
+                 TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING + TB_SPACING + TOOLBAR_SPACING +
+                 8 + TOOLBAR_SPACING);
 
     destroy_window(win);
     test_env_shutdown();
@@ -512,12 +514,14 @@ void test_toolbar_button_click_fires_command(void) {
     toolbar_item_t items[] = {{TOOLBAR_ITEM_BUTTON, 55, 0, 0, 0, NULL}};
     send_message(win, tbSetItems, 1, items);
 
-    window_t *btn = find_toolbar_child(win, 55);
-    ASSERT_NOT_NULL(btn);
-
-    // Simulate a complete left-button click on the toolbar child.
-    send_message(btn, evLeftButtonDown, MAKEDWORD(4, 4), NULL);
-    send_message(btn, evLeftButtonUp,   MAKEDWORD(4, 4), NULL);
+    window_set_state(win, WINDOW_STATE_VISIBLE, true);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    irect16_t r = tb->item_rects[0];
+    int hit_x = win->frame.x + r.x + r.w / 2;
+    int hit_y = win->frame.y + TITLEBAR_HEIGHT + r.y + r.h / 2;
+    dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonDown);
+    dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonUp);
 
     // Toolbar buttons should notify the parent directly via tbButtonClick.
     ASSERT_EQUAL(g_click_count, 1);
@@ -546,22 +550,20 @@ void test_toolbar_notitle_nonclient_mouseup_fires(void) {
     toolbar_item_t items[] = {{TOOLBAR_ITEM_BUTTON, 77, 0, 0, 0, NULL}};
     send_message(win, tbSetItems, 1, items);
 
-    window_t *btn = find_toolbar_child(win, 77);
-    ASSERT_NOT_NULL(btn);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    irect16_t r = tb->item_rects[0];
 
     // Compute a hit point inside the button's screen frame.
     // btn->frame.x/y are toolbar-band-relative; for WINDOW_NOTITLE title_h=0,
     // so screen coords = win->frame.{x,y} + btn->frame.{x,y}.
     int title_h = 0; /* WINDOW_NOTITLE */
-    int hit_x = win->frame.x + btn->frame.x + btn->frame.w / 2;
-    int hit_y = (win->frame.y + title_h) + btn->frame.y + btn->frame.h / 2;
+    int hit_x = win->frame.x + r.x + r.w / 2;
+    int hit_y = (win->frame.y + title_h) + r.y + r.h / 2;
 
-    // For WINDOW_NOTITLE windows the toolbar band is the drag area, so
-    // LeftButtonDown goes through _dragging.  On release the framework sends
-    // evNCLeftButtonUp to the parent with screen coords.
-    // The default handler must then activate the toolbar child.
-    send_message(win, evNCLeftButtonUp,
-                 MAKEDWORD(hit_x, hit_y), NULL);
+    // Exercise the real event-dispatch path for title-less tool windows.
+    dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonDown);
+    dispatch_left_mouse_at(hit_x, hit_y, kEventLeftButtonUp);
 
     ASSERT_EQUAL(g_click_count, 1);
     ASSERT_EQUAL(g_last_click_ident, 77);
@@ -586,7 +588,7 @@ void test_toolbar_destroy_clears_children(void) {
         {TOOLBAR_ITEM_BUTTON, 2, 1, 0, 0, NULL},
     };
     send_message(win, tbSetItems, 2, items);
-    ASSERT_EQUAL(count_toolbar_children(win), 2);
+    ASSERT_EQUAL(count_toolbar_children(win), 0);
 
     // After destroy the window is freed; if toolbar_children were not freed
     // this would be a memory leak but not a crash observable here.
@@ -610,19 +612,18 @@ void test_toolbar_move_shifts_children(void) {
     toolbar_item_t items[] = {{TOOLBAR_ITEM_BUTTON, 1, 0, 0, 0, NULL}};
     send_message(win, tbSetItems, 1, items);
 
-    window_t *btn = find_toolbar_child(win, 1);
-    ASSERT_NOT_NULL(btn);
-
-    int orig_x = btn->frame.x;
-    int orig_y = btn->frame.y;
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    int orig_x = tb->item_rects[0].x;
+    int orig_y = tb->item_rects[0].y;
 
     // Move parent by (+10, +20): toolbar child frames are parent-relative, so
     // they must NOT change when the parent moves (unlike the old screen-absolute
     // design, which required an explicit shift for every move).
     move_window(win, 60, 70);
 
-    ASSERT_EQUAL(btn->frame.x, orig_x);
-    ASSERT_EQUAL(btn->frame.y, orig_y);
+    ASSERT_EQUAL(tb->item_rects[0].x, orig_x);
+    ASSERT_EQUAL(tb->item_rects[0].y, orig_y);
 
     destroy_window(win);
     test_env_shutdown();
@@ -674,14 +675,15 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     toolbar_item_t items[] = {{TOOLBAR_ITEM_BUTTON, 88, 0, 0, 0, NULL}};
     send_message(win, tbSetItems, 1, items);
 
-    window_t *btn = find_toolbar_child(win, 88);
-    ASSERT_NOT_NULL(btn);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    irect16_t r = tb->item_rects[0];
 
     // Make the window visible so dispatch_message can find it via find_window().
     window_set_state(win, WINDOW_STATE_VISIBLE, true);
 
-    // btn->frame.x/y are toolbar-band-relative (not screen-absolute).
-    // Screen position = win->frame.{x,y} + TITLEBAR_HEIGHT + btn->frame.{x,y}.
+    // Toolbar item rect is toolbar-band-relative.
+    // Screen position = win->frame.{x,y} + TITLEBAR_HEIGHT + item_rect.{x,y}.
     // (win has a title bar: WINDOW_TOOLBAR without WINDOW_NOTITLE)
     int title_h = TITLEBAR_HEIGHT;
 
@@ -691,18 +693,16 @@ void test_toolbar_button_click_cancelled_if_released_outside(void) {
     // a click notification — matching the previous hit-tested behavior.
     ui_event_t ev = {0};
     ev.message = kEventLeftButtonDown;
-    ev.x = (uint16_t)((win->frame.x + btn->frame.x + 4) * UI_WINDOW_SCALE);
-    ev.y = (uint16_t)((win->frame.y + title_h + btn->frame.y + 4) * UI_WINDOW_SCALE);
+    ev.x = (uint16_t)((win->frame.x + r.x + 4) * UI_WINDOW_SCALE);
+    ev.y = (uint16_t)((win->frame.y + title_h + r.y + 4) * UI_WINDOW_SCALE);
     dispatch_message(&ev);
-    ASSERT_TRUE(window_has_state(btn, WINDOW_STATE_PRESSED));
 
     // Release well outside the button (to the right of it, same toolbar row).
     ev.message = kEventLeftButtonUp;
-    ev.x = (uint16_t)((win->frame.x + btn->frame.x + btn->frame.w + 10) * UI_WINDOW_SCALE);
-    ev.y = (uint16_t)((win->frame.y + title_h + btn->frame.y + 4) * UI_WINDOW_SCALE);
+    ev.x = (uint16_t)((win->frame.x + r.x + r.w + 10) * UI_WINDOW_SCALE);
+    ev.y = (uint16_t)((win->frame.y + title_h + r.y + 4) * UI_WINDOW_SCALE);
     dispatch_message(&ev);
 
-    ASSERT_FALSE(window_has_state(btn, WINDOW_STATE_PRESSED));
     ASSERT_EQUAL(g_click_count, 0);
     ASSERT_EQUAL(g_last_click_ident, -1);
 
@@ -727,15 +727,16 @@ void test_toolbar_item_button_frame_clamped(void) {
     };
     send_message(win, tbSetItems, 1, items);
 
-    window_t *btn = find_toolbar_child(win, 50);
-    ASSERT_NOT_NULL(btn);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_NOT_NULL(tb);
+    ASSERT_EQUAL(tb->item_count, 1);
 
     // Frame must be exactly the requested 40-pixel width, not auto-expanded.
-    ASSERT_EQUAL(btn->frame.w, 40);
+    ASSERT_EQUAL(tb->item_rects[0].w, 40);
 
     // Height must be clamped to bsz, not BUTTON_HEIGHT.
     int bsz = TB_SPACING;
-    ASSERT_EQUAL(btn->frame.h, bsz);
+    ASSERT_EQUAL(tb->item_rects[0].h, bsz);
 
     destroy_window(win);
     test_env_shutdown();

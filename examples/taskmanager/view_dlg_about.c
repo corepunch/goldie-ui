@@ -7,13 +7,13 @@
 // ============================================================
 
 static const form_ctrl_def_t kAboutChildren[] = {
-  { .class_name = "label",  .text = "Orion Task Manager",           .name = "lbl_title",
+  { .class_name = "Label",  .text = "Orion Task Manager",           .name = "lbl_title",
     .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "label",  .text = "Version 1.0",                  .name = "lbl_version",
+  { .class_name = "Label",  .text = "Version 1.0",                  .name = "lbl_version",
     .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "label",  .text = "CRUD demo using Orion framework.", .name = "lbl_desc",
+  { .class_name = "Label",  .text = "CRUD demo using Orion framework.", .name = "lbl_desc",
     .h_align = LAYOUT_ALIGN_STRETCH },
-  { .class_name = "button", .id = ID_OK, .flags = BUTTON_DEFAULT,   .text = "OK",
+  { .class_name = "Button", .id = ID_OK, .flags = BUTTON_DEFAULT,   .text = "OK",
     .name = "btn_ok", .h_align = LAYOUT_ALIGN_CENTER },
 };
 

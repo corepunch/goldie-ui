@@ -6,10 +6,46 @@
 #include "../user/draw.h"
 #include "../user/theme.h"
 
+typedef struct {
+  int ncol;
+  int cell_w;
+  int cell_h;
+  int usable_w;
+} icon_grid_geom_t;
+
+static icon_grid_geom_t grid_geom(window_t *win, reportview_data_t *data) {
+  int eff_w = rv_content_width(win);
+  int cell_w = data->column_width > 0 ? data->column_width : DEFAULT_COLUMN_WIDTH;
+  return (icon_grid_geom_t){
+    .ncol = rv_large_icon_ncol(data, eff_w, cell_w),
+    .cell_w = cell_w,
+    .cell_h = rv_large_icon_cell_h(data),
+    .usable_w = MAX(1, eff_w - 2 * RV_LARGE_ICON_PAD),
+  };
+}
+
+static int grid_col_x(const icon_grid_geom_t *g, int col) {
+  if (!g || col <= 0) {
+    int usable = g ? g->usable_w : 0;
+    int cell_w = g ? g->cell_w : 0;
+    if (g && g->ncol == 1)
+      return RV_LARGE_ICON_PAD + MAX(0, (usable - cell_w) / 2);
+    return RV_LARGE_ICON_PAD;
+  }
+  if (g->ncol <= 1)
+    return RV_LARGE_ICON_PAD + MAX(0, (g->usable_w - g->cell_w) / 2);
+
+  int min_span = (g->ncol - 1) * g->cell_w;
+  int fill_span = g->usable_w - g->cell_w;
+  int span = MAX(min_span, fill_span);
+  return RV_LARGE_ICON_PAD
+       + (span * col + (g->ncol - 1) / 2) / (g->ncol - 1);
+}
+
 static int grid_content_height(window_t *win, reportview_data_t *data) {
-  int ncol = rv_large_icon_ncol(data, rv_content_width(win), data->column_width);
-  int rows = (data->count == 0) ? 0 : ((int)data->count + ncol - 1) / ncol;
-  return 2 * RV_LARGE_ICON_PAD + rows * rv_large_icon_cell_h(data);
+  icon_grid_geom_t g = grid_geom(win, data);
+  int rows = (data->count == 0) ? 0 : ((int)data->count + g.ncol - 1) / g.ncol;
+  return 2 * RV_LARGE_ICON_PAD + rows * g.cell_h;
 }
 
 static void grid_sync_scroll(window_t *win, reportview_data_t *data) {
@@ -36,31 +72,32 @@ static void grid_sync_scroll(window_t *win, reportview_data_t *data) {
 static int grid_hit_index(window_t *win, reportview_data_t *data, uint32_t wparam) {
   int mx = (int)(int16_t)LOWORD(wparam);
   int my = (int)(int16_t)HIWORD(wparam);
-  int eff_w = rv_content_width(win);
-  int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
-  int cell_h = rv_large_icon_cell_h(data);
-  int x0 = rv_large_icon_x0(eff_w, ncol, data->column_width);
-  int local_x = mx - x0;
+  icon_grid_geom_t g = grid_geom(win, data);
   int local_y = my - RV_LARGE_ICON_PAD;
-  if (local_x < 0 || local_y < 0)
+  if (local_y < 0)
     return RV_INVALID_SELECTION;
-  int col = local_x / data->column_width;
-  int row = local_y / cell_h;
-  if (col >= ncol)
+  int col = RV_INVALID_SELECTION;
+  for (int i = 0; i < g.ncol; i++) {
+    int cx = grid_col_x(&g, i);
+    if (mx >= cx && mx < cx + g.cell_w) {
+      col = i;
+      break;
+    }
+  }
+  if (col < 0)
     return RV_INVALID_SELECTION;
-  int index = row * ncol + col;
+  int row = local_y / g.cell_h;
+  int index = row * g.ncol + col;
   return rv_valid_index(data, index) ? index : RV_INVALID_SELECTION;
 }
 
 static void grid_scroll_to_item(window_t *win, reportview_data_t *data, int index) {
   int scroll_y = (int)win->vscroll.pos;
   int visible_h = get_client_rect(win).h;
-  int eff_w = rv_content_width(win);
-  int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
-  int cell_h = rv_large_icon_cell_h(data);
-  int row = index / ncol;
-  int item_y_top = RV_LARGE_ICON_PAD + row * cell_h;
-  int item_y_bottom = item_y_top + cell_h;
+  icon_grid_geom_t g = grid_geom(win, data);
+  int row = index / g.ncol;
+  int item_y_top = RV_LARGE_ICON_PAD + row * g.cell_h;
+  int item_y_bottom = item_y_top + g.cell_h;
 
   if (item_y_top - scroll_y < 0)
     win->vscroll.pos = (uint32_t)(item_y_top > 0 ? item_y_top : 0);
@@ -70,13 +107,9 @@ static void grid_scroll_to_item(window_t *win, reportview_data_t *data, int inde
 
 static void grid_paint(window_t *win, reportview_data_t *data) {
   irect16_t cr = get_client_rect(win);
-  int eff_w = rv_content_width(win);
   int scroll_y = (int)win->vscroll.pos;
-  int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
-  int cell_w = data->column_width;
-  int cell_h = rv_large_icon_cell_h(data);
+  icon_grid_geom_t g = grid_geom(win, data);
   int icon_sz = data->icon_size;
-  int x0 = rv_large_icon_x0(eff_w, ncol, cell_w);
   int label_h = text_char_height(FONT_ICON) + 2;
   int clip_bot = cr.h;
   bitmap_strip_t *strip = data->icon_strip;
@@ -85,27 +118,27 @@ static void grid_paint(window_t *win, reportview_data_t *data) {
   fill_rect(bg_col, R(0, 0, cr.w, cr.h));
 
   for (uint32_t i = 0; i < data->count; i++) {
-    int icol = (int)i % ncol;
-    int irow = (int)i / ncol;
-    int cx = x0 + icol * cell_w;
-    int cy = RV_LARGE_ICON_PAD + irow * cell_h - scroll_y;
-    if (cy + cell_h <= 0)
+    int icol = (int)i % g.ncol;
+    int irow = (int)i / g.ncol;
+    int cx = grid_col_x(&g, icol);
+    int cy = RV_LARGE_ICON_PAD + irow * g.cell_h - scroll_y;
+    if (cy + g.cell_h <= 0)
       continue;
     if (cy >= clip_bot)
       break;
 
     bool selected = (int)i == data->selected;
-    irect16_t icon_r = R(cx + (cell_w - icon_sz) / 2,
+    irect16_t icon_r = R(cx + (g.cell_w - icon_sz) / 2,
                          cy + RV_LARGE_ICON_TOP_PAD,
                          icon_sz, icon_sz);
     irect16_t label_r = R(cx + 2,
                           icon_r.y + icon_r.h + RV_LARGE_ICON_LABEL_GAP,
-                          cell_w - 4, label_h);
+                          g.cell_w - 4, label_h);
 
     if (selected) {
       int sel_h = icon_sz + RV_LARGE_ICON_LABEL_GAP + label_h + 4;
       fill_rect(get_sys_color(brActiveTitlebar),
-                rect_inset(R(cx + 2, icon_r.y - 2, cell_w - 4, sel_h), -1));
+                rect_inset(R(cx + 2, icon_r.y - 2, g.cell_w - 4, sel_h), -1));
     }
 
     rv_draw_item_icon(strip, data->items[i].icon, &icon_r,
@@ -145,9 +178,9 @@ result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (!m) return true;
-      int ncol = rv_large_icon_ncol(data, rv_content_width(win), data->column_width);
+      icon_grid_geom_t g = grid_geom(win, data);
       int min_h = 2 * RV_LARGE_ICON_PAD + rv_large_icon_cell_h(data);
-      int min_w = MAX(1, 2 * RV_LARGE_ICON_PAD + ncol * data->column_width);
+      int min_w = MAX(1, 2 * RV_LARGE_ICON_PAD + g.ncol * g.cell_w);
       m->desired_w = MAX(m->desired_w, min_w);
       m->desired_h = MAX(m->desired_h, min_h);
       return true;
@@ -325,14 +358,13 @@ result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       int count = (int)data->count;
       int cur = data->selected;
       int next = cur;
-      int eff_w = rv_content_width(win);
-      int ncol = rv_large_icon_ncol(data, eff_w, data->column_width);
+      icon_grid_geom_t g = grid_geom(win, data);
       switch (wparam) {
         case AX_KEY_UPARROW:
-          next = (cur < 0) ? 0 : (cur - ncol >= 0 ? cur - ncol : cur);
+          next = (cur < 0) ? 0 : (cur - g.ncol >= 0 ? cur - g.ncol : cur);
           break;
         case AX_KEY_DOWNARROW:
-          next = (cur < 0) ? 0 : (cur + ncol < count ? cur + ncol : cur);
+          next = (cur < 0) ? 0 : (cur + g.ncol < count ? cur + g.ncol : cur);
           break;
         case AX_KEY_LEFTARROW:
           next = (cur < 0) ? 0 : (cur > 0 ? cur - 1 : 0);

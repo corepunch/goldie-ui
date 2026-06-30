@@ -6,425 +6,68 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include "user.h"
 #include "messages.h"
 #include "draw.h"
 #include "../commctl/commctl.h"
 
-typedef struct {
-  fe_component_desc_t desc;
-} window_class_t;
+// NeXTSTEP-style database singleton
+static database_t *g_app_database = NULL;
 
-static window_class_t g_window_classes[MAX_WINDOW_CLASSES];
-static int g_window_class_count = 0;
+void ui_set_database(database_t *db) {
+  g_app_database = db;
+}
+
+database_t *ui_get_database(void) {
+  return g_app_database;
+}
 
 static bool streq(const char *a, const char *b) {
-  return a && b && strcmp(a, b) == 0;
+  if (!a || !b) return false;
+  while (*a && *b) {
+    if (tolower((unsigned char)*a) != tolower((unsigned char)*b))
+      return false;
+    a++;
+    b++;
+  }
+  return *a == '\0' && *b == '\0';
 }
 
-static bool is_stack_or_flow_proc(const window_t *win) {
-  return win && (win->proc == win_stack || win->proc == win_stackview ||
-                 win->proc == win_flow || win->proc == win_flowview);
-}
-
-static bool is_layout_container_proc(const window_t *win) {
-  return win && (is_stack_or_flow_proc(win) || win->proc == win_grid ||
-                 win->proc == win_gridview || win->proc == win_column);
+// Check if window is a layout container (arranges its children).
+// Uses flags only - no proc checks, respecting user.dll/commctl.dll boundary.
+static bool is_layout_container(const window_t *win) {
+  if (!win) return false;
+  return (win->flags & WINDOW_LAYOUT_CONTAINER) ||
+         (win->flags & WINDOW_AUTO_LAYOUT);
 }
 
 static bool layout_child_flex_affects_parent(const window_t *parent, const window_t *child) {
   if (!parent || !child || !(child->flags & WINDOW_FLEXSPACE)) return false;
 
-  bool parent_is_stack_like = is_stack_or_flow_proc(parent);
+  bool parent_is_container = is_layout_container(parent);
+  bool child_is_container = is_layout_container(child);
 
   // Horizontal action rows often contain local flex spacers.  If that row is
   // nested in a vertical container, keep the spacer local to the row instead of
   // promoting the whole row to a vertically flexible child.
-  if (!is_layout_container_proc(child) && parent_is_stack_like &&
+  if (!child_is_container && parent_is_container &&
       (parent->flags & WINDOW_STACK_HORIZONTAL) &&
-      parent->parent && is_layout_container_proc(parent->parent) &&
+      parent->parent && is_layout_container(parent->parent) &&
       !(parent->parent->flags & WINDOW_STACK_HORIZONTAL)) {
     return false;
   }
 
   // Horizontal stack/flow rows use flex spacers locally.  They should not make
   // an orthogonal parent stack claim extra vertical room.
-  if (is_stack_or_flow_proc(child)) {
+  if (child_is_container && (child->flags & WINDOW_LAYOUT_CONTAINER)) {
     bool child_horizontal  = (child->flags & WINDOW_STACK_HORIZONTAL) != 0;
     bool parent_horizontal = (parent->flags & WINDOW_STACK_HORIZONTAL) != 0;
     if (child_horizontal != parent_horizontal) return false;
   }
 
   return true;
-}
-
-bool register_window_class(const fe_component_desc_t *desc) {
-  if (!desc || !desc->class_name || !*desc->class_name || !desc->proc) return false;
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (streq(g_window_classes[i].desc.class_name, desc->class_name))
-      return true;  // already registered — idempotent on all platforms
-  }
-  if (g_window_class_count >= MAX_WINDOW_CLASSES) return false;
-  g_window_classes[g_window_class_count++].desc = *desc;
-  return true;
-}
-
-bool register_window_class_once(const fe_component_desc_t *desc) {
-  return register_window_class(desc);
-}
-
-winproc_t find_window_class_proc(const char *class_name) {
-  if (!class_name || !*class_name) return NULL;
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (streq(g_window_classes[i].desc.class_name, class_name))
-      return g_window_classes[i].desc.proc;
-  }
-  return NULL;
-}
-
-const fe_component_desc_t *find_window_class_desc(const char *class_name) {
-  if (!class_name || !*class_name) return NULL;
-  for (int i = 0; i < g_window_class_count; i++) {
-    if (streq(g_window_classes[i].desc.class_name, class_name))
-      return &g_window_classes[i].desc;
-  }
-  return NULL;
-}
-
-int16_t get_class_default_width(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_width : 0;
-}
-
-int16_t get_class_default_height(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_height : 0;
-}
-
-flags_t get_class_default_flags(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_flags : 0;
-}
-
-uint8_t get_class_default_h_align(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_h_align : LAYOUT_ALIGN_STRETCH;
-}
-
-uint8_t get_class_default_v_align(const char *class_name) {
-  const fe_component_desc_t *desc = find_window_class_desc(class_name);
-  return desc ? desc->default_v_align : LAYOUT_ALIGN_STRETCH;
-}
-
-void register_builtin_window_classes(void) {
-  // Button control - standard height for buttons
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "button",
-    .proc = win_button,
-    .default_width = 0,    // measure content
-    .default_height = 19,  // standard button height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Label control - single line of text
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "label",
-    .proc = win_label,
-    .default_width = 0,    // measure content
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Text edit control - single line input
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "textedit",
-    .proc = win_textedit,
-    .default_width = 0,    // stretch to fit
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Checkbox control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "checkbox",
-    .proc = win_checkbox,
-    .default_width = 0,    // measure content
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Combobox control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "combobox",
-    .proc = win_combobox,
-    .default_width = 0,    // stretch to fit
-    .default_height = 13,  // single line height
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Separator - visual divider line (no expansion)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "separator",
-    .proc = win_separator,
-    .default_width = 0,    // stretch to container width
-    .default_height = 1,   // 1px visual line
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Space element - flexible spacer that expands
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "space",
-    .proc = win_space,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = WINDOW_FLEXSPACE,  // Always flexible
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Reportview - scrolling list/grid control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "reportview",
-    .proc = win_reportview,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // ~6 rows
-    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_FLEXSPACE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // List control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "list",
-    .proc = win_list,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // ~6 rows
-    .default_flags = WINDOW_VSCROLL | WINDOW_NOTITLE | WINDOW_NORESIZE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Multi-line edit control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "multiedit",
-    .proc = win_multiedit,
-    .default_width = 0,     // stretch to fit
-    .default_height = 100,  // multiple lines
-    .default_flags = WINDOW_VSCROLL | WINDOW_FLEXSPACE,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Toolbar button control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "toolbar_button",
-    .proc = win_toolbar_button,
-    .default_width = 0,
-    .default_height = 19,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Image control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "image",
-    .proc = win_image,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Console control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "console",
-    .proc = win_console,
-    .default_width = 0,
-    .default_height = 100,
-    .default_flags = WINDOW_VSCROLL,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // File list control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "filelist",
-    .proc = win_filelist,
-    .default_width = 0,
-    .default_height = 100,
-    .default_flags = WINDOW_VSCROLL,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Terminal control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "terminal",
-    .proc = win_terminal,
-    .default_width = 0,
-    .default_height = 100,
-    .default_flags = WINDOW_VSCROLL,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Menu bar control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "menubar",
-    .proc = win_menubar,
-    .default_width = 0,
-    .default_height = TITLEBAR_HEIGHT,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Scrollbar control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "scrollbar",
-    .proc = win_scrollbar,
-    .default_width = 8,
-    .default_height = 8,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Slider control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "slider",
-    .proc = win_slider,
-    .default_width = 0,
-    .default_height = 16,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Gradient control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "gradient",
-    .proc = win_gradient,
-    .default_width = 0,
-    .default_height = 8,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Toolbox control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "toolbox",
-    .proc = win_toolbox,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Splitter control
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "splitter",
-    .proc = win_splitter,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Column layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "column",
-    .proc = win_column,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Stack layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "stack",
-    .proc = win_stack,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Stack layout container (alias)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "stackview",
-    .proc = win_stack,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Flow layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "flow",
-    .proc = win_flow,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Flow layout container (alias)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "flowview",
-    .proc = win_flow,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Grid layout container
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "grid",
-    .proc = win_grid,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
-  
-  // Grid layout container (alias)
-  register_window_class(&(fe_component_desc_t){
-    .class_name = "gridview",
-    .proc = win_grid,
-    .default_width = 0,
-    .default_height = 0,
-    .default_flags = 0,
-    .default_h_align = LAYOUT_ALIGN_STRETCH,
-    .default_v_align = LAYOUT_ALIGN_STRETCH,
-  });
 }
 
 // Global window state
@@ -491,8 +134,14 @@ static window_t *alloc_window(char const *title, flags_t flags, irect16_t const 
   // reserve a title bar unless a caller explicitly creates a root window.
   if (parent)
     flags |= WINDOW_NOTITLE;
-  if (proc == win_space)
-    flags |= WINDOW_FLEXSPACE;
+  
+  // Phase 3: Merge class defaults with instance flags.
+  // Find the class descriptor by proc and OR in default_flags.
+  // This replaces the old hardcoded `if (proc == win_space)` check.
+  const fe_component_desc_t *class_desc = find_window_class_desc_by_proc(proc);
+  if (class_desc)
+    flags |= class_desc->default_flags;
+  
   win->flags = flags;
   window_set_state(win, WINDOW_STATE_VISIBLE, (flags & WINDOW_HIDDEN) == 0);
   window_set_state(win, WINDOW_STATE_DISABLED, false);
@@ -1003,6 +652,19 @@ void load_window_children(window_t *win, windef_t const *def) {
 static void create_form_children(window_t *parent, const form_ctrl_def_t *children,
                                  int child_count);
 
+static void propagate_database_message(window_t *win, database_t *db) {
+  if (!win || !db) return;
+
+  send_message(win, evSetDatabase, 0, db);
+
+  for (window_t *child = win->children; child; child = child->next)
+    propagate_database_message(child, db);
+
+  toolbar_state_t *tb = window_toolbar_state(win);
+  for (window_t *child = tb ? tb->children : NULL; child; child = child->next)
+    propagate_database_message(child, db);
+}
+
 static bool form_children_use_parent_links(const form_ctrl_def_t *children, int child_count) {
   if (!children || child_count <= 0) return false;
   for (int i = 0; i < child_count; i++) {
@@ -1022,36 +684,34 @@ static bool form_children_have_parent(const form_ctrl_def_t *children, int child
   return false;
 }
 
+static void warn_missing_form_class(const form_ctrl_def_t *cd,
+                                    const char *scope,
+                                    uint32_t parent_id) {
+  if (!cd || !scope) return;
+  fprintf(stderr,
+          "create_window_from_form: class '%s' not found (scope=%s, id=%u, name=%s, parent=%u)\n",
+          cd->class_name ? cd->class_name : "<null>",
+          scope,
+          (unsigned)cd->id,
+          cd->name ? cd->name : "<null>",
+          (unsigned)parent_id);
+}
+
 static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *children,
                                       int child_count, uint32_t parent_id) {
   if (!parent || !children || child_count <= 0) return;
 
   for (int i = 0; i < child_count; i++) {
     const form_ctrl_def_t *cd = &children[i];
-    if (cd->parent != parent_id) continue;
+    if (cd->parent != parent_id) {
+      continue;
+    }
 
     winproc_t cp = find_window_class_proc(cd->class_name);
-    if (!cp) continue;
-
-    void *param = NULL;
-    layout_view_config_t cfg = {
-      .orientation = cd->flags & WINDOW_STACK_HORIZONTAL,
-      .spacing = cd->layout_spacing,
-      .padding = cd->padding,
-      .margin = cd->margin,
-    };
-    if (cp == win_stack || cp == win_grid || cp == win_flow ||
-        cp == win_stackview || cp == win_gridview || cp == win_flowview ||
-        cp == win_column) {
-      param = &cfg;
+    if (!cp) {
+      warn_missing_form_class(cd, "flat", parent_id);
+      continue;
     }
-    label_create_params_t label_cfg = {
-      .color_index = cd->color,
-      .font = cd->font_set ? cd->font : FONT_SMALL,
-      .color_set = cd->color_set,
-    };
-    if (cp == win_label)
-      param = &label_cfg;
 
     // Apply class defaults for dimensions and flags
     const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
@@ -1063,10 +723,10 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     
     if (class_desc) {
       // Apply default dimensions if not explicitly specified
-      if (child_w == 0 && class_desc->default_width > 0)
-        child_w = class_desc->default_width;
-      if (child_h == 0 && class_desc->default_height > 0)
-        child_h = class_desc->default_height;
+      if (child_w == 0 && class_desc->default_layout_size.w > 0)
+        child_w = class_desc->default_layout_size.w;
+      if (child_h == 0 && class_desc->default_layout_size.h > 0)
+        child_h = class_desc->default_layout_size.h;
       
       // Merge class default flags with instance flags
       child_flags |= class_desc->default_flags;
@@ -1080,8 +740,9 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
 
     irect16_t child_frame = {0, 0, child_w, child_h};
     window_t *child = create_window(cd->text ? cd->text : "", child_flags,
-                                    &child_frame, parent, cp, 0, param);
+                                    &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
+    
     child->id = cd->id;
     child->layout.h_align = child_h_align;
     child->layout.v_align = child_v_align;
@@ -1115,6 +776,9 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam) {
   if (!def || !proc) return NULL;
+  
+
+  
   if (!(def->flags & WINDOW_AUTO_LAYOUT) && def->child_count > 0) {
     fprintf(stderr, "create_window_from_form: forms with children require auto_layout=true\n");
     return NULL;
@@ -1148,18 +812,34 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Allocate the parent window without sending evCreate yet.
   window_t *win = alloc_window(def->name ? def->name : "", def->flags, &r, parent, proc, hinstance);
   if (!win) return NULL;
+  
+
+  
   if (def->flags & WINDOW_AUTO_LAYOUT)
     win->flags |= WINDOW_AUTO_LAYOUT;
   win->flags &= ~WINDOW_STACK_HORIZONTAL;
   win->layout.layout_spacing    = def->layout_spacing;
   win->layout.layout_padding    = def->padding;
   win->layout.layout_margin     = def->margin;
-  if ((win->flags & WINDOW_AUTO_LAYOUT) && win->layout.layout_spacing == 0)
-    win->layout.layout_spacing = 4;
+  // Removed: forced spacing override - respect explicit spacing=0 from forms
 
   // Instantiate child controls before the parent proc receives evCreate.
   // Children inherit hinstance from the parent (pass 0 = inherit).
+
   create_form_children(win, def->children, def->child_count);
+
+  // Auto-populate toolbar if defined
+  if (def->toolbar_items && def->toolbar_count > 0 && (win->flags & WINDOW_TOOLBAR)) {
+    send_message(win, tbSetItems, (uint32_t)def->toolbar_count, (void *)def->toolbar_items);
+  }
+
+  // Propagate the global database context through the full child tree.
+  // Controls that care consume evSetDatabase; all other recipients ignore it.
+  database_t *effective_db = ui_get_database();
+  if (effective_db) {
+    for (window_t *child = win->children; child; child = child->next)
+      propagate_database_message(child, effective_db);
+  }
 
   if (win->flags & WINDOW_AUTO_LAYOUT)
     window_layout_sync(win);
@@ -1185,39 +865,42 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
     create_form_children_flat(parent, children, child_count, 0);
     return;
   }
-
+  
   for (int i = 0; i < child_count; i++) {
     const form_ctrl_def_t *cd = &children[i];
     winproc_t cp = find_window_class_proc(cd->class_name);
-    if (!cp) continue;
-
-    void *param = NULL;
-    layout_view_config_t cfg = {
-      .orientation = cd->flags & WINDOW_STACK_HORIZONTAL,
-      .spacing = cd->layout_spacing,
-      .padding = cd->padding,
-      .margin = cd->margin,
-    };
-    if (cp == win_stack || cp == win_grid || cp == win_flow ||
-        cp == win_stackview || cp == win_gridview || cp == win_flowview ||
-        cp == win_column) {
-      param = &cfg;
+    if (!cp) {
+      warn_missing_form_class(cd, "tree", cd->parent);
+      continue;
     }
-    label_create_params_t label_cfg = {
-      .color_index = cd->color,
-      .font = cd->font_set ? cd->font : FONT_SMALL,
-      .color_set = cd->color_set,
-    };
-    if (cp == win_label)
-      param = &label_cfg;
 
-    irect16_t child_frame = {0, 0, cd->size.w, cd->size.h};
-    window_t *child = create_window(cd->text ? cd->text : "", cd->flags,
-                                    &child_frame, parent, cp, 0, param);
+    // Phase 3: Apply class defaults for width/height when form doesn't specify (0).
+    // Get class descriptor to check for default dimensions.
+    const fe_component_desc_t *class_desc = find_window_class_desc(cd->class_name);
+    int16_t effective_w = cd->size.w;
+    int16_t effective_h = cd->size.h;
+    flags_t child_flags = cd->flags;
+    uint8_t child_h_align = cd->h_align;
+    uint8_t child_v_align = cd->v_align;
+    if (class_desc) {
+      if (effective_w == 0 && class_desc->default_layout_size.w > 0)
+        effective_w = class_desc->default_layout_size.w;
+      if (effective_h == 0 && class_desc->default_layout_size.h > 0)
+        effective_h = class_desc->default_layout_size.h;
+      child_flags |= class_desc->default_flags;
+      if (child_h_align == 0)
+        child_h_align = class_desc->default_h_align;
+      if (child_v_align == 0)
+        child_v_align = class_desc->default_v_align;
+    }
+
+    irect16_t child_frame = {0, 0, effective_w, effective_h};
+    window_t *child = create_window(cd->text ? cd->text : "", child_flags,
+                                    &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     child->id = cd->id;
-    child->layout.h_align = cd->h_align;
-    child->layout.v_align = cd->v_align;
+    child->layout.h_align = child_h_align;
+    child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;
 
     if (cd->children && cd->child_count > 0)
@@ -1276,112 +959,3 @@ void enable_window(window_t *win, bool enable) {
   invalidate_window(win);
 }
 
-// ---- Built-in scrollbar API (WinAPI SetScrollInfo / GetScrollInfo style) ----
-
-// Clamp pos to the valid range [min_val .. max_val-page]
-static int sb_clamp_range(win_sb_t const *sb, int pos) {
-  int max_pos = sb->max_val - sb->page;
-  if (max_pos < sb->min_val) max_pos = sb->min_val;
-  if (pos < sb->min_val) return sb->min_val;
-  if (pos > max_pos)     return max_pos;
-  return pos;
-}
-
-// Update one built-in scrollbar from a scroll_info_t.
-// Auto-shows the bar when content exceeds the viewport; hides it otherwise.
-static void set_scroll_info_one(win_sb_t *sb, scroll_info_t const *info) {
-  if (info->fMask & SIF_RANGE) {
-    sb->min_val = info->nMin;
-    sb->max_val = info->nMax;
-  }
-  if (info->fMask & SIF_PAGE) {
-    sb->page = info->nPage;
-  }
-  if (info->fMask & SIF_POS) {
-    sb->pos = sb_clamp_range(sb, info->nPos);
-  }
-  // Clamp existing pos whenever range or page changes (even without SIF_POS).
-  if (info->fMask & (SIF_RANGE | SIF_PAGE)) {
-    sb->pos = sb_clamp_range(sb, sb->pos);
-  }
-  // Automatic show/hide: hide when the whole content fits in the viewport.
-  // Only apply auto logic when not overridden by an explicit show_scroll_bar() call.
-  if (sb->visible_mode == SB_VIS_HIDE) {
-    sb->visible = false; // forced hidden
-  } else if (sb->visible_mode == SB_VIS_SHOW) {
-    sb->visible = true;  // forced shown
-  } else {
-    bool should_show = (sb->page < sb->max_val - sb->min_val);
-    sb->visible = should_show;
-  }
-  if (sb->visible && !sb->enabled) {
-    // First time visible: default to enabled.
-    sb->enabled = true;
-  }
-}
-
-void set_scroll_info(window_t *win, int bar, scroll_info_t const *info, bool redraw) {
-  if (!win || !info) return;
-  if (bar == SB_VERT) {
-    set_scroll_info_one(&win->vscroll, info);
-  } else if (bar == SB_HORZ) {
-    set_scroll_info_one(&win->hscroll, info);
-  } else { // SB_BOTH
-    set_scroll_info_one(&win->hscroll, info);
-    set_scroll_info_one(&win->vscroll, info);
-  }
-  if (redraw) invalidate_window(win);
-}
-
-void get_scroll_info(window_t *win, int bar, scroll_info_t *info) {
-  if (!win || !info) return;
-  if (bar == SB_BOTH) bar = SB_HORZ; // SB_BOTH reads horizontal by convention
-  win_sb_t *sb = (bar == SB_VERT) ? &win->vscroll : &win->hscroll;
-  if (info->fMask & SIF_RANGE) {
-    info->nMin = sb->min_val;
-    info->nMax = sb->max_val;
-  }
-  if (info->fMask & SIF_PAGE) info->nPage = sb->page;
-  if (info->fMask & SIF_POS)  info->nPos  = sb->pos;
-}
-
-int get_scroll_pos(window_t *win, int bar) {
-  if (!win) return 0;
-  if (bar == SB_VERT) return win->vscroll.pos;
-  return win->hscroll.pos; // SB_HORZ or SB_BOTH → horizontal
-}
-
-// Explicitly enable or disable a built-in scrollbar's mouse interactivity.
-// Disabled bars remain visible but ignore mouse clicks.
-void enable_scroll_bar(window_t *win, int bar, bool enable) {
-  if (!win) return;
-  if (bar == SB_HORZ || bar == SB_BOTH) win->hscroll.enabled = enable;
-  if (bar == SB_VERT || bar == SB_BOTH) win->vscroll.enabled = enable;
-  invalidate_window(win);
-}
-
-// Show or hide a built-in scrollbar explicitly.
-// Calling this locks the bar's visibility so that subsequent set_scroll_info()
-// calls do not auto-show or auto-hide it.  To restore auto-visibility mode,
-// call reset_scroll_bar_auto(win, bar).
-void show_scroll_bar(window_t *win, int bar, bool show) {
-  if (!win) return;
-  if (bar == SB_HORZ || bar == SB_BOTH) {
-    win->hscroll.visible = show;
-    win->hscroll.visible_mode = show ? SB_VIS_SHOW : SB_VIS_HIDE;
-  }
-  if (bar == SB_VERT || bar == SB_BOTH) {
-    win->vscroll.visible = show;
-    win->vscroll.visible_mode = show ? SB_VIS_SHOW : SB_VIS_HIDE;
-  }
-  invalidate_window(win);
-}
-
-// Restore auto visibility mode for a built-in scrollbar.
-// After this call, set_scroll_info() will again auto-show/hide the bar based
-// on the content range vs page size, undoing any prior show_scroll_bar() call.
-void reset_scroll_bar_auto(window_t *win, int bar) {
-  if (!win) return;
-  if (bar == SB_HORZ || bar == SB_BOTH) win->hscroll.visible_mode = SB_VIS_AUTO;
-  if (bar == SB_VERT || bar == SB_BOTH) win->vscroll.visible_mode = SB_VIS_AUTO;
-}

@@ -36,28 +36,30 @@ void handle_menu_command(uint16_t id) {
 
     // ---- Post ----
     case ID_POST_NEW:
-      if (show_new_post_dialog(parent)) {
+      if (show_db_dialog(&socialfeed_new_post_form, "New Post", parent, 0)) {
         feed_refresh();
         app_update_status();
-        SF_DEBUG("action new_post count=%d", g_app->post_count);
+        SF_DEBUG("action new_post");
       }
       break;
 
     case ID_POST_LIKE: {
-      post_t *p = app_get_post(g_app->selected_idx);
-      if (!p) {
+      int post_id = app_get_post_id_from_index(g_app->selected_idx);
+      if (!post_id) {
         message_box(parent, "Select a post to like.", "Like Post", MB_OK);
         break;
       }
-      post_like(p);
-      feed_refresh();
-      SF_DEBUG("liked post id=%d likes=%d", p->id, p->like_count);
+      
+      if (app_like_post(post_id)) {
+        feed_refresh();
+        SF_DEBUG("liked post id=%d (persisted to DB)", post_id);
+      }
       break;
     }
 
     case ID_POST_VIEW: {
       int idx = g_app->selected_idx;
-      if (!app_get_post(idx)) {
+      if (!app_get_post_id_from_index(idx)) {
         message_box(parent, "Select a post to view.", "View Post", MB_OK);
         break;
       }
@@ -69,7 +71,7 @@ void handle_menu_command(uint16_t id) {
 
     case ID_POST_DELETE: {
       int idx = g_app->selected_idx;
-      if (!app_get_post(idx)) {
+      if (!app_get_post_id_from_index(idx)) {
         message_box(parent, "Select a post to delete.", "Delete Post", MB_OK);
         break;
       }
@@ -78,7 +80,7 @@ void handle_menu_command(uint16_t id) {
         app_delete_post(idx);
         feed_refresh();
         app_update_status();
-        SF_DEBUG("action delete_post idx=%d count=%d", idx, g_app->post_count);
+        SF_DEBUG("action delete_post idx=%d", idx);
       }
       break;
     }
@@ -86,6 +88,19 @@ void handle_menu_command(uint16_t id) {
     // ---- View ----
     case ID_VIEW_REFRESH:
       feed_refresh();
+      break;
+
+    // ---- Test ----
+    case ID_TEST_EDIT_AUTHOR:
+      SF_DEBUG("Testing edit author dialog with DB integration");
+      test_author_edit_dialog(parent, g_app->db);
+      feed_refresh(); // Refresh to show changes
+      break;
+
+    case ID_TEST_NEW_AUTHOR:
+      SF_DEBUG("Testing new author dialog with DB integration");
+      test_new_author_dialog(parent, g_app->db);
+      feed_refresh(); // Refresh to show changes
       break;
 
     // ---- Help ----

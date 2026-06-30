@@ -36,8 +36,10 @@ result_t win_label(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
       if (lparam && (uintptr_t)lparam > 0x1000) {
-        label_create_params_t *p = (label_create_params_t *)lparam;
-        win->userdata = (void *)(uintptr_t)label_pack_userdata(p->color_index, p->font, p->color_set);
+        const form_ctrl_def_t *cd = (const form_ctrl_def_t *)lparam;
+        uint8_t color_idx = cd->color_set ? cd->color : 0;
+        uint8_t font = cd->font_set ? cd->font : FONT_SMALL;
+        win->userdata = (void *)(uintptr_t)label_pack_userdata(color_idx, font, cd->color_set);
       } else {
         uint32_t color_index = (uint32_t)(uintptr_t)lparam;
         win->userdata = (void *)(uintptr_t)label_pack_userdata(color_index, FONT_SMALL, lparam != NULL);

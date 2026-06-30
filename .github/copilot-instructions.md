@@ -11,6 +11,13 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 
 ## Code Architecture and Conventions
 
+### Version 1.0 Refactor Policy (Required)
+
+- Orion is treated as **1.0-first**: prioritize clean current design over preserving legacy behavior.
+- Do not add backward-compatibility shims, aliases, fallback fields, dual-path APIs, or migration adapters unless explicitly requested.
+- When introducing a new approach, update the existing codebase to that approach directly and remove superseded patterns in the same change.
+- Prefer one canonical representation per concept (no duplicate old/new fields or lookup keys).
+
 ### Directory Structure
 - `user/` contains window management, message queue, drawing primitives, and text rendering
 - `kernel/` contains SDL event loop, initialization, and joystick/gamepad support
@@ -33,6 +40,54 @@ The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ 
 - **Do not add duplicate declarative knobs for existing behavior.** If layout type is already represented by class/proc (`stack`, `grid`, `column`), do not add another independent selector that encodes the same thing.
 - **Prefer class/proc-driven behavior over global mode switches.** In WinAPI style, behavior belongs to window classes and message handlers, not to app-wide enum dispatchers.
 - **For layout engines, split by responsibility.** Avoid one monolithic layout function with long `if (stack)`, `if (grid)`, `if (column)` chains. Keep shared math in helpers, but keep container-specific measure/arrange logic in focused functions tied to each container type.
+
+### Declarative Forms Must Be Self-Contained (Critical)
+
+**Principle:** When declarative forms use full path syntax (`field="db.table.field"`), they must be completely self-contained. Never require external context as function parameters when the form already knows that context.
+
+**Wrong - leaky abstraction:**
+```c
+// Form already knows db_name="db" from field="db.posts.title"
+// Why pass it again? This breaks the declarative model.
+show_db_dialog(&form, "Edit Post", parent, db, post_id);
+                                           ^^
+                                           redundant!
+```
+
+**Correct - self-contained:**
+```c
+// Form looks up database by name internally - no external context needed
+show_db_dialog(&form, "Edit Post", parent, post_id);
+```
+
+**Implementation pattern:**
+- Use a **registry pattern** for declarative resources (databases, themes, locales, etc.)
+- Forms with `field="db.table.field"` → store `db_name`, look up via `get_database_by_name()`
+- Forms with `theme="dark"` → look up via `get_theme_by_name()`
+- Forms with `locale="fr_FR"` → look up via `get_locale_by_name()`
+- Never duplicate context that's already encoded in the declarative definition
+
+**Application startup pattern:**
+```c
+// Register resources once at startup
+database_t *db = create_database("db", "SimpleXMLDatabase", "data.xml");
+register_database("db", db);
+
+// Now all forms with field="db.table.field" are self-contained
+// No need to pass database instances around
+```
+
+**Why this matters:**
+- ✅ True declarative programming - forms are pure data, not code
+- ✅ Impossible to pass wrong database instance (compile-time guarantee)
+- ✅ Consistent with "field= knows everything" philosophy
+- ✅ Reduces function parameters and API surface
+- ✅ Forms can be serialized, transmitted, hot-reloaded without code changes
+- ❌ Passing external context breaks the declarative model
+- ❌ Creates opportunity for runtime mismatch bugs (wrong db passed)
+- ❌ Makes forms dependent on caller context instead of self-describing
+
+**When to deviate:** Only if the resource is genuinely dynamic and cannot be named at form definition time (extremely rare). If you can name it, register it.
 
 ### Scrollbars — Built-in vs. Standalone
 
@@ -321,6 +376,47 @@ When refactoring, update all field accesses systematically:
 - Common messages include WM_CREATE, WM_DESTROY, WM_PAINT, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_COMMAND
 - Return true from window proc if message was handled, false otherwise
 
+### Message Parameter Passing (Zero Wrapper Structs)
+
+**Design Principle:** Pass values directly via wparam/lparam without wrapper structs. This matches WinAPI conventions and maximizes API simplicity.
+
+**Rules:**
+- **No parameter structs** — Pass simple values directly as wparam (uint32_t) or lparam (void*/intptr_t)
+- **Pack multiple IDs** — Use `MAKEDWORD(lo, hi)` to pack two 16-bit values into wparam; unpack with `LOWORD(wparam)` / `HIWORD(wparam)`
+- **Cast appropriately** — For integers: `(void *)(intptr_t)value` or `(int)(intptr_t)lparam`; for strings: `(const char *)lparam`
+- **Return results directly** — Use `lresult_t` (pointer-sized like WinAPI `LRESULT`) to return pointers, booleans, or integers
+- **Linked lists over arrays** — For variable-length results, return linked list head instead of array+count_out struct
+
+**Example (Database API):**
+```c
+// ✅ Insert: wparam carries table_id, lparam carries record data directly
+author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+
+// ✅ Find: MAKEDWORD packs table_id + search_field, lparam is value or string
+author_t *found = (author_t *)send_db_message(db, dbFind, 
+  MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)author_id);
+
+// ✅ Fetch: Returns linked list, lparam is filter value directly
+result_node_t *results = (result_node_t *)send_db_message(db, dbFetch,
+  MAKEDWORD(TABLE_COMMENTS, 2), (void *)(intptr_t)post_id);
+int count = count_result_list(results);
+free_result_list(results);
+
+// ❌ Wrong: Unnecessary wrapper struct
+typedef struct { int table_id; void *record_data; } insert_params_t;
+insert_params_t params = { TABLE_AUTHORS, &author };
+send_db_message(db, dbInsert, 0, &params);  // Don't do this!
+```
+
+**Benefits:**
+- Zero boilerplate struct definitions and initializations
+- Direct value passing matches WinAPI message conventions
+- MAKEDWORD/LOWORD/HIWORD standard for packing related values
+- Linked lists eliminate count_out output parameters
+- Code is shorter, clearer, and faster
+
+**When to deviate:** Only use a parameter struct if the message genuinely requires more than 3 values that cannot be decomposed into separate messages or packed into wparam. This should be extremely rare.
+
 ### Confirmation Dialogs
 - Match the button set to the question being asked. A two-choice question such
   as "Close without saving?", "Discard changes?", or "Delete selected item?"
@@ -401,13 +497,13 @@ Create an `.orion` XML file in your example directory:
 Compile with orionc:
 ```bash
 build/bin/orionc --input examples/myapp/myapp.orion \
-                 --output build/generated/examples/myapp/myapp_forms.h \
+                 --output build/generated/examples/myapp/myapp.h \
                  --prefix myapp
 ```
 
 Use in code:
 ```c
-#include "build/generated/examples/myapp/myapp_forms.h"
+#include "build/generated/examples/myapp/myapp.h"
 
 // Children already exist and are laid out automatically
 show_dialog_from_form(&myapp_form_my_dialog, "My Dialog", parent, my_dlg_proc, &st);
@@ -797,7 +893,7 @@ Currently, height must be specified manually even for fixed-content forms.
 **Compilation:**
 The `orionc` compiler processes `.orion` files in your Makefile:
 ```make
-build/generated/examples/myapp/myapp_forms.h: examples/myapp/myapp.orion
+build/generated/examples/myapp/myapp.h: examples/myapp/myapp.orion
 	build/bin/orionc --input $< --output $@ --prefix myapp
 ```
 
@@ -839,6 +935,82 @@ examples/socialfeed/
   view_menubar.c      ← menu bar proc
   main.c              ← gem_init: seed data, wire up windows
 ```
+
+### Designer/App Architecture for Complex Examples
+
+For complex tools such as `examples/formeditor/`, follow an Xcode/Interface Builder-style split. Do not let one window file become the document model, canvas renderer, serializer, property inspector, layout engine, and command dispatcher at the same time.
+
+**Required layers for designer-style apps:**
+- **Project/workspace layer** (`project_*.c`): owns project metadata, document list, plugin references, open/save orchestration. It must not contain menu window procs or canvas hit-testing.
+- **Document model layer** (`model_*.c`, `document_*.c`): owns persistent structs, IDs, validation, CRUD, dirty state, and serialization-ready data. Persistent model structs must not store `window_t *`, OpenGL resources, or design-time preview state.
+- **Editor context/controller layer** (`controller_*.c`, `editor_context_*.c`): owns active document, active selection, active tool, command dispatch, and refresh/notification fan-out.
+- **Canvas/view layer** (`view_canvas*.c`): owns painting, hit-testing, drag state, coordinate conversion, live design-time child windows, and visual adornments. It edits the document only through commands/controller helpers.
+- **Inspector/library/palette views** (`view_property_*.c`, `view_library_*.c`, `view_palette_*.c`): render model metadata and send commands. They do not parse project files or directly rewrite document arrays.
+- **Layout engine layer** (`layout_*.c`): owns measure/arrange/reflow/drop-target calculations. Loading a file should not contain layout algorithms inline.
+- **Archiver layer** (`archive_*.c`, `project_io_*.c`): owns XML/binary read/write. UI files such as menubars and canvases must not contain project parsers.
+
+**Represented model vs. live design-time view**
+- Keep persistent document objects pure. A form/control model may store IDs, type/class tokens, text, flags, rects, padding, margins, bindings, and style properties.
+- Never put live runtime/design-time handles in persistent structs. Avoid fields like `window_t *live_win` inside `form_element_t` or equivalent model types.
+- The canvas/editor runtime owns mappings between represented objects and live windows/resources:
+```c
+typedef struct {
+  uint32_t element_id;
+  window_t *live_win;
+} designer_live_view_ref_t;
+```
+- Treat live controls as an implementation detail of the editor surface. Destroy/rebuild them from the model whenever needed.
+
+**Metadata-driven component system**
+- Component behavior should come from a registry/descriptor, not switch statements scattered through canvas, property browser, project I/O, and palettes.
+- A component descriptor should be the single source for class token, display name, default size, design-placeable flag, window proc/class name, property schema, and archive hooks.
+- Adding a component should mostly add metadata and component-specific handlers, not edit five unrelated `switch(type)` blocks.
+
+**Metadata-driven properties and inspectors**
+- Property browsers must render from property descriptors, not hand-coded rows for every field and component type.
+- Use table-driven get/set/parse/format helpers. The inspector sends a command such as `designer_cmd_set_property(...)`; it does not mutate model fields directly.
+- Shared properties (name, id, text, frame, margins, padding, alignment) should be declared once and reused across component descriptors.
+
+**Commands and notifications**
+- All model mutations from UI go through named commands:
+```c
+designer_cmd_add_element(ctx, component_id, parent_id, frame);
+designer_cmd_delete_selection(ctx);
+designer_cmd_set_property(ctx, object_id, property_id, value);
+designer_cmd_move_element(ctx, object_id, frame);
+```
+- Commands are responsible for marking documents dirty, updating titles, triggering layout reflow, syncing live views, and notifying panels.
+- Prefer simple app notifications over manual refresh chains:
+```c
+designer_notify(ctx, DESIGNER_EVENT_ACTIVE_DOCUMENT_CHANGED);
+designer_notify(ctx, DESIGNER_EVENT_SELECTION_CHANGED);
+designer_notify(ctx, DESIGNER_EVENT_DOCUMENT_MUTATED);
+designer_notify(ctx, DESIGNER_EVENT_COMPONENT_REGISTRY_CHANGED);
+```
+- Views subscribe/respond. Do not have low-level code directly call every panel refresh function it happens to know about.
+
+**File organization rules**
+- Menubar files should define menu resources, the menubar window proc, and command forwarding only. They must not own document creation/destruction, project XML parsing, layout algorithms, or property dialogs.
+- Canvas files should not save/load projects, own global app state, or decide component metadata. They may call document commands and layout/canvas helpers.
+- Header files should expose narrow module APIs. Avoid one mega-header that defines all app structs, all window states, and all cross-module functions.
+- Prefer private structs in `.c` files. Put only stable public model/API types in headers.
+
+**Good target shape:**
+```text
+examples/mydesigner/
+  main.c
+  app_controller.c/.h        // app state, active doc, commands, notifications
+  project_io.c/.h            // load/save/archive only
+  document_model.c/.h        // pure persistent document model + CRUD
+  component_registry.c/.h    // component descriptors + property schemas
+  layout_engine.c/.h         // measure/arrange/reflow/drop targets
+  view_canvas.c/.h           // canvas proc, hit testing, live-view map
+  view_menubar.c/.h          // menu resources + command forwarding
+  view_property_browser.c/.h // metadata-driven inspector
+  view_library.c/.h          // toolbox/library UI
+```
+
+When unsure, use this test: if a file both parses XML and handles `evLeftButtonDown`, or both draws selection handles and writes project files, split it.
 
 ### Working with Text Rendering
 - For small fixed-width text: use `draw_text_small()` with `strwidth()` for measurements
@@ -918,6 +1090,11 @@ Apply this to **all Orion code**, not only palettes/widgets.
   details locally where they are used.
 5. **Single-source behavior for each concern.**
   Paint, hit-test, and state transitions should share the same derived logic to avoid drift.
+6. **Prefer configuration tables over if/else chains for field/action dispatch.**
+  When mapping identifiers (field names, commands, actions) to behavior, use static arrays
+  of structs plus shared dispatch helpers (DDX-style) so new mappings are data changes, not logic forks.
+7. **Use Action-Message DDX for data object handlers.**
+  Keep `msg` as the action verb (for example, get/set field data) and pass field identity + payload length in packed `wparam` (`MAKEDWORD(column_id, len)`). This keeps object handlers aligned with WinAPI-style message contracts and allows one proc to serve multiple models/tables.
 
 Why this is now the standard:
 - Improves readability by making control flow and intent obvious from function names.
@@ -1130,4 +1307,3 @@ Class defaults < Form/parent hints < Instance attributes (.orion)
 - **Issue**: `window_s.child_id` was mutable parent state used only as an incrementing allocator.
 - **Fix**: Replaced with computed allocation (`next_child_id(parent)`) scanning existing `children` and toolbar children.
 - **Lesson**: Avoid storing redundant counters when IDs can be derived from the live tree safely.
-

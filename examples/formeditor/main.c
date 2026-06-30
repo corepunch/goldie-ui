@@ -37,12 +37,16 @@ static void create_app_windows(hinstance_t hinstance) {
   g_app->prop_win = property_browser_create(hinstance);
   g_app->forms_win = forms_browser_create(hinstance);
   g_app->plugins_win = plugins_browser_create(hinstance);
+  g_app->databases_win = create_database_browser(
+    MAKERECT(DATABASES_WIN_X, DATABASES_WIN_Y, DATABASES_WIN_W, DATABASES_WIN_H),
+    NULL);
 }
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_app = calloc(1, sizeof(app_state_t));
   if (!g_app) return false;
 
+  register_commctl_classes();
   load_default_component_plugin();
   const char *project_path = NULL;
   for (int i = 1; i < argc; i++) {
@@ -69,7 +73,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (g_app->menubar_win)
     send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
 
-  if (!project_path || !form_project_load(project_path))
+  if (!project_path || !fe_project_load(project_path))
     create_form_doc(FORM_DEFAULT_W, FORM_DEFAULT_H);
 
   /* Splash screen disabled for form editor startup.
@@ -100,6 +104,8 @@ void gem_shutdown(void) {
     destroy_window(g_app->forms_win);
   if (g_app->plugins_win)
     destroy_window(g_app->plugins_win);
+  if (g_app->databases_win)
+    destroy_window(g_app->databases_win);
   free(g_app);
   g_app = NULL;
 }

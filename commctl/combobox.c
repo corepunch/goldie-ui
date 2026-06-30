@@ -2,13 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../ui.h"
 #include "../user/user.h"
 #include "../user/messages.h"
 #include "../user/draw.h"
 #include "../user/theme.h"
-
-#define MAX_COMBOBOX_STRINGS MAX_LIST_ITEMS
-typedef char combobox_string_t[64];
+#include "commctl.h"
 
 // Forward declare list control procedure  
 extern result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -24,8 +23,8 @@ static void open_dropdown(window_t *win) {
   if (!win)
     return;
 
-  combobox_string_t *texts = (combobox_string_t *)win->userdata;
-  if (!texts || win->cursor_pos == 0)
+  combobox_state_t *state = (combobox_state_t *)win->userdata;
+  if (!state || !state->texts || win->cursor_pos == 0)
     return;
 
   // Determine the screen-absolute position of the combobox bottom edge.
@@ -45,15 +44,24 @@ static void open_dropdown(window_t *win) {
     abs_x = parent->frame.x + win->frame.x;
     abs_y = parent->frame.y + parent_title_h + win->frame.y + win->frame.h + 2;
   } else {
-    window_t *root = get_root_window(win);
-    int root_t = titlebar_height(root);
-    abs_x = root->frame.x + win->frame.x;
-    abs_y = root->frame.y + root_t + win->frame.y + win->frame.h + 2;
+    // Walk parent chain to compute absolute screen position
+    abs_x = win->frame.x;
+    abs_y = win->frame.y + win->frame.h + 2;
+    
+    for (window_t *p = win->parent; p; p = p->parent) {
+      int title_h = (p->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
+      abs_x += p->frame.x;
+      abs_y += p->frame.y + title_h;
+    }
   }
   irect16_t rect = {abs_x, abs_y, win->frame.w, 100};
-  window_t *list = create_window("", WINDOW_NOTITLE|WINDOW_NORESIZE|WINDOW_VSCROLL|WINDOW_ALWAYSONTOP|WINDOW_NOTRAYBUTTON, &rect, NULL, win_list, win->hinstance, win);
+  window_t *list = create_window("", WINDOW_NOTITLE|WINDOW_NORESIZE|WINDOW_VSCROLL|WINDOW_ALWAYSONTOP|WINDOW_NOTRAYBUTTON, &rect, NULL, win_list, win->hinstance, NULL);
   if (!list)
     return;
+  list->userdata = win;
+  list->userdata2 = malloc(sizeof(win->title));
+  if (list->userdata2)
+    memcpy(list->userdata2, win->title, sizeof(win->title));
 
   result_t sel = send_message(win, cbGetCurrentSelection, 0, NULL);
   if (sel != (result_t)kComboBoxError)
@@ -63,15 +71,121 @@ static void open_dropdown(window_t *win) {
   set_focus(list);
 }
 
+// Helper: Populate combobox from database using combobox_params_t
+static void cb_populate_from_database(window_t *win, const combobox_params_t *params) {
+  if (!params || !params->display_field || !params->value_field) {
+    return;
+  }
+  
+  // If db is NULL, try to get it from window (set via evSetDatabase)
+  database_t *db = params->db;
+  if (!db) {
+    // Database pointer not set - will need to be set via message later
+    return;
+  }
+  
+  // Fetch all records from source table
+  result_node_t *results = (result_node_t *)send_db_message(db, dbFetch,
+    MAKEDWORD(params->table_id, 0), (void *)0);
+  
+  if (!results) {
+    return;
+  }
+  
+  // Get object proc and field bindings for this table
+  db_object_proc_t obj_proc = (db_object_proc_t)send_db_message(db, dbGetObjectProc,
+    (uint32_t)params->table_id, NULL);
+  
+  int binding_count = 0;
+  const db_field_msg_binding_t *bindings = (const db_field_msg_binding_t *)send_db_message(
+    db, dbGetFieldBindings, (uint32_t)params->table_id, &binding_count);
+  
+  if (!obj_proc || !bindings) {
+    free_result_list(results);
+    return;
+  }
+  
+  combobox_state_t *state = (combobox_state_t *)win->userdata;
+  if (!state) {
+    free_result_list(results);
+    return;
+  }
+  
+  // Allocate values array if not already allocated
+  if (!state->values) {
+    state->values = calloc(MAX_COMBOBOX_STRINGS, sizeof(int));
+  }
+  
+  // Add each record to combobox
+  char display_buf[256];
+  int count = 0;
+  for (result_node_t *node = results; node && count < MAX_COMBOBOX_STRINGS; node = node->next) {
+    display_buf[0] = '\0';
+    
+    // Extract display field text using DDX-style field interrogation
+    // CRITICAL: dbFetch stores pointers in node->data (db_author_t **), not structs.
+    // Example: *(db_author_t **)node->data = &ctx->authors[i];
+    // So we must dereference to get the actual record pointer.
+    void *record = *(void **)node->data;
+    bool success = db_object_get_field_text(bindings, binding_count, obj_proc,
+                                  record, params->display_field,
+                                  display_buf, sizeof(display_buf));
+    
+    if (success && display_buf[0] != '\0') {
+      send_message(win, cbAddString, 0, display_buf);
+      
+      // Store value_field (e.g., ID) for foreign key binding
+      char value_buf[64];
+      if (db_object_get_field_text(bindings, binding_count, obj_proc,
+                                    record, params->value_field,
+                                    value_buf, sizeof(value_buf))) {
+        state->values[count] = atoi(value_buf);
+      }
+      count++;
+    }
+  }
+  
+  free_result_list(results);
+}
+
 // Combobox control window procedure
 result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-  combobox_string_t *texts = win->userdata;
+  combobox_state_t *state = (combobox_state_t *)win->userdata;
+  combobox_string_t *texts = state ? state->texts : NULL;
+  
   switch (msg) {
-    case evCreate:
+    case evCreate: {
       win_button(win, msg, wparam, lparam);
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+16);
-      win->userdata = malloc(sizeof(combobox_string_t) * MAX_COMBOBOX_STRINGS);
+      
+      // Allocate state
+      state = (combobox_state_t *)calloc(1, sizeof(combobox_state_t));
+      if (!state) return false;
+      state->texts = (combobox_string_t *)malloc(sizeof(combobox_string_t) * MAX_COMBOBOX_STRINGS);
+      if (!state->texts) {
+        free(state);
+        return false;
+      }
+      win->userdata = state;
+      texts = state->texts;
+      
+      // Check if created from form with combobox_params_t
+      if ((uintptr_t)lparam > 0x1000) {
+        form_ctrl_def_t *cd = (form_ctrl_def_t *)lparam;
+        if (cd->lparam) {
+          combobox_params_t *params = (combobox_params_t *)cd->lparam;
+          // Copy params to state
+          state->params = *params;
+          
+          // Try to get database if params has db name info.
+          // When unavailable at create time, the parent later propagates
+          // evSetDatabase through the child tree.
+          cb_populate_from_database(win, &state->params);
+        }
+      }
+      
       return true;
+    }
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (m) {
@@ -82,7 +196,11 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       return true;
     }
     case evDestroy:
-      free(win->userdata);
+      if (state) {
+        free(state->texts);
+        free(state->values);
+        free(state);
+      }
       return true;
     case evPaint:
       {
@@ -181,6 +299,31 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (lparam)
         *(int *)lparam = kComboBoxError;
       return kComboBoxError;
+    case cbGetCurrentValue:
+      // Return value_field data (e.g., ID) instead of row index
+      if (state && state->values) {
+        for (uint32_t i = 0; i < win->cursor_pos; i++) {
+          if (!strncmp(texts[i], win->title, sizeof(win->title))) {
+            if (lparam)
+              *(int *)lparam = state->values[i];
+            return state->values[i];
+          }
+        }
+      }
+      if (lparam)
+        *(int *)lparam = kComboBoxError;
+      return kComboBoxError;
+    case evSetDatabase:
+      // Set database pointer and populate combobox
+      if (state && lparam) {
+        state->params.db = (database_t *)lparam;
+        // Clear existing items
+        send_message(win, cbClear, 0, NULL);
+        // Populate from database
+        cb_populate_from_database(win, &state->params);
+        invalidate_window(win);
+      }
+      return true;
     default:
       return win_button(win, msg, wparam, lparam);
   }

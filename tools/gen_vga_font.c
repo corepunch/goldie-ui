@@ -4,23 +4,17 @@
 // monospace character sheet with 256 glyphs arranged in a 16-column x 16-row
 // grid (each cell is 8x16 pixels, white glyphs on transparent background).
 //
-// The source bitmap is the 6x8 console font stored in tools/font_6x8.h
-// (static array console_font_6x8[]).  Each glyph is scaled
-// to 8x16 by:
-//   - Using all 8 bits of each row byte as-is (6 significant bits, 2 trailing
-//     zeros → glyph left-aligned in the 8-pixel-wide cell).
-//   - Doubling each of the 8 source rows → 16 destination rows.
-//
-// Glyphs 128-255 are left blank (the 6x8 font only covers 0-127).
+// The source bitmap is the raw Amiga Topaz a500 font from rewtnull/amigafonts:
+// 256 glyphs * 16 rows, one byte per 8-pixel row, MSB on the left.
 //
 // Usage:
-//   gen_vga_font [output_path]
+//   gen_vga_font [output_path [raw_font_path]]
 //   (default output path: share/fonts/vga-rom-font-8x16.png)
+//   (default raw font:   fonts/Topaz_a500_v1.0.raw)
 //
 // Build: this tool is compiled by the standard Makefile tools rule.  It is
-// self-contained — the font data lives in tools/font_6x8.h and the only
-// liborion dependency is save_image_png() (user/image.h, pure stb_image_write
-// wrapper, no GL context required).
+// It has no GL context requirement; the only liborion dependency is
+// save_image_png() (user/image.h, pure stb_image_write wrapper).
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +22,6 @@
 #include <stdint.h>
 
 #include "../user/image.h"
-#include "font_6x8.h"
 
 #define GLYPH_W     8
 #define GLYPH_H     16
@@ -36,52 +29,85 @@
 #define GRID_ROWS   16
 #define SHEET_W     (GRID_COLS * GLYPH_W)   /* 128 */
 #define SHEET_H     (GRID_ROWS * GLYPH_H)   /* 256 */
-#define SRC_ROWS    8   /* rows in the 6x8 source glyph */
+#define RAW_FONT_SIZE (GRID_COLS * GRID_ROWS * GLYPH_H)
+
+static uint8_t *read_raw_font(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    fprintf(stderr, "gen_vga_font: failed to open raw font %s\n", path);
+    return NULL;
+  }
+
+  uint8_t *data = (uint8_t *)malloc(RAW_FONT_SIZE);
+  if (!data) {
+    fclose(f);
+    fprintf(stderr, "gen_vga_font: out of memory\n");
+    return NULL;
+  }
+
+  size_t n = fread(data, 1, RAW_FONT_SIZE, f);
+  int extra = fgetc(f);
+  fclose(f);
+
+  if (n != RAW_FONT_SIZE || extra != EOF) {
+    fprintf(stderr,
+            "gen_vga_font: expected %d-byte raw font, got %zu%s from %s\n",
+            RAW_FONT_SIZE, n, extra != EOF ? "+" : "", path);
+    free(data);
+    return NULL;
+  }
+
+  return data;
+}
 
 int main(int argc, char *argv[]) {
   const char *out_path = (argc > 1) ? argv[1] : "share/fonts/vga-rom-font-8x16.png";
+  const char *raw_path = (argc > 2) ? argv[2] : "fonts/Topaz_a500_v1.0.raw";
+
+  uint8_t *raw = read_raw_font(raw_path);
+  if (!raw)
+    return 1;
 
   // Allocate RGBA pixel buffer, initialised to transparent black.
   uint8_t *pixels = (uint8_t *)calloc((size_t)(SHEET_W * SHEET_H * 4), 1);
   if (!pixels) {
     fprintf(stderr, "gen_vga_font: out of memory\n");
+    free(raw);
     return 1;
   }
 
-  for (int ch = 0; ch < 128; ch++) {
+  for (int ch = 0; ch < 256; ch++) {
     // Position of this glyph's top-left corner in the sheet.
     int base_x = (ch & 0xF) * GLYPH_W;
     int base_y = (ch >> 4)  * GLYPH_H;
 
-    for (int src_row = 0; src_row < SRC_ROWS; src_row++) {
-      uint8_t row_bits = console_font_6x8[ch * SRC_ROWS + src_row];
+    for (int row = 0; row < GLYPH_H; row++) {
+      uint8_t row_bits = raw[ch * GLYPH_H + row];
 
-      // Emit this row twice (vertical 2x scale).
-      for (int dup = 0; dup < 2; dup++) {
-        int dst_y = base_y + src_row * 2 + dup;
+      for (int bit = 0; bit < GLYPH_W; bit++) {
+        // MSB of row_bits = leftmost pixel (column 0).
+        int pixel_on = (row_bits >> (GLYPH_W - 1 - bit)) & 1;
+        if (!pixel_on) continue;
 
-        for (int bit = 0; bit < GLYPH_W; bit++) {
-          // MSB of row_bits = leftmost pixel (column 0).
-          int pixel_on = (row_bits >> (GLYPH_W - 1 - bit)) & 1;
-          if (!pixel_on) continue;
-
-          int idx = (dst_y * SHEET_W + base_x + bit) * 4;
-          pixels[idx + 0] = 0xFF;  /* R — white */
-          pixels[idx + 1] = 0xFF;  /* G */
-          pixels[idx + 2] = 0xFF;  /* B */
-          pixels[idx + 3] = 0xFF;  /* A — fully opaque */
-        }
+        int idx = ((base_y + row) * SHEET_W + base_x + bit) * 4;
+        pixels[idx + 0] = 0xFF;  /* R — white */
+        pixels[idx + 1] = 0xFF;  /* G */
+        pixels[idx + 2] = 0xFF;  /* B */
+        pixels[idx + 3] = 0xFF;  /* A — fully opaque */
       }
     }
   }
 
   if (!save_image_png(out_path, pixels, SHEET_W, SHEET_H)) {
     fprintf(stderr, "gen_vga_font: failed to write %s\n", out_path);
+    free(raw);
     free(pixels);
     return 1;
   }
 
-  printf("gen_vga_font: wrote %s (%dx%d)\n", out_path, SHEET_W, SHEET_H);
+  printf("gen_vga_font: wrote %s (%dx%d) from %s\n",
+         out_path, SHEET_W, SHEET_H, raw_path);
+  free(raw);
   free(pixels);
   return 0;
 }

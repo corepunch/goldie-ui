@@ -341,7 +341,6 @@
 				HEADER_SEARCH_PATHS = (
 					/opt/homebrew/opt/sdl2/include,
 					/opt/homebrew/include,
-					/opt/homebrew/opt/cglm/include,
 				);
 				LIBRARY_SEARCH_PATHS = (
 					/opt/homebrew/opt/sdl2/lib,
@@ -410,7 +409,6 @@
 				HEADER_SEARCH_PATHS = (
 					/opt/homebrew/opt/sdl2/include,
 					/opt/homebrew/include,
-					/opt/homebrew/opt/cglm/include,
 				);
 				LIBRARY_SEARCH_PATHS = (
 					/opt/homebrew/opt/sdl2/lib,

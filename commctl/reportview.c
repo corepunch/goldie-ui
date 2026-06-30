@@ -277,7 +277,8 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       uint32_t i = data->column_count;
       strncpy(data->columns[i].title, col->title ? col->title : "", MAX_REPORTVIEW_TITLE - 1);
       data->columns[i].title[MAX_REPORTVIEW_TITLE - 1] = '\0';
-      data->columns[i].width = col->width;
+      data->columns[i].width_spec = col->width;  // Store original spec
+      data->columns[i].width = col->width;        // Initial effective width
       data->column_count++;
       rv_invalidate(win, data);
       return (result_t)i;
@@ -354,12 +355,34 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         if (r.h < 1) r.h = 1;
         win->frame = r;
       }
+      // Recalculate flex column widths after arranging
+      irect16_t cr = get_client_rect(win);
+      if (cr.w > 0 && data->column_count > 0) {
+        for (uint32_t i = 0; i < data->column_count; i++) {
+          int w = rv_get_report_column_width(data, (int)i, cr.w);
+          data->columns[i].width = (uint32_t)w;
+        }
+      }
       report_sync_scroll(win, data);
       return true;
     }
-    case evResize:
+    case evResize: {
+      // Recalculate flex column widths when window resizes
+      irect16_t cr = get_client_rect(win);
+      if (cr.w <= 0) {
+        // Window not sized yet - skip column width calculation
+        report_sync_scroll(win, data);
+        return false;
+      }
+      int avail_w = cr.w;
+      for (uint32_t i = 0; i < data->column_count; i++) {
+        int w = rv_get_report_column_width(data, (int)i, avail_w);
+        data->columns[i].width = (uint32_t)w;
+      }
       report_sync_scroll(win, data);
+      rv_invalidate(win, data);
       return false;
+    }
     case evKeyDown: {
       if (!data || data->count == 0)
         return false;

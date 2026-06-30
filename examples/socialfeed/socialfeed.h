@@ -14,10 +14,37 @@
 #include "../../user/accel.h"
 #include "../../user/icons.h"
 
-// Menu / toolbar IDs and static form definitions are generated from socialfeed.orion.
-// The generated header also defines kMenus, kNumMenus, TB_FEED/TB_FEED_COUNT,
-// and the three form_def_t structs used by the dialogs.
-#include "build/generated/examples/socialfeed/socialfeed_forms.h"
+// All definitions generated from socialfeed.orion:
+//   - Menu IDs, toolbar IDs, form definitions
+//   - Database schema (table enums, structs, field bindings)
+#include "build/generated/examples/socialfeed/socialfeed.h"
+
+// ============================================================
+// Database Implementation (db_simple_xml.c)
+// ============================================================
+//
+// Messages supported (Zero Wrapper Structs API):
+//   dbCreate - allocate userdata, parse lparam source path
+//   dbLoad   - load from XML file
+//   dbSave   - save to XML file (only if dirty)
+//   dbInsert - wparam=TABLE_*; lparam=record_data → returns (lresult_t)record_ptr
+//   dbUpdate - wparam=TABLE_*; lparam=record_ptr → returns 1 on success
+//   dbDelete - wparam=TABLE_*; lparam=(void*)(intptr_t)record_id → returns 1 on success
+//   dbFetch  - wparam=MAKEDWORD(TABLE_*,filter_field); lparam=(intptr_t)filter_value → returns (lresult_t)result_node_t*
+//   dbFind   - wparam=MAKEDWORD(TABLE_*,search_field); lparam=(intptr_t)value or (void*)str → returns (lresult_t)record_ptr
+//
+// Example usage:
+//   // Insert
+//   author_t author = { .name = "alice" };
+//   author_t *inserted = (author_t *)send_db_message(db, dbInsert, TABLE_AUTHORS, &author);
+//
+//   // Fetch all posts
+//   result_node_t *posts = (result_node_t *)send_db_message(db, dbFetch,
+//     MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+//   int count = count_result_list(posts);
+//   free_result_list(posts);
+//
+lresult_t db_simple_xml(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 #ifndef SOCIALFEED_DEBUG
 #define SOCIALFEED_DEBUG 1
@@ -53,42 +80,11 @@
 #define REPLIES_INIT_CAP   4
 
 // ============================================================
-// Data model
-// ============================================================
-
-typedef struct comment_s {
-  int                id;
-  char              *author;
-  char              *text;
-  int                like_count;
-  uint32_t           created_at;
-  struct comment_s **replies;
-  int                reply_count;
-  int                reply_cap;
-} comment_t;
-
-typedef struct {
-  int        id;
-  char      *author;
-  char      *title;
-  char      *body;
-  int        like_count;
-  uint32_t   created_at;
-  comment_t **comments;
-  int        comment_count;
-  int        comment_cap;
-} post_t;
-
-// ============================================================
 // Application state
 // ============================================================
 
 typedef struct {
-  post_t     **posts;
-  int          post_count;
-  int          post_cap;
-  int          next_id;          // next post ID (Appwrite document ID)
-  int          next_comment_id;  // next comment / reply ID
+  database_t  *db;           // Database for automatic view population
   int          selected_idx;
   window_t    *menubar_win;
   window_t    *main_win;
@@ -101,39 +97,21 @@ typedef struct {
 extern app_state_t *g_app;
 
 // ============================================================
-// Model functions (model_feed.c)
-// ============================================================
-
-char      *sf_strdup(const char *s);
-
-comment_t *comment_create(const char *author, const char *text);
-void       comment_free(comment_t *c);
-bool       comment_add_reply(comment_t *c, comment_t *reply);
-void       comment_like(comment_t *c);
-
-post_t    *post_create(const char *author, const char *title, const char *body);
-void       post_free(post_t *p);
-bool       post_add_comment(post_t *p, comment_t *c);
-void       post_like(post_t *p);
-
-// ============================================================
 // Controller functions (controller_app.c)
 // ============================================================
 
 app_state_t *app_init(void);
 void         app_shutdown(app_state_t *app);
-bool         app_add_post(post_t *post);
 bool         app_delete_post(int index);
-post_t      *app_get_post(int index);
+bool         app_like_post(int post_id);
+bool         app_like_comment(int comment_id);
+int          app_get_post_id_from_index(int index);
 void         app_update_status(void);
 
-// Append a comment to a post, assigning it a unique document ID.
-// Mirrors app_add_post — callers must use this instead of post_add_comment()
-// directly so that all comments are assigned monotonically increasing IDs.
-bool         app_add_comment(post_t *post, comment_t *c);
-
-// Append a reply to a comment, assigning it a unique document ID.
-bool         app_add_reply(comment_t *parent, comment_t *reply);
+// Append a comment to a post in database.
+// Takes post_id, author_id, and comment text.
+// Returns true if comment was successfully inserted.
+bool         app_add_comment(int post_id, int author_id, const char *text);
 
 // ============================================================
 // View — menu bar (view_menubar.c)
@@ -143,6 +121,13 @@ void     handle_menu_command(uint16_t id);
 result_t app_menubar_proc(window_t *win, uint32_t msg,
                           uint32_t wparam, void *lparam);
 void     create_menubar(void);
+
+// ============================================================
+// Test — database dialog tests (test_db_dialog.c)
+// ============================================================
+
+void test_author_edit_dialog(window_t *parent, database_t *db);
+void test_new_author_dialog(window_t *parent, database_t *db);
 
 // ============================================================
 // View — main window (view_main.c)
@@ -160,18 +145,9 @@ void     create_main_window(void);
 void show_post_detail(window_t *parent, int post_idx);
 
 // ============================================================
-// View — new post / comment dialogs (view_dlg_forms.c)
+// View — Dialogs (MIGRATED to show_db_dialog)
 // ============================================================
-
-bool show_new_post_dialog(window_t *parent);
-bool show_new_comment_dialog(window_t *parent, const char *prompt_title,
-                             char *author_buf, size_t author_sz,
-                             char *text_buf,   size_t text_sz);
-
-// ============================================================
-// Seed data loading
-// ============================================================
-
-bool socialfeed_load_seed_data(const char *path);
+// All form-based dialogs now use show_db_dialog() / show_db_dialog_ex().
+// See view_menubar.c and view_dlg_post.c for usage.
 
 #endif // __SOCIALFEED_H__

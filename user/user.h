@@ -12,6 +12,7 @@
 // Forward declarations
 typedef struct window_s window_t;
 typedef struct irect16_s irect16_t;
+typedef struct database_s database_t;
 typedef uint32_t flags_t;
 typedef uint32_t result_t;
 
@@ -96,10 +97,20 @@ typedef struct bitmap_strip_s {
 } bitmap_strip_t;
 
 typedef struct toolbar_state_s {
-  window_t *children;      // toolbar child windows (toolbar-band-relative frames)
-  bitmap_strip_t strip;    // optional custom strip set via tbSetStrip/tbLoadStrip
-  uint32_t strip_tex;      // GL texture owned by toolbar host (freed on destroy)
-  int btn_size;            // 0 = TB_SPACING default; >0 = custom square size in px
+  // Owner-draw item list — buttons/separators/spacers/labels/dropdowns drawn inline.
+  toolbar_item_t *items;          // owned copy of the item descriptors (malloc'd)
+  int             item_count;     // number of items in items[]
+  irect16_t      *item_rects;     // computed band-relative rect per item (malloc'd)
+  int             hot_item;       // index of hovered item; -1 = none
+  int             pressed_item;   // index of currently pressed item; -1 = none
+  bool            pressed_in_arrow; // true when the press was in the dropdown arrow zone
+  // Embedded control child windows (COMBOBOX / TEXTEDIT items only).
+  // These are real window_t children with toolbar-band-relative frames.
+  window_t       *children;
+  // Strip for icon rendering (set via tbSetStrip / tbLoadStrip)
+  bitmap_strip_t  strip;
+  uint32_t        strip_tex;    // GL texture owned here; freed on toolbar destroy
+  int             btn_size;     // 0 = TB_SPACING default; >0 = custom square size in px
 } toolbar_state_t;
 
 // Window definition structure (for declarative window creation)
@@ -224,6 +235,7 @@ typedef struct form_ctrl_def_s {
   bool              font_set; // font attribute explicitly set
   uint8_t           color;   // label color palette index; 0 = transparent
   bool              color_set; // color attribute explicitly set
+  const void       *lparam;  // custom control creation parameter (e.g. tableview_params_t*)
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -242,12 +254,101 @@ typedef struct {
   irect16_t               margin;       // outer margin for this form when nested
   const form_ctrl_def_t  *children;    // array of child control definitions (may be NULL)
   int                     child_count; // number of entries in children[]
+  // ── Toolbar fields ───────────────────────────────────────────────────────
+  const void             *toolbar_items;  // toolbar_item_t array (may be NULL)
+  int                     toolbar_count;  // number of toolbar items
   // ── DDX (Dialog Data Exchange) fields ───────────────────────────────────
   const ctrl_binding_t   *bindings;      // data-exchange table (may be NULL)
   int                     binding_count;   // number of entries in bindings[]
   uint32_t                ok_id;           // child ID of the Accept / OK button
   uint32_t                cancel_id;       // child ID of the Cancel button (0 = none)
+  // ── Database binding fields ──────────────────────────────────────────────
+  const char             *db_name;       // database instance name (e.g., "db")
+  const char             *db_table;      // database table name (e.g., "posts")
+  int                     db_table_id;   // TABLE_* enum value
+  const void             *db_fields;     // db_field_meta_t array for this table
+  int                     db_field_count; // number of fields in db_fields[]
 } form_def_t;
+
+// Declarative database API metadata emitted from .orion documents.
+// This metadata is model/view-agnostic and can be consumed by applications to
+// drive fetch actions and view bindings without hard-coded column setup.
+typedef struct {
+  const char *name;   // source name, e.g. "feed_posts"
+  const char *model;  // logical model name, e.g. "post"
+} db_source_def_t;
+
+typedef struct {
+  const char *field;  // model field key, e.g. "title"
+  const char *title;  // view column title
+  int         width;  // preferred column width; <=0 means auto/flex
+} db_binding_column_t;
+
+typedef struct {
+  const char               *name;   // binding identifier
+  const char               *source; // source name this binding reads from
+  const char               *view;   // target view/control name
+  const db_binding_column_t *columns;
+  int                       column_count;
+} db_view_binding_t;
+
+typedef enum {
+  DB_ACTION_FETCH = 1,
+  DB_ACTION_INSERT,
+  DB_ACTION_UPDATE,
+  DB_ACTION_DELETE,
+  DB_ACTION_CUSTOM,
+} db_action_kind_t;
+
+typedef struct {
+  const char       *name;   // action identifier
+  db_action_kind_t  kind;   // fetch/insert/update/delete/custom
+  const char       *source; // source name this action targets
+  const char       *target; // target view/control or route name
+} db_action_def_t;
+
+typedef struct {
+  const char *name;   // outlet identifier
+  const char *type;   // expected object/control type, if known
+  const char *target; // connected view/control name, if known
+} db_outlet_def_t;
+
+typedef struct {
+  const db_source_def_t  *sources;
+  int                     source_count;
+  const db_view_binding_t *bindings;
+  int                     binding_count;
+  const db_action_def_t  *actions;
+  int                     action_count;
+  const db_outlet_def_t  *outlets;
+  int                     outlet_count;
+} db_api_def_t;
+
+typedef result_t (*db_object_proc_t)(const void *object, uint32_t msg,
+                                     uint32_t wparam, void *lparam);
+
+// Action verbs for database object handlers (Action-Message DDX pattern).
+// msg carries the verb; wparam carries packed payload metadata.
+typedef enum {
+  dbObjGetFieldText = 1,
+  dbObjSetFieldText,
+} db_object_action_t;
+
+// Field-to-column lookup used by db_object_get_field_text().
+// The mapped column_id is packed into LOWORD(wparam).
+typedef struct {
+  const char *field;
+  uint16_t    column_id;
+} db_field_msg_binding_t;
+
+const db_source_def_t  *db_api_find_source(const db_api_def_t *api, const char *name);
+const db_view_binding_t *db_api_find_binding(const db_api_def_t *api, const char *name);
+const db_view_binding_t *db_api_find_binding_for_view(const db_api_def_t *api, const char *view);
+const db_action_def_t  *db_api_find_action(const db_api_def_t *api, const char *name);
+const db_outlet_def_t  *db_api_find_outlet(const db_api_def_t *api, const char *name);
+bool db_object_get_field_text(const db_field_msg_binding_t *bindings, int binding_count,
+                              db_object_proc_t proc, const void *object,
+                              const char *field, char *buf, size_t buf_sz);
 
 typedef struct {
   uint32_t color_index;   // palette index for label text color; 0 = transparent
@@ -270,19 +371,15 @@ static inline uint32_t label_pack_userdata(uint32_t color_index, ui_font_t font,
 #define FE_COMPONENT_SHOW_TOOLBOX   0x0002u
 
 typedef struct {
-  const char *class_name;     // stable runtime class key (e.g. "button")
-  const char *display_name;   // UI/display caption base (e.g. "Button")
-  const char *token;          // stable serialization token (e.g. "button")
+  const char *class_name;     // stable runtime class key (e.g. "Button")
   const char *name_prefix;    // identifier prefix (e.g. "IDC_BTN")
-  int         toolbox_ident;  // command ID sent by toolbox host
   int         toolbox_icon;    // icon id from sysicon_* or custom strip index
   isize16_t   default_size;   // default size when click-placing
   uint32_t    capabilities;   // FE_COMPONENT_* flags
   winproc_t   proc;           // runtime window proc backing this component
   
   // Window class defaults (used by auto-layout measurement system)
-  int16_t     default_width;  // -1 = stretch, 0 = measure content, >0 = fixed
-  int16_t     default_height; // natural height for this control type
+  isize16_t   default_layout_size; // layout defaults: -1 stretch, 0 measure, >0 fixed
   flags_t     default_flags;  // WINDOW_FLEXSPACE, WINDOW_VSCROLL, etc.
   uint8_t     default_h_align;// LAYOUT_ALIGN_STRETCH, etc.
   uint8_t     default_v_align;// LAYOUT_ALIGN_STRETCH, etc.
@@ -295,6 +392,8 @@ typedef int                        (*fe_plugin_class_count_fn)(void);
 typedef const fe_component_desc_t *(*fe_plugin_class_desc_fn)(int i);
 typedef const char                *(*fe_plugin_description_fn)(void);
 typedef uint32_t                   (*fe_plugin_version_fn)(void);
+typedef bool                       (*fe_plugin_init_fn)(void);
+typedef void                       (*fe_plugin_shutdown_fn)(void);
 
 #define FE_PLUGIN_VERSION 1u
 
@@ -323,12 +422,11 @@ typedef uint32_t                   (*fe_plugin_version_fn)(void);
     return (uint32_t)(VERSION); \
   }
 
-bool fe_register_component(const fe_component_desc_t *desc);
 int fe_component_count(void);
 const fe_component_desc_t *fe_component_at(int index);
 const fe_component_desc_t *fe_component_by_id(int id);
-const fe_component_desc_t *fe_component_by_tool_ident(int ident);
-const fe_component_desc_t *fe_component_by_token(const char *token);
+int fe_component_id_of(const fe_component_desc_t *desc);
+const fe_component_desc_t *fe_component_by_class_name(const char *class_name);
 bool fe_component_rejects_parent(const fe_component_desc_t *desc, window_t *target);
 
 bool fe_load_component_plugin(const char *path);
@@ -352,6 +450,7 @@ typedef struct {
 struct window_s {
   irect16_t frame;
   uint32_t id;
+  uint64_t editor_id;    // optional design-time stable identity; 0 outside editors
   // Runtime style/state flags share one 32-bit word.
   // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;
@@ -409,14 +508,15 @@ window_t *create_window_proc(char const *title, flags_t flags, const irect16_t* 
 
 // Window class registry.
 bool register_window_class(const fe_component_desc_t *desc);
-bool register_window_class_once(const fe_component_desc_t *desc);
+int get_num_window_classes(void);
+const fe_component_desc_t *get_window_class_at_index(int index);
+const fe_component_desc_t *find_window_class_desc_by_proc(winproc_t proc);
 winproc_t find_window_class_proc(const char *class_name);
 const fe_component_desc_t *find_window_class_desc(const char *class_name);
 void register_builtin_window_classes(void);
 
 // Query window class defaults.
-int16_t  get_class_default_width(const char *class_name);
-int16_t  get_class_default_height(const char *class_name);
+isize16_t get_class_default_size(const char *class_name);
 flags_t  get_class_default_flags(const char *class_name);
 uint8_t  get_class_default_h_align(const char *class_name);
 uint8_t  get_class_default_v_align(const char *class_name);
@@ -425,7 +525,7 @@ uint8_t  get_class_default_v_align(const char *class_name);
   ((fe_component_desc_t){ .class_name = (name_sym), .proc = (proc_sym) })
 
 #define UI_CLASS(proc_sym) \
-  register_window_class_once(&(fe_component_desc_t){ .class_name = #proc_sym, .proc = (proc_sym) })
+  register_window_class(&(fe_component_desc_t){ .class_name = #proc_sym, .proc = (proc_sym) })
 
 // Migration bridge: `create_window` accepts either a class name string or a
 // winproc symbol and dispatches to the appropriate creation function.
@@ -544,6 +644,27 @@ uint32_t show_dialog_from_form(form_def_t const *def, char const *title,
 // Returns the dialog end code (1 = accepted, 0 = cancelled).
 uint32_t show_ddx_dialog(form_def_t const *def, const char *title,
                          window_t *parent, void *state);
+
+// Show a modal database-driven dialog (DDX + database integration).
+// Fetches a record from the database table on open, pushes fields to controls,
+// pulls control values back on OK, and updates/inserts the record.
+// If record_id == 0, creates a new record (INSERT); otherwise updates existing (UPDATE).
+// The database is looked up automatically from def->db_name via the registry.
+// Returns the dialog end code (1 = accepted/saved, 0 = cancelled).
+uint32_t show_db_dialog(form_def_t const *def, const char *title,
+                        window_t *parent, int record_id);
+
+// Extended version with FK parent ID support (e.g., post_id for comments)
+// fk_field: name of FK field to populate (e.g., "post_id")
+// fk_value: FK value to set (e.g., 42 for post #42)
+uint32_t show_db_dialog_ex(form_def_t const *def, const char *title,
+                           window_t *parent, int record_id,
+                           const char *fk_field, int fk_value);
+
+// Database registry (NeXTSTEP-style singleton pattern)
+// Applications register their database at startup, framework retrieves automatically.
+void ui_set_database(database_t *db);
+database_t *ui_get_database(void);
 
 // Theme functions (analogous to WinAPI SetSysColors / GetSysColor)
 void set_sys_colors(int count, const int *indices, const uint32_t *colors);

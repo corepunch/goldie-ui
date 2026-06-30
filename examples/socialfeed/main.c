@@ -19,10 +19,64 @@
 
 #include "socialfeed.h"
 #include "../../gem_magic.h"
+#include "../../commctl/commctl.h"
+#include "../../platform/platform.h"
 
 #ifndef SHAREDIR
 #define SHAREDIR "."
 #endif
+
+#define SOCIALFEED_PATH_MAX 1024
+
+static bool resolve_socialfeed_db_path(char *out, size_t out_sz) {
+  if (!out || out_sz == 0) return false;
+  out[0] = '\0';
+
+  // First try the build/runtime asset location configured at compile time.
+  // Example binaries are linked with SHAREDIR="../share/<app>".
+  char candidate[SOCIALFEED_PATH_MAX];
+  snprintf(candidate, sizeof(candidate), "%s/socialfeed_seed.xml", SHAREDIR);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  const char *exe_dir = ui_get_exe_dir();
+  if (!exe_dir || !*exe_dir) return false;
+
+  // Also resolve SHAREDIR relative to the executable directory.
+  snprintf(candidate, sizeof(candidate), "%s/%s/socialfeed_seed.xml", exe_dir, SHAREDIR);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  // Common layout for built examples: <exe_dir>/../share/socialfeed/...
+  snprintf(candidate, sizeof(candidate),
+           "%s/../share/socialfeed/socialfeed_seed.xml", exe_dir);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  snprintf(candidate, sizeof(candidate),
+           "%s/../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  snprintf(candidate, sizeof(candidate),
+           "%s/../../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
+  if (axPathExists(candidate)) {
+    snprintf(out, out_sz, "%s", candidate);
+    return true;
+  }
+
+  snprintf(out, out_sz, "%s/../../examples/socialfeed/share/socialfeed_seed.xml",
+           exe_dir);
+  return false;
+}
 
 // ============================================================
 // gem_init
@@ -41,21 +95,57 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   }
 #endif
 
+  // Register database class
+  DB_CLASS(db_simple_xml);
+
   g_app = app_init();
   if (!g_app) return false;
   g_app->hinstance = hinstance;
 
-  if (!socialfeed_load_seed_data(SHAREDIR "/socialfeed_seed.xml")) {
+  // Form-based windows/dialogs require commctl classes to be registered.
+  register_commctl_classes();
+
+  char db_path[SOCIALFEED_PATH_MAX];
+  if (!resolve_socialfeed_db_path(db_path, sizeof(db_path))) {
+    SF_DEBUG("socialfeed_seed.xml not found in known locations; using fallback path: %s",
+             db_path);
+  }
+  g_app->db = create_database("socialfeed", "db_simple_xml", db_path);
+  if (!g_app->db) {
+    SF_DEBUG("Failed to create database");
     app_shutdown(g_app);
     g_app = NULL;
     return false;
   }
 
+  // Register database with framework (NeXTSTEP-style singleton)
+  ui_set_database(g_app->db);
+  
+  // Register database in the new registry (for declarative forms)
+  // Forms with field="db.table.field" will look up "db" automatically
+  register_database("db", g_app->db);
+
+  // Database automatically loads data from source XML file
+  // (no manual seed loading needed)
+  {
+    result_node_t *posts = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_POSTS, 0), (void *)(intptr_t)0);
+    result_node_t *authors = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_AUTHORS, 0), (void *)(intptr_t)0);
+    result_node_t *comments = (result_node_t *)send_db_message(g_app->db, dbFetch,
+      MAKEDWORD(TABLE_COMMENTS, 0), (void *)(intptr_t)0);
+    SF_DEBUG("database loaded: path='%s' authors=%d posts=%d comments=%d",
+             db_path, count_result_list(authors), count_result_list(posts),
+             count_result_list(comments));
+    free_result_list(posts);
+    free_result_list(authors);
+    free_result_list(comments);
+  }
+
   create_menubar();
   create_main_window();
 
-  SF_DEBUG("gem_init complete: %d posts seeded (next_comment_id=%d)",
-           g_app->post_count, g_app->next_comment_id);
+  SF_DEBUG("gem_init complete: database loaded");
   return true;
 }
 
@@ -66,6 +156,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 void gem_shutdown(void) {
   if (!g_app) return;
   SF_DEBUG("gem_shutdown");
+  if (g_app->db) {
+    destroy_database(g_app->db);
+    g_app->db = NULL;
+  }
   app_shutdown(g_app);
   g_app = NULL;
 #if SOCIALFEED_DEBUG
