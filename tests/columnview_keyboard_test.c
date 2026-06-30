@@ -489,18 +489,21 @@ void test_cv_report_click_after_scroll_child(void) {
     const int K = 3;
     cv->vscroll.pos = (uint32_t)(K * TEST_RV_ENTRY_HEIGHT);
 
-    // Viewport y = HEADER_HEIGHT is the first visible content row.
-    // rv_hit_index computes: row = (HEADER_HEIGHT + scroll_y - HEADER_HEIGHT) / ENTRY_HEIGHT = K.
+    // event.c LOCAL_Y bakes scroll offset into mouse coordinates, so the
+    // click y must be in content space (already includes scroll_y).
+    // Item K is at content y = HEADER_HEIGHT + K * ENTRY_HEIGHT.
     send_message(cv, evLeftButtonDown,
-                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT), NULL);
+                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT + K * TEST_RV_ENTRY_HEIGHT),
+                 NULL);
 
     ASSERT_EQUAL(g_last_notification, RVN_SELCHANGE);
     ASSERT_EQUAL(g_last_index, K);
 
-    // One row lower in the viewport selects K+1.
+    // One row lower selects K+1.
     reset_cmd_state();
     send_message(cv, evLeftButtonDown,
-                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT + TEST_RV_ENTRY_HEIGHT), NULL);
+                 MAKEDWORD(5, TEST_RV_HEADER_HEIGHT + (K + 1) * TEST_RV_ENTRY_HEIGHT),
+                 NULL);
 
     ASSERT_EQUAL(g_last_notification, RVN_SELCHANGE);
     ASSERT_EQUAL(g_last_index, K + 1);
