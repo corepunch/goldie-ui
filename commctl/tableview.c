@@ -416,8 +416,14 @@ static void tv_refresh_dependents(window_t *win, window_t *master) {
     tableview_state_t *s = (tableview_state_t *)child->userdata;
     if (child->proc == win_tableview && s && s->master_id == master->id) {
       char value[64] = {0};
+      // NB: s->master_key may be "" (empty string from generated code for
+      // unbound tableviews).  The truthy check below correctly falls back
+      // to "id" because "" is truthy in C, but this is an implicit contract
+      // that depends on generated code behaviour.
       if (tv_selected_field(master, s->master_key ? s->master_key : "id",
                             value, sizeof(value))) {
+        // LIMITATION: strtol assumes the master key is an integer.
+        // Non-integer FKs (UUIDs, hashes, etc.) will produce a zero value.
         send_message(child, tvSetFilter, (uint32_t)s->master_filter_field,
                      (void *)(intptr_t)strtol(value, NULL, 10));
       } else {

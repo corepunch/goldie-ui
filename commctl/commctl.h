@@ -114,8 +114,8 @@ typedef struct {
   const char **column_titles;  // Column display titles (NULL-terminated)
   const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
   uint32_t master_id;          // Parent TableView control ID (0 = unbound)
-  int master_filter_field;     // Child FK field used by dbFetch
-  const char *master_key;      // Parent field referenced by the FK
+  int master_filter_field;     // Child FK field used by dbFetch (integer FK only)
+  const char *master_key;      // Parent field referenced by the FK (must be integer)
 } tableview_params_t;
 
 result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

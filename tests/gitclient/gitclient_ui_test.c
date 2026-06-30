@@ -185,6 +185,12 @@ void test_gc_orion_relations_generate_tableview_masters(void) {
                  ID_DB_FILES_COMMIT_ID);
     ASSERT_STR_EQUAL(main_window_files_tableview_params.master_key, "id");
 
+    // NOTE: This test only checks static config.  There is no direct test
+    // of the automatic rv_notify → tableview_handle_master_selection →
+    // tvSetFilter chain at runtime (selecting a row on a real tableview
+    // and verifying the child gets filtered automatically).  The app-level
+    // tests (evCommand/RVN_SELCHANGE) cover the gc_main_proc handler, but
+    // bypass the automatic trigger in columnview.c:rv_notify().
     PASS();
 }
 
