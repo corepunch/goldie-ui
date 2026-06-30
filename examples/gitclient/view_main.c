@@ -53,11 +53,22 @@ void gc_refresh_all(void) {
     }
     free_result_list(rows);
   }
+  // NOTE: tvRefresh on log_win below fetches ALL commits (ignoring branch
+  // filter), then tableview_handle_master_selection re-filters them via
+  // tvSetFilter.  The redundant fetch is harmless but means the log briefly
+  // loads more data than needed.  If this becomes a perf bottleneck, swap
+  // the order: call tableview_handle_master_selection first (which sends
+  // tvSetFilter to children), then tvRefresh so the log fetches only the
+  // filtered set.
   if (gc->log_win)
     send_message(gc->log_win, tvRefresh, 0, NULL);
   if (gc->branches_win && gc->log_win)
     tableview_handle_master_selection(get_root_window(gc->branches_win),
                                       gc->branches_win);
+  // Similarly, files_win tvRefresh below uses whatever filter values were
+  // left from the previous selection; the master-detail mechanism will
+  // correct it after log_win's RVN_SELCHANGE propagates.  At full-refresh
+  // time this is acceptable, but it does mean an extra round-trip.
   if (gc->files_win)
     send_message(gc->files_win, tvRefresh, 0, NULL);
 
