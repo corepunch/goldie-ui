@@ -114,74 +114,14 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
         return true;
       }
 
-      int vis   = visible_lines(win);
       int start = CLAMP(st->scroll_y, 0, max_scroll_start(win, st));
-      int end   = MIN(start + vis, st->line_count);
-
-      int text_w = cr.w - LINE_NUM_W;
-      if (text_w < 8) text_w = 8;
-
-      int max_cols = text_w / VGA_CHAR_W;
-      int gutter_cols = LINE_NUM_W / VGA_CHAR_W;
-      int total_cols = gutter_cols + max_cols;
-
-      if (total_cols <= 0 || vis <= 0) return true;
-
-      if (!vga_text_ensure_grid(&st->grid, total_cols, vis)) {
-        // VGA grid unavailable — fall back to plain text
-        for (int li = start; li < end; li++) {
-          draw_text_small(st->lines[li], cr.x + 4,
-                          cr.y + 4 + (li - start) * 14,
-                          get_sys_color(brTextNormal));
-        }
-        return true;
-      }
-
-      int def_fg_idx = nearest_ansi_index(CLR_CTX_FG);
-      int def_bg_idx = nearest_ansi_index(CLR_CTX_BG);
-      vga_text_clear_grid(&st->grid, def_fg_idx, def_bg_idx);
-
-      int lnum_fg_idx = nearest_ansi_index(CLR_LNUM_FG);
-      int lnum_bg_idx = nearest_ansi_index(CLR_LNUM_BG);
+      int end   = MIN(start + 50, st->line_count);
 
       for (int li = start; li < end; li++) {
-        const char *line = st->lines[li];
-        int row = li - start;
-
-        uint32_t fg = CLR_CTX_FG;
-        uint32_t bg = CLR_CTX_BG;
-
-        char lnum[16];
-        snprintf(lnum, sizeof(lnum), "%4d ", li + 1);
-        for (int c = 0; c < gutter_cols; c++) {
-          unsigned char ch = (unsigned char)(lnum[c] ? lnum[c] : ' ');
-          vga_text_set_cell(&st->grid, c, row, ch, lnum_fg_idx, lnum_bg_idx);
-        }
-
-        vga_text_write_ansi_line(line, &st->grid, row, gutter_cols, max_cols, fg, bg);
+        draw_text_small(st->lines[li], cr.x + 4,
+                        cr.y + 4 + (li - start) * 14,
+                        get_sys_color(brTextNormal));
       }
-
-      if (R_UpdateTextureRG8(st->grid.cells_tex, 0, 0, st->grid.cells_w, st->grid.cells_h, st->grid.cells)) {
-        R_VgaBuffer buf = {
-          .vga_buffer = st->grid.cells_tex,
-          .width = st->grid.cells_w,
-          .height = st->grid.cells_h,
-        };
-        R_DrawVGABuffer(&buf,
-                        cr.x, cr.y,
-                        st->grid.cells_w * VGA_CHAR_W,
-                        st->grid.cells_h * VGA_CHAR_H,
-                        vga_font_texture_id(),
-                        kAnsi16);
-      } else {
-        // VGA texture upload failed — fall back to plain text
-        for (int li = start; li < end; li++) {
-          draw_text_small(st->lines[li], cr.x + 4,
-                          cr.y + 4 + (li - start) * 14,
-                          get_sys_color(brTextNormal));
-        }
-      }
-
       return true;
     }
 
