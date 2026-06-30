@@ -401,16 +401,9 @@ static void canvas_update_preview(canvas_state_t *s, int type, irect16_t form_rc
   if (!s->preview_win || s->preview_type != type) {
     canvas_destroy_preview(s);
     s->preview_type = type;
-    form_ctrl_def_t def = {
-      .class_name = fe_component_by_id(type) ? fe_component_by_id(type)->class_name : NULL,
-      .id = 0,
-      .size = {draw_w, draw_h},
-      .flags = flags,
-      .text = text,
-    };
     s->preview_win = create_window(text ? text : "", flags,
                                    MAKERECT(0, 0, draw_w, draw_h),
-                                   doc->canvas_win, proc, 0, &def);
+                                   doc->canvas_win, proc, 0, NULL);
     if (!s->preview_win) return;
     s->preview_win->flags |= WINDOW_NOTABSTOP;
   }
