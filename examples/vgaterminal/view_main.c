@@ -195,18 +195,18 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       st->cursor_visible = true;
       st->cursor_blink_ctr = 0;
 
+      char font_path[512];
+      snprintf(font_path, sizeof(font_path), "%s/../share/orion/fonts/monoid.ttf",
+               ui_get_exe_dir());
+      vga_font_init(font_path, 12.0f);
+
       irect16_t cr = get_client_rect(win);
-      int cols = cr.w / VGA_CHAR_W;
-      int rows = cr.h / VGA_CHAR_H;
+      int cols = cr.w / vga_char_width();
+      int rows = cr.h / vga_char_height();
       if (cols <= 0) cols = VGAT_DEFAULT_COLS;
       if (rows <= 0) rows = VGAT_DEFAULT_ROWS;
 
       vgat_screen_init(&st->screen, rows, cols);
-
-      char font_path[512];
-      snprintf(font_path, sizeof(font_path), "%s/../share/orion/fonts/monoid.ttf",
-               ui_get_exe_dir());
-      vga_font_init(font_path, 16);
 
       // Welcome message
       vgat_screen_write_string(&st->screen, "VGA Console v1.0\n", 10, VGAT_BG_DEFAULT);
@@ -242,9 +242,11 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
     case evPaint: {
       if (!st || !st->screen.rows) return true;
 
+      int cw = vga_char_width();
+      int ch = vga_char_height();
       irect16_t cr = get_client_rect(win);
-      int vis_cols = cr.w / VGA_CHAR_W;
-      int vis_rows = cr.h / VGA_CHAR_H;
+      int vis_cols = cr.w / cw;
+      int vis_rows = cr.h / ch;
       if (vis_cols <= 0 || vis_rows <= 0) return true;
 
       vga_text_grid_t grid;
@@ -290,10 +292,11 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
           .width = grid.cells_w,
           .height = grid.cells_h,
         };
+        VgaFontLayout fl = vga_get_font_layout();
         R_DrawVGABuffer(&buf, cr.x, cr.y,
-                        grid.cells_w * VGA_CHAR_W,
-                        grid.cells_h * VGA_CHAR_H,
-                        vga_font_texture_id(), kAnsi16);
+                        grid.cells_w * cw,
+                        grid.cells_h * ch,
+                        (const R_FontSheet*)&fl, kAnsi16);
       }
 
       vga_text_free_grid(&grid);
@@ -303,8 +306,8 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
     case evResize: {
       if (!st) return false;
       irect16_t cr = get_client_rect(win);
-      int cols = cr.w / VGA_CHAR_W;
-      int rows = cr.h / VGA_CHAR_H;
+      int cols = cr.w / vga_char_width();
+      int rows = cr.h / vga_char_height();
       if (cols <= 0 || rows <= 0) return false;
 
       vgat_screen_resize(&st->screen, cols);
@@ -327,7 +330,7 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
     case evVScroll: {
       if (!st) return false;
       irect16_t cr = get_client_rect(win);
-      int vis_rows = cr.h / VGA_CHAR_H;
+      int vis_rows = cr.h / vga_char_height();
       if (vis_rows <= 0) vis_rows = 24;
       int content_rows = vis_rows - 1;
       int written = st->screen.cursor_row;
@@ -346,7 +349,7 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       if (!st) return false;
       int delta = (int16_t)HIWORD((uintptr_t)lparam);
       irect16_t cr = get_client_rect(win);
-      int vis_rows = cr.h / VGA_CHAR_H;
+      int vis_rows = cr.h / vga_char_height();
       if (vis_rows <= 0) vis_rows = 24;
       int content_rows = vis_rows - 1;
       int written = st->screen.cursor_row;

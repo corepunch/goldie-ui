@@ -58,6 +58,15 @@ typedef struct {
   int height;   // character rows
 } R_VgaBuffer;
 
+// Font sheet layout for VGA rendering.
+typedef struct {
+  uint32_t texture;   // glyph sheet texture (16x16 grid of cells)
+  int cell_w;          // pixel width of one glyph cell
+  int cell_h;          // pixel height of one glyph cell
+  int sheet_w;         // total texture width  (= 16 * cell_w)
+  int sheet_h;         // total texture height (= 16 * cell_h)
+} R_FontSheet;
+
 // Mesh management functions
 // Initialize a mesh with vertex attributes and drawing mode
 void R_MeshInit(R_Mesh* mesh, const R_VertexAttrib* attribs, size_t attrib_count, 
@@ -111,15 +120,15 @@ void R_DeleteTexture(uint32_t id);
 // and pair it with depth-test disable/enable for 2-D UI rendering.
 void R_SetBlendMode(bool enabled);
 
-// Draw a VGA text buffer using 3 sources:
-//   - buf->vga_buffer : RG8 cell buffer (char + packed colors)
-//   - font_tex        : 16x16 atlas of 8x16 glyphs
-//   - palette16       : EGA-like 16-color palette (0xAARRGGBB)
+// Draw a VGA text buffer using the cell buffer and font sheet.
+//   - buf       : RG8 cell buffer (char + packed colors)
+//   - font      : font sheet description (texture, cell/sheet dimensions)
+//   - palette16 : EGA-like 16-color palette (0xAARRGGBB)
 // dst_w_px/dst_h_px are output size in screen pixels.
 bool R_DrawVGABuffer(const R_VgaBuffer *buf,
                      int x, int y,
                      int dst_w_px, int dst_h_px,
-                     uint32_t font_tex,
+                     const R_FontSheet *font,
                      const uint32_t palette16[16]);
 
 #endif /* __UI_RENDERER_H__ */

@@ -98,6 +98,8 @@ typedef struct {
   GLint uv_offset;
   GLint uv_scale;
   GLint grid_size;
+  GLint cell_size;
+  GLint sheet_size;
   GLint cell_tex;
   GLint font_tex;
   GLint ega_palette;
@@ -192,6 +194,8 @@ static void cache_vga_uniforms(void) {
   g_vga.uv_offset   = glGetUniformLocation(g_ref.vga_program, "uv_offset");
   g_vga.uv_scale    = glGetUniformLocation(g_ref.vga_program, "uv_scale");
   g_vga.grid_size   = glGetUniformLocation(g_ref.vga_program, "gridSize");
+  g_vga.cell_size   = glGetUniformLocation(g_ref.vga_program, "cellSize");
+  g_vga.sheet_size  = glGetUniformLocation(g_ref.vga_program, "sheetSize");
   g_vga.cell_tex    = glGetUniformLocation(g_ref.vga_program, "cellTex");
   g_vga.font_tex    = glGetUniformLocation(g_ref.vga_program, "fontTex");
   g_vga.ega_palette = glGetUniformLocation(g_ref.vga_program, "egaPalette[0]");
@@ -815,9 +819,10 @@ void R_SetBlendMode(bool enabled) {
 bool R_DrawVGABuffer(const R_VgaBuffer *buf,
                      int x, int y,
                      int dst_w_px, int dst_h_px,
-                     uint32_t font_tex,
+                     const R_FontSheet *font,
                      const uint32_t palette16[16]) {
-  if (!g_ref.vga_program || !buf || !buf->vga_buffer || !font_tex ||
+  if (!g_ref.vga_program || !buf || !buf->vga_buffer || !font ||
+      !font->texture || font->cell_w <= 0 || font->cell_h <= 0 ||
       !palette16 || buf->width <= 0 || buf->height <= 0 ||
       dst_w_px <= 0 || dst_h_px <= 0)
     return false;
@@ -836,6 +841,8 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   glUniform2f(g_vga.uv_offset, 0.0f, 0.0f);
   glUniform2f(g_vga.uv_scale, 1.0f, 1.0f);
   glUniform2f(g_vga.grid_size, (float)buf->width, (float)buf->height);
+  glUniform2f(g_vga.cell_size, (float)font->cell_w, (float)font->cell_h);
+  glUniform2f(g_vga.sheet_size, (float)font->sheet_w, (float)font->sheet_h);
   glUniform4fv(g_vga.ega_palette, 16, pal);
   glUniform1i(g_vga.cell_tex, 0);
   glUniform1i(g_vga.font_tex, 1);
@@ -843,7 +850,7 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, (GLuint)buf->vga_buffer);
   glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, (GLuint)font_tex);
+  glBindTexture(GL_TEXTURE_2D, (GLuint)font->texture);
 
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);

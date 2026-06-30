@@ -8,14 +8,17 @@
 //     R_DrawVGABuffer() so composition happens fully inside the renderer.
 //
 // The character sheet is generated at init time: a TTF font is loaded via
-// stb_truetype and all 256 ASCII glyphs are rasterised into a 128x256 RGBA
-// texture (16 x 16 grid of 8x16 cells) with anti-aliased alpha coverage.
+// stb_truetype and all 256 ASCII glyphs are rasterised into an RGBA texture
+// arranged as a 16×16 grid.  Cell dimensions are derived from the font's own
+// advance width and ascender/descender metrics so the texture adapts to any
+// monospace TTF.
 
 #include "vga_font.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "draw.h"
 #include "../kernel/renderer.h"
 
@@ -33,12 +36,12 @@
 // ============================================================
 
 static uint32_t g_vga_tex    = 0;   // GL texture ID; 0 = not loaded
-static int      g_sheet_w    = 128;
-static int      g_sheet_h    = 256;
+static int      g_cell_w     = 0;   // glyph cell width  (pixels)
+static int      g_cell_h     = 0;   // glyph cell height (pixels)
+static int      g_sheet_w    = 0;   // full sheet width
+static int      g_sheet_h    = 0;   // full sheet height
 
-// Glyph-grid constants (must match the shader in share/shaders/vga.frag.glsl).
-#define VGA_GLYPH_W     8
-#define VGA_GLYPH_H     16
+// The grid is always 16×16 (256 characters).
 #define VGA_GRID_COLS   16
 #define VGA_GRID_ROWS   16
 
@@ -57,8 +60,6 @@ static bool vga_ensure_cell_texture(int width_chars) {
   if (width_chars <= 0)
     return false;
 
-  // Keep physical texture width equal to logical text width so shader
-  // sampling by character index remains exact.
   if (g_cell_tex && width_chars == g_cell_cap_w)
     return true;
 
@@ -97,12 +98,8 @@ static int nearest_ega_index(uint32_t rgba) {
 }
 
 // ============================================================
-// Public: init / shutdown
-// ============================================================
-
-// ----------------------------------------------------------
 // TTF → character-sheet helpers
-// ----------------------------------------------------------
+// ============================================================
 
 static uint8_t *load_ttf(const char *path, int *out_size) {
   FILE *fp = fopen(path, "rb");
@@ -121,35 +118,42 @@ static uint8_t *load_ttf(const char *path, int *out_size) {
 }
 
 // Rasterise codepoint ch into cell (col, row) inside a pre-zeroed RGBA sheet.
+// Character origin is at the top-left of the cell; the glyph is positioned at
+// its natural xoff/yoff (not centred) so side bearings match the font design.
+// Pixels outside the cell are clipped.
 static void rasterise_glyph(stbtt_fontinfo *font, float scale,
-                            int baseline, int ch,
-                            int col, int row,
+                            int baseline,
+                            int cell_w, int cell_h,
+                            int ch, int col, int row,
                             uint8_t *sheet, int sheet_w, int sheet_h) {
-  int cell_x = col * VGA_GLYPH_W;
-  int cell_y = row * VGA_GLYPH_H;
+  int cell_x  = col * cell_w;
+  int cell_y  = row * cell_h;
+  int cell_x1 = cell_x + cell_w;
+  int cell_y1 = cell_y + cell_h;
 
   int bw, bh, xoff, yoff;
   unsigned char *bmp = stbtt_GetCodepointBitmap(font, 0, scale, ch,
                                                  &bw, &bh, &xoff, &yoff);
   if (!bmp) return;
 
-  // Centre horizontally in the cell, baseline-align vertically.
-  int draw_x = cell_x + (VGA_GLYPH_W - bw) / 2;
+  int draw_x = cell_x + xoff;
   int draw_y = cell_y + baseline + yoff;
 
   for (int y = 0; y < bh; y++) {
+    int py = draw_y + y;
+    if (py < cell_y || py >= cell_y1)
+      continue;
     for (int x = 0; x < bw; x++) {
       int px = draw_x + x;
-      int py = draw_y + y;
-      if (px < 0 || px >= sheet_w || py < 0 || py >= sheet_h)
+      if (px < cell_x || px >= cell_x1)
         continue;
       uint8_t a = bmp[y * bw + x];
       if (a > 0) {
         int idx = (py * sheet_w + px) * 4;
-        sheet[idx + 0] = 0xFF;  // R
-        sheet[idx + 1] = 0xFF;  // G
-        sheet[idx + 2] = 0xFF;  // B
-        sheet[idx + 3] = a;     // A  (coverage from stb_truetype)
+        sheet[idx + 0] = 0xFF;
+        sheet[idx + 1] = 0xFF;
+        sheet[idx + 2] = 0xFF;
+        sheet[idx + 3] = a;
       }
     }
   }
@@ -160,10 +164,9 @@ static void rasterise_glyph(stbtt_fontinfo *font, float scale,
 // Public: init / shutdown
 // ============================================================
 
-bool vga_font_init(const char *ttf_path, int pixel_height) {
+bool vga_font_init(const char *ttf_path, float font_size) {
   if (g_vga_tex) return true;
   if (!ttf_path) return false;
-  if (pixel_height <= 0) pixel_height = VGA_GLYPH_H;
 
   // ---- load TTF --------------------------------------------------
   int ttf_size = 0;
@@ -181,24 +184,47 @@ bool vga_font_init(const char *ttf_path, int pixel_height) {
     return false;
   }
 
-  float scale = stbtt_ScaleForPixelHeight(&font, (float)pixel_height);
-
+  // Font metrics
   int ascent, descent, linegap;
   stbtt_GetFontVMetrics(&font, &ascent, &descent, &linegap);
+
+  float scale = stbtt_ScaleForMappingEmToPixels(&font, font_size);
+
   int baseline = (int)(ascent * scale + 0.5f);
 
-  // ---- generate character sheet ----------------------------------
-  int sheet_w = VGA_GRID_COLS * VGA_GLYPH_W;  // 128
-  int sheet_h = VGA_GRID_ROWS * VGA_GLYPH_H;  // 256
+  // Compute cell height from font metrics (ascent - descent + linegap)
+  int cell_h = (int)((ascent - descent + linegap) * scale + 0.5f);
+  if (cell_h < 1) cell_h = 1;
 
+  // Compute cell width from the maximum advance width across the glyph set
+  // so every glyph has enough room at its natural side-bearing position.
+  float max_aw = 0.0f;
+  for (int ch = 32; ch < 256; ch++) {
+    int aw, lsb;
+    stbtt_GetCodepointHMetrics(&font, ch, &aw, &lsb);
+    if (aw > 0) {
+      float w = (float)aw * scale;
+      if (w > max_aw) max_aw = w;
+    }
+  }
+  // Fallback if no advance found (unlikely for a proper TTF)
+  if (max_aw < 1.0f) max_aw = (float)cell_h * 0.5f;
+
+  int cell_w = (int)ceilf(max_aw);
+  if (cell_w < 1) cell_w = 1;
+
+  int sheet_w = VGA_GRID_COLS * cell_w;
+  int sheet_h = VGA_GRID_ROWS * cell_h;
+
+  // ---- generate character sheet ----------------------------------
   uint8_t *pixels = (uint8_t *)calloc((size_t)(sheet_w * sheet_h * 4), 1);
   if (!pixels) { free(ttf_data); return false; }
 
   for (int ch = 0; ch < 256; ch++) {
     int col = ch & 0xF;
     int row = ch >> 4;
-    rasterise_glyph(&font, scale, baseline, ch, col, row,
-                    pixels, sheet_w, sheet_h);
+    rasterise_glyph(&font, scale, baseline, cell_w, cell_h,
+                    ch, col, row, pixels, sheet_w, sheet_h);
   }
 
   g_vga_tex = R_CreateTextureRGBA(sheet_w, sheet_h, pixels,
@@ -211,11 +237,13 @@ bool vga_font_init(const char *ttf_path, int pixel_height) {
     return false;
   }
 
+  g_cell_w  = cell_w;
+  g_cell_h  = cell_h;
   g_sheet_w = sheet_w;
   g_sheet_h = sheet_h;
 
-  VGA_FONT_LOG("vga_font_init: loaded %s  (pixel_height=%d  %dx%d tex=%u)",
-         ttf_path, pixel_height, sheet_w, sheet_h, g_vga_tex);
+  VGA_FONT_LOG("vga_font_init: loaded %s  (font_size=%.1f  cell=%dx%d  sheet=%dx%d tex=%u)",
+         ttf_path, font_size, cell_w, cell_h, sheet_w, sheet_h, g_vga_tex);
   return true;
 }
 
@@ -238,19 +266,36 @@ uint32_t vga_font_texture_id(void) {
   return g_vga_tex;
 }
 
+int vga_char_width(void) {
+  return g_cell_w;
+}
+
+int vga_char_height(void) {
+  return g_cell_h;
+}
+
+VgaFontLayout vga_get_font_layout(void) {
+  VgaFontLayout layout = {
+    .texture = g_vga_tex,
+    .cell_w  = g_cell_w,
+    .cell_h  = g_cell_h,
+    .sheet_w = g_sheet_w,
+    .sheet_h = g_sheet_h,
+  };
+  return layout;
+}
+
 // ============================================================
 // Internal: UV coordinates for a glyph
 // ============================================================
 
 static void glyph_uv(int ch, float *u0, float *v0, float *u1, float *v1) {
-  // Sheet: 16 cols x 16 rows of GLYPH_WxGLYPH_H cells.
-  // Character N: col = N & 0xF, row = N >> 4.
   int col = ch & 0xF;
   int row = ch >> 4;
-  *u0 = (float)(col    ) / 16.0f;
-  *u1 = (float)(col + 1) / 16.0f;
-  *v0 = (float)(row    ) / 16.0f;
-  *v1 = (float)(row + 1) / 16.0f;
+  *u0 = (float)(col    ) / (float)VGA_GRID_COLS;
+  *u1 = (float)(col + 1) / (float)VGA_GRID_COLS;
+  *v0 = (float)(row    ) / (float)VGA_GRID_ROWS;
+  *v1 = (float)(row + 1) / (float)VGA_GRID_ROWS;
 }
 
 // ============================================================
@@ -258,12 +303,10 @@ static void glyph_uv(int ch, float *u0, float *v0, float *u1, float *v1) {
 // ============================================================
 
 static void vga_draw_char_fallback(int ch, int x, int y, uint32_t fg, uint32_t bg) {
-  irect16_t cell = { x, y, VGA_CHAR_W, VGA_CHAR_H };
+  irect16_t cell = { x, y, g_cell_w, g_cell_h };
 
-  // 1. Background (always, even when font not loaded).
   fill_rect(bg, cell);
 
-  // 2. Glyph.
   if (!g_vga_tex) return;
 
   if (ch < 0 || ch > 255) ch = 0x7F;
@@ -285,12 +328,12 @@ int vga_draw_textn(const char *text, int max_chars,
                    int x, int y, uint32_t fg, uint32_t bg) {
   if (!text || max_chars <= 0) return 0;
 
-  if (!g_vga_tex) {
+  if (!g_vga_tex || !g_cell_w || !g_cell_h) {
     int cx = x;
     int drawn = 0;
     for (const char *p = text; *p && drawn < max_chars; p++, drawn++) {
       vga_draw_char_fallback((unsigned char)*p, cx, y, fg, bg);
-      cx += VGA_CHAR_W;
+      cx += g_cell_w;
     }
     return cx - x;
   }
@@ -305,7 +348,7 @@ int vga_draw_textn(const char *text, int max_chars,
     int cx = x;
     for (int i = 0; i < draw_chars; i++) {
       vga_draw_char_fallback((unsigned char)text[i], cx, y, fg, bg);
-      cx += VGA_CHAR_W;
+      cx += g_cell_w;
     }
     return cx - x;
   }
@@ -315,7 +358,7 @@ int vga_draw_textn(const char *text, int max_chars,
     int cx = x;
     for (int i = 0; i < draw_chars; i++) {
       vga_draw_char_fallback((unsigned char)text[i], cx, y, fg, bg);
-      cx += VGA_CHAR_W;
+      cx += g_cell_w;
     }
     return cx - x;
   }
@@ -334,24 +377,31 @@ int vga_draw_textn(const char *text, int max_chars,
   if (!ok)
     return 0;
 
+  R_FontSheet fs = {
+    .texture = g_vga_tex,
+    .cell_w  = g_cell_w,
+    .cell_h  = g_cell_h,
+    .sheet_w = g_sheet_w,
+    .sheet_h = g_sheet_h,
+  };
   R_VgaBuffer buf = {
     .vga_buffer = g_cell_tex,
     .width = draw_chars,
     .height = 1,
   };
   if (!R_DrawVGABuffer(&buf, x, y,
-                       draw_chars * VGA_CHAR_W, VGA_CHAR_H,
-                       g_vga_tex, kEgaPalette)) {
+                       draw_chars * g_cell_w, g_cell_h,
+                       &fs, kEgaPalette)) {
     int cx = x;
     for (int i = 0; i < draw_chars; i++) {
       vga_draw_char_fallback((unsigned char)text[i], cx, y, fg, bg);
-      cx += VGA_CHAR_W;
+      cx += g_cell_w;
     }
     return cx - x;
   }
 
   int cx = x;
-  cx += draw_chars * VGA_CHAR_W;
+  cx += draw_chars * g_cell_w;
   return cx - x;
 }
 
@@ -361,5 +411,5 @@ int vga_draw_text(const char *text, int x, int y, uint32_t fg, uint32_t bg) {
 }
 
 int vga_text_width(int char_count) {
-  return char_count * VGA_CHAR_W;
+  return char_count * g_cell_w;
 }

@@ -80,6 +80,22 @@ The underlying texture is expected to be `RG8`:
 - `R` = character index (0..255)
 - `G` = packed color nibble (`bg << 4 | fg`)
 
+### R_FontSheet
+
+Describes a glyph sheet for VGA text rendering:
+
+```c
+typedef struct {
+  uint32_t texture;   // glyph sheet texture (16x16 grid of cells)
+  int cell_w;          // pixel width of one glyph cell
+  int cell_h;          // pixel height of one glyph cell
+  int sheet_w;         // total texture width  (= 16 * cell_w)
+  int sheet_h;         // total texture height (= 16 * cell_h)
+} R_FontSheet;
+```
+
+Cell dimensions are derived from the font's own metrics (advance width, ascender/descender).
+
 ## API Functions
 
 ### Mesh Management
@@ -193,13 +209,13 @@ Uploads a sub-region into an existing `RG8` texture.
 bool R_DrawVGABuffer(const R_VgaBuffer *buf,
                      int x, int y,
                      int dst_w_px, int dst_h_px,
-                     uint32_t font_tex,
+                     const R_FontSheet *font,
                      const uint32_t palette16[16]);
 ```
 
 Draws a VGA text buffer using:
 - `buf->vga_buffer` as RG8 character/attribute data
-- `font_tex` as 16x16 glyph atlas (8x16 cells)
+- `font` describing the glyph sheet texture, cell dimensions, and sheet dimensions
 - `palette16` as 16 ARGB colors
 
 This keeps all OpenGL state setup and shader composition in the renderer.
