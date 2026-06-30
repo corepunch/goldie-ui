@@ -108,16 +108,15 @@
               flags="toolbar,statusbar"
               toolbar="main">
             <requires library="gitclient_components" />
-            <grid spacing="0" flags="flexspace">
-                <column width="180">
-                    <TableView name="branches"
-                               source="db.branches"
-                               flags="notitle,nofill,vscroll">
-                        <Column field="name" title="" width="0" />
-                    </TableView>
-                </column>
+            <stack orientation="horizontal" spacing="0" flags="flexspace">
+                <TableView name="branches"
+                           source="db.branches"
+                           flags="notitle,nofill,vscroll"
+                           width="180">
+                    <Column field="name" title="" width="0" />
+                </TableView>
 
-                <column>
+                <stack orientation="vertical" spacing="0" flags="flexspace">
                     <TableView name="log"
                                source="db.commits"
                                flags="notitle,nofill,vscroll,flexspace">
@@ -133,13 +132,11 @@
                         <Column field="status" title="St" width="20" />
                         <Column field="path" title="File" width="0" />
                     </TableView>
-                </column>
+                </stack>
 
-                <column width="260">
-                    <DiffView name="diff"
-                              flags="notitle,nofill,vscroll" />
-                </column>
-            </grid>
+                <DiffView name="diff"
+                          flags="notitle,nofill,vscroll,flexspace"/>
+            </stack>
         </form>
 
         <form name="commit_dialog"
