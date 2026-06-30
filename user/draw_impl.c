@@ -42,7 +42,7 @@ bool window_has_focus(const window_t *win) {
 }
 
 // Forward declarations
-extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void set_projection(int x, int y, int w, int h);
 
 void set_fullscreen(void) {

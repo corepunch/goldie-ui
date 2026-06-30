@@ -14,7 +14,7 @@ typedef struct window_s window_t;
 typedef struct irect16_s irect16_t;
 typedef struct database_s database_t;
 typedef uint32_t flags_t;
-typedef uint32_t result_t;
+typedef intptr_t result_t;
 
 // Application instance handle (analogous to WinAPI HINSTANCE).
 // Each gem/app process receives a unique hinstance_t when loaded.
@@ -552,7 +552,7 @@ void window_layout_sync(window_t *win);
 void set_default_window_position(int x, int y);
 
 // Window message functions
-int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void invalidate_window(window_t *win);
 

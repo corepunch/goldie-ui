@@ -190,11 +190,11 @@ static bool parent_notify_message(uint32_t msg) {
 }
 
 // Send message to window (synchronous)
-int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   if (!win) return false;
   irect16_t const *frame = &win->frame;
   window_t *root = get_root_window(win);
-  int value = 0;
+  intptr_t value = 0;
   // Call registered hooks
   for (winhook_t *hook = g_hooks; hook; hook = hook->next) {
     if (msg == hook->msg) {

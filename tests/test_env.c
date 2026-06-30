@@ -147,7 +147,7 @@ window_t* test_env_create_window(const char *title, int x, int y, int w, int h,
 }
 
 // Helper: Send a tracked message
-int test_env_send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+intptr_t test_env_send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     return send_message(win, msg, wparam, lparam);
 }
 

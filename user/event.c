@@ -13,7 +13,7 @@
 #include "../kernel/kernel.h"
 
 // External functions
-extern int send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern void move_window(window_t *win, int x, int y);
 extern void resize_window(window_t *win, int new_w, int new_h);
