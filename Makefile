@@ -31,7 +31,7 @@ LIBS += -framework OpenGL
 LIB_EXT = dylib
 LIB_FLAGS = -dynamiclib
 else ifeq ($(UNAME_S),Linux)
-LIBS += -lGL
+LIBS += -lGL -lutil
 LIB_EXT = so
 LIB_FLAGS = -shared -fPIC
 CFLAGS += -fPIC
