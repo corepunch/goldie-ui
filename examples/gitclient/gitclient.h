@@ -39,8 +39,8 @@
 // Layout constants
 // ============================================================
 
-#define SCREEN_W         800
-#define SCREEN_H         480
+#define SCREEN_W         1024
+#define SCREEN_H         768
 
 // ============================================================
 // Custom event messages

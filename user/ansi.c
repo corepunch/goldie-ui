@@ -2,11 +2,15 @@
 
 // ANSI index order (0..7 normal, 8..15 bright):
 // black, red, green, yellow, blue, magenta, cyan, white.
+//
+// Tuned to a soft dark-code-editor palette similar to the screenshot:
+// - "black" is a deep background color instead of absolute black
+// - the remaining colors are slightly muted and warmer/cooler to match the theme
 const uint32_t kAnsi16[16] = {
-  0xFF000000u, 0xFFAA0000u, 0xFF00AA00u, 0xFFAA5500u,
-  0xFF0000AAu, 0xFFAA00AAu, 0xFF00AAAAu, 0xFFAAAAAAu,
-  0xFF555555u, 0xFFFF5555u, 0xFF55FF55u, 0xFFFFFF55u,
-  0xFF5555FFu, 0xFFFF55FFu, 0xFF55FFFFu, 0xFFFFFFFFu,
+  0xFF1E1E1Eu, 0xFFCD5C5Cu, 0xFF4EC9B0u, 0xFFD7BA7Du,
+  0xFF569CD6u, 0xFFC586C0u, 0xFF4FC1FFu, 0xFFD4D4D4u,
+  0xFF3C3C3Cu, 0xFFF48771u, 0xFFB5CEA8u, 0xFFFFE066u,
+  0xFF9CDCFEu, 0xFFC586C0u, 0xFF4FC1FFu, 0xFFF5F5F5u,
 };
 
 uint32_t ansi256_to_rgba(int idx) {

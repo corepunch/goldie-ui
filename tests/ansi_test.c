@@ -6,7 +6,7 @@
 void test_ansi16_palette_count(void) {
   TEST("kAnsi16 has exactly 16 entries");
   // Verify by checking a known color
-  ASSERT_TRUE(kAnsi16[0] == 0xFF000000u);  // black
+  ASSERT_TRUE(kAnsi16[0] == 0xFF1E1E1Eu);  // soft background black
   PASS();
 }
 
@@ -20,7 +20,7 @@ void test_ansi256_basic(void) {
 
 void test_ansi256_to_rgba_216(void) {
   TEST("ansi256_to_rgba returns correct RGB for 216-color cube (index 16)");
-  // Index 16 = #000000 (first color in 6x6x6 cube)
+  // Index 16 remains the first color in the 6x6x6 cube.
   uint32_t v = ansi256_to_rgba(16);
   ASSERT_EQUAL(v, 0xFF000000u);
   PASS();
@@ -38,8 +38,8 @@ void test_ansi256_grayscale(void) {
 }
 
 void test_nearest_ansi_index_black(void) {
-  TEST("nearest_ansi_index returns 0 for pure black");
-  ASSERT_EQUAL(nearest_ansi_index(0xFF000000u), 0);
+  TEST("nearest_ansi_index returns 0 for the theme background");
+  ASSERT_EQUAL(nearest_ansi_index(0xFF1E1E1Eu), 0);
   PASS();
 }
 

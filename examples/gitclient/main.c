@@ -58,7 +58,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   gc_create_menubar();
 
   // Create main window from form definition.
-  g_gc->main_win = create_window_from_form(&gc_main_window_form, 0, 0,
+  g_gc->main_win = create_window_from_form(&gc_main_window_form, 16, 32,
                                            NULL, gc_main_proc,
                                            hinstance, NULL);
   if (!g_gc->main_win) return false;

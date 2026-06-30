@@ -747,6 +747,7 @@ int get_message(ui_event_t *evt) {
 // in rapid succession (e.g., invalidate_window() posts three messages at once).
 void wake_event_loop(void) {
   if (g_wakeup_pending) return;
+  if (!g_ui_runtime.running) return;
   g_wakeup_pending = true;
   axPostMessageW(&g_wakeup_sentinel, kEventWindowPaint, 0, NULL);
 }
