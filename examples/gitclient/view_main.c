@@ -167,7 +167,13 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
         int sel   = (int)(int16_t)LOWORD(wparam);
         window_t *src = (window_t *)lparam;
 
-        if (src == gc->log_win) {
+        if (src == gc->branches_win) {
+          // Selection is about to change - the master-detail cascade will
+          // refresh the commits view.  Reset state so the auto-select
+          // on the new commit list always triggers a load.
+          gc->selected_commit = -1;
+          gc->selected_file   = -1;
+        } else if (src == gc->log_win) {
           if (sel != gc->selected_commit) {
             gc->selected_commit = sel;
             gc->selected_file   = -1;

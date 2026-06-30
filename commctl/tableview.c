@@ -28,9 +28,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "columnview_internal.h"
 
 #ifndef TABLEVIEW_DEBUG
-#define TABLEVIEW_DEBUG 1
+#define TABLEVIEW_DEBUG 0
 #endif
 
 #if TABLEVIEW_DEBUG
@@ -189,7 +190,6 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   
   // Add each record as a row
   int row_idx = 0;
-  int field_failures = 0;
   for (result_node_t *n = results; n; n = (result_node_t *)n->next) {
     void *record = *(void **)n->data;
     if (!record) continue;
@@ -203,7 +203,6 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
       if (!tv_get_field_text(s, record, s->field_names[col],
                              cell_buf[col], sizeof(cell_buf[col]))) {
         cell_buf[col][0] = '\0';
-        field_failures++;
       }
     }
     
@@ -226,8 +225,15 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
   
   free(cell_buf);
   free_result_list(results);
-  TV_LOG("refresh complete: id=%u table=%d rows=%d field_failures=%d",
-         (unsigned)win->id, s->table_id, row_idx, field_failures);
+  TV_LOG("refresh complete: id=%u table=%d rows=%d",
+         (unsigned)win->id, s->table_id, row_idx);
+
+  // Auto-select first row to trigger cascading updates in dependent views
+  if (row_idx > 0) {
+    reportview_data_t *rv = (reportview_data_t *)win->userdata2;
+    send_message(win, RVM_SETSELECTION, 0, NULL);
+    rv_notify(win, rv, 0, RVN_SELCHANGE);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
