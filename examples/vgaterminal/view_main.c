@@ -33,7 +33,7 @@ static void send_escape(int fd, char code) {
   vgat_pty_write(fd, buf, 3);
 }
 
-lresult_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   vgat_state_t *st = (vgat_state_t *)win->userdata;
 
   switch (msg) {
@@ -248,6 +248,6 @@ lresult_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
     }
 
     default:
-      return default_winproc(win, msg, wparam, lparam);
+      return 0;
   }
 }

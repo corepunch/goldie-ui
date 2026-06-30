@@ -92,12 +92,37 @@ typedef struct git_repo_s git_repo_t;
 // Field IDs for branch table
 #define ID_DB_BRANCHES_ID        0
 #define ID_DB_BRANCHES_NAME      1
+#define ID_DB_BRANCHES_HASH      2
+#define ID_DB_BRANCHES_IS_CURRENT 3
+#define ID_DB_BRANCHES_IS_REMOTE 4
 
 // Field IDs for commit table
 #define ID_DB_COMMITS_ID         0
+#define ID_DB_COMMITS_HASH       1
+#define ID_DB_COMMITS_AUTHOR     2
+#define ID_DB_COMMITS_DATE       3
+#define ID_DB_COMMITS_SUBJECT    4
 
 // Field IDs for file table
 #define ID_DB_FILES_ID           0
+#define ID_DB_FILES_PATH         1
+#define ID_DB_FILES_STATUS       2
+#define ID_DB_FILES_STAGED       3
+
+// Field IDs for diff table
+#define ID_DB_DIFF_ID            0
+#define ID_DB_DIFF_CONTENT       1
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Prefix aliases: orionc generates gitclient_* but code uses gc_*
+// ═══════════════════════════════════════════════════════════════════════════
+
+#define gc_main_window_form          gitclient_main_window_form
+#define gc_commit_dialog_form        gitclient_commit_dialog_form
+#define gc_new_branch_dialog_form    gitclient_new_branch_dialog_form
+#define gc_push_pull_dialog_form     gitclient_push_pull_dialog_form
+#define gc_database_schema           gitclient_database_schema
+#define gc_database_api              gitclient_database_api
 
 typedef enum {
   GIT_OP_FETCH,

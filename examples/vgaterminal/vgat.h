@@ -59,7 +59,7 @@ typedef struct {
 
 extern vgat_state_t *g_vgat;
 
-lresult_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 void vgat_screen_init(vgat_screen *s, int rows, int cols);
 void vgat_screen_resize(vgat_screen *s, int cols);

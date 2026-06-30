@@ -27,6 +27,7 @@ enum {
   dbGetObjectProc,   // wparam=table_id; lparam=0 → returns (lresult_t)db_object_proc_t
   dbGetFieldBindings, // wparam=table_id; lparam=int* count_out → returns (lresult_t)db_field_msg_binding_t*
   dbGetSchema,       // wparam=0; lparam=0 → returns (lresult_t)const db_schema_def_t*
+  dbGetFieldMeta,    // wparam=table_id; lparam=int* count_out → returns (lresult_t)const db_field_meta_t*
   dbGetApi,          // wparam=0; lparam=0 → returns (lresult_t)const db_api_def_t*
   dbUser = 1000      // custom database implementations can use dbUser+
 };
