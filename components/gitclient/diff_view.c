@@ -38,6 +38,18 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
       return true;
     }
 
+    case evArrange: {
+      layout_arrange_t const *a = (layout_arrange_t const *)lparam;
+      if (a) {
+        irect16_t r = a->rect;
+        if (r.w < 1) r.w = 1;
+        if (r.h < 1) r.h = 1;
+        win->frame = r;
+      }
+      invalidate_window(win);
+      return true;
+    }
+
     case evDestroy: {
       gc_diff_state_t *st = (gc_diff_state_t *)win->userdata;
       if (st) {
