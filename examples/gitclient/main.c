@@ -37,10 +37,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   DB_CLASS(gitclient_db);
   g_gc->db = create_database("gitclient", "gitclient_db", NULL);
   if (!g_gc->db) return false;
-  bool db_registered = register_database("db", g_gc->db);
+  register_database("db", g_gc->db);
   ui_set_database(g_gc->db);
-  GC_LOG("database ready: db=%p registered=%d global=%p",
-         (void *)g_gc->db, db_registered, (void *)ui_get_database());
+  GC_LOG("database ready: db=%p global=%p",
+         (void *)g_gc->db, (void *)ui_get_database());
 
   // Register commctl classes (tableview, stack, grid, etc.).
   register_commctl_classes();

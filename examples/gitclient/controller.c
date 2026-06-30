@@ -11,8 +11,6 @@ void gc_load_from_git(void) {
   if (!gc || !gc->repo || !gc->db) return;
 
   int branch_count = 0;
-  int commit_count = 0;
-  int file_count = 0;
   git_branch_t branches[128];
   int branch_ids[128] = {0};
 
@@ -38,7 +36,6 @@ void gc_load_from_git(void) {
     for (int branch = 0; branch < branch_count; branch++) {
       git_commit_t raw[500];
       int count = git_get_log_ref(gc->repo, branches[branch].name, raw, 500);
-      commit_count += count;
       for (int i = 0; i < count; i++) {
         db_commit_t rec = {0};
         rec.branch_id = branch_ids[branch];
@@ -54,7 +51,6 @@ void gc_load_from_git(void) {
   {
     git_file_status_t raw[256];
     int count = git_get_status(gc->repo, raw, 256);
-    file_count = count;
     for (int i = 0; i < count; i++) {
       db_file_t rec = {0};
       rec.commit_id = 0;
@@ -94,7 +90,6 @@ void gc_load_commit_files(void) {
     return;
   }
 
-  int file_count = 0;
   char *line = buf;
   while (*line) {
     char *nl = strchr(line, '\n');
@@ -107,14 +102,10 @@ void gc_load_commit_files(void) {
       rec.staged = false;
       strncpy(rec.path, line, sizeof(rec.path) - 1);
       send_db_message(gc->db, dbInsert, ID_DB_FILES, &rec);
-      file_count++;
     }
     if (!nl) break;
     line = nl + 1;
   }
-
-  GC_LOG("commit files populated: commit=%d files=%d", gc->selected_commit,
-         file_count);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
