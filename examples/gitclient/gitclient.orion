@@ -95,16 +95,21 @@
         </database>
     </databases>
 
+    <plugins>
+        <plugin name="gitclient_components" />
+    </plugins>
+
     <forms>
         <form name="main_window"
               title="Git Client"
               width="800" height="480"
               flags="toolbar,statusbar"
               toolbar="main">
+            <requires library="gitclient_components" />
             <stack orientation="horizontal" spacing="0" flags="flexspace">
                 <TableView name="branches"
                            source="db.branches"
-                           flags="notitle,nofill,vscroll,flexspace"
+                           flags="notitle,nofill,vscroll"
                            width="180">
                     <Column field="name" title="" width="0" />
                 </TableView>
@@ -127,9 +132,9 @@
                     </TableView>
                 </stack>
 
-                <Window name="diff"
-                        flags="notitle,nofill,vscroll,flexspace"
-                        width="260" />
+                <DiffView name="diff"
+                          flags="notitle,nofill,vscroll"
+                          width="260" />
             </stack>
         </form>
 

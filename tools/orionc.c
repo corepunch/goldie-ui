@@ -479,6 +479,12 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     read_control_attrs(c, &a); control_id(id, sizeof(id), form, a.v[A_NAME], (char *)c->name, ordinal++); ident(klass, sizeof(klass), (char *)c->name, false);
     if (elem(c, "textbox"))
       snprintf(klass, sizeof(klass), "TextEdit");
+    if (elem(c, "stack") || elem(c, "StackView"))
+      snprintf(klass, sizeof(klass), "StackView");
+    if (elem(c, "grid"))
+      snprintf(klass, sizeof(klass), "GridView");
+    if (elem(c, "flow"))
+      snprintf(klass, sizeof(klass), "FlowView");
     if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
     rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
     // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)

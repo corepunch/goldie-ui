@@ -4,79 +4,6 @@
 #include "../../user/vga_font.h"
 
 // ============================================================
-// Layout helpers
-// ============================================================
-
-static void compute_layout(gc_state_t *gc, irect16_t *cr,
-                            irect16_t *r_log,
-                            irect16_t *r_files,
-                            irect16_t *r_diff) {
-  int lw = PANEL_LEFT_W_DEFAULT + PANEL_SPLITTER;
-  int rw = gc->right_w;
-  int total_w = cr->w;
-  int total_h = cr->h;
-
-  rw = CLAMP(rw, 80, total_w - lw - 80);
-  gc->right_w = rw;
-
-  int center_x = cr->x + lw;
-  int center_w = total_w - lw - rw - PANEL_SPLITTER;
-  if (center_w < 20) center_w = 20;
-
-  int vs = CLAMP(gc->vsplit_y, 40, total_h - 40);
-  gc->vsplit_y = vs;
-
-  *r_diff  = (irect16_t){ cr->x + total_w - rw, cr->y, rw, total_h };
-  *r_log   = (irect16_t){ center_x, cr->y, center_w, vs };
-  *r_files = (irect16_t){ center_x, cr->y + vs + PANEL_SPLITTER,
-                        center_w, total_h - vs - PANEL_SPLITTER };
-}
-
-void gc_layout_panels(window_t *win) {
-  gc_state_t *gc = (gc_state_t *)win->userdata;
-  if (!gc) return;
-
-  irect16_t cr = get_client_rect(win);
-  irect16_t rl, rf, rd;
-  compute_layout(gc, &cr, &rl, &rf, &rd);
-
-  if (win->sidebar) {
-    int sb_w = win->sidebar->layout.layout_fixed_w;
-    if (sb_w <= 0) sb_w = win->sidebar->frame.w;
-    if (sb_w <= 0) sb_w = SIDEBAR_DEFAULT_WIDTH;
-    move_window(win->sidebar, 0, 0);
-    resize_window(win->sidebar, sb_w, cr.h);
-  }
-  if (gc->log_win) {
-    move_window(gc->log_win, rl.x, rl.y);
-    resize_window(gc->log_win, rl.w, rl.h);
-  }
-  if (gc->files_win) {
-    move_window(gc->files_win, rf.x, rf.y);
-    resize_window(gc->files_win, rf.w, rf.h);
-  }
-  if (gc->diff_win) {
-    move_window(gc->diff_win, rd.x, rd.y);
-    resize_window(gc->diff_win, rd.w, rd.h);
-  }
-
-  int lw = PANEL_LEFT_W_DEFAULT + PANEL_SPLITTER;
-  int center_w = cr.w - lw - gc->right_w - PANEL_SPLITTER;
-  if (center_w < 20) center_w = 20;
-
-  if (gc->vsplitter_win) {
-    int spl_x = cr.x + lw + center_w;
-    move_window(gc->vsplitter_win, spl_x, cr.y);
-    resize_window(gc->vsplitter_win, PANEL_SPLITTER, cr.h);
-  }
-  if (gc->hsplitter_win) {
-    int spl_x = cr.x + lw;
-    move_window(gc->hsplitter_win, spl_x, cr.y + gc->vsplit_y);
-    resize_window(gc->hsplitter_win, center_w, PANEL_SPLITTER);
-  }
-}
-
-// ============================================================
 // Open / refresh
 // ============================================================
 
@@ -169,40 +96,17 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       gc = g_gc;
       win->userdata = gc;
 
-      // Form creates toolbar, statusbar, and sidebar automatically.
-      // Look up child windows by generated IDs.
-      gc->branches_win = win->sidebar;
+      // The generated form owns hierarchy, sizing, and database propagation.
+      // The controller only keeps outlets for event routing and refreshes.
+      gc->branches_win = get_window_item(win, ID_MAIN_WINDOW_BRANCHES);
       gc->log_win = get_window_item(win, ID_MAIN_WINDOW_LOG);
       gc->files_win = get_window_item(win, ID_MAIN_WINDOW_FILES);
       gc->diff_win = get_window_item(win, ID_MAIN_WINDOW_DIFF);
-
-      // Set database on tableviews.
-      if (gc->log_win)
-        send_message(gc->log_win, evCreate, 0,
-                     (void *)&main_window_log_tableview_params);
-      if (gc->files_win)
-        send_message(gc->files_win, evCreate, 0,
-                     (void *)&main_window_files_tableview_params);
+      GC_LOG("form outlets: branches=%p log=%p files=%p diff=%p",
+             (void *)gc->branches_win, (void *)gc->log_win,
+             (void *)gc->files_win, (void *)gc->diff_win);
 
       send_message(win, evStatusBar, 0, "No repository");
-
-      // Create splitters.
-      irect16_t cr = get_client_rect(win);
-      int lx = PANEL_LEFT_W_DEFAULT + PANEL_SPLITTER;
-      int center_w = cr.w - lx - gc->right_w - PANEL_SPLITTER;
-
-      gc->vsplitter_win = create_window("",
-          WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTRAYBUTTON,
-          MAKERECT(lx + center_w, cr.y, PANEL_SPLITTER, cr.h),
-          win, win_splitter, gc->hinstance, (void *)SPLIT_VERT);
-
-      gc->hsplitter_win = create_window("",
-          WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTRAYBUTTON,
-          MAKERECT(lx, cr.y + gc->vsplit_y, center_w, PANEL_SPLITTER),
-          win, win_splitter, gc->hinstance, (void *)SPLIT_HORZ);
-
-      show_window(gc->vsplitter_win, true);
-      show_window(gc->hsplitter_win, true);
 
       // Load VGA font.
       char font_path[600];
@@ -220,36 +124,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       gc->repo = NULL;
       return false;
 
-    case evResize:
-      if (gc) gc_layout_panels(win);
-      return false;
-
     case evPaint:
-      return false;
-
-    case evMouseMove: {
-      if (!gc || !gc->dragging_splitter) return false;
-      int mx = (int)LOWORD(wparam);
-      int my = (int)HIWORD(wparam);
-      int orient = win_splitter_orientation(gc->dragging_splitter);
-      int delta  = (orient == SPLIT_HORZ)
-                   ? my - gc->drag_start_mouse
-                   : mx - gc->drag_start_mouse;
-      if (orient == SPLIT_VERT)
-        gc->right_w = gc->drag_start_val - delta;
-      else
-        gc->vsplit_y = gc->drag_start_val + delta;
-      gc_layout_panels(win);
-      invalidate_window(win);
-      return true;
-    }
-
-    case evLeftButtonUp:
-      if (gc && gc->dragging_splitter) {
-        gc->dragging_splitter = NULL;
-        set_capture(NULL);
-        return true;
-      }
       return false;
 
     case evCommand: {
@@ -257,27 +132,6 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
 
       if (code == btnClicked || code == 0) {
         gc_handle_command((uint16_t)LOWORD(wparam));
-        return true;
-      }
-
-      if (code == spnDragStart) {
-        if (!gc) return false;
-        uint32_t pos  = (uint32_t)(uintptr_t)lparam;
-        int px = (int)(int16_t)LOWORD(pos);
-        int py = (int)(int16_t)HIWORD(pos);
-        uint16_t spl_id = (uint16_t)LOWORD(wparam);
-        window_t *spl = NULL;
-        if (gc->vsplitter_win && gc->vsplitter_win->id == spl_id)
-          spl = gc->vsplitter_win;
-        else if (gc->hsplitter_win && gc->hsplitter_win->id == spl_id)
-          spl = gc->hsplitter_win;
-        if (!spl) return false;
-        gc->dragging_splitter = spl;
-        int orient = win_splitter_orientation(spl);
-        gc->drag_start_mouse = (orient == SPLIT_HORZ) ? py : px;
-        gc->drag_start_val   = (orient == SPLIT_VERT) ? gc->right_w
-                                                       : gc->vsplit_y;
-        set_capture(win);
         return true;
       }
 

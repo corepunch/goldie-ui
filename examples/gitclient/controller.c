@@ -10,6 +10,10 @@ void gc_load_from_git(void) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->repo || !gc->db) return;
 
+  int branch_count = 0;
+  int commit_count = 0;
+  int file_count = 0;
+
   send_db_message(gc->db, dbDelete, ID_DB_BRANCHES, (void *)(intptr_t)0);
   send_db_message(gc->db, dbDelete, ID_DB_COMMITS,  (void *)(intptr_t)0);
   send_db_message(gc->db, dbDelete, ID_DB_FILES,    (void *)(intptr_t)0);
@@ -18,6 +22,7 @@ void gc_load_from_git(void) {
   {
     git_branch_t raw[128];
     int count = git_get_branches(gc->repo, raw, 128);
+    branch_count = count;
     for (int i = 0; i < count; i++) {
       db_branche_t rec = {0};
       strncpy(rec.name, raw[i].name, sizeof(rec.name) - 1);
@@ -30,6 +35,7 @@ void gc_load_from_git(void) {
   {
     git_commit_t raw[500];
     int count = git_get_log(gc->repo, raw, 500);
+    commit_count = count;
     for (int i = 0; i < count; i++) {
       db_commit_t rec = {0};
       strncpy(rec.hash,    raw[i].hash,    sizeof(rec.hash) - 1);
@@ -43,6 +49,7 @@ void gc_load_from_git(void) {
   {
     git_file_status_t raw[256];
     int count = git_get_status(gc->repo, raw, 256);
+    file_count = count;
     for (int i = 0; i < count; i++) {
       db_file_t rec = {0};
       strncpy(rec.path, raw[i].path, sizeof(rec.path) - 1);
@@ -53,7 +60,8 @@ void gc_load_from_git(void) {
     }
   }
 
-  GC_LOG("gc_load_from_git: loaded branches, commits, files");
+  GC_LOG("database populated: branches=%d commits=%d files=%d",
+         branch_count, commit_count, file_count);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

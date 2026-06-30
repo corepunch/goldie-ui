@@ -59,6 +59,92 @@ static db_schema_def_t gitclient_database_schema = {
   .table_count = TABLE_COUNT,
 };
 
+enum {
+  GC_COL_BRANCH_ID,
+  GC_COL_BRANCH_NAME,
+  GC_COL_BRANCH_HASH,
+  GC_COL_BRANCH_IS_CURRENT,
+  GC_COL_BRANCH_IS_REMOTE,
+  GC_COL_COMMIT_ID,
+  GC_COL_COMMIT_HASH,
+  GC_COL_COMMIT_AUTHOR,
+  GC_COL_COMMIT_DATE,
+  GC_COL_COMMIT_SUBJECT,
+  GC_COL_FILE_ID,
+  GC_COL_FILE_PATH,
+  GC_COL_FILE_STATUS,
+  GC_COL_FILE_STAGED,
+  GC_COL_DIFF_ID,
+  GC_COL_DIFF_CONTENT,
+};
+
+static result_t field_text_from_meta(const void *object,
+                                     const db_field_meta_t *fields,
+                                     int field_count, int first_column,
+                                     uint32_t msg, uint32_t wparam,
+                                     void *lparam) {
+  if (msg != dbObjGetFieldText || !object || !fields || !lparam)
+    return false;
+
+  int field_index = (int)LOWORD(wparam) - first_column;
+  size_t buf_sz = (size_t)HIWORD(wparam);
+  if (field_index < 0 || field_index >= field_count || buf_sz == 0)
+    return false;
+
+  const db_field_meta_t *field = &fields[field_index];
+  const void *value = (const char *)object + field->offset;
+  char *buf = (char *)lparam;
+  switch (field->type) {
+    case DB_TYPE_INT:
+      snprintf(buf, buf_sz, "%d", *(const int *)value);
+      return true;
+    case DB_TYPE_STRING:
+      snprintf(buf, buf_sz, "%s", (const char *)value);
+      return true;
+    case DB_TYPE_BOOL:
+      snprintf(buf, buf_sz, "%d", *(const bool *)value ? 1 : 0);
+      return true;
+    case DB_TYPE_FLOAT:
+      snprintf(buf, buf_sz, "%g", *(const float *)value);
+      return true;
+    case DB_TYPE_DOUBLE:
+      snprintf(buf, buf_sz, "%g", *(const double *)value);
+      return true;
+  }
+  return false;
+}
+
+#define GC_OBJECT_PROC(name, fields, first_column)                              \
+  static result_t name(const void *object, uint32_t msg, uint32_t wparam,       \
+                       void *lparam) {                                           \
+    return field_text_from_meta(object, fields, ARRAY_LEN(fields), first_column,\
+                                msg, wparam, lparam);                            \
+  }
+
+GC_OBJECT_PROC(branch_object_proc, branches_fields, GC_COL_BRANCH_ID)
+GC_OBJECT_PROC(commit_object_proc, commits_fields, GC_COL_COMMIT_ID)
+GC_OBJECT_PROC(file_object_proc, files_fields, GC_COL_FILE_ID)
+GC_OBJECT_PROC(diff_object_proc, diff_fields, GC_COL_DIFF_ID)
+
+static const db_field_msg_binding_t branch_field_bindings[] = {
+  { "id", GC_COL_BRANCH_ID }, { "name", GC_COL_BRANCH_NAME },
+  { "hash", GC_COL_BRANCH_HASH },
+  { "is_current", GC_COL_BRANCH_IS_CURRENT },
+  { "is_remote", GC_COL_BRANCH_IS_REMOTE },
+};
+static const db_field_msg_binding_t commit_field_bindings[] = {
+  { "id", GC_COL_COMMIT_ID }, { "hash", GC_COL_COMMIT_HASH },
+  { "author", GC_COL_COMMIT_AUTHOR }, { "date", GC_COL_COMMIT_DATE },
+  { "subject", GC_COL_COMMIT_SUBJECT },
+};
+static const db_field_msg_binding_t file_field_bindings[] = {
+  { "id", GC_COL_FILE_ID }, { "path", GC_COL_FILE_PATH },
+  { "status", GC_COL_FILE_STATUS }, { "staged", GC_COL_FILE_STAGED },
+};
+static const db_field_msg_binding_t diff_field_bindings[] = {
+  { "id", GC_COL_DIFF_ID }, { "content", GC_COL_DIFF_CONTENT },
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Internal context
 // ═══════════════════════════════════════════════════════════════════════════
@@ -279,6 +365,10 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       int filter_field = HIWORD(wparam);
       int filter_value = (int)(intptr_t)lparam;
 
+      GC_LOG("dbFetch: table=%d filter_field=%d filter_value=%d counts=[%d,%d,%d,%d]",
+             table_id, filter_field, filter_value, ctx->branch_count,
+             ctx->commit_count, ctx->file_count, ctx->diff_count);
+
       if (table_id == ID_DB_BRANCHES) {
         if (filter_field == ID_DB_BRANCHES_IS_REMOTE)
           return fetch_filtered_bool(ctx->branches, ctx->branch_count,
@@ -331,6 +421,36 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
 
     case dbGetDirty:
       return 0;
+
+    case dbGetObjectProc:
+      switch ((int)wparam) {
+        case ID_DB_BRANCHES: return (lresult_t)branch_object_proc;
+        case ID_DB_COMMITS:  return (lresult_t)commit_object_proc;
+        case ID_DB_FILES:    return (lresult_t)file_object_proc;
+        case ID_DB_DIFF:     return (lresult_t)diff_object_proc;
+        default:             return (lresult_t)NULL;
+      }
+
+    case dbGetFieldBindings: {
+      int *count_out = (int *)lparam;
+      switch ((int)wparam) {
+        case ID_DB_BRANCHES:
+          if (count_out) *count_out = ARRAY_LEN(branch_field_bindings);
+          return (lresult_t)branch_field_bindings;
+        case ID_DB_COMMITS:
+          if (count_out) *count_out = ARRAY_LEN(commit_field_bindings);
+          return (lresult_t)commit_field_bindings;
+        case ID_DB_FILES:
+          if (count_out) *count_out = ARRAY_LEN(file_field_bindings);
+          return (lresult_t)file_field_bindings;
+        case ID_DB_DIFF:
+          if (count_out) *count_out = ARRAY_LEN(diff_field_bindings);
+          return (lresult_t)diff_field_bindings;
+        default:
+          if (count_out) *count_out = 0;
+          return (lresult_t)NULL;
+      }
+    }
 
     case dbGetSchema:
       gc_database_schema.name = db->name;
