@@ -95,6 +95,8 @@ typedef struct {
   GLint projection;
   GLint offset;
   GLint scale;
+  GLint uv_offset;
+  GLint uv_scale;
   GLint grid_size;
   GLint cell_tex;
   GLint font_tex;
@@ -187,6 +189,8 @@ static void cache_vga_uniforms(void) {
   g_vga.projection  = glGetUniformLocation(g_ref.vga_program, "projection");
   g_vga.offset      = glGetUniformLocation(g_ref.vga_program, "offset");
   g_vga.scale       = glGetUniformLocation(g_ref.vga_program, "scale");
+  g_vga.uv_offset   = glGetUniformLocation(g_ref.vga_program, "uv_offset");
+  g_vga.uv_scale    = glGetUniformLocation(g_ref.vga_program, "uv_scale");
   g_vga.grid_size   = glGetUniformLocation(g_ref.vga_program, "gridSize");
   g_vga.cell_tex    = glGetUniformLocation(g_ref.vga_program, "cellTex");
   g_vga.font_tex    = glGetUniformLocation(g_ref.vga_program, "fontTex");
@@ -829,6 +833,8 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   glUniformMatrix4fv(g_vga.projection, 1, GL_FALSE, fmat16_data(&g_active_projection));
   glUniform2f(g_vga.offset, (float)x, (float)y);
   glUniform2f(g_vga.scale, (float)dst_w_px, (float)dst_h_px);
+  glUniform2f(g_vga.uv_offset, 0.0f, 0.0f);
+  glUniform2f(g_vga.uv_scale, 1.0f, 1.0f);
   glUniform2f(g_vga.grid_size, (float)buf->width, (float)buf->height);
   glUniform4fv(g_vga.ega_palette, 16, pal);
   glUniform1i(g_vga.cell_tex, 0);
