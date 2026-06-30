@@ -10,12 +10,15 @@
 // The font sheet (128x256 RGBA, white glyphs on transparent background) is
 // loaded via load_image() + R_CreateTextureRGBA(NEAREST, CLAMP).
 
-#include "gitclient.h"
 #include "vga_font.h"
 
-#include "../../user/draw.h"
-#include "../../user/image.h"
-#include "../../kernel/renderer.h"
+#include "draw.h"
+#include "image.h"
+#include "../kernel/renderer.h"
+
+#ifndef VGA_FONT_LOG
+#define VGA_FONT_LOG(...) do { axLog("[vga_font] " __VA_ARGS__); } while (0)
+#endif
 
 // ============================================================
 // Module state
@@ -90,7 +93,7 @@ bool vga_font_init(const char *sheet_path) {
   int w = 0, h = 0;
   uint8_t *pixels = load_image(sheet_path, &w, &h);
   if (!pixels) {
-    GC_LOG("vga_font_init: could not load %s", sheet_path);
+    VGA_FONT_LOG("vga_font_init: could not load %s", sheet_path);
     return false;
   }
 
@@ -99,13 +102,13 @@ bool vga_font_init(const char *sheet_path) {
   image_free(pixels);
 
   if (!g_vga_tex) {
-    GC_LOG("vga_font_init: R_CreateTextureRGBA failed");
+    VGA_FONT_LOG("vga_font_init: R_CreateTextureRGBA failed");
     return false;
   }
 
   g_sheet_w = w;
   g_sheet_h = h;
-  GC_LOG("vga_font_init: loaded %s (%dx%d), tex=%u",
+  VGA_FONT_LOG("vga_font_init: loaded %s (%dx%d), tex=%u",
          sheet_path, w, h, g_vga_tex);
   return true;
 }

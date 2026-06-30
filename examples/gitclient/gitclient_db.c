@@ -1,0 +1,321 @@
+// Database procedure for gitclient — in-memory tables populated from git output.
+//
+// Unlike socialfeed, there is NO persistence. The database is a read-only cache
+// of git state, cleared and repopulated on each gc_refresh_all().
+
+#include "gitclient.h"
+#include "../../platform/platform.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Use generated field metadata from gitclient.orion.
+// branches_fields[], commits_fields[], files_fields[], diff_fields[]
+// are defined in the generated header.
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Internal context
+// ═══════════════════════════════════════════════════════════════════════════
+
+typedef struct {
+  db_branche_t *branches;
+  int branch_count;
+  int branch_capacity;
+  int next_branch_id;
+
+  db_commit_t *commits;
+  int commit_count;
+  int commit_capacity;
+  int next_commit_id;
+
+  db_file_t *files;
+  int file_count;
+  int file_capacity;
+  int next_file_id;
+
+  db_diff_t *diff;
+  int diff_count;
+  int diff_capacity;
+  int next_diff_id;
+} gc_db_context_t;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Array helpers
+// ═══════════════════════════════════════════════════════════════════════════
+
+static void ensure_capacity(void **rows, int *capacity, int count,
+                            size_t row_size, int initial) {
+  if (count < *capacity) return;
+  int next = (*capacity == 0) ? initial : (*capacity * 2);
+  *rows = realloc(*rows, (size_t)next * row_size);
+  *capacity = next;
+}
+
+static void *append_row(void **rows, int *count, int *capacity,
+                        size_t row_size, int *next_id, int initial) {
+  ensure_capacity(rows, capacity, *count, row_size, initial);
+  char *row = (char *)(*rows) + ((size_t)(*count) * row_size);
+  (*count)++;
+  *(int *)row = (*next_id)++;
+  return row;
+}
+
+static void clear_table(void **rows, int *count, int *capacity, int *next_id) {
+  free(*rows);
+  *rows = NULL;
+  *count = 0;
+  *capacity = 0;
+  *next_id = 1;
+}
+
+static void *find_by_id(void *rows, int count, size_t row_size, int id) {
+  char *base = (char *)rows;
+  for (int i = 0; i < count; i++) {
+    char *row = base + ((size_t)i * row_size);
+    if (*(int *)row == id) return row;
+  }
+  return NULL;
+}
+
+static void *find_branch_by_name(gc_db_context_t *ctx, const char *name) {
+  for (int i = 0; i < ctx->branch_count; i++) {
+    if (strcmp(ctx->branches[i].name, name) == 0)
+      return &ctx->branches[i];
+  }
+  return NULL;
+}
+
+static lresult_t fetch_all(void *rows, int count, size_t row_size) {
+  result_node_t *head = NULL, *tail = NULL;
+  for (int i = 0; i < count; i++) {
+    char *row = (char *)rows + ((size_t)i * row_size);
+    result_node_t *node = malloc(sizeof(result_node_t) + sizeof(void *));
+    node->next = NULL;
+    *(void **)node->data = row;
+    if (tail) tail->next = node;
+    else head = node;
+    tail = node;
+  }
+  return (lresult_t)head;
+}
+
+static lresult_t fetch_filtered_bool(void *rows, int count, size_t row_size,
+                                     size_t filter_offset, bool filter_value) {
+  result_node_t *head = NULL, *tail = NULL;
+  for (int i = 0; i < count; i++) {
+    char *row = (char *)rows + ((size_t)i * row_size);
+    if (*(bool *)(row + filter_offset) != filter_value) continue;
+    result_node_t *node = malloc(sizeof(result_node_t) + sizeof(void *));
+    node->next = NULL;
+    *(void **)node->data = row;
+    if (tail) tail->next = node;
+    else head = node;
+    tail = node;
+  }
+  return (lresult_t)head;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Database procedure
+// ═══════════════════════════════════════════════════════════════════════════
+
+lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lparam) {
+  gc_db_context_t *ctx = (gc_db_context_t *)db->userdata;
+
+  switch (msg) {
+    case dbCreate: {
+      ctx = calloc(1, sizeof(gc_db_context_t));
+      if (!ctx) return 0;
+      ctx->next_branch_id = 1;
+      ctx->next_commit_id = 1;
+      ctx->next_file_id   = 1;
+      ctx->next_diff_id   = 1;
+      db->userdata = ctx;
+      return 1;
+    }
+
+    case dbDestroy: {
+      if (!ctx) return 0;
+      free(ctx->branches);
+      free(ctx->commits);
+      free(ctx->files);
+      free(ctx->diff);
+      free(ctx);
+      db->userdata = NULL;
+      return 1;
+    }
+
+    case dbLoad:
+      return 1;
+
+    case dbSave:
+      return 1;
+
+    case dbInsert: {
+      if (!ctx) return (lresult_t)NULL;
+      int table_id = wparam;
+      const void *data = lparam;
+
+      if (table_id == ID_DB_BRANCHES) {
+        db_branche_t *rec = append_row((void **)&ctx->branches, &ctx->branch_count,
+                                       &ctx->branch_capacity, sizeof(db_branche_t),
+                                       &ctx->next_branch_id, 32);
+        memcpy(rec, data, sizeof(db_branche_t));
+        rec->id = ctx->next_branch_id - 1;
+        return (lresult_t)rec;
+      }
+      if (table_id == ID_DB_COMMITS) {
+        db_commit_t *rec = append_row((void **)&ctx->commits, &ctx->commit_count,
+                                      &ctx->commit_capacity, sizeof(db_commit_t),
+                                      &ctx->next_commit_id, 256);
+        memcpy(rec, data, sizeof(db_commit_t));
+        rec->id = ctx->next_commit_id - 1;
+        return (lresult_t)rec;
+      }
+      if (table_id == ID_DB_FILES) {
+        db_file_t *rec = append_row((void **)&ctx->files, &ctx->file_count,
+                                    &ctx->file_capacity, sizeof(db_file_t),
+                                    &ctx->next_file_id, 64);
+        memcpy(rec, data, sizeof(db_file_t));
+        rec->id = ctx->next_file_id - 1;
+        return (lresult_t)rec;
+      }
+      if (table_id == ID_DB_DIFF) {
+        if (ctx->diff_count == 0) {
+          ensure_capacity((void **)&ctx->diff, &ctx->diff_capacity, 0,
+                          sizeof(db_diff_t), 1);
+          ctx->diff_count = 1;
+        }
+        db_diff_t *rec = &ctx->diff[0];
+        memcpy(rec, data, sizeof(db_diff_t));
+        rec->id = 1;
+        return (lresult_t)rec;
+      }
+      return (lresult_t)NULL;
+    }
+
+    case dbUpdate:
+      db->dirty = true;
+      return 1;
+
+    case dbDelete: {
+      if (!ctx) return 0;
+      int table_id = wparam;
+
+      if ((intptr_t)lparam == 0) {
+        if (table_id == ID_DB_BRANCHES) {
+          clear_table((void **)&ctx->branches, &ctx->branch_count,
+                      &ctx->branch_capacity, &ctx->next_branch_id);
+          return 1;
+        }
+        if (table_id == ID_DB_COMMITS) {
+          clear_table((void **)&ctx->commits, &ctx->commit_count,
+                      &ctx->commit_capacity, &ctx->next_commit_id);
+          return 1;
+        }
+        if (table_id == ID_DB_FILES) {
+          clear_table((void **)&ctx->files, &ctx->file_count,
+                      &ctx->file_capacity, &ctx->next_file_id);
+          return 1;
+        }
+        if (table_id == ID_DB_DIFF) {
+          clear_table((void **)&ctx->diff, &ctx->diff_count,
+                      &ctx->diff_capacity, &ctx->next_diff_id);
+          return 1;
+        }
+      }
+      return 0;
+    }
+
+    case dbFetch: {
+      if (!ctx) return (lresult_t)NULL;
+      int table_id = LOWORD(wparam);
+      int filter_field = HIWORD(wparam);
+      int filter_value = (int)(intptr_t)lparam;
+
+      if (table_id == ID_DB_BRANCHES) {
+        if (filter_field == ID_DB_BRANCHES_IS_REMOTE)
+          return fetch_filtered_bool(ctx->branches, ctx->branch_count,
+                                     sizeof(db_branche_t),
+                                     offsetof(db_branche_t, is_remote),
+                                     (bool)filter_value);
+        return fetch_all(ctx->branches, ctx->branch_count, sizeof(db_branche_t));
+      }
+      if (table_id == ID_DB_COMMITS)
+        return fetch_all(ctx->commits, ctx->commit_count, sizeof(db_commit_t));
+      if (table_id == ID_DB_FILES)
+        return fetch_all(ctx->files, ctx->file_count, sizeof(db_file_t));
+      if (table_id == ID_DB_DIFF)
+        return fetch_all(ctx->diff, ctx->diff_count, sizeof(db_diff_t));
+      return (lresult_t)NULL;
+    }
+
+    case dbFind: {
+      if (!ctx) return (lresult_t)NULL;
+      int table_id = LOWORD(wparam);
+      int search_field = HIWORD(wparam);
+      uintptr_t value = (uintptr_t)lparam;
+
+      if (table_id == ID_DB_BRANCHES) {
+        if (search_field == 0 || search_field == ID_DB_BRANCHES_ID)
+          return (lresult_t)find_by_id(ctx->branches, ctx->branch_count,
+                                        sizeof(db_branche_t), (int)value);
+        if (search_field == ID_DB_BRANCHES_NAME)
+          return (lresult_t)find_branch_by_name(ctx, (const char *)value);
+        return (lresult_t)NULL;
+      }
+      if (table_id == ID_DB_COMMITS) {
+        if (search_field == 0 || search_field == ID_DB_COMMITS_ID)
+          return (lresult_t)find_by_id(ctx->commits, ctx->commit_count,
+                                        sizeof(db_commit_t), (int)value);
+        return (lresult_t)NULL;
+      }
+      if (table_id == ID_DB_FILES) {
+        if (search_field == 0 || search_field == ID_DB_FILES_ID)
+          return (lresult_t)find_by_id(ctx->files, ctx->file_count,
+                                        sizeof(db_file_t), (int)value);
+        return (lresult_t)NULL;
+      }
+      if (table_id == ID_DB_DIFF) {
+        if (ctx->diff_count > 0) return (lresult_t)&ctx->diff[0];
+        return (lresult_t)NULL;
+      }
+      return (lresult_t)NULL;
+    }
+
+    case dbGetDirty:
+      return 0;
+
+    case dbGetSchema:
+      gc_database_schema.name = db->name;
+      gc_database_schema.class_name = db->class_name;
+      gc_database_schema.source_path = db->source_path;
+      return (lresult_t)&gc_database_schema;
+
+    case dbGetFieldMeta: {
+      int *count_out = (int *)lparam;
+      switch (wparam) {
+        case ID_DB_BRANCHES:
+          if (count_out) *count_out = ARRAY_LEN(branches_fields);
+          return (lresult_t)branches_fields;
+        case ID_DB_COMMITS:
+          if (count_out) *count_out = ARRAY_LEN(commits_fields);
+          return (lresult_t)commits_fields;
+        case ID_DB_FILES:
+          if (count_out) *count_out = ARRAY_LEN(files_fields);
+          return (lresult_t)files_fields;
+        case ID_DB_DIFF:
+          if (count_out) *count_out = ARRAY_LEN(diff_fields);
+          return (lresult_t)diff_fields;
+        default:
+          if (count_out) *count_out = 0;
+          return (lresult_t)NULL;
+      }
+    }
+
+    case dbGetApi:
+      return (lresult_t)&gc_database_api;
+  }
+
+  return 0;
+}

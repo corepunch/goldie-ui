@@ -1,11 +1,8 @@
 // Git Client — entry point.
-//
-// This is a standalone Orion example application.  The GEM_STANDALONE_MAIN
-// macro (from gem_magic.h) generates a platform-agnostic main() that
-// initialises the framework, runs the event loop, and shuts down cleanly.
 
 #include "gitclient.h"
 #include "../../gem_magic.h"
+#include "../../commctl/commctl.h"
 
 // ============================================================
 // Module-level application state
@@ -15,36 +12,41 @@ static gc_state_t g_gc_state;
 gc_state_t *g_gc = NULL;
 
 // ============================================================
-// gem_init / gem_shutdown — required signatures for GEM_STANDALONE_MAIN
+// gem_init / gem_shutdown
 // ============================================================
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   memset(&g_gc_state, 0, sizeof(g_gc_state));
   g_gc = &g_gc_state;
 
-  g_gc->hinstance     = hinstance;
+  g_gc->hinstance       = hinstance;
   g_gc->selected_commit = -1;
   g_gc->selected_file   = -1;
   g_gc->right_w         = PANEL_RIGHT_W_DEFAULT;
 
-  // Menubar + accelerators must be wired before the main window is shown.
+  // Register database class and create database.
+  DB_CLASS(gitclient_db);
+  g_gc->db = create_database("gitclient", "gitclient_db", NULL);
+  if (!g_gc->db) return false;
+  register_database("db", g_gc->db);
+
+  // Register commctl classes (tableview, stack, grid, etc.).
+  register_commctl_classes();
+
+  // Menubar + accelerators.
   gc_create_menubar();
 
-  // Calculate initial vsplit_y from screen height.
+  // Calculate initial vsplit_y.
   int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
   int mh = sh - MENUBAR_HEIGHT;
   g_gc->vsplit_y = (int)(mh * PANEL_VSPLIT_FRAC / 100);
-  if (g_gc->vsplit_y < 60)  g_gc->vsplit_y = 60;
+  if (g_gc->vsplit_y < 60) g_gc->vsplit_y = 60;
 
-  // Create the main application window.
-  g_gc->main_win = create_window("Git Client",
-      WINDOW_TOOLBAR | WINDOW_STATUSBAR | WINDOW_SIDEBAR,
-      MAKERECT(0, 0, SCREEN_W, SCREEN_H),
-      NULL,   // no parent → root window
-      gc_main_proc, hinstance, NULL);
-
+  // Create main window from form definition.
+  g_gc->main_win = create_window_from_form(&gc_main_window_form, 0, 0,
+                                           NULL, gc_main_proc,
+                                           hinstance, NULL);
   if (!g_gc->main_win) return false;
-
   show_window(g_gc->main_win, true);
 
   // If a path was passed on the command line, open it immediately.
@@ -56,6 +58,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
 void gem_shutdown(void) {
   if (g_gc) {
+    if (g_gc->db) {
+      destroy_database(g_gc->db);
+      g_gc->db = NULL;
+    }
     if (g_gc->accel)
       free_accelerators(g_gc->accel);
     g_gc = NULL;
@@ -63,10 +69,6 @@ void gem_shutdown(void) {
 }
 
 GEM_DEFINE("Git Client", "1.0", gem_init, gem_shutdown, NULL)
-
-// ============================================================
-// Standalone entry point (no-op when built as a .gem)
-// ============================================================
 
 GEM_STANDALONE_MAIN("Git Client", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,
                     g_gc->menubar_win, g_gc->accel)

@@ -1,6 +1,3 @@
-#ifndef __VGA_FONT_H__
-#define __VGA_FONT_H__
-
 // VGA-style monospace font renderer.
 //
 // Loads a 128x256 RGBA PNG character sheet (16 columns x 16 rows, each
@@ -13,6 +10,9 @@
 //
 // Colours follow the framework's 0xAARRGGBB convention (same as
 // get_sys_color / fill_rect / draw_text_small).
+
+#ifndef __UI_VGA_FONT_H__
+#define __UI_VGA_FONT_H__
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -55,4 +55,4 @@ int vga_draw_textn(const char *text, int max_chars,
 // Pixel width of a string (= strlen * VGA_CHAR_W, independent of content).
 int vga_text_width(int char_count);
 
-#endif /* __VGA_FONT_H__ */
+#endif /* __UI_VGA_FONT_H__ */

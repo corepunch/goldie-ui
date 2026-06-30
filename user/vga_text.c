@@ -1,6 +1,6 @@
 #include "vga_text.h"
 #include "ansi.h"
-#include "../../kernel/renderer.h"
+#include "../kernel/renderer.h"
 #include <stdlib.h>
 
 // Placeholder character for UTF-8/UTF-16 multibyte sequences
@@ -15,9 +15,9 @@ int vga_text_utf8_length(unsigned char first_byte) {
 }
 
 void vga_text_set_cell(vga_text_grid_t *grid,
-                       int x, int y,
-                       uint8_t ch,
-                       int fg_idx, int bg_idx) {
+                        int x, int y,
+                        uint8_t ch,
+                        int fg_idx, int bg_idx) {
   if (!grid || !grid->cells || x < 0 || y < 0 || x >= grid->cells_w || y >= grid->cells_h)
     return;
 
