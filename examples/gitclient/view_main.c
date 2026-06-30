@@ -135,12 +135,12 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
 
       send_message(win, evStatusBar, 0, "No repository");
 
-      // Load VGA font.
+      // Load VGA font (TTF → character sheet generated at runtime).
       char font_path[600];
       snprintf(font_path, sizeof(font_path),
-               "%s/../share/orion/fonts/vga-rom-font-8x16.png",
+               "%s/../share/orion/fonts/monoid.ttf",
                ui_get_exe_dir());
-      vga_font_init(font_path);
+      vga_font_init(font_path, 16);
 
       return true;
     }

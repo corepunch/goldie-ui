@@ -172,19 +172,20 @@ platform: $(PLATFORM_LIB)
 $(PLATFORM_LIB): | $(LIB_DIR)
 	$(MAKE) -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
 
-# VGA font sheet — copied from the source tree into build/share/orion/fonts.
-# Place your custom font at share/fonts/vga-rom-font-8x16.png and it will be used
-# by gitclient at runtime.
-VGA_FONT_PNG = $(SHARE_DIR)/orion/fonts/vga-rom-font-8x16.png
-VGA_FONT_SRC = share/fonts/vga-rom-font-8x16.png
+# VGA font TTF — copied from the source tree into build/share/orion/fonts.
+# The character sheet is generated on the fly at runtime by vga_font.c
+# using stb_truetype.  Drop any TTF (e.g. a Nerd Font) at
+# share/fonts/monoid.ttf to replace it.
+VGA_FONT_TTF = $(SHARE_DIR)/orion/fonts/monoid.ttf
+VGA_FONT_SRC = share/fonts/monoid.ttf
 
-$(VGA_FONT_PNG): $(VGA_FONT_SRC) | $(SHARE_DIR)
+$(VGA_FONT_TTF): $(VGA_FONT_SRC) | $(SHARE_DIR)
 	@mkdir -p $(dir $@)
 	cp $(VGA_FONT_SRC) $@
 
 # Shared data assets — copy framework and example resources
 .PHONY: share
-share: $(VGA_FONT_PNG) | $(SHARE_DIR)
+share: $(VGA_FONT_TTF) | $(SHARE_DIR)
 	@mkdir -p $(SHARE_DIR)/orion
 	@cp -R share/. $(SHARE_DIR)/orion/
 	@for dir in examples/*/share; do \
