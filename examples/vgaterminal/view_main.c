@@ -204,9 +204,9 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       vgat_screen_init(&st->screen, rows, cols);
 
       char font_path[512];
-      snprintf(font_path, sizeof(font_path), "%s/../share/orion/fonts/vga-rom-font-8x16.png",
+      snprintf(font_path, sizeof(font_path), "%s/../share/orion/fonts/monoid.ttf",
                ui_get_exe_dir());
-      vga_font_init(font_path);
+      vga_font_init(font_path, 16);
 
       // Welcome message
       vgat_screen_write_string(&st->screen, "VGA Console v1.0\n", 10, VGAT_BG_DEFAULT);

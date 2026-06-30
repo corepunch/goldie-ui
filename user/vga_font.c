@@ -7,14 +7,22 @@
 //   - Fast path: build an RG8 cell buffer (R=char, G=bg<<4|fg) and call
 //     R_DrawVGABuffer() so composition happens fully inside the renderer.
 //
-// The font sheet (128x256 RGBA, white glyphs on transparent background) is
-// loaded via load_image() + R_CreateTextureRGBA(NEAREST, CLAMP).
+// The character sheet is generated at init time: a TTF font is loaded via
+// stb_truetype and all 256 ASCII glyphs are rasterised into a 128x256 RGBA
+// texture (16 x 16 grid of 8x16 cells) with anti-aliased alpha coverage.
 
 #include "vga_font.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "draw.h"
-#include "image.h"
 #include "../kernel/renderer.h"
+
+// Single compilation unit for stb_truetype — must be the only place in
+// libuser where STB_TRUETYPE_IMPLEMENTATION is defined.
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "../tools/stb_truetype.h"
 
 #ifndef VGA_FONT_LOG
 #define VGA_FONT_LOG(...) do { axLog("[vga_font] " __VA_ARGS__); } while (0)
@@ -27,6 +35,12 @@
 static uint32_t g_vga_tex    = 0;   // GL texture ID; 0 = not loaded
 static int      g_sheet_w    = 128;
 static int      g_sheet_h    = 256;
+
+// Glyph-grid constants (must match the shader in share/shaders/vga.frag.glsl).
+#define VGA_GLYPH_W     8
+#define VGA_GLYPH_H     16
+#define VGA_GRID_COLS   16
+#define VGA_GRID_ROWS   16
 
 // Per-draw character buffer texture (R=char, G=bg<<4|fg).
 static uint32_t g_cell_tex   = 0;
@@ -86,30 +100,122 @@ static int nearest_ega_index(uint32_t rgba) {
 // Public: init / shutdown
 // ============================================================
 
-bool vga_font_init(const char *sheet_path) {
-  if (g_vga_tex) return true;  // already loaded
-  if (!sheet_path) return false;
+// ----------------------------------------------------------
+// TTF → character-sheet helpers
+// ----------------------------------------------------------
 
-  int w = 0, h = 0;
-  uint8_t *pixels = load_image(sheet_path, &w, &h);
-  if (!pixels) {
-    VGA_FONT_LOG("vga_font_init: could not load %s", sheet_path);
+static uint8_t *load_ttf(const char *path, int *out_size) {
+  FILE *fp = fopen(path, "rb");
+  if (!fp) return NULL;
+  fseek(fp, 0, SEEK_END);
+  long sz = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  if (sz <= 0 || sz > 16 * 1024 * 1024) { fclose(fp); return NULL; }
+  uint8_t *buf = (uint8_t *)malloc((size_t)sz);
+  if (!buf) { fclose(fp); return NULL; }
+  size_t n = fread(buf, 1, (size_t)sz, fp);
+  fclose(fp);
+  if ((long)n != sz) { free(buf); return NULL; }
+  *out_size = (int)sz;
+  return buf;
+}
+
+// Rasterise codepoint ch into cell (col, row) inside a pre-zeroed RGBA sheet.
+static void rasterise_glyph(stbtt_fontinfo *font, float scale,
+                            int baseline, int ch,
+                            int col, int row,
+                            uint8_t *sheet, int sheet_w, int sheet_h) {
+  int cell_x = col * VGA_GLYPH_W;
+  int cell_y = row * VGA_GLYPH_H;
+
+  int bw, bh, xoff, yoff;
+  unsigned char *bmp = stbtt_GetCodepointBitmap(font, 0, scale, ch,
+                                                 &bw, &bh, &xoff, &yoff);
+  if (!bmp) return;
+
+  // Centre horizontally in the cell, baseline-align vertically.
+  int draw_x = cell_x + (VGA_GLYPH_W - bw) / 2;
+  int draw_y = cell_y + baseline + yoff;
+
+  for (int y = 0; y < bh; y++) {
+    for (int x = 0; x < bw; x++) {
+      int px = draw_x + x;
+      int py = draw_y + y;
+      if (px < 0 || px >= sheet_w || py < 0 || py >= sheet_h)
+        continue;
+      uint8_t a = bmp[y * bw + x];
+      if (a > 0) {
+        int idx = (py * sheet_w + px) * 4;
+        sheet[idx + 0] = 0xFF;  // R
+        sheet[idx + 1] = 0xFF;  // G
+        sheet[idx + 2] = 0xFF;  // B
+        sheet[idx + 3] = a;     // A  (coverage from stb_truetype)
+      }
+    }
+  }
+  stbtt_FreeBitmap(bmp, NULL);
+}
+
+// ============================================================
+// Public: init / shutdown
+// ============================================================
+
+bool vga_font_init(const char *ttf_path, int pixel_height) {
+  if (g_vga_tex) return true;
+  if (!ttf_path) return false;
+  if (pixel_height <= 0) pixel_height = VGA_GLYPH_H;
+
+  // ---- load TTF --------------------------------------------------
+  int ttf_size = 0;
+  uint8_t *ttf_data = load_ttf(ttf_path, &ttf_size);
+  if (!ttf_data) {
+    VGA_FONT_LOG("vga_font_init: could not load %s", ttf_path);
     return false;
   }
 
-  g_vga_tex = R_CreateTextureRGBA(w, h, pixels,
+  stbtt_fontinfo font;
+  int offset = stbtt_GetFontOffsetForIndex(ttf_data, 0);
+  if (!stbtt_InitFont(&font, ttf_data, offset)) {
+    VGA_FONT_LOG("vga_font_init: stbtt_InitFont failed for %s", ttf_path);
+    free(ttf_data);
+    return false;
+  }
+
+  float scale = stbtt_ScaleForPixelHeight(&font, (float)pixel_height);
+
+  int ascent, descent, linegap;
+  stbtt_GetFontVMetrics(&font, &ascent, &descent, &linegap);
+  int baseline = (int)(ascent * scale + 0.5f);
+
+  // ---- generate character sheet ----------------------------------
+  int sheet_w = VGA_GRID_COLS * VGA_GLYPH_W;  // 128
+  int sheet_h = VGA_GRID_ROWS * VGA_GLYPH_H;  // 256
+
+  uint8_t *pixels = (uint8_t *)calloc((size_t)(sheet_w * sheet_h * 4), 1);
+  if (!pixels) { free(ttf_data); return false; }
+
+  for (int ch = 0; ch < 256; ch++) {
+    int col = ch & 0xF;
+    int row = ch >> 4;
+    rasterise_glyph(&font, scale, baseline, ch, col, row,
+                    pixels, sheet_w, sheet_h);
+  }
+
+  g_vga_tex = R_CreateTextureRGBA(sheet_w, sheet_h, pixels,
                                    R_FILTER_NEAREST, R_WRAP_CLAMP);
-  image_free(pixels);
+  free(pixels);
+  free(ttf_data);
 
   if (!g_vga_tex) {
     VGA_FONT_LOG("vga_font_init: R_CreateTextureRGBA failed");
     return false;
   }
 
-  g_sheet_w = w;
-  g_sheet_h = h;
-  VGA_FONT_LOG("vga_font_init: loaded %s (%dx%d), tex=%u",
-         sheet_path, w, h, g_vga_tex);
+  g_sheet_w = sheet_w;
+  g_sheet_h = sheet_h;
+
+  VGA_FONT_LOG("vga_font_init: loaded %s  (pixel_height=%d  %dx%d tex=%u)",
+         ttf_path, pixel_height, sheet_w, sheet_h, g_vga_tex);
   return true;
 }
 
