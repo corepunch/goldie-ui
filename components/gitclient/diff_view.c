@@ -5,7 +5,8 @@
 #define CLR_CTX_BG   0xFF1E1E1E
 
 static int visible_lines(window_t *win) {
-  return MAX(1, win->frame.h / VGA_CHAR_H);
+  int ch = vga_char_height();
+  return MAX(1, win->frame.h / ch);
 }
 
 static int max_scroll_start(window_t *win, const gc_diff_state_t *st) {
@@ -95,8 +96,10 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
       if (!st || !st->lines || st->line_count <= 0)
         return true;
 
-      int vis_cols = cr.w / VGA_CHAR_W;
-      int vis_rows = cr.h / VGA_CHAR_H;
+      int cw = vga_char_width();
+      int ch = vga_char_height();
+      int vis_cols = cr.w / cw;
+      int vis_rows = cr.h / ch;
       if (vis_cols <= 0 || vis_rows <= 0)
         return true;
 
@@ -123,10 +126,11 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
           .width = st->grid.cells_w,
           .height = st->grid.cells_h,
         };
+        VgaFontLayout fl = vga_get_font_layout();
         R_DrawVGABuffer(&buf, cr.x, cr.y,
-                        st->grid.cells_w * VGA_CHAR_W,
-                        st->grid.cells_h * VGA_CHAR_H,
-                        vga_font_texture_id(), kAnsi16);
+                        st->grid.cells_w * cw,
+                        st->grid.cells_h * ch,
+                        (const R_FontSheet*)&fl, kAnsi16);
       }
 
       return true;

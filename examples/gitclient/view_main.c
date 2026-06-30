@@ -140,7 +140,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       snprintf(font_path, sizeof(font_path),
                "%s/../share/orion/fonts/monoid.ttf",
                ui_get_exe_dir());
-      vga_font_init(font_path, 16);
+      vga_font_init(font_path, 12.0f);
 
       return true;
     }

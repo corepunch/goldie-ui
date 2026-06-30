@@ -6,6 +6,8 @@ out vec4 outColor;
 uniform sampler2D cellTex;
 uniform sampler2D fontTex;
 uniform vec2 gridSize;
+uniform vec2 cellSize;   // (glyph_cell_w, glyph_cell_h) in pixels
+uniform vec2 sheetSize;  // (texture_w, texture_h) in pixels
 uniform vec4 egaPalette[16];
 
 void main() {
@@ -20,10 +22,10 @@ void main() {
   int bg = int(floor(c / 16.0));
   float col = mod(ch, 16.0);
   float row = floor(ch / 16.0);
-  float px = floor(fracCell.x * 8.0);
-  float py = floor(fracCell.y * 16.0);
-  vec2 fuv = vec2((col * 8.0 + px + 0.5) / 128.0,
-                  (row * 16.0 + py + 0.5) / 256.0);
+  float px = floor(fracCell.x * cellSize.x);
+  float py = floor(fracCell.y * cellSize.y);
+  vec2 fuv = (vec2(col * cellSize.x + px,
+                   row * cellSize.y + py) + vec2(0.5)) / sheetSize;
   float a = texture(fontTex, fuv).a;
   outColor = mix(egaPalette[bg], egaPalette[fg], a);
 }

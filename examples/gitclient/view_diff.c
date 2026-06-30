@@ -84,7 +84,7 @@ void gc_diff_refresh(void) {
     .fMask = SIF_RANGE | SIF_PAGE | SIF_POS,
     .nMin  = 0,
     .nMax  = st->line_count,
-    .nPage = (uint32_t)MAX(1, win->frame.h / VGA_CHAR_H),
+    .nPage = (uint32_t)MAX(1, win->frame.h / vga_char_height()),
     .nPos  = 0,
   };
   set_scroll_info(win, SB_VERT, &si, false);
