@@ -23,7 +23,7 @@ void gc_open_repo(const char *path) {
 
   if (gc->main_win) {
     char title[600];
-    snprintf(title, sizeof(title), "Git Client — %s", path);
+    snprintf(title, sizeof(title), "Git Client - %s", path);
     strncpy(gc->main_win->title, title, sizeof(gc->main_win->title) - 1);
     gc->main_win->title[sizeof(gc->main_win->title) - 1] = '\0';
     invalidate_window(gc->main_win);
@@ -105,7 +105,7 @@ void gc_update_status(void) {
       }
     }
     snprintf(status, sizeof(status),
-             "Branch: %s  ↑%s  ↓%s", branch, ahead, behind);
+             "Branch: %s  ^%s  v%s", branch, ahead, behind);
   }
   send_message(gc->main_win, evStatusBar, 0, (void *)status);
 }
