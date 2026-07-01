@@ -378,6 +378,26 @@ static void on_set_title(void *ud, const char *title) {
   invalidate_window(win);
 }
 
+static void on_set_palette_color(void *ud, int idx, uint32_t rgba) {
+  window_t *win = (window_t *)ud;
+  if (!win || !win->userdata) return;
+  vgat_state_t *st = (vgat_state_t *)win->userdata;
+  if (idx >= 0 && idx <= 255) {
+    kAnsi256[idx] = rgba;
+    st->palette_dirty = true;
+    invalidate_window(win);
+  }
+}
+
+static void on_reset_palette(void *ud) {
+  window_t *win = (window_t *)ud;
+  if (!win || !win->userdata) return;
+  vgat_state_t *st = (vgat_state_t *)win->userdata;
+  ansi_palette_reset();
+  st->palette_dirty = true;
+  invalidate_window(win);
+}
+
 static void init_ansi_parser(vgat_state_t *st) {
   vgat_parser_init(&st->parser, &(vgat_parser_callbacks_t){
     .screen = &st->screen,
@@ -398,6 +418,8 @@ static void init_ansi_parser(vgat_state_t *st) {
     .erase_line = vgat_screen_erase_line,
     .cursor_pos = vgat_screen_cursor_position,
     .set_title = on_set_title,
+    .set_palette_color = on_set_palette_color,
+    .reset_palette = on_reset_palette,
   });
   st->parser.userdata = st->win;
 }

@@ -127,6 +127,9 @@ struct vgat_state_s {
   // Startup script path (owned copy, NULL if none)
   char *startup_script;
 
+  // Palette dirty flag — set when OSC 4 remaps a color, cleared after re-upload
+  bool palette_dirty;
+
   // Lua scripting (NULL when not in use or not compiled in)
 #if defined(HAVE_LUA)
   lua_State *L;          // Main Lua state (NULL in command-only mode)

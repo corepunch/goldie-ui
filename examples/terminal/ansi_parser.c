@@ -3,6 +3,7 @@
 #include "../../user/vga_font.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 enum {
   VGAT_STATE_NORMAL = 0,
@@ -35,6 +36,8 @@ void vgat_parser_init(vgat_parser_t *p, const vgat_parser_callbacks_t *cbs) {
   p->erase_line = cbs->erase_line;
   p->cursor_pos = cbs->cursor_pos;
   p->set_title = cbs->set_title;
+  p->set_palette_color = cbs->set_palette_color;
+  p->reset_palette = cbs->reset_palette;
   p->cur_fg = VGAT_FG_DEFAULT;
   p->cur_bg = VGAT_BG_DEFAULT;
   p->bold = false;
@@ -51,6 +54,32 @@ static void osc_dispatch(vgat_parser_t *p) {
   }
   if ((ps == 0 || ps == 2) && semi && p->set_title)
     p->set_title(p->userdata, semi);
+
+  // OSC 4 ; N ; rgb:RRRR/GGGG/BBBB — set palette color N
+  if (ps == 4 && semi && p->set_palette_color) {
+    int idx = 0;
+    for (const char *s = semi; *s >= '0' && *s <= '9'; s++)
+      idx = idx * 10 + (*s - '0');
+    // Find second semicolon for rgb spec
+    const char *rgb = NULL;
+    for (const char *s = semi; *s; s++) {
+      if (*s == ';') { rgb = s + 1; break; }
+    }
+    if (rgb && strncmp(rgb, "rgb:", 4) == 0) {
+      // Parse rgb:RRRR/GGGG/BBBB (16-bit hex per channel)
+      unsigned int r = 0, g = 0, b = 0;
+      if (sscanf(rgb + 4, "%x/%x/%x", &r, &g, &b) == 3) {
+        uint32_t rgba = 0xFF000000u | ((uint32_t)(r >> 8) << 16) |
+                        ((uint32_t)(g >> 8) << 8) | (uint32_t)(b >> 8);
+        if (idx >= 0 && idx <= 255)
+          p->set_palette_color(p->userdata, idx, rgba);
+      }
+    }
+  }
+
+  // OSC 104 — reset all palette colors to defaults
+  if (ps == 104 && p->reset_palette)
+    p->reset_palette(p->userdata);
 }
 
 static void csi_final(vgat_parser_t *p, char final) {

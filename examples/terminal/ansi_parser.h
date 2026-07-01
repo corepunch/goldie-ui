@@ -28,6 +28,8 @@ typedef struct {
   void (*erase_line)(vgat_screen *s, int mode);
   void (*cursor_pos)(vgat_screen *s, int row, int col);
   void (*set_title)(void *ud, const char *title);
+  void (*set_palette_color)(void *ud, int idx, uint32_t rgba);
+  void (*reset_palette)(void *ud);
 } vgat_parser_callbacks_t;
 
 typedef struct vgat_parser_s {
@@ -58,6 +60,8 @@ typedef struct vgat_parser_s {
   void (*erase_line)(vgat_screen *s, int mode);
   void (*cursor_pos)(vgat_screen *s, int row, int col);
   void (*set_title)(void *ud, const char *title);
+  void (*set_palette_color)(void *ud, int idx, uint32_t rgba);
+  void (*reset_palette)(void *ud);
 
   // OSC accumulator
   char osc_buf[256];
