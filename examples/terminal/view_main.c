@@ -502,13 +502,10 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         if (n > 0) {
           vgat_parser_feed(&st->parser, (uint8_t *)st->read_buf, n);
           invalidate_window(win);
-        } else if (n < 0 && errno != EAGAIN) {
-          int status;
-          pid_t result = waitpid(st->pty_pid, &status, WNOHANG);
-          if (result > 0) {
-            enter_cmd_mode(st);
-            invalidate_window(win);
-          }
+        } else if (n == 0 || (n < 0 && errno != EAGAIN)) {
+          // EOF or PTY error — child exited. enter_cmd_mode reaps it.
+          enter_cmd_mode(st);
+          invalidate_window(win);
         }
       }
       return true;
