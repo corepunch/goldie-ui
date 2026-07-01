@@ -7,12 +7,18 @@
 #include "test_env.h"
 #include "../ui.h"
 
+static int client_left_down_count;
+
 static result_t scrolling_window_proc(window_t *win, uint32_t msg,
                                       uint32_t wparam, void *lparam) {
   (void)lparam;
   if (msg == evCreate || msg == evDestroy || msg == evPaint) return 1;
   if (msg == evVScroll) {
     win->vscroll.pos = (uint16_t)wparam;
+    return 1;
+  }
+  if (msg == evLeftButtonDown) {
+    client_left_down_count++;
     return 1;
   }
   return 0;
@@ -45,7 +51,8 @@ void test_builtin_vscroll_click_starts_drag(void) {
   set_vscroll(win, 0, 200, 20, 20);
 
   // With arrow buttons, the thumb starts at y = 20.
-  send_message(win, evLeftButtonDown, MAKEDWORD(95, 22), NULL);
+  // Viewport y=22 is delivered in content space with vscroll.pos added.
+  send_message(win, evLeftButtonDown, MAKEDWORD(95, 42), NULL);
 
   ASSERT_TRUE(win->vscroll.dragging);
   ASSERT_EQUAL(win->vscroll.drag_start_mouse, 9);
@@ -68,7 +75,7 @@ void test_builtin_vscroll_drag_ignores_scroll_feedback(void) {
   set_vscroll(win, 0, 200, 20, 20);
 
   // Start on the thumb.
-  send_message(win, evLeftButtonDown, MAKEDWORD(95, 22), NULL);
+  send_message(win, evLeftButtonDown, MAKEDWORD(95, 42), NULL);
   ASSERT_TRUE(win->vscroll.dragging);
 
   // Move the mouse by 1 px. The scrollbar changes its position by 2.
@@ -89,12 +96,33 @@ void test_builtin_vscroll_drag_ignores_scroll_feedback(void) {
   PASS();
 }
 
+void test_builtin_vscroll_click_does_not_reach_client(void) {
+  TEST("built-in vscroll: a scrolled window does not receive scrollbar clicks");
+
+  test_env_init();
+  client_left_down_count = 0;
+  window_t *win = make_scrolling_window(100, 100);
+  ASSERT_NOT_NULL(win);
+  set_vscroll(win, 0, 200, 20, 20);
+
+  // The pointer is at viewport (95, 22), hence content-space y=42.
+  send_message(win, evLeftButtonDown, MAKEDWORD(95, 42), NULL);
+
+  ASSERT_TRUE(win->vscroll.dragging);
+  ASSERT_EQUAL(client_left_down_count, 0);
+  send_message(win, evLeftButtonUp, MAKEDWORD(95, 42), NULL);
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 int main(int argc, char *argv[]) {
   (void)argc; (void)argv;
   TEST_START("built-in scrollbar tests");
 
   test_builtin_vscroll_click_starts_drag();
   test_builtin_vscroll_drag_ignores_scroll_feedback();
+  test_builtin_vscroll_click_does_not_reach_client();
 
   TEST_END();
 }
