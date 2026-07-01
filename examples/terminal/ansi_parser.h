@@ -35,6 +35,7 @@ typedef struct vgat_parser_s {
   int nparams;
   int cur_fg;
   int cur_bg;
+  bool bold;
   vgat_screen *screen;
   void (*write_cell)(vgat_screen *s, uint8_t ch, int fg, int bg);
   void (*newline)(vgat_screen *s);

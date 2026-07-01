@@ -33,6 +33,7 @@ void vgat_parser_init(vgat_parser_t *p, const vgat_parser_callbacks_t *cbs) {
   p->cursor_pos = cbs->cursor_pos;
   p->cur_fg = VGAT_FG_DEFAULT;
   p->cur_bg = VGAT_BG_DEFAULT;
+  p->bold = false;
 }
 
 static void csi_final(vgat_parser_t *p, char final) {
@@ -40,22 +41,10 @@ static void csi_final(vgat_parser_t *p, char final) {
   int n = p->nparams;
 
   switch (final) {
-    case 'm': {
-      if (n == 0) { p->cur_fg = VGAT_FG_DEFAULT; p->cur_bg = VGAT_BG_DEFAULT; break; }
-      for (int i = 0; i < n; i++) {
-        int code = args[i];
-        if (code == 0)                       { p->cur_fg = VGAT_FG_DEFAULT; p->cur_bg = VGAT_BG_DEFAULT; }
-        else if (code == 1)                  { if (p->cur_fg < 8) p->cur_fg += 8; }
-        else if (code == 22)                 { if (p->cur_fg >= 8) p->cur_fg -= 8; }
-        else if (code >= 30 && code <= 37)   { p->cur_fg = code - 30; }
-        else if (code >= 40 && code <= 47)   { p->cur_bg = code - 40; }
-        else if (code >= 90 && code <= 97)   { p->cur_fg = code - 90 + 8; }
-        else if (code >= 100 && code <= 107) { p->cur_bg = code - 100 + 8; }
-        else if (code == 39)                 { p->cur_fg = VGAT_FG_DEFAULT; }
-        else if (code == 49)                 { p->cur_bg = VGAT_BG_DEFAULT; }
-      }
+    case 'm':
+      if (n == 0) { p->cur_fg = VGAT_FG_DEFAULT; p->cur_bg = VGAT_BG_DEFAULT; p->bold = false; break; }
+      ansi_apply_sgr_codes(args, n, &p->cur_fg, &p->cur_bg, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT, &p->bold);
       break;
-    }
     case 'H': case 'f':  p->cursor_pos(p->screen, n >= 1 ? args[0] - 1 : 0, n >= 2 ? args[1] - 1 : 0); break;
     case 'J':            p->erase_display(p->screen, n >= 1 ? args[0] : 0);                             break;
     case 'K':            p->erase_line(p->screen, n >= 1 ? args[0] : 0);                               break;
