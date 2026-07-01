@@ -76,12 +76,32 @@ uint16_t vga_font_glyph_for_codepoint(uint32_t cp) {
 static uint32_t g_cell_tex   = 0;
 static int      g_cell_cap_w = 0;
 
-static const uint32_t kEgaPalette[16] = {
+static uint32_t kEgaPalette[256] = {
+  // 0..15: classic EGA/VGA
   0xFF000000u, 0xFF0000AAu, 0xFF00AA00u, 0xFF00AAAAu,
   0xFFAA0000u, 0xFFAA00AAu, 0xFFAA5500u, 0xFFAAAAAAu,
   0xFF555555u, 0xFF5555FFu, 0xFF55FF55u, 0xFF55FFFFu,
   0xFFFF5555u, 0xFFFF55FFu, 0xFFFFFF55u, 0xFFFFFFFFu,
 };
+
+// Initialize the 256-color portion (16..255) of kEgaPalette at first use.
+static bool kEgaPalette256_init;
+static void ensure_ega_palette256(void) {
+  if (kEgaPalette256_init) return;
+  kEgaPalette256_init = true;
+  static const int steps[6] = { 0, 95, 135, 175, 215, 255 };
+  for (int i = 0; i < 216; i++) {
+    int r = steps[(i / 36) % 6];
+    int g = steps[(i / 6) % 6];
+    int b = steps[i % 6];
+    kEgaPalette[16 + i] = 0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+  }
+  for (int i = 0; i < 24; i++) {
+    int gray = 8 + i * 10;
+    kEgaPalette[232 + i] = 0xFF000000u | ((uint32_t)gray << 16) |
+                            ((uint32_t)gray << 8) | (uint32_t)gray;
+  }
+}
 
 static bool vga_ensure_cell_texture(int width_chars) {
   if (width_chars <= 0)
@@ -463,6 +483,7 @@ int vga_draw_textn(const char *text, int max_chars,
     .width = draw_chars,
     .height = 1,
   };
+  ensure_ega_palette256();
   if (!R_DrawVGABuffer(&buf, x, y,
                        draw_chars * g_cell_w, g_cell_h,
                        &fs, kEgaPalette)) {

@@ -828,18 +828,18 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
                      int x, int y,
                      int dst_w_px, int dst_h_px,
                      const R_FontSheet *font,
-                     const uint32_t palette16[16]) {
+                     const uint32_t palette256[256]) {
   if (!g_ref.vga_program || !buf || !buf->vga_buffer || !font ||
       !font->texture || font->cell_w <= 0 || font->cell_h <= 0 ||
-      !palette16 || buf->width <= 0 || buf->height <= 0 ||
+      !palette256 || buf->width <= 0 || buf->height <= 0 ||
       dst_w_px <= 0 || dst_h_px <= 0)
     return false;
-  float pal[16 * 4];
-  for (int i = 0; i < 16; i++) {
-    pal[i * 4 + 0] = ((palette16[i] >> 16) & 0xFF) / 255.0f;
-    pal[i * 4 + 1] = ((palette16[i] >> 8) & 0xFF) / 255.0f;
-    pal[i * 4 + 2] = (palette16[i] & 0xFF) / 255.0f;
-    pal[i * 4 + 3] = ((palette16[i] >> 24) & 0xFF) / 255.0f;
+  float pal[256 * 4];
+  for (int i = 0; i < 256; i++) {
+    pal[i * 4 + 0] = ((palette256[i] >> 16) & 0xFF) / 255.0f;
+    pal[i * 4 + 1] = ((palette256[i] >> 8) & 0xFF) / 255.0f;
+    pal[i * 4 + 2] = (palette256[i] & 0xFF) / 255.0f;
+    pal[i * 4 + 3] = ((palette256[i] >> 24) & 0xFF) / 255.0f;
   }
 
   glUseProgram(g_ref.vga_program);
@@ -850,7 +850,7 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   glUniform2f(g_vga.uv_scale, 1.0f, 1.0f);
   glUniform2f(g_vga.grid_size, (float)buf->width, (float)buf->height);
   glUniform2f(g_vga.cell_size, (float)font->cell_w, (float)font->cell_h);
-  glUniform4fv(g_vga.ega_palette, 16, pal);
+  glUniform4fv(g_vga.ega_palette, 256, pal);
   glUniform1i(g_vga.cell_tex, 0);
   glUniform1i(g_vga.font_tex, 1);
 

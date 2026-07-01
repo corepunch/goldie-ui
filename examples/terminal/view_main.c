@@ -424,6 +424,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       snprintf(font_path, sizeof(font_path), "%s/../share/orion/fonts/monoid.ttf",
                ui_get_exe_dir());
       vga_font_init(font_path, 12.0f);
+      ansi_init_palette256();
 
       irect16_t cr = get_client_rect(win);
       int cols = cr.w / vga_char_width();
@@ -601,7 +602,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         R_DrawVGABuffer(&buf, cr.x, cr.y,
                         grid.cells_w * cw,
                         grid.cells_h * ch,
-                        (const R_FontSheet*)&fl, kAnsi16);
+                        (const R_FontSheet*)&fl, kAnsi256);
       }
 
       vga_text_free_grid(&grid);
