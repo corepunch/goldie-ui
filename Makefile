@@ -145,7 +145,7 @@ fonts: tools
 	@$(BIN_DIR)/font_atlas fonts/PixelOperatorMono.ttf share/fonts/Mono-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v
 	
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(CORE_LIBS) | $(BIN_DIR)
-	@echo "  TOOL    $@"
+	@echo "TOOL    $@"
 	@$(CC) $(TOOLS_CFLAGS) -I. -Itools -o $@ $< \
 	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 ifeq ($(OS),Windows_NT)
@@ -157,16 +157,16 @@ ifeq ($(OS),Windows_NT)
 endif
 
 $(BIN_DIR)/gen_toolbox_atlas$(EXE_EXT): tools/gen_toolbox_atlas.c | $(BIN_DIR)
-	@echo "  TOOL    $@"
+	@echo "TOOL    $@"
 	@$(CC) $(TOOLS_CFLAGS) -I. -Itools -o $@ $< -lm
 
 $(ORIONC_BIN): tools/orionc.c | $(BIN_DIR)
-	@echo "  TOOL    $@"
+	@echo "TOOL    $@"
 	@$(CC) $(TOOLS_CFLAGS) -I. -Itools -o $@ $< $(LDFLAGS) $(LIBS)
 
 $(GENERATED_DIR)/examples/%.h: examples/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
 	@mkdir -p $(dir $@)
-	@echo "  GEN     $@"
+	@echo "GEN     $@"
 	@$(ORIONC_BIN) --input $< --output $@ --prefix $(notdir $(basename $<))
 
 # Build the platform submodule shared library
@@ -174,8 +174,8 @@ $(GENERATED_DIR)/examples/%.h: examples/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
 platform: $(PLATFORM_LIB)
 
 $(PLATFORM_LIB): | $(LIB_DIR)
-	@echo "  PLATFORM"
-	@$(MAKE) -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
+	@echo "PLATFORM"
+	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
 
 # VGA font TTF — copied from the source tree into build/share/orion/fonts.
 # The character sheet is generated on the fly at runtime by vga_font.c
@@ -205,22 +205,22 @@ share: $(VGA_FONT_TTF) | $(SHARE_DIR)
 library: $(CORE_LIBS)
 
 $(USER_LIB): $(USER_SRCS) $(COMMDLG_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
-	@echo "  LIB     $@"
+	@echo "LIB     $@"
 	@printf '%s\n' $(sort $(USER_SRCS)) | sed 's/.*/#include "&"/' | \
 	   $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 # Build commdlg static library
 $(COMMDLG_LIB): $(wildcard commdlg/*.c) | $(LIB_DIR)
-	@echo "  LIB     $@"
+	@echo "LIB     $@"
 	@$(MAKE) -C commdlg CC="$(CC)" CFLAGS="$(CFLAGS)"
 	@cp commdlg/libcommdlg.a $(COMMDLG_LIB)
 
 $(COMMCTL_LIB): $(wildcard commctl/*.c) $(USER_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
-	@echo "  LIB     $@"
+	@echo "LIB     $@"
 	@find commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
 	    $(CC) $(CFLAGS) $(LIB_FLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 $(KERNEL_LIB): $(wildcard kernel/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
-	@echo "  LIB     $@"
+	@echo "LIB     $@"
 	@find kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
 	    $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
@@ -232,13 +232,13 @@ examples: share $(EXAMPLE_BINS) $(COMPONENT_PLUGIN_BINS)
 plugins: $(COMPONENT_PLUGIN_BINS)
 
 $(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard components/$$*/*.c) $(CORE_LIBS) $(GENERATED_HEADERS) | $(LIB_DIR)
-	@echo "  PLUGIN  $@"
+	@echo "PLUGIN  $@"
 	@$(CC) $(CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents/$* -o $@ $(wildcard components/$*/*.c) \
 	    $(LDFLAGS) $(FE_PLUGIN_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 
 $(EXAMPLE_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(BIN_DIR) share
-	@echo "  BIN     $@"
+	@echo "BIN     $@"
 	@{(find examples/$* -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/$*/main.c"') | \
 		$(CC) $(CFLAGS) -I. -Iexamples/$* -Icomponents -Icomponents/$* -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
@@ -257,7 +257,7 @@ gems: $(GEM_BINS)
 	@echo "OK All .gems built and validated"
 
 $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(GEM_DIR)
-	@echo "  GEM     $@"
+	@echo "GEM     $@"
 	@{(echo '#include "gem_magic.h"'; \
 	 find examples/$* -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/$*/main.c"') | \
@@ -295,7 +295,7 @@ endif
 	@echo "All tests passed!"
 
 $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $(GENERATED_HEADERS) $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) | $(BIN_DIR)
-	@echo "  TEST    $@"
+	@echo "TEST    $@"
 	@src=$$(find $(TEST_DIR) -name "$*.c" ! -path "$(TEST_DIR)/*/tests/*" | head -n 1); \
 	app_dir=""; \
 	app=""; \
@@ -336,7 +336,7 @@ $(BUILD_DIRS):
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf $(BUILD_DIR)
-	@$(MAKE) -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)" clean 2>/dev/null || true
+	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)" clean 2>/dev/null || true
 
 # Help
 .PHONY: help
@@ -344,14 +344,14 @@ help:
 	@echo "Orion UI Framework - Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all       - Build library, examples, gems, and tools"
-	@echo "  library   - Build shared library"
-	@echo "  examples  - Build example applications"
-	@echo "  gems      - Build all .gem shared libraries"
-	@echo "  test      - Build and run tests"
-	@echo "  clean     - Remove all build artifacts"
-	@echo "  help      - Show this help message"
+	@echo "all       - Build library, examples, gems, and tools"
+	@echo "library   - Build shared library"
+	@echo "examples  - Build example applications"
+	@echo "gems      - Build all .gem shared libraries"
+	@echo "test      - Build and run tests"
+	@echo "clean     - Remove all build artifacts"
+	@echo "help      - Show this help message"
 	@echo ""
 	@echo "Output directories:"
-	@echo "  $(LIB_DIR)  - Libraries"
-	@echo "  $(SHARE_DIR) - Shared data assets (icons, etc.)"
+	@echo "$(LIB_DIR)  - Libraries"
+	@echo "$(SHARE_DIR) - Shared data assets (icons, etc.)"
