@@ -371,6 +371,13 @@ static void enter_cmd_mode(vgat_state_t *st) {
 
 // ── ANSI parser callbacks ────────────────────────────────────────────────
 
+static void on_set_title(void *ud, const char *title) {
+  window_t *win = (window_t *)ud;
+  if (!win || !title) return;
+  snprintf(win->title, sizeof(win->title), "%s", title);
+  invalidate_window(win);
+}
+
 static void init_ansi_parser(vgat_state_t *st) {
   vgat_parser_init(&st->parser, &(vgat_parser_callbacks_t){
     .screen = &st->screen,
@@ -390,7 +397,9 @@ static void init_ansi_parser(vgat_state_t *st) {
     .erase_display = vgat_screen_erase_display,
     .erase_line = vgat_screen_erase_line,
     .cursor_pos = vgat_screen_cursor_position,
+    .set_title = on_set_title,
   });
+  st->parser.userdata = st->win;
 }
 
 // ── Window procedure ──────────────────────────────────────────────────────
@@ -555,6 +564,19 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
             int phys = (st->screen.head + st->screen.cursor_row) % st->screen.total_rows;
             vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + csc];
             vga_text_set_cell(&grid, csc, cscr, cell->glyph, cell->bg, cell->fg);
+          }
+        }
+
+        // ── PTY cursor (block cursor via fg/bg flip) ──
+        if (st->mode == VGAT_MODE_PTY && st->cursor_visible &&
+            st->screen.cursor_visible) {
+          int cscr = st->screen.cursor_row - first;
+          int csc = st->screen.cursor_col;
+          if (cscr >= 0 && cscr < content_rows && csc >= 0 && csc < vis_cols &&
+              csc < st->screen.cols) {
+            int phys = (st->screen.head + st->screen.cursor_row) % st->screen.total_rows;
+            vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + csc];
+            vga_text_set_cell(&grid, csc, cscr, cell->ch, cell->bg, cell->fg);
           }
         }
       }

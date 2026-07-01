@@ -27,12 +27,14 @@ typedef struct {
   void (*erase_display)(vgat_screen *s, int mode);
   void (*erase_line)(vgat_screen *s, int mode);
   void (*cursor_pos)(vgat_screen *s, int row, int col);
+  void (*set_title)(void *ud, const char *title);
 } vgat_parser_callbacks_t;
 
 typedef struct vgat_parser_s {
   int state;
   int params[16];
   int nparams;
+  char private_marker;
   int cur_fg;
   int cur_bg;
   bool bold;
@@ -55,6 +57,13 @@ typedef struct vgat_parser_s {
   void (*erase_display)(vgat_screen *s, int mode);
   void (*erase_line)(vgat_screen *s, int mode);
   void (*cursor_pos)(vgat_screen *s, int row, int col);
+  void (*set_title)(void *ud, const char *title);
+
+  // OSC accumulator
+  char osc_buf[256];
+  int  osc_len;
+  bool osc_st_pending; // true after ESC in OSC, waiting for ST
+  void *userdata;      // opaque pointer for callbacks (e.g. window_t*)
 } vgat_parser_t;
 
 void vgat_parser_init(vgat_parser_t *p, const vgat_parser_callbacks_t *cbs);

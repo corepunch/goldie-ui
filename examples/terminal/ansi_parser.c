@@ -34,9 +34,23 @@ void vgat_parser_init(vgat_parser_t *p, const vgat_parser_callbacks_t *cbs) {
   p->erase_display = cbs->erase_display;
   p->erase_line = cbs->erase_line;
   p->cursor_pos = cbs->cursor_pos;
+  p->set_title = cbs->set_title;
   p->cur_fg = VGAT_FG_DEFAULT;
   p->cur_bg = VGAT_BG_DEFAULT;
   p->bold = false;
+}
+
+static void osc_dispatch(vgat_parser_t *p) {
+  p->osc_buf[p->osc_len] = '\0';
+  // Format: Ps ; Pt  — Ps is the parameter, Pt is the payload
+  int ps = 0;
+  char *semi = NULL;
+  for (int i = 0; i < p->osc_len; i++) {
+    if (p->osc_buf[i] == ';') { p->osc_buf[i] = '\0'; semi = &p->osc_buf[i + 1]; break; }
+    ps = ps * 10 + (p->osc_buf[i] - '0');
+  }
+  if ((ps == 0 || ps == 2) && semi && p->set_title)
+    p->set_title(p->userdata, semi);
 }
 
 static void csi_final(vgat_parser_t *p, char final) {
@@ -60,7 +74,10 @@ static void csi_final(vgat_parser_t *p, char final) {
     case 'c':            p->reset(p->screen);           break;
     case 'I':            for (int i = 0; i < VGAT_MAX(1, n >= 1 ? args[0] : 1); i++) p->cursor_right(p->screen); break;
     case 'Z':            for (int i = 0; i < VGAT_MAX(1, n >= 1 ? args[0] : 1); i++) p->cursor_left(p->screen);  break;
-    case 'l': case 'h':  break;  // DECTCEM - ignored
+    case 'l': case 'h':
+      if (p->private_marker == '?' && n >= 1 && args[0] == 25)
+        p->screen->cursor_visible = final == 'h';
+      break;
     case 'd':            break;  // VPA - not implemented
     default:
       break;
@@ -101,8 +118,8 @@ void vgat_parser_feed(vgat_parser_t *p, const uint8_t *data, int len) {
         break;
 
       case VGAT_STATE_ESC:
-        if (c == '[')   { p->state = VGAT_STATE_CSI; p->nparams = 0; p->params[0] = 0; }
-        else if (c == ']')  { p->state = VGAT_STATE_OSC; }
+        if (c == '[')   { p->state = VGAT_STATE_CSI; p->nparams = 0; p->params[0] = 0; p->private_marker = 0; }
+        else if (c == ']')  { p->state = VGAT_STATE_OSC; p->osc_len = 0; }
         else if (c == 'c')  { p->reset(p->screen); p->state = VGAT_STATE_NORMAL; }
         else if (c == '7')  { p->save_cursor(p->screen); p->state = VGAT_STATE_NORMAL; }
         else if (c == '8')  { p->restore_cursor(p->screen); p->state = VGAT_STATE_NORMAL; }
@@ -110,21 +127,23 @@ void vgat_parser_feed(vgat_parser_t *p, const uint8_t *data, int len) {
         break;
 
       case VGAT_STATE_CSI:
-        if (c >= '0' && c <= '9')           { p->params[p->nparams] = p->params[p->nparams] * 10 + (c - '0'); }
-        else if (c == ';')                  { p->nparams++; if (p->nparams < 15) p->params[p->nparams] = 0; }
-        else if (c >= 0x20 && c <= 0x2F)    { /* intermediate bytes */ }
-        else if (c >= 0x3C && c <= 0x3F)    { /* private parameter bytes, e.g. ESC[?25h */ }
-        else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { p->nparams++; csi_final(p, (char)c); p->state = VGAT_STATE_NORMAL; }
-        else                                { p->state = VGAT_STATE_NORMAL; }
+        if (c >= '0' && c <= '9') { p->params[p->nparams] = p->params[p->nparams] * 10 + (c - '0'); }
+        else if (c == ';' || c == ':') { if (p->nparams < 15) p->params[++p->nparams] = 0; }
+        else if (c >= '<' && c <= '?') { p->private_marker = (char)c; }
+        else if (c >= 0x20 && c <= 0x2F) { /* CSI intermediate byte */ }
+        else if (c >= 0x40 && c <= 0x7E) { p->nparams++; csi_final(p, (char)c); p->state = VGAT_STATE_NORMAL; }
+        else { p->state = VGAT_STATE_NORMAL; }
         break;
 
       case VGAT_STATE_OSC:
-        if (c == 0x07)      { p->state = VGAT_STATE_NORMAL; }
+        if (c == 0x07)      { osc_dispatch(p); p->state = VGAT_STATE_NORMAL; }
         else if (c == 0x1B) { p->state = VGAT_STATE_OSC_ESC; }
+        else if (p->osc_len < (int)sizeof(p->osc_buf) - 1) { p->osc_buf[p->osc_len++] = (char)c; }
         break;
 
       case VGAT_STATE_OSC_ESC:
-        p->state = (c == '\\') ? VGAT_STATE_NORMAL : VGAT_STATE_OSC;
+        if (c == '\\') { osc_dispatch(p); }
+        p->state = VGAT_STATE_NORMAL;
         break;
     }
   }
