@@ -226,17 +226,17 @@ static bool show_file_picker(window_t *parent, bool save_mode,
 
 ## Mouse Coordinate Notes
 
-For **top-level** windows, `LOWORD(wparam)` and `HIWORD(wparam)` in mouse
-messages are **window-local** (0,0 = top-left of content area).
+For ordinary dispatched mouse messages, `LOWORD(wparam)` and
+`HIWORD(wparam)` are in the receiving window's **content space**. The window
+system converts screen coordinates to window-local coordinates and includes
+the receiving window's horizontal and vertical scroll positions. This is true
+for both direct targets and nested child windows; controls must not apply the
+scroll offset a second time.
 
-For **child** windows found via `evHitTest`, the coordinates are
-absolute-logical.  Convert to child-local with:
-
-```c
-window_t *root = get_root_window(win);
-int lx = (int16_t)LOWORD(wparam) - root->frame.x - win->frame.x;
-int ly = (int16_t)HIWORD(wparam) - root->frame.y - win->frame.y;
-```
+Child hit-testing itself happens in parent viewport space. `handle_mouse()` in
+`user/event.c` performs the viewport-to-content conversion while descending
+the window tree. See [Window and input event routing](architecture#window-and-input-event-routing)
+for the complete dispatch model and the special scrollbar/toolbar paths.
 
 ## Useful Helpers
 
