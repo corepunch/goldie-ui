@@ -4,6 +4,8 @@
 #if defined(__unix__) || defined(__APPLE__)
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -58,6 +60,7 @@ int vgat_pty_exec(const char *const *argv, int rows, int cols, int *pid_out) {
   if (pid == 0) {
     setenv("TERM", "linux", 1);
     execvp(argv[0], (char *const *)argv);
+    fprintf(stderr, "%s: %s\r\n", argv[0], strerror(errno));
     _exit(127);
   }
 

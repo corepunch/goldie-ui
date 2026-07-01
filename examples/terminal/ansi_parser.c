@@ -8,6 +8,8 @@ enum {
   VGAT_STATE_NORMAL = 0,
   VGAT_STATE_ESC,
   VGAT_STATE_CSI,
+  VGAT_STATE_OSC,
+  VGAT_STATE_OSC_ESC,
 };
 
 #define VGAT_MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -100,6 +102,7 @@ void vgat_parser_feed(vgat_parser_t *p, const uint8_t *data, int len) {
 
       case VGAT_STATE_ESC:
         if (c == '[')   { p->state = VGAT_STATE_CSI; p->nparams = 0; p->params[0] = 0; }
+        else if (c == ']')  { p->state = VGAT_STATE_OSC; }
         else if (c == 'c')  { p->reset(p->screen); p->state = VGAT_STATE_NORMAL; }
         else if (c == '7')  { p->save_cursor(p->screen); p->state = VGAT_STATE_NORMAL; }
         else if (c == '8')  { p->restore_cursor(p->screen); p->state = VGAT_STATE_NORMAL; }
@@ -109,8 +112,19 @@ void vgat_parser_feed(vgat_parser_t *p, const uint8_t *data, int len) {
       case VGAT_STATE_CSI:
         if (c >= '0' && c <= '9')           { p->params[p->nparams] = p->params[p->nparams] * 10 + (c - '0'); }
         else if (c == ';')                  { p->nparams++; if (p->nparams < 15) p->params[p->nparams] = 0; }
+        else if (c >= 0x20 && c <= 0x2F)    { /* intermediate bytes */ }
+        else if (c >= 0x3C && c <= 0x3F)    { /* private parameter bytes, e.g. ESC[?25h */ }
         else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) { p->nparams++; csi_final(p, (char)c); p->state = VGAT_STATE_NORMAL; }
         else                                { p->state = VGAT_STATE_NORMAL; }
+        break;
+
+      case VGAT_STATE_OSC:
+        if (c == 0x07)      { p->state = VGAT_STATE_NORMAL; }
+        else if (c == 0x1B) { p->state = VGAT_STATE_OSC_ESC; }
+        break;
+
+      case VGAT_STATE_OSC_ESC:
+        p->state = (c == '\\') ? VGAT_STATE_NORMAL : VGAT_STATE_OSC;
         break;
     }
   }
