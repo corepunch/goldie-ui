@@ -6,6 +6,102 @@
 #include <time.h>
 #include <dirent.h>
 
+// ── Lua extraspace access (stores vgat_state_t*) ──────────────────────────
+#if defined(HAVE_LUA)
+#define VGATSTATE(L) ((vgat_state_t**)lua_getextraspace(L))
+
+static int f_print(lua_State *L) {
+  vgat_state_t *st = *VGATSTATE(L);
+  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
+    vgat_screen_write_string(&st->screen, lua_tostring(L, i), VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    if (i < n) vgat_screen_write_string(&st->screen, "\t", VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  }
+  vgat_screen_newline(&st->screen);
+  return 0;
+}
+
+static int f_io_read(lua_State *L) { return lua_yield(L, 0); }
+
+static int f_io_write(lua_State *L) {
+  vgat_state_t *st = *VGATSTATE(L);
+  for (int i = 1, n = lua_gettop(L); i <= n; i++) {
+    const char *s = luaL_checkstring(L, i);
+    vgat_screen_write_string(&st->screen, s, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    fprintf(stdout, "%s", s);
+  }
+  return 0;
+}
+
+static int f_stdout_write(lua_State *L) {
+  vgat_state_t *st = *VGATSTATE(L);
+  for (int i = 2, n = lua_gettop(L); i <= n; i++) {
+    const char *s = luaL_checkstring(L, i);
+    vgat_screen_write_string(&st->screen, s, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    fprintf(stdout, "%s", s);
+  }
+  lua_pushvalue(L, 1);
+  return 1;
+}
+
+static int f_stdout_flush(lua_State *L) { lua_pushvalue(L, 1); return 1; }
+static int f_stdout_setvbuf(lua_State *L) { lua_pushvalue(L, 1); return 1; }
+
+static const char *STDOUT_METATABLE = "vgaterminal.stdout";
+
+static bool create_lua_state(vgat_state_t *st) {
+  st->L = luaL_newstate();
+  if (!st->L) return false;
+  luaL_openlibs(st->L);
+
+  *(vgat_state_t **)lua_getextraspace(st->L) = st;
+
+  // Override print
+  lua_pushcfunction(st->L, f_print);
+  lua_setglobal(st->L, "print");
+
+  // Setup stdout metatable
+  luaL_newmetatable(st->L, STDOUT_METATABLE);
+  lua_pushvalue(st->L, -1);                   lua_setfield(st->L, -2, "__index");
+  lua_pushcfunction(st->L, f_stdout_write);   lua_setfield(st->L, -2, "write");
+  lua_pushcfunction(st->L, f_stdout_flush);   lua_setfield(st->L, -2, "flush");
+  lua_pushcfunction(st->L, f_stdout_setvbuf); lua_setfield(st->L, -2, "setvbuf");
+  lua_pop(st->L, 1);
+
+  lua_newuserdata(st->L, sizeof(void *));
+  luaL_setmetatable(st->L, STDOUT_METATABLE);
+
+  // Override io.*
+  lua_getglobal(st->L, "io");
+  lua_pushvalue(st->L, -2);             lua_setfield(st->L, -2, "output");
+  lua_pushvalue(st->L, -2);             lua_setfield(st->L, -2, "stdout");
+  lua_pushcfunction(st->L, f_io_write); lua_setfield(st->L, -2, "write");
+  lua_pushcfunction(st->L, f_io_read);  lua_setfield(st->L, -2, "read");
+  lua_pop(st->L, 2);
+
+  return true;
+}
+
+static void continue_lua_coroutine(vgat_state_t *st, int nargs) {
+  int nres;
+  int status = lua_resume(st->co, NULL, nargs, &nres);
+
+  if (status == LUA_OK) {
+    vgat_screen_write_string(&st->screen, "\nProcess finished\n", 10, VGAT_BG_DEFAULT);
+    st->lua_running = false;
+    st->waiting_for_input = false;
+  } else if (status == LUA_YIELD) {
+    st->waiting_for_input = true;
+    vgat_screen_write_string(&st->screen, "\n> ", VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  } else {
+    vgat_screen_write_string(&st->screen, "\nError: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, lua_tostring(st->co, -1), VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+    st->lua_running = false;
+    st->waiting_for_input = false;
+  }
+}
+#endif /* HAVE_LUA */
+
 // ── Command forward declarations ──────────────────────────────────────────
 
 static void cmd_echo(vgat_state_t *, int, char **);
@@ -17,6 +113,7 @@ static void cmd_cd  (vgat_state_t *, int, char **);
 static void cmd_cat (vgat_state_t *, int, char **);
 static void cmd_date(vgat_state_t *, int, char **);
 static void cmd_whoami(vgat_state_t *, int, char **);
+static void cmd_lua  (vgat_state_t *, int, char **);
 
 // ── Command table ─────────────────────────────────────────────────────────
 
@@ -31,6 +128,7 @@ const vgat_cmd_t g_cmds[] = {
   {"cat",    "Display a file",         cmd_cat},
   {"date",   "Show date and time",     cmd_date},
   {"whoami", "Show current user",      cmd_whoami},
+  {"lua",    "Run a Lua script",        cmd_lua},
   {NULL, NULL, NULL} // sentinel
 };
 
@@ -137,6 +235,42 @@ static void cmd_whoami(vgat_state_t *st, int argc, char **argv) {
   vgat_screen_newline(&st->screen);
 }
 
+static void cmd_lua(vgat_state_t *st, int argc, char **argv) {
+#if defined(HAVE_LUA)
+  if (argc < 2) {
+    vgat_screen_write_string(&st->screen, "Usage: lua <script.lua>\n", 9, VGAT_BG_DEFAULT);
+    return;
+  }
+
+  // Create Lua state on first use
+  if (!st->L) {
+    if (!create_lua_state(st)) {
+      vgat_screen_write_string(&st->screen, "Error: Failed to create Lua state\n", 9, VGAT_BG_DEFAULT);
+      return;
+    }
+  }
+
+  // Create a coroutine and load the script
+  st->co = lua_newthread(st->L);
+  st->lua_running = true;
+  st->waiting_for_input = false;
+
+  if (luaL_loadfile(st->co, argv[1]) != LUA_OK) {
+    vgat_screen_write_string(&st->screen, "Error loading file: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, lua_tostring(st->co, -1), VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+    st->lua_running = false;
+    return;
+  }
+
+  continue_lua_coroutine(st, 0);
+#else
+  (void)st; (void)argc; (void)argv;
+  vgat_screen_write_string(&st->screen, "Lua scripting is not available in this build.\n",
+                           9, VGAT_BG_DEFAULT);
+#endif
+}
+
 // ── Input processing ──────────────────────────────────────────────────────
 
 static void process_input(vgat_state_t *st) {
@@ -222,6 +356,9 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
         if (st->timer_id > 0) axCancelTimer(st->timer_id);
         vga_font_shutdown();
         vgat_screen_shutdown(&st->screen);
+#if defined(HAVE_LUA)
+        if (st->L) lua_close(st->L);
+#endif
         free(st);
         win->userdata = NULL;
       }
@@ -369,7 +506,17 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       if (!st) return false;
       switch (wparam) {
         case AX_KEY_ENTER:
-          process_input(st);
+          if (st->lua_running && st->waiting_for_input) {
+            vgat_screen_write_string(&st->screen, "> ", 10, VGAT_BG_DEFAULT);
+            vgat_screen_write_string(&st->screen, st->input_buf, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+            vgat_screen_newline(&st->screen);
+#if defined(HAVE_LUA)
+            lua_pushstring(st->co, st->input_buf);
+            continue_lua_coroutine(st, 1);
+#endif
+          } else {
+            process_input(st);
+          }
           st->input_len = 0;
           st->input_buf[0] = '\0';
           invalidate_window(win);

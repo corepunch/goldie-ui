@@ -19,6 +19,25 @@
 #include "../../platform/platform.h"
 #include "../../user/ansi.h"
 
+/* Lua headers - same probe logic as commctl/terminal.c */
+#if defined(HAVE_LUA)
+#  if defined(_WIN32) || defined(_WIN64)
+#    include <lua.h>
+#    include <lauxlib.h>
+#    include <lualib.h>
+#  elif __has_include(<lua5.4/lua.h>)
+#    include <lua5.4/lua.h>
+#    include <lua5.4/lauxlib.h>
+#    include <lua5.4/lualib.h>
+#  elif __has_include(<lua.h>)
+#    include <lua.h>
+#    include <lauxlib.h>
+#    include <lualib.h>
+#  else
+#    undef HAVE_LUA
+#  endif
+#endif
+
 #define VGAT_WINDOW_TITLE  "VGA Console"
 #define VGAT_DEFAULT_COLS  80
 #define VGAT_DEFAULT_ROWS  24
@@ -82,6 +101,17 @@ struct vgat_state_s {
   // Cursor blink
   bool cursor_visible;
   int cursor_blink_ctr;
+
+  // Lua scripting (NULL when not in use or not compiled in)
+#if defined(HAVE_LUA)
+  lua_State *L;          // Main Lua state (NULL in command-only mode)
+  lua_State *co;         // Coroutine for current script
+#else
+  void *L;
+  void *co;
+#endif
+  bool lua_running;       // True while a Lua script is executing
+  bool waiting_for_input; // True while waiting for io.read() input
 };
 
 extern const vgat_cmd_t g_cmds[];
