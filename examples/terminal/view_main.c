@@ -576,7 +576,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
               csc < st->screen.cols) {
             int phys = (st->screen.head + st->screen.cursor_row) % st->screen.total_rows;
             vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + csc];
-            vga_text_set_cell(&grid, csc, cscr, cell->ch, cell->bg, cell->fg);
+            vga_text_set_cell(&grid, csc, cscr, cell->glyph, cell->bg, cell->fg);
           }
         }
       }
