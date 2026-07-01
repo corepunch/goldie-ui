@@ -653,7 +653,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       // PTY mode: forward keys to child process
       if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
         int base = wparam & 0xFF;
-        int mods = wparam & ~0xFF;
+        int mods = (int)ui_get_mod_state();
 
         // Ctrl+letter → control character
         if (mods & AX_MOD_CTRL) {
