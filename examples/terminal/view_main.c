@@ -327,7 +327,7 @@ static void process_input(vgat_state_t *st) {
 
   // Parse argv (max 64 args, modifies string in-place)
   int argc = 0;
-  char *argv[64];
+  char *argv[65];
   bool in = false;
   for (char *q = p; *q && argc < 64; q++) {
     if (*q == ' ' || *q == '\t') {
@@ -338,6 +338,7 @@ static void process_input(vgat_state_t *st) {
       in = true;
     }
   }
+  argv[argc] = NULL;
 
   // Dispatch
   for (int i = 0; g_cmds[i].name; i++) {

@@ -68,10 +68,6 @@ static const uint16_t kCp437High[128] = {
 };
 
 uint16_t vga_font_glyph_for_codepoint(uint32_t cp) {
-  if (cp < 0x80) return (uint16_t)cp;
-  if (cp == 0x258F) return 0x01;
-  for (int i = 0; i < 128; i++) if (kCp437High[i] == cp) return (uint16_t)(i + 0x80);
-  if (cp == 0x2022 || cp == 0x25CF) return 0xF9;
   if (cp <= 0xFFFF) return (uint16_t)cp;
   return 0xFE;
 }
