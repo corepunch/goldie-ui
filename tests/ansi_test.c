@@ -50,12 +50,12 @@ void test_nearest_ansi_index_white(void) {
 }
 
 void test_clamp_ansi_index(void) {
-  TEST("clamp_ansi_index clamps values to [0, 15]");
+  TEST("clamp_ansi_index clamps values to [0, 255]");
   ASSERT_EQUAL(clamp_ansi_index(-5), 0);
   ASSERT_EQUAL(clamp_ansi_index(0), 0);
-  ASSERT_EQUAL(clamp_ansi_index(7), 7);
-  ASSERT_EQUAL(clamp_ansi_index(15), 15);
-  ASSERT_EQUAL(clamp_ansi_index(100), 15);
+  ASSERT_EQUAL(clamp_ansi_index(128), 128);
+  ASSERT_EQUAL(clamp_ansi_index(255), 255);
+  ASSERT_EQUAL(clamp_ansi_index(300), 255);
   PASS();
 }
 

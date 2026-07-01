@@ -129,12 +129,12 @@ void R_SetBlendMode(bool enabled);
 // Draw a VGA text buffer using the cell buffer and font sheet.
 //   - buf       : RGBA cell buffer (glyph_hi<<8|glyph_lo, fg, bg)
 //   - font      : font sheet description (texture, cell/sheet dimensions)
-//   - palette16 : EGA-like 16-color palette (0xAARRGGBB)
+//   - palette256: full 256-color palette (0xAARRGGBB)
 // dst_w_px/dst_h_px are output size in screen pixels.
 bool R_DrawVGABuffer(const R_VgaBuffer *buf,
                      int x, int y,
                      int dst_w_px, int dst_h_px,
                      const R_FontSheet *font,
-                     const uint32_t palette16[16]);
+                     const uint32_t palette256[256]);
 
 #endif /* __UI_RENDERER_H__ */

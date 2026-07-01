@@ -20,6 +20,7 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
     case evCreate: {
       gc_diff_state_t *st = (gc_diff_state_t *)calloc(1, sizeof(gc_diff_state_t));
       win->userdata = st;
+      ansi_init_palette256();
       return true;
     }
 
@@ -130,7 +131,7 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
         R_DrawVGABuffer(&buf, cr.x, cr.y,
                         st->grid.cells_w * cw,
                         st->grid.cells_h * ch,
-                        (const R_FontSheet*)&fl, kAnsi16);
+                        (const R_FontSheet*)&fl, kAnsi256);
       }
 
       return true;

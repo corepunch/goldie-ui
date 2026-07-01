@@ -7,7 +7,7 @@ uniform sampler2D cellTex;
 uniform sampler2D fontTex;
 uniform vec2 gridSize;
 uniform vec2 cellSize;   // (glyph_cell_w, glyph_cell_h) in pixels
-uniform vec4 egaPalette[16];
+uniform vec4 palette[256];
 
 #define ATLAS_COLS 256.0
 
@@ -29,5 +29,5 @@ void main() {
   vec2 fuv = (vec2(col * cellSize.x + px,
                    row * cellSize.y + py) + vec2(0.5)) / sheetSize;
   float a = texture(fontTex, fuv).a;
-  outColor = mix(egaPalette[bg], egaPalette[fg], a);
+  outColor = mix(palette[bg], palette[fg], a);
 }

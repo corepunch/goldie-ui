@@ -1,4 +1,5 @@
 #include "ansi.h"
+#include <string.h>
 
 // ANSI index order (0..7 normal, 8..15 bright):
 // black, red, green, yellow, blue, magenta, cyan, white.
@@ -12,6 +13,35 @@ const uint32_t kAnsi16[16] = {
   0xFF282828u, 0xFFF48771u, 0xFFB5CEA8u, 0xFFFFE066u,
   0xFF9CDCFEu, 0xFFC586C0u, 0xFF4FC1FFu, 0xFFF5F5F5u,
 };
+
+// Full xterm 256-color palette. Initialized by ansi_init_palette256().
+uint32_t kAnsi256[256];
+
+void ansi_init_palette256(void) {
+  // Indices 0..15: custom dark palette
+  for (int i = 0; i < 16; i++)
+    kAnsi256[i] = kAnsi16[i];
+
+  // Indices 16..231: standard xterm 6x6x6 RGB cube
+  static const int steps[6] = { 0, 95, 135, 175, 215, 255 };
+  for (int i = 0; i < 216; i++) {
+    int r = steps[(i / 36) % 6];
+    int g = steps[(i / 6) % 6];
+    int b = steps[i % 6];
+    kAnsi256[16 + i] = 0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+  }
+
+  // Indices 232..255: grayscale ramp
+  for (int i = 0; i < 24; i++) {
+    int gray = 8 + i * 10;
+    kAnsi256[232 + i] = 0xFF000000u | ((uint32_t)gray << 16) |
+                         ((uint32_t)gray << 8) | (uint32_t)gray;
+  }
+}
+
+void ansi_palette_reset(void) {
+  ansi_init_palette256();
+}
 
 uint32_t ansi256_to_rgba(int idx) {
   if (idx < 0) idx = 0;
@@ -34,6 +64,29 @@ uint32_t ansi256_to_rgba(int idx) {
   if (gray > 255) gray = 255;
   return 0xFF000000u | ((uint32_t)gray << 16) |
          ((uint32_t)gray << 8) | (uint32_t)gray;
+}
+
+int nearest_ansi256_index(uint32_t rgba) {
+  int r = (int)((rgba >> 16) & 0xFF);
+  int g = (int)((rgba >> 8) & 0xFF);
+  int b = (int)(rgba & 0xFF);
+  int best = 0;
+  uint32_t best_d = 0xFFFFFFFFu;
+
+  for (int i = 0; i < 256; i++) {
+    int pr = (int)((kAnsi256[i] >> 16) & 0xFF);
+    int pg = (int)((kAnsi256[i] >> 8) & 0xFF);
+    int pb = (int)(kAnsi256[i] & 0xFF);
+    int dr = r - pr;
+    int dg = g - pg;
+    int db = b - pb;
+    uint32_t d = (uint32_t)(dr * dr + dg * dg + db * db);
+    if (d < best_d) {
+      best_d = d;
+      best = i;
+    }
+  }
+  return best;
 }
 
 int nearest_ansi_index(uint32_t rgba) {
@@ -61,7 +114,7 @@ int nearest_ansi_index(uint32_t rgba) {
 
 int clamp_ansi_index(int idx) {
   if (idx < 0) return 0;
-  if (idx > 15) return 15;
+  if (idx > 255) return 255;
   return idx;
 }
 
@@ -126,7 +179,10 @@ void ansi_apply_sgr_codes(const int *codes, int n,
       int mode = codes[i + 1];
 
       if (mode == 5 && i + 2 < n) {
-        int pal_idx = nearest_ansi_index(ansi256_to_rgba(codes[i + 2]));
+        // 256-color: store index directly (0..255)
+        int pal_idx = codes[i + 2];
+        if (pal_idx < 0) pal_idx = 0;
+        if (pal_idx > 255) pal_idx = 255;
         if (set_fg)
           *fg_idx = pal_idx;
         else
@@ -136,18 +192,16 @@ void ansi_apply_sgr_codes(const int *codes, int n,
       }
 
       if (mode == 2 && i + 4 < n) {
+        // Truecolor: map to nearest of 256 colors
         int r = codes[i + 2];
         int g = codes[i + 3];
         int b = codes[i + 4];
-        if (r < 0) r = 0;
-        if (r > 255) r = 255;
-        if (g < 0) g = 0;
-        if (g > 255) g = 255;
-        if (b < 0) b = 0;
-        if (b > 255) b = 255;
+        if (r < 0) r = 0; if (r > 255) r = 255;
+        if (g < 0) g = 0; if (g > 255) g = 255;
+        if (b < 0) b = 0; if (b > 255) b = 255;
         uint32_t rgba = 0xFF000000u | ((uint32_t)r << 16) |
                         ((uint32_t)g << 8) | (uint32_t)b;
-        int pal_idx = nearest_ansi_index(rgba);
+        int pal_idx = nearest_ansi256_index(rgba);
         if (set_fg)
           *fg_idx = pal_idx;
         else
