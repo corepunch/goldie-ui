@@ -36,6 +36,12 @@ typedef struct {
 // cannot be created.  When false, all draw calls become no-ops.
 bool vga_font_init(const char *ttf_path, float font_size);
 
+// Add a fallback font for glyphs missing from the primary font.
+// path is a TTF/TTC file. For TTC, font_index selects which face (usually 0).
+// Fallback fonts are tried in order; the first one containing the glyph wins.
+// Returns true on success.
+bool vga_font_add_fallback(const char *path, int font_index);
+
 // Release the GL texture.  Safe to call even when init failed.
 void vga_font_shutdown(void);
 

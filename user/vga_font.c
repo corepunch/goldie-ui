@@ -53,6 +53,12 @@ static stbtt_fontinfo g_font;
 static float          g_scale    = 0;
 static int            g_baseline = 0;
 
+// Fallback font chain — tried in order when primary font misses a glyph.
+#define VGA_FONT_MAX_FALLBACKS 8
+static stbtt_fontinfo g_fallback_fonts[VGA_FONT_MAX_FALLBACKS];
+static uint8_t       *g_fallback_data[VGA_FONT_MAX_FALLBACKS];
+static int            g_fallback_count = 0;
+
 // Per-glyph flag array: 1 = rasterised, 0 = empty.
 static uint8_t g_glyph_flags[VGA_ATLAS_SIZE];
 
@@ -164,68 +170,37 @@ static uint8_t *load_ttf(const char *path, int *out_size) {
   return buf;
 }
 
+bool vga_font_add_fallback(const char *path, int font_index) {
+  if (!path || g_fallback_count >= VGA_FONT_MAX_FALLBACKS) return false;
+  int sz = 0;
+  uint8_t *data = load_ttf(path, &sz);
+  if (!data) return false;
+  int offset = stbtt_GetFontOffsetForIndex(data, font_index);
+  if (offset < 0) { free(data); return false; }
+  stbtt_fontinfo fb;
+  if (!stbtt_InitFont(&fb, data, offset)) { free(data); return false; }
+  g_fallback_data[g_fallback_count] = data;
+  g_fallback_fonts[g_fallback_count] = fb;
+  g_fallback_count++;
+  return true;
+}
+
 // ============================================================
 // Lazy glyph rasterisation
 // ============================================================
 
-// HACK: Rasterise a single glyph into the atlas texture on first use.
-// The glyph is placed at atlas slot `glyph` (0..65535).
-static bool vga_font_upload_synthetic_bullet(uint16_t glyph, int cell_x, int cell_y) {
-  if (glyph != 0x2022 && glyph != 0x25CF) return false;
-  int pixels_per_cell = g_cell_w * g_cell_h;
-  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
-  if (!cell_pixels) return true;
-
-  float cx = (float)g_cell_w * 0.5f;
-  float cy = (float)g_cell_h * 0.52f;
-  float r = (float)(g_cell_w < g_cell_h ? g_cell_w : g_cell_h) * (glyph == 0x2022 ? 0.18f : 0.26f);
-  for (int y = 0; y < g_cell_h; y++) {
-    for (int x = 0; x < g_cell_w; x++) {
-      float dx = ((float)x + 0.5f) - cx;
-      float dy = ((float)y + 0.5f) - cy;
-      float d = sqrtf(dx * dx + dy * dy);
-      float a = r + 0.75f - d;
-      if (a <= 0.0f) continue;
-      if (a > 1.0f) a = 1.0f;
-      int idx = (y * g_cell_w + x) * 4;
-      cell_pixels[idx + 0] = 0xFF;
-      cell_pixels[idx + 1] = 0xFF;
-      cell_pixels[idx + 2] = 0xFF;
-      cell_pixels[idx + 3] = (uint8_t)(a * 255.0f + 0.5f);
-    }
-  }
-
-  R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
-  free(cell_pixels);
-  return true;
-}
-
-static void vga_font_rasterize_glyph(uint16_t glyph) {
-  if (!g_vga_tex || g_glyph_flags[glyph]) return;
-
-  int col = glyph % VGA_ATLAS_COLS;
-  int row = glyph / VGA_ATLAS_COLS;
-  int cell_x  = col * g_cell_w;
-  int cell_y  = row * g_cell_h;
-  int cell_x1 = cell_x + g_cell_w;
-  int cell_y1 = cell_y + g_cell_h;
-
-  if (!stbtt_FindGlyphIndex(&g_font, glyph) &&
-      vga_font_upload_synthetic_bullet(glyph, cell_x, cell_y)) {
-    g_glyph_flags[glyph] = 1;
-    return;
-  }
-
+// Rasterise a glyph from a given font into the atlas cell.
+static void rasterize_from_font(stbtt_fontinfo *font, float scale,
+                                uint16_t glyph, int cell_x, int cell_y,
+                                int cell_x1, int cell_y1) {
   int bw, bh, xoff, yoff;
-  unsigned char *bmp = stbtt_GetCodepointBitmap(&g_font, 0, g_scale, glyph,
+  unsigned char *bmp = stbtt_GetCodepointBitmap(font, 0, scale, glyph,
                                                  &bw, &bh, &xoff, &yoff);
-  if (!bmp) { g_glyph_flags[glyph] = 1; return; }
+  if (!bmp) return;
 
   int draw_x = cell_x + xoff;
   int draw_y = cell_y + g_baseline + yoff;
 
-  // Build the glyph's RGBA pixels (white with AA alpha).
-  // We rasterise into a small temporary buffer and upload that one cell.
   int pixels_per_cell = g_cell_w * g_cell_h;
   uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
   if (!cell_pixels) { stbtt_FreeBitmap(bmp, NULL); return; }
@@ -247,9 +222,38 @@ static void vga_font_rasterize_glyph(uint16_t glyph) {
     }
   }
   stbtt_FreeBitmap(bmp, NULL);
-
   R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
   free(cell_pixels);
+}
+
+static void vga_font_rasterize_glyph(uint16_t glyph) {
+  if (!g_vga_tex || g_glyph_flags[glyph]) return;
+
+  int col = glyph % VGA_ATLAS_COLS;
+  int row = glyph / VGA_ATLAS_COLS;
+  int cell_x  = col * g_cell_w;
+  int cell_y  = row * g_cell_h;
+  int cell_x1 = cell_x + g_cell_w;
+  int cell_y1 = cell_y + g_cell_h;
+
+  // Try primary font
+  if (stbtt_FindGlyphIndex(&g_font, glyph) != 0) {
+    rasterize_from_font(&g_font, g_scale, glyph, cell_x, cell_y, cell_x1, cell_y1);
+    g_glyph_flags[glyph] = 1;
+    return;
+  }
+
+  // Try fallback fonts
+  for (int i = 0; i < g_fallback_count; i++) {
+    if (stbtt_FindGlyphIndex(&g_fallback_fonts[i], glyph) != 0) {
+      rasterize_from_font(&g_fallback_fonts[i], g_scale, glyph,
+                          cell_x, cell_y, cell_x1, cell_y1);
+      g_glyph_flags[glyph] = 1;
+      return;
+    }
+  }
+
+  // Glyph not found in any font — mark as filled (empty cell)
   g_glyph_flags[glyph] = 1;
 }
 
@@ -329,6 +333,20 @@ bool vga_font_init(const char *ttf_path, float font_size) {
 
   VGA_FONT_LOG("vga_font_init: loaded %s  (font_size=%.1f  cell=%dx%d  sheet=%dx%d tex=%u)",
          ttf_path, font_size, cell_w, cell_h, sheet_w, sheet_h, g_vga_tex);
+
+  // Load platform-specific fallback fonts for glyphs missing from the primary font.
+  // Order matters: symbols first (most likely to be needed), then broad Unicode coverage.
+#if defined(__APPLE__)
+  vga_font_add_fallback("/System/Library/Fonts/Apple Symbols.ttf", 0);
+  vga_font_add_fallback("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 0);
+#elif defined(_WIN32)
+  vga_font_add_fallback("C:\\Windows\\Fonts\\seguisym.ttf", 0);
+  vga_font_add_fallback("C:\\Windows\\Fonts\\arial.ttf", 0);
+#elif defined(__linux__)
+  vga_font_add_fallback("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 0);
+  vga_font_add_fallback("/usr/share/fonts/truetype/noto/NotoSansSymbols.ttf", 0);
+#endif
+
   return true;
 }
 
@@ -345,6 +363,11 @@ void vga_font_shutdown(void) {
     free(g_ttf_data);
     g_ttf_data = NULL;
   }
+  for (int i = 0; i < g_fallback_count; i++) {
+    free(g_fallback_data[i]);
+    g_fallback_data[i] = NULL;
+  }
+  g_fallback_count = 0;
 }
 
 bool vga_font_loaded(void) {
