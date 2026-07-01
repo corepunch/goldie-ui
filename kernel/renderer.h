@@ -49,9 +49,11 @@ typedef struct {
 } R_Texture;
 
 // VGA text buffer descriptor (one texel per character cell).
-// Texture format is expected to be RG8:
-//   R = character index (0..255)
-//   G = packed color nibble (bg<<4 | fg)
+// Texture format is RGBA (4 bytes/cell):
+//   R = glyph index low byte  (uint16_t & 0xFF)
+//   G = glyph index high byte (uint16_t >> 8)
+//   B = foreground color index (0..255)
+//   A = background color index (0..255)
 typedef struct {
   uint32_t vga_buffer;
   int width;    // character columns
@@ -60,11 +62,11 @@ typedef struct {
 
 // Font sheet layout for VGA rendering.
 typedef struct {
-  uint32_t texture;   // glyph sheet texture (16x16 grid of cells)
+  uint32_t texture;   // glyph sheet texture (256x256 grid of cells)
   int cell_w;          // pixel width of one glyph cell
   int cell_h;          // pixel height of one glyph cell
-  int sheet_w;         // total texture width  (= 16 * cell_w)
-  int sheet_h;         // total texture height (= 16 * cell_h)
+  int sheet_w;         // total texture width  (= 256 * cell_w)
+  int sheet_h;         // total texture height (= 256 * cell_h)
 } R_FontSheet;
 
 // Mesh management functions
@@ -112,6 +114,10 @@ uint32_t R_CreateTextureRG8(int w, int h, const void *rg,
 bool R_UpdateTextureRG8(uint32_t tex, int x, int y, int w, int h,
                         const void *rg);
 
+// Update a sub-region of an existing RGBA texture.
+bool R_UpdateTextureRGBA(uint32_t tex, int x, int y, int w, int h,
+                         const void *rgba);
+
 // Delete a texture by its ID (no-op when id == 0).
 void R_DeleteTexture(uint32_t id);
 
@@ -121,7 +127,7 @@ void R_DeleteTexture(uint32_t id);
 void R_SetBlendMode(bool enabled);
 
 // Draw a VGA text buffer using the cell buffer and font sheet.
-//   - buf       : RG8 cell buffer (char + packed colors)
+//   - buf       : RGBA cell buffer (glyph_hi<<8|glyph_lo, fg, bg)
 //   - font      : font sheet description (texture, cell/sheet dimensions)
 //   - palette16 : EGA-like 16-color palette (0xAARRGGBB)
 // dst_w_px/dst_h_px are output size in screen pixels.

@@ -4,14 +4,12 @@
 //
 // Rendering approach:
 //   - Fallback path: fill_rect + draw_sprite_region per character.
-//   - Fast path: build an RG8 cell buffer (R=char, G=bg<<4|fg) and call
+//   - Fast path: build an RGBA cell buffer (R+G=glyph, B=fg, A=bg) and call
 //     R_DrawVGABuffer() so composition happens fully inside the renderer.
 //
-// The character sheet is generated at init time: a TTF font is loaded via
-// stb_truetype and all 256 ASCII glyphs are rasterised into an RGBA texture
-// arranged as a 16×16 grid.  Cell dimensions are derived from the font's own
-// advance width and ascender/descender metrics so the texture adapts to any
-// monospace TTF.
+// The atlas is a 256x256 RGBA texture (65536 glyph slots).  Glyphs are
+// rasterised lazily on first use via stb_truetype.  A per-glyph flag array
+// tracks which slots have been filled.
 
 #include "vga_font.h"
 
@@ -32,18 +30,31 @@
 #endif
 
 // ============================================================
+// Atlas constants
+// ============================================================
+
+#define VGA_ATLAS_COLS  256
+#define VGA_ATLAS_ROWS  256
+#define VGA_ATLAS_SIZE  (VGA_ATLAS_COLS * VGA_ATLAS_ROWS)  // 65536 slots
+
+// ============================================================
 // Module state
 // ============================================================
 
 static uint32_t g_vga_tex    = 0;   // GL texture ID; 0 = not loaded
 static int      g_cell_w     = 0;   // glyph cell width  (pixels)
 static int      g_cell_h     = 0;   // glyph cell height (pixels)
-static int      g_sheet_w    = 0;   // full sheet width
-static int      g_sheet_h    = 0;   // full sheet height
+static int      g_sheet_w    = 0;   // full sheet width  (256 * cell_w)
+static int      g_sheet_h    = 0;   // full sheet height (256 * cell_h)
 
-// The grid is always 16×16 (256 characters).
-#define VGA_GRID_COLS   16
-#define VGA_GRID_ROWS   16
+// Persistent TTF state for lazy rasterisation.
+static uint8_t       *g_ttf_data = NULL;
+static stbtt_fontinfo g_font;
+static float          g_scale    = 0;
+static int            g_baseline = 0;
+
+// Per-glyph flag array: 1 = rasterised, 0 = empty.
+static uint8_t g_glyph_flags[VGA_ATLAS_SIZE];
 
 static const uint16_t kCp437High[128] = {
   0x00C7,0x00FC,0x00E9,0x00E2,0x00E4,0x00E0,0x00E5,0x00E7,0x00EA,0x00EB,0x00E8,0x00EF,0x00EE,0x00EC,0x00C4,0x00C5,
@@ -56,14 +67,16 @@ static const uint16_t kCp437High[128] = {
   0x2261,0x00B1,0x2265,0x2264,0x2320,0x2321,0x00F7,0x2248,0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0,
 };
 
-uint8_t vga_font_glyph_for_codepoint(uint32_t cp) {
-  if (cp < 0x80) return (uint8_t)cp;
-  for (int i = 0; i < 128; i++) if (kCp437High[i] == cp) return (uint8_t)(i + 0x80);
+uint16_t vga_font_glyph_for_codepoint(uint32_t cp) {
+  if (cp < 0x80) return (uint16_t)cp;
+  if (cp == 0x258F) return 0x01;
+  for (int i = 0; i < 128; i++) if (kCp437High[i] == cp) return (uint16_t)(i + 0x80);
   if (cp == 0x2022 || cp == 0x25CF) return 0xF9;
+  if (cp <= 0xFFFF) return (uint16_t)cp;
   return 0xFE;
 }
 
-// Per-draw character buffer texture (R=char, G=bg<<4|fg).
+// Per-draw character buffer texture (R+G=glyph, B=fg, A=bg).
 static uint32_t g_cell_tex   = 0;
 static int      g_cell_cap_w = 0;
 
@@ -84,8 +97,8 @@ static bool vga_ensure_cell_texture(int width_chars) {
   if (g_cell_tex)
     R_DeleteTexture(g_cell_tex);
 
-  g_cell_tex = R_CreateTextureRG8(width_chars, 1, NULL,
-                                  R_FILTER_NEAREST, R_WRAP_CLAMP);
+  g_cell_tex = R_CreateTextureRGBA(width_chars, 1, NULL,
+                                   R_FILTER_NEAREST, R_WRAP_CLAMP);
   if (!g_cell_tex)
     return false;
   g_cell_cap_w = width_chars;
@@ -116,7 +129,7 @@ static int nearest_ega_index(uint32_t rgba) {
 }
 
 // ============================================================
-// TTF → character-sheet helpers
+// TTF loading
 // ============================================================
 
 static uint8_t *load_ttf(const char *path, int *out_size) {
@@ -135,47 +148,62 @@ static uint8_t *load_ttf(const char *path, int *out_size) {
   return buf;
 }
 
-// Rasterise codepoint ch into cell (col, row) inside a pre-zeroed RGBA sheet.
-// Character origin is at the top-left of the cell; the glyph is positioned at
-// its natural xoff/yoff (not centred) so side bearings match the font design.
-// Pixels outside the cell are clipped.
-static void rasterise_glyph(stbtt_fontinfo *font, float scale,
-                            int baseline,
-                            int cell_w, int cell_h,
-                            int ch, int col, int row,
-                            uint8_t *sheet, int sheet_w, int sheet_h) {
-  int cell_x  = col * cell_w;
-  int cell_y  = row * cell_h;
-  int cell_x1 = cell_x + cell_w;
-  int cell_y1 = cell_y + cell_h;
+// ============================================================
+// Lazy glyph rasterisation
+// ============================================================
+
+// Rasterise a single glyph into the atlas texture on first use.
+// The glyph is placed at atlas slot `glyph` (0..65535).
+static void vga_font_rasterize_glyph(uint16_t glyph) {
+  if (!g_vga_tex || g_glyph_flags[glyph]) return;
+
+  int col = glyph % VGA_ATLAS_COLS;
+  int row = glyph / VGA_ATLAS_COLS;
+  int cell_x  = col * g_cell_w;
+  int cell_y  = row * g_cell_h;
+  int cell_x1 = cell_x + g_cell_w;
+  int cell_y1 = cell_y + g_cell_h;
 
   int bw, bh, xoff, yoff;
-  unsigned char *bmp = stbtt_GetCodepointBitmap(font, 0, scale, ch,
+  unsigned char *bmp = stbtt_GetCodepointBitmap(&g_font, 0, g_scale, glyph,
                                                  &bw, &bh, &xoff, &yoff);
-  if (!bmp) return;
+  if (!bmp) { g_glyph_flags[glyph] = 1; return; }
 
   int draw_x = cell_x + xoff;
-  int draw_y = cell_y + baseline + yoff;
+  int draw_y = cell_y + g_baseline + yoff;
+
+  // Build the glyph's RGBA pixels (white with AA alpha).
+  // We rasterise into a small temporary buffer and upload that one cell.
+  int pixels_per_cell = g_cell_w * g_cell_h;
+  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
+  if (!cell_pixels) { stbtt_FreeBitmap(bmp, NULL); return; }
 
   for (int y = 0; y < bh; y++) {
     int py = draw_y + y;
-    if (py < cell_y || py >= cell_y1)
-      continue;
+    if (py < cell_y || py >= cell_y1) continue;
     for (int x = 0; x < bw; x++) {
       int px = draw_x + x;
-      if (px < cell_x || px >= cell_x1)
-        continue;
+      if (px < cell_x || px >= cell_x1) continue;
       uint8_t a = bmp[y * bw + x];
       if (a > 0) {
-        int idx = (py * sheet_w + px) * 4;
-        sheet[idx + 0] = 0xFF;
-        sheet[idx + 1] = 0xFF;
-        sheet[idx + 2] = 0xFF;
-        sheet[idx + 3] = a;
+        int idx = ((py - cell_y) * g_cell_w + (px - cell_x)) * 4;
+        cell_pixels[idx + 0] = 0xFF;
+        cell_pixels[idx + 1] = 0xFF;
+        cell_pixels[idx + 2] = 0xFF;
+        cell_pixels[idx + 3] = a;
       }
     }
   }
   stbtt_FreeBitmap(bmp, NULL);
+
+  R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
+  free(cell_pixels);
+  g_glyph_flags[glyph] = 1;
+}
+
+// Ensure a glyph is rasterised in the atlas. Called before any draw.
+void vga_font_ensure_glyph(uint16_t glyph) {
+  vga_font_rasterize_glyph(glyph);
 }
 
 // ============================================================
@@ -194,68 +222,53 @@ bool vga_font_init(const char *ttf_path, float font_size) {
     return false;
   }
 
-  stbtt_fontinfo font;
   int offset = stbtt_GetFontOffsetForIndex(ttf_data, 0);
-  if (!stbtt_InitFont(&font, ttf_data, offset)) {
+  if (!stbtt_InitFont(&g_font, ttf_data, offset)) {
     VGA_FONT_LOG("vga_font_init: stbtt_InitFont failed for %s", ttf_path);
     free(ttf_data);
     return false;
   }
+  g_ttf_data = ttf_data;  // keep alive for lazy rasterisation
 
   // Font metrics
   int ascent, descent, linegap;
-  stbtt_GetFontVMetrics(&font, &ascent, &descent, &linegap);
+  stbtt_GetFontVMetrics(&g_font, &ascent, &descent, &linegap);
 
-  float scale = stbtt_ScaleForMappingEmToPixels(&font, font_size);
+  g_scale = stbtt_ScaleForMappingEmToPixels(&g_font, font_size);
+  g_baseline = (int)(ascent * g_scale + 0.5f);
 
-  int baseline = (int)(ascent * scale + 0.5f);
-
-  // Compute cell height from font metrics (ascent - descent + linegap)
-  int cell_h = (int)((ascent - descent + linegap) * scale + 0.5f);
+  // Compute cell height from font metrics
+  int cell_h = (int)((ascent - descent + linegap) * g_scale + 0.5f);
   if (cell_h < 1) cell_h = 1;
 
   // Compute cell width from the maximum advance width across the glyph set
-  // so every glyph has enough room at its natural side-bearing position.
   float max_aw = 0.0f;
   for (int ch = 32; ch < 256; ch++) {
     int aw, lsb;
     int cp = ch < 128 ? ch : kCp437High[ch - 128];
-    stbtt_GetCodepointHMetrics(&font, cp, &aw, &lsb);
+    stbtt_GetCodepointHMetrics(&g_font, cp, &aw, &lsb);
     if (aw > 0) {
-      float w = (float)aw * scale;
+      float w = (float)aw * g_scale;
       if (w > max_aw) max_aw = w;
     }
   }
-  // Fallback if no advance found (unlikely for a proper TTF)
   if (max_aw < 1.0f) max_aw = (float)cell_h * 0.5f;
 
   int cell_w = (int)ceilf(max_aw);
   if (cell_w < 1) cell_w = 1;
 
-  int sheet_w = VGA_GRID_COLS * cell_w;
-  int sheet_h = VGA_GRID_ROWS * cell_h;
+  int sheet_w = VGA_ATLAS_COLS * cell_w;
+  int sheet_h = VGA_ATLAS_ROWS * cell_h;
 
-  // ---- generate character sheet ----------------------------------
-  uint8_t *pixels = (uint8_t *)calloc((size_t)(sheet_w * sheet_h * 4), 1);
-  if (!pixels) { free(ttf_data); return false; }
-
-  for (int ch = 0; ch < 256; ch++) {
-    int col = ch & 0xF;
-    int row = ch >> 4;
-    int cp = ch < 128 ? ch : kCp437High[ch - 128];
-    rasterise_glyph(&font, scale, baseline, cell_w, cell_h,
-                    cp, col, row, pixels, sheet_w, sheet_h);
-  }
-
-  g_vga_tex = R_CreateTextureRGBA(sheet_w, sheet_h, pixels,
+  // ---- create empty atlas texture --------------------------------
+  g_vga_tex = R_CreateTextureRGBA(sheet_w, sheet_h, NULL,
                                    R_FILTER_NEAREST, R_WRAP_CLAMP);
-  free(pixels);
-  free(ttf_data);
-
   if (!g_vga_tex) {
     VGA_FONT_LOG("vga_font_init: R_CreateTextureRGBA failed");
     return false;
   }
+
+  memset(g_glyph_flags, 0, sizeof(g_glyph_flags));
 
   g_cell_w  = cell_w;
   g_cell_h  = cell_h;
@@ -275,6 +288,10 @@ void vga_font_shutdown(void) {
   if (g_vga_tex) {
     R_DeleteTexture(g_vga_tex);
     g_vga_tex = 0;
+  }
+  if (g_ttf_data) {
+    free(g_ttf_data);
+    g_ttf_data = NULL;
   }
 }
 
@@ -309,13 +326,13 @@ VgaFontLayout vga_get_font_layout(void) {
 // Internal: UV coordinates for a glyph
 // ============================================================
 
-static void glyph_uv(int ch, float *u0, float *v0, float *u1, float *v1) {
-  int col = ch & 0xF;
-  int row = ch >> 4;
-  *u0 = (float)(col    ) / (float)VGA_GRID_COLS;
-  *u1 = (float)(col + 1) / (float)VGA_GRID_COLS;
-  *v0 = (float)(row    ) / (float)VGA_GRID_ROWS;
-  *v1 = (float)(row + 1) / (float)VGA_GRID_ROWS;
+static void glyph_uv(int glyph, float *u0, float *v0, float *u1, float *v1) {
+  int col = glyph % VGA_ATLAS_COLS;
+  int row = glyph / VGA_ATLAS_COLS;
+  *u0 = (float)(col    ) / (float)VGA_ATLAS_COLS;
+  *u1 = (float)(col + 1) / (float)VGA_ATLAS_COLS;
+  *v0 = (float)(row    ) / (float)VGA_ATLAS_ROWS;
+  *v1 = (float)(row + 1) / (float)VGA_ATLAS_ROWS;
 }
 
 // ============================================================
@@ -328,8 +345,9 @@ static void vga_draw_char_fallback(int ch, int x, int y, uint32_t fg, uint32_t b
   fill_rect(bg, cell);
 
   if (!g_vga_tex) return;
+  if (ch < 0 || ch > 0xFFFF) ch = 0x7F;
 
-  if (ch < 0 || ch > 255) ch = 0x7F;
+  vga_font_ensure_glyph((uint16_t)ch);
 
   float u0, v0, u1, v1;
   glyph_uv(ch, &u0, &v0, &u1, &v1);
@@ -373,7 +391,7 @@ int vga_draw_textn(const char *text, int max_chars,
     return cx - x;
   }
 
-  uint8_t *cells = (uint8_t *)malloc((size_t)draw_chars * 2u);
+  uint8_t *cells = (uint8_t *)malloc((size_t)draw_chars * 4u);
   if (!cells) {
     int cx = x;
     for (int i = 0; i < draw_chars; i++) {
@@ -385,13 +403,17 @@ int vga_draw_textn(const char *text, int max_chars,
 
   int fg_idx = nearest_ega_index(fg);
   int bg_idx = nearest_ega_index(bg);
-  uint8_t packed_color = (uint8_t)((bg_idx << 4) | fg_idx);
   for (int i = 0; i < draw_chars; i++) {
-    cells[i * 2 + 0] = (uint8_t)text[i];
-    cells[i * 2 + 1] = packed_color;
+    uint16_t glyph = (uint16_t)(unsigned char)text[i];
+    vga_font_ensure_glyph(glyph);
+    int j = i * 4;
+    cells[j + 0] = (uint8_t)(glyph & 0xFF);
+    cells[j + 1] = (uint8_t)((glyph >> 8) & 0xFF);
+    cells[j + 2] = (uint8_t)fg_idx;
+    cells[j + 3] = (uint8_t)bg_idx;
   }
 
-  bool ok = R_UpdateTextureRG8(g_cell_tex, 0, 0, draw_chars, 1, cells);
+  bool ok = R_UpdateTextureRGBA(g_cell_tex, 0, 0, draw_chars, 1, cells);
   free(cells);
 
   if (!ok)

@@ -1,4 +1,5 @@
 #include "vga_text.h"
+#include "vga_font.h"
 #include "ansi.h"
 #include "../kernel/renderer.h"
 #include <stdlib.h>
@@ -16,30 +17,36 @@ int vga_text_utf8_length(unsigned char first_byte) {
 
 void vga_text_set_cell(vga_text_grid_t *grid,
                         int x, int y,
-                        uint8_t ch,
+                        uint16_t glyph,
                         int fg_idx, int bg_idx) {
   if (!grid || !grid->cells || x < 0 || y < 0 || x >= grid->cells_w || y >= grid->cells_h)
     return;
 
   if (fg_idx < 0) fg_idx = 0;
-  if (fg_idx > 15) fg_idx = 15;
+  if (fg_idx > 255) fg_idx = 255;
   if (bg_idx < 0) bg_idx = 0;
-  if (bg_idx > 15) bg_idx = 15;
+  if (bg_idx > 255) bg_idx = 255;
 
-  int i = (y * grid->cells_w + x) * 2;
-  grid->cells[i + 0] = ch;
-  grid->cells[i + 1] = (uint8_t)((bg_idx << 4) | fg_idx);
+  int i = (y * grid->cells_w + x) * 4;
+  grid->cells[i + 0] = (uint8_t)(glyph & 0xFF);        // R: glyph_lo
+  grid->cells[i + 1] = (uint8_t)((glyph >> 8) & 0xFF);  // G: glyph_hi
+  grid->cells[i + 2] = (uint8_t)fg_idx;                  // B: fg
+  grid->cells[i + 3] = (uint8_t)bg_idx;                  // A: bg
 }
 
 void vga_text_clear_grid(vga_text_grid_t *grid,
                          int fg_idx, int bg_idx) {
   if (!grid || !grid->cells || grid->cells_w <= 0 || grid->cells_h <= 0)
     return;
-  uint8_t packed = (uint8_t)(((bg_idx & 0xF) << 4) | (fg_idx & 0xF));
+  uint8_t fg = (uint8_t)(fg_idx & 0xFF);
+  uint8_t bg = (uint8_t)(bg_idx & 0xFF);
   int n = grid->cells_w * grid->cells_h;
   for (int i = 0; i < n; i++) {
-    grid->cells[i * 2 + 0] = (uint8_t)' ';
-    grid->cells[i * 2 + 1] = packed;
+    int j = i * 4;
+    grid->cells[j + 0] = 0x20;    // R: glyph_lo (space)
+    grid->cells[j + 1] = 0;       // G: glyph_hi
+    grid->cells[j + 2] = fg;      // B: fg
+    grid->cells[j + 3] = bg;      // A: bg
   }
 }
 
@@ -56,13 +63,13 @@ bool vga_text_ensure_grid(vga_text_grid_t *grid, int w, int h) {
     R_DeleteTexture(grid->cells_tex);
   grid->cells_tex = 0;
 
-  grid->cells = (uint8_t *)malloc((size_t)w * (size_t)h * 2u);
+  grid->cells = (uint8_t *)malloc((size_t)w * (size_t)h * 4u);
   if (!grid->cells) {
     grid->cells_w = grid->cells_h = 0;
     return false;
   }
 
-  grid->cells_tex = R_CreateTextureRG8(w, h, NULL, R_FILTER_NEAREST, R_WRAP_CLAMP);
+  grid->cells_tex = R_CreateTextureRGBA(w, h, NULL, R_FILTER_NEAREST, R_WRAP_CLAMP);
   if (!grid->cells_tex) {
     free(grid->cells);
     grid->cells = NULL;
@@ -148,7 +155,9 @@ void vga_text_write_ansi_line(const char *line,
       for (i = 1; i < seq_len && (p[i] & 0xC0) == 0x80; i++) cp = (cp << 6) | (p[i] & 0x3F);
       if (i != seq_len) { cp = 0xFFFD; seq_len = 1; }
     }
-    vga_text_set_cell(grid, col_start + out_col, row, vga_font_glyph_for_codepoint(cp), fg, bg);
+    uint16_t glyph = vga_font_glyph_for_codepoint(cp);
+    vga_font_ensure_glyph(glyph);
+    vga_text_set_cell(grid, col_start + out_col, row, glyph, fg, bg);
     p += seq_len;
     out_col++;
   }
