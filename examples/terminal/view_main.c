@@ -483,8 +483,9 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (st) {
         if (st->timer_id > 0) axCancelTimer(st->timer_id);
         if (st->pty_fd >= 0) {
-          vgat_pty_close(st->pty_pid);
           close(st->pty_fd);
+          st->pty_fd = -1;
+          vgat_pty_close(st->pty_pid);
         }
         vga_font_shutdown();
         vgat_screen_shutdown(&st->screen);

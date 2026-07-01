@@ -79,11 +79,18 @@ int vgat_pty_exec(const char *const *argv, int rows, int cols, int *pid_out) {
 }
 
 void vgat_pty_close(int pid) {
-  if (pid > 0) {
-    kill(pid, SIGTERM);
+  if (pid <= 0) return;
+  // Send SIGTERM, then wait briefly. Escalate to SIGKILL if it doesn't exit.
+  kill(pid, SIGTERM);
+  for (int i = 0; i < 10; i++) {
     int status;
-    waitpid(pid, &status, 0);
+    pid_t r = waitpid(pid, &status, WNOHANG);
+    if (r != 0) return;
+    usleep(1000);  // 1ms × 10 = 10ms total
   }
+  kill(pid, SIGKILL);
+  int status;
+  waitpid(pid, &status, 0);
 }
 
 bool vgat_pty_resize(int master_fd, int rows, int cols) {
