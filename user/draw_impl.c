@@ -207,10 +207,11 @@ void set_clip_rect(window_t const *win, irect16_t r) {
 
 // Paint window to stencil buffer
 void paint_window_stencil(window_t const *w) {
+  extern uint32_t ui_white_texture;
   int p = 1;
   glStencilFunc(GL_ALWAYS, w->id, 0xFF);            // Always pass
   glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE); // Replace stencil with window ID
-  draw_rect(1, R(w->frame.x-p, w->frame.y-p, w->frame.w+p*2, w->frame.h+p*2));
+  draw_rect(ui_white_texture, R(w->frame.x-p, w->frame.y-p, w->frame.w+p*2, w->frame.h+p*2));
 }
 
 // Repaint window stencil buffer
