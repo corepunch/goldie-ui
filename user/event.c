@@ -86,8 +86,11 @@ static int handle_mouse(int msg, window_t *win, int x, int y, void *lparam) {
   for (window_t *c = win->children; c; c = c->next) {
     if (!CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h))
       continue;
-    int lx = x - c->frame.x;
-    int ly = y - c->frame.y;
+    // Hit-test in viewport space, then deliver in the child's content space.
+    // Controls should not need to know whether an event came directly from a
+    // root window or through one or more nested layout containers.
+    int lx = x - c->frame.x + (int)c->hscroll.pos;
+    int ly = y - c->frame.y + (int)c->vscroll.pos;
     if (handle_mouse(msg, c, lx, ly, lparam))
       return true;
     if (send_message(c, msg, MAKEDWORD(lx, ly), lparam))
