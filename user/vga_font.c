@@ -148,8 +148,38 @@ static uint8_t *load_ttf(const char *path, int *out_size) {
 // Lazy glyph rasterisation
 // ============================================================
 
-// Rasterise a single glyph into the atlas texture on first use.
+// HACK: Rasterise a single glyph into the atlas texture on first use.
 // The glyph is placed at atlas slot `glyph` (0..65535).
+static bool vga_font_upload_synthetic_bullet(uint16_t glyph, int cell_x, int cell_y) {
+  if (glyph != 0x2022 && glyph != 0x25CF) return false;
+  int pixels_per_cell = g_cell_w * g_cell_h;
+  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
+  if (!cell_pixels) return true;
+
+  float cx = (float)g_cell_w * 0.5f;
+  float cy = (float)g_cell_h * 0.52f;
+  float r = (float)(g_cell_w < g_cell_h ? g_cell_w : g_cell_h) * (glyph == 0x2022 ? 0.18f : 0.26f);
+  for (int y = 0; y < g_cell_h; y++) {
+    for (int x = 0; x < g_cell_w; x++) {
+      float dx = ((float)x + 0.5f) - cx;
+      float dy = ((float)y + 0.5f) - cy;
+      float d = sqrtf(dx * dx + dy * dy);
+      float a = r + 0.75f - d;
+      if (a <= 0.0f) continue;
+      if (a > 1.0f) a = 1.0f;
+      int idx = (y * g_cell_w + x) * 4;
+      cell_pixels[idx + 0] = 0xFF;
+      cell_pixels[idx + 1] = 0xFF;
+      cell_pixels[idx + 2] = 0xFF;
+      cell_pixels[idx + 3] = (uint8_t)(a * 255.0f + 0.5f);
+    }
+  }
+
+  R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
+  free(cell_pixels);
+  return true;
+}
+
 static void vga_font_rasterize_glyph(uint16_t glyph) {
   if (!g_vga_tex || g_glyph_flags[glyph]) return;
 
@@ -159,6 +189,12 @@ static void vga_font_rasterize_glyph(uint16_t glyph) {
   int cell_y  = row * g_cell_h;
   int cell_x1 = cell_x + g_cell_w;
   int cell_y1 = cell_y + g_cell_h;
+
+  if (!stbtt_FindGlyphIndex(&g_font, glyph) &&
+      vga_font_upload_synthetic_bullet(glyph, cell_x, cell_y)) {
+    g_glyph_flags[glyph] = 1;
+    return;
+  }
 
   int bw, bh, xoff, yoff;
   unsigned char *bmp = stbtt_GetCodepointBitmap(&g_font, 0, g_scale, glyph,
