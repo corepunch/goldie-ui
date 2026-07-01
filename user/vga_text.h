@@ -7,9 +7,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// RG8 cell grid state
+// RGBA cell grid state (4 bytes/cell: R+G=glyph, B=fg, A=bg)
 typedef struct {
-  uint8_t *cells;     // RG8 grid: R=char, G=bg<<4|fg
+  uint8_t *cells;     // RGBA grid: R=glyph_lo, G=glyph_hi, B=fg, A=bg
   int      cells_w;
   int      cells_h;
   uint32_t cells_tex;
@@ -19,11 +19,11 @@ typedef struct {
 // Returns: 1 if ASCII (0x00-0x7F), or the number of bytes in the sequence
 int vga_text_utf8_length(unsigned char first_byte);
 
-// Set a single cell in the RG8 grid
-// ch: character code, fg_idx/bg_idx: color palette indices [0..15]
+// Set a single cell in the RGBA grid
+// glyph: 16-bit glyph index, fg_idx/bg_idx: color palette indices [0..255]
 void vga_text_set_cell(vga_text_grid_t *grid,
                         int x, int y,
-                        uint8_t ch,
+                        uint16_t glyph,
                         int fg_idx, int bg_idx);
 
 // Clear entire grid with given foreground/background colors

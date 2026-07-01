@@ -99,7 +99,6 @@ typedef struct {
   GLint uv_scale;
   GLint grid_size;
   GLint cell_size;
-  GLint sheet_size;
   GLint cell_tex;
   GLint font_tex;
   GLint ega_palette;
@@ -195,7 +194,6 @@ static void cache_vga_uniforms(void) {
   g_vga.uv_scale    = glGetUniformLocation(g_ref.vga_program, "uv_scale");
   g_vga.grid_size   = glGetUniformLocation(g_ref.vga_program, "gridSize");
   g_vga.cell_size   = glGetUniformLocation(g_ref.vga_program, "cellSize");
-  g_vga.sheet_size  = glGetUniformLocation(g_ref.vga_program, "sheetSize");
   g_vga.cell_tex    = glGetUniformLocation(g_ref.vga_program, "cellTex");
   g_vga.font_tex    = glGetUniformLocation(g_ref.vga_program, "fontTex");
   g_vga.ega_palette = glGetUniformLocation(g_ref.vga_program, "egaPalette[0]");
@@ -799,6 +797,16 @@ bool R_UpdateTextureRG8(uint32_t tex, int x, int y, int w, int h,
   return true;
 }
 
+bool R_UpdateTextureRGBA(uint32_t tex, int x, int y, int w, int h,
+                         const void *rgba) {
+  if (!tex || !rgba || w <= 0 || h <= 0)
+    return false;
+  glBindTexture(GL_TEXTURE_2D, (GLuint)tex);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+  return true;
+}
+
 void R_DeleteTexture(uint32_t id) {
   if (id == 0) return;
   GLuint tex = (GLuint)id;
@@ -842,7 +850,6 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   glUniform2f(g_vga.uv_scale, 1.0f, 1.0f);
   glUniform2f(g_vga.grid_size, (float)buf->width, (float)buf->height);
   glUniform2f(g_vga.cell_size, (float)font->cell_w, (float)font->cell_h);
-  glUniform2f(g_vga.sheet_size, (float)font->sheet_w, (float)font->sheet_h);
   glUniform4fv(g_vga.ega_palette, 16, pal);
   glUniform1i(g_vga.cell_tex, 0);
   glUniform1i(g_vga.font_tex, 1);

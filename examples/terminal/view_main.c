@@ -539,7 +539,21 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
           for (int col = 0; col < vis_cols; col++) {
             if (col >= st->screen.cols) break;
             vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + col];
-            vga_text_set_cell(&grid, col, row, cell->ch, cell->fg, cell->bg);
+            vga_font_ensure_glyph(cell->glyph);
+            vga_text_set_cell(&grid, col, row, cell->glyph, cell->fg, cell->bg);
+          }
+        }
+
+        // ── PTY cursor (block cursor via fg/bg flip) ──
+        if (st->mode == VGAT_MODE_PTY && st->cursor_visible &&
+            st->screen.cursor_visible) {
+          int cscr = st->screen.cursor_row - first;
+          int csc = st->screen.cursor_col;
+          if (cscr >= 0 && cscr < content_rows && csc >= 0 && csc < vis_cols &&
+              csc < st->screen.cols) {
+            int phys = (st->screen.head + st->screen.cursor_row) % st->screen.total_rows;
+            vgat_cell *cell = &st->screen.rows[phys * st->screen.cols + csc];
+            vga_text_set_cell(&grid, csc, cscr, cell->glyph, cell->bg, cell->fg);
           }
         }
       }
@@ -549,18 +563,24 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         int input_row = vis_rows - 1;
         int col = 0;
         const char *prompt = "> ";
-        for (const char *cp = prompt; *cp && col < vis_cols; cp++, col++)
+        for (const char *cp = prompt; *cp && col < vis_cols; cp++, col++) {
+          vga_font_ensure_glyph((uint16_t)*cp);
           vga_text_set_cell(&grid, col, input_row, *cp, 10, VGAT_BG_DEFAULT);
+        }
 
-        for (int i = 0; i < st->input_len && col < vis_cols; i++, col++)
+        for (int i = 0; i < st->input_len && col < vis_cols; i++, col++) {
+          vga_font_ensure_glyph((uint16_t)st->input_buf[i]);
           vga_text_set_cell(&grid, col, input_row, st->input_buf[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+        }
 
-        if (st->cursor_visible && col < vis_cols)
+        if (st->cursor_visible && col < vis_cols) {
+          vga_font_ensure_glyph(' ');
           vga_text_set_cell(&grid, col, input_row, ' ', VGAT_BG_DEFAULT, VGAT_FG_DEFAULT);
+        }
       }
 
       // ── Render ──
-      if (R_UpdateTextureRG8(grid.cells_tex, 0, 0, grid.cells_w, grid.cells_h, grid.cells)) {
+      if (R_UpdateTextureRGBA(grid.cells_tex, 0, 0, grid.cells_w, grid.cells_h, grid.cells)) {
         R_VgaBuffer buf = {
           .vga_buffer = grid.cells_tex,
           .width = grid.cells_w,

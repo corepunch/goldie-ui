@@ -54,13 +54,13 @@ void vgat_screen_scroll(vgat_screen *s) {
   memset(&s->rows[row * s->cols], 0, (size_t)s->cols * sizeof(vgat_cell));
 }
 
-void vgat_screen_write_cell(vgat_screen *s, uint8_t ch, int fg, int bg) {
+void vgat_screen_write_cell(vgat_screen *s, uint16_t glyph, int fg, int bg) {
   if (!s || !s->rows) return;
   int row = phys_row(s, s->cursor_row);
   int idx = row * s->cols + s->cursor_col;
-  s->rows[idx].ch = ch;
-  s->rows[idx].fg = (uint8_t)(fg & 0xF);
-  s->rows[idx].bg = (uint8_t)(bg & 0xF);
+  s->rows[idx].glyph = glyph;
+  s->rows[idx].fg = (uint8_t)(fg & 0xFF);
+  s->rows[idx].bg = (uint8_t)(bg & 0xFF);
   s->cursor_col++;
   if (s->cursor_col >= s->cols) {
     s->cursor_col = 0;

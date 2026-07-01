@@ -71,7 +71,7 @@ typedef struct {
 
 // VGA cell — stored per-character in the scrollback ring buffer.
 typedef struct {
-  uint8_t ch;
+  uint16_t glyph;  // 16-bit glyph index into the atlas
   uint8_t fg;
   uint8_t bg;
 } vgat_cell;
@@ -150,7 +150,7 @@ void vgat_screen_resize(vgat_screen *s, int cols);
 void vgat_screen_shutdown(vgat_screen *s);
 void vgat_screen_clear(vgat_screen *s);
 void vgat_screen_scroll(vgat_screen *s);
-void vgat_screen_write_cell(vgat_screen *s, uint8_t ch, int fg, int bg);
+void vgat_screen_write_cell(vgat_screen *s, uint16_t glyph, int fg, int bg);
 void vgat_screen_write_string(vgat_screen *s, const char *str, int fg, int bg);
 void vgat_screen_newline(vgat_screen *s);
 void vgat_screen_backspace(vgat_screen *s);
