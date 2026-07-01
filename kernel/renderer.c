@@ -101,7 +101,8 @@ typedef struct {
   GLint cell_size;
   GLint cell_tex;
   GLint font_tex;
-  GLint ega_palette;
+  GLint palette_tex;
+  GLuint palette_texture;
 } vga_renderer_t;
 
 static vga_renderer_t g_vga = {0};
@@ -196,7 +197,7 @@ static void cache_vga_uniforms(void) {
   g_vga.cell_size   = glGetUniformLocation(g_ref.vga_program, "cellSize");
   g_vga.cell_tex    = glGetUniformLocation(g_ref.vga_program, "cellTex");
   g_vga.font_tex    = glGetUniformLocation(g_ref.vga_program, "fontTex");
-  g_vga.ega_palette = glGetUniformLocation(g_ref.vga_program, "egaPalette[0]");
+  g_vga.palette_tex = glGetUniformLocation(g_ref.vga_program, "paletteTex");
 }
 
 static void update_sprite_projection_uniforms(const fmat16_t *projection) {
@@ -320,6 +321,7 @@ static GLuint load_program_from_files(const char *fs_name,
 // Initialize the sprite system
 bool ui_init_prog(void) {
   memset(&g_ref, 0, sizeof(g_ref));
+  memset(&g_vga, 0, sizeof(g_vga));
 
   g_ref.copy_sprite.program = load_program_from_files("sprite_copy.frag.glsl",
                                                       "position", "texcoord", "color");
@@ -344,6 +346,13 @@ bool ui_init_prog(void) {
     return false;
   }
   cache_vga_uniforms();
+  glGenTextures(1, &g_vga.palette_texture);
+  glBindTexture(GL_TEXTURE_2D, g_vga.palette_texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
   // Initialize mesh for sprite rendering using Renderer API
   // Vertex attribute layout: 0 = Position, 1 = UV, 2 = Color
@@ -380,6 +389,7 @@ bool ui_init_prog(void) {
 
 void ui_shutdown_prog(void) {
   // Delete shader program and buffers
+  SAFE_DELETE_N(g_vga.palette_texture, glDeleteTextures);
   SAFE_DELETE(g_ref.copy_sprite.program, glDeleteProgram);
   SAFE_DELETE(g_ref.gradient_sprite.program, glDeleteProgram);
   SAFE_DELETE(g_ref.vga_program, glDeleteProgram);
@@ -834,12 +844,12 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
       !palette256 || buf->width <= 0 || buf->height <= 0 ||
       dst_w_px <= 0 || dst_h_px <= 0)
     return false;
-  float pal[256 * 4];
+  uint8_t pal[256 * 4];
   for (int i = 0; i < 256; i++) {
-    pal[i * 4 + 0] = ((palette256[i] >> 16) & 0xFF) / 255.0f;
-    pal[i * 4 + 1] = ((palette256[i] >> 8) & 0xFF) / 255.0f;
-    pal[i * 4 + 2] = (palette256[i] & 0xFF) / 255.0f;
-    pal[i * 4 + 3] = ((palette256[i] >> 24) & 0xFF) / 255.0f;
+    pal[i * 4 + 0] = (uint8_t)(palette256[i] >> 16);
+    pal[i * 4 + 1] = (uint8_t)(palette256[i] >> 8);
+    pal[i * 4 + 2] = (uint8_t)palette256[i];
+    pal[i * 4 + 3] = (uint8_t)(palette256[i] >> 24);
   }
 
   glUseProgram(g_ref.vga_program);
@@ -850,14 +860,17 @@ bool R_DrawVGABuffer(const R_VgaBuffer *buf,
   glUniform2f(g_vga.uv_scale, 1.0f, 1.0f);
   glUniform2f(g_vga.grid_size, (float)buf->width, (float)buf->height);
   glUniform2f(g_vga.cell_size, (float)font->cell_w, (float)font->cell_h);
-  glUniform4fv(g_vga.ega_palette, 256, pal);
   glUniform1i(g_vga.cell_tex, 0);
   glUniform1i(g_vga.font_tex, 1);
+  glUniform1i(g_vga.palette_tex, 2);
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, (GLuint)buf->vga_buffer);
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, (GLuint)font->texture);
+  glActiveTexture(GL_TEXTURE2);
+  glBindTexture(GL_TEXTURE_2D, g_vga.palette_texture);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 1, GL_RGBA, GL_UNSIGNED_BYTE, pal);
 
   glDisable(GL_DEPTH_TEST);
   glDisable(GL_BLEND);
