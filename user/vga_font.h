@@ -47,6 +47,7 @@ int           vga_char_width(void);
 int           vga_char_height(void);
 uint32_t      vga_font_texture_id(void);
 VgaFontLayout vga_get_font_layout(void);
+uint8_t       vga_font_glyph_for_codepoint(uint32_t codepoint);
 
 // Draw a single character cell at screen position (x, y).
 // fg / bg are 0xAARRGGBB; bg is drawn as a solid filled rectangle.

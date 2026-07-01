@@ -139,17 +139,17 @@ void vga_text_write_ansi_line(const char *line,
       }
     }
 
-    unsigned char ch = (unsigned char)*p;
-    if (ch < 0x80) {
-      // ASCII character, use it directly
-      vga_text_set_cell(grid, col_start + out_col, row, ch, fg, bg);
-      p++;
-    } else {
-      // UTF-8/multi-byte character, replace with placeholder
-      int seq_len = vga_text_utf8_length(ch);
-      vga_text_set_cell(grid, col_start + out_col, row, UTF8_REPLACEMENT_CHAR, fg, bg);
-      p += seq_len;
+    uint32_t cp;
+    int seq_len = vga_text_utf8_length((unsigned char)*p);
+    if (seq_len == 1) cp = (unsigned char)*p;
+    else {
+      cp = (unsigned char)*p & (0x7F >> seq_len);
+      int i;
+      for (i = 1; i < seq_len && (p[i] & 0xC0) == 0x80; i++) cp = (cp << 6) | (p[i] & 0x3F);
+      if (i != seq_len) { cp = 0xFFFD; seq_len = 1; }
     }
+    vga_text_set_cell(grid, col_start + out_col, row, vga_font_glyph_for_codepoint(cp), fg, bg);
+    p += seq_len;
     out_col++;
   }
 }

@@ -1,5 +1,6 @@
 #include "ansi_parser.h"
 #include "vgat.h"
+#include "../../user/vga_font.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -70,13 +71,27 @@ void vgat_parser_feed(vgat_parser_t *p, const uint8_t *data, int len) {
 
     switch (p->state) {
       case VGAT_STATE_NORMAL:
+        if (p->utf8_remaining) {
+          if ((c & 0xC0) == 0x80) {
+            p->utf8_codepoint = (p->utf8_codepoint << 6) | (c & 0x3F);
+            if (--p->utf8_remaining == 0)
+              p->write_cell(p->screen, vga_font_glyph_for_codepoint(p->utf8_codepoint), p->cur_fg, p->cur_bg);
+            break;
+          }
+          p->write_cell(p->screen, 0xFE, p->cur_fg, p->cur_bg);
+          p->utf8_remaining = 0;
+        }
         if (c == 0x1B)   { p->state = VGAT_STATE_ESC; }
         else if (c == '\n') { p->newline(p->screen); }
         else if (c == '\r') { p->cr(p->screen); }
         else if (c == 0x08) { p->backspace(p->screen); }
         else if (c == '\t') { p->write_cell(p->screen, c, p->cur_fg, p->cur_bg); }
         else if (c == 0x07) { /* BEL - ignore */ }
-        else if (c >= 0x20) { p->write_cell(p->screen, c, p->cur_fg, p->cur_bg); }
+        else if (c >= 0xF0 && c <= 0xF4) { p->utf8_codepoint = c & 0x07; p->utf8_remaining = 3; }
+        else if (c >= 0xE0 && c <= 0xEF) { p->utf8_codepoint = c & 0x0F; p->utf8_remaining = 2; }
+        else if (c >= 0xC2 && c <= 0xDF) { p->utf8_codepoint = c & 0x1F; p->utf8_remaining = 1; }
+        else if (c >= 0x20 && c < 0x80)  { p->write_cell(p->screen, c, p->cur_fg, p->cur_bg); }
+        else if (c >= 0x80)              { p->write_cell(p->screen, 0xFE, p->cur_fg, p->cur_bg); }
         break;
 
       case VGAT_STATE_ESC:
