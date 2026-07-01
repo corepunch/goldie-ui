@@ -5,9 +5,9 @@ out vec4 outColor;
 
 uniform sampler2D cellTex;
 uniform sampler2D fontTex;
+uniform sampler2D paletteTex;
 uniform vec2 gridSize;
 uniform vec2 cellSize;   // (glyph_cell_w, glyph_cell_h) in pixels
-uniform vec4 palette[256];
 
 #define ATLAS_COLS 256.0
 
@@ -29,5 +29,7 @@ void main() {
   vec2 fuv = (vec2(col * cellSize.x + px,
                    row * cellSize.y + py) + vec2(0.5)) / sheetSize;
   float a = texture(fontTex, fuv).a;
-  outColor = mix(palette[bg], palette[fg], a);
+  vec4 bgColor = texture(paletteTex, vec2((float(bg) + 0.5) / 256.0, 0.5));
+  vec4 fgColor = texture(paletteTex, vec2((float(fg) + 0.5) / 256.0, 0.5));
+  outColor = mix(bgColor, fgColor, a);
 }
