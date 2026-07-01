@@ -48,6 +48,31 @@ int vgat_pty_open(const char *shell, int rows, int cols, int *pid_out) {
   return master_fd;
 }
 
+int vgat_pty_exec(const char *const *argv, int rows, int cols, int *pid_out) {
+  if (!pid_out || !argv || !argv[0]) return -1;
+
+  int master_fd = -1;
+  int pid = forkpty(&master_fd, NULL, NULL, NULL);
+  if (pid == 0) {
+    setenv("TERM", "linux", 1);
+    execvp(argv[0], (char *const *)argv);
+    _exit(127);
+  }
+
+  if (pid < 0) {
+    if (master_fd >= 0) close(master_fd);
+    return -1;
+  }
+
+  int flags = fcntl(master_fd, F_GETFL, 0);
+  if (flags >= 0) fcntl(master_fd, F_SETFL, flags | O_NONBLOCK);
+
+  vgat_pty_resize(master_fd, rows, cols);
+
+  *pid_out = pid;
+  return master_fd;
+}
+
 void vgat_pty_close(int pid) {
   if (pid > 0) {
     kill(pid, SIGTERM);
@@ -79,6 +104,11 @@ int vgat_pty_write(int master_fd, const void *buf, int sz) {
 
 int vgat_pty_open(const char *shell, int rows, int cols, int *pid_out) {
   (void)shell; (void)rows; (void)cols; (void)pid_out;
+  return -1;  // Not yet implemented on Windows
+}
+
+int vgat_pty_exec(const char *const *argv, int rows, int cols, int *pid_out) {
+  (void)argv; (void)rows; (void)cols; (void)pid_out;
   return -1;  // Not yet implemented on Windows
 }
 

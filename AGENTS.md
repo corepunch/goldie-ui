@@ -31,6 +31,24 @@ int lx = x - c->frame.x + (int)c->hscroll.pos;
 int ly = y - c->frame.y + (int)c->vscroll.pos;
 ```
 
+# Code style: vertical space
+
+Minimize vertical space. When a pattern repeats (switch cases, similar
+assignments, etc.), format it as a compact aligned table — each entry on one
+line, columns aligned — to read like a spreadsheet. Avoid wasted lines.
+
+```c
+// Good — compact, scannable, like a spreadsheet:
+case AX_KEY_ENTER:     vgat_pty_write(st->pty_fd, "\r", 1);     return true;
+case AX_KEY_BACKSPACE: vgat_pty_write(st->pty_fd, "\x7f", 1);   return true;
+case AX_KEY_ESCAPE:    vgat_pty_write(st->pty_fd, "\x1b", 1);   return true;
+
+// Bad — bloated:
+case AX_KEY_ENTER:
+  vgat_pty_write(st->pty_fd, "\r", 1);
+  return true;
+```
+
 This ensures nested child windows receive content-space coordinates including
 their scroll offsets, regardless of how many layout containers they are nested
 inside. Missing `+ vscroll.pos` causes click-to-select after scrolling to hit

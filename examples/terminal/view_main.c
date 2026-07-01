@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <dirent.h>
+#include <errno.h>
 
 // ── Lua extraspace access (stores vgat_state_t*) ──────────────────────────
 #if defined(HAVE_LUA)
@@ -140,6 +141,9 @@ static void cmd_cat (vgat_state_t *, int, char **);
 static void cmd_date(vgat_state_t *, int, char **);
 static void cmd_whoami(vgat_state_t *, int, char **);
 static void cmd_lua  (vgat_state_t *, int, char **);
+static void cmd_run  (vgat_state_t *, int, char **);
+static void enter_cmd_mode(vgat_state_t *);
+static void init_ansi_parser(vgat_state_t *);
 
 // ── Command table ─────────────────────────────────────────────────────────
 
@@ -155,6 +159,7 @@ const vgat_cmd_t g_cmds[] = {
   {"date",   "Show date and time",     cmd_date},
   {"whoami", "Show current user",      cmd_whoami},
   {"lua",    "Run a Lua script",        cmd_lua},
+  {"run",    "Run a program e.g. run ls -la", cmd_run},
   {NULL, NULL, NULL} // sentinel
 };
 
@@ -275,6 +280,38 @@ static void cmd_lua(vgat_state_t *st, int argc, char **argv) {
 #endif
 }
 
+static void cmd_run(vgat_state_t *st, int argc, char **argv) {
+  if (argc < 2) {
+    vgat_screen_write_string(&st->screen, "Usage: run <program> [args...]\n",
+                             9, VGAT_BG_DEFAULT);
+    return;
+  }
+
+  // Kill any existing PTY session
+  if (st->pty_fd >= 0) {
+    enter_cmd_mode(st);
+  }
+
+  irect16_t cr = get_client_rect(st->win);
+  int cols = cr.w / vga_char_width();
+  int rows = cr.h / vga_char_height();
+  if (cols <= 0) cols = 80;
+  if (rows <= 0) rows = 24;
+
+  st->pty_fd = vgat_pty_exec((const char *const *)&argv[1], rows, cols, &st->pty_pid);
+  if (st->pty_fd < 0) {
+    vgat_screen_write_string(&st->screen, "Failed to run: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, argv[1], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+    return;
+  }
+
+  st->mode = VGAT_MODE_PTY;
+  st->escape_pending = false;
+  init_ansi_parser(st);
+  vgat_screen_clear(&st->screen);
+}
+
 // ── Input processing ──────────────────────────────────────────────────────
 
 static void process_input(vgat_state_t *st) {
@@ -313,6 +350,46 @@ static void process_input(vgat_state_t *st) {
   vgat_screen_write_string(&st->screen, "Unknown command: ", 9, VGAT_BG_DEFAULT);
   vgat_screen_write_string(&st->screen, argv[0], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
   vgat_screen_newline(&st->screen);
+}
+
+// ── Mode switching helpers ──────────────────────────────────────────────
+
+static void enter_cmd_mode(vgat_state_t *st) {
+  if (st->pty_fd >= 0) {
+    vgat_pty_close(st->pty_pid);
+    close(st->pty_fd);
+    st->pty_fd = -1;
+    st->pty_pid = 0;
+  }
+  st->mode = VGAT_MODE_CMD;
+  st->escape_pending = false;
+  vgat_screen_write_string(&st->screen, "\n[returned to command mode]\n",
+                           VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  vgat_screen_newline(&st->screen);
+}
+
+// ── ANSI parser callbacks ────────────────────────────────────────────────
+
+static void init_ansi_parser(vgat_state_t *st) {
+  vgat_parser_init(&st->parser, &(vgat_parser_callbacks_t){
+    .screen = &st->screen,
+    .write_cell = vgat_screen_write_cell,
+    .newline = vgat_screen_newline,
+    .backspace = vgat_screen_backspace,
+    .cr = vgat_screen_carriage_return,
+    .cursor_left = vgat_screen_cursor_left,
+    .cursor_right = vgat_screen_cursor_right,
+    .cursor_up = vgat_screen_cursor_up,
+    .cursor_down = vgat_screen_cursor_down,
+    .set_fg = vgat_screen_set_fg,
+    .set_bg = vgat_screen_set_bg,
+    .reset = vgat_screen_reset,
+    .save_cursor = vgat_screen_save_cursor,
+    .restore_cursor = vgat_screen_restore_cursor,
+    .erase_display = vgat_screen_erase_display,
+    .erase_line = vgat_screen_erase_line,
+    .cursor_pos = vgat_screen_cursor_position,
+  });
 }
 
 // ── Window procedure ──────────────────────────────────────────────────────
@@ -366,6 +443,28 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
             "Lua scripting is not available in this build.\n", 9, VGAT_BG_DEFAULT);
 #endif
         }
+
+        // If a shell was specified, launch it in PTY mode
+        if (launch->shell) {
+          irect16_t cr = get_client_rect(win);
+          int cols = cr.w / vga_char_width();
+          int rows = cr.h / vga_char_height();
+          if (cols <= 0) cols = VGAT_DEFAULT_COLS;
+          if (rows <= 0) rows = VGAT_DEFAULT_ROWS;
+
+          const char *const argv[] = { launch->shell, NULL };
+          st->pty_fd = vgat_pty_exec(argv, rows, cols, &st->pty_pid);
+          if (st->pty_fd >= 0) {
+            st->mode = VGAT_MODE_PTY;
+            init_ansi_parser(st);
+            vgat_screen_clear(&st->screen);
+          } else {
+            vgat_screen_write_string(&st->screen,
+              "Failed to launch shell. Type 'help' for available commands\n",
+              9, VGAT_BG_DEFAULT);
+            vgat_screen_newline(&st->screen);
+          }
+        }
       }
       return true;
     }
@@ -373,6 +472,10 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     case evDestroy: {
       if (st) {
         if (st->timer_id > 0) axCancelTimer(st->timer_id);
+        if (st->pty_fd >= 0) {
+          vgat_pty_close(st->pty_pid);
+          close(st->pty_fd);
+        }
         vga_font_shutdown();
         vgat_screen_shutdown(&st->screen);
 #if defined(HAVE_LUA)
@@ -393,6 +496,21 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         st->cursor_visible = !st->cursor_visible;
         invalidate_window(win);
       }
+      // PTY read loop: drain output from child process
+      if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
+        int n = vgat_pty_read(st->pty_fd, st->read_buf, sizeof(st->read_buf));
+        if (n > 0) {
+          vgat_parser_feed(&st->parser, (uint8_t *)st->read_buf, n);
+          invalidate_window(win);
+        } else if (n < 0 && errno != EAGAIN) {
+          int status;
+          pid_t result = waitpid(st->pty_pid, &status, WNOHANG);
+          if (result > 0) {
+            enter_cmd_mode(st);
+            invalidate_window(win);
+          }
+        }
+      }
       return true;
     }
 
@@ -410,10 +528,10 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (!vga_text_ensure_grid(&grid, vis_cols, vis_rows)) return true;
       vga_text_clear_grid(&grid, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
 
-      // ── Scrollback output area (top vis_rows-1) ──
-      int content_rows = vis_rows - 1;
+      // In PTY mode, use all rows for output. In CMD mode, reserve last row for input.
+      int content_rows = (st->mode == VGAT_MODE_PTY) ? vis_rows : vis_rows - 1;
       if (content_rows > 0) {
-        int written = st->screen.cursor_row;
+        int written = (st->mode == VGAT_MODE_PTY) ? st->screen.max_row : st->screen.cursor_row;
         int first = written - content_rows - st->scroll_pos;
         if (first < 0) first = 0;
 
@@ -429,18 +547,20 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         }
       }
 
-      // ── Input line (last row) ──
-      int input_row = vis_rows - 1;
-      int col = 0;
-      const char *prompt = "> ";
-      for (const char *cp = prompt; *cp && col < vis_cols; cp++, col++)
-        vga_text_set_cell(&grid, col, input_row, *cp, 10, VGAT_BG_DEFAULT);
+      // ── Input line (last row, CMD mode only) ──
+      if (st->mode != VGAT_MODE_PTY) {
+        int input_row = vis_rows - 1;
+        int col = 0;
+        const char *prompt = "> ";
+        for (const char *cp = prompt; *cp && col < vis_cols; cp++, col++)
+          vga_text_set_cell(&grid, col, input_row, *cp, 10, VGAT_BG_DEFAULT);
 
-      for (int i = 0; i < st->input_len && col < vis_cols; i++, col++)
-        vga_text_set_cell(&grid, col, input_row, st->input_buf[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+        for (int i = 0; i < st->input_len && col < vis_cols; i++, col++)
+          vga_text_set_cell(&grid, col, input_row, st->input_buf[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
 
-      if (st->cursor_visible && col < vis_cols)
-        vga_text_set_cell(&grid, col, input_row, ' ', VGAT_BG_DEFAULT, VGAT_FG_DEFAULT);
+        if (st->cursor_visible && col < vis_cols)
+          vga_text_set_cell(&grid, col, input_row, ' ', VGAT_BG_DEFAULT, VGAT_FG_DEFAULT);
+      }
 
       // ── Render ──
       if (R_UpdateTextureRG8(grid.cells_tex, 0, 0, grid.cells_w, grid.cells_h, grid.cells)) {
@@ -469,8 +589,13 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 
       vgat_screen_resize(&st->screen, cols);
 
-      int content_rows = rows - 1;
-      int written = st->screen.cursor_row;
+      // Signal PTY about new terminal size
+      if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
+        vgat_pty_resize(st->pty_fd, rows, cols);
+      }
+
+      int content_rows = (st->mode == VGAT_MODE_PTY) ? rows : rows - 1;
+      int written = (st->mode == VGAT_MODE_PTY) ? st->screen.max_row : st->screen.cursor_row;
       int max_scroll = written > content_rows ? written - content_rows : 0;
       scroll_info_t si = {
         .fMask = SIF_RANGE | SIF_PAGE | SIF_POS,
@@ -489,8 +614,8 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       irect16_t cr = get_client_rect(win);
       int vis_rows = cr.h / vga_char_height();
       if (vis_rows <= 0) vis_rows = 24;
-      int content_rows = vis_rows - 1;
-      int written = st->screen.cursor_row;
+      int content_rows = (st->mode == VGAT_MODE_PTY) ? vis_rows : vis_rows - 1;
+      int written = (st->mode == VGAT_MODE_PTY) ? st->screen.max_row : st->screen.cursor_row;
       int max_scroll = written > content_rows ? written - content_rows : 0;
       int new_pos = CLAMP((int)wparam, 0, max_scroll);
       if (new_pos != st->scroll_pos) {
@@ -508,8 +633,8 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       irect16_t cr = get_client_rect(win);
       int vis_rows = cr.h / vga_char_height();
       if (vis_rows <= 0) vis_rows = 24;
-      int content_rows = vis_rows - 1;
-      int written = st->screen.cursor_row;
+      int content_rows = (st->mode == VGAT_MODE_PTY) ? vis_rows : vis_rows - 1;
+      int written = (st->mode == VGAT_MODE_PTY) ? st->screen.max_row : st->screen.cursor_row;
       int max_scroll = written > content_rows ? written - content_rows : 0;
       int lines = delta < 0 ? 3 : -3;
       int new_pos = CLAMP(st->scroll_pos + lines, 0, max_scroll);
@@ -524,6 +649,95 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 
     case evKeyDown: {
       if (!st) return false;
+
+      // PTY mode: forward keys to child process
+      if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
+        int base = wparam & 0xFF;
+        int mods = wparam & ~0xFF;
+
+        // Ctrl+letter → control character
+        if (mods & AX_MOD_CTRL) {
+          if (base == 'A' || base == 'a') {
+            // Ctrl-A: escape chord — if pressed again, send literal Ctrl-A
+            if (st->escape_pending) {
+              char ctrl = '\x01';
+              vgat_pty_write(st->pty_fd, &ctrl, 1);
+              st->escape_pending = false;
+            } else {
+              st->escape_pending = true;
+            }
+            return true;
+          }
+          // If escape is pending and any other Ctrl key is pressed, cancel escape
+          st->escape_pending = false;
+          if (base >= 'A' && base <= 'Z') {
+            char ctrl = (char)(base - 'A' + 1);
+            vgat_pty_write(st->pty_fd, &ctrl, 1);
+            return true;
+          }
+          if (base >= 'a' && base <= 'z') {
+            char ctrl = (char)(base - 'a' + 1);
+            vgat_pty_write(st->pty_fd, &ctrl, 1);
+            return true;
+          }
+        }
+
+        // If escape is pending, check for escape chord completion
+        if (st->escape_pending) {
+          st->escape_pending = false;
+          if (base == 'q' || base == 'Q') {
+            enter_cmd_mode(st);
+            invalidate_window(win);
+            return true;
+          }
+          // Cancel escape and send literal Ctrl-A + the key
+          char ctrl_a = '\x01';
+          vgat_pty_write(st->pty_fd, &ctrl_a, 1);
+          // Fall through to send the key too
+        }
+
+        // Alt+key → ESC prefix
+        if (mods & AX_MOD_ALT) {
+          // For special keys, we handle Alt as escape prefix below
+          // For regular keys, evTextInput will handle the ESC+char sequence
+        }
+
+        // Special keys — formatted as a compact table
+        switch (base) {
+          case AX_KEY_ENTER:     vgat_pty_write(st->pty_fd, "\r", 1);                          return true;
+          case AX_KEY_BACKSPACE: vgat_pty_write(st->pty_fd, "\x7f", 1);                        return true;
+          case AX_KEY_ESCAPE:    vgat_pty_write(st->pty_fd, "\x1b", 1);                        return true;
+          case AX_KEY_TAB:       vgat_pty_write(st->pty_fd, "\t", 1);                          return true;
+          case AX_KEY_UPARROW:   vgat_pty_write(st->pty_fd, mods & AX_MOD_SHIFT ? "\x1b[1;2A" : "\x1b[A", 3); return true;
+          case AX_KEY_DOWNARROW: vgat_pty_write(st->pty_fd, mods & AX_MOD_SHIFT ? "\x1b[1;2B" : "\x1b[B", 3); return true;
+          case AX_KEY_RIGHTARROW:vgat_pty_write(st->pty_fd, mods & AX_MOD_SHIFT ? "\x1b[1;2C" : "\x1b[C", 3); return true;
+          case AX_KEY_LEFTARROW: vgat_pty_write(st->pty_fd, mods & AX_MOD_SHIFT ? "\x1b[1;2D" : "\x1b[D", 3); return true;
+          case AX_KEY_HOME:      vgat_pty_write(st->pty_fd, "\x1b[H", 3);                      return true;
+          case AX_KEY_END:       vgat_pty_write(st->pty_fd, "\x1b[F", 3);                      return true;
+          case AX_KEY_DEL:       vgat_pty_write(st->pty_fd, "\x1b[3~", 4);                     return true;
+          case AX_KEY_PGUP:      vgat_pty_write(st->pty_fd, "\x1b[5~", 4);                     return true;
+          case AX_KEY_PGDN:      vgat_pty_write(st->pty_fd, "\x1b[6~", 4);                     return true;
+          case AX_KEY_F1:        vgat_pty_write(st->pty_fd, "\x1bOP", 3);                      return true;
+          case AX_KEY_F2:        vgat_pty_write(st->pty_fd, "\x1bOQ", 3);                      return true;
+          case AX_KEY_F3:        vgat_pty_write(st->pty_fd, "\x1bOR", 3);                      return true;
+          case AX_KEY_F4:        vgat_pty_write(st->pty_fd, "\x1bOS", 3);                      return true;
+          default:
+            // For regular alphanumeric keys, let evTextInput handle them
+            if (base >= 0x20 && base < 0x7F) {
+              // If Alt is held, prepend ESC before the character
+              if (mods & AX_MOD_ALT) {
+                vgat_pty_write(st->pty_fd, "\x1b", 1);
+                // Let evTextInput send the character after the ESC
+                return false;
+              }
+              return false;
+            }
+            // Eat all other keys
+            return true;
+        }
+      }
+
+      // CMD / Lua mode: existing command processing
       switch (wparam) {
         case AX_KEY_ENTER:
           if (st->lua_running && st->waiting_for_input) {
@@ -554,6 +768,13 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 
     case evTextInput: {
       if (!st) return false;
+      // In PTY mode, forward text directly to the child process
+      if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
+        const char *text = (const char *)lparam;
+        vgat_pty_write(st->pty_fd, text, (int)strlen(text));
+        return true;
+      }
+      // In CMD mode, append to input buffer (existing behavior)
       const char *text = (const char *)lparam;
       while (*text && st->input_len < VGAT_INPUT_MAX - 1) {
         if (*text >= 0x20 && *text < 0x7F) {

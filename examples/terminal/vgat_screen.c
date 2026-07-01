@@ -37,6 +37,7 @@ void vgat_screen_clear(vgat_screen *s) {
   s->head = 0;
   s->cursor_col = 0;
   s->cursor_row = 0;
+  s->max_row = 0;
   s->scroll_pos = 0;
 }
 
@@ -64,6 +65,7 @@ void vgat_screen_write_cell(vgat_screen *s, uint8_t ch, int fg, int bg) {
   if (s->cursor_col >= s->cols) {
     s->cursor_col = 0;
     s->cursor_row++;
+    if (s->cursor_row > s->max_row) s->max_row = s->cursor_row;
     while (s->cursor_row >= s->total_rows) {
       vgat_screen_scroll(s);
       s->cursor_row--;
@@ -75,6 +77,7 @@ void vgat_screen_newline(vgat_screen *s) {
   if (!s) return;
   s->cursor_col = 0;
   s->cursor_row++;
+  if (s->cursor_row > s->max_row) s->max_row = s->cursor_row;
   while (s->cursor_row >= s->total_rows) {
     vgat_screen_scroll(s);
     s->cursor_row--;
@@ -83,12 +86,8 @@ void vgat_screen_newline(vgat_screen *s) {
 
 void vgat_screen_backspace(vgat_screen *s) {
   if (!s) return;
-  if (s->cursor_col > 0) {
-    s->cursor_col--;
-  } else if (s->cursor_row > 0) {
-    s->cursor_row--;
-    s->cursor_col = s->cols - 1;
-  }
+  if (s->cursor_col > 0)        { s->cursor_col--; }
+  else if (s->cursor_row > 0)   { s->cursor_row--; s->cursor_col = s->cols - 1; }
 }
 
 void vgat_screen_carriage_return(vgat_screen *s) {
@@ -151,8 +150,30 @@ void vgat_screen_erase_display(vgat_screen *s, int mode) {
     s->head = 0;
     s->cursor_col = 0;
     s->cursor_row = 0;
+    s->max_row = 0;
+    return;
   }
-  (void)mode;
+  if (mode == 0) {
+    // Erase from cursor to end of display
+    int r = phys_row(s, s->cursor_row);
+    memset(&s->rows[r * s->cols + s->cursor_col], 0,
+           (size_t)(s->cols - s->cursor_col) * sizeof(vgat_cell));
+    for (int lr = s->cursor_row + 1; lr < s->total_rows; lr++) {
+      r = phys_row(s, lr);
+      memset(&s->rows[r * s->cols], 0, (size_t)s->cols * sizeof(vgat_cell));
+    }
+    return;
+  }
+  if (mode == 1) {
+    // Erase from beginning of display to cursor
+    for (int lr = 0; lr < s->cursor_row; lr++) {
+      int r = phys_row(s, lr);
+      memset(&s->rows[r * s->cols], 0, (size_t)s->cols * sizeof(vgat_cell));
+    }
+    int r = phys_row(s, s->cursor_row);
+    memset(&s->rows[r * s->cols], 0, (size_t)s->cursor_col * sizeof(vgat_cell));
+    return;
+  }
 }
 
 void vgat_screen_erase_line(vgat_screen *s, int mode) {
@@ -179,11 +200,7 @@ void vgat_screen_cursor_position(vgat_screen *s, int row, int col) {
 
 void vgat_screen_write_string(vgat_screen *s, const char *str, int fg, int bg) {
   if (!s || !str) return;
-  for (const char *p = str; *p; p++) {
-    if (*p == '\n') {
-      vgat_screen_newline(s);
-    } else {
-      vgat_screen_write_cell(s, (uint8_t)*p, fg, bg);
-    }
-  }
+  for (const char *p = str; *p; p++)
+    if (*p == '\n') vgat_screen_newline(s);
+    else            vgat_screen_write_cell(s, (uint8_t)*p, fg, bg);
 }

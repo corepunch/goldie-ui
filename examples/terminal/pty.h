@@ -14,6 +14,13 @@
 // Returns: master fd on success, -1 on failure
 int vgat_pty_open(const char *shell, int rows, int cols, int *pid_out);
 
+// Open a new PTY and exec an arbitrary program.
+// argv: NULL-terminated argument vector (argv[0] = program path)
+// rows, cols: initial terminal size
+// pid_out: set to child process ID on success
+// Returns: master fd on success, -1 on failure
+int vgat_pty_exec(const char *const *argv, int rows, int cols, int *pid_out);
+
 // Close the PTY and terminate the child process.
 void vgat_pty_close(int pid);
 

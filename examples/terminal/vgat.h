@@ -18,6 +18,8 @@
 #include "../../user/scrollbar.h"
 #include "../../platform/platform.h"
 #include "../../user/ansi.h"
+#include "pty.h"
+#include "ansi_parser.h"
 
 /* Lua headers - same probe logic as commctl/terminal.c */
 #if defined(HAVE_LUA)
@@ -49,6 +51,10 @@
 #define VGAT_BG_DEFAULT 0   // ANSI black
 
 #define VGAT_INPUT_MAX 256
+#define VGAT_PTY_READ_BUF 4096
+
+// Terminal mode
+enum { VGAT_MODE_CMD = 0, VGAT_MODE_PTY };
 
 // Forward declaration
 typedef struct vgat_state_s vgat_state_t;
@@ -71,13 +77,14 @@ typedef struct {
 } vgat_cell;
 
 // Ring-buffer scrollback screen.
-typedef struct {
+typedef struct vgat_screen_s {
   vgat_cell *rows;
   int total_rows;
   int cols;
   int head;
   int cursor_col;
   int cursor_row;
+  int max_row;       // highest cursor_row ever reached (for scrollback in PTY mode)
   int scroll_pos;
   bool cursor_visible;
   int saved_cursor_col;
@@ -89,6 +96,7 @@ typedef struct {
 // The pointer is borrowed — evCreate copies the path into owned memory.
 typedef struct {
   const char *script_path;
+  const char *shell;      // default shell program (NULL = CMD mode)
 } terminal_launch_t;
 
 // Per-window state.
@@ -107,6 +115,14 @@ struct vgat_state_s {
   // Cursor blink
   bool cursor_visible;
   int cursor_blink_ctr;
+
+  // PTY / terminal emulator mode
+  int mode;                      // VGAT_MODE_CMD or VGAT_MODE_PTY
+  int pty_fd;                    // PTY master fd (-1 if none)
+  int pty_pid;                   // child PID (0 if none)
+  vgat_parser_t parser;          // ANSI escape sequence parser
+  char read_buf[VGAT_PTY_READ_BUF]; // buffer for PTY reads
+  bool escape_pending;           // Ctrl-A pressed, waiting for next key
 
   // Startup script path (owned copy, NULL if none)
   char *startup_script;
@@ -143,6 +159,11 @@ void vgat_screen_cursor_left(vgat_screen *s);
 void vgat_screen_cursor_right(vgat_screen *s);
 void vgat_screen_cursor_up(vgat_screen *s);
 void vgat_screen_cursor_down(vgat_screen *s);
+void vgat_screen_set_fg(vgat_screen *s, int fg);
+void vgat_screen_set_bg(vgat_screen *s, int bg);
+void vgat_screen_reset(vgat_screen *s);
+void vgat_screen_save_cursor(vgat_screen *s);
+void vgat_screen_restore_cursor(vgat_screen *s);
 void vgat_screen_erase_display(vgat_screen *s, int mode);
 void vgat_screen_erase_line(vgat_screen *s, int mode);
 void vgat_screen_cursor_position(vgat_screen *s, int row, int col);
