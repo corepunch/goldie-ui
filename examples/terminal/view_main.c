@@ -1,4 +1,4 @@
-// VGA Console — Quake-style command console.
+// Terminal — Quake-style command console.
 // Reads keyboard input and dispatches commands from a built-in table.
 
 #include "vgat.h"
@@ -46,7 +46,7 @@ static int f_stdout_write(lua_State *L) {
 static int f_stdout_flush(lua_State *L) { lua_pushvalue(L, 1); return 1; }
 static int f_stdout_setvbuf(lua_State *L) { lua_pushvalue(L, 1); return 1; }
 
-static const char *STDOUT_METATABLE = "vgaterminal.stdout";
+static const char *STDOUT_METATABLE = "terminal.stdout";
 
 static bool create_lua_state(vgat_state_t *st) {
   st->L = luaL_newstate();
@@ -313,7 +313,7 @@ static void process_input(vgat_state_t *st) {
 
 // ── Window procedure ──────────────────────────────────────────────────────
 
-result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   vgat_state_t *st = (vgat_state_t *)win->userdata;
 
   switch (msg) {
@@ -343,7 +343,7 @@ result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
       vgat_screen_init(&st->screen, rows, cols);
 
       // Welcome message
-      vgat_screen_write_string(&st->screen, "VGA Console v1.0\n", 10, VGAT_BG_DEFAULT);
+      vgat_screen_write_string(&st->screen, "Terminal v1.0\n", 10, VGAT_BG_DEFAULT);
       vgat_screen_write_string(&st->screen, "Type 'help' for available commands\n", 10, VGAT_BG_DEFAULT);
       vgat_screen_newline(&st->screen);
 

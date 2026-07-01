@@ -1,4 +1,4 @@
-// VGA Console — Quake-style command console with VGA font rendering.
+// Terminal — Quake-style command console with VGA font rendering.
 //
 // Built-in command dispatch replaces the PTY-driven terminal emulator.
 // Commands are registered in a dispatch table: {name, help, func}.
@@ -38,7 +38,7 @@
 #  endif
 #endif
 
-#define VGAT_WINDOW_TITLE  "VGA Console"
+#define VGAT_WINDOW_TITLE  "Terminal"
 #define VGAT_DEFAULT_COLS  80
 #define VGAT_DEFAULT_ROWS  24
 #define VGAT_SCROLLBACK_LINES 1000
@@ -116,7 +116,7 @@ struct vgat_state_s {
 
 extern const vgat_cmd_t g_cmds[];
 
-result_t vgaterminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 void vgat_screen_init(vgat_screen *s, int rows, int cols);
 void vgat_screen_resize(vgat_screen *s, int cols);

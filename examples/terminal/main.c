@@ -1,4 +1,4 @@
-// VGA Terminal emulator example
+// Terminal emulator example
 // A simple terminal emulator using the Orion framework's VGA font rendering.
 
 #include "vgat.h"
@@ -13,7 +13,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
     WINDOW_VSCROLL,
     MAKERECT(20, 20, sw - 40, sh - 40),
     NULL,
-    vgaterminal_proc,
+     terminal_proc,
     hinstance,
     NULL
   );
@@ -22,7 +22,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   return true;
 }
 
-GEM_DEFINE("VGATerminal", "1.0", gem_init, NULL, NULL)
+GEM_DEFINE("Terminal", "1.0", gem_init, NULL, NULL)
 
 #ifndef BUILD_AS_GEM
 int main(int argc, char *argv[]) {
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     WINDOW_VSCROLL,
     MAKERECT(20, 20, sw - 40, sh - 40),
     NULL,
-    vgaterminal_proc,
+    terminal_proc,
     0,
     NULL
   );
