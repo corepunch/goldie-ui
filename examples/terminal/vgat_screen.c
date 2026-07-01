@@ -112,7 +112,10 @@ void vgat_screen_cursor_up(vgat_screen *s) {
 
 void vgat_screen_cursor_down(vgat_screen *s) {
   if (!s) return;
-  if (s->cursor_row < s->total_rows - 1) s->cursor_row++;
+  if (s->cursor_row < s->total_rows - 1) {
+    s->cursor_row++;
+    if (s->cursor_row > s->max_row) s->max_row = s->cursor_row;
+  }
 }
 
 void vgat_screen_set_fg(vgat_screen *s, int fg) {
@@ -196,6 +199,7 @@ void vgat_screen_cursor_position(vgat_screen *s, int row, int col) {
   if (col >= s->cols) col = s->cols - 1;
   s->cursor_row = row;
   s->cursor_col = col;
+  if (row + 1 > s->max_row) s->max_row = row + 1;
 }
 
 void vgat_screen_write_string(vgat_screen *s, const char *str, int fg, int bg) {
