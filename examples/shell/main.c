@@ -98,8 +98,16 @@ int main(int argc, char *argv[]) {
         printf("       (loading default gems from build/gem/)\n");
 
         // Default: try to load whatever gems were built.
+        // NOTE: preloading terminal.gem creates an initial empty Terminal window.
+        // This is required so that its .lua file association is registered before
+        // File Manager can open .lua files.  When a .lua is opened, the shell loads
+        // terminal.gem a second time — the module is refcounted, so init() creates
+        // a second window running the script.  The empty window stays visible.
+        // A future metadata-only GEM discovery phase would avoid this by loading
+        // file_types without calling init() until a file is actually opened.
         const char *defaults[] = {
             "build/gem/filemanager.gem",
+            "build/gem/terminal.gem",
             NULL
         };
         for (int i = 0; defaults[i]; i++) {

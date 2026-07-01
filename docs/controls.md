@@ -206,17 +206,13 @@ toggle_console();
 shutdown_console();
 ```
 
-## Terminal (Lua)
+## Terminal (VGA Console)
 
-```c
-window_t *term = create_window("Lua Terminal", 0,
-    MAKERECT(50, 50, 500, 300),
-    NULL, win_terminal, NULL);
-show_window(term, true);
+A VGA-accelerated terminal with scrollback, ANSI escape parsing, and
+optional Lua scripting. Built-in commands: `echo`, `help`, `clear`,
+`dir`/`ls`, `pwd`, `cd`, `cat`, `date`, `whoami`, `lua <script.lua>`.
 
-// Read the Lua output buffer
-const char *buf = terminal_get_buffer(term);
-```
+Run as standalone: `terminal [script.lua]`
 
 ## Toolbox
 

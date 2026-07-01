@@ -6,14 +6,12 @@
 #include "../../ui.h"
 #include "../../gem_magic.h"
 
-#define USE_LUA
-
 // ---------------------------------------------------------------------------
 // filemanager_proc — thin wrapper around win_filelist.
 // All directory listing, sorting, and navigation is handled inside win_filelist.
 // This proc intercepts FLN_* notifications for filemanager-specific behaviour:
 //   FLN_NAVDIR  → update the window status bar with the new path
-//   FLN_FILEOPEN → launch a terminal for .lua scripts
+//   FLN_FILEOPEN → dispatch file through ui_open_file() for the shell or GEM
 // ---------------------------------------------------------------------------
 static result_t filemanager_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
@@ -31,24 +29,12 @@ static result_t filemanager_proc(window_t *win, uint32_t msg,
         return false;
       }
 
-#ifdef USE_LUA
       if (code == FLN_FILEOPEN && lparam) {
         const fileitem_t *item = (const fileitem_t *)lparam;
-        if (item->path && strstr(item->path, ".lua")) {
-          show_window(
-            create_window("Terminal", 0, MAKERECT(16, 16, 240, 120),
-                          NULL, win_terminal, 0, item->path),
-            true);
-          return true;
-        }
-      }
-#endif
-
-      if (code == FLN_FILEOPEN && lparam) {
-        const fileitem_t *item = (const fileitem_t *)lparam;
-        // Ask the shell to open the file via ui_open_file().  Handles .gem
-        // files (load the gem) and any other extension a loaded gem claims.
-        // Falls back silently if no handler is registered (standalone mode).
+        // Dispatch through ui_open_file() which routes .gem → load gem,
+        // .lua → Terminal (via its GEM file association), and any other
+        // extension a loaded gem claims. Falls back silently if no handler
+        // is registered (standalone mode).
         if (item->path && ui_open_file(item->path))
           return true;
       }

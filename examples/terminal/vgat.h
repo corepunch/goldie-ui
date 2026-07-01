@@ -85,6 +85,12 @@ typedef struct {
   int saved_cursor_visible;
 } vgat_screen;
 
+// Launch data passed via create_window() lparam to run a script on startup.
+// The pointer is borrowed — evCreate copies the path into owned memory.
+typedef struct {
+  const char *script_path;
+} terminal_launch_t;
+
 // Per-window state.
 struct vgat_state_s {
   window_t *win;
@@ -102,6 +108,9 @@ struct vgat_state_s {
   bool cursor_visible;
   int cursor_blink_ctr;
 
+  // Startup script path (owned copy, NULL if none)
+  char *startup_script;
+
   // Lua scripting (NULL when not in use or not compiled in)
 #if defined(HAVE_LUA)
   lua_State *L;          // Main Lua state (NULL in command-only mode)
@@ -117,6 +126,8 @@ struct vgat_state_s {
 extern const vgat_cmd_t g_cmds[];
 
 result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+bool terminal_run_lua_file(vgat_state_t *st, const char *path);
+int terminal_get_cursor_row(window_t *win);
 
 void vgat_screen_init(vgat_screen *s, int rows, int cols);
 void vgat_screen_resize(vgat_screen *s, int cols);

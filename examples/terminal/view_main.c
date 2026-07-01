@@ -100,6 +100,32 @@ static void continue_lua_coroutine(vgat_state_t *st, int nargs) {
     st->waiting_for_input = false;
   }
 }
+
+bool terminal_run_lua_file(vgat_state_t *st, const char *path) {
+  // Create Lua state on first use
+  if (!st->L) {
+    if (!create_lua_state(st)) {
+      vgat_screen_write_string(&st->screen, "Error: Failed to create Lua state\n", 9, VGAT_BG_DEFAULT);
+      return false;
+    }
+  }
+
+  // Create a coroutine and load the script
+  st->co = lua_newthread(st->L);
+  st->lua_running = true;
+  st->waiting_for_input = false;
+
+  if (luaL_loadfile(st->co, path) != LUA_OK) {
+    vgat_screen_write_string(&st->screen, "Error loading file: ", 9, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, lua_tostring(st->co, -1), VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_newline(&st->screen);
+    st->lua_running = false;
+    return false;
+  }
+
+  continue_lua_coroutine(st, 0);
+  return true;
+}
 #endif /* HAVE_LUA */
 
 // ── Command forward declarations ──────────────────────────────────────────
@@ -241,29 +267,7 @@ static void cmd_lua(vgat_state_t *st, int argc, char **argv) {
     vgat_screen_write_string(&st->screen, "Usage: lua <script.lua>\n", 9, VGAT_BG_DEFAULT);
     return;
   }
-
-  // Create Lua state on first use
-  if (!st->L) {
-    if (!create_lua_state(st)) {
-      vgat_screen_write_string(&st->screen, "Error: Failed to create Lua state\n", 9, VGAT_BG_DEFAULT);
-      return;
-    }
-  }
-
-  // Create a coroutine and load the script
-  st->co = lua_newthread(st->L);
-  st->lua_running = true;
-  st->waiting_for_input = false;
-
-  if (luaL_loadfile(st->co, argv[1]) != LUA_OK) {
-    vgat_screen_write_string(&st->screen, "Error loading file: ", 9, VGAT_BG_DEFAULT);
-    vgat_screen_write_string(&st->screen, lua_tostring(st->co, -1), VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
-    vgat_screen_newline(&st->screen);
-    st->lua_running = false;
-    return;
-  }
-
-  continue_lua_coroutine(st, 0);
+  terminal_run_lua_file(st, argv[1]);
 #else
   (void)st; (void)argc; (void)argv;
   vgat_screen_write_string(&st->screen, "Lua scripting is not available in this build.\n",
@@ -348,6 +352,21 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       vgat_screen_newline(&st->screen);
 
       st->timer_id = axSetTimer(win, VGAT_TIMER_INTERVAL_MS, NULL, true);
+
+      // If a launch script was provided via create_window() lparam, run it.
+      if (lparam) {
+        const terminal_launch_t *launch = (const terminal_launch_t *)lparam;
+        if (launch->script_path) {
+#if defined(HAVE_LUA)
+          st->startup_script = strdup(launch->script_path);
+          if (st->startup_script)
+            terminal_run_lua_file(st, st->startup_script);
+#else
+          vgat_screen_write_string(&st->screen,
+            "Lua scripting is not available in this build.\n", 9, VGAT_BG_DEFAULT);
+#endif
+        }
+      }
       return true;
     }
 
@@ -359,6 +378,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 #if defined(HAVE_LUA)
         if (st->L) lua_close(st->L);
 #endif
+        free(st->startup_script);
         free(st);
         win->userdata = NULL;
       }
@@ -549,4 +569,11 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
     default:
       return 0;
   }
+}
+
+// ── Test hook ─────────────────────────────────────────────────────────────
+int terminal_get_cursor_row(window_t *win) {
+  if (!win || !win->userdata) return -1;
+  vgat_state_t *st = (vgat_state_t *)win->userdata;
+  return st->screen.cursor_row;
 }

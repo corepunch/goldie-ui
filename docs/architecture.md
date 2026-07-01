@@ -60,7 +60,6 @@ message set.
 | Column view | `win_reportview` | `columnview.h` |
 | Menu bar | `win_menubar` | `menubar.h` |
 | Console | `win_console` | `commctl.h` |
-| Terminal | `win_terminal` | `commctl.h` |
 
 ## Z-Order and `WINDOW_ALWAYSONTOP`
 

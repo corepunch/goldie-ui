@@ -72,7 +72,6 @@ result_t win_console(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
 result_t win_space(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_separator(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_filelist(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
-result_t win_terminal(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -169,9 +168,6 @@ int      win_splitter_orientation(window_t *win);
 // Returns the height (in client pixels) that win_toolbox occupies for its
 // button grid.  Call from a wrapping proc to find where custom content starts.
 int toolbox_grid_height(window_t *win);
-
-// Terminal API functions
-const char* terminal_get_buffer(window_t *win);
 
 // Console API functions
 void init_console(void);

@@ -483,45 +483,33 @@ shutdown_console();
 
 ### Using the Terminal
 
-The terminal control supports two modes:
+The VGA terminal (`examples/terminal`) is a standalone app and GEM with
+VGA-accelerated rendering, scrollback, ANSI parsing, and Lua scripting.
 
-#### Lua Script Mode
-```c
-// Create a terminal window that runs a Lua script
-// The script path is passed as lparam in evCreate
-window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, "/path/to/script.lua");
-show_window(terminal, true);
-
-// The terminal automatically handles:
-// - Running Lua scripts with custom print() and io.read() functions
-// - Interactive input when script calls io.read()
-// - Displaying "Process finished" message when script completes
-// - Preventing further input after process finishes (like Windows CMD)
-// - Text wrapping to fit window width
-// - Vertical scrolling for long output (use mouse wheel to scroll)
-
-// Example Lua script (interactive.lua):
-// print("What is your name?")
-// local name = io.read()
-// print("Hello, " .. name .. "!")
+#### Standalone usage
+```sh
+terminal              # interactive command mode
+terminal script.lua   # run a Lua script on startup
 ```
 
-#### Command Mode
+#### Launching from another GEM
 ```c
-// Create an interactive command terminal (pass NULL as lparam)
-window_t *terminal = create_window("Terminal", 0, &term_frame, parent, win_terminal, NULL);
+// Pass a script path via terminal_launch_t in create_window's lparam
+terminal_launch_t launch = { .script_path = "/path/to/script.lua" };
+window_t *terminal = create_window("Terminal", WINDOW_VSCROLL, &frame,
+                                   parent, terminal_proc, hinstance, &launch);
 show_window(terminal, true);
-
-// Built-in commands:
-// - "help"  - Lists available commands
-// - "clear" - Clears the terminal screen
-// - "exit"  - Closes the terminal window
-//
-// Features:
-// - Text wrapping to fit window width
-// - Vertical scrolling for long output (use mouse wheel to scroll)
-// - New commands can be added by editing the terminal_commands[] array in commctl/terminal.c
 ```
+
+The terminal supports:
+- VGA GPU font rendering with 16-color EGA palette
+- 1000-line scrollback ring buffer with mouse wheel
+- ANSI escape sequences (SGR, CUP, ED, EL)
+- Built-in commands: `echo`, `help`, `clear`, `dir`/`ls`, `pwd`, `cd`, `cat`, `date`, `whoami`
+- Lua scripting via `lua <script.lua>` or startup launch contract
+- Interactive `io.read()` via coroutine yield/resume
+- `.lua` file association when loaded as a GEM under the shell
+- Paths with spaces (uses structured launch data, not command string)
 
 ## Window Messages
 
