@@ -23,8 +23,9 @@
 int vgat_pty_open(const char *shell, int rows, int cols, int *pid_out) {
   if (!pid_out) return -1;
 
+  struct winsize ws = { .ws_row = (unsigned short)rows, .ws_col = (unsigned short)cols };
   int master_fd = -1;
-  int pid = forkpty(&master_fd, NULL, NULL, NULL);
+  int pid = forkpty(&master_fd, NULL, NULL, &ws);
   if (pid == 0) {
     // Child process
     const char *sh = shell ? shell : (getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
@@ -51,8 +52,9 @@ int vgat_pty_open(const char *shell, int rows, int cols, int *pid_out) {
 int vgat_pty_exec(const char *const *argv, int rows, int cols, int *pid_out) {
   if (!pid_out || !argv || !argv[0]) return -1;
 
+  struct winsize ws = { .ws_row = (unsigned short)rows, .ws_col = (unsigned short)cols };
   int master_fd = -1;
-  int pid = forkpty(&master_fd, NULL, NULL, NULL);
+  int pid = forkpty(&master_fd, NULL, NULL, &ws);
   if (pid == 0) {
     setenv("TERM", "linux", 1);
     execvp(argv[0], (char *const *)argv);
