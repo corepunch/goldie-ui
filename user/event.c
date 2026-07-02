@@ -451,7 +451,14 @@ void dispatch_message(ui_event_t *msg) {
             int tb_y = sy - (hover->frame.y + title_h);
             send_message(tb_host, evMouseMove,
                          MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
-            tooltip_update(NULL, NULL, sx, sy);
+            char tip_buf[256] = {0};
+            if (send_message(tb_host, evGetTooltipText,
+                             MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y),
+                             tip_buf) && tip_buf[0]) {
+              tooltip_update(tb_host, tip_buf, sx, sy);
+            } else {
+              tooltip_update(NULL, NULL, sx, sy);
+            }
           } else {
             char tip_buf[256] = {0};
             int lx_h = (int16_t)LOCAL_X(px, py, hover);

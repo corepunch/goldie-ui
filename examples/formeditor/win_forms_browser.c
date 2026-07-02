@@ -15,8 +15,8 @@ typedef struct {
 } forms_browser_state_t;
 
 static const toolbar_item_t kFormsToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, FORMS_ID_NEW,    sysicon_add,    0, 0, "New form" },
-  { TOOLBAR_ITEM_BUTTON, FORMS_ID_DELETE, sysicon_delete, 0, 0, "Delete form" },
+  { TOOLBAR_ITEM_BUTTON, FORMS_ID_NEW,    sysicon_add,    0, 0, NULL, "New form" },
+  { TOOLBAR_ITEM_BUTTON, FORMS_ID_DELETE, sysicon_delete, 0, 0, NULL, "Delete form" },
 };
 
 static int forms_doc_count(void) {

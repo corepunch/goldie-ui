@@ -21,13 +21,13 @@ void browser_rebuild_toolbar(window_t *win) {
   const int btn_w = TB_SPACING;
   const int addr_w = MAX(120, win->frame.w - (btn_w * 4) - 24);
   const toolbar_item_t items[] = {
-    { TOOLBAR_ITEM_BUTTON, ID_TB_BACK, sysicon_arrow_left, btn_w, 0, NULL },
-    { TOOLBAR_ITEM_BUTTON, ID_TB_FWD, sysicon_arrow_right, btn_w, 0, NULL },
-    { TOOLBAR_ITEM_BUTTON, ID_TB_HOME, sysicon_world_page, btn_w, 0, NULL },
-    { TOOLBAR_ITEM_BUTTON, ID_TB_REFRESH, sysicon_arrow_refresh, btn_w, 0, NULL },
-    { TOOLBAR_ITEM_SPACER, 0, -1, 4, 0, NULL },
+    { TOOLBAR_ITEM_BUTTON, ID_TB_BACK, sysicon_arrow_left, btn_w, 0, NULL, "Go back" },
+    { TOOLBAR_ITEM_BUTTON, ID_TB_FWD, sysicon_arrow_right, btn_w, 0, NULL, "Go forward" },
+    { TOOLBAR_ITEM_BUTTON, ID_TB_HOME, sysicon_world_page, btn_w, 0, NULL, "Go home" },
+    { TOOLBAR_ITEM_BUTTON, ID_TB_REFRESH, sysicon_arrow_refresh, btn_w, 0, NULL, "Refresh" },
+    { TOOLBAR_ITEM_SPACER, 0, -1, 4, 0, NULL, NULL },
     { TOOLBAR_ITEM_TEXTEDIT, ID_TB_ADDR, -1, addr_w, 0,
-      (st && st->current_url[0]) ? st->current_url : "https://example.com" },
+      (st && st->current_url[0]) ? st->current_url : "https://example.com", NULL },
   };
   send_message(win, tbSetItems, (uint32_t)(sizeof(items) / sizeof(items[0])), (void *)items);
   browser_sync_nav_buttons(win);

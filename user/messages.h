@@ -353,6 +353,7 @@ typedef struct {
   int                 w;      // explicit width in pixels (0 = automatic)
   uint32_t            flags;  // extra style flags (BUTTON_PUSHLIKE, BUTTON_AUTORADIO, …)
   const char         *text;   // label text, or combobox/textedit initial text
+  const char         *tooltip; // tooltip text shown on hover; NULL = none
 } toolbar_item_t;
 
 // Analogous to WinAPI CW_USEDEFAULT: pass as x or y to create_window() /

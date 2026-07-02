@@ -145,18 +145,18 @@
 
     <toolbars>
       <toolbar name="main">
-        <Button name="new" menu="file" icon="sysicon_page_add" text="New" />
-        <Button name="open" menu="file" icon="sysicon_folder_page" text="Open" />
-        <Button name="save" menu="file" icon="sysicon_disk_save" text="Save" />
-        <Button name="saveas" menu="file" icon="sysicon_disk_multiple" text="Save As" />
+        <Button name="new" menu="file" icon="sysicon_page_add" text="New" tooltip="New image" />
+        <Button name="open" menu="file" icon="sysicon_folder_page" text="Open" tooltip="Open image" />
+        <Button name="save" menu="file" icon="sysicon_disk_save" text="Save" tooltip="Save image" />
+        <Button name="saveas" menu="file" icon="sysicon_disk_multiple" text="Save As" tooltip="Save image as..." />
         <spacer w="10" />
-        <Button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="Zoom Out" />
-        <Button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="Zoom In" />
-        <Button name="zoom_1x" menu="view" icon="sysicon_image_dimensions" text="1x" />
-        <Button name="zoom_fit" menu="view" icon="sysicon_expand" text="Fit" />
+        <Button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="Zoom Out" tooltip="Zoom out" />
+        <Button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="Zoom In" tooltip="Zoom in" />
+        <Button name="zoom_1x" menu="view" icon="sysicon_image_dimensions" text="1x" tooltip="Zoom to 100%" />
+        <Button name="zoom_fit" menu="view" icon="sysicon_expand" text="Fit" tooltip="Fit on screen" />
         <spacer w="10" />
-        <Button name="show_background" menu="view" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" />
-        <Button name="mask_only" menu="view" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" />
+        <Button name="show_background" menu="view" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" tooltip="Toggle background" />
+        <Button name="mask_only" menu="view" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" tooltip="Toggle mask view" />
       </toolbar>
     </toolbars>
 

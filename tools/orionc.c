@@ -311,12 +311,13 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     char *tbid = attr(tb, "name"), scope[128]; ident(scope, sizeof(scope), tbid, true);
     OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
     EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
-      char *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text");
-      char id[256] = "0", textq[ORIONC_STRING_SIZE], menu_scope[128];
+      char *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
+      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE], menu_scope[128];
       if (!elem(it, "separator") && !elem(it, "spacer")) { ident(menu_scope, sizeof(menu_scope), nz(menu, scope), true); scoped(id, sizeof(id), menu_scope, name, text); }
       if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
-      OUT("  { %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq);
-      free(menu); free(name); free(icon); free(w); free(flags); free(text);
+      if (tooltip && *tooltip) cstr(tipq, sizeof(tipq), tooltip); else snprintf(tipq, sizeof(tipq), "NULL");
+      OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq, tipq);
+      free(menu); free(name); free(icon); free(w); free(flags); free(text); free(tooltip);
     }
     OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
     free(tbid);
