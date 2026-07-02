@@ -51,15 +51,15 @@
 
     <toolbars>
         <toolbar name="main">
-            <Button name="fetch" menu="remote.fetch" icon="sysicon_arrow_down" text="Fetch" />
-            <Button name="pull" menu="remote.pull" icon="sysicon_arrow_down" text="Pull" />
-            <Button name="push" menu="remote.push" icon="sysicon_arrow_up" text="Push" />
+            <Button name="fetch" menu="remote.fetch" icon="sysicon_arrow_down" text="Fetch" tooltip="Fetch from remote" />
+            <Button name="pull" menu="remote.pull" icon="sysicon_arrow_down" text="Pull" tooltip="Pull from remote" />
+            <Button name="push" menu="remote.push" icon="sysicon_arrow_up" text="Push" tooltip="Push to remote" />
             <spacer />
-            <Button name="commit" menu="commit.commit" icon="sysicon_add" text="Commit" />
-            <Button name="branch" menu="branch.new" icon="sysicon_star" text="Branch" />
+            <Button name="commit" menu="commit.commit" icon="sysicon_add" text="Commit" tooltip="Commit staged changes" />
+            <Button name="branch" menu="branch.new" icon="sysicon_star" text="Branch" tooltip="Create new branch" />
             <spacer />
-            <Button name="refresh" menu="repo.refresh" icon="sysicon_arrow_refresh" text="Refresh" />
-            <Button name="open" menu="file.open_repo" icon="sysicon_folder" text="Open" />
+            <Button name="refresh" menu="repo.refresh" icon="sysicon_arrow_refresh" text="Refresh" tooltip="Refresh repository" />
+            <Button name="open" menu="file.open_repo" icon="sysicon_folder" text="Open" tooltip="Open repository" />
         </toolbar>
     </toolbars>
 

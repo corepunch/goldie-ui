@@ -29,16 +29,16 @@
 // Toolbar definition
 // ============================================================
 
-// Toolbar definition: { type, ident, icon, w, flags, tooltip }
+// Toolbar definition: { type, ident, icon, w, flags, text, tooltip }
 static const toolbar_item_t kLayersToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, ID_LAYER_NEW,       sysicon_image_add,  0, 0, "New"     },
-  { TOOLBAR_ITEM_BUTTON, ID_LAYER_DUPLICATE, sysicon_page_copy,  0, 0, "Dup"     },
-  { TOOLBAR_ITEM_BUTTON, ID_LAYER_DELETE,    sysicon_delete,     0, 0, "Delete"  },
-  { TOOLBAR_ITEM_SPACER, 0, 0, 0, 0, NULL },
-  { TOOLBAR_ITEM_BUTTON, ID_LAYER_MOVE_UP,   sysicon_arrow_up,   0, 0, "Up"      },
-  { TOOLBAR_ITEM_BUTTON, ID_LAYER_MOVE_DOWN, sysicon_arrow_down, 0, 0, "Down"    },
-  { TOOLBAR_ITEM_SPACER, 0, 0, 8, 0, NULL },
-  { TOOLBAR_ITEM_COMBOBOX, ID_LAYER_BLEND_COMBO, -1, 120, 0, "Normal" },
+  { TOOLBAR_ITEM_BUTTON, ID_LAYER_NEW,       sysicon_image_add,  0, 0, NULL, "New layer" },
+  { TOOLBAR_ITEM_BUTTON, ID_LAYER_DUPLICATE, sysicon_page_copy,  0, 0, NULL, "Duplicate layer" },
+  { TOOLBAR_ITEM_BUTTON, ID_LAYER_DELETE,    sysicon_delete,     0, 0, NULL, "Delete layer" },
+  { TOOLBAR_ITEM_SPACER, 0, 0, 0, 0, NULL, NULL },
+  { TOOLBAR_ITEM_BUTTON, ID_LAYER_MOVE_UP,   sysicon_arrow_up,   0, 0, NULL, "Move layer up" },
+  { TOOLBAR_ITEM_BUTTON, ID_LAYER_MOVE_DOWN, sysicon_arrow_down, 0, 0, NULL, "Move layer down" },
+  { TOOLBAR_ITEM_SPACER, 0, 0, 8, 0, NULL, NULL },
+  { TOOLBAR_ITEM_COMBOBOX, ID_LAYER_BLEND_COMBO, -1, 120, 0, "Normal", NULL },
 };
 
 // ============================================================

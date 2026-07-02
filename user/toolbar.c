@@ -186,6 +186,8 @@ static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *
         }
         free(tb->items);
         tb->items = NULL;
+        free(tb->item_tooltips);
+        tb->item_tooltips = NULL;
         free(tb->item_rects);
         tb->item_rects = NULL;
       }
@@ -252,6 +254,17 @@ static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *
         invalidate_window(win->parent);
       }
       return false;
+
+    case evGetTooltipText: {
+      if (!tb || !lparam) return false;
+      int idx = toolbar_item_hit(tb, LOWORD(wparam), HIWORD(wparam));
+      if (idx < 0 || !tb->items[idx].tooltip || !tb->items[idx].tooltip[0])
+        return false;
+      char *buf = (char *)lparam;
+      strncpy(buf, tb->items[idx].tooltip, 255);
+      buf[255] = '\0';
+      return true;
+    }
 
     default:
       (void)wparam;
@@ -337,6 +350,8 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
       clear_toolbar_children(win);
       free(tb->items);
       tb->items = NULL;
+      free(tb->item_tooltips);
+      tb->item_tooltips = NULL;
       tb->item_count = 0;
       free(tb->item_rects);
       tb->item_rects = NULL;
@@ -349,6 +364,21 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
         if (tb->items) {
           memcpy(tb->items, lparam, (size_t)n * sizeof(toolbar_item_t));
           tb->item_count = n;
+        }
+
+        tb->item_tooltips = calloc((size_t)n, sizeof(*tb->item_tooltips));
+        if (tb->item_tooltips && tb->items) {
+          for (int i = 0; i < n; i++) {
+            if (tb->items[i].tooltip && tb->items[i].tooltip[0]) {
+              strncpy(tb->item_tooltips[i], tb->items[i].tooltip,
+                      sizeof(tb->item_tooltips[i]) - 1);
+              tb->item_tooltips[i][sizeof(tb->item_tooltips[i]) - 1] = '\0';
+              tb->items[i].tooltip = tb->item_tooltips[i];
+            } else {
+              tb->item_tooltips[i][0] = '\0';
+              tb->items[i].tooltip = NULL;
+            }
+          }
         }
 
         compute_toolbar_item_rects(win, tb);
