@@ -134,6 +134,8 @@ result_t win_textedit(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       }
       return true;
 
+    case evGetCursor:
+      return curIBeam;
   }
   return false;
 }
