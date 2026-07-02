@@ -119,7 +119,7 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
                                  0, vis_cols, kAnsi16[7], kAnsi16[0]);
       }
 
-      if (R_UpdateTextureRG8(st->grid.cells_tex, 0, 0,
+      if (R_UpdateTextureRGBA(st->grid.cells_tex, 0, 0,
                               st->grid.cells_w, st->grid.cells_h,
                               st->grid.cells)) {
         R_VgaBuffer buf = {
