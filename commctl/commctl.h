@@ -165,6 +165,17 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
 result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 int      win_splitter_orientation(window_t *win);
 
+// SplitView — two-pane container with a draggable divider.
+// Orientation is set via lparam at create time:
+//   (void *)SPLIT_VERT  → vertical divider (panes left/right)
+//   (void *)SPLIT_HORZ  → horizontal divider (panes top/bottom)
+// The first two children of the splitview become the left/top and right/bottom
+// panes; a splitter bar is created automatically between them.
+// The parent does NOT need to handle spnDragStart — the drag loop is internal.
+result_t win_splitview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+window_t *splitview_get_left(window_t *win);
+window_t *splitview_get_right(window_t *win);
+
 // Returns the height (in client pixels) that win_toolbox occupies for its
 // button grid.  Call from a wrapping proc to find where custom content starts.
 int toolbox_grid_height(window_t *win);

@@ -61,6 +61,11 @@ enum {
   // lparam = char[256] output buffer — write the NUL-terminated tooltip text
   //          here and return true; return false if no tooltip at that position.
   evGetTooltipText,
+  // Query a window for the desired cursor shape at a given client position.
+  // wparam = MAKEDWORD(client_x, client_y) — position inside the window's
+  //          client area (same coordinate system as evMouseMove).
+  // Return a curArrow .. curNotAllowed value; return curArrow for default.
+  evGetCursor,
   // Measure / arrange messages for auto-layout containers.
   // evMeasure: lparam = layout_measure_t*; handler writes desired_w/desired_h
   //            into the struct and returns true. Return value is ignored.

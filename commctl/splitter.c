@@ -73,6 +73,13 @@ result_t win_splitter(window_t *win, uint32_t msg,
       return true;
     }
 
+    case evGetCursor: {
+      splitter_data_t *st = (splitter_data_t *)win->userdata;
+      if (st && st->orientation == SPLIT_VERT)
+        return curResizeH;
+      return curResizeV;
+    }
+
     default:
       return false;
   }

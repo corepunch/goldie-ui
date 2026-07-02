@@ -474,6 +474,27 @@ void dispatch_message(ui_event_t *msg) {
         } else {
           tooltip_update(NULL, NULL, sx, sy);
         }
+        // Cursor shape update: query the hovered window for the desired cursor.
+        {
+          window_t *root = hover;
+          while (root->parent) root = root->parent;
+          int root_lx = sx - root->frame.x;
+          int root_ly = sy - root->frame.y;
+          int cursor_id = curArrow;
+          if (root_lx >= root->frame.w - SCROLLBAR_WIDTH &&
+              root_ly >= root->frame.h - SCROLLBAR_WIDTH &&
+              !(root->flags & WINDOW_NORESIZE) &&
+              root->parent)
+          {
+            cursor_id = curResizeNWSE;
+          } else {
+            int lx_c = (int16_t)LOCAL_X(px, py, hover);
+            int ly_c = (int16_t)LOCAL_Y(px, py, hover);
+            cursor_id = (int)send_message(hover, evGetCursor,
+                                          MAKEDWORD((uint16_t)lx_c, (uint16_t)ly_c), NULL);
+          }
+          axSetCursor(cursor_id);
+        }
       }
       break;
     }
