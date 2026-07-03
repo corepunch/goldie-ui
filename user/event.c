@@ -33,20 +33,14 @@ extern void repaint_stencil(void);
 // Macros for coordinate conversion (platform logical → Orion logical)
 #define SCALE_POINT(x) ((x)/UI_WINDOW_SCALE)
 
-// Absolute screen origin of the client area for a window.  For top-level windows
-// the client area starts at frame.y + titlebar_height().  For child windows
-// frame.x/y is root-client-local, so we add the root window's client origin.
-// This mirrors WinAPI ChildWindowFromPoint semantics: child procs always
-// receive coordinates in their own client coordinate system.
+// Absolute screen origin of the client area for a window. Child frames are
+// parent-relative, so nested windows must include every ancestor offset.
 static inline int win_abs_x(window_t *w) {
-  if (!w->parent) return w->frame.x;
-  window_t *root = get_root_window(w);
-  return root->frame.x + w->frame.x;
+  return w->parent ? window_screen_x(w) : w->frame.x;
 }
 static inline int win_abs_y(window_t *w) {
   if (!w->parent) return w->frame.y + titlebar_height(w);
-  window_t *root = get_root_window(w);
-  return root->frame.y + titlebar_height(root) + w->frame.y;
+  return window_screen_y(w);
 }
 
 #define LOCAL_X(px, py, WIN) (SCALE_POINT(px) - win_abs_x(WIN) + (WIN)->hscroll.pos)
@@ -424,13 +418,14 @@ void dispatch_message(ui_event_t *msg) {
         if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
         int16_t lx = (int16_t)LOCAL_X(px, py, win);
         int16_t ly = (int16_t)LOCAL_Y(px, py, win);
-        if (win == g_ui_runtime.captured || (ly >= 0 && win == g_ui_runtime.focused)) {
+        if (win == g_ui_runtime.captured || ly >= 0) {
           send_message(win, evMouseMove, MAKEDWORD(lx, ly),
                        (void*)(intptr_t)MAKEDWORD(rdx, rdy));
         }
       }
       if (g_ui_runtime.tracked && !CONTAINS(SCALE_POINT(px), SCALE_POINT(py),
-                                g_ui_runtime.tracked->frame.x, g_ui_runtime.tracked->frame.y,
+                                window_screen_x(g_ui_runtime.tracked),
+                                window_screen_y(g_ui_runtime.tracked),
                                 g_ui_runtime.tracked->frame.w, g_ui_runtime.tracked->frame.h))
       {
         track_mouse(NULL);
@@ -475,7 +470,7 @@ void dispatch_message(ui_event_t *msg) {
           tooltip_update(NULL, NULL, sx, sy);
         }
         // Cursor shape update: query the hovered window for the desired cursor.
-        {
+        if (hover && !window_has_state(hover, WINDOW_STATE_DISABLED)) {
           window_t *root = hover;
           while (root->parent) root = root->parent;
           int root_lx = sx - root->frame.x;
@@ -494,6 +489,8 @@ void dispatch_message(ui_event_t *msg) {
                                           MAKEDWORD((uint16_t)lx_c, (uint16_t)ly_c), NULL);
           }
           axSetCursor(cursor_id);
+        } else {
+          axSetCursor(curArrow);
         }
       }
       break;

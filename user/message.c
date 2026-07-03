@@ -358,13 +358,9 @@ intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           uint16_t x = LOWORD(wparam), y = HIWORD(wparam);
           x += (uint16_t)win->hscroll.pos;
           y += (uint16_t)win->vscroll.pos;
-          if (win->parent) {
-            x += win->frame.x;
-            y += win->frame.y;
-          }
           for (window_t *item = win->children; item; item = item->next) {
             irect16_t r = item->frame;
-            if (!(item->flags & WINDOW_NOTABSTOP) && CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
+            if (CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
               *(window_t **)lparam = item;
               send_message(item, evHitTest,
                            MAKEDWORD((uint16_t)(x - r.x),

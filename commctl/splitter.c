@@ -15,8 +15,8 @@
 // idiom where a child control notifies the parent, and the parent owns the
 // drag loop.
 //
-// The splitter paints itself with the brBorderFocus colour so it matches the
-// rest of the Orion chrome.
+// The splitter is a fixed two-pixel rule: a dark edge and a themed accent.
+// Hover changes only the accent colour, never the line geometry.
 
 #include "../user/user.h"
 #include "../user/messages.h"
@@ -24,6 +24,7 @@
 
 typedef struct {
   int orientation;  // SPLIT_VERT or SPLIT_HORZ
+  bool hot;
 } splitter_data_t;
 
 result_t win_splitter(window_t *win, uint32_t msg,
@@ -48,8 +49,32 @@ result_t win_splitter(window_t *win, uint32_t msg,
 
     case evPaint: {
       irect16_t cr = get_client_rect(win);
-      fill_rect(get_sys_color(brBorderFocus), cr);
+      splitter_data_t *st = (splitter_data_t *)win->userdata;
+      uint32_t dark = get_sys_color(brDarkEdge);
+      uint32_t accent = get_sys_color(st && st->hot ? brActiveTitlebar : brBorderActive);
+      if (st && st->orientation == SPLIT_VERT) {
+        int x = cr.x + (cr.w - 2) / 2;
+        fill_rect(dark,   R(x,     cr.y, 1, cr.h));
+        fill_rect(accent, R(x + 1, cr.y, 1, cr.h));
+      } else {
+        int y = cr.y + (cr.h - 2) / 2;
+        fill_rect(dark,   R(cr.x, y,     cr.w, 1));
+        fill_rect(accent, R(cr.x, y + 1, cr.w, 1));
+      }
       return true;
+    }
+
+    case evMouseMove: {
+      splitter_data_t *st = (splitter_data_t *)win->userdata;
+      if (st && !st->hot) { st->hot = true; invalidate_window(win); }
+      track_mouse(win);
+      return false;
+    }
+
+    case evMouseLeave: {
+      splitter_data_t *st = (splitter_data_t *)win->userdata;
+      if (st && st->hot) { st->hot = false; invalidate_window(win); }
+      return false;
     }
 
     // On left-button press, notify the parent so it can take over the drag.
