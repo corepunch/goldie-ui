@@ -43,6 +43,20 @@ static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wpa
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 
+static int report_hit_column_edge(reportview_data_t *data, int eff_w, int mx, int my) {
+  int header_h = rv_report_header_height(data);
+  if (my < 0 || my >= header_h) return -1;
+  int col_x = 0;
+  for (uint32_t col = 0; col < data->column_count; col++) {
+    int col_w = rv_get_report_column_width(data, (int)col, eff_w);
+    col_x += col_w;
+    int dist = col_x - mx;
+    if (dist >= 0 && dist <= REPORTVIEW_RESIZE_HOT_ZONE)
+      return (int)col;
+  }
+  return -1;
+}
+
 static void report_scroll_to_item(window_t *win, reportview_data_t *data, int index) {
   int scroll_y = (int)win->vscroll.pos;
   int visible_h = get_client_rect(win).h;
@@ -123,6 +137,18 @@ static void report_paint(window_t *win, reportview_data_t *data) {
     col_x += col_w;
     fill_rect(sep_col, R(col_x, header_h, 1, cr.h - header_h));
   }
+
+  // Draw resize hover indicator (2px rule at column edge in header)
+  int hot_col = data->resize_hot_col;
+  if (hot_col >= 0 && data->resize_col < 0) {
+    int hx = 0;
+    for (int i = 0; i <= hot_col; i++)
+      hx += rv_get_report_column_width(data, i, eff_w);
+    uint32_t dark = get_sys_color(brDarkEdge);
+    uint32_t accent = get_sys_color(brBorderActive);
+    fill_rect(accent, R(hx - 1, 0, 1, header_h));
+    fill_rect(dark,   R(hx,     0, 1, header_h));
+  }
 }
 
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -138,6 +164,8 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       win->vscroll.visible_mode = SB_VIS_AUTO;
       data->selected = -1;
       data->last_click_index = RV_INVALID_SELECTION;
+      data->resize_col = -1;
+      data->resize_hot_col = -1;
       data->column_width = DEFAULT_COLUMN_WIDTH;
       data->icon_size = DEFAULT_ICON_SIZE;
       data->icon_text_gap = DEFAULT_ICON_TEXT_GAP;
@@ -168,7 +196,51 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     case evPaint:
       report_paint(win, data);
       return false;
+    case evMouseMove: {
+      if (!data) return false;
+      irect16_t cr = get_client_rect(win);
+      int mx = (int16_t)LOWORD(wparam), my = (int16_t)HIWORD(wparam);
+      // Drag: update column width
+      if (data->resize_col >= 0) {
+        int delta = mx - data->resize_start_x;
+        int new_w = data->resize_start_w + delta;
+        if (new_w < 20) new_w = 20;
+        data->columns[data->resize_col].width_spec = (uint32_t)new_w;
+        data->columns[data->resize_col].width = (uint32_t)new_w;
+        report_sync_scroll(win, data);
+        rv_invalidate(win, data);
+        return true;
+      }
+      // Hover: track column edge
+      int hot = report_hit_column_edge(data, cr.w, mx, my);
+      if (hot != data->resize_hot_col) {
+        data->resize_hot_col = hot;
+        rv_invalidate(win, data);
+      }
+      track_mouse(win);
+      return false;
+    }
+    case evMouseLeave: {
+      if (data && data->resize_hot_col >= 0) {
+        data->resize_hot_col = -1;
+        rv_invalidate(win, data);
+      }
+      return false;
+    }
     case evLeftButtonDown: {
+      // Start column resize drag if on a column edge
+      irect16_t cr = get_client_rect(win);
+      int mx = (int16_t)LOWORD(wparam);
+      int my = (int16_t)HIWORD(wparam);
+      int col = report_hit_column_edge(data, cr.w, mx, my);
+      if (col >= 0) {
+        data->resize_col = col;
+        data->resize_start_x = mx;
+        data->resize_start_w = (int)data->columns[col].width;
+        set_capture(win);
+        return true;
+      }
+      // Otherwise select row
       int index = report_hit_index(win, data, wparam);
       if (rv_valid_index(data, index)) {
         uint32_t now = axGetMilliseconds();
@@ -194,6 +266,15 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         rv_notify(win, data, index, RVN_DBLCLK);
       }
       return true;
+    }
+    case evLeftButtonUp: {
+      if (data && data->resize_col >= 0) {
+        data->resize_col = -1;
+        data->resize_hot_col = -1;
+        set_capture(NULL);
+        return true;
+      }
+      return false;
     }
     case RVM_ADDITEM: {
       reportview_item_t *item = (reportview_item_t *)lparam;
@@ -416,6 +497,11 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         rv_invalidate(win, data);
       }
       return true;
+    }
+    case evGetCursor: {
+      if (data && (data->resize_col >= 0 || data->resize_hot_col >= 0))
+        return curResizeH;
+      return curArrow;
     }
     case evDestroy:
       free(data);
