@@ -57,6 +57,13 @@ typedef struct {
 
 #define REPORTVIEW_RESIZE_HOT_ZONE 4
 
+// When defined, column dividers span the full client height and can be grabbed
+// from anywhere (like splitter bars), not just the header.  Comment out or
+// set to 0 for header-only resize handles.
+#ifndef REPORTVIEW_RESIZE_FULL_HEIGHT
+#define REPORTVIEW_RESIZE_FULL_HEIGHT 1
+#endif
+
 void rv_invalidate(window_t *win, reportview_data_t *data);
 bool rv_valid_index(const reportview_data_t *data, int index);
 void rv_notify(window_t *win, reportview_data_t *data, int index, uint16_t code);

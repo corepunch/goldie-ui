@@ -14,22 +14,56 @@ static void report_sync_scroll(window_t *win, reportview_data_t *data) {
   if (!win || !data)
     return;
 
-  irect16_t cr = get_client_rect(win);
-  if (cr.h <= 0)
+  int t = titlebar_height(win);
+  int s = statusbar_height(win);
+  int content_w = win->frame.w;
+  int content_h = win->frame.h - t - s;
+  if (content_w <= 0 || content_h <= 0)
     return;
 
+  int total_w = rv_report_total_width(data, content_w);
   int total_h = report_content_height(data);
-  int max_scroll_px = total_h - cr.h;
-  if (max_scroll_px < 0)
-    max_scroll_px = 0;
-  if ((int)win->vscroll.pos > max_scroll_px)
-    win->vscroll.pos = (uint32_t)max_scroll_px;
+
+  bool show_h = false;
+  bool show_v = false;
+  for (int i = 0; i < 3; i++) {
+    int page_w = content_w - (show_v ? SCROLLBAR_WIDTH : 0);
+    int page_h = content_h - (show_h ? SCROLLBAR_WIDTH : 0);
+    if (page_w < 0) page_w = 0;
+    if (page_h < 0) page_h = 0;
+    bool next_h = total_w > page_w;
+    bool next_v = total_h > page_h;
+    if (next_h == show_h && next_v == show_v)
+      break;
+    show_h = next_h;
+    show_v = next_v;
+  }
+
+  int page_w = content_w - (show_v ? SCROLLBAR_WIDTH : 0);
+  int page_h = content_h - (show_h ? SCROLLBAR_WIDTH : 0);
+  if (page_w < 0) page_w = 0;
+  if (page_h < 0) page_h = 0;
+
+  int max_x = total_w - page_w;
+  int max_y = total_h - page_h;
+  if (max_x < 0) max_x = 0;
+  if (max_y < 0) max_y = 0;
+  if ((int)win->hscroll.pos > max_x) win->hscroll.pos = (uint32_t)max_x;
+  if ((int)win->vscroll.pos > max_y) win->vscroll.pos = (uint32_t)max_y;
+
+  scroll_info_t hsi;
+  hsi.fMask = SIF_ALL;
+  hsi.nMin = 0;
+  hsi.nMax = total_w;
+  hsi.nPage = (uint32_t)page_w;
+  hsi.nPos = (int)win->hscroll.pos;
+  set_scroll_info(win, SB_HORZ, &hsi, false);
 
   scroll_info_t si;
   si.fMask = SIF_ALL;
   si.nMin = 0;
   si.nMax = total_h;
-  si.nPage = (uint32_t)cr.h;
+  si.nPage = (uint32_t)page_h;
   si.nPos = (int)win->vscroll.pos;
   set_scroll_info(win, SB_VERT, &si, false);
 }
@@ -43,15 +77,28 @@ static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wpa
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 
-static int report_hit_column_edge(reportview_data_t *data, int eff_w, int mx, int my) {
+static int report_hit_column_edge(window_t *win, reportview_data_t *data,
+                                  int eff_w, int mx, int my) {
+#if REPORTVIEW_RESIZE_FULL_HEIGHT
+  (void)win;
+#else
   int header_h = rv_report_header_height(data);
-  if (my < 0 || my >= header_h) return -1;
+  // Be tolerant to either coordinate convention used by the caller:
+  // 1) viewport-space y (header at [0, header_h))
+  // 2) content-space y (includes vscroll.pos)
+  int vy = my;
+  if (vy < 0 || vy >= header_h) {
+    vy = my - (int)win->vscroll.pos;
+    if (vy < 0 || vy >= header_h) return -1;
+  }
+#endif
   int col_x = 0;
   for (uint32_t col = 0; col < data->column_count; col++) {
     int col_w = rv_get_report_column_width(data, (int)col, eff_w);
     col_x += col_w;
-    int dist = col_x - mx;
-    if (dist >= 0 && dist <= REPORTVIEW_RESIZE_HOT_ZONE)
+    int dist = mx - col_x;
+    if (dist < 0) dist = -dist;
+    if (dist <= REPORTVIEW_RESIZE_HOT_ZONE)
       return (int)col;
   }
   return -1;
@@ -73,7 +120,7 @@ static void report_scroll_to_item(window_t *win, reportview_data_t *data, int in
 static void report_paint(window_t *win, reportview_data_t *data) {
   irect16_t cr = get_client_rect(win);
   int eff_w = cr.w;
-  int row_w = rv_report_total_width(data, eff_w);
+  int scroll_x = (int)win->hscroll.pos;
   int header_h = rv_report_header_height(data);
   int body_h = cr.h - header_h;
   int scroll_y = (int)win->vscroll.pos;
@@ -85,14 +132,16 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   if (last_row > (int)data->count) last_row = (int)data->count;
 
   uint32_t hdr_fg = get_sys_color(brTextNormal);
+#if !REPORTVIEW_RESIZE_FULL_HEIGHT
   uint32_t sep_col = get_sys_color(brDarkEdge);
+#endif
 
-  fill_rect(bg_col, R(0, header_h, row_w, body_h));
+  fill_rect(bg_col, R(0, header_h, eff_w, body_h));
 
   if (data->selected >= first_row && data->selected < last_row) {
     int y = header_h + data->selected * ENTRY_HEIGHT - scroll_y;
     if (y < header_h) y = header_h;
-    fill_rect(get_sys_color(brTextNormal), R(0, y, row_w, ENTRY_HEIGHT - 1));
+    fill_rect(get_sys_color(brTextNormal), R(0, y, eff_w, ENTRY_HEIGHT - 1));
   }
 
   int scr_x = window_screen_x(win);
@@ -101,16 +150,24 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   int col_x = 0;
   for (uint32_t col = 0; col < data->column_count; col++) {
     int col_w = rv_get_report_column_width(data, (int)col, eff_w);
+    int draw_x = col_x - scroll_x;
+    int clip_x = MAX(0, draw_x);
+    int clip_r = MIN(eff_w, draw_x + col_w);
+    int clip_w = clip_r - clip_x;
+    if (clip_w <= 0) {
+      col_x += col_w;
+      continue;
+    }
     if (header_h > 0) {
-      set_clip_rect(NULL, (irect16_t){scr_x + col_x, scr_y, col_w, header_h});
-      draw_button((irect16_t){col_x, 0, col_w, header_h}, 1, 1, false);
+      set_clip_rect(NULL, (irect16_t){scr_x + clip_x, scr_y, clip_w, header_h});
+      draw_button((irect16_t){draw_x, 0, col_w, header_h}, 1, 1, false);
       draw_text_small_clipped(data->columns[col].title,
-                              &(irect16_t){col_x, 0, col_w, header_h},
+                              &(irect16_t){draw_x, 0, col_w, header_h},
                               hdr_fg, TEXT_PADDING_LEFT);
     }
 
     int body_h_local = cr.h - header_h;
-    set_clip_rect(NULL, (irect16_t){scr_x + col_x, scr_y + header_h, col_w, body_h_local});
+    set_clip_rect(NULL, (irect16_t){scr_x + clip_x, scr_y + header_h, clip_w, body_h_local});
     for (int row = first_row; row < last_row; row++) {
       reportview_item_t *it = &data->items[row];
       uint32_t fg = (row == data->selected) ? get_sys_color(brWindowBg)
@@ -123,7 +180,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
         uint32_t idx = col - 1;
         src = (idx < it->subitem_count && it->subitems[idx]) ? it->subitems[idx] : "";
       }
-      draw_text_clipped(FONT_SMALL, src, &(irect16_t){col_x, y, col_w, ENTRY_HEIGHT},
+      draw_text_clipped(FONT_SMALL, src, &(irect16_t){draw_x, y, col_w, ENTRY_HEIGHT},
                         fg, TEXT_PADDING_LEFT);
     }
 
@@ -135,19 +192,26 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   for (uint32_t col = 0; col < data->column_count; col++) {
     int col_w = rv_get_report_column_width(data, (int)col, eff_w);
     col_x += col_w;
-    fill_rect(sep_col, R(col_x, header_h, 1, cr.h - header_h));
-  }
-
-  // Draw resize hover indicator (2px rule at column edge in header)
-  int hot_col = data->resize_hot_col;
-  if (hot_col >= 0 && data->resize_col < 0) {
-    int hx = 0;
-    for (int i = 0; i <= hot_col; i++)
-      hx += rv_get_report_column_width(data, i, eff_w);
-    uint32_t dark = get_sys_color(brDarkEdge);
-    uint32_t accent = get_sys_color(brBorderActive);
-    fill_rect(accent, R(hx - 1, 0, 1, header_h));
-    fill_rect(dark,   R(hx,     0, 1, header_h));
+    int sep_x = col_x - scroll_x;
+#if REPORTVIEW_RESIZE_FULL_HEIGHT
+    if (sep_x >= 0 && sep_x <= eff_w) {
+      uint32_t da = get_sys_color(brDarkEdge);
+      uint32_t ac = get_sys_color((int)col == data->resize_hot_col && data->resize_col < 0
+                                  ? brActiveTitlebar : brBorderActive);
+      fill_rect(da, R(sep_x - 1, 0, 1, cr.h));
+      fill_rect(ac, R(sep_x,     0, 1, cr.h));
+    }
+#else
+    if (sep_x >= 0 && sep_x <= eff_w)
+      fill_rect(sep_col, R(sep_x, header_h, 1, cr.h - header_h));
+    if (header_h > 0 && sep_x >= 0 && sep_x <= eff_w) {
+      uint32_t da = get_sys_color(brDarkEdge);
+      uint32_t ac = get_sys_color((int)col == data->resize_hot_col && data->resize_col < 0
+                                  ? brActiveTitlebar : brBorderActive);
+      fill_rect(da, R(sep_x - 1, 0, 1, header_h));
+      fill_rect(ac, R(sep_x,     0, 1, header_h));
+    }
+#endif
   }
 }
 
@@ -159,8 +223,10 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data = calloc(1, sizeof(reportview_data_t));
       if (!data) return false;
       win->userdata2 = data;
+      win->flags |= WINDOW_HSCROLL;
       win->flags |= WINDOW_VSCROLL;
       win->flags |= WINDOW_FLEXSPACE;
+      win->hscroll.visible_mode = SB_VIS_AUTO;
       win->vscroll.visible_mode = SB_VIS_AUTO;
       data->selected = -1;
       data->last_click_index = RV_INVALID_SELECTION;
@@ -212,11 +278,12 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         return true;
       }
       // Hover: track column edge
-      int hot = report_hit_column_edge(data, cr.w, mx, my);
+      int hot = report_hit_column_edge(win, data, cr.w, mx, my);
       if (hot != data->resize_hot_col) {
         data->resize_hot_col = hot;
         rv_invalidate(win, data);
       }
+      axSetCursor((hot >= 0 || data->resize_col >= 0) ? curResizeH : curArrow);
       track_mouse(win);
       return false;
     }
@@ -232,7 +299,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       irect16_t cr = get_client_rect(win);
       int mx = (int16_t)LOWORD(wparam);
       int my = (int16_t)HIWORD(wparam);
-      int col = report_hit_column_edge(data, cr.w, mx, my);
+      int col = report_hit_column_edge(win, data, cr.w, mx, my);
       if (col >= 0) {
         data->resize_col = col;
         data->resize_start_x = mx;
@@ -360,6 +427,17 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data->columns[i].width_spec = col->width;  // Store original spec
       data->columns[i].width = col->width;        // Initial effective width
       data->column_count++;
+
+      // Keep effective widths in sync when columns are added after layout.
+      // TableView populates columns during refresh, which can happen after the
+      // initial evArrange/evResize pass.
+      irect16_t cr = get_client_rect(win);
+      if (cr.w > 0) {
+        for (uint32_t ci = 0; ci < data->column_count; ci++) {
+          int w = rv_get_report_column_width(data, (int)ci, cr.w);
+          data->columns[ci].width = (uint32_t)w;
+        }
+      }
       rv_invalidate(win, data);
       return (result_t)i;
     }
@@ -424,6 +502,11 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       return true;
     case evVScroll:
       win->vscroll.pos = (uint32_t)wparam;
+      report_sync_scroll(win, data);
+      rv_invalidate(win, data);
+      return true;
+    case evHScroll:
+      win->hscroll.pos = (uint32_t)wparam;
       report_sync_scroll(win, data);
       rv_invalidate(win, data);
       return true;
@@ -499,7 +582,14 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       return true;
     }
     case evGetCursor: {
-      if (data && (data->resize_col >= 0 || data->resize_hot_col >= 0))
+      if (!data)
+        return curArrow;
+      if (data->resize_col >= 0)
+        return curResizeH;
+      irect16_t cr = get_client_rect(win);
+      int mx = (int16_t)LOWORD(wparam);
+      int my = (int16_t)HIWORD(wparam);
+      if (report_hit_column_edge(win, data, cr.w, mx, my) >= 0)
         return curResizeH;
       return curArrow;
     }

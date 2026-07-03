@@ -7,6 +7,7 @@
 #include "test_env.h"
 #include "../ui.h"
 #include "../commctl/columnview.h"
+#include "../commctl/commctl.h"
 
 // ---- shared notification capture ----------------------------------------- //
 
@@ -466,6 +467,48 @@ static window_t *make_report_columnview(window_t *parent, int w, int h) {
     return cv;
 }
 
+static window_t *make_tableview_passthrough(window_t *parent, int w, int h) {
+    irect16_t fr = {0, 0, w, h};
+    return create_window("tv", WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_VSCROLL,
+                         &fr, parent, win_tableview, 0, NULL);
+}
+
+static void add_two_fixed_columns(window_t *cv, int w0, int w1) {
+    reportview_column_t c0 = { "Col0", (uint32_t)w0 };
+    reportview_column_t c1 = { "Col1", (uint32_t)w1 };
+    send_message(cv, RVM_ADDCOLUMN, 0, &c0);
+    send_message(cv, RVM_ADDCOLUMN, 0, &c1);
+}
+
+static void add_gitclient_like_columns(window_t *cv) {
+    reportview_column_t c0 = { "Subject", 0 };
+    reportview_column_t c1 = { "Author", 110 };
+    reportview_column_t c2 = { "Date", 90 };
+    reportview_column_t c3 = { "Hash", 50 };
+    send_message(cv, RVM_ADDCOLUMN, 0, &c0);
+    send_message(cv, RVM_ADDCOLUMN, 0, &c1);
+    send_message(cv, RVM_ADDCOLUMN, 0, &c2);
+    send_message(cv, RVM_ADDCOLUMN, 0, &c3);
+}
+
+static void run_resize_drag_sequence(window_t *cv, int edge_x, int drag_to_x) {
+    int y = TEST_RV_HEADER_HEIGHT / 2;
+
+    result_t cur = send_message(cv, evGetCursor, MAKEDWORD((uint16_t)edge_x, (uint16_t)y), NULL);
+    ASSERT_EQUAL((int)cur, curResizeH);
+
+    // Hover on edge, then press and drag the first divider.
+    send_message(cv, evMouseMove, MAKEDWORD((uint16_t)edge_x, (uint16_t)y), NULL);
+    result_t down = send_message(cv, evLeftButtonDown, MAKEDWORD((uint16_t)edge_x, (uint16_t)y), NULL);
+    ASSERT_TRUE(down);
+
+    send_message(cv, evMouseMove, MAKEDWORD((uint16_t)drag_to_x, (uint16_t)y), NULL);
+    send_message(cv, evLeftButtonUp, MAKEDWORD((uint16_t)drag_to_x, (uint16_t)y), NULL);
+
+    int w = (int)send_message(cv, RVM_GETREPORTCOLUMNWIDTH, 0, NULL);
+    ASSERT_EQUAL(w, drag_to_x);
+}
+
 // Click after scroll — child window, report mode.
 // Mouse events are delivered in viewport-local coordinates (event.c subtracts
 // only the child's frame.{x,y}, not its scroll).  rv_hit_index adds
@@ -556,6 +599,46 @@ void test_cv_report_wheel_scrolls_child(void) {
     // user/message.c negates HIWORD(lparam), so delta becomes +4 and vscroll.pos increases.
     send_message(cv, evWheel, MAKEDWORD(0, 0), (void*)(intptr_t)MAKEDWORD(0, (uint16_t)-4));
     ASSERT_TRUE((int)cv->vscroll.pos > 0);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cv_report_header_resize_drag_and_cursor(void) {
+    TEST("win_reportview report: header divider hover/drag resizes first column");
+
+    test_env_init();
+
+    window_t *parent = test_env_create_window("P", 0, 0, 320, 200,
+                                               cmd_capture_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cv = make_report_columnview(parent, 300, 160);
+    ASSERT_NOT_NULL(cv);
+
+    add_two_fixed_columns(cv, 100, 100);
+    run_resize_drag_sequence(cv, 100, 132);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cv_tableview_header_resize_drag_and_cursor(void) {
+    TEST("win_tableview(report path): gitclient-like flex column divider hover/drag works");
+
+    test_env_init();
+
+    window_t *parent = test_env_create_window("P", 0, 0, 320, 200,
+                                               cmd_capture_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *tv = make_tableview_passthrough(parent, 300, 160);
+    ASSERT_NOT_NULL(tv);
+
+    add_gitclient_like_columns(tv);
+    int edge_x = (int)send_message(tv, RVM_GETREPORTCOLUMNWIDTH, 0, NULL);
+    ASSERT_TRUE(edge_x > 20);
+    run_resize_drag_sequence(tv, edge_x, edge_x + 28);
 
     destroy_window(parent);
     test_env_shutdown();
@@ -806,6 +889,8 @@ int main(int argc, char *argv[]) {
     test_cv_report_click_no_scroll_child();
     test_cv_report_click_after_scroll_child();
     test_cv_report_wheel_scrolls_child();
+    test_cv_report_header_resize_drag_and_cursor();
+    test_cv_tableview_header_resize_drag_and_cursor();
     test_cv_large_icon_seticonsize();
     test_cv_large_icon_setviewmode();
     test_cv_large_icon_down_from_no_selection();
