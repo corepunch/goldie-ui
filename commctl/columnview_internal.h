@@ -48,7 +48,14 @@ typedef struct {
   bool column_titles_visible;
   bool preserve_icon_colors;
   bitmap_strip_t *icon_strip;
+  // Column resize state (mouse-driven, like splitter)
+  int  resize_col;       // column being resized (-1 = none)
+  int  resize_start_x;   // mouse client-x when drag started
+  int  resize_start_w;   // column width when drag started
+  int  resize_hot_col;   // column whose edge has hover (-1 = none)
 } reportview_data_t;
+
+#define REPORTVIEW_RESIZE_HOT_ZONE 4
 
 void rv_invalidate(window_t *win, reportview_data_t *data);
 bool rv_valid_index(const reportview_data_t *data, int index);

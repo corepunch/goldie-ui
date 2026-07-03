@@ -117,7 +117,7 @@
                 </TableView>
 
                 <SplitView flags="flexspace">
-                    <stack orientation="vertical" spacing="0" flags="flexspace">
+                    <SplitView orientation="vertical" flags="flexspace">
                         <TableView name="log"
                                    source="db.commits"
                                    flags="notitle,nofill,vscroll,flexspace">
@@ -133,7 +133,7 @@
                             <Column field="status" title="St" width="20" />
                             <Column field="path" title="File" width="0" />
                         </TableView>
-                    </stack>
+                    </SplitView>
 
                     <DiffView name="diff"
                               flags="notitle,nofill,vscroll,flexspace"/>
