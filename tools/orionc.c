@@ -562,6 +562,7 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));
     if (elem(c, "tableview")) snprintf(lparam, sizeof(lparam), "&%s_%s_tableview_params", form, nz(a.v[A_NAME], "unnamed"));
     if (elem(c, "combobox") && attr(c, "source")) snprintf(lparam, sizeof(lparam), "&%s_%s_combobox_params", form, nz(a.v[A_NAME], "unnamed"));
+    if (elem(c, "SplitView")) snprintf(lparam, sizeof(lparam), "(void *)%s", eq(a.v[A_ORIENT], "vertical") ? "SPLIT_HORZ" : "SPLIT_VERT");
     if (a.v[A_FIELD]) add_binding(bindings, id, a.v[A_FIELD], klass);
     
     // Track button IDs for ok_id/cancel_id form metadata

@@ -108,7 +108,7 @@
               flags="toolbar,statusbar"
               toolbar="main">
             <requires library="gitclient_components" />
-            <stack orientation="horizontal" spacing="0" flags="flexspace">
+            <SplitView flags="flexspace">
                 <TableView name="branches"
                            source="db.branches"
                            flags="notitle,nofill,vscroll"
@@ -116,27 +116,29 @@
                     <Column field="name" title="" width="0" />
                 </TableView>
 
-                <stack orientation="vertical" spacing="0" flags="flexspace">
-                    <TableView name="log"
-                               source="db.commits"
-                               flags="notitle,nofill,vscroll,flexspace">
-                        <Column field="subject" title="Subject" width="0" />
-                        <Column field="author" title="Author" width="110" />
-                        <Column field="date" title="Date" width="90" />
-                        <Column field="hash" title="Hash" width="50" />
-                    </TableView>
+                <SplitView flags="flexspace">
+                    <stack orientation="vertical" spacing="0" flags="flexspace">
+                        <TableView name="log"
+                                   source="db.commits"
+                                   flags="notitle,nofill,vscroll,flexspace">
+                            <Column field="subject" title="Subject" width="0" />
+                            <Column field="author" title="Author" width="110" />
+                            <Column field="date" title="Date" width="90" />
+                            <Column field="hash" title="Hash" width="50" />
+                        </TableView>
 
-                    <TableView name="files"
-                               source="db.files"
-                               flags="notitle,nofill,vscroll,flexspace">
-                        <Column field="status" title="St" width="20" />
-                        <Column field="path" title="File" width="0" />
-                    </TableView>
-                </stack>
+                        <TableView name="files"
+                                   source="db.files"
+                                   flags="notitle,nofill,vscroll,flexspace">
+                            <Column field="status" title="St" width="20" />
+                            <Column field="path" title="File" width="0" />
+                        </TableView>
+                    </stack>
 
-                <DiffView name="diff"
-                          flags="notitle,nofill,vscroll,flexspace"/>
-            </stack>
+                    <DiffView name="diff"
+                              flags="notitle,nofill,vscroll,flexspace"/>
+                </SplitView>
+            </SplitView>
         </form>
 
         <form name="commit_dialog"

@@ -36,45 +36,64 @@ typedef struct {
   double   drag_ratio;    // split_ratio when drag began
 } splitview_state_t;
 
+static bool splitview_is_splitter(window_t *win) {
+  return win && win->proc == win_splitter;
+}
+
+static int splitview_orientation(void *lparam) {
+  if (!lparam || (uintptr_t)lparam <= SPLIT_HORZ)
+    return (int)(intptr_t)lparam;
+  const form_ctrl_def_t *cd = (const form_ctrl_def_t *)lparam;
+  return cd->lparam ? (int)(intptr_t)cd->lparam : SPLIT_VERT;
+}
+
+static void splitview_get_panes(window_t *win, window_t **left, window_t **right, window_t **splitter) {
+  if (left) *left = NULL; if (right) *right = NULL; if (splitter) *splitter = NULL;
+  int pane = 0;
+  for (window_t *c = win ? win->children : NULL; c; c = c->next) {
+    if (splitview_is_splitter(c)) { if (splitter) *splitter = c; continue; }
+    if (pane == 0 && left) *left = c;
+    if (pane == 1 && right) *right = c;
+    pane++;
+  }
+}
+
 static void splitview_arrange(splitview_state_t *st, window_t *win) {
   irect16_t cr = get_client_rect(win);
-  int total;
-  int split_px;
+  int total, split_px;
   irect16_t r_left, r_split, r_right;
 
   if (st->orientation == SPLIT_VERT) {
     total = cr.w;
-    split_px = (int)(total * st->split_ratio + 0.5);
-    if (split_px < SPLITVIEW_MIN_PANE) split_px = SPLITVIEW_MIN_PANE;
-    if (split_px > total - st->divider_w - SPLITVIEW_MIN_PANE)
-      split_px = total - st->divider_w - SPLITVIEW_MIN_PANE;
+    int available = MAX(0, total - st->divider_w);
+    split_px = (int)(available * st->split_ratio + 0.5);
+    if (available >= SPLITVIEW_MIN_PANE * 2)
+      split_px = MAX(SPLITVIEW_MIN_PANE, MIN(split_px, available - SPLITVIEW_MIN_PANE));
+    else split_px = MAX(0, MIN(split_px, available));
     r_left  = (irect16_t){cr.x, cr.y, split_px, cr.h};
     r_split = (irect16_t){cr.x + split_px, cr.y, st->divider_w, cr.h};
     r_right = (irect16_t){cr.x + split_px + st->divider_w, cr.y,
                           total - split_px - st->divider_w, cr.h};
   } else {
     total = cr.h;
-    split_px = (int)(total * st->split_ratio + 0.5);
-    if (split_px < SPLITVIEW_MIN_PANE) split_px = SPLITVIEW_MIN_PANE;
-    if (split_px > total - st->divider_w - SPLITVIEW_MIN_PANE)
-      split_px = total - st->divider_w - SPLITVIEW_MIN_PANE;
+    int available = MAX(0, total - st->divider_w);
+    split_px = (int)(available * st->split_ratio + 0.5);
+    if (available >= SPLITVIEW_MIN_PANE * 2)
+      split_px = MAX(SPLITVIEW_MIN_PANE, MIN(split_px, available - SPLITVIEW_MIN_PANE));
+    else split_px = MAX(0, MIN(split_px, available));
     r_left  = (irect16_t){cr.x, cr.y, cr.w, split_px};
     r_split = (irect16_t){cr.x, cr.y + split_px, cr.w, st->divider_w};
     r_right = (irect16_t){cr.x, cr.y + split_px + st->divider_w,
                           cr.w, total - split_px - st->divider_w};
   }
 
-  // Position the three children: left pane, splitter, right pane.
-  window_t *children[3] = {0};
-  int idx = 0;
-  for (window_t *c = win->children; c && idx < 3; c = c->next)
-    children[idx++] = c;
+  window_t *left = NULL, *right = NULL, *splitter = NULL;
+  splitview_get_panes(win, &left, &right, &splitter);
+  if (left)     left->frame = r_left;
+  if (splitter) splitter->frame = r_split;
+  if (right)    right->frame = r_right;
 
-  if (children[0]) children[0]->frame = r_left;
-  if (children[1]) children[1]->frame = r_split;
-  if (children[2]) children[2]->frame = r_right;
-
-  // Recurse arrange into panes.
+  window_t *children[] = { left, splitter, right };
   for (int i = 0; i < 3; i++) {
     if (children[i] && children[i]->proc) {
       layout_arrange_t la = {children[i]->frame};
@@ -89,7 +108,7 @@ result_t win_splitview(window_t *win, uint32_t msg,
     case evCreate: {
       splitview_state_t *st = allocate_window_data(win, sizeof(splitview_state_t));
       if (!st) return false;
-      st->orientation = (int)(intptr_t)lparam;
+      st->orientation = splitview_orientation(lparam);
       st->split_ratio = 0.5;
       st->divider_w = 6;
       st->dragging = false;
@@ -103,6 +122,14 @@ result_t win_splitview(window_t *win, uint32_t msg,
     }
 
     case evArrange: {
+      splitview_state_t *st = (splitview_state_t *)win->userdata;
+      layout_arrange_t *a = (layout_arrange_t *)lparam;
+      if (a) win->frame = a->rect;
+      if (st) splitview_arrange(st, win);
+      return true;
+    }
+
+    case evResize: {
       splitview_state_t *st = (splitview_state_t *)win->userdata;
       if (st) splitview_arrange(st, win);
       return true;
@@ -162,12 +189,8 @@ result_t win_splitview(window_t *win, uint32_t msg,
       return false;
     }
 
-    case evGetCursor: {
-      splitview_state_t *st = (splitview_state_t *)win->userdata;
-      if (st && st->orientation == SPLIT_VERT)
-        return curResizeH;
-      return curResizeV;
-    }
+    case evGetCursor:
+      return curArrow;
 
     default:
       return false;
@@ -175,11 +198,13 @@ result_t win_splitview(window_t *win, uint32_t msg,
 }
 
 window_t *splitview_get_left(window_t *win) {
-  if (!win) return NULL;
-  return win->children;
+  window_t *left = NULL;
+  splitview_get_panes(win, &left, NULL, NULL);
+  return left;
 }
 
 window_t *splitview_get_right(window_t *win) {
-  if (!win || !win->children) return NULL;
-  return win->children->next ? win->children->next->next : NULL;
+  window_t *right = NULL;
+  splitview_get_panes(win, NULL, &right, NULL);
+  return right;
 }
