@@ -26,6 +26,7 @@
             <item name="rebase" label="Rebase Current" />
             <Separator />
             <item name="delete" label="Delete..." />
+            <item name="rename" label="Rename..." />
         </menu>
 
         <menu name="commit" label="Commit">
@@ -34,6 +35,8 @@
             <Separator />
             <item name="stash" label="Stash Changes" />
             <item name="stash_pop" label="Pop Stash" />
+            <Separator />
+            <item name="discard" label="Discard Changes..." />
         </menu>
 
         <menu name="remote" label="Remote">
@@ -175,6 +178,23 @@
             <stack orientation="horizontal" spacing="6">
                 <space />
                 <button name="ok" text="Create" flags="default" />
+                <button name="cancel" text="Cancel" />
+            </stack>
+        </form>
+
+        <form name="branch_rename_dialog"
+              title="Rename Branch"
+              width="276"
+              auto_layout="1"
+              spacing="6"
+              padding="8">
+            <stack orientation="horizontal" spacing="6">
+                <label text="New name:" />
+                <textedit name="name" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <space />
+                <button name="ok" text="Rename" flags="default" />
                 <button name="cancel" text="Cancel" />
             </stack>
         </form>

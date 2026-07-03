@@ -123,6 +123,7 @@ typedef struct git_repo_s git_repo_t;
 #define gc_commit_dialog_form        gitclient_commit_dialog_form
 #define gc_new_branch_dialog_form    gitclient_new_branch_dialog_form
 #define gc_push_pull_dialog_form     gitclient_push_pull_dialog_form
+#define gc_branch_rename_dialog_form gitclient_branch_rename_dialog_form
 #define gc_database_schema           gitclient_database_schema
 #define gc_database_api              gitclient_database_api
 
@@ -182,6 +183,13 @@ bool gc_stage_file(const char *path);
 bool gc_unstage_file(const char *path);
 bool gc_commit(const char *message, bool amend);
 bool gc_create_branch(const char *name, const char *from, bool checkout);
+bool gc_checkout_branch(const char *name);
+bool gc_delete_branch(const char *name, bool remote);
+bool gc_merge_branch(const char *name);
+bool gc_rebase_onto(const char *branch);
+bool gc_rename_branch(const char *old_name, const char *new_name);
+bool gc_discard_file(const char *path);
+bool gc_discard_all(void);
 void gc_stash(void);
 void gc_stash_pop(void);
 
@@ -244,6 +252,7 @@ void gc_diff_refresh(void);
 
 bool gc_show_commit_dialog(window_t *parent, bool amend);
 bool gc_show_new_branch_dialog(window_t *parent);
+bool gc_show_rename_branch_dialog(window_t *parent, const char *cur_name);
 void gc_show_push_pull_dialog(window_t *parent, git_op_t op);
 void gc_show_about_dialog(window_t *parent);
 
