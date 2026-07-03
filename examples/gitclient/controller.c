@@ -175,6 +175,109 @@ bool gc_create_branch(const char *name, const char *from, bool checkout) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Checkout / delete / merge / rebase / rename
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool gc_checkout_branch(const char *name) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "checkout", name, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_checkout_branch failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+bool gc_delete_branch(const char *name, bool remote) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0]) return false;
+  char buf[1024] = {0};
+  if (remote) {
+    const char *args[] = { "git", "push", "origin", "--delete", name, NULL };
+    if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+      GC_LOG("gc_delete_branch remote failed: %s", buf);
+      return false;
+    }
+  } else {
+    const char *args[] = { "git", "branch", "-d", name, NULL };
+    if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+      // Try force delete if -d fails (unmerged)
+      const char *args_f[] = { "git", "branch", "-D", name, NULL };
+      if (!git_run_sync(gc->repo, args_f, buf, sizeof(buf))) {
+        GC_LOG("gc_delete_branch failed: %s", buf);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool gc_merge_branch(const char *name) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0]) return false;
+  char buf[4096] = {0};
+  const char *args[] = { "git", "merge", name, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_merge_branch failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+bool gc_rebase_onto(const char *branch) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !branch || !branch[0]) return false;
+  char buf[4096] = {0};
+  const char *args[] = { "git", "rebase", branch, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_rebase_onto failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+bool gc_rename_branch(const char *old_name, const char *new_name) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !old_name || !old_name[0] || !new_name || !new_name[0])
+    return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "branch", "-m", old_name, new_name, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_rename_branch failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Discard changes
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool gc_discard_file(const char *path) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !path) return false;
+  char buf[1024] = {0};
+  // Try checkout first (tracked files), then clean (untracked)
+  const char *args_co[] = { "git", "checkout", "--", path, NULL };
+  if (git_run_sync(gc->repo, args_co, buf, sizeof(buf)))
+    return true;
+  const char *args_cl[] = { "git", "clean", "-f", path, NULL };
+  return git_run_sync(gc->repo, args_cl, buf, sizeof(buf));
+}
+
+bool gc_discard_all(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return false;
+  char buf[4096] = {0};
+  const char *args_co[] = { "git", "checkout", "--", ".", NULL };
+  git_run_sync(gc->repo, args_co, buf, sizeof(buf));
+  const char *args_cl[] = { "git", "clean", "-fd", NULL };
+  return git_run_sync(gc->repo, args_cl, buf, sizeof(buf));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Stash
 // ═══════════════════════════════════════════════════════════════════════════
 

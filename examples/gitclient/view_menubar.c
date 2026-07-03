@@ -11,7 +11,36 @@ static const accel_t kAccelEntries[] = {
   { FVIRTKEY | FCONTROL, AX_KEY_K,  ID_COMMIT_COMMIT },
   { FVIRTKEY,            AX_KEY_F5, ID_REPO_REFRESH  },
   { FVIRTKEY | FCONTROL, AX_KEY_F,  ID_REMOTE_FETCH  },
+  { FVIRTKEY | FCONTROL, AX_KEY_N,  ID_BRANCH_NEW    },
+  { FVIRTKEY | FCONTROL, AX_KEY_D,  ID_BRANCH_DELETE },
+  { FVIRTKEY | FCONTROL, AX_KEY_M,  ID_BRANCH_MERGE  },
 };
+
+// ============================================================
+// Helper: get selected branch name from branches list
+// ============================================================
+
+static bool gc_get_selected_branch(char *buf, int buf_sz, bool *is_current) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->branches_win || !gc->db) return false;
+  int sel = (int)send_message(gc->branches_win, RVM_GETSELECTION, 0, NULL);
+  if (sel < 0) return false;
+  result_node_t *rows = (result_node_t *)send_db_message(
+    gc->db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
+  int row = 0;
+  bool found = false;
+  for (result_node_t *n = rows; n; n = n->next, row++) {
+    if (row == sel) {
+      db_branche_t *b = *(db_branche_t **)n->data;
+      strncpy(buf, b->name, (size_t)buf_sz - 1);
+      if (is_current) *is_current = b->is_current;
+      found = true;
+      break;
+    }
+  }
+  free_result_list(rows);
+  return found;
+}
 
 // ============================================================
 // Menubar window procedure
@@ -89,11 +118,71 @@ void gc_handle_command(uint16_t id) {
       if (gc->main_win)
         gc_show_new_branch_dialog(gc->main_win);
       break;
-    case ID_BRANCH_CHECKOUT:
-    case ID_BRANCH_MERGE:
-    case ID_BRANCH_REBASE:
-    case ID_BRANCH_DELETE:
+    case ID_BRANCH_CHECKOUT: {
+      char name[256] = {0};
+      if (gc_get_selected_branch(name, sizeof(name), NULL)) {
+        if (!gc_checkout_branch(name))
+          message_box(gc->main_win, "Checkout failed.", "Checkout", MB_OK);
+        else
+          gc_refresh_all();
+      } else {
+        message_box(gc->main_win, "No branch selected.", "Checkout", MB_OK);
+      }
       break;
+    }
+    case ID_BRANCH_MERGE: {
+      char name[256] = {0};
+      if (gc_get_selected_branch(name, sizeof(name), NULL)) {
+        if (!gc_merge_branch(name))
+          message_box(gc->main_win, "Merge failed.\nCheck for conflicts.", "Merge", MB_OK);
+        else
+          gc_refresh_all();
+      } else {
+        message_box(gc->main_win, "No branch selected.", "Merge", MB_OK);
+      }
+      break;
+    }
+    case ID_BRANCH_REBASE: {
+      char name[256] = {0};
+      if (gc_get_selected_branch(name, sizeof(name), NULL)) {
+        if (!gc_rebase_onto(name))
+          message_box(gc->main_win, "Rebase failed.\nCheck for conflicts.", "Rebase", MB_OK);
+        else
+          gc_refresh_all();
+      } else {
+        message_box(gc->main_win, "No branch selected.", "Rebase", MB_OK);
+      }
+      break;
+    }
+    case ID_BRANCH_DELETE: {
+      char name[256] = {0};
+      bool is_cur = false;
+      if (gc_get_selected_branch(name, sizeof(name), &is_cur)) {
+        if (is_cur && !strncmp(name, "remotes/", 8)) {
+          message_box(gc->main_win, "Cannot delete remote-tracking branch.", "Delete", MB_OK);
+          break;
+        }
+        if (is_cur) {
+          message_box(gc->main_win, "Cannot delete the current branch.", "Delete", MB_OK);
+          break;
+        }
+        bool remote = !strncmp(name, "remotes/", 8);
+        if (!gc_delete_branch(name, remote))
+          message_box(gc->main_win, "Delete failed.", "Delete", MB_OK);
+        else
+          gc_refresh_all();
+      } else {
+        message_box(gc->main_win, "No branch selected.", "Delete", MB_OK);
+      }
+      break;
+    }
+    case ID_BRANCH_RENAME: {
+      char cur[256] = {0};
+      git_current_branch(gc->repo, cur, sizeof(cur));
+      if (cur[0] && gc->main_win)
+        gc_show_rename_branch_dialog(gc->main_win, cur);
+      break;
+    }
 
     case ID_COMMIT_COMMIT:
       if (gc->main_win)
@@ -111,6 +200,16 @@ void gc_handle_command(uint16_t id) {
       gc_stash_pop();
       gc_refresh_all();
       break;
+    case ID_COMMIT_DISCARD: {
+      if (message_box(gc->main_win,
+                       "Discard ALL uncommitted changes?\n"
+                       "This cannot be undone.",
+                       "Discard Changes", MB_YESNO) == IDYES) {
+        gc_discard_all();
+        gc_refresh_all();
+      }
+      break;
+    }
 
     case ID_REMOTE_FETCH:
       if (gc->main_win)
