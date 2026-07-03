@@ -108,7 +108,7 @@
               flags="toolbar,statusbar"
               toolbar="main">
             <requires library="gitclient_components" />
-            <SplitView flags="flexspace">
+            <SplitView name="main_split" flags="flexspace">
                 <TableView name="branches"
                            source="db.branches"
                            flags="notitle,nofill,vscroll"
@@ -116,8 +116,8 @@
                     <Column field="name" title="" width="0" />
                 </TableView>
 
-                <SplitView flags="flexspace">
-                    <SplitView orientation="vertical" flags="flexspace">
+                <SplitView name="content_split" flags="flexspace">
+                    <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
                         <TableView name="log"
                                    source="db.commits"
                                    flags="notitle,nofill,vscroll,flexspace">
