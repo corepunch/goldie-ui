@@ -440,6 +440,41 @@ void test_gc_run_sync_failure(void) {
     PASS();
 }
 
+void test_gc_get_tags(void) {
+    TEST("git_get_tags: returns annotated repository tags with metadata");
+    ASSERT_TRUE(gct_git(s_repo, "tag -a v1.0 -m release HEAD"));
+    git_repo_t *r = git_repo_open(s_repo);
+    ASSERT_NOT_NULL(r);
+    git_tag_t tags[8] = {0};
+    int count = git_get_tags(r, tags, 8);
+    ASSERT_EQUAL(count, 1);
+    ASSERT_STR_EQUAL(tags[0].name, "v1.0");
+    ASSERT_TRUE(strlen(tags[0].hash) == 40);
+    ASSERT_TRUE(tags[0].date[0] != '\0');
+    git_repo_close(r);
+    ASSERT_TRUE(gct_git(s_repo, "tag -d v1.0"));
+    PASS();
+}
+
+void test_gc_get_stash(void) {
+    TEST("git_get_stash: returns stash ref, message, and source branch");
+    char path[512];
+    snprintf(path, sizeof(path), "%s/file1.txt", s_repo);
+    ASSERT_TRUE(gct_append_file(path, "stashed\n"));
+    ASSERT_TRUE(gct_git(s_repo, "stash push -m test-stash"));
+    git_repo_t *r = git_repo_open(s_repo);
+    ASSERT_NOT_NULL(r);
+    git_stash_t stash[8] = {0};
+    int count = git_get_stash(r, stash, 8);
+    ASSERT_EQUAL(count, 1);
+    ASSERT_STR_EQUAL(stash[0].ref, "stash@{0}");
+    ASSERT_TRUE(strstr(stash[0].message, "test-stash") != NULL);
+    ASSERT_TRUE(stash[0].branch[0] != '\0');
+    git_repo_close(r);
+    ASSERT_TRUE(gct_git(s_repo, "stash drop stash@{0}"));
+    PASS();
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 int main(int argc, char *argv[]) {
@@ -471,6 +506,8 @@ int main(int argc, char *argv[]) {
     test_gc_get_diff_modified();
     test_gc_run_sync_rev_parse();
     test_gc_run_sync_failure();
+    test_gc_get_tags();
+    test_gc_get_stash();
 
     teardown_test_repo();
 

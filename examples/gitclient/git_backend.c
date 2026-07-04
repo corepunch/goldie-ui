@@ -98,7 +98,12 @@ static void gc_build_cmd(const char *path, const char *args[],
   int n = snprintf(buf, (size_t)buf_sz, "cd \"%s\" && git", path);
 #endif
   for (int i = 1; args[i] && n < buf_sz - 2; i++) {
-    n += snprintf(buf + n, (size_t)(buf_sz - n), " %s", args[i]);
+    n += snprintf(buf + n, (size_t)(buf_sz - n), " \"");
+    for (const char *p = args[i]; *p && n < buf_sz - 3; p++) {
+      if (*p == '\"') buf[n++] = '\\';
+      buf[n++] = *p;
+    }
+    n += snprintf(buf + n, (size_t)(buf_sz - n), "\"");
   }
   // Redirect stderr to stdout so callers capture error text too.
   snprintf(buf + n, (size_t)(buf_sz - n), " 2>&1");
@@ -366,7 +371,7 @@ bool git_get_diff(git_repo_t *repo, const char *path,
 int git_get_branches(git_repo_t *repo, git_branch_t *out, int max) {
   if (!repo || !out || max <= 0) return 0;
 
-  char buf[16 * 1024];
+  char buf[16 * 1024] = {0};
   const char *args[] = { "git", "branch", "-a", "--no-color", NULL };
   git_run_sync(repo, args, buf, sizeof(buf));
 
@@ -471,10 +476,10 @@ int git_get_tags(git_repo_t *repo, git_tag_t *out, int max) {
   char buf[16 * 1024];
   const char *args[] = {
     "git", "tag", "--sort=-creatordate",
-    "--format=%(refname:short)%x1f%(objectname:short)%x1f%(creatordate:format:%Y-%m-%d)",
+    "--format=%(refname:short)%09%(objectname)%09%(creatordate:format:%Y-%m-%d)",
     NULL
   };
-  git_run_sync(repo, args, buf, sizeof(buf));
+  if (!git_run_sync(repo, args, buf, sizeof(buf))) return 0;
 
   int count = 0;
   char *p = buf;
@@ -484,11 +489,11 @@ int git_get_tags(git_repo_t *repo, git_tag_t *out, int max) {
     *nl = '\0';
 
     char *name = p;
-    char *hash_sep = strchr(p, '\x1f');
+    char *hash_sep = strchr(p, '\t');
     if (!hash_sep) { p = nl + 1; continue; }
     *hash_sep = '\0';
     char *hash = hash_sep + 1;
-    char *date_sep = strchr(hash, '\x1f');
+    char *date_sep = strchr(hash, '\t');
     if (!date_sep) { p = nl + 1; continue; }
     *date_sep = '\0';
     char *date = date_sep + 1;
@@ -512,13 +517,13 @@ int git_get_tags(git_repo_t *repo, git_tag_t *out, int max) {
 int git_get_stash(git_repo_t *repo, git_stash_t *out, int max) {
   if (!repo || !out || max <= 0) return 0;
 
-  char buf[16 * 1024];
+  char buf[16 * 1024] = {0};
   const char *args[] = {
     "git", "stash", "list",
-    "--format=%h%x1f%s%x1f%D",
+    "--format=%gd%x1f%gs",
     NULL
   };
-  git_run_sync(repo, args, buf, sizeof(buf));
+  if (!git_run_sync(repo, args, buf, sizeof(buf))) return 0;
 
   int count = 0;
   char *p = buf;
@@ -531,24 +536,21 @@ int git_get_stash(git_repo_t *repo, git_stash_t *out, int max) {
     char *msg_sep = strchr(p, '\x1f');
     if (!msg_sep) { p = nl + 1; continue; }
     *msg_sep = '\0';
-    char *msg = msg_sep + 1;
-    char *branch_sep = strchr(msg, '\x1f');
-    if (!branch_sep) { p = nl + 1; continue; }
-    *branch_sep = '\0';
-    char *branch = branch_sep + 1;
-
-    // Strip "refs/stash" prefix from %D if present, extract branch name
-    // %D format: "refs/stash" or "refs/stash, origin/main"
-    char *comma = strchr(branch, ',');
-    if (comma) *comma = '\0';
-    // Skip "refs/stash" prefix separator ":"
+    char *msg = msg_sep + 1, *branch = msg;
+    if (!strncmp(branch, "WIP on ", 7)) branch += 7;
+    else if (!strncmp(branch, "On ", 3)) branch += 3;
     char *colon = strchr(branch, ':');
-    if (colon) branch = colon + 1;
+    char branch_buf[256] = "(unnamed)";
+    if (colon && colon > branch) {
+      size_t len = (size_t)(colon - branch);
+      if (len >= sizeof(branch_buf)) len = sizeof(branch_buf) - 1;
+      memcpy(branch_buf, branch, len); branch_buf[len] = '\0';
+    }
 
     git_stash_t *s = &out[count];
     strncpy(s->ref, ref, sizeof(s->ref) - 1);
     strncpy(s->message, msg, sizeof(s->message) - 1);
-    strncpy(s->branch, branch[0] ? branch : "(unnamed)", sizeof(s->branch) - 1);
+    strncpy(s->branch, branch_buf, sizeof(s->branch) - 1);
     count++;
 
     p = nl + 1;
