@@ -189,6 +189,31 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
         return true;
       }
 
+      if (code == GC_DIFF_TOGGLE_UNIFIED) {
+        if (!gc) return true;
+        if (gc->diff_win) {
+          gc_diff_state_t *st = (gc_diff_state_t *)gc->diff_win->userdata;
+          if (st) {
+            gc->unified_diff = st->unified_mode;
+            gc_diff_refresh();
+          }
+        }
+        return true;
+      }
+
+      if (code == GC_DIFF_STAGE_HUNK) {
+        if (!gc) return true;
+        int hunk_idx = (int)(int16_t)LOWORD(wparam);
+        if (gc->diff_win) {
+          gc_diff_state_t *st = (gc_diff_state_t *)gc->diff_win->userdata;
+          if (st && st->hunk_path[0]) {
+            gc_stage_hunk(st->hunk_path, hunk_idx);
+            gc_refresh_all();
+          }
+        }
+        return true;
+      }
+
       if (code == RVN_DBLCLK) {
         if (!gc) return false;
         int idx       = (int)(int16_t)LOWORD(wparam);

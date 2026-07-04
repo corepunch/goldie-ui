@@ -334,6 +334,67 @@ bool gc_set_remote_url(const char *name, const char *url) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Per-hunk staging
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool gc_stage_hunk(const char *path, int hunk_idx) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !path || !path[0]) return false;
+
+  char full[GC_DIFF_BUF_SIZE] = {0};
+  git_get_diff(gc->repo, path, false, full, sizeof(full));
+
+  char patch[GC_DIFF_BUF_SIZE] = {0};
+  int pi = 0;
+
+  pi += snprintf(patch + pi, sizeof(patch) - (size_t)pi,
+                 "--- a/%s\n+++ b/%s\n", path, path);
+
+  int hunk_found = -1;
+  char *p = full;
+  while (*p && hunk_found < hunk_idx) {
+    if (p[0] == '@' && strncmp(p, "@@ -", 4) == 0)
+      hunk_found++;
+    if (hunk_found < hunk_idx) {
+      char *nl = strchr(p, '\n');
+      if (!nl) break;
+      p = nl + 1;
+    }
+  }
+  if (hunk_found != hunk_idx) return false;
+
+  while (*p && pi < (int)sizeof(patch) - 2) {
+    patch[pi++] = *p;
+    if (*p == '\n') { p++; break; }
+    p++;
+  }
+
+  while (*p && pi < (int)sizeof(patch) - 2) {
+    if (p[0] == '@' && strncmp(p, "@@ -", 4) == 0) break;
+    patch[pi++] = *p;
+    if (*p == '\n') p++;
+    else p++;
+  }
+  patch[pi] = '\0';
+
+  // Write patch to temp file and apply via git apply --cached
+  char tmp_path[512];
+  snprintf(tmp_path, sizeof(tmp_path), "%s/.git/gc_hunk_patch", gc->repo_path);
+
+  FILE *f = fopen(tmp_path, "w");
+  if (!f) return false;
+  fwrite(patch, 1, (size_t)pi, f);
+  fclose(f);
+
+  char buf[4096] = {0};
+  const char *args[] = { "git", "apply", "--cached", tmp_path, NULL };
+  bool ok = git_run_sync(gc->repo, args, buf, sizeof(buf));
+  remove(tmp_path);
+  if (!ok) GC_LOG("gc_stage_hunk failed: %s", buf);
+  return ok;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Stash
 // ═══════════════════════════════════════════════════════════════════════════
 

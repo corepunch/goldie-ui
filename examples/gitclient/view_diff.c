@@ -7,6 +7,15 @@
 #include "../../components/gitclient/diff_view.h"
 #include "../../user/vga_font.h"
 
+static void parse_hunks(gc_diff_state_t *st) {
+  st->hunk_count = 0;
+  for (int i = 0; i < st->line_count && st->hunk_count < GC_DIFF_MAX_HUNKS; i++) {
+    if (st->lines[i][0] == '@' && strncmp(st->lines[i], "@@ -", 4) == 0)
+      st->hunk_offsets[st->hunk_count++] = i;
+  }
+  st->current_hunk = st->hunk_count > 0 ? 0 : -1;
+}
+
 void gc_diff_refresh(void) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->diff_win) return;
@@ -15,10 +24,13 @@ void gc_diff_refresh(void) {
   gc_diff_state_t *st = (gc_diff_state_t *)win->userdata;
   if (!st) return;
 
+  st->unified_mode = gc->unified_diff;
+
   free(st->lines);
   st->lines      = NULL;
   st->line_count = 0;
   st->scroll_y   = 0;
+  st->hunk_path[0] = '\0';
 
   if (!gc->repo || !gc->db) {
     invalidate_window(win);
@@ -42,6 +54,7 @@ void gc_diff_refresh(void) {
       gc->log_win, tvGetSelectedRecord, 0, NULL);
     if (c) {
       if (path && path[0]) {
+        strncpy(st->hunk_path, path, sizeof(st->hunk_path) - 1);
         const char *args[] = {
           "git", "show", "--color=always", "--pretty=format:", c->hash,
           "--", path, NULL
@@ -55,7 +68,18 @@ void gc_diff_refresh(void) {
       }
     }
   } else {
-    git_get_diff(gc->repo, path, staged, st->diff_buf, sizeof(st->diff_buf));
+    if (path && path[0])
+      strncpy(st->hunk_path, path, sizeof(st->hunk_path) - 1);
+    if (st->unified_mode) {
+      git_get_diff(gc->repo, path, staged, st->diff_buf, sizeof(st->diff_buf));
+    } else {
+      // Word-level diff for split/enhanced mode
+      const char *args[] = { "git", "diff", "--word-diff=color", "--color=always",
+                             staged ? "--cached" : "HEAD",
+                             path && path[0] ? "--" : NULL,
+                             path && path[0] ? path : NULL, NULL };
+      git_run_sync(gc->repo, args, st->diff_buf, sizeof(st->diff_buf));
+    }
   }
 
   if (!st->diff_buf[0]) {
@@ -79,6 +103,8 @@ void gc_diff_refresh(void) {
     *nl = '\0';
     p = nl + 1;
   }
+
+  parse_hunks(st);
 
   scroll_info_t si = {
     .fMask = SIF_RANGE | SIF_PAGE | SIF_POS,

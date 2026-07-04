@@ -1,8 +1,10 @@
 #include "diff_view.h"
 #include "../../user/vga_font.h"
 #include "../../user/ansi.h"
+#include "../../user/rect.h"
 
 #define CLR_CTX_BG   0xFF1E1E1E
+#define CLR_HUNK_SEL 0xFF333355
 
 static int visible_lines(window_t *win) {
   int ch = vga_char_height();
@@ -14,12 +16,32 @@ static int max_scroll_start(window_t *win, const gc_diff_state_t *st) {
   return MAX(0, st->line_count - visible_lines(win));
 }
 
+static void notify_stage_hunk(window_t *win, gc_diff_state_t *st) {
+  if (!win || !st || st->current_hunk < 0 || st->current_hunk >= st->hunk_count)
+    return;
+  window_t *root = get_root_window(win);
+  if (root)
+    send_message(root, evCommand,
+                 MAKEDWORD((uint16_t)st->current_hunk, (uint16_t)GC_DIFF_STAGE_HUNK),
+                 win);
+}
+
+static void notify_toggle_unified(window_t *win) {
+  window_t *root = get_root_window(win);
+  if (root)
+    send_message(root, evCommand,
+                 MAKEDWORD(0, (uint16_t)GC_DIFF_TOGGLE_UNIFIED),
+                 win);
+}
+
 result_t gc_diff_proc(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate: {
       gc_diff_state_t *st = (gc_diff_state_t *)calloc(1, sizeof(gc_diff_state_t));
       win->userdata = st;
+      st->unified_mode = true;
+      st->current_hunk = -1;
       ansi_init_palette256();
       return true;
     }
@@ -58,6 +80,64 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
       };
       set_scroll_info(win, SB_VERT, &si, true);
       invalidate_window(win);
+      return false;
+    }
+
+    case evLeftButtonDown:
+      set_focus(win);
+      return false;
+
+    case evKeyDown: {
+      gc_diff_state_t *st = (gc_diff_state_t *)win->userdata;
+      if (!st) return false;
+
+      if (wparam == AX_KEY_TAB) {
+        st->unified_mode = !st->unified_mode;
+        notify_toggle_unified(win);
+        return true;
+      }
+
+      if (st->hunk_count > 0) {
+        if (wparam == AX_KEY_UPARROW) {
+          st->current_hunk = MAX(0, st->current_hunk - 1);
+          if (st->current_hunk >= 0 && st->current_hunk < st->hunk_count) {
+            int target = st->hunk_offsets[st->current_hunk];
+            if (target < st->scroll_y)
+              st->scroll_y = target;
+          }
+          scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+          set_scroll_info(win, SB_VERT, &si, false);
+          invalidate_window(win);
+          return true;
+        }
+        if (wparam == AX_KEY_DOWNARROW) {
+          st->current_hunk = MIN(st->hunk_count - 1, st->current_hunk + 1);
+          int vis = visible_lines(win);
+          if (st->current_hunk >= 0 && st->current_hunk < st->hunk_count) {
+            int target = st->hunk_offsets[st->current_hunk];
+            if (target >= st->scroll_y + vis)
+              st->scroll_y = target - vis + 1;
+          }
+          scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+          set_scroll_info(win, SB_VERT, &si, false);
+          invalidate_window(win);
+          return true;
+        }
+        if (wparam == AX_KEY_ENTER) {
+          notify_stage_hunk(win, st);
+          return true;
+        }
+      }
+
+      if (wparam == AX_KEY_UPARROW || wparam == AX_KEY_DOWNARROW) {
+        int dir = (wparam == AX_KEY_UPARROW) ? -1 : 1;
+        st->scroll_y = CLAMP(st->scroll_y + dir * 3, 0, max_scroll_start(win, st));
+        scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+        set_scroll_info(win, SB_VERT, &si, false);
+        invalidate_window(win);
+        return true;
+      }
+
       return false;
     }
 
@@ -115,6 +195,22 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
         last = st->line_count;
 
       for (int row = 0; row < vis_rows && first + row < st->line_count; row++) {
+        int line_idx = first + row;
+
+        // Highlight the selected hunk range
+        if (st->current_hunk >= 0 && st->current_hunk + 1 < st->hunk_count) {
+          int hunk_start = st->hunk_offsets[st->current_hunk];
+          int hunk_end = st->hunk_offsets[st->current_hunk + 1];
+          if (line_idx >= hunk_start && line_idx < hunk_end)
+            fill_rect(CLR_HUNK_SEL, R(cr.x, cr.y + row * ch, cr.w, ch));
+        }
+
+        // Highlight hunk header lines
+        for (int h = 0; h < st->hunk_count; h++) {
+          if (line_idx == st->hunk_offsets[h])
+            fill_rect(CLR_HUNK_SEL, R(cr.x, cr.y + row * ch, cr.w, ch));
+        }
+
         vga_text_write_ansi_line(st->lines[first + row], &st->grid, row,
                                  0, vis_cols, kAnsi16[7], kAnsi16[0]);
       }

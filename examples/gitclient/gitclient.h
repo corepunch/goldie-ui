@@ -154,6 +154,7 @@ typedef struct {
 
   int          selected_commit;
   int          selected_file;
+  bool         unified_diff;
 
   char         clone_path[512];
 
@@ -194,6 +195,17 @@ bool gc_rebase_onto(const char *branch);
 bool gc_rename_branch(const char *old_name, const char *new_name);
 bool gc_discard_file(const char *path);
 bool gc_discard_all(void);
+bool gc_stage_hunk(const char *path, int hunk_idx);
+int  gc_get_conflicted_files(char (*out)[512], int max);
+bool gc_conflict_resolve(const char *path, const char *strategy);
+void gc_abort_merge(void);
+void gc_load_tags(void);
+bool gc_create_tag(const char *name, const char *ref);
+bool gc_delete_tag(const char *name);
+void gc_push_tags(void);
+void gc_load_stash(void);
+bool gc_stash_drop(const char *ref);
+bool gc_stash_branch(const char *name, const char *ref);
 bool gc_clone_repo(const char *url, const char *path);
 bool gc_add_remote(const char *name, const char *url);
 bool gc_remove_remote(const char *name);
