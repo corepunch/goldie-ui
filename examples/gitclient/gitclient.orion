@@ -199,6 +199,55 @@
             </stack>
         </form>
 
+        <form name="clone_dialog"
+              title="Clone Repository"
+              width="420"
+              auto_layout="1"
+              spacing="6"
+              padding="8">
+            <stack orientation="horizontal" spacing="6">
+                <label text="URL:" />
+                <textedit name="url" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <label text="Path:" />
+                <textedit name="path" flags="flexspace" />
+                <button name="browse" text="..." />
+            </stack>
+            <label name="status" text="" />
+            <stack orientation="horizontal" spacing="6">
+                <space />
+                <button name="ok" text="Clone" flags="default" />
+                <button name="cancel" text="Cancel" />
+            </stack>
+        </form>
+
+        <form name="remote_dialog"
+              title="Manage Remotes"
+              width="400"
+              height="320"
+              auto_layout="1"
+              spacing="6"
+              padding="8">
+            <label text="Remotes:" />
+            <combobox name="remote_list" flags="flexspace" />
+            <stack orientation="horizontal" spacing="6">
+                <label text="Name:" />
+                <textedit name="name" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <label text="URL:" />
+                <textedit name="url" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <button name="add" text="Add" />
+                <button name="update" text="Update" />
+                <button name="remove" text="Remove" />
+                <space />
+                <button name="close" text="Close" flags="default" />
+            </stack>
+        </form>
+
         <form name="push_pull_dialog"
               title="Remote Operation"
               width="262"

@@ -220,10 +220,16 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
     case evGitOpDone: {
       git_async_result_t *res = (git_async_result_t *)lparam;
       if (res) {
-        if (!res->success)
+        if (!res->success) {
           message_box(win, res->output, "Operation failed", MB_OK);
-        else
+        } else if (res->op == GIT_OP_CLONE) {
+          gc_state_t *gc_ = g_gc;
+          if (gc_ && gc_->clone_path[0])
+            gc_open_repo(gc_->clone_path);
+          gc_->clone_path[0] = '\0';
+        } else {
           gc_refresh_all();
+        }
         git_async_result_free(res);
       }
       return true;

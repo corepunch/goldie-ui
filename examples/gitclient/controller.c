@@ -278,6 +278,62 @@ bool gc_discard_all(void) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Clone
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool gc_clone_repo(const char *url, const char *path) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !url || !url[0] || !path || !path[0]) return false;
+  const char *args[] = { "git", "clone", url, path, NULL };
+  char buf[4096] = {0};
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_clone_repo failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Remote management
+// ═══════════════════════════════════════════════════════════════════════════
+
+bool gc_add_remote(const char *name, const char *url) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0] || !url || !url[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "remote", "add", name, url, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_add_remote failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+bool gc_remove_remote(const char *name) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "remote", "remove", name, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_remove_remote failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+bool gc_set_remote_url(const char *name, const char *url) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0] || !url || !url[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "remote", "set-url", name, url, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_set_remote_url failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Stash
 // ═══════════════════════════════════════════════════════════════════════════
 
