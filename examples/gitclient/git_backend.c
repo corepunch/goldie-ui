@@ -452,6 +452,19 @@ int git_get_remotes(git_repo_t *repo, char (*out)[256], int max) {
 }
 
 // ============================================================
+// Public: remote URL
+// ============================================================
+
+bool git_get_remote_url(git_repo_t *repo, const char *name, char *buf, int buf_sz) {
+  if (!repo || !name || !name[0] || !buf || buf_sz <= 0) return false;
+  const char *args[] = { "git", "remote", "get-url", name, NULL };
+  if (!git_run_sync(repo, args, buf, buf_sz)) return false;
+  char *nl = strchr(buf, '\n');
+  if (nl) *nl = '\0';
+  return true;
+}
+
+// ============================================================
 // Async thread
 // TODO(platform-C): git_run_async() should be replaced by
 // axRunCommandAsync(cmd, op, notify_win, post_msg_id) once the platform

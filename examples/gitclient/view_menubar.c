@@ -97,6 +97,8 @@ void gc_handle_command(uint16_t id) {
       break;
     }
     case ID_FILE_CLONE:
+      if (gc->main_win)
+        gc_show_clone_dialog(gc->main_win);
       break;
     case ID_FILE_QUIT:
       ui_request_quit();
@@ -224,6 +226,8 @@ void gc_handle_command(uint16_t id) {
         gc_show_push_pull_dialog(gc->main_win, GIT_OP_PUSH);
       break;
     case ID_REMOTE_MANAGE:
+      if (gc->main_win)
+        gc_show_remote_dialog(gc->main_win);
       break;
 
     case ID_HELP_ABOUT:

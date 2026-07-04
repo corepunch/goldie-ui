@@ -122,6 +122,8 @@ typedef struct git_repo_s git_repo_t;
 #define gc_main_window_form          gitclient_main_window_form
 #define gc_commit_dialog_form        gitclient_commit_dialog_form
 #define gc_new_branch_dialog_form    gitclient_new_branch_dialog_form
+#define gc_clone_dialog_form         gitclient_clone_dialog_form
+#define gc_remote_dialog_form        gitclient_remote_dialog_form
 #define gc_push_pull_dialog_form     gitclient_push_pull_dialog_form
 #define gc_branch_rename_dialog_form gitclient_branch_rename_dialog_form
 #define gc_database_schema           gitclient_database_schema
@@ -152,6 +154,8 @@ typedef struct {
 
   int          selected_commit;
   int          selected_file;
+
+  char         clone_path[512];
 
   // UI windows
   window_t    *main_win;
@@ -190,6 +194,10 @@ bool gc_rebase_onto(const char *branch);
 bool gc_rename_branch(const char *old_name, const char *new_name);
 bool gc_discard_file(const char *path);
 bool gc_discard_all(void);
+bool gc_clone_repo(const char *url, const char *path);
+bool gc_add_remote(const char *name, const char *url);
+bool gc_remove_remote(const char *name);
+bool gc_set_remote_url(const char *name, const char *url);
 void gc_stash(void);
 void gc_stash_pop(void);
 
@@ -211,6 +219,7 @@ bool git_get_diff(git_repo_t *repo, const char *path,
 int  git_get_branches(git_repo_t *repo, git_branch_t *out, int max);
 bool git_current_branch(git_repo_t *repo, char *buf, int buf_sz);
 int  git_get_remotes(git_repo_t *repo, char (*out)[256], int max);
+bool git_get_remote_url(git_repo_t *repo, const char *name, char *buf, int buf_sz);
 
 bool git_run_async(git_repo_t *repo, git_op_t op,
                    const char *args[],
@@ -254,6 +263,8 @@ bool gc_show_commit_dialog(window_t *parent, bool amend);
 bool gc_show_new_branch_dialog(window_t *parent);
 bool gc_show_rename_branch_dialog(window_t *parent, const char *cur_name);
 void gc_show_push_pull_dialog(window_t *parent, git_op_t op);
+void gc_show_clone_dialog(window_t *parent);
+void gc_show_remote_dialog(window_t *parent);
 void gc_show_about_dialog(window_t *parent);
 
 #endif // __GITCLIENT_H__
