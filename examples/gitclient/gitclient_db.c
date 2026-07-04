@@ -46,11 +46,27 @@ static const db_field_schema_t diff_schema_fields[] = {
   { "content", DB_TYPE_STRING, 262144, false, NULL, NULL },
 };
 
+static const db_field_schema_t stash_schema_fields[] = {
+  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "ref", DB_TYPE_STRING, 64, false, NULL, NULL },
+  { "message", DB_TYPE_STRING, 512, false, NULL, NULL },
+  { "branch", DB_TYPE_STRING, 256, false, NULL, NULL },
+};
+
+static const db_field_schema_t tags_schema_fields[] = {
+  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "name", DB_TYPE_STRING, 256, false, NULL, NULL },
+  { "hash", DB_TYPE_STRING, 41, false, NULL, NULL },
+  { "date", DB_TYPE_STRING, 20, false, NULL, NULL },
+};
+
 static db_table_schema_t gc_database_tables[] = {
   { TABLE_BRANCHES, "branches", NULL, branches_schema_fields, 5, NULL, 0 },
   { TABLE_COMMITS,  "commits",  NULL, commits_schema_fields,  6, NULL, 0 },
   { TABLE_FILES,    "files",    NULL, files_schema_fields,    5, NULL, 0 },
   { TABLE_DIFF,     "diff",     NULL, diff_schema_fields,     2, NULL, 0 },
+  { TABLE_TAGS,     "tags",     NULL, tags_schema_fields,     4, NULL, 0 },
+  { TABLE_STASH,    "stash",    NULL, stash_schema_fields,    4, NULL, 0 },
 };
 
 static db_schema_def_t gitclient_database_schema = {
@@ -80,6 +96,14 @@ enum {
   GC_COL_FILE_STAGED,
   GC_COL_DIFF_ID,
   GC_COL_DIFF_CONTENT,
+  GC_COL_TAG_ID,
+  GC_COL_TAG_NAME,
+  GC_COL_TAG_HASH,
+  GC_COL_TAG_DATE,
+  GC_COL_STASH_ID,
+  GC_COL_STASH_REF,
+  GC_COL_STASH_MESSAGE,
+  GC_COL_STASH_BRANCH,
 };
 
 static result_t field_text_from_meta(const void *object,
@@ -129,6 +153,8 @@ GC_OBJECT_PROC(branch_object_proc, branches_fields, GC_COL_BRANCH_ID)
 GC_OBJECT_PROC(commit_object_proc, commits_fields, GC_COL_COMMIT_ID)
 GC_OBJECT_PROC(file_object_proc, files_fields, GC_COL_FILE_ID)
 GC_OBJECT_PROC(diff_object_proc, diff_fields, GC_COL_DIFF_ID)
+GC_OBJECT_PROC(tag_object_proc, tags_fields, GC_COL_TAG_ID)
+GC_OBJECT_PROC(stash_object_proc, stash_fields, GC_COL_STASH_ID)
 
 static const db_field_msg_binding_t branch_field_bindings[] = {
   { "id", GC_COL_BRANCH_ID }, { "name", GC_COL_BRANCH_NAME },
@@ -149,6 +175,14 @@ static const db_field_msg_binding_t file_field_bindings[] = {
 };
 static const db_field_msg_binding_t diff_field_bindings[] = {
   { "id", GC_COL_DIFF_ID }, { "content", GC_COL_DIFF_CONTENT },
+};
+static const db_field_msg_binding_t tag_field_bindings[] = {
+  { "id", GC_COL_TAG_ID }, { "name", GC_COL_TAG_NAME },
+  { "hash", GC_COL_TAG_HASH }, { "date", GC_COL_TAG_DATE },
+};
+static const db_field_msg_binding_t stash_field_bindings[] = {
+  { "id", GC_COL_STASH_ID }, { "ref", GC_COL_STASH_REF },
+  { "message", GC_COL_STASH_MESSAGE }, { "branch", GC_COL_STASH_BRANCH },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -175,6 +209,16 @@ typedef struct {
   int diff_count;
   int diff_capacity;
   int next_diff_id;
+
+  db_tag_t *tags;
+  int tag_count;
+  int tag_capacity;
+  int next_tag_id;
+
+  db_stash_t *stash;
+  int stash_count;
+  int stash_capacity;
+  int next_stash_id;
 } gc_db_context_t;
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -283,6 +327,8 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       ctx->next_commit_id = 1;
       ctx->next_file_id   = 1;
       ctx->next_diff_id   = 1;
+      ctx->next_tag_id    = 1;
+      ctx->next_stash_id  = 1;
       db->userdata = ctx;
       return 1;
     }
@@ -293,6 +339,8 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       free(ctx->commits);
       free(ctx->files);
       free(ctx->diff);
+      free(ctx->tags);
+      free(ctx->stash);
       free(ctx);
       db->userdata = NULL;
       return 1;
@@ -344,6 +392,22 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         rec->id = 1;
         return (lresult_t)rec;
       }
+      if (table_id == ID_DB_TAGS) {
+        db_tag_t *rec = append_row((void **)&ctx->tags, &ctx->tag_count,
+                                    &ctx->tag_capacity, sizeof(db_tag_t),
+                                    &ctx->next_tag_id, 32);
+        memcpy(rec, data, sizeof(db_tag_t));
+        rec->id = ctx->next_tag_id - 1;
+        return (lresult_t)rec;
+      }
+      if (table_id == ID_DB_STASH) {
+        db_stash_t *rec = append_row((void **)&ctx->stash, &ctx->stash_count,
+                                      &ctx->stash_capacity, sizeof(db_stash_t),
+                                      &ctx->next_stash_id, 16);
+        memcpy(rec, data, sizeof(db_stash_t));
+        rec->id = ctx->next_stash_id - 1;
+        return (lresult_t)rec;
+      }
       return (lresult_t)NULL;
     }
 
@@ -374,6 +438,16 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         if (table_id == ID_DB_DIFF) {
           clear_table((void **)&ctx->diff, &ctx->diff_count,
                       &ctx->diff_capacity, &ctx->next_diff_id);
+          return 1;
+        }
+        if (table_id == ID_DB_TAGS) {
+          clear_table((void **)&ctx->tags, &ctx->tag_count,
+                      &ctx->tag_capacity, &ctx->next_tag_id);
+          return 1;
+        }
+        if (table_id == ID_DB_STASH) {
+          clear_table((void **)&ctx->stash, &ctx->stash_count,
+                      &ctx->stash_capacity, &ctx->next_stash_id);
           return 1;
         }
       }
@@ -414,6 +488,10 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       }
       if (table_id == ID_DB_DIFF)
         return fetch_all(ctx->diff, ctx->diff_count, sizeof(db_diff_t));
+      if (table_id == ID_DB_TAGS)
+        return fetch_all(ctx->tags, ctx->tag_count, sizeof(db_tag_t));
+      if (table_id == ID_DB_STASH)
+        return fetch_all(ctx->stash, ctx->stash_count, sizeof(db_stash_t));
       return (lresult_t)NULL;
     }
 
@@ -447,6 +525,18 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         if (ctx->diff_count > 0) return (lresult_t)&ctx->diff[0];
         return (lresult_t)NULL;
       }
+      if (table_id == ID_DB_TAGS) {
+        if (search_field == 0 || search_field == ID_DB_TAGS_ID)
+          return (lresult_t)find_by_id(ctx->tags, ctx->tag_count,
+                                        sizeof(db_tag_t), (int)value);
+        return (lresult_t)NULL;
+      }
+      if (table_id == ID_DB_STASH) {
+        if (search_field == 0 || search_field == ID_DB_STASH_ID)
+          return (lresult_t)find_by_id(ctx->stash, ctx->stash_count,
+                                        sizeof(db_stash_t), (int)value);
+        return (lresult_t)NULL;
+      }
       return (lresult_t)NULL;
     }
 
@@ -459,6 +549,8 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case ID_DB_COMMITS:  return (lresult_t)commit_object_proc;
         case ID_DB_FILES:    return (lresult_t)file_object_proc;
         case ID_DB_DIFF:     return (lresult_t)diff_object_proc;
+        case ID_DB_TAGS:     return (lresult_t)tag_object_proc;
+        case ID_DB_STASH:    return (lresult_t)stash_object_proc;
         default:             return (lresult_t)NULL;
       }
 
@@ -477,6 +569,12 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case ID_DB_DIFF:
           if (count_out) *count_out = ARRAY_LEN(diff_field_bindings);
           return (lresult_t)diff_field_bindings;
+        case ID_DB_TAGS:
+          if (count_out) *count_out = ARRAY_LEN(tag_field_bindings);
+          return (lresult_t)tag_field_bindings;
+        case ID_DB_STASH:
+          if (count_out) *count_out = ARRAY_LEN(stash_field_bindings);
+          return (lresult_t)stash_field_bindings;
         default:
           if (count_out) *count_out = 0;
           return (lresult_t)NULL;
@@ -504,6 +602,12 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case ID_DB_DIFF:
           if (count_out) *count_out = ARRAY_LEN(diff_fields);
           return (lresult_t)diff_fields;
+        case ID_DB_TAGS:
+          if (count_out) *count_out = ARRAY_LEN(tags_fields);
+          return (lresult_t)tags_fields;
+        case ID_DB_STASH:
+          if (count_out) *count_out = ARRAY_LEN(stash_fields);
+          return (lresult_t)stash_fields;
         default:
           if (count_out) *count_out = 0;
           return (lresult_t)NULL;

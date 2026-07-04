@@ -238,6 +238,24 @@ static void collect_command_ids(ids_t *ids, xmlNodePtr menus, xmlNodePtr toolbar
   }
 }
 
+static void command_ref(char *out, size_t cap, const char *command,
+                        const char *scope, const char *name, const char *label) {
+  if (command && *command) { char id[ORIONC_MAX_IDENT]; ident(id, sizeof(id), command, true); snprintf(out, cap, "ID_%s", id); }
+  else scoped(out, cap, scope, name, label);
+}
+
+static void collect_context_ids(ids_t *ids, xmlNodePtr contexts) {
+  EACH_ELEMENT(menu, contexts) if (elem(menu, "contextmenu")) {
+    char *scope = attr(menu, "name");
+    EACH_ELEMENT(it, menu) if (elem(it, "item")) {
+      char *command = attr(it, "command"), *name = attr(it, "name"), *label = attr(it, "label"), id[256];
+      if (!command || !*command) { command_ref(id, sizeof(id), NULL, scope, name, label); add_id(ids, id); }
+      free(command); free(name); free(label);
+    }
+    free(scope);
+  }
+}
+
 static void collect_control_ids(ids_t *ids, xmlNodePtr parent, const char *form) {
   int ordinal = 0;
   EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
@@ -304,6 +322,24 @@ static void emit_menus(FILE *f, xmlNodePtr menus) {
   }
   OUT("};\n#define %s ((int)(sizeof(%s) / sizeof(%s[0])))\n\n", nz(count, "kNumMenus"), nz(var, "kMenus"), nz(var, "kMenus"));
   free(var); free(count);
+}
+
+static void emit_context_menus(FILE *f, xmlNodePtr contexts) {
+  EACH_ELEMENT(menu, contexts) if (elem(menu, "contextmenu")) {
+    char *name = attr(menu, "name"), scope[128], base[160]; ident(scope, sizeof(scope), name, true); snprintf(base, sizeof(base), "CONTEXT_MENU_%s", scope);
+    OUT("static const menu_item_t %s_ITEMS[] = {\n", base);
+    EACH_ELEMENT(it, menu) {
+      if (elem(it, "separator")) LINE("  { NULL, 0, NULL, 0 },\n");
+      else if (elem(it, "item")) {
+        char *command = attr(it, "command"), *item_name = attr(it, "name"), *raw = attr(it, "label"), id[256], label[ORIONC_STRING_SIZE];
+        command_ref(id, sizeof(id), command, name, item_name, raw); cstr(label, sizeof(label), raw);
+        OUT("  { %s, %s, NULL, 0 },\n", label, id);
+        free(command); free(item_name); free(raw);
+      }
+    }
+    OUT("};\n#define %s_COUNT ((int)(sizeof(%s_ITEMS) / sizeof(%s_ITEMS[0])))\n\n", base, base, base);
+    free(name);
+  }
 }
 
 static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
@@ -580,16 +616,18 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
       }
     }
     
+    char *context = attrs_first(c, "context-menu", "context_menu"), context_items[192] = "NULL", context_count[192] = "0";
+    if (context && *context) { char context_id[128]; ident(context_id, sizeof(context_id), context, true); snprintf(context_items, sizeof(context_items), "CONTEXT_MENU_%s_ITEMS", context_id); snprintf(context_count, sizeof(context_count), "CONTEXT_MENU_%s_COUNT", context_id); }
     cstr(classq, sizeof(classq), klass); cstr(textq, sizeof(textq), a.v[A_TEXT]); cstr(nameq, sizeof(nameq), a.v[A_NAME]);
-    OUT("  { %s, %s, { %d, %d }, %s, %s, %s, %u, %u, NULL, 0, %s, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %s, %s, %s, %s, %s },\n",
+    OUT("  { %s, %s, { %d, %d }, %s, %s, %s, %u, %u, NULL, 0, %s, { %d, %d, %d, %d }, { %d, %d, %d, %d }, %s, %s, %s, %s, %s, %s, %s, %s },\n",
         classq, id, sz.w, sz.h, flags, textq, nameq,
         (unsigned)enum_parse_token(a.v[A_HA], kAlignH, ARRAY_LEN(kAlignH), 0),
         (unsigned)enum_parse_token(a.v[A_VA], kAlignV, ARRAY_LEN(kAlignV), 0),
         spacing, pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h,
-        nz(parent_id, "0"), font, a.v[A_FONT] ? "true" : "false", color, a.v[A_COLOR] ? "true" : "false", lparam);
+        nz(parent_id, "0"), font, a.v[A_FONT] ? "true" : "false", color, a.v[A_COLOR] ? "true" : "false", lparam, context_items, context_count);
     (*count)++;
     emit_controls_ex(f, c, form, id, bindings, count, btn_ids);
-    free_attrs(&a);
+    free(context); free_attrs(&a);
   }
 }
 
@@ -663,13 +701,13 @@ int main(int argc, char **argv) {
   if (!elem(root, "orion")) { fprintf(stderr, "orionc_alt: %s is not an <orion> document\n", input); if (doc) xmlFreeDoc(doc); return 1; }
   FILE *f = fopen(output, "wb"); if (!f) { perror(output); xmlFreeDoc(doc); return 1; }
   char guard[256], pre[128]; ident(guard, sizeof(guard), output, true); ident(pre, sizeof(pre), prefix, false);
-  xmlNodePtr menus = child(root, "menus"), toolbars = child(root, "toolbars"), forms = child(root, "forms"), databases = child(root, "databases"), database = databases ? child(databases, "database") : child(root, "database");
-  ids_t commands = {0}, controls = {0}; collect_command_ids(&commands, menus, toolbars);
+  xmlNodePtr menus = child(root, "menus"), contexts = child(root, "contextmenus"), toolbars = child(root, "toolbars"), forms = child(root, "forms"), databases = child(root, "databases"), database = databases ? child(databases, "database") : child(root, "database");
+  ids_t commands = {0}, controls = {0}; collect_command_ids(&commands, menus, toolbars); collect_context_ids(&commands, contexts);
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"), form_id[128]; if (!only || eq(name, only)) { ident(form_id, sizeof(form_id), name, false); collect_control_ids(&controls, form, form_id); } free(name); }
   tpl(f, "/* Generated by orionc_alt from {{input}}. */\n#ifndef {{guard}}\n#define {{guard}}\n\n#include \"ui.h\"\n#include \"user/icons.h\"\n\n",
       (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
   emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
-  emit_menus(f, menus); emit_toolbars(f, toolbars); emit_database(f, database, pre);
+  emit_menus(f, menus); emit_context_menus(f, contexts); emit_toolbars(f, toolbars); emit_database(f, database, pre);
   int emitted = 0;
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; emitted++; } free(name); }
   OUT("#endif /* %s */\n", guard);

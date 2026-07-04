@@ -47,10 +47,39 @@
             <item name="manage" label="Manage Remotes..." />
         </menu>
 
+        <menu name="tag" label="Tag">
+            <item name="create" label="Create Tag..." />
+            <item name="delete" label="Delete Tag..." />
+            <Separator />
+            <item name="push" label="Push Tags" />
+        </menu>
+
         <menu name="help" label="Help">
             <item name="about" label="About Git Client" />
         </menu>
     </menus>
+
+    <contextMenus>
+        <contextMenu name="branches">
+            <item command="branch.checkout" label="Checkout" />
+            <item command="branch.merge" label="Merge Into Current" />
+            <separator />
+            <item command="branch.delete" label="Delete" />
+        </contextMenu>
+        <contextMenu name="tags">
+            <item command="tag.delete" label="Delete Tag" />
+        </contextMenu>
+        <contextMenu name="stash">
+            <item command="commit.stash_pop" label="Pop" />
+            <item name="drop" label="Drop" />
+        </contextMenu>
+        <contextMenu name="files">
+            <item name="stage" label="Stage" />
+            <item name="unstage" label="Unstage" />
+            <separator />
+            <item name="discard" label="Discard" />
+        </contextMenu>
+    </contextMenus>
 
     <toolbars>
         <toolbar name="main">
@@ -97,6 +126,20 @@
                 <field name="id" type="integer" key="YES"/>
                 <field name="content" type="string" length="262144"/>
             </table>
+
+            <table name="tags">
+                <field name="id" type="integer" key="YES"/>
+                <field name="name" type="string" length="256"/>
+                <field name="hash" type="string" length="41"/>
+                <field name="date" type="string" length="20"/>
+            </table>
+
+            <table name="stash">
+                <field name="id" type="integer" key="YES"/>
+                <field name="ref" type="string" length="64"/>
+                <field name="message" type="string" length="512"/>
+                <field name="branch" type="string" length="256"/>
+            </table>
         </database>
     </databases>
 
@@ -112,34 +155,58 @@
               toolbar="main">
             <requires library="gitclient_components" />
             <SplitView name="main_split" flags="flexspace">
-                <TableView name="branches"
-                           source="db.branches"
-                           flags="notitle,nofill,vscroll"
-                           width="180">
-                    <Column field="name" title="" width="0" />
-                </TableView>
+                <SplitView name="left_split" orientation="vertical"
+                           flags="flexspace" width="180">
+                    <TableView name="branches"
+                               source="db.branches"
+                               context-menu="branches"
+                               flags="notitle,nofill,vscroll">
+                        <Column field="name" title="" width="0" />
+                    </TableView>
+                    <TableView name="tags"
+                               source="db.tags"
+                               context-menu="tags"
+                               flags="notitle,nofill,vscroll">
+                        <Column field="name" title="Tag" width="0" />
+                        <Column field="date" title="Date" width="80" />
+                    </TableView>
+                    <TableView name="stash_list"
+                               source="db.stash"
+                               context-menu="stash"
+                               flags="notitle,nofill,vscroll">
+                        <Column field="message" title="Stash" width="0" />
+                        <Column field="branch" title="Branch" width="80" />
+                    </TableView>
+                </SplitView>
+                <SplitView name="content_split" orientation="vertical" flags="flexspace">
+                    <stack orientation="horizontal" spacing="4" width="0" height="24">
+                        <textedit name="search" flags="flexspace" />
+                        <button name="filter_btn" text="Filter" />
+                    </stack>
+                    <SplitView name="main_content" flags="flexspace">
+                        <SplitView name="log_files_split"
+                                   orientation="vertical" flags="flexspace">
+                            <TableView name="log"
+                                       source="db.commits"
+                                       flags="notitle,nofill,vscroll,flexspace">
+                                <Column field="subject" title="Subject" width="0" />
+                                <Column field="author" title="Author" width="110" />
+                                <Column field="date" title="Date" width="90" />
+                                <Column field="hash" title="Hash" width="50" />
+                            </TableView>
 
-                <SplitView name="content_split" flags="flexspace">
-                    <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
-                        <TableView name="log"
-                                   source="db.commits"
-                                   flags="notitle,nofill,vscroll,flexspace">
-                            <Column field="subject" title="Subject" width="0" />
-                            <Column field="author" title="Author" width="110" />
-                            <Column field="date" title="Date" width="90" />
-                            <Column field="hash" title="Hash" width="50" />
-                        </TableView>
+                            <TableView name="files"
+                                       source="db.files"
+                                       context-menu="files"
+                                       flags="notitle,nofill,vscroll,flexspace">
+                                <Column field="status" title="St" width="20" />
+                                <Column field="path" title="File" width="0" />
+                            </TableView>
+                        </SplitView>
 
-                        <TableView name="files"
-                                   source="db.files"
-                                   flags="notitle,nofill,vscroll,flexspace">
-                            <Column field="status" title="St" width="20" />
-                            <Column field="path" title="File" width="0" />
-                        </TableView>
+                        <DiffView name="diff"
+                                  flags="notitle,nofill,vscroll,flexspace"/>
                     </SplitView>
-
-                    <DiffView name="diff"
-                              flags="notitle,nofill,vscroll,flexspace"/>
                 </SplitView>
             </SplitView>
         </form>
@@ -231,6 +298,33 @@
               padding="8">
             <label text="Remotes:" />
             <combobox name="remote_list" flags="flexspace" />
+        <form name="conflict_dialog"
+              title="Merge Conflicts"
+              width="400"
+              height="280"
+              auto_layout="1"
+              spacing="6"
+              padding="8">
+            <label text="Conflicted files:" />
+            <combobox name="file_list" flags="flexspace" />
+            <stack orientation="horizontal" spacing="6">
+                <button name="ours" text="Accept Ours" flags="default" />
+                <button name="theirs" text="Accept Theirs" />
+                <button name="both" text="Accept Both" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <space />
+                <button name="abort" text="Abort Merge" />
+                <button name="close" text="Close" />
+            </stack>
+        </form>
+
+        <form name="create_tag_dialog"
+              title="Create Tag"
+              width="320"
+              auto_layout="1"
+              spacing="6"
+              padding="8">
             <stack orientation="horizontal" spacing="6">
                 <label text="Name:" />
                 <textedit name="name" flags="flexspace" />
@@ -245,6 +339,13 @@
                 <button name="remove" text="Remove" />
                 <space />
                 <button name="close" text="Close" flags="default" />
+                <label text="Ref:" />
+                <textedit name="ref" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <space />
+                <button name="ok" text="Create" flags="default" />
+                <button name="cancel" text="Cancel" />
             </stack>
         </form>
 

@@ -744,6 +744,8 @@ static void create_form_children_flat(window_t *parent, const form_ctrl_def_t *c
     if (!child) continue;
     
     child->id = cd->id;
+    child->context_menu = cd->context_menu;
+    child->context_menu_count = cd->context_menu_count;
     child->layout.h_align = child_h_align;
     child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;
@@ -899,6 +901,8 @@ static void create_form_children(window_t *parent, const form_ctrl_def_t *childr
                                     &child_frame, parent, cp, 0, (void *)cd);
     if (!child) continue;
     child->id = cd->id;
+    child->context_menu = cd->context_menu;
+    child->context_menu_count = cd->context_menu_count;
     child->layout.h_align = child_h_align;
     child->layout.v_align = child_v_align;
     child->layout.layout_margin = cd->margin;
@@ -958,4 +962,3 @@ void enable_window(window_t *win, bool enable) {
   window_set_state(win, WINDOW_STATE_DISABLED, !enable);
   invalidate_window(win);
 }
-

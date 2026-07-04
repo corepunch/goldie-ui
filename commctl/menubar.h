@@ -43,4 +43,14 @@ typedef struct {
 
 result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
+// Show a context-menu popup at screen coordinates.
+// Items are shallow-copied; the caller must keep the menu_item_t array alive
+// only until this function returns (the array is copied into the popup).
+// The popup sends evCommand to notify_win with:
+//   HIWORD(wparam) = kMenuBarNotificationItemClick
+//   LOWORD(wparam) = the selected item's id
+// Returns true on success.
+bool show_popup_menu(window_t *notify_win, const menu_item_t *items,
+                     int item_count, int screen_x, int screen_y);
+
 #endif  /* __UI_MENUBAR_H__ */

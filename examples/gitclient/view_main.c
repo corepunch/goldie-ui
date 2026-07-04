@@ -2,6 +2,7 @@
 
 #include "gitclient.h"
 #include "../../user/vga_font.h"
+#include "../../commctl/menubar.h"
 
 // ============================================================
 // Open / refresh
@@ -37,9 +38,15 @@ void gc_refresh_all(void) {
   if (!gc || !gc->repo) return;
 
   gc_load_from_git();
+  gc_load_tags();
+  gc_load_stash();
 
   if (gc->branches_win)
     send_message(gc->branches_win, tvRefresh, 0, NULL);
+  if (gc->tags_win)
+    send_message(gc->tags_win, tvRefresh, 0, NULL);
+  if (gc->stash_win)
+    send_message(gc->stash_win, tvRefresh, 0, NULL);
   if (gc->branches_win) {
     result_node_t *rows = (result_node_t *)send_db_message(
       gc->db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
@@ -80,33 +87,43 @@ void gc_update_status(void) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->main_win) return;
 
-  char status[256] = "No repository";
-  if (gc->repo) {
-    char branch[128] = "HEAD";
-    git_current_branch(gc->repo, branch, sizeof(branch));
+    char status[384] = "No repository";
+    if (gc->repo) {
+      char branch[128] = "HEAD";
+      git_current_branch(gc->repo, branch, sizeof(branch));
 
-    char ahead[16] = "?", behind[16] = "?";
-    {
-      char buf[64] = {0};
-      const char *aa[] = { "git", "rev-list", "--count", "@{u}..HEAD", NULL };
-      if (git_run_sync(gc->repo, aa, buf, sizeof(buf))) {
-        char *nl = strchr(buf, '\n');
-        if (nl) *nl = '\0';
-        strncpy(ahead, buf, sizeof(ahead) - 1);
+      // Dirty indicator
+      bool dirty = false;
+      {
+        char buf[64] = {0};
+        const char *aa[] = { "git", "status", "--porcelain", NULL };
+        if (git_run_sync(gc->repo, aa, buf, sizeof(buf)) && buf[0])
+          dirty = true;
       }
-    }
-    {
-      char buf[64] = {0};
-      const char *aa[] = { "git", "rev-list", "--count", "HEAD..@{u}", NULL };
-      if (git_run_sync(gc->repo, aa, buf, sizeof(buf))) {
-        char *nl = strchr(buf, '\n');
-        if (nl) *nl = '\0';
-        strncpy(behind, buf, sizeof(behind) - 1);
+
+      char ahead[16] = "?", behind[16] = "?";
+      {
+        char buf[64] = {0};
+        const char *aa[] = { "git", "rev-list", "--count", "@{u}..HEAD", NULL };
+        if (git_run_sync(gc->repo, aa, buf, sizeof(buf))) {
+          char *nl = strchr(buf, '\n');
+          if (nl) *nl = '\0';
+          strncpy(ahead, buf, sizeof(ahead) - 1);
+        }
       }
+      {
+        char buf[64] = {0};
+        const char *aa[] = { "git", "rev-list", "--count", "HEAD..@{u}", NULL };
+        if (git_run_sync(gc->repo, aa, buf, sizeof(buf))) {
+          char *nl = strchr(buf, '\n');
+          if (nl) *nl = '\0';
+          strncpy(behind, buf, sizeof(behind) - 1);
+        }
+      }
+      snprintf(status, sizeof(status),
+               "Branch: %s%s  ^%s  v%s",
+               branch, dirty ? " *" : "", ahead, behind);
     }
-    snprintf(status, sizeof(status),
-             "Branch: %s  ^%s  v%s", branch, ahead, behind);
-  }
   send_message(gc->main_win, evStatusBar, 0, (void *)status);
 }
 
@@ -126,6 +143,9 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       // The generated form owns hierarchy, sizing, and database propagation.
       // The controller only keeps outlets for event routing and refreshes.
       gc->branches_win = get_window_item(win, ID_MAIN_WINDOW_BRANCHES);
+      gc->tags_win = get_window_item(win, ID_MAIN_WINDOW_TAGS);
+      gc->stash_win = get_window_item(win, ID_MAIN_WINDOW_STASH_LIST);
+      gc->search_win = get_window_item(win, ID_MAIN_WINDOW_SEARCH);
       gc->log_win = get_window_item(win, ID_MAIN_WINDOW_LOG);
       gc->files_win = get_window_item(win, ID_MAIN_WINDOW_FILES);
       gc->diff_win = get_window_item(win, ID_MAIN_WINDOW_DIFF);
@@ -157,8 +177,18 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
     case evCommand: {
       uint16_t code = (uint16_t)HIWORD(wparam);
 
+      if (code == kMenuBarNotificationItemClick) {
+        gc_handle_command(LOWORD(wparam));
+        return true;
+      }
+
       if (code == btnClicked || code == 0) {
-        gc_handle_command((uint16_t)LOWORD(wparam));
+        uint16_t id = (uint16_t)LOWORD(wparam);
+        if (id == ID_MAIN_WINDOW_FILTER_BTN) {
+          gc_search();
+          return true;
+        }
+        gc_handle_command(id);
         return true;
       }
 
@@ -218,6 +248,12 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
         if (!gc) return false;
         int idx       = (int)(int16_t)LOWORD(wparam);
         window_t *src = (window_t *)lparam;
+
+        if (src == gc->stash_win) {
+          gc_stash_pop();
+          gc_refresh_all();
+          return true;
+        }
 
         if (src == gc->files_win && gc->selected_commit < 0 &&
             gc->repo && idx >= 0) {

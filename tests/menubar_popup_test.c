@@ -449,6 +449,35 @@ void test_submenu_click_transfers_to_sibling_item(void) {
     PASS();
 }
 
+void test_context_popup_dispatches_to_owner(void) {
+    TEST("Context popup dispatches through the normal menu command notification");
+
+    test_env_init();
+    reset_counters();
+
+    window_t *owner = test_env_create_window("owner", 0, 0, 300, 200,
+                                              menubar_proc_basic, NULL);
+    ASSERT_NOT_NULL(owner);
+    ASSERT_TRUE(show_popup_menu(owner, kTestItems,
+                               (int)(sizeof(kTestItems) / sizeof(kTestItems[0])),
+                               20, 30));
+    ASSERT_EQUAL(count_windows(), 2);
+
+    window_t *popup = find_other_window(owner);
+    ASSERT_NOT_NULL(popup);
+    send_message(popup, evLeftButtonDown, MAKEDWORD(10, 5), NULL);
+    send_message(popup, evLeftButtonUp, MAKEDWORD(10, 5), NULL);
+
+    ASSERT_EQUAL(g_cmd_count, 1);
+    ASSERT_EQUAL(g_cmd_last_id, 1);
+    ASSERT_EQUAL(count_windows(), 1);
+    ASSERT_NULL(g_ui_runtime.captured);
+
+    destroy_window(owner);
+    test_env_shutdown();
+    PASS();
+}
+
 // ---- main -------------------------------------------------------------------
 
 int main(int argc, char *argv[]) {
@@ -464,6 +493,7 @@ int main(int argc, char *argv[]) {
     test_popup_no_action_on_mouseup_without_press();
     test_submenu_opens_and_dispatches_child_item();
     test_submenu_click_transfers_to_sibling_item();
+    test_context_popup_dispatches_to_owner();
 
     TEST_END();
 }

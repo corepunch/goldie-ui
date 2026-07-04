@@ -316,6 +316,34 @@ bool gc_remove_remote(const char *name) {
   const char *args[] = { "git", "remote", "remove", name, NULL };
   if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
     GC_LOG("gc_remove_remote failed: %s", buf);
+// Tags
+// ═══════════════════════════════════════════════════════════════════════════
+
+void gc_load_tags(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !gc->db) return;
+
+  send_db_message(gc->db, dbDelete, ID_DB_TAGS, (void *)(intptr_t)0);
+
+  git_tag_t raw[GC_MAX_TAGS];
+  int count = git_get_tags(gc->repo, raw, GC_MAX_TAGS);
+  for (int i = 0; i < count; i++) {
+    db_tag_t rec = {0};
+    strncpy(rec.name, raw[i].name, sizeof(rec.name) - 1);
+    strncpy(rec.hash, raw[i].hash, sizeof(rec.hash) - 1);
+    strncpy(rec.date, raw[i].date, sizeof(rec.date) - 1);
+    send_db_message(gc->db, dbInsert, ID_DB_TAGS, &rec);
+  }
+  GC_LOG("gc_load_tags: %d tags", count);
+}
+
+bool gc_create_tag(const char *name, const char *ref) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "tag", name, ref && ref[0] ? ref : NULL, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_create_tag failed: %s", buf);
     return false;
   }
   return true;
@@ -328,9 +356,92 @@ bool gc_set_remote_url(const char *name, const char *url) {
   const char *args[] = { "git", "remote", "set-url", name, url, NULL };
   if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
     GC_LOG("gc_set_remote_url failed: %s", buf);
+bool gc_delete_tag(const char *name) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "tag", "-d", name, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_delete_tag failed: %s", buf);
     return false;
   }
   return true;
+}
+
+void gc_push_tags(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return;
+  const char *args[] = { "git", "push", "--tags", NULL };
+  git_run_async(gc->repo, GIT_OP_GENERIC, args, gc->main_win);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Search / filter
+// ═══════════════════════════════════════════════════════════════════════════
+
+void gc_search(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return;
+  char query[256] = {0};
+  if (gc->search_win)
+    send_message(gc->search_win, edGetText, sizeof(query), query);
+  GC_LOG("gc_search: %s", query);
+  gc_refresh_all();
+  set_focus(gc->search_win);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Conflict resolution
+// ═══════════════════════════════════════════════════════════════════════════
+
+int gc_get_conflicted_files(char (*out)[512], int max) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || max <= 0) return 0;
+  char buf[16 * 1024] = {0};
+  const char *args[] = { "git", "diff", "--name-only", "--diff-filter=U", NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) return 0;
+  int count = 0;
+  char *p = buf;
+  while (*p && count < max) {
+    char *nl = strchr(p, '\n');
+    if (!nl) break;
+    *nl = '\0';
+    if (p[0]) { strncpy(out[count], p, 511); out[count][511] = '\0'; count++; }
+    p = nl + 1;
+  }
+  return count;
+}
+
+bool gc_conflict_resolve(const char *path, const char *strategy) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !path || !strategy) return false;
+  char buf[1024] = {0};
+
+  if (strcmp(strategy, "ours") == 0) {
+    const char *args[] = { "git", "checkout", "--ours", path, NULL };
+    if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) return false;
+    const char *add_args[] = { "git", "add", path, NULL };
+    return git_run_sync(gc->repo, add_args, buf, sizeof(buf));
+  }
+  if (strcmp(strategy, "theirs") == 0) {
+    const char *args[] = { "git", "checkout", "--theirs", path, NULL };
+    if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) return false;
+    const char *add_args[] = { "git", "add", path, NULL };
+    return git_run_sync(gc->repo, add_args, buf, sizeof(buf));
+  }
+  if (strcmp(strategy, "both") == 0) {
+    const char *add_args[] = { "git", "add", path, NULL };
+    return git_run_sync(gc->repo, add_args, buf, sizeof(buf));
+  }
+  return false;
+}
+
+void gc_abort_merge(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "merge", "--abort", NULL };
+  git_run_sync(gc->repo, args, buf, sizeof(buf));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -392,6 +503,43 @@ bool gc_stage_hunk(const char *path, int hunk_idx) {
   remove(tmp_path);
   if (!ok) GC_LOG("gc_stage_hunk failed: %s", buf);
   return ok;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Stash list
+// ═══════════════════════════════════════════════════════════════════════════
+
+void gc_load_stash(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !gc->db) return;
+  send_db_message(gc->db, dbDelete, ID_DB_STASH, (void *)(intptr_t)0);
+  git_stash_t raw[64];
+  int count = git_get_stash(gc->repo, raw, 64);
+  for (int i = 0; i < count; i++) {
+    db_stash_t rec = {0};
+    strncpy(rec.ref, raw[i].ref, sizeof(rec.ref) - 1);
+    strncpy(rec.message, raw[i].message, sizeof(rec.message) - 1);
+    strncpy(rec.branch, raw[i].branch, sizeof(rec.branch) - 1);
+    send_db_message(gc->db, dbInsert, ID_DB_STASH, &rec);
+  }
+  GC_LOG("gc_load_stash: %d entries", count);
+}
+
+bool gc_stash_drop(const char *ref) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !ref) return false;
+  char buf[512] = {0};
+  const char *args[] = { "git", "stash", "drop", ref, NULL };
+  return git_run_sync(gc->repo, args, buf, sizeof(buf));
+}
+
+bool gc_stash_branch(const char *name, const char *ref) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "stash", "branch", name,
+                          ref && ref[0] ? ref : NULL, NULL };
+  return git_run_sync(gc->repo, args, buf, sizeof(buf));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

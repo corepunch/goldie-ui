@@ -462,6 +462,99 @@ bool git_get_remote_url(git_repo_t *repo, const char *name, char *buf, int buf_s
   char *nl = strchr(buf, '\n');
   if (nl) *nl = '\0';
   return true;
+// Public: git tags
+// ============================================================
+
+int git_get_tags(git_repo_t *repo, git_tag_t *out, int max) {
+  if (!repo || !out || max <= 0) return 0;
+
+  char buf[16 * 1024];
+  const char *args[] = {
+    "git", "tag", "--sort=-creatordate",
+    "--format=%(refname:short)%x1f%(objectname:short)%x1f%(creatordate:format:%Y-%m-%d)",
+    NULL
+  };
+  git_run_sync(repo, args, buf, sizeof(buf));
+
+  int count = 0;
+  char *p = buf;
+  while (*p && count < max) {
+    char *nl = strchr(p, '\n');
+    if (!nl) break;
+    *nl = '\0';
+
+    char *name = p;
+    char *hash_sep = strchr(p, '\x1f');
+    if (!hash_sep) { p = nl + 1; continue; }
+    *hash_sep = '\0';
+    char *hash = hash_sep + 1;
+    char *date_sep = strchr(hash, '\x1f');
+    if (!date_sep) { p = nl + 1; continue; }
+    *date_sep = '\0';
+    char *date = date_sep + 1;
+
+    git_tag_t *t = &out[count];
+    strncpy(t->name, name, sizeof(t->name) - 1);
+    strncpy(t->hash, hash, sizeof(t->hash) - 1);
+    strncpy(t->date, date, sizeof(t->date) - 1);
+    count++;
+
+    p = nl + 1;
+  }
+  GC_LOG("git_get_tags: %d tags", count);
+  return count;
+}
+
+// ============================================================
+// Public: git stash list
+// ============================================================
+
+int git_get_stash(git_repo_t *repo, git_stash_t *out, int max) {
+  if (!repo || !out || max <= 0) return 0;
+
+  char buf[16 * 1024];
+  const char *args[] = {
+    "git", "stash", "list",
+    "--format=%h%x1f%s%x1f%D",
+    NULL
+  };
+  git_run_sync(repo, args, buf, sizeof(buf));
+
+  int count = 0;
+  char *p = buf;
+  while (*p && count < max) {
+    char *nl = strchr(p, '\n');
+    if (!nl) break;
+    *nl = '\0';
+
+    char *ref = p;
+    char *msg_sep = strchr(p, '\x1f');
+    if (!msg_sep) { p = nl + 1; continue; }
+    *msg_sep = '\0';
+    char *msg = msg_sep + 1;
+    char *branch_sep = strchr(msg, '\x1f');
+    if (!branch_sep) { p = nl + 1; continue; }
+    *branch_sep = '\0';
+    char *branch = branch_sep + 1;
+
+    // Strip "refs/stash" prefix from %D if present, extract branch name
+    // %D format: "refs/stash" or "refs/stash, origin/main"
+    char *comma = strchr(branch, ',');
+    if (comma) *comma = '\0';
+    // Skip "refs/stash" prefix separator ":"
+    char *colon = strchr(branch, ':');
+    if (colon) branch = colon + 1;
+
+    git_stash_t *s = &out[count];
+    strncpy(s->ref, ref, sizeof(s->ref) - 1);
+    strncpy(s->message, msg, sizeof(s->message) - 1);
+    strncpy(s->branch, branch[0] ? branch : "(unnamed)", sizeof(s->branch) - 1);
+    count++;
+
+    p = nl + 1;
+  }
+  GC_LOG("git_get_stash: %d entries", count);
+  return count;
 }
 
 // ============================================================

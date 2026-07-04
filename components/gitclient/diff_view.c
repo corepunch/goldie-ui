@@ -97,6 +97,22 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
         return true;
       }
 
+      // j/k scroll (vim-style)
+      if (wparam == AX_KEY_J) {
+        st->scroll_y = CLAMP(st->scroll_y + 1, 0, max_scroll_start(win, st));
+        scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+        set_scroll_info(win, SB_VERT, &si, false);
+        invalidate_window(win);
+        return true;
+      }
+      if (wparam == AX_KEY_K) {
+        st->scroll_y = CLAMP(st->scroll_y - 1, 0, max_scroll_start(win, st));
+        scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+        set_scroll_info(win, SB_VERT, &si, false);
+        invalidate_window(win);
+        return true;
+      }
+
       if (st->hunk_count > 0) {
         if (wparam == AX_KEY_UPARROW) {
           st->current_hunk = MAX(0, st->current_hunk - 1);
@@ -132,6 +148,24 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
       if (wparam == AX_KEY_UPARROW || wparam == AX_KEY_DOWNARROW) {
         int dir = (wparam == AX_KEY_UPARROW) ? -1 : 1;
         st->scroll_y = CLAMP(st->scroll_y + dir * 3, 0, max_scroll_start(win, st));
+        scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+        set_scroll_info(win, SB_VERT, &si, false);
+        invalidate_window(win);
+        return true;
+      }
+
+      // Page Up / Down
+      if (wparam == AX_KEY_PGUP) {
+        int vis = visible_lines(win);
+        st->scroll_y = CLAMP(st->scroll_y - vis, 0, max_scroll_start(win, st));
+        scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
+        set_scroll_info(win, SB_VERT, &si, false);
+        invalidate_window(win);
+        return true;
+      }
+      if (wparam == AX_KEY_PGDN) {
+        int vis = visible_lines(win);
+        st->scroll_y = CLAMP(st->scroll_y + vis, 0, max_scroll_start(win, st));
         scroll_info_t si = { .fMask = SIF_POS, .nPos = st->scroll_y };
         set_scroll_info(win, SB_VERT, &si, false);
         invalidate_window(win);

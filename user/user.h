@@ -11,6 +11,7 @@
 
 // Forward declarations
 typedef struct window_s window_t;
+struct menu_item_s;
 typedef struct irect16_s irect16_t;
 typedef struct database_s database_t;
 typedef uint32_t flags_t;
@@ -237,6 +238,8 @@ typedef struct form_ctrl_def_s {
   uint8_t           color;   // label color palette index; 0 = transparent
   bool              color_set; // color attribute explicitly set
   const void       *lparam;  // custom control creation parameter (e.g. tableview_params_t*)
+  const struct menu_item_s *context_menu; // generated declarative menu; not owned
+  int               context_menu_count;
 } form_ctrl_def_t;
 
 // Describes a complete form (window + children) as a serializable definition
@@ -470,6 +473,8 @@ struct window_s {
   struct window_s *children;
   struct window_s *parent;
   struct window_s *toolbar; // toolbar host window (win_toolbar); state lives in toolbar->userdata
+  const struct menu_item_s *context_menu; // generated declarative menu; not owned
+  int                       context_menu_count;
 };
 
 static inline bool window_has_state(const window_t *win, uint32_t state_flag) {
