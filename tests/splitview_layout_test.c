@@ -8,8 +8,17 @@ static result_t nop_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpa
 }
 
 static window_t *find_splitter(window_t *win) {
-  for (window_t *child = win ? win->children : NULL; child; child = child->next)
-    if (child->proc == win_splitter) return child;
+  // NOTE: Must compare by class name, not by proc pointer.
+  // On Windows (MinGW DLLs), a function pointer obtained from outside the DLL
+  // points to the import stub, while the same pointer inside the DLL points to
+  // the real function.  Direct child->proc == win_splitter comparison would
+  // fail.  Using find_window_class_desc_by_proc() avoids this because both the
+  // stored registry pointer and the child->proc are the real function address.
+  for (window_t *child = win ? win->children : NULL; child; child = child->next) {
+    const fe_component_desc_t *desc = find_window_class_desc_by_proc(child->proc);
+    if (desc && strcmp(desc->class_name, "Splitter") == 0)
+      return child;
+  }
   return NULL;
 }
 
