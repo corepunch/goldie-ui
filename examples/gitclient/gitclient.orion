@@ -298,6 +298,22 @@
               padding="8">
             <label text="Remotes:" />
             <combobox name="remote_list" flags="flexspace" />
+            <stack orientation="horizontal" spacing="6">
+                <label text="Name:" />
+                <textedit name="name" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <label text="URL:" />
+                <textedit name="url" flags="flexspace" />
+            </stack>
+            <stack orientation="horizontal" spacing="6">
+                <button name="add" text="Add" />
+                <button name="update" text="Update" />
+                <button name="remove" text="Remove" />
+                <space />
+                <button name="close" text="Close" flags="default" />
+            </stack>
+        </form>
         <form name="conflict_dialog"
               title="Merge Conflicts"
               width="400"
@@ -330,15 +346,6 @@
                 <textedit name="name" flags="flexspace" />
             </stack>
             <stack orientation="horizontal" spacing="6">
-                <label text="URL:" />
-                <textedit name="url" flags="flexspace" />
-            </stack>
-            <stack orientation="horizontal" spacing="6">
-                <button name="add" text="Add" />
-                <button name="update" text="Update" />
-                <button name="remove" text="Remove" />
-                <space />
-                <button name="close" text="Close" flags="default" />
                 <label text="Ref:" />
                 <textedit name="ref" flags="flexspace" />
             </stack>

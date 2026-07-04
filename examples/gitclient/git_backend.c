@@ -467,6 +467,7 @@ bool git_get_remote_url(git_repo_t *repo, const char *name, char *buf, int buf_s
   char *nl = strchr(buf, '\n');
   if (nl) *nl = '\0';
   return true;
+}
 // Public: git tags
 // ============================================================
 

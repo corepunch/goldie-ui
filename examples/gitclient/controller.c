@@ -316,6 +316,23 @@ bool gc_remove_remote(const char *name) {
   const char *args[] = { "git", "remote", "remove", name, NULL };
   if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
     GC_LOG("gc_remove_remote failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
+bool gc_set_remote_url(const char *name, const char *url) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo || !name || !name[0] || !url || !url[0]) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "remote", "set-url", name, url, NULL };
+  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
+    GC_LOG("gc_set_remote_url failed: %s", buf);
+    return false;
+  }
+  return true;
+}
+
 // Tags
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -348,14 +365,6 @@ bool gc_create_tag(const char *name, const char *ref) {
   }
   return true;
 }
-
-bool gc_set_remote_url(const char *name, const char *url) {
-  gc_state_t *gc = g_gc;
-  if (!gc || !gc->repo || !name || !name[0] || !url || !url[0]) return false;
-  char buf[1024] = {0};
-  const char *args[] = { "git", "remote", "set-url", name, url, NULL };
-  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
-    GC_LOG("gc_set_remote_url failed: %s", buf);
 bool gc_delete_tag(const char *name) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->repo || !name || !name[0]) return false;
