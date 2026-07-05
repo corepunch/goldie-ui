@@ -100,6 +100,9 @@ static void gc_build_cmd(const char *path, const char *args[],
   for (int i = 1; args[i] && n < buf_sz - 2; i++) {
     n += snprintf(buf + n, (size_t)(buf_sz - n), " \"");
     for (const char *p = args[i]; *p && n < buf_sz - 3; p++) {
+#ifdef _WIN32
+      if (*p == '%') buf[n++] = '%'; // cmd.exe requires %% to pass a literal %
+#endif
       if (*p == '\"') buf[n++] = '\\';
       buf[n++] = *p;
     }
