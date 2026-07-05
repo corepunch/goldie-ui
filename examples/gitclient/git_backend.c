@@ -27,6 +27,10 @@
 
 #include "gitclient.h"
 
+#define GC_CMD_BUF_SIZE 2048
+#define GC_LOG_PRETTY_FMT "%H\x1f%an\x1f%ad\x1f%s\x1e"
+#define GC_LOG_PRETTY_FMT_ESCAPED "%%H\x1f%%an\x1f%%ad\x1f%%s\x1e"
+
 #ifdef _WIN32
 #  include <windows.h>
 #  include <io.h>    // _access()
@@ -87,8 +91,8 @@ static void git_thread_detach(git_thread_t t) { (void)t; /* already detached */ 
 // always reachable regardless of the launch environment.
 static void gc_build_cmd(const char *path, const char *args[],
                          char *buf, int buf_sz) {
-  const int pct_escape_reserve = 5; // extra '%' + original '%' + closing quote + '\0'
 #ifdef _WIN32
+  const int pct_escape_reserve = 5; // extra '%' + original '%' + closing quote + '\0'
   int n = snprintf(buf, (size_t)buf_sz,
       "set \"PATH=C:\\Program Files\\Git\\cmd;"
             "C:\\Program Files\\Git\\bin;"
@@ -139,6 +143,25 @@ static int gc_popen_read(const char *cmd, char *buf, int buf_sz) {
   return WIFEXITED(rc) ? WEXITSTATUS(rc) : -1;
 #endif
 }
+
+#ifdef _WIN32
+// Some MinGW/MSYS environments execute popen() through sh instead of cmd.exe.
+// If a first run returns literal pretty-format placeholders, collapse %% -> %
+// and retry so git receives %H/%an/%ad/%s placeholders.
+static void gc_collapse_double_percent(char *s) {
+  if (!s) return;
+  char *read_pos = s, *write_pos = s;
+  while (*read_pos) {
+    if (read_pos[0] == '%' && read_pos[1] == '%') {
+      *write_pos++ = '%';
+      read_pos += 2;
+      continue;
+    }
+    *write_pos++ = *read_pos++;
+  }
+  *write_pos = '\0';
+}
+#endif
 
 // ============================================================
 // Public: open / close repository
@@ -195,7 +218,7 @@ const char *git_repo_path(git_repo_t *repo) {
 bool git_run_sync(git_repo_t *repo, const char *args[],
                   char *buf, int buf_sz) {
   if (!repo || !args) return false;
-  char cmd[2048];
+  char cmd[GC_CMD_BUF_SIZE];
   gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
   GC_LOG("git_run_sync: %s", cmd);
   int rc = gc_popen_read(cmd, buf, buf_sz);
@@ -213,10 +236,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   // Format: hash<US>author<US>date<US>subject<RS>
   // Route through gc_build_cmd so that stderr is redirected portably (2>&1).
   char fmt_arg[256];
-  // %% in the snprintf format string produces a single %, giving git the
-  // literal %H %an %ad %s format placeholders it expects.
-  snprintf(fmt_arg, sizeof(fmt_arg),
-           "--format=%%H\x1f%%an\x1f%%ad\x1f%%s\x1e");
+  snprintf(fmt_arg, sizeof(fmt_arg), "--format=%s", GC_LOG_PRETTY_FMT);
   char count_arg[32];
   snprintf(count_arg, sizeof(count_arg), "--max-count=%d", max);
 
@@ -229,12 +249,22 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
     NULL
   };
   char buf[64 * 1024];
-  git_run_sync(repo, args, buf, sizeof(buf));
+  if (!git_run_sync(repo, args, buf, sizeof(buf))) return 0;
+#ifdef _WIN32
+  if (strstr(buf, "%H") != NULL && strstr(buf, "%an") != NULL &&
+      strstr(buf, "%ad") != NULL && strstr(buf, "%s") != NULL) {
+    char cmd[GC_CMD_BUF_SIZE];
+    gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
+    gc_collapse_double_percent(cmd);
+    gc_popen_read(cmd, buf, sizeof(buf));
+  }
+#endif
 
   int count = 0;
   char *p = buf;
   while (*p && count < max) {
     git_commit_t *c = &out[count];
+    memset(c, 0, sizeof(*c));
     char *end;
 
     // hash (40 chars)
@@ -250,7 +280,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
     end = strchr(p, '\x1f');
     if (!end) break;
     n = (int)(end - p);
-    if (n >= 64) n = 63;
+    if (n >= (int)sizeof(c->author)) n = (int)sizeof(c->author) - 1;
     memcpy(c->author, p, (size_t)n);
     c->author[n] = '\0';
     p = end + 1;
@@ -259,7 +289,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
     end = strchr(p, '\x1f');
     if (!end) break;
     n = (int)(end - p);
-    if (n >= 20) n = 19;
+    if (n >= (int)sizeof(c->date)) n = (int)sizeof(c->date) - 1;
     memcpy(c->date, p, (size_t)n);
     c->date[n] = '\0';
     p = end + 1;
@@ -274,12 +304,12 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
       break;
     }
     n = (int)(end - p);
-    if (n >= 256) n = 255;
+    while (n > 0 && (p[n - 1] == '\r' || p[n - 1] == '\n')) n--;
+    if (n >= (int)sizeof(c->subject)) n = (int)sizeof(c->subject) - 1;
     memcpy(c->subject, p, (size_t)n);
     c->subject[n] = '\0';
     p = end + 1;
-    // skip \n after record separator
-    if (*p == '\n') p++;
+    while (*p == '\r' || *p == '\n') p++;
 
     count++;
   }
@@ -574,7 +604,7 @@ int git_get_stash(git_repo_t *repo, git_stash_t *out, int max) {
 // ============================================================
 
 typedef struct {
-  char            cmd[2048];
+  char            cmd[GC_CMD_BUF_SIZE];
   git_op_t        op;
   window_t       *notify_win;
 } git_async_args_t;
