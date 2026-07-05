@@ -232,6 +232,66 @@ bool git_run_sync(git_repo_t *repo, const char *args[],
 int git_get_log_ref(git_repo_t *repo, const char *ref,
                     git_commit_t *out, int max) {
   if (!repo || !out || max <= 0) return 0;
+#ifdef _WIN32
+  char count_arg[32];
+  snprintf(count_arg, sizeof(count_arg), "--max-count=%d", max);
+  const char *args[] = {
+    "git", "log", count_arg, "--date=short", "--no-decorate",
+    ref && ref[0] ? ref : NULL,
+    NULL
+  };
+  char buf[64 * 1024];
+  git_run_sync(repo, args, buf, sizeof(buf));
+  int count = 0;
+  for (char *line = buf; line && *line && count < max; ) {
+    char *nl = strchr(line, '\n');
+    if (nl) *nl = '\0';
+    int len = (int)strlen(line);
+    while (len > 0 && (line[len - 1] == '\r' || line[len - 1] == '\n')) line[--len] = '\0';
+    if (strncmp(line, "commit ", 7) == 0) {
+      git_commit_t *c = &out[count++];
+      memset(c, 0, sizeof(*c));
+      const char *hash = line + 7;
+      const char *hash_end = hash;
+      while (*hash_end && *hash_end != ' ') hash_end++;
+      int n = (int)(hash_end - hash);
+      if (n > 40) n = 40;
+      memcpy(c->hash, hash, (size_t)n);
+      c->hash[n] = '\0';
+    } else if (count > 0) {
+      git_commit_t *c = &out[count - 1];
+      if (strncmp(line, "Author:", 7) == 0) {
+        char *author = line + 7;
+        while (*author == ' ' || *author == '\t') author++;
+        char *email = strstr(author, " <");
+        int n = email ? (int)(email - author) : (int)strlen(author);
+        while (n > 0 && (author[n - 1] == ' ' || author[n - 1] == '\t')) n--;
+        if (n >= (int)sizeof(c->author)) n = (int)sizeof(c->author) - 1;
+        memcpy(c->author, author, (size_t)n);
+        c->author[n] = '\0';
+      } else if (strncmp(line, "Date:", 5) == 0) {
+        char *date = line + 5;
+        while (*date == ' ' || *date == '\t') date++;
+        int n = (int)strlen(date);
+        if (n >= (int)sizeof(c->date)) n = (int)sizeof(c->date) - 1;
+        memcpy(c->date, date, (size_t)n);
+        c->date[n] = '\0';
+      } else if (!c->subject[0]) {
+        char *subject = line;
+        while (*subject == ' ' || *subject == '\t') subject++;
+        if (*subject) {
+          int n = (int)strlen(subject);
+          if (n >= (int)sizeof(c->subject)) n = (int)sizeof(c->subject) - 1;
+          memcpy(c->subject, subject, (size_t)n);
+          c->subject[n] = '\0';
+        }
+      }
+    }
+    line = nl ? nl + 1 : NULL;
+  }
+  GC_LOG("git_get_log: %d commits", count);
+  return count;
+#else
 
   // Format: hash<US>author<US>date<US>subject<RS>
   // Route through gc_build_cmd so that stderr is redirected portably (2>&1).
@@ -314,6 +374,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   }
   GC_LOG("git_get_log: %d commits", count);
   return count;
+#endif
 }
 
 int git_get_log(git_repo_t *repo, git_commit_t *out, int max) {
