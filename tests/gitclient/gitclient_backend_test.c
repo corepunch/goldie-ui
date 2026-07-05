@@ -285,23 +285,15 @@ void test_gc_log_hash_format(void) {
 
 void test_gc_log_feature_branch(void) {
     TEST("git_get_log: feature branch has 3 commits (inherits from main)");
-    ASSERT_TRUE(gct_git(s_repo, "checkout feature"));
-
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
     git_commit_t commits[GC_MAX_COMMITS];
-    int n = git_get_log(r, commits, GC_MAX_COMMITS);
+    int n = git_get_log_ref(r, "feature", commits, GC_MAX_COMMITS);
     ASSERT_EQUAL(n, 3);
     ASSERT_STR_EQUAL(commits[0].subject, "Feature commit");
 
     git_repo_close(r);
-
-    // Restore default branch.
-    const char *def = detect_default_branch();
-    char restore_cmd[64];
-    snprintf(restore_cmd, sizeof(restore_cmd), "checkout %s", def);
-    ASSERT_TRUE(gct_git(s_repo, restore_cmd));
 
     PASS();
 }
