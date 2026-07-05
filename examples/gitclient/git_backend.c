@@ -219,8 +219,8 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   const char *args[] = {
     "git", "log", count_arg,
     fmt_arg,
-    // String literal — not passed through snprintf, so % is verbatim for git.
-    "--date=format:%Y-%m-%d",
+    // Use --date=short (YYYY-MM-DD) to avoid cmd.exe percent expansion issues.
+    "--date=short",
     ref && ref[0] ? ref : NULL,
     NULL
   };
