@@ -140,6 +140,21 @@ static int gc_popen_read(const char *cmd, char *buf, int buf_sz) {
 #endif
 }
 
+#ifdef _WIN32
+// Some MinGW/MSYS environments execute popen() through sh instead of cmd.exe.
+// If a first run returns literal pretty-format placeholders, collapse %% -> %
+// and retry so git receives %H/%an/%ad/%s placeholders.
+static void gc_collapse_double_percent(char *s) {
+  if (!s) return;
+  char *r = s, *w = s;
+  while (*r) {
+    if (r[0] == '%' && r[1] == '%') { *w++ = '%'; r += 2; continue; }
+    *w++ = *r++;
+  }
+  *w = '\0';
+}
+#endif
+
 // ============================================================
 // Public: open / close repository
 // ============================================================
@@ -230,6 +245,14 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   };
   char buf[64 * 1024];
   git_run_sync(repo, args, buf, sizeof(buf));
+#ifdef _WIN32
+  if (strncmp(buf, "%H\x1f%an\x1f%ad\x1f%s\x1e", sizeof("%H\x1f%an\x1f%ad\x1f%s\x1e") - 1) == 0) {
+    char cmd[2048];
+    gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
+    gc_collapse_double_percent(cmd);
+    gc_popen_read(cmd, buf, sizeof(buf));
+  }
+#endif
 
   int count = 0;
   char *p = buf;
@@ -274,12 +297,12 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
       break;
     }
     n = (int)(end - p);
+    while (n > 0 && (p[n - 1] == '\r' || p[n - 1] == '\n')) n--;
     if (n >= 256) n = 255;
     memcpy(c->subject, p, (size_t)n);
     c->subject[n] = '\0';
     p = end + 1;
-    // skip \n after record separator
-    if (*p == '\n') p++;
+    while (*p == '\r' || *p == '\n') p++;
 
     count++;
   }
