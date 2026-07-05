@@ -152,6 +152,7 @@ typedef struct git_repo_s git_repo_t;
 #define gc_clone_dialog_form         gitclient_clone_dialog_form
 #define gc_remote_dialog_form        gitclient_remote_dialog_form
 #define gc_conflict_dialog_form     gitclient_conflict_dialog_form
+#define gc_search_dialog_form       gitclient_search_dialog_form
 #define gc_create_tag_dialog_form   gitclient_create_tag_dialog_form
 #define gc_push_pull_dialog_form     gitclient_push_pull_dialog_form
 #define gc_branch_rename_dialog_form gitclient_branch_rename_dialog_form
@@ -193,7 +194,6 @@ typedef struct {
   window_t    *branches_win;
   window_t    *tags_win;
   window_t    *stash_win;
-  window_t    *search_win;
   window_t    *log_win;
   window_t    *files_win;
   window_t    *diff_win;
@@ -293,7 +293,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
                       uint32_t wparam, void *lparam);
 void gc_open_repo(const char *path);
 void gc_refresh_all(void);
-void gc_search(void);
+void gc_show_search_dialog(window_t *parent);
 void gc_update_status(void);
 
 // ============================================================

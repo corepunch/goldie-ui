@@ -145,7 +145,6 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       gc->branches_win = get_window_item(win, ID_MAIN_WINDOW_BRANCHES);
       gc->tags_win = get_window_item(win, ID_MAIN_WINDOW_TAGS);
       gc->stash_win = get_window_item(win, ID_MAIN_WINDOW_STASH_LIST);
-      gc->search_win = get_window_item(win, ID_MAIN_WINDOW_SEARCH);
       gc->log_win = get_window_item(win, ID_MAIN_WINDOW_LOG);
       gc->files_win = get_window_item(win, ID_MAIN_WINDOW_FILES);
       gc->diff_win = get_window_item(win, ID_MAIN_WINDOW_DIFF);
@@ -183,12 +182,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       }
 
       if (code == btnClicked || code == 0) {
-        uint16_t id = (uint16_t)LOWORD(wparam);
-        if (id == ID_MAIN_WINDOW_FILTER_BTN) {
-          gc_search();
-          return true;
-        }
-        gc_handle_command(id);
+        gc_handle_command((uint16_t)LOWORD(wparam));
         return true;
       }
 

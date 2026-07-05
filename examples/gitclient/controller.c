@@ -385,21 +385,6 @@ void gc_push_tags(void) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Search / filter
-// ═══════════════════════════════════════════════════════════════════════════
-
-void gc_search(void) {
-  gc_state_t *gc = g_gc;
-  if (!gc || !gc->repo) return;
-  char query[256] = {0};
-  if (gc->search_win)
-    send_message(gc->search_win, edGetText, sizeof(query), query);
-  GC_LOG("gc_search: %s", query);
-  gc_refresh_all();
-  set_focus(gc->search_win);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // Conflict resolution
 // ═══════════════════════════════════════════════════════════════════════════
 

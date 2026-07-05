@@ -14,6 +14,7 @@ static const accel_t kAccelEntries[] = {
   { FVIRTKEY | FCONTROL, AX_KEY_F,  ID_REMOTE_FETCH  },
   { FVIRTKEY | FCONTROL, AX_KEY_N,  ID_BRANCH_NEW    },
   { FVIRTKEY | FCONTROL | FSHIFT, AX_KEY_N, ID_FILE_CLONE },
+  { FVIRTKEY | FCONTROL | FSHIFT, AX_KEY_F, ID_REPO_SEARCH },
   { FVIRTKEY | FCONTROL, AX_KEY_D,  ID_BRANCH_DELETE },
   { FVIRTKEY | FCONTROL, AX_KEY_M,  ID_BRANCH_MERGE  },
 };
@@ -108,6 +109,10 @@ void gc_handle_command(uint16_t id) {
 
     case ID_REPO_REFRESH:
       gc_refresh_all();
+      break;
+    case ID_REPO_SEARCH:
+      if (gc->main_win)
+        gc_show_search_dialog(gc->main_win);
       break;
     case ID_REPO_TERMINAL:
       if (gc->repo) {

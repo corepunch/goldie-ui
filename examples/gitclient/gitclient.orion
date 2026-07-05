@@ -15,6 +15,7 @@
 
         <menu name="repo" label="Repo">
             <item name="refresh" label="Refresh" />
+            <item name="search" label="Search..." />
             <item name="terminal" label="Open Terminal Here" />
         </menu>
 
@@ -178,35 +179,28 @@
                         <Column field="branch" title="Branch" width="80" />
                     </TableView>
                 </SplitView>
-                <SplitView name="content_split" orientation="vertical" flags="flexspace">
-                    <stack orientation="horizontal" spacing="4" width="0" height="24">
-                        <textedit name="search" flags="flexspace" />
-                        <button name="filter_btn" text="Filter" />
-                    </stack>
-                    <SplitView name="main_content" flags="flexspace">
-                        <SplitView name="log_files_split"
-                                   orientation="vertical" flags="flexspace">
-                            <TableView name="log"
-                                       source="db.commits"
-                                       flags="notitle,nofill,vscroll,flexspace">
-                                <Column field="subject" title="Subject" width="0" />
-                                <Column field="author" title="Author" width="110" />
-                                <Column field="date" title="Date" width="90" />
-                                <Column field="hash" title="Hash" width="50" />
-                            </TableView>
+                <SplitView name="content_split" flags="flexspace">
+                    <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
+                        <TableView name="log"
+                                   source="db.commits"
+                                   flags="notitle,nofill,vscroll,flexspace">
+                            <Column field="subject" title="Subject" width="0" />
+                            <Column field="author" title="Author" width="110" />
+                            <Column field="date" title="Date" width="90" />
+                            <Column field="hash" title="Hash" width="50" />
+                        </TableView>
 
-                            <TableView name="files"
-                                       source="db.files"
-                                       context-menu="files"
-                                       flags="notitle,nofill,vscroll,flexspace">
-                                <Column field="status" title="St" width="20" />
-                                <Column field="path" title="File" width="0" />
-                            </TableView>
-                        </SplitView>
-
-                        <DiffView name="diff"
-                                  flags="notitle,nofill,vscroll,flexspace"/>
+                        <TableView name="files"
+                                   source="db.files"
+                                   context-menu="files"
+                                   flags="notitle,nofill,vscroll,flexspace">
+                            <Column field="status" title="St" width="20" />
+                            <Column field="path" title="File" width="0" />
+                        </TableView>
                     </SplitView>
+
+                    <DiffView name="diff"
+                              flags="notitle,nofill,vscroll,flexspace"/>
                 </SplitView>
             </SplitView>
         </form>
@@ -314,6 +308,21 @@
                 <button name="close" text="Close" flags="default" />
             </stack>
         </form>
+        <form name="search_dialog"
+              title="Search"
+              width="320"
+              auto_layout="1"
+              spacing="6"
+              padding="8">
+            <label text="Search commits, branches, files:" />
+            <textedit name="query" flags="flexspace" />
+            <stack orientation="horizontal" spacing="6">
+                <space />
+                <button name="ok" text="Search" flags="default" />
+                <button name="cancel" text="Cancel" />
+            </stack>
+        </form>
+
         <form name="conflict_dialog"
               title="Merge Conflicts"
               width="400"
