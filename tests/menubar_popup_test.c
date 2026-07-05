@@ -449,6 +449,116 @@ void test_submenu_click_transfers_to_sibling_item(void) {
     PASS();
 }
 
+void test_context_popup_dispatches_to_owner(void) {
+    TEST("Context popup dispatches through the normal menu command notification");
+
+    test_env_init();
+    reset_counters();
+
+    window_t *owner = test_env_create_window("owner", 0, 0, 300, 200,
+                                              menubar_proc_basic, NULL);
+    ASSERT_NOT_NULL(owner);
+    ASSERT_TRUE(show_popup_menu(owner, kTestItems,
+                               (int)(sizeof(kTestItems) / sizeof(kTestItems[0])),
+                               20, 30));
+    ASSERT_EQUAL(count_windows(), 2);
+
+    window_t *popup = find_other_window(owner);
+    ASSERT_NOT_NULL(popup);
+    send_message(popup, evLeftButtonDown, MAKEDWORD(10, 5), NULL);
+    send_message(popup, evLeftButtonUp, MAKEDWORD(10, 5), NULL);
+
+    ASSERT_EQUAL(g_cmd_count, 1);
+    ASSERT_EQUAL(g_cmd_last_id, 1);
+    ASSERT_EQUAL(count_windows(), 1);
+    ASSERT_NULL(g_ui_runtime.captured);
+
+    destroy_window(owner);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_context_popup_submenu_dispatches_to_owner(void) {
+    TEST("Context popup submenu preserves owner command routing");
+    test_env_init(); reset_counters();
+    window_t *owner = test_env_create_window("owner", 0, 0, 300, 200,
+                                              menubar_proc_basic, NULL);
+    ASSERT_TRUE(show_popup_menu(owner, kTestItems,
+                               (int)(sizeof(kTestItems) / sizeof(kTestItems[0])), 20, 30));
+    window_t *popup = find_other_window(owner);
+    ASSERT_NOT_NULL(popup);
+    send_message(popup, evLeftButtonDown, MAKEDWORD(10, 60), NULL);
+    ASSERT_EQUAL(count_windows(), 3);
+    window_t *submenu = find_window_not(owner, popup);
+    ASSERT_NOT_NULL(submenu);
+    send_message(submenu, evLeftButtonDown, MAKEDWORD(10, 5), NULL);
+    send_message(submenu, evLeftButtonUp, MAKEDWORD(10, 5), NULL);
+    ASSERT_EQUAL(g_cmd_count, 1);
+    ASSERT_EQUAL(g_cmd_last_id, 4);
+    ASSERT_EQUAL(count_windows(), 1);
+    destroy_window(owner); test_env_shutdown(); PASS();
+}
+
+void test_opening_context_popup_replaces_previous_popup(void) {
+    TEST("Opening a context popup replaces the previous context popup");
+    test_env_init(); reset_counters();
+    window_t *owner = test_env_create_window("owner", 0, 0, 300, 200,
+                                              menubar_proc_basic, NULL);
+    ASSERT_TRUE(show_popup_menu(owner, kTestItems, 1, 20, 30));
+    window_t *first = find_other_window(owner);
+    ASSERT_NOT_NULL(first);
+    ASSERT_TRUE(show_popup_menu(owner, kTestItems, 1, 80, 90));
+    ASSERT_EQUAL(count_windows(), 2);
+    ASSERT_NOT_NULL(g_ui_runtime.captured);
+    ASSERT_EQUAL(g_ui_runtime.captured->frame.x, 80);
+    ASSERT_EQUAL(g_ui_runtime.captured->frame.y, 90);
+    destroy_window(owner); test_env_shutdown(); PASS();
+}
+
+void test_tableview_declared_context_menu_opens_and_routes(void) {
+    TEST("TableView opens its attached context menu and routes to the root");
+    test_env_init(); reset_counters();
+    window_t *owner = test_env_create_window("owner", 0, 0, 300, 200,
+                                              menubar_proc_basic, NULL);
+    irect16_t frame = {10, 10, 180, 100};
+    window_t *table = create_window("table", WINDOW_NOTITLE, &frame, owner,
+                                    win_tableview, 0, NULL);
+    ASSERT_NOT_NULL(table);
+    table->context_menu = kTestItems;
+    table->context_menu_count = 1;
+    ASSERT_TRUE(send_message(table, evRightButtonDown, MAKEDWORD(15, 20), NULL));
+    ASSERT_EQUAL(count_windows(), 2);
+    window_t *popup = find_other_window(owner);
+    ASSERT_NOT_NULL(popup);
+    send_message(popup, evLeftButtonDown, MAKEDWORD(10, 5), NULL);
+    send_message(popup, evLeftButtonUp, MAKEDWORD(10, 5), NULL);
+    ASSERT_EQUAL(g_cmd_count, 1);
+    ASSERT_EQUAL(g_cmd_last_id, 1);
+    destroy_window(owner); test_env_shutdown(); PASS();
+}
+
+void test_form_instantiation_copies_context_menu_descriptor(void) {
+    TEST("Form instantiation copies generated context menu descriptors to controls");
+    static const form_ctrl_def_t children[] = {
+        { .class_name = "TableView", .id = 77, .size = {120, 80},
+          .flags = WINDOW_NOTITLE, .context_menu = kTestItems,
+          .context_menu_count = 1 },
+    };
+    static const form_def_t form = {
+        .name = "context form", .width = 200, .height = 120,
+        .flags = WINDOW_AUTO_LAYOUT, .children = children, .child_count = 1,
+    };
+    test_env_init(); register_commctl_classes();
+    window_t *owner = create_window_from_form(&form, 0, 0, NULL,
+                                               menubar_proc_basic, 0, NULL);
+    ASSERT_NOT_NULL(owner);
+    window_t *table = get_window_item(owner, 77);
+    ASSERT_NOT_NULL(table);
+    ASSERT_TRUE(table->context_menu == kTestItems);
+    ASSERT_EQUAL(table->context_menu_count, 1);
+    destroy_window(owner); test_env_shutdown(); PASS();
+}
+
 // ---- main -------------------------------------------------------------------
 
 int main(int argc, char *argv[]) {
@@ -464,6 +574,11 @@ int main(int argc, char *argv[]) {
     test_popup_no_action_on_mouseup_without_press();
     test_submenu_opens_and_dispatches_child_item();
     test_submenu_click_transfers_to_sibling_item();
+    test_context_popup_dispatches_to_owner();
+    test_context_popup_submenu_dispatches_to_owner();
+    test_opening_context_popup_replaces_previous_popup();
+    test_tableview_declared_context_menu_opens_and_routes();
+    test_form_instantiation_copies_context_menu_descriptor();
 
     TEST_END();
 }

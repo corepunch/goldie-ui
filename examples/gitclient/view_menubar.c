@@ -10,8 +10,11 @@
 static const accel_t kAccelEntries[] = {
   { FVIRTKEY | FCONTROL, AX_KEY_K,  ID_COMMIT_COMMIT },
   { FVIRTKEY,            AX_KEY_F5, ID_REPO_REFRESH  },
+  { FVIRTKEY,            AX_KEY_SLASH, 0 }, // will be handled via evKeyDown
   { FVIRTKEY | FCONTROL, AX_KEY_F,  ID_REMOTE_FETCH  },
   { FVIRTKEY | FCONTROL, AX_KEY_N,  ID_BRANCH_NEW    },
+  { FVIRTKEY | FCONTROL | FSHIFT, AX_KEY_N, ID_FILE_CLONE },
+  { FVIRTKEY | FCONTROL | FSHIFT, AX_KEY_F, ID_REPO_SEARCH },
   { FVIRTKEY | FCONTROL, AX_KEY_D,  ID_BRANCH_DELETE },
   { FVIRTKEY | FCONTROL, AX_KEY_M,  ID_BRANCH_MERGE  },
 };
@@ -107,11 +110,20 @@ void gc_handle_command(uint16_t id) {
     case ID_REPO_REFRESH:
       gc_refresh_all();
       break;
+    case ID_REPO_SEARCH:
+      if (gc->main_win)
+        gc_show_search_dialog(gc->main_win);
+      break;
     case ID_REPO_TERMINAL:
       if (gc->repo) {
         char cmd[600];
+#ifdef __APPLE__
+        snprintf(cmd, sizeof(cmd),
+                 "open -a Terminal \"%s\"", git_repo_path(gc->repo));
+#else
         snprintf(cmd, sizeof(cmd), "xterm -e 'cd \"%s\" && bash' &",
                  git_repo_path(gc->repo));
+#endif
         (void)system(cmd);
       }
       break;
@@ -135,10 +147,16 @@ void gc_handle_command(uint16_t id) {
     case ID_BRANCH_MERGE: {
       char name[256] = {0};
       if (gc_get_selected_branch(name, sizeof(name), NULL)) {
-        if (!gc_merge_branch(name))
-          message_box(gc->main_win, "Merge failed.\nCheck for conflicts.", "Merge", MB_OK);
-        else
+        if (!gc_merge_branch(name)) {
+          char files[64][512];
+          int n = gc_get_conflicted_files(files, 64);
+          if (n > 0)
+            gc_show_conflict_dialog(gc->main_win);
+          else
+            message_box(gc->main_win, "Merge failed.", "Merge", MB_OK);
+        } else {
           gc_refresh_all();
+        }
       } else {
         message_box(gc->main_win, "No branch selected.", "Merge", MB_OK);
       }
@@ -147,10 +165,16 @@ void gc_handle_command(uint16_t id) {
     case ID_BRANCH_REBASE: {
       char name[256] = {0};
       if (gc_get_selected_branch(name, sizeof(name), NULL)) {
-        if (!gc_rebase_onto(name))
-          message_box(gc->main_win, "Rebase failed.\nCheck for conflicts.", "Rebase", MB_OK);
-        else
+        if (!gc_rebase_onto(name)) {
+          char files[64][512];
+          int n = gc_get_conflicted_files(files, 64);
+          if (n > 0)
+            gc_show_conflict_dialog(gc->main_win);
+          else
+            message_box(gc->main_win, "Rebase failed.", "Rebase", MB_OK);
+        } else {
           gc_refresh_all();
+        }
       } else {
         message_box(gc->main_win, "No branch selected.", "Rebase", MB_OK);
       }
@@ -186,6 +210,44 @@ void gc_handle_command(uint16_t id) {
       break;
     }
 
+    case ID_TAG_CREATE:
+      if (gc->main_win)
+        gc_show_create_tag_dialog(gc->main_win);
+      break;
+    case ID_TAG_DELETE: {
+      if (!gc->repo || !gc->tags_win) break;
+      int sel = (int)send_message(gc->tags_win, RVM_GETSELECTION, 0, NULL);
+      if (sel < 0) {
+        message_box(gc->main_win, "No tag selected.", "Delete Tag", MB_OK);
+        break;
+      }
+      result_node_t *rows = (result_node_t *)send_db_message(
+        gc->db, dbFetch, MAKEDWORD(ID_DB_TAGS, 0), (void *)(intptr_t)0);
+      int row = 0;
+      const char *tag_name = NULL;
+      for (result_node_t *n = rows; n; n = n->next, row++) {
+        if (row == sel) {
+          db_tag_t *tag = *(db_tag_t **)n->data;
+          tag_name = tag ? tag->name : NULL;
+          break;
+        }
+      }
+      if (!tag_name) { free_result_list(rows); break; }
+      char msg[320];
+      snprintf(msg, sizeof(msg), "Delete tag \"%s\"?", tag_name);
+      if (message_box(gc->main_win, msg, "Delete Tag", MB_YESNO) == IDYES) {
+        if (!gc_delete_tag(tag_name))
+          message_box(gc->main_win, "Failed to delete tag.", "Delete Tag", MB_OK);
+        else
+          gc_refresh_all();
+      }
+      free_result_list(rows);
+      break;
+    }
+    case ID_TAG_PUSH:
+      gc_push_tags();
+      break;
+
     case ID_COMMIT_COMMIT:
       if (gc->main_win)
         gc_show_commit_dialog(gc->main_win, false);
@@ -209,6 +271,32 @@ void gc_handle_command(uint16_t id) {
                        "Discard Changes", MB_YESNO) == IDYES) {
         gc_discard_all();
         gc_refresh_all();
+      }
+      break;
+    }
+
+    case ID_FILES_STAGE:
+    case ID_FILES_UNSTAGE:
+    case ID_FILES_DISCARD: {
+      db_file_t *file = gc->files_win ? (db_file_t *)(intptr_t)send_message(
+        gc->files_win, tvGetSelectedRecord, 0, NULL) : NULL;
+      if (!file) { message_box(gc->main_win, "No file selected.", "File", MB_OK); break; }
+      bool ok = id == ID_FILES_STAGE   ? gc_stage_file(file->path) :
+                id == ID_FILES_UNSTAGE ? gc_unstage_file(file->path) :
+                                         gc_discard_file(file->path);
+      if (ok) gc_refresh_all();
+      else message_box(gc->main_win, "Operation failed.", "File", MB_OK);
+      break;
+    }
+
+    case ID_STASH_DROP: {
+      db_stash_t *stash = gc->stash_win ? (db_stash_t *)(intptr_t)send_message(
+        gc->stash_win, tvGetSelectedRecord, 0, NULL) : NULL;
+      if (!stash) { message_box(gc->main_win, "No stash selected.", "Drop Stash", MB_OK); break; }
+      char prompt[160]; snprintf(prompt, sizeof(prompt), "Drop %s?", stash->ref);
+      if (message_box(gc->main_win, prompt, "Drop Stash", MB_YESNO) == IDYES) {
+        if (gc_stash_drop(stash->ref)) gc_refresh_all();
+        else message_box(gc->main_win, "Drop failed.", "Drop Stash", MB_OK);
       }
       break;
     }

@@ -32,6 +32,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_gc->hinstance       = hinstance;
   g_gc->selected_commit = -1;
   g_gc->selected_file   = -1;
+  g_gc->unified_diff    = true;
 
   // Register database class and create database.
   DB_CLASS(gitclient_db);

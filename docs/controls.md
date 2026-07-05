@@ -195,6 +195,32 @@ static result_t my_menubar_proc(window_t *win, uint32_t msg,
 }
 ```
 
+### Declarative context menus
+
+Define reusable context menus in `.orion` and attach them to controls. A
+`command` reference reuses the same generated ID as a menubar or toolbar
+command, so every invocation flows through the normal `evCommand` dispatcher.
+An item with a `name` instead creates a command in the context menu's scope.
+
+```xml
+<contextMenus>
+    <contextMenu name="files">
+        <item name="stage" label="Stage" />
+        <item name="unstage" label="Unstage" />
+        <separator />
+        <item command="commit.discard" label="Discard" />
+    </contextMenu>
+</contextMenus>
+
+<TableView name="files" source="db.files" context-menu="files">
+    <Column field="path" title="File" width="0" />
+</TableView>
+```
+
+The generated form stores the immutable menu descriptor on the control. The
+control opens it at the pointer position; application code handles command IDs
+and does not populate the menu programmatically.
+
 ## Console
 
 ```c

@@ -36,6 +36,7 @@ typedef struct {
 
 typedef struct {
   window_t      *menubar;
+  window_t      *notify_win;  // where to send evCommand (falls back to menubar)
   window_t      *parent_popup;
   window_t      *child_popup;
   accel_table_t *accel;       // for hotkey lookup; not owned (may be NULL)
@@ -44,6 +45,8 @@ typedef struct {
   int            pressed;    // index of the item pressed on mouse-down (-1 if none)
   menu_item_t    items[];    // C99 flexible array
 } popup_data_t;
+
+static window_t *s_context_popup;
 
 // ---- helpers -------------------------------------------------------------
 
@@ -170,6 +173,26 @@ static bool popup_forward_to_parent_if_inside(window_t *win, popup_data_t *pd,
 static void close_popup_tree(window_t *popup);
 static void open_submenu_popup(window_t *popup, popup_data_t *pd, int index);
 
+static window_t *popup_root(window_t *popup) {
+  popup_data_t *pd;
+  while (popup && (pd = (popup_data_t *)popup->userdata) && pd->parent_popup)
+    popup = pd->parent_popup;
+  return popup;
+}
+
+static void dismiss_popup(window_t *popup) {
+  window_t *root = popup_root(popup);
+  popup_data_t *pd = root ? (popup_data_t *)root->userdata : NULL;
+  window_t *mb = pd ? pd->menubar : NULL;
+  if (root == s_context_popup) s_context_popup = NULL;
+  if (mb && is_window(mb)) {
+    menubar_data_t *mbd = (menubar_data_t *)mb->userdata;
+    if (mbd) { mbd->open_popup = NULL; mbd->active_idx = -1; }
+  }
+  close_popup_tree(root);
+  if (mb && is_window(mb)) invalidate_window(mb);
+}
+
 // ---- popup window proc ---------------------------------------------------
 
 static result_t popup_proc(window_t *win, uint32_t msg,
@@ -273,17 +296,7 @@ static result_t popup_proc(window_t *win, uint32_t msg,
         return true;
       }
       // Click outside popup bounds – close the popup
-      {
-        window_t *mb = pd->menubar;
-        menubar_data_t *mbd = mb ? (menubar_data_t *)mb->userdata : NULL;
-        window_t *root_popup = (mbd && mbd->open_popup) ? mbd->open_popup : win;
-        if (mbd) {
-          mbd->open_popup = NULL;
-          mbd->active_idx = -1;
-        }
-        close_popup_tree(root_popup);
-        if (mb) invalidate_window(mb);
-      }
+      dismiss_popup(win);
       return true;
     }
 
@@ -299,46 +312,30 @@ static result_t popup_proc(window_t *win, uint32_t msg,
       if (lx >= 0 && lx < win->frame.w && ly >= 0 && ly < win->frame.h) {
         release_item = popup_item_at(pd, lx, ly);
       }
-      window_t *mb = pd->menubar;
-      menubar_data_t *mbd = mb ? (menubar_data_t *)mb->userdata : NULL;
-      window_t *root_popup = (mbd && mbd->open_popup) ? mbd->open_popup : win;
-      if (mbd) {
-        mbd->open_popup = NULL;
-        mbd->active_idx = -1;
-      }
+      window_t *target = pd->notify_win ? pd->notify_win : pd->menubar;
       if (release_item >= 0 && release_item == pd->pressed &&
           !menu_item_has_submenu(&pd->items[release_item])) {
-        // Released on the same item that was pressed – fire action
         uint16_t item_id = pd->items[release_item].id;
-        close_popup_tree(root_popup);  // close popup before command runs
-        if (mb) {
-          invalidate_window(mb);
-          send_message(mb, evCommand,
+        dismiss_popup(win);
+        if (target) {
+          send_message(target, evCommand,
                        MAKEDWORD(item_id, kMenuBarNotificationItemClick),
                        NULL);
         }
       } else {
-        // Released on a different item or outside – cancel, just close
-        close_popup_tree(root_popup);
-        if (mb) invalidate_window(mb);
+        dismiss_popup(win);
       }
       return true;
     }
 
     // Fallback: non-client mouse-up (should not fire with set_capture, kept for safety)
     case evNCLeftButtonUp: {
-      window_t *mb = pd->menubar;
-      menubar_data_t *mbd = mb ? (menubar_data_t *)mb->userdata : NULL;
-      if (mbd) {
-        mbd->open_popup = NULL;
-        mbd->active_idx = -1;
-      }
-      destroy_window(win);
-      if (mb) invalidate_window(mb);
+      dismiss_popup(win);
       return true;
     }
 
     case evDestroy:
+      if (win == s_context_popup) s_context_popup = NULL;
       if (pd && pd->child_popup && is_window(pd->child_popup)) {
         window_t *child = pd->child_popup;
         pd->child_popup = NULL;
@@ -374,12 +371,14 @@ static void close_popup(window_t *mb_win, menubar_data_t *data) {
 
 static window_t *create_popup_window(window_t *mb_win, window_t *parent_popup,
                                      const menu_item_t *items, int item_count,
-                                     accel_table_t *accel, int px, int py) {
-  if (!mb_win || !items || item_count <= 0) return NULL;
+                                     accel_table_t *accel, int px, int py,
+                                     window_t *notify_win) {
+  if (!items || item_count <= 0) return NULL;
   popup_data_t *pd = malloc(sizeof(popup_data_t) +
-                            sizeof(menu_item_t) * item_count);
+                             sizeof(menu_item_t) * item_count);
   if (!pd) return NULL;
   pd->menubar = mb_win;
+  pd->notify_win = notify_win;
   pd->parent_popup = parent_popup;
   pd->child_popup = NULL;
   pd->accel = accel;
@@ -405,7 +404,8 @@ static window_t *create_popup_window(window_t *mb_win, window_t *parent_popup,
       "",
       WINDOW_NOTITLE | WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE,
       MAKERECT(px, py, pw, ph),
-      NULL, popup_proc, mb_win->hinstance, pd);
+      NULL, popup_proc,
+      notify_win ? notify_win->hinstance : (mb_win ? mb_win->hinstance : 0), pd);
   if (!popup) {
     free(pd);
     return NULL;
@@ -438,7 +438,7 @@ static void open_submenu_popup(window_t *popup, popup_data_t *pd, int index) {
   int py = popup->frame.y + popup_item_y(pd, index);
   pd->child_popup = create_popup_window(pd->menubar, popup,
                                         it->submenu_items, it->submenu_count,
-                                        pd->accel, px, py);
+                                        pd->accel, px, py, pd->notify_win);
 }
 
 static void open_popup(window_t *mb_win, menubar_data_t *data, int idx) {
@@ -450,7 +450,7 @@ static void open_popup(window_t *mb_win, menubar_data_t *data, int idx) {
 
   window_t *popup = create_popup_window(mb_win, NULL, menu->items,
                                         menu->item_count, data->accel,
-                                        px, py);
+                                        px, py, NULL);
   if (!popup) return;
   data->open_popup = popup;
   data->active_idx = idx;
@@ -551,4 +551,16 @@ result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
     default:
       return false;
   }
+}
+
+// ---- public context-menu API ------------------------------------------------
+
+bool show_popup_menu(window_t *notify_win, const menu_item_t *items,
+                     int item_count, int screen_x, int screen_y) {
+  if (!notify_win || !items || item_count <= 0) return false;
+  if (s_context_popup && is_window(s_context_popup)) dismiss_popup(s_context_popup);
+  window_t *popup = create_popup_window(NULL, NULL, items, item_count,
+                                        NULL, screen_x, screen_y, notify_win);
+  s_context_popup = popup;
+  return popup != NULL;
 }

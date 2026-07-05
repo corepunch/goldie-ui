@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "columnview_internal.h"
+#include "menubar.h"
 
 #ifndef TABLEVIEW_DEBUG
 #define TABLEVIEW_DEBUG 0
@@ -244,6 +245,15 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
   tableview_state_t *s = (tableview_state_t *)win->userdata;
   
   switch (msg) {
+    case evRightButtonDown:
+      if (win->context_menu && win->context_menu_count > 0) {
+        int x = (int16_t)LOWORD(wparam) - (int)win->hscroll.pos;
+        int y = (int16_t)HIWORD(wparam) - (int)win->vscroll.pos;
+        return show_popup_menu(get_root_window(win), win->context_menu,
+                               win->context_menu_count,
+                               window_screen_x(win) + x, window_screen_y(win) + y);
+      }
+      return false;
     case evCreate: {
       if (!win_reportview(win, evCreate, 0, NULL)) {
         return false;

@@ -27,6 +27,10 @@
 
 #include "gitclient.h"
 
+#define GC_CMD_BUF_SIZE 2048
+#define GC_LOG_PRETTY_FMT "%H\x1f%an\x1f%ad\x1f%s\x1e"
+#define GC_LOG_PRETTY_FMT_ESCAPED "%%H\x1f%%an\x1f%%ad\x1f%%s\x1e"
+
 #ifdef _WIN32
 #  include <windows.h>
 #  include <io.h>    // _access()
@@ -88,6 +92,7 @@ static void git_thread_detach(git_thread_t t) { (void)t; /* already detached */ 
 static void gc_build_cmd(const char *path, const char *args[],
                          char *buf, int buf_sz) {
 #ifdef _WIN32
+  const int pct_escape_reserve = 5; // extra '%' + original '%' + closing quote + '\0'
   int n = snprintf(buf, (size_t)buf_sz,
       "set \"PATH=C:\\Program Files\\Git\\cmd;"
             "C:\\Program Files\\Git\\bin;"
@@ -98,7 +103,15 @@ static void gc_build_cmd(const char *path, const char *args[],
   int n = snprintf(buf, (size_t)buf_sz, "cd \"%s\" && git", path);
 #endif
   for (int i = 1; args[i] && n < buf_sz - 2; i++) {
-    n += snprintf(buf + n, (size_t)(buf_sz - n), " %s", args[i]);
+    n += snprintf(buf + n, (size_t)(buf_sz - n), " \"");
+    for (const char *p = args[i]; *p && n < buf_sz - 3; p++) {
+#ifdef _WIN32
+      if (*p == '%' && n < buf_sz - pct_escape_reserve) buf[n++] = '%'; // cmd.exe requires %% to pass a literal %
+#endif
+      if (*p == '\"') buf[n++] = '\\';
+      buf[n++] = *p;
+    }
+    n += snprintf(buf + n, (size_t)(buf_sz - n), "\"");
   }
   // Redirect stderr to stdout so callers capture error text too.
   snprintf(buf + n, (size_t)(buf_sz - n), " 2>&1");
@@ -130,6 +143,25 @@ static int gc_popen_read(const char *cmd, char *buf, int buf_sz) {
   return WIFEXITED(rc) ? WEXITSTATUS(rc) : -1;
 #endif
 }
+
+#ifdef _WIN32
+// Some MinGW/MSYS environments execute popen() through sh instead of cmd.exe.
+// If a first run returns literal pretty-format placeholders, collapse %% -> %
+// and retry so git receives %H/%an/%ad/%s placeholders.
+static void gc_collapse_double_percent(char *s) {
+  if (!s) return;
+  char *read_pos = s, *write_pos = s;
+  while (*read_pos) {
+    if (read_pos[0] == '%' && read_pos[1] == '%') {
+      *write_pos++ = '%';
+      read_pos += 2;
+      continue;
+    }
+    *write_pos++ = *read_pos++;
+  }
+  *write_pos = '\0';
+}
+#endif
 
 // ============================================================
 // Public: open / close repository
@@ -186,7 +218,7 @@ const char *git_repo_path(git_repo_t *repo) {
 bool git_run_sync(git_repo_t *repo, const char *args[],
                   char *buf, int buf_sz) {
   if (!repo || !args) return false;
-  char cmd[2048];
+  char cmd[GC_CMD_BUF_SIZE];
   gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
   GC_LOG("git_run_sync: %s", cmd);
   int rc = gc_popen_read(cmd, buf, buf_sz);
@@ -204,28 +236,35 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   // Format: hash<US>author<US>date<US>subject<RS>
   // Route through gc_build_cmd so that stderr is redirected portably (2>&1).
   char fmt_arg[256];
-  // %% in the snprintf format string produces a single %, giving git the
-  // literal %H %an %ad %s format placeholders it expects.
-  snprintf(fmt_arg, sizeof(fmt_arg),
-           "--format=%%H\x1f%%an\x1f%%ad\x1f%%s\x1e");
+  snprintf(fmt_arg, sizeof(fmt_arg), "--format=%s", GC_LOG_PRETTY_FMT);
   char count_arg[32];
   snprintf(count_arg, sizeof(count_arg), "--max-count=%d", max);
 
   const char *args[] = {
     "git", "log", count_arg,
     fmt_arg,
-    // String literal — not passed through snprintf, so % is verbatim for git.
-    "--date=format:%Y-%m-%d",
+    // Use --date=short (YYYY-MM-DD) to avoid cmd.exe percent expansion issues.
+    "--date=short",
     ref && ref[0] ? ref : NULL,
     NULL
   };
   char buf[64 * 1024];
-  git_run_sync(repo, args, buf, sizeof(buf));
+  if (!git_run_sync(repo, args, buf, sizeof(buf))) return 0;
+#ifdef _WIN32
+  if (strstr(buf, "%H") != NULL && strstr(buf, "%an") != NULL &&
+      strstr(buf, "%ad") != NULL && strstr(buf, "%s") != NULL) {
+    char cmd[GC_CMD_BUF_SIZE];
+    gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
+    gc_collapse_double_percent(cmd);
+    gc_popen_read(cmd, buf, sizeof(buf));
+  }
+#endif
 
   int count = 0;
   char *p = buf;
   while (*p && count < max) {
     git_commit_t *c = &out[count];
+    memset(c, 0, sizeof(*c));
     char *end;
 
     // hash (40 chars)
@@ -241,7 +280,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
     end = strchr(p, '\x1f');
     if (!end) break;
     n = (int)(end - p);
-    if (n >= 64) n = 63;
+    if (n >= (int)sizeof(c->author)) n = (int)sizeof(c->author) - 1;
     memcpy(c->author, p, (size_t)n);
     c->author[n] = '\0';
     p = end + 1;
@@ -250,7 +289,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
     end = strchr(p, '\x1f');
     if (!end) break;
     n = (int)(end - p);
-    if (n >= 20) n = 19;
+    if (n >= (int)sizeof(c->date)) n = (int)sizeof(c->date) - 1;
     memcpy(c->date, p, (size_t)n);
     c->date[n] = '\0';
     p = end + 1;
@@ -265,12 +304,12 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
       break;
     }
     n = (int)(end - p);
-    if (n >= 256) n = 255;
+    while (n > 0 && (p[n - 1] == '\r' || p[n - 1] == '\n')) n--;
+    if (n >= (int)sizeof(c->subject)) n = (int)sizeof(c->subject) - 1;
     memcpy(c->subject, p, (size_t)n);
     c->subject[n] = '\0';
     p = end + 1;
-    // skip \n after record separator
-    if (*p == '\n') p++;
+    while (*p == '\r' || *p == '\n') p++;
 
     count++;
   }
@@ -366,7 +405,7 @@ bool git_get_diff(git_repo_t *repo, const char *path,
 int git_get_branches(git_repo_t *repo, git_branch_t *out, int max) {
   if (!repo || !out || max <= 0) return 0;
 
-  char buf[16 * 1024];
+  char buf[16 * 1024] = {0};
   const char *args[] = { "git", "branch", "-a", "--no-color", NULL };
   git_run_sync(repo, args, buf, sizeof(buf));
 
@@ -463,6 +502,87 @@ bool git_get_remote_url(git_repo_t *repo, const char *name, char *buf, int buf_s
   if (nl) *nl = '\0';
   return true;
 }
+// Public: git tags
+// ============================================================
+
+int git_get_tags(git_repo_t *repo, git_tag_t *out, int max) {
+  if (!repo || !out || max <= 0) return 0;
+
+  // Keep the enumeration command free of pretty-format '%' placeholders:
+  // cmd.exe expands them before Git sees them.  Resolve each tag through the
+  // already-portable log path to collect its commit hash and date.
+  char buf[16 * 1024] = {0};
+  const char *args[] = { "git", "tag", "--sort=-creatordate", NULL };
+  if (!git_run_sync(repo, args, buf, sizeof(buf))) return 0;
+
+  int count = 0;
+  char *p = buf;
+  while (*p && count < max) {
+    char *nl = strchr(p, '\n');
+    if (nl) *nl = '\0';
+    char *cr = strchr(p, '\r');
+    if (cr) *cr = '\0';
+
+    git_commit_t commit = {0};
+    if (p[0] && git_get_log_ref(repo, p, &commit, 1) == 1) {
+      git_tag_t *t = &out[count++];
+      strncpy(t->name, p, sizeof(t->name) - 1);       t->name[sizeof(t->name) - 1] = '\0';
+      strncpy(t->hash, commit.hash, sizeof(t->hash) - 1); t->hash[sizeof(t->hash) - 1] = '\0';
+      strncpy(t->date, commit.date, sizeof(t->date) - 1); t->date[sizeof(t->date) - 1] = '\0';
+    }
+    if (!nl) break;
+    p = nl + 1;
+  }
+  GC_LOG("git_get_tags: %d tags", count);
+  return count;
+}
+
+// ============================================================
+// Public: git stash list
+// ============================================================
+
+int git_get_stash(git_repo_t *repo, git_stash_t *out, int max) {
+  if (!repo || !out || max <= 0) return 0;
+
+  char buf[16 * 1024] = {0};
+  const char *args[] = { "git", "stash", "list", NULL };
+  if (!git_run_sync(repo, args, buf, sizeof(buf))) return 0;
+
+  int count = 0;
+  char *p = buf;
+  while (*p && count < max) {
+    char *nl = strchr(p, '\n');
+    if (nl) *nl = '\0';
+    char *cr = strchr(p, '\r');
+    if (cr) *cr = '\0';
+
+    char *ref = p;
+    char *msg_sep = strstr(p, ": ");
+    if (!msg_sep) { if (!nl) break; p = nl + 1; continue; }
+    *msg_sep = '\0';
+    char *msg = msg_sep + 2, *branch = msg;
+    if (!strncmp(branch, "WIP on ", 7)) branch += 7;
+    else if (!strncmp(branch, "On ", 3)) branch += 3;
+    char *colon = strchr(branch, ':');
+    char branch_buf[256] = "(unnamed)";
+    if (colon && colon > branch) {
+      size_t len = (size_t)(colon - branch);
+      if (len >= sizeof(branch_buf)) len = sizeof(branch_buf) - 1;
+      memcpy(branch_buf, branch, len); branch_buf[len] = '\0';
+    }
+
+    git_stash_t *s = &out[count];
+    strncpy(s->ref, ref, sizeof(s->ref) - 1);                s->ref[sizeof(s->ref) - 1] = '\0';
+    strncpy(s->message, msg, sizeof(s->message) - 1);        s->message[sizeof(s->message) - 1] = '\0';
+    strncpy(s->branch, branch_buf, sizeof(s->branch) - 1);   s->branch[sizeof(s->branch) - 1] = '\0';
+    count++;
+
+    if (!nl) break;
+    p = nl + 1;
+  }
+  GC_LOG("git_get_stash: %d entries", count);
+  return count;
+}
 
 // ============================================================
 // Async thread
@@ -474,7 +594,7 @@ bool git_get_remote_url(git_repo_t *repo, const char *name, char *buf, int buf_s
 // ============================================================
 
 typedef struct {
-  char            cmd[2048];
+  char            cmd[GC_CMD_BUF_SIZE];
   git_op_t        op;
   window_t       *notify_win;
 } git_async_args_t;

@@ -120,8 +120,7 @@ GENERATED_HEADERS = $(patsubst examples/%.orion,$(GENERATED_DIR)/examples/%.h,$(
 TEST_SRCS = $(shell find $(TEST_DIR) -name "*.c" \
     ! -name "test_env.c" \
     ! -path "$(TEST_DIR)/*/support/*" \
-    ! -path "$(TEST_DIR)/*/tests/*" \
-    ! -path "$(TEST_DIR)/gitclient/*" | sort)
+    ! -path "$(TEST_DIR)/*/tests/*" | sort)
 TEST_BINS = $(addprefix $(BIN_DIR)/test_,$(addsuffix $(EXE_EXT),$(basename $(notdir $(TEST_SRCS)))))
 
 # Default target
