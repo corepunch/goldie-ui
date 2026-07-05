@@ -27,6 +27,9 @@
 
 #include "gitclient.h"
 
+#define GC_CMD_BUF_SIZE 2048
+#define GC_LOG_PRETTY_FMT "%H\x1f%an\x1f%ad\x1f%s\x1e"
+
 #ifdef _WIN32
 #  include <windows.h>
 #  include <io.h>    // _access()
@@ -87,8 +90,8 @@ static void git_thread_detach(git_thread_t t) { (void)t; /* already detached */ 
 // always reachable regardless of the launch environment.
 static void gc_build_cmd(const char *path, const char *args[],
                          char *buf, int buf_sz) {
-  const int pct_escape_reserve = 5; // extra '%' + original '%' + closing quote + '\0'
 #ifdef _WIN32
+  const int pct_escape_reserve = 5; // extra '%' + original '%' + closing quote + '\0'
   int n = snprintf(buf, (size_t)buf_sz,
       "set \"PATH=C:\\Program Files\\Git\\cmd;"
             "C:\\Program Files\\Git\\bin;"
@@ -146,12 +149,12 @@ static int gc_popen_read(const char *cmd, char *buf, int buf_sz) {
 // and retry so git receives %H/%an/%ad/%s placeholders.
 static void gc_collapse_double_percent(char *s) {
   if (!s) return;
-  char *r = s, *w = s;
-  while (*r) {
-    if (r[0] == '%' && r[1] == '%') { *w++ = '%'; r += 2; continue; }
-    *w++ = *r++;
+  char *read_pos = s, *write_pos = s;
+  while (*read_pos) {
+    if (read_pos[0] == '%' && read_pos[1] == '%') { *write_pos++ = '%'; read_pos += 2; continue; }
+    *write_pos++ = *read_pos++;
   }
-  *w = '\0';
+  *write_pos = '\0';
 }
 #endif
 
@@ -210,7 +213,7 @@ const char *git_repo_path(git_repo_t *repo) {
 bool git_run_sync(git_repo_t *repo, const char *args[],
                   char *buf, int buf_sz) {
   if (!repo || !args) return false;
-  char cmd[2048];
+  char cmd[GC_CMD_BUF_SIZE];
   gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
   GC_LOG("git_run_sync: %s", cmd);
   int rc = gc_popen_read(cmd, buf, buf_sz);
@@ -228,10 +231,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   // Format: hash<US>author<US>date<US>subject<RS>
   // Route through gc_build_cmd so that stderr is redirected portably (2>&1).
   char fmt_arg[256];
-  // %% in the snprintf format string produces a single %, giving git the
-  // literal %H %an %ad %s format placeholders it expects.
-  snprintf(fmt_arg, sizeof(fmt_arg),
-           "--format=%%H\x1f%%an\x1f%%ad\x1f%%s\x1e");
+  snprintf(fmt_arg, sizeof(fmt_arg), "--format=%s", GC_LOG_PRETTY_FMT);
   char count_arg[32];
   snprintf(count_arg, sizeof(count_arg), "--max-count=%d", max);
 
@@ -246,8 +246,8 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   char buf[64 * 1024];
   git_run_sync(repo, args, buf, sizeof(buf));
 #ifdef _WIN32
-  if (strncmp(buf, "%H\x1f%an\x1f%ad\x1f%s\x1e", sizeof("%H\x1f%an\x1f%ad\x1f%s\x1e") - 1) == 0) {
-    char cmd[2048];
+  if (strncmp(buf, GC_LOG_PRETTY_FMT, sizeof(GC_LOG_PRETTY_FMT) - 1) == 0) {
+    char cmd[GC_CMD_BUF_SIZE];
     gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
     gc_collapse_double_percent(cmd);
     gc_popen_read(cmd, buf, sizeof(buf));
@@ -597,7 +597,7 @@ int git_get_stash(git_repo_t *repo, git_stash_t *out, int max) {
 // ============================================================
 
 typedef struct {
-  char            cmd[2048];
+  char            cmd[GC_CMD_BUF_SIZE];
   git_op_t        op;
   window_t       *notify_win;
 } git_async_args_t;
