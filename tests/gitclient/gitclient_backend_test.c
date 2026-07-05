@@ -26,6 +26,11 @@ gc_state_t *g_gc = &g_stub_state;
 
 static char s_repo[256] = {0};
 
+// Fixtures in this suite create only a handful of records.  Keep test buffers
+// small: production maxima (especially GC_MAX_FILES) can exceed Windows' stack.
+#define GCT_MAX_RECORDS 8
+#define GCT_DIFF_SIZE   4096
+
 // Returns the default initial branch name (main or master) set by git init.
 static const char *detect_default_branch(void) {
     // After setup we always checkout an explicit "main" or "master"; just check
@@ -151,8 +156,8 @@ void test_gc_branches_count(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_branch_t branches[GC_MAX_BRANCHES];
-    int n = git_get_branches(r, branches, GC_MAX_BRANCHES);
+    git_branch_t branches[GCT_MAX_RECORDS];
+    int n = git_get_branches(r, branches, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 2);
 
     git_repo_close(r);
@@ -164,8 +169,8 @@ void test_gc_branches_names(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_branch_t branches[GC_MAX_BRANCHES];
-    int n = git_get_branches(r, branches, GC_MAX_BRANCHES);
+    git_branch_t branches[GCT_MAX_RECORDS];
+    int n = git_get_branches(r, branches, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 2);
 
     const char *def = detect_default_branch();
@@ -191,8 +196,8 @@ void test_gc_branches_current_flag(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_branch_t branches[GC_MAX_BRANCHES];
-    int n = git_get_branches(r, branches, GC_MAX_BRANCHES);
+    git_branch_t branches[GCT_MAX_RECORDS];
+    int n = git_get_branches(r, branches, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 1);
 
     int current_count = 0;
@@ -220,8 +225,8 @@ void test_gc_log_count(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_commit_t commits[GC_MAX_COMMITS];
-    int n = git_get_log(r, commits, GC_MAX_COMMITS);
+    git_commit_t commits[GCT_MAX_RECORDS];
+    int n = git_get_log(r, commits, GCT_MAX_RECORDS);
     ASSERT_EQUAL(n, 2);
 
     git_repo_close(r);
@@ -233,8 +238,8 @@ void test_gc_log_subjects(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_commit_t commits[GC_MAX_COMMITS];
-    int n = git_get_log(r, commits, GC_MAX_COMMITS);
+    git_commit_t commits[GCT_MAX_RECORDS];
+    int n = git_get_log(r, commits, GCT_MAX_RECORDS);
     ASSERT_EQUAL(n, 2);
 
     ASSERT_STR_EQUAL(commits[0].subject, "Add file2");
@@ -249,8 +254,8 @@ void test_gc_log_fields_populated(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_commit_t commits[GC_MAX_COMMITS];
-    int n = git_get_log(r, commits, GC_MAX_COMMITS);
+    git_commit_t commits[GCT_MAX_RECORDS];
+    int n = git_get_log(r, commits, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 1);
 
     ASSERT_TRUE(commits[0].hash[0]    != '\0');
@@ -269,8 +274,8 @@ void test_gc_log_hash_format(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_commit_t commits[GC_MAX_COMMITS];
-    int n = git_get_log(r, commits, GC_MAX_COMMITS);
+    git_commit_t commits[GCT_MAX_RECORDS];
+    int n = git_get_log(r, commits, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 1);
 
     ASSERT_EQUAL((int)strlen(commits[0].hash), 40);
@@ -288,8 +293,8 @@ void test_gc_log_feature_branch(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_commit_t commits[GC_MAX_COMMITS];
-    int n = git_get_log_ref(r, "feature", commits, GC_MAX_COMMITS);
+    git_commit_t commits[GCT_MAX_RECORDS];
+    int n = git_get_log_ref(r, "feature", commits, GCT_MAX_RECORDS);
     ASSERT_EQUAL(n, 3);
     ASSERT_STR_EQUAL(commits[0].subject, "Feature commit");
 
@@ -303,8 +308,8 @@ void test_gc_status_clean(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_file_status_t files[GC_MAX_FILES];
-    int n = git_get_status(r, files, GC_MAX_FILES);
+    git_file_status_t files[GCT_MAX_RECORDS];
+    int n = git_get_status(r, files, GCT_MAX_RECORDS);
     ASSERT_EQUAL(n, 0);
 
     git_repo_close(r);
@@ -321,8 +326,8 @@ void test_gc_status_modified_file(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_file_status_t files[GC_MAX_FILES];
-    int n = git_get_status(r, files, GC_MAX_FILES);
+    git_file_status_t files[GCT_MAX_RECORDS];
+    int n = git_get_status(r, files, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 1);
 
     bool found = false;
@@ -355,8 +360,8 @@ void test_gc_status_staged_file(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    git_file_status_t files[GC_MAX_FILES];
-    int n = git_get_status(r, files, GC_MAX_FILES);
+    git_file_status_t files[GCT_MAX_RECORDS];
+    int n = git_get_status(r, files, GCT_MAX_RECORDS);
     ASSERT_TRUE(n >= 1);
 
     bool found = false;
@@ -388,7 +393,7 @@ void test_gc_get_diff_modified(void) {
     git_repo_t *r = git_repo_open(s_repo);
     ASSERT_NOT_NULL(r);
 
-    char buf[GC_MAX_DIFF_SIZE];
+    char buf[GCT_DIFF_SIZE];
     bool ok = git_get_diff(r, "file1.txt", false, buf, sizeof(buf));
     ASSERT_TRUE(ok);
     ASSERT_TRUE(buf[0] != '\0');
