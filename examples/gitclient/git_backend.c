@@ -224,7 +224,7 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
     "git", "log", count_arg,
     fmt_arg,
     // Use --date=short (YYYY-MM-DD) to avoid cmd.exe percent expansion issues.
-    "--date=format:%Y-%m-%d",
+    "--date=short",
     ref && ref[0] ? ref : NULL,
     NULL
   };
