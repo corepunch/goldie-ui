@@ -29,6 +29,7 @@
 
 #define GC_CMD_BUF_SIZE 2048
 #define GC_LOG_PRETTY_FMT "%H\x1f%an\x1f%ad\x1f%s\x1e"
+#define GC_LOG_PRETTY_FMT_ESCAPED "%%H\x1f%%an\x1f%%ad\x1f%%s\x1e"
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -151,7 +152,11 @@ static void gc_collapse_double_percent(char *s) {
   if (!s) return;
   char *read_pos = s, *write_pos = s;
   while (*read_pos) {
-    if (read_pos[0] == '%' && read_pos[1] == '%') { *write_pos++ = '%'; read_pos += 2; continue; }
+    if (read_pos[0] == '%' && read_pos[1] == '%') {
+      *write_pos++ = '%';
+      read_pos += 2;
+      continue;
+    }
     *write_pos++ = *read_pos++;
   }
   *write_pos = '\0';
@@ -246,7 +251,8 @@ int git_get_log_ref(git_repo_t *repo, const char *ref,
   char buf[64 * 1024];
   git_run_sync(repo, args, buf, sizeof(buf));
 #ifdef _WIN32
-  if (strncmp(buf, GC_LOG_PRETTY_FMT, sizeof(GC_LOG_PRETTY_FMT) - 1) == 0) {
+  if (strncmp(buf, GC_LOG_PRETTY_FMT, sizeof(GC_LOG_PRETTY_FMT) - 1) == 0 ||
+      strncmp(buf, GC_LOG_PRETTY_FMT_ESCAPED, sizeof(GC_LOG_PRETTY_FMT_ESCAPED) - 1) == 0) {
     char cmd[GC_CMD_BUF_SIZE];
     gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
     gc_collapse_double_percent(cmd);
