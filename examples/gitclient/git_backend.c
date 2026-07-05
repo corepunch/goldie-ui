@@ -87,6 +87,7 @@ static void git_thread_detach(git_thread_t t) { (void)t; /* already detached */ 
 // always reachable regardless of the launch environment.
 static void gc_build_cmd(const char *path, const char *args[],
                          char *buf, int buf_sz) {
+  const int pct_escape_reserve = 5; // extra '%' + original '%' + closing quote + '\0'
 #ifdef _WIN32
   int n = snprintf(buf, (size_t)buf_sz,
       "set \"PATH=C:\\Program Files\\Git\\cmd;"
@@ -101,7 +102,7 @@ static void gc_build_cmd(const char *path, const char *args[],
     n += snprintf(buf + n, (size_t)(buf_sz - n), " \"");
     for (const char *p = args[i]; *p && n < buf_sz - 3; p++) {
 #ifdef _WIN32
-      if (*p == '%' && n < buf_sz - 4) buf[n++] = '%'; // cmd.exe requires %% to pass a literal %
+      if (*p == '%' && n < buf_sz - pct_escape_reserve) buf[n++] = '%'; // cmd.exe requires %% to pass a literal %
 #endif
       if (*p == '\"') buf[n++] = '\\';
       buf[n++] = *p;
