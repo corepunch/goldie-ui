@@ -214,8 +214,6 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
 // Controller (controller.c)
 // ============================================================
 
-void gc_load_from_git(void);
-void gc_load_commit_files(void);
 bool gc_stage_file(const char *path);
 bool gc_unstage_file(const char *path);
 bool gc_commit(const char *message, bool amend);
@@ -231,11 +229,9 @@ bool gc_stage_hunk(const char *path, int hunk_idx);
 int  gc_get_conflicted_files(char (*out)[512], int max);
 bool gc_conflict_resolve(const char *path, const char *strategy);
 void gc_abort_merge(void);
-void gc_load_tags(void);
 bool gc_create_tag(const char *name, const char *ref);
 bool gc_delete_tag(const char *name);
 void gc_push_tags(void);
-void gc_load_stash(void);
 bool gc_stash_drop(const char *ref);
 bool gc_stash_branch(const char *name, const char *ref);
 bool gc_clone_repo(const char *url, const char *path);

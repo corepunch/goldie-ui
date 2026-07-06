@@ -190,6 +190,8 @@ static const db_field_msg_binding_t stash_field_bindings[] = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 typedef struct {
+  git_repo_t *repo;
+
   db_branche_t *branches;
   int branch_count;
   int branch_capacity;
@@ -346,8 +348,101 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       return 1;
     }
 
-    case dbLoad:
+    case dbLoad: {
+      if (!ctx) return 0;
+      git_repo_t *repo = (git_repo_t *)lparam;
+      if (!repo) return 0;
+      ctx->repo = repo;
+
+      clear_table((void **)&ctx->branches, &ctx->branch_count, &ctx->branch_capacity, &ctx->next_branch_id);
+      clear_table((void **)&ctx->commits,  &ctx->commit_count,  &ctx->commit_capacity,  &ctx->next_commit_id);
+      clear_table((void **)&ctx->files,    &ctx->file_count,    &ctx->file_capacity,    &ctx->next_file_id);
+      clear_table((void **)&ctx->diff,     &ctx->diff_count,    &ctx->diff_capacity,    &ctx->next_diff_id);
+      clear_table((void **)&ctx->tags,     &ctx->tag_count,     &ctx->tag_capacity,     &ctx->next_tag_id);
+      clear_table((void **)&ctx->stash,    &ctx->stash_count,   &ctx->stash_capacity,   &ctx->next_stash_id);
+
+      // Branches
+      int branch_count = 0;
+      git_branch_t raw_branches[256];
+      int branch_ids[256] = {0};
+      {
+        int count = git_get_branches(repo, raw_branches, 256);
+        branch_count = count;
+        for (int i = 0; i < count; i++) {
+          db_branche_t *rec = append_row((void **)&ctx->branches, &ctx->branch_count,
+                                         &ctx->branch_capacity, sizeof(db_branche_t),
+                                         &ctx->next_branch_id, 32);
+          strncpy(rec->name, raw_branches[i].name, sizeof(rec->name) - 1);
+          rec->is_current = raw_branches[i].is_current;
+          rec->is_remote  = raw_branches[i].is_remote;
+          branch_ids[i] = rec->id;
+        }
+      }
+
+      // Commits (one log per branch)
+      {
+        for (int b = 0; b < branch_count; b++) {
+          git_commit_t raw[500];
+          int count = git_get_log_ref(repo, raw_branches[b].name, raw, 500);
+          for (int i = 0; i < count; i++) {
+            db_commit_t *rec = append_row((void **)&ctx->commits, &ctx->commit_count,
+                                          &ctx->commit_capacity, sizeof(db_commit_t),
+                                          &ctx->next_commit_id, 256);
+            rec->branch_id = branch_ids[b];
+            strncpy(rec->hash,    raw[i].hash,    sizeof(rec->hash) - 1);
+            strncpy(rec->author,  raw[i].author,  sizeof(rec->author) - 1);
+            strncpy(rec->date,    raw[i].date,    sizeof(rec->date) - 1);
+            strncpy(rec->subject, raw[i].subject, sizeof(rec->subject) - 1);
+          }
+        }
+      }
+
+      // Working-tree files (commit_id == 0 means working tree)
+      {
+        git_file_status_t raw[256];
+        int count = git_get_status(repo, raw, 256);
+        for (int i = 0; i < count; i++) {
+          db_file_t *rec = append_row((void **)&ctx->files, &ctx->file_count,
+                                      &ctx->file_capacity, sizeof(db_file_t),
+                                      &ctx->next_file_id, 64);
+          rec->commit_id = 0;
+          strncpy(rec->path, raw[i].path, sizeof(rec->path) - 1);
+          rec->status[0] = raw[i].status;
+          rec->status[1] = '\0';
+          rec->staged = raw[i].staged;
+        }
+      }
+
+      // Tags
+      {
+        git_tag_t raw[256];
+        int count = git_get_tags(repo, raw, 256);
+        for (int i = 0; i < count; i++) {
+          db_tag_t *rec = append_row((void **)&ctx->tags, &ctx->tag_count,
+                                     &ctx->tag_capacity, sizeof(db_tag_t),
+                                     &ctx->next_tag_id, 32);
+          strncpy(rec->name, raw[i].name, sizeof(rec->name) - 1);
+          strncpy(rec->hash, raw[i].hash, sizeof(rec->hash) - 1);
+          strncpy(rec->date, raw[i].date, sizeof(rec->date) - 1);
+        }
+      }
+
+      // Stash
+      {
+        git_stash_t raw[64];
+        int count = git_get_stash(repo, raw, 64);
+        for (int i = 0; i < count; i++) {
+          db_stash_t *rec = append_row((void **)&ctx->stash, &ctx->stash_count,
+                                       &ctx->stash_capacity, sizeof(db_stash_t),
+                                       &ctx->next_stash_id, 16);
+          strncpy(rec->ref,     raw[i].ref,     sizeof(rec->ref) - 1);
+          strncpy(rec->message, raw[i].message, sizeof(rec->message) - 1);
+          strncpy(rec->branch,  raw[i].branch,  sizeof(rec->branch) - 1);
+        }
+      }
+
       return 1;
+    }
 
     case dbSave:
       return 1;
@@ -480,10 +575,45 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         return fetch_all(ctx->commits, ctx->commit_count, sizeof(db_commit_t));
       }
       if (table_id == ID_DB_FILES) {
-        if (filter_field == ID_DB_FILES_COMMIT_ID)
+        if (filter_field == ID_DB_FILES_COMMIT_ID && filter_value != 0) {
+          // Lazy-load: if no files cached for this commit yet, fetch from git.
+          bool cached = false;
+          for (int i = 0; i < ctx->file_count; i++) {
+            if (ctx->files[i].commit_id == filter_value) { cached = true; break; }
+          }
+          if (!cached && ctx->repo) {
+            db_commit_t *c = (db_commit_t *)find_by_id(ctx->commits,
+                               ctx->commit_count, sizeof(db_commit_t), filter_value);
+            if (c && c->hash[0]) {
+              char buf[64 * 1024] = {0};
+              const char *args[] = {
+                "git", "show", "--name-only", "--pretty=format:", c->hash, NULL
+              };
+              if (git_run_sync(ctx->repo, args, buf, sizeof(buf))) {
+                char *line = buf;
+                while (*line) {
+                  char *nl = strchr(line, '\n');
+                  if (nl) *nl = '\0';
+                  if (line[0] && strcmp(line, c->hash) != 0) {
+                    db_file_t *rec = append_row((void **)&ctx->files, &ctx->file_count,
+                                                &ctx->file_capacity, sizeof(db_file_t),
+                                                &ctx->next_file_id, 64);
+                    rec->commit_id = filter_value;
+                    rec->status[0] = 'M';
+                    rec->status[1] = '\0';
+                    rec->staged    = false;
+                    strncpy(rec->path, line, sizeof(rec->path) - 1);
+                  }
+                  if (!nl) break;
+                  line = nl + 1;
+                }
+              }
+            }
+          }
           return fetch_filtered_int(ctx->files, ctx->file_count,
                                     sizeof(db_file_t),
                                     offsetof(db_file_t, commit_id), filter_value);
+        }
         return fetch_all(ctx->files, ctx->file_count, sizeof(db_file_t));
       }
       if (table_id == ID_DB_DIFF)

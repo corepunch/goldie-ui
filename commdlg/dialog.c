@@ -227,21 +227,28 @@ void dialog_pull(window_t *win, void *state,
 #include "../ui.h"
 
 // ── Auto-height calculation helpers ──────────────────────────────────
-// Recursively check if any control in the tree has WINDOW_FLEXSPACE
-static bool form_children_have_flexspace(const form_ctrl_def_t *children, int count) {
+// Returns true only if some control stretches vertically (blocking auto-height).
+// orionc generates a flat array — parent relationships are encoded in .parent IDs.
+// A WINDOW_FLEXSPACE inside a *horizontal* stack only fills horizontal space and
+// does not block vertical auto-sizing, so we find the parent and check its flags.
+static flags_t form_find_flags_by_id(const form_ctrl_def_t *children, int count,
+                                      uint32_t id) {
   for (int i = 0; i < count; i++) {
-    if (children[i].flags & WINDOW_FLEXSPACE)
-      return true;
-    if (children[i].children && 
-        form_children_have_flexspace(children[i].children, children[i].child_count))
-      return true;
+    if (children[i].id == id) return children[i].flags;
   }
-  return false;
+  return 0;
 }
 
 static bool form_has_flexspace(const form_def_t *def) {
   if (!def) return false;
-  return form_children_have_flexspace(def->children, def->child_count);
+  for (int i = 0; i < def->child_count; i++) {
+    if (!(def->children[i].flags & WINDOW_FLEXSPACE)) continue;
+    flags_t parent_flags = form_find_flags_by_id(def->children, def->child_count,
+                                                  def->children[i].parent);
+    if (!(parent_flags & WINDOW_STACK_HORIZONTAL))
+      return true;
+  }
+  return false;
 }
 
 // Calculate the minimum height needed for a fixed-content form

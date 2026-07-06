@@ -37,9 +37,12 @@ void gc_refresh_all(void) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->repo) return;
 
-  gc_load_from_git();
-  gc_load_tags();
-  gc_load_stash();
+  // Reset selection indices so that the cascade-driven RVN_SELCHANGE on row 0
+  // is never suppressed by a stale matching value from the previous load.
+  gc->selected_commit = -1;
+  gc->selected_file   = -1;
+
+  send_db_message(gc->db, dbLoad, 0, gc->repo);
 
   if (gc->branches_win)
     send_message(gc->branches_win, tvRefresh, 0, NULL);
@@ -47,6 +50,8 @@ void gc_refresh_all(void) {
     send_message(gc->tags_win, tvRefresh, 0, NULL);
   if (gc->stash_win)
     send_message(gc->stash_win, tvRefresh, 0, NULL);
+  // Select the current branch — the master-detail cascade then automatically
+  // populates commits (filtered by branch_id) and files (lazy-loaded per commit).
   if (gc->branches_win) {
     result_node_t *rows = (result_node_t *)send_db_message(
       gc->db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
@@ -59,25 +64,9 @@ void gc_refresh_all(void) {
       }
     }
     free_result_list(rows);
-  }
-  // NOTE: tvRefresh on log_win below fetches ALL commits (ignoring branch
-  // filter), then tableview_handle_master_selection re-filters them via
-  // tvSetFilter.  The redundant fetch is harmless but means the log briefly
-  // loads more data than needed.  If this becomes a perf bottleneck, swap
-  // the order: call tableview_handle_master_selection first (which sends
-  // tvSetFilter to children), then tvRefresh so the log fetches only the
-  // filtered set.
-  if (gc->log_win)
-    send_message(gc->log_win, tvRefresh, 0, NULL);
-  if (gc->branches_win && gc->log_win)
     tableview_handle_master_selection(get_root_window(gc->branches_win),
                                       gc->branches_win);
-  // Similarly, files_win tvRefresh below uses whatever filter values were
-  // left from the previous selection; the master-detail mechanism will
-  // correct it after log_win's RVN_SELCHANGE propagates.  At full-refresh
-  // time this is acceptable, but it does mean an extra round-trip.
-  if (gc->files_win)
-    send_message(gc->files_win, tvRefresh, 0, NULL);
+  }
 
   gc_diff_refresh();
   gc_update_status();
@@ -192,16 +181,14 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
         window_t *src = (window_t *)lparam;
 
         if (src == gc->branches_win) {
-          // Selection is about to change - the master-detail cascade will
-          // refresh the commits view.  Reset state so the auto-select
-          // on the new commit list always triggers a load.
+          // Branch changed: reset downstream indices so the cascade refresh
+          // on log_win row 0 and files_win row 0 is never suppressed.
           gc->selected_commit = -1;
           gc->selected_file   = -1;
         } else if (src == gc->log_win) {
           if (sel != gc->selected_commit) {
             gc->selected_commit = sel;
             gc->selected_file   = -1;
-            gc_load_commit_files();
             gc_diff_refresh();
           }
         } else if (src == gc->files_win) {

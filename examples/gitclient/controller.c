@@ -1,112 +1,6 @@
-// Controller — business logic and git-to-database population.
+// Controller — business logic; database population is owned by gitclient_db.c.
 
 #include "gitclient.h"
-
-// ═══════════════════════════════════════════════════════════════════════════
-// gc_load_from_git — populate database tables from git output
-// ═══════════════════════════════════════════════════════════════════════════
-
-void gc_load_from_git(void) {
-  gc_state_t *gc = g_gc;
-  if (!gc || !gc->repo || !gc->db) return;
-
-  int branch_count = 0;
-  git_branch_t branches[128];
-  int branch_ids[128] = {0};
-
-  send_db_message(gc->db, dbDelete, ID_DB_BRANCHES, (void *)(intptr_t)0);
-  send_db_message(gc->db, dbDelete, ID_DB_COMMITS,  (void *)(intptr_t)0);
-  send_db_message(gc->db, dbDelete, ID_DB_FILES,    (void *)(intptr_t)0);
-  send_db_message(gc->db, dbDelete, ID_DB_DIFF,     (void *)(intptr_t)0);
-
-  {
-    int count = git_get_branches(gc->repo, branches, 128);
-    branch_count = count;
-    for (int i = 0; i < count; i++) {
-      db_branche_t rec = {0};
-      strncpy(rec.name, branches[i].name, sizeof(rec.name) - 1);
-      rec.is_current = branches[i].is_current;
-      rec.is_remote  = branches[i].is_remote;
-      db_branche_t *inserted = (db_branche_t *)send_db_message(gc->db, dbInsert, ID_DB_BRANCHES, &rec);
-      if (inserted) branch_ids[i] = inserted->id;
-    }
-  }
-
-  {
-    for (int branch = 0; branch < branch_count; branch++) {
-      git_commit_t raw[500];
-      int count = git_get_log_ref(gc->repo, branches[branch].name, raw, 500);
-      for (int i = 0; i < count; i++) {
-        db_commit_t rec = {0};
-        rec.branch_id = branch_ids[branch];
-        strncpy(rec.hash,    raw[i].hash,    sizeof(rec.hash) - 1);
-        strncpy(rec.author,  raw[i].author,  sizeof(rec.author) - 1);
-        strncpy(rec.date,    raw[i].date,    sizeof(rec.date) - 1);
-        strncpy(rec.subject, raw[i].subject, sizeof(rec.subject) - 1);
-        send_db_message(gc->db, dbInsert, ID_DB_COMMITS, &rec);
-      }
-    }
-  }
-
-  {
-    git_file_status_t raw[256];
-    int count = git_get_status(gc->repo, raw, 256);
-    for (int i = 0; i < count; i++) {
-      db_file_t rec = {0};
-      rec.commit_id = 0;
-      strncpy(rec.path, raw[i].path, sizeof(rec.path) - 1);
-      rec.status[0] = raw[i].status;
-      rec.status[1] = '\0';
-      rec.staged = raw[i].staged;
-      send_db_message(gc->db, dbInsert, ID_DB_FILES, &rec);
-    }
-  }
-
-  GC_LOG("database populated: branches=%d commits=%d files=%d",
-         branch_count, commit_count, file_count);
-}
-
-void gc_load_commit_files(void) {
-  gc_state_t *gc = g_gc;
-  if (!gc || !gc->repo || !gc->db) return;
-  if (gc->selected_commit < 0) {
-    gc_load_from_git();
-    return;
-  }
-
-  send_db_message(gc->db, dbDelete, ID_DB_FILES, (void *)(intptr_t)0);
-
-  db_commit_t *c = (db_commit_t *)(intptr_t)send_message(
-    gc->log_win, tvGetSelectedRecord, 0, NULL);
-  if (!c || !c->hash[0]) {
-    return;
-  }
-
-  char buf[64 * 1024] = {0};
-  const char *args[] = {
-    "git", "show", "--name-only", "--pretty=format:", c->hash, NULL
-  };
-  if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) {
-    return;
-  }
-
-  char *line = buf;
-  while (*line) {
-    char *nl = strchr(line, '\n');
-    if (nl) *nl = '\0';
-    if (line[0] && strcmp(line, c->hash) != 0) {
-      db_file_t rec = {0};
-      rec.commit_id = c->id;
-      rec.status[0] = 'M';
-      rec.status[1] = '\0';
-      rec.staged = false;
-      strncpy(rec.path, line, sizeof(rec.path) - 1);
-      send_db_message(gc->db, dbInsert, ID_DB_FILES, &rec);
-    }
-    if (!nl) break;
-    line = nl + 1;
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Stage / unstage files
@@ -333,27 +227,6 @@ bool gc_set_remote_url(const char *name, const char *url) {
   return true;
 }
 
-// Tags
-// ═══════════════════════════════════════════════════════════════════════════
-
-void gc_load_tags(void) {
-  gc_state_t *gc = g_gc;
-  if (!gc || !gc->repo || !gc->db) return;
-
-  send_db_message(gc->db, dbDelete, ID_DB_TAGS, (void *)(intptr_t)0);
-
-  git_tag_t raw[GC_MAX_TAGS];
-  int count = git_get_tags(gc->repo, raw, GC_MAX_TAGS);
-  for (int i = 0; i < count; i++) {
-    db_tag_t rec = {0};
-    strncpy(rec.name, raw[i].name, sizeof(rec.name) - 1);
-    strncpy(rec.hash, raw[i].hash, sizeof(rec.hash) - 1);
-    strncpy(rec.date, raw[i].date, sizeof(rec.date) - 1);
-    send_db_message(gc->db, dbInsert, ID_DB_TAGS, &rec);
-  }
-  GC_LOG("gc_load_tags: %d tags", count);
-}
-
 bool gc_create_tag(const char *name, const char *ref) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->repo || !name || !name[0]) return false;
@@ -497,26 +370,6 @@ bool gc_stage_hunk(const char *path, int hunk_idx) {
   remove(tmp_path);
   if (!ok) GC_LOG("gc_stage_hunk failed: %s", buf);
   return ok;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Stash list
-// ═══════════════════════════════════════════════════════════════════════════
-
-void gc_load_stash(void) {
-  gc_state_t *gc = g_gc;
-  if (!gc || !gc->repo || !gc->db) return;
-  send_db_message(gc->db, dbDelete, ID_DB_STASH, (void *)(intptr_t)0);
-  git_stash_t raw[64];
-  int count = git_get_stash(gc->repo, raw, 64);
-  for (int i = 0; i < count; i++) {
-    db_stash_t rec = {0};
-    strncpy(rec.ref, raw[i].ref, sizeof(rec.ref) - 1);
-    strncpy(rec.message, raw[i].message, sizeof(rec.message) - 1);
-    strncpy(rec.branch, raw[i].branch, sizeof(rec.branch) - 1);
-    send_db_message(gc->db, dbInsert, ID_DB_STASH, &rec);
-  }
-  GC_LOG("gc_load_stash: %d entries", count);
 }
 
 bool gc_stash_drop(const char *ref) {
