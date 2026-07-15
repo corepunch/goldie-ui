@@ -142,6 +142,7 @@ static void cmd_date(vgat_state_t *, int, char **);
 static void cmd_whoami(vgat_state_t *, int, char **);
 static void cmd_lua  (vgat_state_t *, int, char **);
 static void cmd_run  (vgat_state_t *, int, char **);
+static void spawn_program(vgat_state_t *, char *const *);
 static void enter_cmd_mode(vgat_state_t *);
 static void init_ansi_parser(vgat_state_t *);
 
@@ -280,12 +281,8 @@ static void cmd_lua(vgat_state_t *st, int argc, char **argv) {
 #endif
 }
 
-static void cmd_run(vgat_state_t *st, int argc, char **argv) {
-  if (argc < 2) {
-    vgat_screen_write_string(&st->screen, "Usage: run <program> [args...]\n",
-                             9, VGAT_BG_DEFAULT);
-    return;
-  }
+static void spawn_program(vgat_state_t *st, char *const *argv) {
+  if (!argv || !argv[0]) return;
 
   // Kill any existing PTY session
   if (st->pty_fd >= 0) {
@@ -298,10 +295,10 @@ static void cmd_run(vgat_state_t *st, int argc, char **argv) {
   if (cols <= 0) cols = 80;
   if (rows <= 0) rows = 24;
 
-  st->pty_fd = vgat_pty_exec((const char *const *)&argv[1], rows, cols, &st->pty_pid);
+  st->pty_fd = vgat_pty_exec((const char *const *)argv, rows, cols, &st->pty_pid);
   if (st->pty_fd < 0) {
     vgat_screen_write_string(&st->screen, "Failed to run: ", 9, VGAT_BG_DEFAULT);
-    vgat_screen_write_string(&st->screen, argv[1], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, argv[0], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
     vgat_screen_newline(&st->screen);
     return;
   }
@@ -310,6 +307,15 @@ static void cmd_run(vgat_state_t *st, int argc, char **argv) {
   st->escape_pending = false;
   init_ansi_parser(st);
   vgat_screen_clear(&st->screen);
+}
+
+static void cmd_run(vgat_state_t *st, int argc, char **argv) {
+  if (argc < 2) {
+    vgat_screen_write_string(&st->screen, "Usage: run <program> [args...]\n",
+                             9, VGAT_BG_DEFAULT);
+    return;
+  }
+  spawn_program(st, &argv[1]);
 }
 
 // ── Input processing ──────────────────────────────────────────────────────
@@ -348,9 +354,8 @@ static void process_input(vgat_state_t *st) {
     }
   }
 
-  vgat_screen_write_string(&st->screen, "Unknown command: ", 9, VGAT_BG_DEFAULT);
-  vgat_screen_write_string(&st->screen, argv[0], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
-  vgat_screen_newline(&st->screen);
+  // No built-in match — try as a program name directly
+  spawn_program(st, argv);
 }
 
 // ── Mode switching helpers ──────────────────────────────────────────────
