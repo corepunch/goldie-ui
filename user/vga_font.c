@@ -52,12 +52,15 @@ static uint8_t       *g_ttf_data = NULL;
 static stbtt_fontinfo g_font;
 static float          g_scale    = 0;
 static int            g_baseline = 0;
-
 // Fallback font chain — tried in order when primary font misses a glyph.
 #define VGA_FONT_MAX_FALLBACKS 8
-static stbtt_fontinfo g_fallback_fonts[VGA_FONT_MAX_FALLBACKS];
-static uint8_t       *g_fallback_data[VGA_FONT_MAX_FALLBACKS];
-static int            g_fallback_count = 0;
+typedef struct {
+  stbtt_fontinfo info;
+  uint8_t       *data;
+  float          scale;
+} fallback_font_t;
+static fallback_font_t g_fallbacks[VGA_FONT_MAX_FALLBACKS];
+static int             g_fallback_count = 0;
 
 // Per-glyph flag array: 1 = rasterised, 0 = empty.
 static uint8_t g_glyph_flags[VGA_ATLAS_SIZE];
@@ -179,8 +182,15 @@ bool vga_font_add_fallback(const char *path, int font_index) {
   if (offset < 0) { free(data); return false; }
   stbtt_fontinfo fb;
   if (!stbtt_InitFont(&fb, data, offset)) { free(data); return false; }
-  g_fallback_data[g_fallback_count] = data;
-  g_fallback_fonts[g_fallback_count] = fb;
+  int idx = g_fallback_count;
+  g_fallbacks[idx].data = data;
+  g_fallbacks[idx].info = fb;
+  // Default scale maps the fallback font's ascent-descent to cell height
+  int fb_ascent, fb_descent, fb_linegap;
+  stbtt_GetFontVMetrics(&fb, &fb_ascent, &fb_descent, &fb_linegap);
+  float fb_ad = (float)(fb_ascent - fb_descent + fb_linegap);
+  if (fb_ad < 1.0f) fb_ad = 1.0f;
+  g_fallbacks[idx].scale = (float)g_cell_h / fb_ad;
   g_fallback_count++;
   return true;
 }
@@ -190,7 +200,7 @@ bool vga_font_add_fallback(const char *path, int font_index) {
 // ============================================================
 
 // Rasterise a glyph from a given font into the atlas cell.
-static void rasterize_from_font(stbtt_fontinfo *font, float scale,
+static void rasterize_from_font(stbtt_fontinfo *font, float scale, int baseline,
                                 uint16_t glyph, int cell_x, int cell_y,
                                 int cell_x1, int cell_y1) {
   int bw, bh, xoff, yoff;
@@ -199,7 +209,61 @@ static void rasterize_from_font(stbtt_fontinfo *font, float scale,
   if (!bmp) return;
 
   int draw_x = cell_x + xoff;
-  int draw_y = cell_y + g_baseline + yoff;
+  int draw_y = cell_y + baseline + yoff;
+
+  int pixels_per_cell = g_cell_w * g_cell_h;
+  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
+  if (!cell_pixels) { stbtt_FreeBitmap(bmp, NULL); return; }
+
+  for (int y = 0; y < bh; y++) {
+    int py = draw_y + y;
+    if (py < cell_y || py >= cell_y1) continue;
+    for (int x = 0; x < bw; x++) {
+      int px = draw_x + x;
+      if (px < cell_x || px >= cell_x1) continue;
+      uint8_t a = bmp[y * bw + x];
+      if (a > 0) {
+        int idx = ((py - cell_y) * g_cell_w + (px - cell_x)) * 4;
+        cell_pixels[idx + 0] = 0xFF;
+        cell_pixels[idx + 1] = 0xFF;
+        cell_pixels[idx + 2] = 0xFF;
+        cell_pixels[idx + 3] = a;
+      }
+    }
+  }
+  stbtt_FreeBitmap(bmp, NULL);
+  R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
+  free(cell_pixels);
+}
+
+// Rasterise a glyph from a fallback font, centered in the cell, scaled to fit.
+static void rasterize_from_fallback(stbtt_fontinfo *font, float default_scale,
+                                     uint16_t glyph, int cell_x, int cell_y,
+                                     int cell_x1, int cell_y1) {
+  // Compute a per-glyph scale so the glyph fits within the cell with padding.
+  int bbx0, bby0, bbx1, bby1;
+  float scale = default_scale;
+  stbtt_GetCodepointBox(font, glyph, &bbx0, &bby0, &bbx1, &bby1);
+  if (bbx0 != 0 || bbx1 != 0 || bby0 != 0 || bby1 != 0) {
+    float gw = (float)(bbx1 - bbx0);
+    float gh = (float)(bby1 - bby0);
+    if (gw < 1.0f) gw = 1.0f;
+    if (gh < 1.0f) gh = 1.0f;
+    float pad = 0.85f;
+    float sx = (float)g_cell_w * pad / gw;
+    float sy = (float)g_cell_h * pad / gh;
+    scale = (sx < sy) ? sx : sy;
+    if (scale < 0.001f) scale = 0.001f;
+  }
+
+  int bw, bh, xoff, yoff;
+  unsigned char *bmp = stbtt_GetCodepointBitmap(font, 0, scale, glyph,
+                                                 &bw, &bh, &xoff, &yoff);
+  if (!bmp) return;
+
+  // Center bitmap in the cell
+  int draw_x = cell_x + (g_cell_w - bw) / 2;
+  int draw_y = cell_y + (g_cell_h - bh) / 2;
 
   int pixels_per_cell = g_cell_w * g_cell_h;
   uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
@@ -236,18 +300,18 @@ static void vga_font_rasterize_glyph(uint16_t glyph) {
   int cell_x1 = cell_x + g_cell_w;
   int cell_y1 = cell_y + g_cell_h;
 
-  // Try primary font
+  // Try primary font — uses typographic positioning (baseline + side-bearing)
   if (stbtt_FindGlyphIndex(&g_font, glyph) != 0) {
-    rasterize_from_font(&g_font, g_scale, glyph, cell_x, cell_y, cell_x1, cell_y1);
+    rasterize_from_font(&g_font, g_scale, g_baseline, glyph, cell_x, cell_y, cell_x1, cell_y1);
     g_glyph_flags[glyph] = 1;
     return;
   }
 
-  // Try fallback fonts
+  // Try fallback fonts — scale to fit cell and center
   for (int i = 0; i < g_fallback_count; i++) {
-    if (stbtt_FindGlyphIndex(&g_fallback_fonts[i], glyph) != 0) {
-      rasterize_from_font(&g_fallback_fonts[i], g_scale, glyph,
-                          cell_x, cell_y, cell_x1, cell_y1);
+    if (stbtt_FindGlyphIndex(&g_fallbacks[i].info, glyph) != 0) {
+      rasterize_from_fallback(&g_fallbacks[i].info, g_fallbacks[i].scale,
+                               glyph, cell_x, cell_y, cell_x1, cell_y1);
       g_glyph_flags[glyph] = 1;
       return;
     }
@@ -364,8 +428,8 @@ void vga_font_shutdown(void) {
     g_ttf_data = NULL;
   }
   for (int i = 0; i < g_fallback_count; i++) {
-    free(g_fallback_data[i]);
-    g_fallback_data[i] = NULL;
+    free(g_fallbacks[i].data);
+    g_fallbacks[i].data = NULL;
   }
   g_fallback_count = 0;
 }
