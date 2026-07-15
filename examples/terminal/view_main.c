@@ -502,6 +502,15 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return true;
     }
 
+    case evSetFocus:
+    case evKillFocus: {
+      if (!st) return true;
+      st->cursor_blink_ctr = 0;
+      st->cursor_visible = window_has_focus(win);
+      invalidate_window(win);
+      return true;
+    }
+
     case evDestroy: {
       if (st) {
         if (st->timer_id > 0) axCancelTimer(st->timer_id);
@@ -579,7 +588,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         }
 
         // ── PTY cursor (block cursor via fg/bg flip) ──
-        if (st->mode == VGAT_MODE_PTY && st->cursor_visible &&
+        if (window_has_focus(win) && st->mode == VGAT_MODE_PTY && st->cursor_visible &&
             st->screen.cursor_visible) {
           int cscr = st->screen.cursor_row - first;
           int csc = st->screen.cursor_col;
@@ -607,7 +616,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
           vga_text_set_cell(&grid, col, input_row, st->input_buf[i], VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
         }
 
-        if (st->cursor_visible && col < vis_cols) {
+        if (window_has_focus(win) && st->cursor_visible && col < vis_cols) {
           vga_font_ensure_glyph(' ');
           vga_text_set_cell(&grid, col, input_row, ' ', VGAT_BG_DEFAULT, VGAT_FG_DEFAULT);
         }
