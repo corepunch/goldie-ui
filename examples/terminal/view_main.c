@@ -569,7 +569,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       int vis_rows = cr.h / ch;
       if (vis_cols <= 0 || vis_rows <= 0) return true;
 
-      vga_text_grid_t grid;
+      vga_text_grid_t grid = {0};
       if (!vga_text_ensure_grid(&grid, vis_cols, vis_rows)) return true;
       vga_text_clear_grid(&grid, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
 
@@ -611,6 +611,14 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         int input_row = vis_rows - 1;
         int col = 0;
         const char *prompt = "> ";
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd))) {
+          char *name = strrchr(cwd, '/');
+          name = name ? name + 1 : cwd;
+          static char pbuf[256];
+          snprintf(pbuf, sizeof(pbuf), "%s > ", name);
+          prompt = pbuf;
+        }
         for (const char *cp = prompt; *cp && col < vis_cols; cp++, col++) {
           vga_font_ensure_glyph((uint16_t)*cp);
           vga_text_set_cell(&grid, col, input_row, *cp, 10, VGAT_BG_DEFAULT);

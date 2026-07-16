@@ -13,8 +13,8 @@ static window_t *create_terminal_window(hinstance_t hinstance,
                                          const char *script_path,
                                          int x, int y) {
   terminal_launch_t launch = { .script_path = script_path };
-  int sw = MIN(640, ui_get_system_metrics(kSystemMetricScreenWidth));
-  int sh = MIN(480, ui_get_system_metrics(kSystemMetricScreenHeight));
+  int sw = MIN(640, ui_get_system_metrics(kSystemMetricScreenWidth)) - 40;
+  int sh = MIN(480, ui_get_system_metrics(kSystemMetricScreenHeight)) - 40;
   return create_window(
     VGAT_WINDOW_TITLE,
     WINDOW_VSCROLL,
