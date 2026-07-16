@@ -210,22 +210,30 @@ static void cmd_dir(vgat_state_t *st, int argc, char **argv) {
 
 static void cmd_pwd(vgat_state_t *st, int argc, char **argv) {
   (void)argc; (void)argv;
-  char cwd[1024];
-  if (getcwd(cwd, sizeof(cwd))) {
-    vgat_screen_write_string(&st->screen, cwd, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
-    vgat_screen_newline(&st->screen);
-  }
+  vgat_screen_write_string(&st->screen, st->cwd, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+  vgat_screen_newline(&st->screen);
 }
 
 static void cmd_cd(vgat_state_t *st, int argc, char **argv) {
   (void)argc;
-  const char *path = argv[1] ? argv[1] : getenv("HOME");
-  if (!path) path = "/";
-  if (chdir(path) != 0) {
+  const char *target = argv[1] ? argv[1] : getenv("HOME");
+  if (!target) target = "/";
+
+  char resolved[1024];
+  if (target[0] == '/')
+    snprintf(resolved, sizeof(resolved), "%s", target);
+  else
+    snprintf(resolved, sizeof(resolved), "%s/%s", st->cwd, target);
+
+  char real[1024];
+  if (!realpath(resolved, real)) {
     vgat_screen_write_string(&st->screen, "cd: ", 9, VGAT_BG_DEFAULT);
-    vgat_screen_write_string(&st->screen, path, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
+    vgat_screen_write_string(&st->screen, target, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
     vgat_screen_write_string(&st->screen, ": No such directory\n", 9, VGAT_BG_DEFAULT);
+    return;
   }
+  memcpy(st->cwd, real, sizeof(st->cwd));
+  st->cwd[sizeof(st->cwd) - 1] = '\0';
 }
 
 static void cmd_cat(vgat_state_t *st, int argc, char **argv) {
@@ -322,7 +330,10 @@ static void cmd_run(vgat_state_t *st, int argc, char **argv) {
 
 static void process_input(vgat_state_t *st) {
   // Echo command to scrollback
-  vgat_screen_write_string(&st->screen, "> ", 10, VGAT_BG_DEFAULT);
+  char *name = strrchr(st->cwd, '/');
+  name = name ? name + 1 : st->cwd;
+  vgat_screen_write_string(&st->screen, name, 10, VGAT_BG_DEFAULT);
+  vgat_screen_write_string(&st->screen, " > ", 10, VGAT_BG_DEFAULT);
   vgat_screen_write_string(&st->screen, st->input_buf, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
   vgat_screen_newline(&st->screen);
 
@@ -346,16 +357,23 @@ static void process_input(vgat_state_t *st) {
   }
   argv[argc] = NULL;
 
+  // chdir to this terminal's working directory for filesystem commands
+  char oldwd[1024];
+  if (!getcwd(oldwd, sizeof(oldwd))) oldwd[0] = '\0';
+  if (st->cwd[0]) chdir(st->cwd);
+
   // Dispatch
   for (int i = 0; g_cmds[i].name; i++) {
     if (strcmp(argv[0], g_cmds[i].name) == 0) {
       g_cmds[i].func(st, argc, argv);
+      if (oldwd[0]) chdir(oldwd);
       return;
     }
   }
 
   // No built-in match — try as a program name directly
   spawn_program(st, argv);
+  if (oldwd[0]) chdir(oldwd);
 }
 
 // ── Mode switching helpers ──────────────────────────────────────────────
@@ -540,7 +558,9 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (!st) return true;
       st->cursor_blink_ctr++;
       if (st->cursor_blink_ctr >= (VGAT_CURSOR_BLINK_MS / VGAT_TIMER_INTERVAL_MS)) {
-        st->cursor_blink_ctr = 0;
+      st->cursor_blink_ctr = 0;
+      if (!getcwd(st->cwd, sizeof(st->cwd)))
+        snprintf(st->cwd, sizeof(st->cwd), "/");
         st->cursor_visible = !st->cursor_visible;
         invalidate_window(win);
       }
@@ -611,10 +631,9 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         int input_row = vis_rows - 1;
         int col = 0;
         const char *prompt = "> ";
-        char cwd[1024];
-        if (getcwd(cwd, sizeof(cwd))) {
-          char *name = strrchr(cwd, '/');
-          name = name ? name + 1 : cwd;
+        if (st->cwd[0]) {
+          char *name = strrchr(st->cwd, '/');
+          name = name ? name + 1 : st->cwd;
           static char pbuf[256];
           snprintf(pbuf, sizeof(pbuf), "%s > ", name);
           prompt = pbuf;

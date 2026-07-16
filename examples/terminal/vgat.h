@@ -107,6 +107,7 @@ struct vgat_state_s {
   uint32_t default_fg;
   uint32_t default_bg;
   int scroll_pos;
+  char cwd[1024];
 
   // Input line
   char input_buf[VGAT_INPUT_MAX];
