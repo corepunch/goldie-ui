@@ -219,21 +219,20 @@ static void cmd_cd(vgat_state_t *st, int argc, char **argv) {
   const char *target = argv[1] ? argv[1] : getenv("HOME");
   if (!target) target = "/";
 
-  char resolved[1024];
-  if (target[0] == '/')
-    snprintf(resolved, sizeof(resolved), "%s", target);
-  else
-    snprintf(resolved, sizeof(resolved), "%s/%s", st->cwd, target);
-
-  char real[1024];
-  if (!realpath(resolved, real)) {
+  // chdir to this terminal's cwd, then to target, capture result
+  char savewd[1024];
+  if (!getcwd(savewd, sizeof(savewd))) savewd[0] = '\0';
+  chdir(st->cwd[0] ? st->cwd : "/");
+  if (chdir(target) != 0) {
     vgat_screen_write_string(&st->screen, "cd: ", 9, VGAT_BG_DEFAULT);
     vgat_screen_write_string(&st->screen, target, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
     vgat_screen_write_string(&st->screen, ": No such directory\n", 9, VGAT_BG_DEFAULT);
+    if (savewd[0]) chdir(savewd);
     return;
   }
-  memcpy(st->cwd, real, sizeof(st->cwd));
-  st->cwd[sizeof(st->cwd) - 1] = '\0';
+  if (!getcwd(st->cwd, sizeof(st->cwd)))
+    snprintf(st->cwd, sizeof(st->cwd), "%s/%s", st->cwd, target);
+  if (savewd[0]) chdir(savewd);
 }
 
 static void cmd_cat(vgat_state_t *st, int argc, char **argv) {
