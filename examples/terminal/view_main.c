@@ -145,6 +145,10 @@ static void cmd_run  (vgat_state_t *, int, char **);
 static void spawn_program(vgat_state_t *, char *const *);
 static void enter_cmd_mode(vgat_state_t *);
 static void init_ansi_parser(vgat_state_t *);
+static bool start_pty_watch(vgat_state_t *);
+static void stop_pty_watch(vgat_state_t *);
+static void restart_cursor_blink(vgat_state_t *);
+static void stop_cursor_blink(vgat_state_t *);
 
 // ── Command table ─────────────────────────────────────────────────────────
 
@@ -313,6 +317,12 @@ static void spawn_program(vgat_state_t *st, char *const *argv) {
   st->mode = VGAT_MODE_PTY;
   st->escape_pending = false;
   init_ansi_parser(st);
+  if (!start_pty_watch(st)) {
+    vgat_pty_close(st->pty_pid); close(st->pty_fd);
+    st->pty_fd = -1; st->pty_pid = 0; st->mode = VGAT_MODE_CMD;
+    vgat_screen_write_string(&st->screen, "Failed to watch PTY output\n", 9, VGAT_BG_DEFAULT);
+    return;
+  }
   vgat_screen_clear(&st->screen);
 }
 
@@ -377,7 +387,34 @@ static void process_input(vgat_state_t *st) {
 
 // ── Mode switching helpers ──────────────────────────────────────────────
 
+static bool start_pty_watch(vgat_state_t *st) {
+  st->pty_generation++;
+  if (!st->pty_generation) st->pty_generation++;
+  st->pty_watch = vgat_pty_watch_start(st->pty_fd, st->win,
+                                       evTerminalPtyReady, st->pty_generation);
+  return st->pty_watch != NULL;
+}
+
+static void stop_pty_watch(vgat_state_t *st) {
+  vgat_pty_watch_stop(st->pty_watch);
+  st->pty_watch = NULL;
+}
+
+static void restart_cursor_blink(vgat_state_t *st) {
+  st->cursor_visible = true;
+  if (!window_has_focus(st->win)) return;
+  if (st->cursor_timer_id) axCancelTimer(st->cursor_timer_id);
+  st->cursor_timer_id = axSetTimer(st->win, VGAT_CURSOR_BLINK_MS, NULL, true);
+}
+
+static void stop_cursor_blink(vgat_state_t *st) {
+  if (st->cursor_timer_id) axCancelTimer(st->cursor_timer_id);
+  st->cursor_timer_id = 0;
+  st->cursor_visible = false;
+}
+
 static void enter_cmd_mode(vgat_state_t *st) {
+  stop_pty_watch(st);
   if (st->pty_fd >= 0) {
     vgat_pty_close(st->pty_pid);
     close(st->pty_fd);
@@ -462,7 +499,9 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       st->default_bg = kAnsi16[VGAT_BG_DEFAULT];
       st->scroll_pos = 0;
       st->cursor_visible = true;
-      st->cursor_blink_ctr = 0;
+      st->pty_fd = -1;
+      if (!getcwd(st->cwd, sizeof(st->cwd)))
+        snprintf(st->cwd, sizeof(st->cwd), "/");
 
       char font_path[512];
       snprintf(font_path, sizeof(font_path), "%s/../share/orion/fonts/monoid.ttf",
@@ -482,8 +521,6 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       vgat_screen_write_string(&st->screen, "Terminal v1.0\n", 10, VGAT_BG_DEFAULT);
       vgat_screen_write_string(&st->screen, "Type 'help' for available commands\n", 10, VGAT_BG_DEFAULT);
       vgat_screen_newline(&st->screen);
-
-      st->timer_id = axSetTimer(win, VGAT_TIMER_INTERVAL_MS, NULL, true);
 
       // If a launch script was provided via create_window() lparam, run it.
       if (lparam) {
@@ -512,7 +549,14 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
           if (st->pty_fd >= 0) {
             st->mode = VGAT_MODE_PTY;
             init_ansi_parser(st);
-            vgat_screen_clear(&st->screen);
+            if (start_pty_watch(st)) {
+              vgat_screen_clear(&st->screen);
+            } else {
+              vgat_pty_close(st->pty_pid); close(st->pty_fd);
+              st->pty_fd = -1; st->pty_pid = 0; st->mode = VGAT_MODE_CMD;
+              vgat_screen_write_string(&st->screen,
+                "Failed to watch PTY output\n", 9, VGAT_BG_DEFAULT);
+            }
           } else {
             vgat_screen_write_string(&st->screen,
               "Failed to launch shell. Type 'help' for available commands\n",
@@ -524,18 +568,24 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return true;
     }
 
-    case evSetFocus:
+    case evSetFocus: {
+      if (!st) return true;
+      restart_cursor_blink(st);
+      invalidate_window(win);
+      return true;
+    }
+
     case evKillFocus: {
       if (!st) return true;
-      st->cursor_blink_ctr = 0;
-      st->cursor_visible = window_has_focus(win);
+      stop_cursor_blink(st);
       invalidate_window(win);
       return true;
     }
 
     case evDestroy: {
       if (st) {
-        if (st->timer_id > 0) axCancelTimer(st->timer_id);
+        stop_cursor_blink(st);
+        stop_pty_watch(st);
         if (st->pty_fd >= 0) {
           close(st->pty_fd);
           st->pty_fd = -1;
@@ -555,26 +605,31 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 
     case evTimer: {
       if (!st) return true;
-      st->cursor_blink_ctr++;
-      if (st->cursor_blink_ctr >= (VGAT_CURSOR_BLINK_MS / VGAT_TIMER_INTERVAL_MS)) {
-      st->cursor_blink_ctr = 0;
-      if (!getcwd(st->cwd, sizeof(st->cwd)))
-        snprintf(st->cwd, sizeof(st->cwd), "/");
+      if (wparam == st->cursor_timer_id && st->cursor_timer_id) {
         st->cursor_visible = !st->cursor_visible;
         invalidate_window(win);
+        return true;
       }
-      // PTY read loop: drain output from child process
-      if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
+      return false;
+    }
+
+    case evTerminalPtyReady: {
+      if (!st || wparam != st->pty_generation || !st->pty_watch ||
+          st->mode != VGAT_MODE_PTY || st->pty_fd < 0) return false;
+      // Drain a bounded batch: enough throughput without starving the UI.
+      bool dirty = false;
+      for (int reads = 0; reads < 16; reads++) {
         int n = vgat_pty_read(st->pty_fd, st->read_buf, sizeof(st->read_buf));
         if (n > 0) {
           vgat_parser_feed(&st->parser, (uint8_t *)st->read_buf, n);
-          invalidate_window(win);
-        } else if (n == 0 || (n < 0 && errno != EAGAIN)) {
-          // EOF or PTY error — child exited. enter_cmd_mode reaps it.
-          enter_cmd_mode(st);
-          invalidate_window(win);
+          dirty = true;
+          continue;
         }
+        if (n == 0 || (n < 0 && errno != EAGAIN)) enter_cmd_mode(st);
+        break;
       }
+      if (st->mode == VGAT_MODE_PTY) vgat_pty_watch_rearm(st->pty_watch);
+      if (dirty || st->mode != VGAT_MODE_PTY) invalidate_window(win);
       return true;
     }
 
@@ -745,6 +800,8 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
         int base = wparam & 0xFF;
         int mods = (int)ui_get_mod_state();
+        if ((mods & AX_MOD_CTRL) || base < 0x20 || base >= 0x7F)
+          restart_cursor_blink(st); // Printable keys reset on evTextInput instead.
 
         // Ctrl+letter → control character
         if (mods & AX_MOD_CTRL) {
@@ -831,6 +888,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       // CMD / Lua mode: existing command processing
       switch (wparam) {
         case AX_KEY_ENTER:
+          restart_cursor_blink(st);
           if (st->lua_running && st->waiting_for_input) {
             vgat_screen_write_string(&st->screen, "> ", 10, VGAT_BG_DEFAULT);
             vgat_screen_write_string(&st->screen, st->input_buf, VGAT_FG_DEFAULT, VGAT_BG_DEFAULT);
@@ -847,6 +905,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
           invalidate_window(win);
           return true;
         case AX_KEY_BACKSPACE:
+          restart_cursor_blink(st);
           if (st->input_len > 0) {
             st->input_buf[--st->input_len] = '\0';
             invalidate_window(win);
@@ -859,6 +918,7 @@ result_t terminal_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
 
     case evTextInput: {
       if (!st) return false;
+      restart_cursor_blink(st);
       // In PTY mode, forward text directly to the child process
       if (st->mode == VGAT_MODE_PTY && st->pty_fd >= 0) {
         const char *text = (const char *)lparam;

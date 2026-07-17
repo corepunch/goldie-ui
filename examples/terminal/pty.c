@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <termios.h>
+#include <poll.h>
+#include <pthread.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -21,6 +23,81 @@
 #else
 #include <libutil.h>
 #endif
+
+struct vgat_pty_watch_s {
+  int fd, wake_read, wake_write;
+  void *target;
+  uint32_t event, token;
+  pthread_t thread;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  bool stop, pending;
+};
+
+static void *pty_watch_thread(void *arg) {
+  vgat_pty_watch_t *w = (vgat_pty_watch_t *)arg;
+  for (;;) {
+    struct pollfd fds[] = {
+      { .fd = w->fd,        .events = POLLIN },
+      { .fd = w->wake_read, .events = POLLIN },
+    };
+    int n = poll(fds, 2, -1);
+    if (n < 0 && errno == EINTR) continue;
+    if (n <= 0 || fds[1].revents) break;
+    if (!(fds[0].revents & (POLLIN | POLLHUP | POLLERR | POLLNVAL))) continue;
+
+    pthread_mutex_lock(&w->mutex);
+    if (!w->stop && !w->pending) {
+      w->pending = true;
+      pthread_mutex_unlock(&w->mutex);
+      axPostMessageW(w->target, w->event, w->token, NULL);
+      pthread_mutex_lock(&w->mutex);
+    }
+    while (w->pending && !w->stop) pthread_cond_wait(&w->cond, &w->mutex);
+    bool stop = w->stop;
+    pthread_mutex_unlock(&w->mutex);
+    if (stop) break;
+  }
+  return NULL;
+}
+
+vgat_pty_watch_t *vgat_pty_watch_start(int master_fd, void *target,
+                                       uint32_t event, uint32_t token) {
+  if (master_fd < 0 || !target) return NULL;
+  vgat_pty_watch_t *w = (vgat_pty_watch_t *)calloc(1, sizeof(*w));
+  if (!w) return NULL;
+  int wake[2];
+  if (pipe(wake) != 0) { free(w); return NULL; }
+  w->fd = master_fd; w->wake_read = wake[0]; w->wake_write = wake[1];
+  w->target = target; w->event = event; w->token = token;
+  pthread_mutex_init(&w->mutex, NULL);
+  pthread_cond_init(&w->cond, NULL);
+  if (pthread_create(&w->thread, NULL, pty_watch_thread, w) != 0) {
+    pthread_cond_destroy(&w->cond); pthread_mutex_destroy(&w->mutex);
+    close(w->wake_read); close(w->wake_write); free(w); return NULL;
+  }
+  return w;
+}
+
+void vgat_pty_watch_rearm(vgat_pty_watch_t *w) {
+  if (!w) return;
+  pthread_mutex_lock(&w->mutex);
+  w->pending = false;
+  pthread_cond_signal(&w->cond);
+  pthread_mutex_unlock(&w->mutex);
+}
+
+void vgat_pty_watch_stop(vgat_pty_watch_t *w) {
+  if (!w) return;
+  pthread_mutex_lock(&w->mutex);
+  w->stop = true; w->pending = false;
+  pthread_cond_broadcast(&w->cond);
+  pthread_mutex_unlock(&w->mutex);
+  (void)write(w->wake_write, "x", 1);
+  pthread_join(w->thread, NULL);
+  pthread_cond_destroy(&w->cond); pthread_mutex_destroy(&w->mutex);
+  close(w->wake_read); close(w->wake_write); free(w);
+}
 
 int vgat_pty_open(const char *shell, int rows, int cols, int *pid_out) {
   if (!pid_out) return -1;
@@ -142,6 +219,15 @@ int vgat_pty_write(int master_fd, const void *buf, int sz) {
   (void)master_fd; (void)buf; (void)sz;
   return -1;
 }
+
+vgat_pty_watch_t *vgat_pty_watch_start(int master_fd, void *target,
+                                       uint32_t event, uint32_t token) {
+  (void)master_fd; (void)target; (void)event; (void)token;
+  return NULL;
+}
+
+void vgat_pty_watch_rearm(vgat_pty_watch_t *watch) { (void)watch; }
+void vgat_pty_watch_stop(vgat_pty_watch_t *watch) { (void)watch; }
 
 #else
 

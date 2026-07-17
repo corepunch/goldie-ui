@@ -44,8 +44,8 @@
 #define VGAT_DEFAULT_COLS  80
 #define VGAT_DEFAULT_ROWS  24
 #define VGAT_SCROLLBACK_LINES 1000
-#define VGAT_TIMER_INTERVAL_MS 16
 #define VGAT_CURSOR_BLINK_MS 500
+#define evTerminalPtyReady (evUser + 900)
 
 #define VGAT_FG_DEFAULT 7   // ANSI white
 #define VGAT_BG_DEFAULT 0   // ANSI black
@@ -103,7 +103,8 @@ typedef struct {
 struct vgat_state_s {
   window_t *win;
   vgat_screen screen;
-  int timer_id;
+  uint32_t cursor_timer_id;
+  uint32_t pty_generation;
   uint32_t default_fg;
   uint32_t default_bg;
   int scroll_pos;
@@ -115,12 +116,12 @@ struct vgat_state_s {
 
   // Cursor blink
   bool cursor_visible;
-  int cursor_blink_ctr;
 
   // PTY / terminal emulator mode
   int mode;                      // VGAT_MODE_CMD or VGAT_MODE_PTY
   int pty_fd;                    // PTY master fd (-1 if none)
   int pty_pid;                   // child PID (0 if none)
+  vgat_pty_watch_t *pty_watch;   // readiness watcher (never reads PTY bytes)
   vgat_parser_t parser;          // ANSI escape sequence parser
   char read_buf[VGAT_PTY_READ_BUF]; // buffer for PTY reads
   bool escape_pending;           // Ctrl-A pressed, waiting for next key

@@ -6,6 +6,9 @@
 #define __VGAT_PTY_H__
 
 #include <stdbool.h>
+#include <stdint.h>
+
+typedef struct vgat_pty_watch_s vgat_pty_watch_t;
 
 // Open a new PTY and fork a shell process.
 // shell: path to shell binary (NULL = $SHELL or /bin/sh)
@@ -34,5 +37,12 @@ int vgat_pty_read(int master_fd, void *buf, int sz);
 // Write bytes to the PTY master (to send to the shell).
 // Returns: number of bytes written, -1 on error.
 int vgat_pty_write(int master_fd, const void *buf, int sz);
+
+// Wake the UI event loop when the PTY becomes readable. The watcher never
+// consumes PTY bytes; the window procedure remains the sole reader/parser.
+vgat_pty_watch_t *vgat_pty_watch_start(int master_fd, void *target,
+                                       uint32_t event, uint32_t token);
+void vgat_pty_watch_rearm(vgat_pty_watch_t *watch);
+void vgat_pty_watch_stop(vgat_pty_watch_t *watch);
 
 #endif // __VGAT_PTY_H__
