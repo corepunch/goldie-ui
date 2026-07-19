@@ -69,12 +69,9 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
     if (remaining < 0) remaining = 0;
     int stretch_share = stretch_count > 0 ? remaining / stretch_count : 0;
     int x = content.x;
-    bool placed_visual = false;
-    bool prev_was_space = false;
+    bool placed_child = false;
     for (window_t *child = win ? win->children : NULL; child; child = child->next) {
-      bool is_space = (child->flags & WINDOW_FLEXSPACE) != 0;
-      if (placed_visual && !prev_was_space && !is_space)
-        x += gap;
+      if (placed_child) x += gap;
       layout_measure_t cm = layout_measure_child(child, content.w, content.h);
       bool stretchable = (child->flags & WINDOW_FLEXSPACE) != 0;
       int cw = stretchable ? stretch_share : cm.desired_w;
@@ -86,8 +83,7 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
         cy += content.h - ch;
       layout_arrange_child(child, R(x, cy, cw, ch));
       x += cw;
-      placed_visual = true;
-      prev_was_space = is_space;
+      placed_child = true;
     }
   } else {
     int total_fixed = 0;
@@ -126,16 +122,12 @@ void layout_stack_arrange_window(window_t *win, const irect16_t *rect) {
 
 void layout_flow_horizontal(window_t *first, int start_x, int gap) {
   int cur_x = start_x;
-  bool placed_visual = false;
-  bool prev_was_space = false;
+  bool placed_child = false;
   for (window_t *child = first; child; child = child->next) {
-    bool is_space = (child->flags & WINDOW_FLEXSPACE) != 0;
-    if (placed_visual && !prev_was_space && !is_space)
-      cur_x += gap;
+    if (placed_child) cur_x += gap;
     child->frame.x = cur_x;
     cur_x += child->frame.w;
-    placed_visual = true;
-    prev_was_space = is_space;
+    placed_child = true;
   }
 }
 

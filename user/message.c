@@ -434,11 +434,11 @@ intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     int root_t = titlebar_height(root);
     irect16_t wf = win_frame_in_screen(win, root, root_t);
     irect16_t rootf = root->frame;
+    int scroll_x = win == root ? 0 : (int)root->hscroll.pos;
+    int scroll_y = win == root ? 0 : (int)root->vscroll.pos;
     set_viewport(rootf);
-    set_projection(root->hscroll.pos,
-                   -root_t + root->vscroll.pos,
-                   root->frame.w + root->hscroll.pos,
-                   root->frame.h - root_t + root->vscroll.pos);
+    set_projection(scroll_x, -root_t + scroll_y,
+                   root->frame.w + scroll_x, root->frame.h - root_t + scroll_y);
     set_clip_rect(NULL, wf);
     draw_builtin_scrollbars(win);
   }

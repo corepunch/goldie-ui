@@ -95,17 +95,9 @@ static inline void layout_arrange_child(window_t *child, irect16_t rect) {
 }
 
 static inline int layout_horizontal_gap_total(window_t *first, int gap) {
-  int total = 0;
-  bool placed_visual = false;
-  bool prev_was_space = false;
-  for (window_t *child = first; child; child = child->next) {
-    bool is_space = (child->flags & WINDOW_FLEXSPACE) != 0;
-    if (placed_visual && !prev_was_space && !is_space)
-      total += gap;
-    placed_visual = true;
-    prev_was_space = is_space;
-  }
-  return total;
+  int count = 0;
+  for (window_t *child = first; child; child = child->next) count++;
+  return count > 1 ? gap * (count - 1) : 0;
 }
 
 static inline void layout_paint_children(window_t *win) {

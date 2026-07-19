@@ -1731,10 +1731,11 @@ void test_new_post_grid_stack_layout(void) {
   ASSERT_EQUAL(flex_left->frame.x, 0);
   ASSERT_TRUE(ok->frame.w >= strwidth("Post") + BUTTON_PADDING * 2);
   ASSERT_TRUE(cancel->frame.w >= strwidth("Cancel") + BUTTON_PADDING * 2);
-  ASSERT_EQUAL(ok->frame.x, flex_left->frame.w);
+  ASSERT_EQUAL(ok->frame.x - (flex_left->frame.x + flex_left->frame.w), 6);
   ASSERT_EQUAL(cancel->frame.x, ok->frame.x + ok->frame.w + 6);
+  ASSERT_EQUAL(flex_right->frame.x - (cancel->frame.x + cancel->frame.w), 6);
   ASSERT_EQUAL(flex_left->frame.w, flex_right->frame.w);
-  ASSERT_EQUAL(cancel->frame.x + cancel->frame.w + flex_right->frame.w, actions->frame.w);
+  ASSERT_EQUAL(flex_right->frame.x + flex_right->frame.w, actions->frame.w);
 
   int initial_author_w = author_e->frame.w;
   int initial_title_w = title_e->frame.w;

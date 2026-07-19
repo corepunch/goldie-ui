@@ -368,6 +368,14 @@ static window_t *open_test_dropdown(window_t *cb, int count, int selected) {
     return g_ui_runtime.captured;
 }
 
+static void dispatch_mouse_at(int x, int y, uint32_t message) {
+    ui_event_t event = {0};
+    event.message = message;
+    event.x = (uint16_t)(x * UI_WINDOW_SCALE);
+    event.y = (uint16_t)(y * UI_WINDOW_SCALE);
+    dispatch_message(&event);
+}
+
 void test_cb_dropdown_shows_at_most_eight_items(void) {
     TEST("win_combobox: dropdown shows at most eight items with scrollbar");
 
@@ -464,6 +472,86 @@ void test_cb_dropdown_scrollbar_release_does_not_close(void) {
     PASS();
 }
 
+void test_cb_dropdown_outside_click_cancels(void) {
+    TEST("win_combobox: outside click cancels dropdown and restores selection");
+
+    test_env_init();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 17);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 2);
+    ASSERT_NOT_NULL(list);
+
+    send_message(list, evKeyDown, AX_KEY_DOWNARROW, NULL);
+    ASSERT_EQUAL((int)list->cursor_pos, 3);
+    send_message(list, evLeftButtonDown, MAKEDWORD((uint16_t)-1, 0), NULL);
+    ASSERT_FALSE(is_window(list));
+    ASSERT_STR_EQUAL(cb->title, "Item 2");
+    ASSERT_NULL(g_ui_runtime.captured);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cb_dropdown_mouse_click_commits_selection(void) {
+    TEST("win_combobox: captured mouse click commits selected item");
+
+    test_env_init();
+    reset_state();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 18);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 0);
+    ASSERT_NOT_NULL(list);
+
+    int row_h = FONT_SIZE_SMALL + 5;
+    int x = list->frame.x + 4;
+    int y = list->frame.y + row_h + row_h / 2;
+    dispatch_mouse_at(x, y, kEventLeftButtonDown);
+    ASSERT_STR_EQUAL(cb->title, "Item 0");
+    dispatch_mouse_at(x, y, kEventLeftButtonUp);
+    ASSERT_FALSE(is_window(list));
+    ASSERT_STR_EQUAL(cb->title, "Item 1");
+    ASSERT_EQUAL(g_sel_change_count, 1);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cb_dropdown_scrolled_mouse_click_commits_visible_item(void) {
+    TEST("win_combobox: scrolled captured click commits the visible item");
+
+    test_env_init();
+    reset_state();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 19);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 8);
+    ASSERT_NOT_NULL(list);
+
+    int row_h = FONT_SIZE_SMALL + 5;
+    ASSERT_EQUAL((int)list->vscroll.pos, row_h);
+    int x = list->frame.x + 4;
+    int y = list->frame.y + 2 * row_h + row_h / 2;
+    dispatch_mouse_at(x, y, kEventLeftButtonDown);
+    dispatch_mouse_at(x, y, kEventLeftButtonUp);
+    ASSERT_FALSE(is_window(list));
+    ASSERT_STR_EQUAL(cb->title, "Item 3");
+    ASSERT_EQUAL(g_sel_change_count, 1);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 // ── main ──────────────────────────────────────────────────────────────────
 
 int main(int argc, char *argv[]) {
@@ -486,6 +574,9 @@ int main(int argc, char *argv[]) {
     test_cb_dropdown_keyboard_keeps_selection_visible();
     test_cb_dropdown_mouse_wheel_scrolls();
     test_cb_dropdown_scrollbar_release_does_not_close();
+    test_cb_dropdown_outside_click_cancels();
+    test_cb_dropdown_mouse_click_commits_selection();
+    test_cb_dropdown_scrolled_mouse_click_commits_visible_item();
 
     TEST_END();
 }

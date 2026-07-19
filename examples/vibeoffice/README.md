@@ -4,7 +4,9 @@
 role is parented directly to the framework-owned desktop, can be selected and
 dragged independently, and renders badges for its selected model and live task status.
 
-Selecting a desk opens its inspector. Submitting a message writes
+Single-clicking selects a desk. Double-clicking opens that agent's inspector;
+if it is already open, the existing window is raised and focused. Each agent
+keeps an independent inspector view. Submitting a message writes
 `.tasks/desk-{id}.json`, runs `opencode run --model <model> <message>` once, and polls the child
 and task file until the response or error is persisted. Every desk owns a
 separate process record and JSON file, so multiple desks can run concurrently.

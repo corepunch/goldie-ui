@@ -35,6 +35,23 @@ static void list_scroll_to_item(window_t *win) {
   list_sync_scroll(win);
 }
 
+static bool list_point_inside(window_t *win, uint32_t wparam) {
+  int x = (int16_t)LOWORD(wparam) - (int)win->hscroll.pos;
+  int y = (int16_t)HIWORD(wparam) - (int)win->vscroll.pos;
+  return x >= 0 && y >= 0 && x < win->frame.w && y < win->frame.h;
+}
+
+static void list_cancel(window_t *win) {
+  window_t *cb = win ? win->userdata : NULL;
+  if (cb) {
+    if (win->userdata2)
+      memcpy(cb->title, win->userdata2, sizeof(cb->title));
+    set_focus(cb);
+    invalidate_window(cb);
+  }
+  destroy_window(win);
+}
+
 // List control window procedure
 result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   window_t *cb = win->userdata;
@@ -51,29 +68,26 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evPaint:
       if (!cb || !texts)
         return true;
-      {
-        irect16_t cr = get_client_rect(win);
-        int pos = (int)win->vscroll.pos;
-        uint32_t first = (uint32_t)(pos / LIST_HEIGHT);
-        uint32_t last = MIN(cb->cursor_pos, first + (uint32_t)((cr.h + LIST_HEIGHT - 1) / LIST_HEIGHT + 1));
-        fill_rect(get_sys_color(brWindowBg), cr);
-        for (uint32_t i = first; i < last; i++) {
-          irect16_t item = { 0, (int)(i * LIST_HEIGHT) - pos, cr.w, LIST_HEIGHT };
-          if (i == win->cursor_pos) {
-            fill_rect(get_sys_color(brTextNormal), R(item.x, item.y, item.w, item.h));
-            draw_text_clipped(FONT_SMALL, texts[i], &item, get_sys_color(brWindowBg), TEXT_PADDING_LEFT);
-          } else {
-            draw_text_clipped(FONT_SMALL, texts[i], &item, get_sys_color(brTextNormal), TEXT_PADDING_LEFT);
-          }
+      int item_w = get_client_rect(win).w;
+      for (uint32_t i = 0; i < cb->cursor_pos; i++) {
+        irect16_t item = { 0, (int)(i * LIST_HEIGHT), item_w, LIST_HEIGHT };
+        if (i == win->cursor_pos) {
+          fill_rect(get_sys_color(brTextNormal), R(item.x, item.y, item.w, item.h));
+          draw_text_clipped(FONT_SMALL, texts[i], &item, get_sys_color(brWindowBg), TEXT_PADDING_LEFT);
+        } else {
+          draw_text_clipped(FONT_SMALL, texts[i], &item, get_sys_color(brTextNormal), TEXT_PADDING_LEFT);
         }
       }
       return true;
     case evLeftButtonDown:
       if (!cb || !texts)
         return true;
+      if (!list_point_inside(win, wparam)) {
+        list_cancel(win);
+        return true;
+      }
       win->cursor_pos = HIWORD(wparam)/LIST_HEIGHT;
       if (win->cursor_pos < cb->cursor_pos) {
-        strncpy(cb->title, texts[win->cursor_pos], sizeof(cb->title));
         window_set_state(win, WINDOW_STATE_PRESSED, true);
       } else {
         window_set_state(win, WINDOW_STATE_PRESSED, false);
@@ -81,10 +95,19 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       invalidate_window(win);
       return true;
     case evLeftButtonUp:
+      if (!list_point_inside(win, wparam)) {
+        list_cancel(win);
+        return true;
+      }
       if (!window_has_state(win, WINDOW_STATE_PRESSED))
         return true;
       window_set_state(win, WINDOW_STATE_PRESSED, false);
       if (cb) {
+        if (win->cursor_pos < cb->cursor_pos) {
+          strncpy(cb->title, texts[win->cursor_pos], sizeof(cb->title));
+          cb->title[sizeof(cb->title) - 1] = '\0';
+          invalidate_window(cb);
+        }
         set_focus(cb);
         send_message(get_root_window(cb), evCommand,
                      MAKEDWORD(cb->id, cbSelectionChange), cb);
@@ -129,13 +152,7 @@ result_t win_list(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
         return true;
       }
       if (key == AX_KEY_ESCAPE) {
-        if (cb) {
-          if (win->userdata2)
-            memcpy(cb->title, win->userdata2, sizeof(cb->title));
-          set_focus(cb);
-          invalidate_window(cb);
-        }
-        destroy_window(win);
+        list_cancel(win);
         return true;
       }
       return false;
