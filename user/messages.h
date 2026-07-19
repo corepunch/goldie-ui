@@ -132,6 +132,14 @@ enum {
   bxSetButtonSize,    // wparam=size in px (0 = reset to TOOLBOX_BTN_SIZE)
   bxLoadStrip,        // wparam=icon_w (square tiles); lparam=const char* path — load PNG
   bxSetIconTintBrush, // wparam=br* index (e.g., brTextNormal), -1 disables tint
+  // Individual desktop-style icon control (commctl/icon.c).
+  icSetImage,         // wparam=0; lparam=icon_image_t* (copied, texture not owned)
+  icSetBadge,         // wparam=slot; lparam=icon_badge_t* (copied, NULL clears)
+  icClearBadges,      // clear every badge slot
+  icSetSelected,      // wparam=0/1
+  icGetSelected,      // returns 0/1
+  icSetItemData,      // lparam=opaque application-owned pointer
+  icGetItemData,      // returns opaque application-owned pointer
   // Gradient bar control (commctl/gradient.c)
   grSetColors,        // wparam=left_rgba; lparam=(void*)(uintptr_t)right_rgba
   // Async HTTP messages (analogous to WinInet/WinHTTP notifications).
@@ -166,6 +174,10 @@ enum {
   ddxDataChanged,
   sbChanged,  // wparam: MAKEDWORD(scrollbar_id, sbChanged); lparam: (void*)(intptr_t)new_pos
   bxClicked,    // sent via evCommand: MAKEDWORD(ident, bxClicked)
+  // Icon notifications. lparam is the source icon window.
+  icnClicked,
+  icnSelectionChange,
+  icnOpen,
   // Slider notifications sent via evCommand from win_slider.
   // LOWORD(wparam)=control id, HIWORD(wparam)=sliderValueChanged + handle_index.
   // handle 0 => sliderValueChanged, handle 1 => sliderValueChanged1, etc.

@@ -43,6 +43,27 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+
+// Individual desktop-style icon. Each icon is a child window with its own
+// winproc, selection/focus state, image, badges, and opaque model pointer.
+// The texture remains owned by the caller so multiple icons can share it.
+#define ICON_MAX_BADGES 4
+typedef enum { ICON_BADGE_TOP_LEFT, ICON_BADGE_TOP_RIGHT,
+               ICON_BADGE_BOTTOM_LEFT, ICON_BADGE_BOTTOM_RIGHT } icon_badge_anchor_t;
+typedef struct { uint32_t texture; int width, height; } icon_image_t;
+typedef struct {
+  const char *text;
+  uint32_t background;
+  uint32_t foreground;
+  icon_badge_anchor_t anchor;
+} icon_badge_t;
+typedef struct {
+  icon_image_t image;
+  void *item_data; // reserved model/popup/drag source context; not owned
+  bool draggable;  // allow direct repositioning inside the parent by dragging
+  window_t *notify_window; // optional evCommand target; defaults to the parent
+} icon_params_t;
+result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 // Combobox creation parameters — for database-driven dropdowns.
 // When source/display/value attributes are present in .orion forms,
 // orionc generates a combobox_params_t structure and passes it via lparam.

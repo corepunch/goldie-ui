@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orion
+    version="1"
+    name="vibeoffice"
+    title="Vibe Office"
+    root="examples/vibeoffice">
+
+  <forms>
+    <form name="inspector"
+          title="Inspector"
+          width="400" height="330"
+          flags="WINDOW_HIDDEN | WINDOW_NORESIZE"
+          spacing="6"
+          padding="16 12 16 12">
+      <Label name="desk" text="Desk: None" />
+      <Label name="status" text="Status: available" />
+      <Label name="message_label" text="Message" />
+      <StackView name="input_row" orientation="horizontal" spacing="8" height="24">
+        <TextBox name="input" height="24" flags="WINDOW_FLEXSPACE" />
+        <Button name="submit" text="Send" width="72" height="24" />
+      </StackView>
+      <Label name="response_label" text="Response" />
+      <MultiEdit name="output" flags="WINDOW_VSCROLL" />
+    </form>
+  </forms>
+</orion>

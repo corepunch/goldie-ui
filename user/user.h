@@ -567,6 +567,9 @@ window_t *get_window_item(window_t const *win, uint32_t id);
 bool is_window(window_t *win);
 bool window_in_drag_area(window_t const *win, int sy);
 window_t *get_root_window(window_t *window);
+// Framework-owned desktop root created by UI_INIT_DESKTOP, or NULL when the
+// current runtime has no desktop. Desktop icon controls should parent here.
+window_t *get_desktop_window(void);
 window_t *find_window(int x, int y);
 window_t *find_default_button(window_t *win);
 bool window_has_focus(const window_t *win);

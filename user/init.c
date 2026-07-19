@@ -222,6 +222,12 @@ bitmap_strip_t *ui_get_sysicon_strip(void) {
   return (g_sysicon_strip.tex != 0) ? &g_sysicon_strip : NULL;
 }
 
+static window_t *g_desktop_window;
+
+window_t *get_desktop_window(void) {
+  return g_desktop_window && is_window(g_desktop_window) ? g_desktop_window : NULL;
+}
+
 static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   (void)win;
   (void)wparam;
@@ -232,7 +238,10 @@ static result_t win_desktop(window_t *win, uint32_t msg, uint32_t wparam, void *
                 R(0, 0,
                   ui_get_system_metrics(kSystemMetricScreenWidth),
                   ui_get_system_metrics(kSystemMetricScreenHeight)));
-      return true;
+      return false; // continue painting desktop children such as icons
+    case evDestroy:
+      if (g_desktop_window == win) g_desktop_window = NULL;
+      return false;
   }
   return false;
 }
@@ -284,10 +293,11 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   init_console();
 
   if (flags & UI_INIT_DESKTOP) {
-    show_window(create_window("Desktop",
-                              WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON,
-                              MAKERECT(0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight)),
-                              NULL, win_desktop, 0, NULL), true);
+    g_desktop_window = create_window("Desktop",
+                                     WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON,
+                                     MAKERECT(0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight)),
+                                     NULL, win_desktop, 0, NULL);
+    show_window(g_desktop_window, true);
   }
 
   if (flags & UI_INIT_TRAY) {
@@ -312,6 +322,7 @@ static void cleanup_all_windows(void) {
 
 // Shutdown graphics context
 void ui_shutdown_graphics(void) {
+  g_desktop_window = NULL;
   cleanup_all_windows();
 
   extern void cleanup_all_hooks(void);
@@ -376,4 +387,3 @@ void ui_end_frame(void) {
 void ui_delay(unsigned int milliseconds) {
   axSleep(milliseconds);
 }
-
