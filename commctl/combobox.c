@@ -54,7 +54,8 @@ static void open_dropdown(window_t *win) {
       abs_y += p->frame.y + title_h;
     }
   }
-  irect16_t rect = {abs_x, abs_y, win->frame.w, 100};
+  int visible_items = MIN((int)win->cursor_pos, COMBOBOX_DROPDOWN_MAX_VISIBLE);
+  irect16_t rect = {abs_x, abs_y, win->frame.w, visible_items * (FONT_SIZE_SMALL + 5)};
   window_t *list = create_window("", WINDOW_NOTITLE|WINDOW_NORESIZE|WINDOW_VSCROLL|WINDOW_ALWAYSONTOP|WINDOW_NOTRAYBUTTON, &rect, NULL, win_list, win->hinstance, NULL);
   if (!list)
     return;

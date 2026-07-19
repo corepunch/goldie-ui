@@ -5,6 +5,7 @@
 #include "../../ui.h"
 #include "../../gem_magic.h"
 #include "build/generated/examples/vibeoffice/vibeoffice.h"
+#include "models.h"
 #include "tasks.h"
 
 #define VIBE_SCREEN_W 1024
@@ -12,8 +13,8 @@
 #define INSPECTOR_POLL_MS   100
 
 typedef struct {
-  int id;
-  const char *title, *filename, *badge;
+  int id, model_id;
+  const char *title, *filename;
   uint32_t texture;
   int image_w, image_h;
   window_t *win;
@@ -21,18 +22,19 @@ typedef struct {
 } vibe_icon_t;
 
 typedef struct {
-  window_t *win, *desk_label, *status_label, *input, *submit, *output;
+  window_t *win, *desk_label, *status_label, *model, *input, *submit, *output;
   int selected;
   uint32_t timer;
 } inspector_t;
 
 static window_t *g_desktop;
+static database_t *g_models_db;
 static inspector_t g_vibe_inspector;
 static vibe_icon_t g_icons[] = {
-  { 1, "Manager",   "manager.png",   "3" },
-  { 2, "Developer", "developer.png", "5" },
-  { 3, "Tester",    "tester.png",    "2" },
-  { 4, "Desk",      "desk.png",      "NEW" },
+  { 1, 1, "Manager",   "manager.png" },
+  { 2, 2, "Developer", "developer.png" },
+  { 3, 3, "Tester",    "tester.png" },
+  { 4, 4, "Desk",      "desk.png" },
 };
 
 static vibe_icon_t *icon_from_window(window_t *win) {
@@ -93,10 +95,11 @@ static bool inspector_bind_controls(window_t *win) {
   g_vibe_inspector.win = win;
   g_vibe_inspector.desk_label = get_window_item(win, ID_INSPECTOR_DESK);
   g_vibe_inspector.status_label = get_window_item(win, ID_INSPECTOR_STATUS);
+  g_vibe_inspector.model = get_window_item(win, ID_INSPECTOR_MODEL);
   g_vibe_inspector.input = get_window_item(win, ID_INSPECTOR_INPUT);
   g_vibe_inspector.submit = get_window_item(win, ID_INSPECTOR_SUBMIT);
   g_vibe_inspector.output = get_window_item(win, ID_INSPECTOR_OUTPUT);
-  if (!g_vibe_inspector.desk_label || !g_vibe_inspector.status_label ||
+  if (!g_vibe_inspector.desk_label || !g_vibe_inspector.status_label || !g_vibe_inspector.model ||
       !g_vibe_inspector.input || !g_vibe_inspector.submit || !g_vibe_inspector.output)
     return false;
   g_vibe_inspector.status_label->proc = win_status_label;
@@ -111,6 +114,24 @@ static uint32_t task_status_color(vibe_task_status_t status) {
     case VIBE_TASK_ERROR:   return 0xff20b8e0;
     default:                return 0xff30a060;
   }
+}
+
+static int model_index(int model_id) {
+  for (int i = 0; i < vibe_model_count(); i++) {
+    const vibe_model_info_t *model = vibe_model_at(i);
+    if (model && model->id == model_id) return i;
+  }
+  return 0;
+}
+
+static void refresh_icon_model(vibe_icon_t *icon) {
+  const vibe_model_info_t *model = icon ? vibe_model_by_id(icon->model_id) : NULL;
+  if (!icon || !icon->win || !model) return;
+  icon_badge_t badge = {
+    .text = model->name, .background = 0xff705030,
+    .foreground = 0xffffffff, .anchor = ICON_BADGE_TOP_RIGHT,
+  };
+  send_message(icon->win, icSetBadge, 0, &badge);
 }
 
 static void refresh_icon_status(vibe_icon_t *icon) {
@@ -136,6 +157,7 @@ static void inspector_refresh(bool desk_changed) {
   set_control_text(g_vibe_inspector.desk_label, title);
   snprintf(title, sizeof(title), "Status: %s", vibe_task_status_name(task.status));
   set_control_text(g_vibe_inspector.status_label, title);
+  send_message(g_vibe_inspector.model, cbSetCurrentSelection, (uint32_t)model_index(icon->model_id), NULL);
   if (desk_changed) send_message(g_vibe_inspector.input, edSetText, 0, task.exists ? task.input : "");
   const char *output = task.output;
   if (!*output && task.status == VIBE_TASK_BUSY) output = "opencode is working…";
@@ -146,6 +168,7 @@ static void inspector_refresh(bool desk_changed) {
   send_message(g_vibe_inspector.output, edGetText, sizeof(current), current);
   if (strcmp(shown, current)) send_message(g_vibe_inspector.output, edSetText, 0, shown);
   enable_window(g_vibe_inspector.submit, task.status != VIBE_TASK_PENDING && task.status != VIBE_TASK_BUSY);
+  enable_window(g_vibe_inspector.model, task.status != VIBE_TASK_PENDING && task.status != VIBE_TASK_BUSY);
   invalidate_window(g_vibe_inspector.win);
 }
 
@@ -170,7 +193,9 @@ static void inspector_submit(void) {
   char input[VIBE_TASK_INPUT_MAX + 1], error[256];
   send_message(g_vibe_inspector.input, edGetText, sizeof(input), input);
   if (!input[0]) return;
-  if (!vibe_task_submit(&icon->process, icon->id, input, error, sizeof(error))) {
+  const vibe_model_info_t *model = vibe_model_by_id(icon->model_id);
+  if (!model || !vibe_task_submit(&icon->process, icon->id, model->opencode_id,
+                                  input, error, sizeof(error))) {
     (void)error; // the failure is reflected through the desk task file when possible
   }
   refresh_from_task_files();
@@ -189,9 +214,19 @@ static result_t win_inspector(window_t *win, uint32_t msg, uint32_t wparam, void
       fill_rect(get_sys_color(brWindowBg), R(0, 0, win->frame.w, win->frame.h));
       return false;
     case evResize: window_layout_sync(win); return true;
+    case evClose:
+      show_window(win, false);
+      return true;
     case evCommand:
       if (HIWORD(wparam) == icnSelectionChange) {
         inspector_select(icon_from_window((window_t *)lparam)); return true;
+      }
+      if (LOWORD(wparam) == ID_INSPECTOR_MODEL && HIWORD(wparam) == cbSelectionChange) {
+        vibe_icon_t *icon = selected_icon();
+        int model_id = kComboBoxError;
+        send_message(g_vibe_inspector.model, cbGetCurrentValue, 0, &model_id);
+        if (icon && vibe_model_by_id(model_id)) { icon->model_id = model_id; refresh_icon_model(icon); }
+        return true;
       }
       if ((LOWORD(wparam) == ID_INSPECTOR_SUBMIT && HIWORD(wparam) == btnClicked) ||
           (LOWORD(wparam) == ID_INSPECTOR_INPUT && HIWORD(wparam) == edUpdate)) {
@@ -255,13 +290,25 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (!g_desktop) return false;
   // Generated .orion forms resolve controls by registered class name.
   register_commctl_classes();
-  for (int i = 0; i < (int)ARRAY_LEN(g_icons); i++) vibe_task_recover_stale(g_icons[i].id);
+  g_models_db = vibe_models_create();
+  if (!g_models_db) return false;
+  register_database("models", g_models_db);
+  for (int i = 0; i < (int)ARRAY_LEN(g_icons); i++) {
+    vibe_task_recover_stale(g_icons[i].id);
+    vibe_task_t task; vibe_task_read(g_icons[i].id, &task);
+    const vibe_model_info_t *model = vibe_model_by_opencode_id(task.model);
+    if (model) g_icons[i].model_id = model->id;
+  }
   int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
+  database_t *previous_db = ui_get_database();
+  ui_set_database(g_models_db);
   window_t *inspector = create_window_from_form(&vibeoffice_inspector_form,
                                                  MAX(12, sw - vibeoffice_inspector_form.width - 12), 24,
                                                  NULL, win_inspector, hinstance, NULL);
+  ui_set_database(previous_db);
   if (!inspector || !inspector_bind_controls(inspector)) {
     if (inspector && is_window(inspector)) destroy_window(inspector);
+    destroy_database(g_models_db); g_models_db = NULL;
     memset(&g_vibe_inspector, 0, sizeof(g_vibe_inspector)); g_vibe_inspector.selected = -1;
     return false;
   }
@@ -279,13 +326,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
                               MAKERECT(0, 0, 128, 144), g_desktop,
                               win_icon, hinstance, &params);
     if (!item->win) continue;
-    icon_badge_t badge = {
-      .text = item->badge,
-      .background = i == 2 ? 0xff3050d8 : i == 3 ? 0xff20a060 : 0xffd04030,
-      .foreground = 0xffffffff,
-      .anchor = ICON_BADGE_TOP_RIGHT,
-    };
-    send_message(item->win, icSetBadge, 0, &badge);
+    refresh_icon_model(item);
     refresh_icon_status(item);
   }
   layout_icons();
@@ -302,6 +343,7 @@ void gem_shutdown(void) {
     g_icons[i].win = NULL;
   }
   if (g_vibe_inspector.win && is_window(g_vibe_inspector.win)) destroy_window(g_vibe_inspector.win);
+  destroy_database(g_models_db); g_models_db = NULL;
   memset(&g_vibe_inspector, 0, sizeof(g_vibe_inspector)); g_vibe_inspector.selected = -1;
   g_desktop = NULL;
 }

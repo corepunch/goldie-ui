@@ -66,7 +66,7 @@ static void json_write_string(FILE *file, const char *text) {
 }
 
 static bool task_write(int desk_id, vibe_task_status_t status,
-                       const char *input, const char *output) {
+                       const char *model, const char *input, const char *output) {
   char path[128], temp[128];
   if (!task_dir_ensure() || !task_path(path, sizeof(path), desk_id, NULL) ||
       !task_path(temp, sizeof(temp), desk_id, ".tmp")) return false;
@@ -74,6 +74,7 @@ static bool task_write(int desk_id, vibe_task_status_t status,
   if (!file) return false;
   fprintf(file, "{ \"desk_id\": %d, \"status\": ", desk_id);
   json_write_string(file, vibe_task_status_name(status));
+  if (model && *model) { fputs(", \"model\": ", file); json_write_string(file, model); }
   fputs(", \"input\": ", file); json_write_string(file, input);
   if (output) { fputs(", \"output\": ", file); json_write_string(file, output); }
   fputs(" }\n", file);
@@ -162,6 +163,7 @@ bool vibe_task_read(int desk_id, vibe_task_t *task) {
             json_read_string(json, "input", task->input, sizeof(task->input));
   if (ok) {
     task->exists = true; task->status = task_status_from_name(status);
+    json_read_string(json, "model", task->model, sizeof(task->model));
     if (task->status == VIBE_TASK_DONE || task->status == VIBE_TASK_ERROR)
       ok = json_read_string(json, "output", task->output, sizeof(task->output));
   }
@@ -178,7 +180,7 @@ void vibe_task_recover_stale(int desk_id) {
   vibe_task_t task;
   vibe_task_read(desk_id, &task);
   if (task.status == VIBE_TASK_PENDING || task.status == VIBE_TASK_BUSY)
-    task_write(desk_id, VIBE_TASK_ERROR, task.input,
+    task_write(desk_id, VIBE_TASK_ERROR, task.model, task.input,
                "VibeOffice stopped before opencode completed.");
 }
 
@@ -219,19 +221,22 @@ static void process_close_fds(vibe_process_t *process) {
 }
 #endif
 
-bool vibe_task_submit(vibe_process_t *process, int desk_id, const char *input,
+bool vibe_task_submit(vibe_process_t *process, int desk_id, const char *model, const char *input,
                       char *error, size_t error_size) {
-  if (!process || !input || !*input || process->pid > 0) {
+  if (!process || !model || !*model || !input || !*input || process->pid > 0) {
     set_error(error, error_size, "This desk cannot accept that task."); return false;
   }
   if (strlen(input) > VIBE_TASK_INPUT_MAX) {
     set_error(error, error_size, "The message is too long."); return false;
   }
-  if (!task_write(desk_id, VIBE_TASK_PENDING, input, NULL)) {
+  if (strlen(model) > VIBE_TASK_MODEL_MAX) {
+    set_error(error, error_size, "The model ID is too long."); return false;
+  }
+  if (!task_write(desk_id, VIBE_TASK_PENDING, model, input, NULL)) {
     set_error(error, error_size, "Could not write the pending task file."); return false;
   }
 #if defined(_WIN32)
-  task_write(desk_id, VIBE_TASK_ERROR, input, "opencode spawning is not supported on Windows yet.");
+  task_write(desk_id, VIBE_TASK_ERROR, model, input, "opencode spawning is not supported on Windows yet.");
   set_error(error, error_size, "opencode spawning is not supported on Windows yet.");
   return false;
 #else
@@ -239,28 +244,28 @@ bool vibe_task_submit(vibe_process_t *process, int desk_id, const char *input,
   if (pipe(out_pipe) != 0 || pipe(err_pipe) != 0) {
     if (out_pipe[0] >= 0) { close(out_pipe[0]); close(out_pipe[1]); }
     if (err_pipe[0] >= 0) { close(err_pipe[0]); close(err_pipe[1]); }
-    task_write(desk_id, VIBE_TASK_ERROR, input, strerror(errno));
+    task_write(desk_id, VIBE_TASK_ERROR, model, input, strerror(errno));
     set_error(error, error_size, strerror(errno)); return false;
   }
   pid_t pid = fork();
   if (pid == 0) {
     dup2(out_pipe[1], STDOUT_FILENO); dup2(err_pipe[1], STDERR_FILENO);
     close(out_pipe[0]); close(out_pipe[1]); close(err_pipe[0]); close(err_pipe[1]);
-    execlp("opencode", "opencode", "run", input, (char *)NULL);
+    execlp("opencode", "opencode", "run", "--model", model, input, (char *)NULL);
     fprintf(stderr, "opencode: %s\n", strerror(errno)); _exit(127);
   }
   close(out_pipe[1]); close(err_pipe[1]);
   if (pid < 0) {
     close(out_pipe[0]); close(err_pipe[0]);
-    task_write(desk_id, VIBE_TASK_ERROR, input, strerror(errno));
+    task_write(desk_id, VIBE_TASK_ERROR, model, input, strerror(errno));
     set_error(error, error_size, strerror(errno)); return false;
   }
   process_reset(process); process->desk_id = desk_id; process->pid = (int)pid;
   process->stdout_fd = out_pipe[0]; process->stderr_fd = err_pipe[0];
   fd_nonblocking(process->stdout_fd); fd_nonblocking(process->stderr_fd);
-  if (!task_write(desk_id, VIBE_TASK_BUSY, input, NULL)) {
+  if (!task_write(desk_id, VIBE_TASK_BUSY, model, input, NULL)) {
     kill(pid, SIGTERM); waitpid(pid, NULL, 0); process_close_fds(process); process_reset(process);
-    task_write(desk_id, VIBE_TASK_ERROR, input, "Could not write busy state.");
+    task_write(desk_id, VIBE_TASK_ERROR, model, input, "Could not write busy state.");
     set_error(error, error_size, "Could not write busy state."); return false;
   }
   return true;
@@ -296,7 +301,7 @@ bool vibe_task_poll(vibe_process_t *process) {
     process->stderr_len = strlen(process->stderr_buf);
   }
   task_write(process->desk_id, success ? VIBE_TASK_DONE : VIBE_TASK_ERROR,
-             task.input, success ? process->stdout_buf :
+             task.model, task.input, success ? process->stdout_buf :
              (process->stderr_len ? process->stderr_buf : process->stdout_buf));
   process_reset(process);
   return true;
@@ -319,7 +324,7 @@ void vibe_task_abort(vibe_process_t *process, const char *reason) {
   process_close_fds(process);
   vibe_task_t task;
   vibe_task_read(process->desk_id, &task);
-  task_write(process->desk_id, VIBE_TASK_ERROR, task.input,
+  task_write(process->desk_id, VIBE_TASK_ERROR, task.model, task.input,
              reason ? reason : "opencode was stopped.");
   process_reset(process);
 #endif

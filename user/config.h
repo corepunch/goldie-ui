@@ -75,6 +75,9 @@
 // Maximum items in a list/combobox
 #define MAX_LIST_ITEMS          256
 
+// Maximum rows shown at once in a combobox dropdown
+#define COMBOBOX_DROPDOWN_MAX_VISIBLE 8
+
 // Maximum columns in a reportview (table)
 #define MAX_REPORTVIEW_COLUMNS  16
 

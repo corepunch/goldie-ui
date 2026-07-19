@@ -357,6 +357,113 @@ void test_cb_up_arrow_at_first_item_no_change(void) {
     PASS();
 }
 
+static window_t *open_test_dropdown(window_t *cb, int count, int selected) {
+    char text[32];
+    for (int i = 0; i < count; i++) {
+        snprintf(text, sizeof(text), "Item %d", i);
+        send_message(cb, cbAddString, 0, text);
+    }
+    send_message(cb, cbSetCurrentSelection, (uint32_t)selected, NULL);
+    send_message(cb, evLeftButtonUp, 0, NULL);
+    return g_ui_runtime.captured;
+}
+
+void test_cb_dropdown_shows_at_most_eight_items(void) {
+    TEST("win_combobox: dropdown shows at most eight items with scrollbar");
+
+    test_env_init();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 13);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 0);
+    ASSERT_NOT_NULL(list);
+
+    int row_h = FONT_SIZE_SMALL + 5;
+    ASSERT_EQUAL(list->frame.h, 8 * row_h);
+    ASSERT_TRUE(list->vscroll.visible);
+    ASSERT_EQUAL(list->vscroll.max_val, 10 * row_h);
+    ASSERT_EQUAL(list->vscroll.page, 8 * row_h);
+
+    destroy_window(list);
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cb_dropdown_keyboard_keeps_selection_visible(void) {
+    TEST("win_combobox: dropdown arrow navigation keeps selection visible");
+
+    test_env_init();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 14);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 0);
+    ASSERT_NOT_NULL(list);
+
+    int row_h = FONT_SIZE_SMALL + 5;
+    for (int i = 0; i < 8; i++) send_message(list, evKeyDown, AX_KEY_DOWNARROW, NULL);
+    ASSERT_EQUAL((int)list->cursor_pos, 8);
+    ASSERT_EQUAL((int)list->vscroll.pos, row_h);
+    for (int i = 0; i < 8; i++) send_message(list, evKeyDown, AX_KEY_UPARROW, NULL);
+    ASSERT_EQUAL((int)list->cursor_pos, 0);
+    ASSERT_EQUAL((int)list->vscroll.pos, 0);
+
+    destroy_window(list);
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cb_dropdown_mouse_wheel_scrolls(void) {
+    TEST("win_combobox: dropdown mouse wheel scrolls the list");
+
+    test_env_init();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 15);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 0);
+    ASSERT_NOT_NULL(list);
+
+    int row_h = FONT_SIZE_SMALL + 5;
+    send_message(list, evWheel, 0, (void *)(intptr_t)MAKEDWORD(0, (uint16_t)-row_h));
+    ASSERT_EQUAL((int)list->vscroll.pos, row_h);
+
+    destroy_window(list);
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_cb_dropdown_scrollbar_release_does_not_close(void) {
+    TEST("win_combobox: releasing scrollbar does not close dropdown");
+
+    test_env_init();
+    window_t *parent = test_env_create_window("P", 0, 0, 200, 100,
+                                               cb_parent_proc, NULL);
+    ASSERT_NOT_NULL(parent);
+    window_t *cb = make_combobox(parent, 16);
+    ASSERT_NOT_NULL(cb);
+    window_t *list = open_test_dropdown(cb, 10, 0);
+    ASSERT_NOT_NULL(list);
+
+    uint32_t scrollbar_point = MAKEDWORD((uint16_t)(list->frame.w - 1),
+                                         (uint16_t)(list->frame.h - 1));
+    send_message(list, evLeftButtonDown, scrollbar_point, NULL);
+    send_message(list, evLeftButtonUp, scrollbar_point, NULL);
+    ASSERT_TRUE(is_window(list));
+
+    destroy_window(list);
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 // ── main ──────────────────────────────────────────────────────────────────
 
 int main(int argc, char *argv[]) {
@@ -375,6 +482,10 @@ int main(int argc, char *argv[]) {
     test_cb_down_arrow_at_last_item_no_change();
     test_cb_up_arrow_moves_selection();
     test_cb_up_arrow_at_first_item_no_change();
+    test_cb_dropdown_shows_at_most_eight_items();
+    test_cb_dropdown_keyboard_keeps_selection_visible();
+    test_cb_dropdown_mouse_wheel_scrolls();
+    test_cb_dropdown_scrollbar_release_does_not_close();
 
     TEST_END();
 }

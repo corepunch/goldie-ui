@@ -5,6 +5,16 @@
     title="Vibe Office"
     root="examples/vibeoffice">
 
+  <databases>
+    <database name="models" class="vibe_model_database">
+      <table name="models">
+        <field name="id" type="integer" key="YES" />
+        <field name="name" type="string" length="64" />
+        <field name="model_id" type="string" length="128" />
+      </table>
+    </database>
+  </databases>
+
   <forms>
     <form name="inspector"
           title="Inspector"
@@ -14,6 +24,14 @@
           padding="16 12 16 12">
       <Label name="desk" text="Desk: None" />
       <Label name="status" text="Status: available" />
+      <StackView name="model_row" orientation="horizontal" spacing="8" height="24">
+        <Label name="model_label" text="Model" width="56" />
+        <ComboBox name="model"
+                  source="models.models"
+                  display="name"
+                  value="id"
+                  flags="WINDOW_FLEXSPACE" />
+      </StackView>
       <Label name="message_label" text="Message" />
       <StackView name="input_row" orientation="horizontal" spacing="8" height="24">
         <TextBox name="input" height="24" flags="WINDOW_FLEXSPACE" />
