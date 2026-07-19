@@ -1,6 +1,6 @@
 ---
 name: orion-ui-authoring
-description: "**UI AUTHORING SKILL** — Create, review, or debug .orion XML UI definitions (forms, dialogs, windows). Expert in WPF layout system (Grid star sizing, StackPanel), Orion auto-layout (WPF-based grid/stack), Apple HIG (1987/1995), control usage, and layout patterns. USE FOR: designing new dialogs; converting imperative UI code to declarative .orion; fixing layout issues (column widths, flexspace, scrolling); reviewing .orion files for HIG compliance; explaining layout behavior; translating WPF concepts to Orion. DO NOT USE FOR: C code implementation; general framework questions; runtime debugging. INVOKES: Orion UI Designer agent for complex design work; file operations on .orion files; documentation references."
+description: "**UI AUTHORING SKILL** — Create, review, or debug Orion UI definitions and control behavior. Expert in .orion XML, WPF-style auto-layout, Apple HIG (1987/1995), control usage, scrolling, popup capture, and input routing. USE FOR: designing dialogs; converting imperative UI to declarative .orion; fixing layout, scrolling, scrollbar, dropdown, or popup-dismissal issues; reviewing .orion files for HIG compliance; explaining layout behavior. DO NOT USE FOR: unrelated framework internals or non-UI C implementation. INVOKES: Orion UI Designer agent for complex design work; file operations on .orion files; documentation references."
 ---
 
 # Orion UI Authoring
@@ -73,6 +73,20 @@ Orion's layout is directly modeled on **WPF (Windows Presentation Foundation)**:
 **Propagation rule:**
 - If a built-in flex class appears inside nested layout containers, the flex intent should bubble upward through matching container orientation
 - A horizontal action row with a local `<space />` should not make an orthogonal parent stack claim extra vertical room
+
+### Scrollable controls and captured popups
+
+Before changing scrolling, scrollbars, mouse hit-testing, or popup capture, read
+`docs/architecture.md#window-and-input-event-routing`.
+
+- Mouse coordinates delivered to a window procedure are in content space and already include that window's scroll offset. Do not add the offset again for row hit-testing.
+- A top-level scrollable popup's paint projection already applies its own scroll offset. Draw rows at content coordinates (`row * row_height`); do not also subtract `vscroll.pos`, or the content scrolls twice.
+- Built-in scrollbars are fixed non-client chrome. When painting a root window's scrollbar, exclude that root's own scroll offset from the scrollbar projection. A child scrollbar may still inherit its root ancestor's scroll because the child itself moves with the root content.
+- Capture sends mouse events to the popup even when the pointer is outside it. Convert delivered content coordinates back to viewport coordinates by subtracting the popup's scroll offsets before bounds-testing.
+- On an outside captured click, restore the pre-open value, release capture by destroying/dismissing the popup, return focus to the owner, and send no selection-change notification.
+- Do not close the popup on a scrollbar mouse-up. Commit only when a list-item mouse-down established an active item press and mouse-up remains inside the popup.
+
+For a dropdown regression, test wheel scrolling, fixed scrollbar position, keyboard selection visibility, scrollbar mouse-up, outside-click cancellation, and restoration of the original selection.
 
 ### Apple HIG Standards (1987/1995)
 
@@ -153,12 +167,16 @@ Orion's layout is directly modeled on **WPF (Windows Presentation Foundation)**:
 ❌ Forgetting `WINDOW_FLEXSPACE` on grid when embedding in stack  
 ❌ Using `frame=` on auto-layout children  
 ❌ Label column widths too small (causes "10px wide column" bug)  
+❌ Subtracting `vscroll.pos` in a top-level popup renderer when its projection already scrolls content
+❌ Painting root-window scrollbar chrome with the root's scrolling projection
+❌ Treating every captured mouse-up as an item commit
 
 ✅ Always use explicit `<column>` elements for grids  
 ✅ Fixed width on label columns (48-80pt)  
 ✅ `WINDOW_FLEXSPACE` on grid itself for expansion  
 ✅ `WINDOW_VSCROLL` on scrollable controls (reportview, multiedit)  
 ✅ `<space />` to push button groups to edges  
+✅ Content-space hit-testing and viewport-space popup bounds checks
 
 ## Available controls
 
@@ -232,7 +250,7 @@ The agent has full knowledge of Apple HIG, all Orion capabilities, and will prov
 ## Documentation references
 
 - `.github/copilot-instructions.md` - Complete framework reference
-- `.github/agents/orion-ui-designer.md` - Full UI design agent
+- `.opencode/agents/orion-ui-designer.md` - Full UI design agent
 - `docs/controls.md` - Control reference
 - `docs/dialogs.md` - Dialog patterns
 - `examples/*/**.orion` - Real-world examples
