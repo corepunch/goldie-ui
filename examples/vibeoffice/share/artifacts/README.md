@@ -26,6 +26,11 @@ The Icon control displays artefacts at up to 32x32 and may shrink them further
 to fit an agent's artefact strip. Keeping the source files at 64x64 provides a
 2x master for the maximum rendered size while keeping the set lightweight.
 
+Artifact counts use a solid anti-aliased red circle rendered at 13x13 from a
+26x26 PNG master. Native white text shows the exact count from 2-9 and a
+hashtag for counts of 10 or more. The circle is generated alongside the status
+icons by `tools/gen_status_icons.py`.
+
 ## Current mapping
 
 | VibeOffice name | Fluent Emoji asset |

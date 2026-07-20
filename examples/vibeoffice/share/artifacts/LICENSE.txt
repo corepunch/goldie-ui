@@ -1,7 +1,8 @@
 Microsoft Fluent Emoji — MIT License
 Copyright (c) Microsoft Corporation.
 
-The 64x64 artifact PNG files in this directory are resized from the 3D PNG assets in:
+The 64x64 draggable artifact PNGs in this directory are resized from the 3D PNG
+assets in:
 https://github.com/microsoft/fluentui-emoji
 
 Licensed under the MIT License:

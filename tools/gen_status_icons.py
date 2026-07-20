@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the anti-aliased VibeOffice status circles."""
+"""Generate the anti-aliased VibeOffice status and count circles."""
 
 import argparse
 import math
@@ -34,13 +34,15 @@ def write_circle(path, size, color):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--size", type=int, default=18)
+    parser.add_argument("--count-badge-size", type=int, default=26)
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).parents[1] / "examples/vibeoffice/share/artifacts")
     args = parser.parse_args()
-    if args.size < 1:
-        parser.error("--size must be positive")
+    if args.size < 1 or args.count_badge_size < 1:
+        parser.error("circle sizes must be positive")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name, color in COLORS.items():
         write_circle(args.output_dir / f"status-{name}.png", args.size, color)
+    write_circle(args.output_dir / "count-badge.png", args.count_badge_size, COLORS["error"])
 
 
 if __name__ == "__main__":

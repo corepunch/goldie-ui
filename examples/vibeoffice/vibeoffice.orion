@@ -20,8 +20,8 @@
           title="Inspector"
           width="400" height="330"
           flags="WINDOW_HIDDEN"
-          spacing="6"
-          padding="16 12 16 12">
+          spacing="4"
+          padding="8 8 8 8">
       <Label name="desk" text="Desk: None" />
       <Label name="status" text="Status: available" />
       <StackView name="model_row" orientation="horizontal" spacing="8" height="24">

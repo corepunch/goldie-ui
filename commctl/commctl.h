@@ -61,9 +61,10 @@ typedef struct {
 } icon_badge_t;
 typedef struct {
   int id, count;
-  icon_image_t image;
+  icon_image_t image;       // required
   const char *label;
   void *item_data;
+  icon_image_t count_badge; // required when count > 1
 } icon_artifact_t;
 typedef struct {
   window_t *source, *target;

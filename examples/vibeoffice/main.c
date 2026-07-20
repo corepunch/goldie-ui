@@ -35,6 +35,7 @@ typedef struct {
   uint32_t texture;
   int image_w, image_h;
 } vibe_status_icon_t;
+typedef struct { const char *filename; uint32_t texture; int image_w, image_h; } vibe_count_badge_t;
 
 typedef struct {
   vibe_icon_t *icon;
@@ -75,6 +76,9 @@ static vibe_status_icon_t g_status_icons[] = {
   { VIBE_TASK_PENDING, "Pending",   "artifacts/status-pending.png" },
   { VIBE_TASK_ERROR,   "Error",     "artifacts/status-error.png" },
 };
+// A solid anti-aliased red circle backs native count text: 2-9 or # for 10+.
+// The control renders this 26x26 master at 13x13.
+static vibe_count_badge_t g_count_badge = { "artifacts/count-badge.png" };
 static vibe_icon_t g_icons[] = {
   { .id = 1, .model_id = 1, .title = "Manager",   .filename = "manager.png",   .artifacts = {{VIBE_ART_TICKET, 2}, {VIBE_ART_CHAT, 1}, {VIBE_ART_PLAN, 1}} },
   { .id = 2, .model_id = 2, .title = "Developer", .filename = "developer.png", .artifacts = {{VIBE_ART_PROJECT, 1}, {VIBE_ART_FILE, 2}, {VIBE_ART_WEBREQUEST, 1}} },
@@ -112,8 +116,11 @@ static void refresh_icon_artifacts(vibe_icon_t *icon) {
     vibe_artifact_amount_t *amount = &icon->artifacts[i];
     vibe_artifact_def_t *def = amount->count > 0 ? artifact_def(amount->type) : NULL;
     if (!def) continue;
-    shown[count++] = (icon_artifact_t){ def->type, amount->count,
-      { def->texture, def->image_w, def->image_h }, def->label, def };
+    shown[count++] = (icon_artifact_t){
+      .id = def->type, .count = amount->count, .image = { def->texture, def->image_w, def->image_h },
+      .label = def->label, .item_data = def,
+      .count_badge = { g_count_badge.texture, g_count_badge.image_w, g_count_badge.image_h },
+    };
   }
   send_message(icon->win, icSetArtifacts, (uint32_t)count, shown);
 }
@@ -445,6 +452,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
     g_artifacts[i].texture = load_asset_texture(g_artifacts[i].filename, &g_artifacts[i].image_w, &g_artifacts[i].image_h);
   for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++)
     g_status_icons[i].texture = load_asset_texture(g_status_icons[i].filename, &g_status_icons[i].image_w, &g_status_icons[i].image_h);
+  g_count_badge.texture = load_asset_texture(g_count_badge.filename, &g_count_badge.image_w, &g_count_badge.image_h);
   for (int i = 0; i < (int)ARRAY_LEN(g_icons); i++) {
     vibe_icon_t *item = &g_icons[i];
     item->texture = load_asset_texture(item->filename, &item->image_w, &item->image_h);
@@ -484,6 +492,7 @@ void gem_shutdown(void) {
   for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++) {
     R_DeleteTexture(g_status_icons[i].texture); g_status_icons[i].texture = 0;
   }
+  R_DeleteTexture(g_count_badge.texture); g_count_badge.texture = 0;
   if (g_controller && is_window(g_controller)) destroy_window(g_controller);
   g_controller = NULL;
   destroy_database(g_models_db); g_models_db = NULL;

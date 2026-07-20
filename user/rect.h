@@ -45,6 +45,13 @@ static inline irect16_t rect_center(irect16_t r, int w, int h) {
   return (irect16_t){ r.x + (r.w - w) / 2, r.y + (r.h - h) / 2, w, h };
 }
 
+// ── Hit testing ──────────────────────────────────────────────────────────
+
+// Test a point against the half-open bounds of r.
+static inline bool rect_contains_point(irect16_t r, ipoint16_t p) {
+  return p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
+}
+
 // ── Edge splits (return sliced strip; original rect is unchanged) ─────────
 
 // Slice a strip of width w off the left edge of r.

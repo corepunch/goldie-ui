@@ -94,6 +94,16 @@ void test_rect_center_at_origin(void) {
     PASS();
 }
 
+void test_rect_contains_point(void) {
+    TEST("rect_contains_point: includes top-left and excludes bottom-right edges");
+    irect16_t r = {10, 20, 30, 40};
+    ASSERT_TRUE(rect_contains_point(r, (ipoint16_t){10, 20}));
+    ASSERT_TRUE(rect_contains_point(r, (ipoint16_t){39, 59}));
+    ASSERT_FALSE(rect_contains_point(r, (ipoint16_t){40, 59}));
+    ASSERT_FALSE(rect_contains_point(r, (ipoint16_t){39, 60}));
+    PASS();
+}
+
 // ── rect_split_left ──────────────────────────────────────────────────────
 
 void test_rect_split_left(void) {
@@ -262,6 +272,7 @@ int main(int argc, char *argv[]) {
     test_rect_offset();
     test_rect_center();
     test_rect_center_at_origin();
+    test_rect_contains_point();
     test_rect_split_left();
     test_rect_split_top();
     test_rect_split_right();
