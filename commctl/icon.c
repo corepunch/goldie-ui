@@ -95,7 +95,7 @@ static void desktop_icon_select(window_t *win, bool selected, bool notify) {
 }
 
 static irect16_t desktop_icon_image_rect(window_t *win, const icon_state_t *st) {
-  int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
+  int status_h = st->status_image.texture ? ICON_STATUS_SIZE : 0;
   int label_h = MAX(text_char_height(FONT_ICON), status_h);
   int content_w = win->frame.w - (st->artifact_count ? ICON_ARTIFACT_STRIP_W : 0);
   int avail_w = MAX(1, content_w);
@@ -111,7 +111,7 @@ static irect16_t desktop_icon_image_rect(window_t *win, const icon_state_t *st) 
 
 static irect16_t desktop_icon_artifact_rect(window_t *win, const icon_state_t *st, int index) {
   irect16_t image = desktop_icon_image_rect(win, st);
-  int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
+  int status_h = st->status_image.texture ? ICON_STATUS_SIZE : 0;
   int label_h = MAX(text_char_height(FONT_ICON), status_h);
   int area_h = MAX(ICON_ARTIFACT_SIZE, win->frame.h - label_h);
   int size = MIN(ICON_ARTIFACT_SIZE, MAX(16, area_h / MAX(1, st->artifact_count)));
@@ -199,7 +199,7 @@ static void desktop_icon_draw_badge(window_t *win, const icon_badge_state_t *bad
 static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
   irect16_t local = R(0, 0, win->frame.w, win->frame.h);
   irect16_t image = desktop_icon_image_rect(win, st);
-  int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
+  int status_h = st->status_image.texture ? ICON_STATUS_SIZE : 0;
   int label_h = MAX(text_char_height(FONT_ICON), status_h) + 2;
   int content_w = win->frame.w - (st->artifact_count ? ICON_ARTIFACT_STRIP_W : 0);
   irect16_t label = R(0, win->frame.h - label_h, MAX(1, content_w), label_h);
@@ -216,8 +216,8 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
   uint32_t text_col = win->value ? get_sys_color(brFocusRing) : get_sys_color(brTextNormal);
   if (st->status_image.texture) {
     int text_w = text_strwidth(FONT_ICON, win->title);
-    int status_w = st->status_image.width > 0 ? st->status_image.width : ICON_STATUS_SIZE;
-    int status_h = st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE;
+    int status_w = ICON_STATUS_SIZE;
+    int status_h = ICON_STATUS_SIZE;
     int group_w = status_w + ICON_STATUS_GAP + text_w;
     int x = MAX(0, (content_w - group_w) / 2);
     int sy = label.y + MAX(0, (label.h - status_h) / 2);
