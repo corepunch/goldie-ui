@@ -8,15 +8,11 @@
 #include "../user/text.h"
 #include "../user/theme.h"
 
-#define ICON_PAD 4
-#define ICON_LABEL_GAP 2
 #define ICON_BADGE_TEXT_MAX 15
 #define ICON_ARTIFACT_LABEL_MAX 31
-#define ICON_ARTIFACT_STRIP_W 42
+#define ICON_ARTIFACT_STRIP_W 16
 #define ICON_ARTIFACT_SIZE 32
-#define ICON_ARTIFACT_GAP 5
 #define ICON_STATUS_SIZE 18
-#define ICON_STATUS_GAP 3
 #define ICON_DRAG_THRESHOLD 3
 
 typedef struct {
@@ -101,26 +97,26 @@ static irect16_t desktop_icon_image_rect(window_t *win, const icon_state_t *st) 
   int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
   int label_h = MAX(text_char_height(FONT_ICON), status_h);
   int content_w = win->frame.w - (st->artifact_count ? ICON_ARTIFACT_STRIP_W : 0);
-  int avail_w = MAX(1, content_w - ICON_PAD * 2);
-  int avail_h = MAX(1, win->frame.h - ICON_PAD * 2 - label_h - ICON_LABEL_GAP);
+  int avail_w = MAX(1, content_w);
+  int avail_h = MAX(1, win->frame.h - label_h);
   int w = avail_w, h = avail_h;
   if (st->image.width > 0 && st->image.height > 0) {
     float scale = MIN((float)avail_w / st->image.width, (float)avail_h / st->image.height);
     w = MAX(1, (int)(st->image.width * scale));
     h = MAX(1, (int)(st->image.height * scale));
   }
-  return R((content_w - w) / 2, ICON_PAD + (avail_h - h) / 2, w, h);
+  return R((content_w - w) / 2, (avail_h - h) / 2, w, h);
 }
 
 static irect16_t desktop_icon_artifact_rect(window_t *win, const icon_state_t *st, int index) {
+  irect16_t image = desktop_icon_image_rect(win, st);
   int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
-  int label_h = MAX(text_char_height(FONT_ICON), status_h) + ICON_PAD + ICON_LABEL_GAP;
-  int area_h = MAX(ICON_ARTIFACT_SIZE, win->frame.h - label_h - ICON_PAD);
-  int size = MIN(ICON_ARTIFACT_SIZE, MAX(16, (area_h - MAX(0, st->artifact_count - 1) * ICON_ARTIFACT_GAP) /
-                                         MAX(1, st->artifact_count)));
-  int total_h = st->artifact_count * size + MAX(0, st->artifact_count - 1) * ICON_ARTIFACT_GAP;
-  int x = win->frame.w - ICON_ARTIFACT_STRIP_W + (ICON_ARTIFACT_STRIP_W - size) / 2;
-  int y = ICON_PAD + MAX(0, (area_h - total_h) / 2) + index * (size + ICON_ARTIFACT_GAP);
+  int label_h = MAX(text_char_height(FONT_ICON), status_h);
+  int area_h = MAX(ICON_ARTIFACT_SIZE, win->frame.h - label_h);
+  int size = MIN(ICON_ARTIFACT_SIZE, MAX(16, area_h / MAX(1, st->artifact_count)));
+  int total_h = st->artifact_count * size;
+  int x = image.x + image.w - size / 2;
+  int y = MAX(0, (area_h - total_h) / 2) + index * size;
   return R(x, y, size, size);
 }
 
@@ -185,9 +181,11 @@ static void desktop_icon_draw_badge(window_t *win, const icon_badge_state_t *bad
   if (!badge->visible || !badge->text[0]) return;
   int h = text_char_height(FONT_ICON) + 4;
   int w = text_strwidth(FONT_ICON, badge->text) + 8;
-  int x = (badge->anchor == ICON_BADGE_TOP_LEFT || badge->anchor == ICON_BADGE_BOTTOM_LEFT)
+  int x = badge->anchor == ICON_BADGE_TOP_CENTER ? image.x + (image.w - w) / 2
+        : (badge->anchor == ICON_BADGE_TOP_LEFT || badge->anchor == ICON_BADGE_BOTTOM_LEFT)
           ? image.x - 2 : image.x + image.w - w + 2;
-  int y = (badge->anchor == ICON_BADGE_TOP_LEFT || badge->anchor == ICON_BADGE_TOP_RIGHT)
+  int y = (badge->anchor == ICON_BADGE_TOP_LEFT || badge->anchor == ICON_BADGE_TOP_RIGHT ||
+           badge->anchor == ICON_BADGE_TOP_CENTER)
           ? image.y + stack * (h + 2) - 2 : image.y + image.h - h - stack * (h + 2) + 2;
   x = MAX(0, MIN(x, win->frame.w - w));
   y = MAX(0, MIN(y, win->frame.h - h));
@@ -203,8 +201,7 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
   int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
   int label_h = MAX(text_char_height(FONT_ICON), status_h) + 2;
   int content_w = win->frame.w - (st->artifact_count ? ICON_ARTIFACT_STRIP_W : 0);
-  irect16_t label = R(ICON_PAD, win->frame.h - ICON_PAD - label_h,
-                      MAX(1, content_w - ICON_PAD * 2), label_h);
+  irect16_t label = R(0, win->frame.h - label_h, MAX(1, content_w), label_h);
   uint32_t bg = get_sys_color(brWorkspaceBg);
   if (!(win->flags & WINDOW_TRANSPARENT)) fill_rect(bg, local);
   if (win->value) {
@@ -220,17 +217,17 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
     int text_w = text_strwidth(FONT_ICON, win->title);
     int status_w = st->status_image.width > 0 ? st->status_image.width : ICON_STATUS_SIZE;
     int status_h = st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE;
-    int group_w = status_w + ICON_STATUS_GAP + text_w;
-    int x = MAX(ICON_PAD, (content_w - group_w) / 2);
+    int group_w = status_w + text_w;
+    int x = MAX(0, (content_w - group_w) / 2);
     int sy = label.y + MAX(0, (label.h - status_h) / 2);
     draw_rect((int)st->status_image.texture, R(x, sy, status_w, status_h));
-    irect16_t status_label = R(x + status_w + ICON_STATUS_GAP, label.y, text_w, label.h);
+    irect16_t status_label = R(x + status_w, label.y, text_w, label.h);
     draw_text_clipped(FONT_ICON, win->title, &status_label, text_col, TEXT_ALIGN_CENTER);
   } else draw_text_clipped(FONT_ICON, win->title, &label, text_col, TEXT_ALIGN_CENTER);
-  int anchor_counts[4] = {0};
+  int anchor_counts[5] = {0};
   for (int i = 0; i < ICON_MAX_BADGES; i++) {
     int anchor = st->badges[i].anchor;
-    if (anchor < 0 || anchor > ICON_BADGE_BOTTOM_RIGHT) anchor = ICON_BADGE_TOP_RIGHT;
+    if (anchor < 0 || anchor > ICON_BADGE_TOP_CENTER) anchor = ICON_BADGE_TOP_RIGHT;
     desktop_icon_draw_badge(win, &st->badges[i], image, anchor_counts[anchor]++);
   }
   for (int i = 0; i < st->artifact_count; i++) {

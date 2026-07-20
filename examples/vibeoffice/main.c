@@ -12,9 +12,7 @@
 #define VIBE_SCREEN_H 768
 #define INSPECTOR_POLL_MS   100
 #define AGENT_IMAGE_SIZE    160
-#define ICON_LAYOUT_PAD       4
-#define ICON_LAYOUT_LABEL_GAP 2
-#define ICON_LAYOUT_ARTIFACT_W 42
+#define ICON_LAYOUT_ARTIFACT_W 16
 
 typedef struct vibe_icon_s vibe_icon_t;
 
@@ -215,7 +213,7 @@ static void refresh_icon_model(vibe_icon_t *icon) {
   if (!icon || !icon->win || !model) return;
   icon_badge_t badge = {
     .text = model->name, .background = 0xff705030,
-    .foreground = 0xffffffff, .anchor = ICON_BADGE_TOP_RIGHT,
+    .foreground = 0xffffffff, .anchor = ICON_BADGE_TOP_CENTER,
   };
   send_message(icon->win, icSetBadge, 0, &badge);
 }
@@ -407,8 +405,8 @@ static void layout_icons(void) {
   int label_h = MAX(text_char_height(FONT_ICON), status_h);
   // The Icon control reserves padding, a status label, and an artifact strip
   // inside its frame. Size the frame around the desired 128x128 agent image.
-  int icon_w = AGENT_IMAGE_SIZE + ICON_LAYOUT_PAD * 2 + ICON_LAYOUT_ARTIFACT_W;
-  int icon_h = AGENT_IMAGE_SIZE + ICON_LAYOUT_PAD * 2 + label_h + ICON_LAYOUT_LABEL_GAP;
+  int icon_w = AGENT_IMAGE_SIZE + ICON_LAYOUT_ARTIFACT_W;
+  int icon_h = AGENT_IMAGE_SIZE + label_h;
   int used_w = count * icon_w + (count - 1) * gap;
   int x = MAX(margin, (sw - used_w) / 2);
   int y = MAX(30, (sh - icon_h) / 2 - 20);

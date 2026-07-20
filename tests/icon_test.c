@@ -132,19 +132,19 @@ static void test_artifact_drag_notifies_drop_target(void) {
   window_t *target = create_window("Developer", 0, MAKERECT(220, 0, 180, 160), parent, win_icon, 0, NULL);
   ASSERT_TRUE(send_message(source, icSetArtifacts, 1, artifacts));
   artifacts[0].id = 99; artifacts[0].count = 9;
-  send_message(source, evLeftButtonDown, MAKEDWORD(150, 70), NULL);
+  send_message(source, evLeftButtonDown, MAKEDWORD(160, 70), NULL);
   send_message(source, evMouseMove, MAKEDWORD(240, 70), NULL);
   window_t *ghost = artifact_drag_ghost(parent);
   ASSERT_NOT_NULL(ghost);
-  ASSERT_EQUAL(ghost->frame.x, window_screen_x(source) + 233);
-  ASSERT_EQUAL(ghost->frame.y, window_screen_y(source) + 59);
+  ASSERT_EQUAL(ghost->frame.x, window_screen_x(source) + 228);
+  ASSERT_EQUAL(ghost->frame.y, window_screen_y(source) + 60);
   send_message(source, evLeftButtonUp, MAKEDWORD(240, 70), NULL);
   ASSERT_EQUAL(artifact_drop_count, 1); ASSERT_EQUAL(dropped_artifact_id, 7);
   ASSERT_EQUAL(last_drop_source, source); ASSERT_EQUAL(last_drop_target, target);
   ASSERT_NULL(artifact_drag_ghost(parent)); ASSERT_EQUAL(click_count, 0); ASSERT_EQUAL(source->frame.x, 0);
 
   artifact_drop_accepted = false;
-  send_message(source, evLeftButtonDown, MAKEDWORD(150, 70), NULL);
+  send_message(source, evLeftButtonDown, MAKEDWORD(160, 70), NULL);
   send_message(source, evMouseMove, MAKEDWORD(240, 70), NULL);
   ASSERT_NOT_NULL(artifact_drag_ghost(parent));
   send_message(source, evLeftButtonUp, MAKEDWORD(240, 70), NULL);

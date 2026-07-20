@@ -50,7 +50,8 @@ result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 #define ICON_MAX_BADGES 4
 #define ICON_MAX_ARTIFACTS 6
 typedef enum { ICON_BADGE_TOP_LEFT, ICON_BADGE_TOP_RIGHT,
-               ICON_BADGE_BOTTOM_LEFT, ICON_BADGE_BOTTOM_RIGHT } icon_badge_anchor_t;
+               ICON_BADGE_BOTTOM_LEFT, ICON_BADGE_BOTTOM_RIGHT,
+               ICON_BADGE_TOP_CENTER } icon_badge_anchor_t;
 typedef struct { uint32_t texture; int width, height; } icon_image_t;
 typedef struct {
   const char *text;
