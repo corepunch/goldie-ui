@@ -1,7 +1,7 @@
 Microsoft Fluent Emoji — MIT License
 Copyright (c) Microsoft Corporation.
 
-The 48x48 PNG files in this directory are resized from the 3D PNG assets in:
+The 64x64 artifact PNG files in this directory are resized from the 3D PNG assets in:
 https://github.com/microsoft/fluentui-emoji
 
 Licensed under the MIT License:
@@ -12,8 +12,6 @@ webrequest = Globe with meridians; chat = Speech balloon; calendar = Calendar;
 plan = Clipboard; file = Page facing up; project = Card index dividers;
 ticket = Ticket; bug = Bug; report = Chart increasing; folder = File folder;
 email = Envelope; database = File cabinet.
-status-available = Check mark button; status-busy = Hourglass not done;
-status-pending = Timer clock; status-error = Warning.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

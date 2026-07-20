@@ -68,7 +68,7 @@ static vibe_artifact_def_t g_artifacts[] = {
   { VIBE_ART_EMAIL,      "Email",       "artifacts/email.png" },      { VIBE_ART_DATABASE, "Database", "artifacts/database.png" },
 };
 // Agent state belongs beside the agent name; the right-hand strip is reserved
-// for draggable work artefacts. These use the same Fluent Emoji 3D PNG family.
+// for draggable work artefacts. These are locally generated status circles.
 static vibe_status_icon_t g_status_icons[] = {
   { VIBE_TASK_DONE,    "Available", "artifacts/status-available.png" },
   { VIBE_TASK_BUSY,    "Busy",      "artifacts/status-busy.png" },
