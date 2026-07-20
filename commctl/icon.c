@@ -13,6 +13,7 @@
 #define ICON_ARTIFACT_STRIP_W 16
 #define ICON_ARTIFACT_SIZE 32
 #define ICON_STATUS_SIZE 18
+#define ICON_STATUS_GAP 4
 #define ICON_DRAG_THRESHOLD 3
 
 typedef struct {
@@ -217,11 +218,11 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
     int text_w = text_strwidth(FONT_ICON, win->title);
     int status_w = st->status_image.width > 0 ? st->status_image.width : ICON_STATUS_SIZE;
     int status_h = st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE;
-    int group_w = status_w + text_w;
+    int group_w = status_w + ICON_STATUS_GAP + text_w;
     int x = MAX(0, (content_w - group_w) / 2);
     int sy = label.y + MAX(0, (label.h - status_h) / 2);
     draw_rect((int)st->status_image.texture, R(x, sy, status_w, status_h));
-    irect16_t status_label = R(x + status_w, label.y, text_w, label.h);
+    irect16_t status_label = R(x + status_w + ICON_STATUS_GAP, label.y, text_w, label.h);
     draw_text_clipped(FONT_ICON, win->title, &status_label, text_col, TEXT_ALIGN_CENTER);
   } else draw_text_clipped(FONT_ICON, win->title, &label, text_col, TEXT_ALIGN_CENTER);
   int anchor_counts[5] = {0};
