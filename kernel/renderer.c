@@ -473,6 +473,10 @@ void draw_sprite_region(int tex, irect16_t r,
   float tb = ((color >> 16) & 0xFF) / 255.0f;
   float ta = 1.0f;
   glUniform4f(prog->tint_u, tr, tg, tb, ta);
+  if (flags & DRAW_SPRITE_SOLID) {
+    glUniform4f(prog->params0_u, 1.0f, 0.0f, 0.0f, 0.0f);
+    glUniform4f(prog->params1_u, tr, tg, tb, 1.0f);
+  }
 
   glUniform2f(prog->uv_offset_u, u0, v0);
   glUniform2f(prog->uv_scale_u, u1 - u0, v1 - v0);

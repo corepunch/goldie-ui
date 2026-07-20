@@ -14,6 +14,7 @@
 #define ICON_ARTIFACT_SIZE 32
 #define ICON_STATUS_SIZE 18
 #define ICON_DRAG_THRESHOLD 3
+#define ICON_SELECTION_COLOR 0xff00ff00
 
 typedef struct {
   bool visible;
@@ -204,12 +205,12 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
   irect16_t label = R(0, win->frame.h - label_h, MAX(1, content_w), label_h);
   uint32_t bg = get_sys_color(brWorkspaceBg);
   if (!(win->flags & WINDOW_TRANSPARENT)) fill_rect(bg, local);
-  if (win->value) {
-    uint32_t selection = get_sys_color(brActiveTitlebar);
-    fill_rect(selection, R(1, 1, win->frame.w - 2, 2));
-    fill_rect(selection, R(1, win->frame.h - 3, win->frame.w - 2, 2));
-    fill_rect(selection, R(1, 3, 2, win->frame.h - 6));
-    fill_rect(selection, R(win->frame.w - 3, 3, 2, win->frame.h - 6));
+  if (win->value && st->image.texture) {
+    uint32_t selection = ICON_SELECTION_COLOR; int texture = (int)st->image.texture;
+    draw_sprite_region(texture, R(image.x - 1, image.y, image.w, image.h), NULL, selection, DRAW_SPRITE_SOLID);
+    draw_sprite_region(texture, R(image.x + 1, image.y, image.w, image.h), NULL, selection, DRAW_SPRITE_SOLID);
+    draw_sprite_region(texture, R(image.x, image.y - 1, image.w, image.h), NULL, selection, DRAW_SPRITE_SOLID);
+    draw_sprite_region(texture, R(image.x, image.y + 1, image.w, image.h), NULL, selection, DRAW_SPRITE_SOLID);
   }
   if (st->image.texture) draw_rect((int)st->image.texture, image);
   uint32_t text_col = win->value ? get_sys_color(brFocusRing) : get_sys_color(brTextNormal);

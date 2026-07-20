@@ -19,7 +19,8 @@ void draw_program_rect(int tex, irect16_t r, uint32_t program, float mix_amount)
     (&(frect_t){ (U0), (V0), (U1), (V1) })
 
 enum {
-    DRAW_SPRITE_NO_ALPHA = 1u << 0
+    DRAW_SPRITE_NO_ALPHA = 1u << 0,
+    DRAW_SPRITE_SOLID    = 1u << 1,
 };
 
 // Short alias for callers that prefer terse draw flags.
