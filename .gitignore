@@ -67,3 +67,4 @@ libcglm*
 :memory:
 *.log
 test.xml
+/output

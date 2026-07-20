@@ -19,7 +19,7 @@
     <form name="inspector"
           title="Inspector"
           width="400" height="330"
-          flags="WINDOW_HIDDEN | WINDOW_NORESIZE"
+          flags="WINDOW_HIDDEN"
           spacing="6"
           padding="16 12 16 12">
       <Label name="desk" text="Desk: None" />

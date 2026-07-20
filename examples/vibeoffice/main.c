@@ -11,8 +11,32 @@
 #define VIBE_SCREEN_W 1024
 #define VIBE_SCREEN_H 768
 #define INSPECTOR_POLL_MS   100
+#define AGENT_IMAGE_SIZE    160
+#define ICON_LAYOUT_PAD       4
+#define ICON_LAYOUT_LABEL_GAP 2
+#define ICON_LAYOUT_ARTIFACT_W 42
 
 typedef struct vibe_icon_s vibe_icon_t;
+
+typedef enum {
+  VIBE_ART_WEBREQUEST = 1, VIBE_ART_CHAT, VIBE_ART_CALENDAR, VIBE_ART_PLAN,
+  VIBE_ART_FILE, VIBE_ART_PROJECT, VIBE_ART_TICKET, VIBE_ART_BUG,
+  VIBE_ART_REPORT, VIBE_ART_FOLDER, VIBE_ART_EMAIL, VIBE_ART_DATABASE,
+} vibe_artifact_type_t;
+
+typedef struct { int type, count; } vibe_artifact_amount_t;
+typedef struct {
+  int type;
+  const char *label, *filename;
+  uint32_t texture;
+  int image_w, image_h;
+} vibe_artifact_def_t;
+typedef struct {
+  vibe_task_status_t status;
+  const char *label, *filename;
+  uint32_t texture;
+  int image_w, image_h;
+} vibe_status_icon_t;
 
 typedef struct {
   vibe_icon_t *icon;
@@ -27,17 +51,37 @@ struct vibe_icon_s {
   window_t *win;
   vibe_process_t process;
   inspector_t inspector;
+  vibe_artifact_amount_t artifacts[ICON_MAX_ARTIFACTS];
 };
 
 static window_t *g_desktop, *g_controller;
 static database_t *g_models_db;
 static hinstance_t g_hinstance;
 static uint32_t g_poll_timer;
+// Playful office objects use Microsoft Fluent Emoji's full-colour 3D PNG set.
+// Keep future additions consistent; source, sizing, and naming are documented in
+// share/artifacts/README.md and the upstream MIT notice is beside the images.
+static vibe_artifact_def_t g_artifacts[] = {
+  { VIBE_ART_WEBREQUEST, "Web request", "artifacts/webrequest.png" }, { VIBE_ART_CHAT,     "Chat",     "artifacts/chat.png" },
+  { VIBE_ART_CALENDAR,   "Calendar",    "artifacts/calendar.png" },   { VIBE_ART_PLAN,     "Plan",     "artifacts/plan.png" },
+  { VIBE_ART_FILE,       "File",        "artifacts/file.png" },       { VIBE_ART_PROJECT,  "Project",  "artifacts/project.png" },
+  { VIBE_ART_TICKET,     "Ticket",      "artifacts/ticket.png" },     { VIBE_ART_BUG,      "Bug",      "artifacts/bug.png" },
+  { VIBE_ART_REPORT,     "Report",      "artifacts/report.png" },     { VIBE_ART_FOLDER,   "Folder",   "artifacts/folder.png" },
+  { VIBE_ART_EMAIL,      "Email",       "artifacts/email.png" },      { VIBE_ART_DATABASE, "Database", "artifacts/database.png" },
+};
+// Agent state belongs beside the agent name; the right-hand strip is reserved
+// for draggable work artefacts. These use the same Fluent Emoji 3D PNG family.
+static vibe_status_icon_t g_status_icons[] = {
+  { VIBE_TASK_DONE,    "Available", "artifacts/status-available.png" },
+  { VIBE_TASK_BUSY,    "Busy",      "artifacts/status-busy.png" },
+  { VIBE_TASK_PENDING, "Pending",   "artifacts/status-pending.png" },
+  { VIBE_TASK_ERROR,   "Error",     "artifacts/status-error.png" },
+};
 static vibe_icon_t g_icons[] = {
-  { 1, 1, "Manager",   "manager.png" },
-  { 2, 2, "Developer", "developer.png" },
-  { 3, 3, "Tester",    "tester.png" },
-  { 4, 4, "Desk",      "desk.png" },
+  { .id = 1, .model_id = 1, .title = "Manager",   .filename = "manager.png",   .artifacts = {{VIBE_ART_TICKET, 2}, {VIBE_ART_CHAT, 1}, {VIBE_ART_PLAN, 1}} },
+  { .id = 2, .model_id = 2, .title = "Developer", .filename = "developer.png", .artifacts = {{VIBE_ART_PROJECT, 1}, {VIBE_ART_FILE, 2}, {VIBE_ART_WEBREQUEST, 1}} },
+  { .id = 3, .model_id = 3, .title = "Tester",    .filename = "tester.png",    .artifacts = {{VIBE_ART_BUG, 2}, {VIBE_ART_REPORT, 1}, {VIBE_ART_FOLDER, 1}} },
+  { .id = 4, .model_id = 4, .title = "Desk",      .filename = "desk.png",      .artifacts = {{VIBE_ART_CALENDAR, 2}, {VIBE_ART_EMAIL, 1}, {VIBE_ART_DATABASE, 1}} },
 };
 
 static vibe_icon_t *icon_from_window(window_t *win) {
@@ -46,6 +90,44 @@ static vibe_icon_t *icon_from_window(window_t *win) {
 
 static int icon_index(vibe_icon_t *icon) {
   return icon ? (int)(icon - g_icons) : -1;
+}
+
+static vibe_artifact_def_t *artifact_def(int type) {
+  for (int i = 0; i < (int)ARRAY_LEN(g_artifacts); i++) if (g_artifacts[i].type == type) return &g_artifacts[i];
+  return NULL;
+}
+
+static vibe_artifact_amount_t *artifact_amount(vibe_icon_t *icon, int type, bool empty) {
+  vibe_artifact_amount_t *free_slot = NULL;
+  if (!icon) return NULL;
+  for (int i = 0; i < ICON_MAX_ARTIFACTS; i++) {
+    if (icon->artifacts[i].type == type) return &icon->artifacts[i];
+    if (!icon->artifacts[i].count && !free_slot) free_slot = &icon->artifacts[i];
+  }
+  return empty ? free_slot : NULL;
+}
+
+static void refresh_icon_artifacts(vibe_icon_t *icon) {
+  if (!icon || !icon->win) return;
+  icon_artifact_t shown[ICON_MAX_ARTIFACTS]; int count = 0;
+  for (int i = 0; i < ICON_MAX_ARTIFACTS; i++) {
+    vibe_artifact_amount_t *amount = &icon->artifacts[i];
+    vibe_artifact_def_t *def = amount->count > 0 ? artifact_def(amount->type) : NULL;
+    if (!def) continue;
+    shown[count++] = (icon_artifact_t){ def->type, amount->count,
+      { def->texture, def->image_w, def->image_h }, def->label, def };
+  }
+  send_message(icon->win, icSetArtifacts, (uint32_t)count, shown);
+}
+
+static bool transfer_artifact(vibe_icon_t *source, vibe_icon_t *target, int type) {
+  vibe_artifact_amount_t *from = artifact_amount(source, type, false);
+  vibe_artifact_amount_t *to = artifact_amount(target, type, true);
+  if (!from || from->count < 1 || !to || !artifact_def(type)) return false;
+  if (!to->count) to->type = type;
+  from->count--; to->count++;
+  refresh_icon_artifacts(source); refresh_icon_artifacts(target);
+  return true;
 }
 
 static inspector_t *inspector_from_window(window_t *win) {
@@ -142,11 +224,11 @@ static void refresh_icon_status(vibe_icon_t *icon) {
   if (!icon || !icon->win) return;
   vibe_task_t task;
   vibe_task_read(icon->id, &task);
-  icon_badge_t badge = {
-    .text = " ", .background = task_status_color(task.status),
-    .foreground = 0xffffffff, .anchor = ICON_BADGE_BOTTOM_RIGHT,
-  };
-  send_message(icon->win, icSetBadge, 1, &badge);
+  vibe_status_icon_t *status = &g_status_icons[0];
+  for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++)
+    if (g_status_icons[i].status == task.status) { status = &g_status_icons[i]; break; }
+  icon_image_t image = { status->texture, status->image_w, status->image_h };
+  send_message(icon->win, icSetStatusImage, 0, &image);
 }
 
 static void inspector_refresh(inspector_t *inspector, bool load_input) {
@@ -273,6 +355,12 @@ static result_t win_vibe_controller(window_t *win, uint32_t msg, uint32_t wparam
   switch (msg) {
     case evCreate: g_poll_timer = axSetTimer(win, INSPECTOR_POLL_MS, NULL, true); return true;
     case evCommand:
+      if (HIWORD(wparam) == icnArtifactDrop) {
+        icon_artifact_drop_t *drop = (icon_artifact_drop_t *)lparam;
+        vibe_icon_t *source = drop ? icon_from_window(drop->source) : NULL;
+        vibe_icon_t *target = drop ? icon_from_window(drop->target) : NULL;
+        return transfer_artifact(source, target, drop ? drop->artifact_id : 0);
+      }
       if (HIWORD(wparam) == icnOpen) return inspector_open(icon_from_window((window_t *)lparam)) != NULL;
       if (HIWORD(wparam) == icnSelectionChange || HIWORD(wparam) == icnClicked) return true;
       return false;
@@ -314,9 +402,13 @@ static void layout_icons(void) {
   int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
   int count = (int)ARRAY_LEN(g_icons);
   int gap = 10, margin = 12;
-  int cell_w = MAX(96, (sw - margin * 2 - gap * (count - 1)) / count);
-  int icon_w = MIN(140, cell_w);
-  int icon_h = MIN(160, MAX(120, sh - 80));
+  int status_h = 0;
+  for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++) status_h = MAX(status_h, g_status_icons[i].image_h);
+  int label_h = MAX(text_char_height(FONT_ICON), status_h);
+  // The Icon control reserves padding, a status label, and an artifact strip
+  // inside its frame. Size the frame around the desired 128x128 agent image.
+  int icon_w = AGENT_IMAGE_SIZE + ICON_LAYOUT_PAD * 2 + ICON_LAYOUT_ARTIFACT_W;
+  int icon_h = AGENT_IMAGE_SIZE + ICON_LAYOUT_PAD * 2 + label_h + ICON_LAYOUT_LABEL_GAP;
   int used_w = count * icon_w + (count - 1) * gap;
   int x = MAX(margin, (sw - used_w) / 2);
   int y = MAX(30, (sh - icon_h) / 2 - 20);
@@ -351,6 +443,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
     destroy_database(g_models_db); g_models_db = NULL;
     return false;
   }
+  for (int i = 0; i < (int)ARRAY_LEN(g_artifacts); i++)
+    g_artifacts[i].texture = load_asset_texture(g_artifacts[i].filename, &g_artifacts[i].image_w, &g_artifacts[i].image_h);
+  for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++)
+    g_status_icons[i].texture = load_asset_texture(g_status_icons[i].filename, &g_status_icons[i].image_w, &g_status_icons[i].image_h);
   for (int i = 0; i < (int)ARRAY_LEN(g_icons); i++) {
     vibe_icon_t *item = &g_icons[i];
     item->texture = load_asset_texture(item->filename, &item->image_w, &item->image_h);
@@ -367,6 +463,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
     if (!item->win) continue;
     refresh_icon_model(item);
     refresh_icon_status(item);
+    refresh_icon_artifacts(item);
   }
   layout_icons();
   invalidate_window(g_desktop);
@@ -382,6 +479,12 @@ void gem_shutdown(void) {
     R_DeleteTexture(g_icons[i].texture);
     g_icons[i].texture = 0;
     g_icons[i].win = NULL;
+  }
+  for (int i = 0; i < (int)ARRAY_LEN(g_artifacts); i++) {
+    R_DeleteTexture(g_artifacts[i].texture); g_artifacts[i].texture = 0;
+  }
+  for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++) {
+    R_DeleteTexture(g_status_icons[i].texture); g_status_icons[i].texture = 0;
   }
   if (g_controller && is_window(g_controller)) destroy_window(g_controller);
   g_controller = NULL;

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,6 +11,12 @@
 #define ICON_PAD 4
 #define ICON_LABEL_GAP 2
 #define ICON_BADGE_TEXT_MAX 15
+#define ICON_ARTIFACT_LABEL_MAX 31
+#define ICON_ARTIFACT_STRIP_W 42
+#define ICON_ARTIFACT_SIZE 32
+#define ICON_ARTIFACT_GAP 5
+#define ICON_STATUS_SIZE 18
+#define ICON_STATUS_GAP 3
 #define ICON_DRAG_THRESHOLD 3
 
 typedef struct {
@@ -20,16 +27,33 @@ typedef struct {
 } icon_badge_state_t;
 
 typedef struct {
+  int id, count;
   icon_image_t image;
+  char label[ICON_ARTIFACT_LABEL_MAX + 1];
   void *item_data;
-  window_t *notify_window;
+} icon_artifact_state_t;
+
+typedef struct {
+  icon_image_t image, status_image;
+  void *item_data;
+  window_t *notify_window, *artifact_ghost;
   bool draggable, drag_pending, dragging;
   int drag_x, drag_y;
   icon_badge_state_t badges[ICON_MAX_BADGES];
+  int artifact_count, artifact_pending, artifact_dragging, artifact_grab_x, artifact_grab_y;
+  icon_artifact_state_t artifacts[ICON_MAX_ARTIFACTS];
 } icon_state_t;
 
 static int icon_mouse_coord(uint32_t packed, bool y) {
   return (int16_t)(y ? HIWORD(packed) : LOWORD(packed));
+}
+
+static ipoint16_t desktop_icon_local_to_screen(window_t *win, int x, int y) {
+  if (!win) return (ipoint16_t){0, 0};
+  return (ipoint16_t){
+    (int16_t)(window_screen_x(win) + x - win->hscroll.pos),
+    (int16_t)(window_screen_y(win) + y - win->vscroll.pos),
+  };
 }
 
 static void desktop_icon_drag(window_t *win, icon_state_t *st, uint32_t wparam) {
@@ -45,11 +69,15 @@ static void desktop_icon_drag(window_t *win, icon_state_t *st, uint32_t wparam) 
   move_window(win, nx, ny);
 }
 
-static void desktop_icon_notify(window_t *win, uint16_t code) {
+static result_t desktop_icon_notify_data(window_t *win, uint16_t code, void *data) {
   icon_state_t *st = (icon_state_t *)win->userdata2;
   window_t *target = st && st->notify_window && is_window(st->notify_window)
                      ? st->notify_window : (win->parent ? win->parent : get_root_window(win));
-  send_message(target, evCommand, MAKEDWORD(win->id, code), win);
+  return send_message(target, evCommand, MAKEDWORD(win->id, code), data);
+}
+
+static void desktop_icon_notify(window_t *win, uint16_t code) {
+  desktop_icon_notify_data(win, code, win);
 }
 
 static void desktop_icon_select(window_t *win, bool selected, bool notify) {
@@ -70,8 +98,10 @@ static void desktop_icon_select(window_t *win, bool selected, bool notify) {
 }
 
 static irect16_t desktop_icon_image_rect(window_t *win, const icon_state_t *st) {
-  int label_h = text_char_height(FONT_ICON);
-  int avail_w = MAX(1, win->frame.w - ICON_PAD * 2);
+  int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
+  int label_h = MAX(text_char_height(FONT_ICON), status_h);
+  int content_w = win->frame.w - (st->artifact_count ? ICON_ARTIFACT_STRIP_W : 0);
+  int avail_w = MAX(1, content_w - ICON_PAD * 2);
   int avail_h = MAX(1, win->frame.h - ICON_PAD * 2 - label_h - ICON_LABEL_GAP);
   int w = avail_w, h = avail_h;
   if (st->image.width > 0 && st->image.height > 0) {
@@ -79,7 +109,75 @@ static irect16_t desktop_icon_image_rect(window_t *win, const icon_state_t *st) 
     w = MAX(1, (int)(st->image.width * scale));
     h = MAX(1, (int)(st->image.height * scale));
   }
-  return R((win->frame.w - w) / 2, ICON_PAD + (avail_h - h) / 2, w, h);
+  return R((content_w - w) / 2, ICON_PAD + (avail_h - h) / 2, w, h);
+}
+
+static irect16_t desktop_icon_artifact_rect(window_t *win, const icon_state_t *st, int index) {
+  int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
+  int label_h = MAX(text_char_height(FONT_ICON), status_h) + ICON_PAD + ICON_LABEL_GAP;
+  int area_h = MAX(ICON_ARTIFACT_SIZE, win->frame.h - label_h - ICON_PAD);
+  int size = MIN(ICON_ARTIFACT_SIZE, MAX(16, (area_h - MAX(0, st->artifact_count - 1) * ICON_ARTIFACT_GAP) /
+                                         MAX(1, st->artifact_count)));
+  int total_h = st->artifact_count * size + MAX(0, st->artifact_count - 1) * ICON_ARTIFACT_GAP;
+  int x = win->frame.w - ICON_ARTIFACT_STRIP_W + (ICON_ARTIFACT_STRIP_W - size) / 2;
+  int y = ICON_PAD + MAX(0, (area_h - total_h) / 2) + index * (size + ICON_ARTIFACT_GAP);
+  return R(x, y, size, size);
+}
+
+static int desktop_icon_artifact_at(window_t *win, const icon_state_t *st, int x, int y) {
+  for (int i = 0; i < st->artifact_count; i++) {
+    irect16_t r = desktop_icon_artifact_rect(win, st, i);
+    if (x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h) return i;
+  }
+  return -1;
+}
+
+static window_t *desktop_icon_drop_target(window_t *win, int x, int y) {
+  if (!win->parent) return NULL;
+  int px = win->frame.x + x, py = win->frame.y + y;
+  for (window_t *it = win->parent->children; it; it = it->next)
+    if (it != win && it->proc == win_icon && px >= it->frame.x && py >= it->frame.y &&
+        px < it->frame.x + it->frame.w && py < it->frame.y + it->frame.h) return it;
+  return NULL;
+}
+
+static result_t desktop_icon_artifact_ghost_proc(window_t *win, uint32_t msg,
+                                                 uint32_t wparam, void *lparam) {
+  (void)wparam;
+  icon_state_t *st = (icon_state_t *)win->userdata2;
+  switch (msg) {
+    case evCreate: win->userdata2 = lparam; win->flags |= WINDOW_NOTABSTOP; return true;
+    case evPaint:
+      if (st && st->artifact_pending >= 0 && st->artifact_pending < st->artifact_count) {
+        icon_image_t image = st->artifacts[st->artifact_pending].image;
+        if (image.texture) draw_rect((int)image.texture, R(0, 0, win->frame.w, win->frame.h));
+      }
+      return true;
+    default: return false;
+  }
+}
+
+static void desktop_icon_artifact_hide_ghost(icon_state_t *st) {
+  if (!st || !st->artifact_ghost) return;
+  if (is_window(st->artifact_ghost)) destroy_window(st->artifact_ghost);
+  st->artifact_ghost = NULL;
+}
+
+static void desktop_icon_artifact_update_ghost(window_t *win, icon_state_t *st, int x, int y) {
+  if (!st || st->artifact_pending < 0 || st->artifact_pending >= st->artifact_count) return;
+  irect16_t slot = desktop_icon_artifact_rect(win, st, st->artifact_pending);
+  ipoint16_t screen = desktop_icon_local_to_screen(win, x, y);
+  if (!st->artifact_ghost) {
+    st->artifact_ghost = create_window("",
+      WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON |
+      WINDOW_NOFILL | WINDOW_NOACTIVATE | WINDOW_TRANSPARENT,
+      MAKERECT(screen.x - st->artifact_grab_x, screen.y - st->artifact_grab_y, slot.w, slot.h),
+      NULL, desktop_icon_artifact_ghost_proc, win->hinstance, st);
+    if (!st->artifact_ghost) return;
+  }
+  move_window(st->artifact_ghost, screen.x - st->artifact_grab_x, screen.y - st->artifact_grab_y);
+  resize_window(st->artifact_ghost, slot.w, slot.h);
+  show_window(st->artifact_ghost, true); invalidate_window(st->artifact_ghost);
 }
 
 static void desktop_icon_draw_badge(window_t *win, const icon_badge_state_t *badge,
@@ -102,9 +200,11 @@ static void desktop_icon_draw_badge(window_t *win, const icon_badge_state_t *bad
 static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
   irect16_t local = R(0, 0, win->frame.w, win->frame.h);
   irect16_t image = desktop_icon_image_rect(win, st);
-  int label_h = text_char_height(FONT_ICON) + 2;
+  int status_h = st->status_image.texture ? (st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE) : 0;
+  int label_h = MAX(text_char_height(FONT_ICON), status_h) + 2;
+  int content_w = win->frame.w - (st->artifact_count ? ICON_ARTIFACT_STRIP_W : 0);
   irect16_t label = R(ICON_PAD, win->frame.h - ICON_PAD - label_h,
-                      MAX(1, win->frame.w - ICON_PAD * 2), label_h);
+                      MAX(1, content_w - ICON_PAD * 2), label_h);
   uint32_t bg = get_sys_color(brWorkspaceBg);
   if (!(win->flags & WINDOW_TRANSPARENT)) fill_rect(bg, local);
   if (win->value) {
@@ -116,12 +216,36 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
   }
   if (st->image.texture) draw_rect((int)st->image.texture, image);
   uint32_t text_col = win->value ? get_sys_color(brFocusRing) : get_sys_color(brTextNormal);
-  draw_text_clipped(FONT_ICON, win->title, &label, text_col, TEXT_ALIGN_CENTER);
+  if (st->status_image.texture) {
+    int text_w = text_strwidth(FONT_ICON, win->title);
+    int status_w = st->status_image.width > 0 ? st->status_image.width : ICON_STATUS_SIZE;
+    int status_h = st->status_image.height > 0 ? st->status_image.height : ICON_STATUS_SIZE;
+    int group_w = status_w + ICON_STATUS_GAP + text_w;
+    int x = MAX(ICON_PAD, (content_w - group_w) / 2);
+    int sy = label.y + MAX(0, (label.h - status_h) / 2);
+    draw_rect((int)st->status_image.texture, R(x, sy, status_w, status_h));
+    irect16_t status_label = R(x + status_w + ICON_STATUS_GAP, label.y, text_w, label.h);
+    draw_text_clipped(FONT_ICON, win->title, &status_label, text_col, TEXT_ALIGN_CENTER);
+  } else draw_text_clipped(FONT_ICON, win->title, &label, text_col, TEXT_ALIGN_CENTER);
   int anchor_counts[4] = {0};
   for (int i = 0; i < ICON_MAX_BADGES; i++) {
     int anchor = st->badges[i].anchor;
     if (anchor < 0 || anchor > ICON_BADGE_BOTTOM_RIGHT) anchor = ICON_BADGE_TOP_RIGHT;
     desktop_icon_draw_badge(win, &st->badges[i], image, anchor_counts[anchor]++);
+  }
+  for (int i = 0; i < st->artifact_count; i++) {
+    const icon_artifact_state_t *artifact = &st->artifacts[i];
+    irect16_t r = desktop_icon_artifact_rect(win, st, i);
+    if (i == st->artifact_pending && st->artifact_dragging) continue;
+    if (artifact->image.texture) draw_rect((int)artifact->image.texture, r);
+    if (artifact->count > 1) {
+      char count[8]; snprintf(count, sizeof(count), "%d", artifact->count);
+      int bw = MAX(12, text_strwidth(FONT_ICON, count) + 5), bh = text_char_height(FONT_ICON) + 2;
+      int bx = r.x + r.w - bw + 2, by = r.y + r.h - bh + 2;
+      fill_rect(get_sys_color(brTextNormal), R(bx - 1, by - 1, bw + 2, bh + 2));
+      fill_rect(0xff3050a0, R(bx, by, bw, bh));
+      draw_text_clipped(FONT_ICON, count, &(irect16_t){bx, by + 1, bw, bh - 1}, 0xffffffff, TEXT_ALIGN_CENTER);
+    }
   }
 }
 
@@ -131,6 +255,7 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evCreate: {
       st = calloc(1, sizeof(*st));
       if (!st) return false;
+      st->artifact_pending = -1;
       win->userdata2 = st;
       win->flags |= WINDOW_NOTITLE | WINDOW_NORESIZE;
       if (lparam) {
@@ -142,7 +267,7 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       }
       return true;
     }
-    case evDestroy: free(st); win->userdata2 = NULL; return true;
+    case evDestroy: desktop_icon_artifact_hide_ghost(st); free(st); win->userdata2 = NULL; return true;
     case evPaint: if (st) desktop_icon_paint(win, st); return true;
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
@@ -157,6 +282,16 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case evLeftButtonDown:
       window_set_state(win, WINDOW_STATE_PRESSED, true);
       desktop_icon_select(win, true, true);
+      if (st) {
+        int x = icon_mouse_coord(wparam, false), y = icon_mouse_coord(wparam, true);
+        st->artifact_pending = desktop_icon_artifact_at(win, st, x, y);
+        st->artifact_dragging = false;
+        if (st->artifact_pending >= 0) {
+          irect16_t slot = desktop_icon_artifact_rect(win, st, st->artifact_pending);
+          st->artifact_grab_x = x - slot.x; st->artifact_grab_y = y - slot.y;
+          st->drag_x = x; st->drag_y = y; set_capture(win); invalidate_window(win); return true;
+        }
+      }
       if (st && st->draggable) {
         st->drag_pending = true; st->dragging = false;
         st->drag_x = icon_mouse_coord(wparam, false); st->drag_y = icon_mouse_coord(wparam, true);
@@ -165,10 +300,35 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
       invalidate_window(win);
       return true;
     case evMouseMove:
+      if (st && st->artifact_pending >= 0) {
+        int x = icon_mouse_coord(wparam, false), y = icon_mouse_coord(wparam, true);
+        if (!st->artifact_dragging &&
+            (abs(x - st->drag_x) >= ICON_DRAG_THRESHOLD || abs(y - st->drag_y) >= ICON_DRAG_THRESHOLD)) {
+          st->artifact_dragging = true; invalidate_window(win);
+        }
+        if (st->artifact_dragging) desktop_icon_artifact_update_ghost(win, st, x, y);
+        return true;
+      }
       if (!st || !st->drag_pending) return false;
       desktop_icon_drag(win, st, wparam);
       return true;
     case evLeftButtonUp: {
+      if (st && st->artifact_pending >= 0) {
+        int index = st->artifact_pending, x = icon_mouse_coord(wparam, false), y = icon_mouse_coord(wparam, true);
+        window_t *target = st->artifact_dragging ? desktop_icon_drop_target(win, x, y) : NULL;
+        bool accepted = false;
+        desktop_icon_artifact_hide_ghost(st); set_capture(NULL);
+        window_set_state(win, WINDOW_STATE_PRESSED, false);
+        if (target) {
+          icon_artifact_drop_t drop = { win, target, st->artifacts[index].id, st->artifacts[index].item_data };
+          accepted = desktop_icon_notify_data(win, icnArtifactDrop, &drop) != 0;
+        }
+        // Accepted drops refresh the inventory synchronously. Rejected drops leave
+        // it unchanged, so revealing the source slot makes the drag image snap back.
+        st->artifact_pending = -1; st->artifact_dragging = false;
+        if (!accepted) invalidate_window(win);
+        return true;
+      }
       bool dragged = st && st->drag_pending && st->dragging;
       if (st && st->drag_pending) {
         st->drag_pending = false; st->dragging = false;
@@ -193,6 +353,10 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case icSetImage:
       if (!st || !lparam) return false;
       st->image = *(icon_image_t *)lparam; invalidate_window(win); return true;
+    case icSetStatusImage:
+      if (!st) return false;
+      st->status_image = lparam ? *(icon_image_t *)lparam : (icon_image_t){0};
+      invalidate_window(win); return true;
     case icSetBadge: {
       if (!st || wparam >= ICON_MAX_BADGES) return false;
       icon_badge_state_t *dst = &st->badges[wparam];
@@ -212,6 +376,19 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
     case icGetSelected: return win->value != 0;
     case icSetItemData: if (st) st->item_data = lparam; return st != NULL;
     case icGetItemData: return st ? (result_t)st->item_data : 0;
+    case icSetArtifacts: {
+      if (!st || wparam > ICON_MAX_ARTIFACTS || (wparam && !lparam)) return false;
+      desktop_icon_artifact_hide_ghost(st);
+      memset(st->artifacts, 0, sizeof(st->artifacts)); st->artifact_count = (int)wparam;
+      st->artifact_pending = -1; st->artifact_dragging = false;
+      icon_artifact_t *src = (icon_artifact_t *)lparam;
+      for (int i = 0; i < st->artifact_count; i++) {
+        icon_artifact_state_t *dst = &st->artifacts[i];
+        dst->id = src[i].id; dst->count = src[i].count; dst->image = src[i].image; dst->item_data = src[i].item_data;
+        if (src[i].label) { strncpy(dst->label, src[i].label, ICON_ARTIFACT_LABEL_MAX); dst->label[ICON_ARTIFACT_LABEL_MAX] = '\0'; }
+      }
+      invalidate_window(win); return true;
+    }
     default: return false;
   }
 }
