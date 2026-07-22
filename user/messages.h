@@ -142,6 +142,7 @@ enum {
   icSetItemData,      // lparam=opaque application-owned pointer
   icGetItemData,      // returns opaque application-owned pointer
   icSetArtifacts,     // wparam=count; lparam=icon_artifact_t[] (copied, textures not owned)
+  icSetInputArtifacts,// wparam=count; lparam=icon_artifact_t[] (left column)
   // Gradient bar control (commctl/gradient.c)
   grSetColors,        // wparam=left_rgba; lparam=(void*)(uintptr_t)right_rgba
   // Async HTTP messages (analogous to WinInet/WinHTTP notifications).

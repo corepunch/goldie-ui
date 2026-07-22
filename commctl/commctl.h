@@ -70,6 +70,7 @@ typedef struct {
   window_t *source, *target;
   int artifact_id;
   void *item_data;
+  bool input; // true if dropped on left (input) side; false = right (output)
 } icon_artifact_drop_t;
 typedef struct {
   icon_image_t image;
