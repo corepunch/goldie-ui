@@ -141,8 +141,6 @@ enum {
   icGetSelected,      // returns 0/1
   icSetItemData,      // lparam=opaque application-owned pointer
   icGetItemData,      // returns opaque application-owned pointer
-  icSetArtifacts,     // wparam=count; lparam=icon_artifact_t[] (copied, textures not owned)
-  icSetInputArtifacts,// wparam=count; lparam=icon_artifact_t[] (left column)
   // Gradient bar control (commctl/gradient.c)
   grSetColors,        // wparam=left_rgba; lparam=(void*)(uintptr_t)right_rgba
   // Async HTTP messages (analogous to WinInet/WinHTTP notifications).
@@ -181,9 +179,6 @@ enum {
   icnClicked,
   icnSelectionChange,
   icnOpen,
-  // lparam=icon_artifact_drop_t*; sent synchronously when an artefact is dragged
-  // to a sibling icon. Return true to accept; false makes the drag image snap back.
-  icnArtifactDrop,
   // Slider notifications sent via evCommand from win_slider.
   // LOWORD(wparam)=control id, HIWORD(wparam)=sliderValueChanged + handle_index.
   // handle 0 => sliderValueChanged, handle 1 => sliderValueChanged1, etc.

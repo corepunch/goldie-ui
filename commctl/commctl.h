@@ -45,10 +45,9 @@ result_t win_iconview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 result_t win_icongrid(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Individual desktop-style icon. Each icon is a child window with its own
-// winproc, selection/focus state, image, status image, badges, artefacts, and opaque model pointer.
+// winproc, selection/focus state, image, status image, badges, and opaque model pointer.
 // The texture remains owned by the caller so multiple icons can share it.
 #define ICON_MAX_BADGES 4
-#define ICON_MAX_ARTIFACTS 6
 typedef enum { ICON_BADGE_TOP_LEFT, ICON_BADGE_TOP_RIGHT,
                ICON_BADGE_BOTTOM_LEFT, ICON_BADGE_BOTTOM_RIGHT,
                ICON_BADGE_TOP_CENTER } icon_badge_anchor_t;
@@ -59,19 +58,6 @@ typedef struct {
   uint32_t foreground;
   icon_badge_anchor_t anchor;
 } icon_badge_t;
-typedef struct {
-  int id, count;
-  icon_image_t image;       // required
-  const char *label;
-  void *item_data;
-  icon_image_t count_badge; // required when count > 1
-} icon_artifact_t;
-typedef struct {
-  window_t *source, *target;
-  int artifact_id;
-  void *item_data;
-  bool input; // true if dropped on left (input) side; false = right (output)
-} icon_artifact_drop_t;
 typedef struct {
   icon_image_t image;
   void *item_data; // reserved model/popup/drag source context; not owned

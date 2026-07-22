@@ -7,6 +7,7 @@
 #include "build/generated/examples/vibeoffice/vibeoffice.h"
 #include "models.h"
 #include "tasks.h"
+#include "agent_icon.h"
 
 #define VIBE_SCREEN_W 1024
 #define VIBE_SCREEN_H 768
@@ -50,17 +51,14 @@ struct vibe_icon_s {
   window_t *win;
   vibe_process_t process;
   inspector_t inspector;
-  vibe_artifact_amount_t artifacts[ICON_MAX_ARTIFACTS];
-  vibe_artifact_amount_t input_artifacts[ICON_MAX_ARTIFACTS];
+  vibe_artifact_amount_t artifacts[AGENT_ICON_MAX_ARTIFACTS];
+  vibe_artifact_amount_t input_artifacts[AGENT_ICON_MAX_ARTIFACTS];
 };
 
 static window_t *g_desktop, *g_controller;
 static database_t *g_models_db;
 static hinstance_t g_hinstance;
 static uint32_t g_poll_timer;
-// Playful office objects use Microsoft Fluent Emoji's full-colour 3D PNG set.
-// Keep future additions consistent; source, sizing, and naming are documented in
-// share/artifacts/README.md and the upstream MIT notice is beside the images.
 static vibe_artifact_def_t g_artifacts[] = {
   { VIBE_ART_WEBREQUEST, "Web request", "artifacts/webrequest.png" }, { VIBE_ART_CHAT,     "Chat",     "artifacts/chat.png" },
   { VIBE_ART_CALENDAR,   "Calendar",    "artifacts/calendar.png" },   { VIBE_ART_PLAN,     "Plan",     "artifacts/plan.png" },
@@ -69,16 +67,12 @@ static vibe_artifact_def_t g_artifacts[] = {
   { VIBE_ART_REPORT,     "Report",      "artifacts/report.png" },     { VIBE_ART_FOLDER,   "Folder",   "artifacts/folder.png" },
   { VIBE_ART_EMAIL,      "Email",       "artifacts/email.png" },      { VIBE_ART_DATABASE, "Database", "artifacts/database.png" },
 };
-// Agent state belongs beside the agent name; the right-hand strip is reserved
-// for draggable work artefacts. These are locally generated status circles.
 static vibe_status_icon_t g_status_icons[] = {
   { VIBE_TASK_DONE,    "Available", "artifacts/status-available.png" },
   { VIBE_TASK_BUSY,    "Busy",      "artifacts/status-busy.png" },
   { VIBE_TASK_PENDING, "Pending",   "artifacts/status-pending.png" },
   { VIBE_TASK_ERROR,   "Error",     "artifacts/status-error.png" },
 };
-// A solid anti-aliased red circle backs native count text: 2-9 or # for 10+.
-// The control renders this 26x26 master at 13x13.
 static vibe_count_badge_t g_count_badge = { "artifacts/count-badge.png" };
 static vibe_icon_t g_icons[] = {
   { .id = 1, .model_id = 1, .title = "Manager",   .filename = "manager.png",   .artifacts = {{VIBE_ART_TICKET, 2}, {VIBE_ART_CHAT, 1}, {VIBE_ART_PLAN, 1}} },
@@ -103,7 +97,7 @@ static vibe_artifact_def_t *artifact_def(int type) {
 static vibe_artifact_amount_t *artifact_amount(vibe_icon_t *icon, int type, bool empty) {
   vibe_artifact_amount_t *free_slot = NULL;
   if (!icon) return NULL;
-  for (int i = 0; i < ICON_MAX_ARTIFACTS; i++) {
+  for (int i = 0; i < AGENT_ICON_MAX_ARTIFACTS; i++) {
     if (icon->artifacts[i].type == type) return &icon->artifacts[i];
     if (!icon->artifacts[i].count && !free_slot) free_slot = &icon->artifacts[i];
   }
@@ -112,43 +106,46 @@ static vibe_artifact_amount_t *artifact_amount(vibe_icon_t *icon, int type, bool
 
 static void refresh_icon_artifacts(vibe_icon_t *icon) {
   if (!icon || !icon->win) return;
-  icon_artifact_t shown[ICON_MAX_ARTIFACTS]; int count = 0;
-  for (int i = 0; i < ICON_MAX_ARTIFACTS; i++) {
+  agent_artifact_t shown[AGENT_ICON_MAX_ARTIFACTS]; int count = 0;
+  for (int i = 0; i < AGENT_ICON_MAX_ARTIFACTS; i++) {
     vibe_artifact_amount_t *amount = &icon->artifacts[i];
     vibe_artifact_def_t *def = amount->count > 0 ? artifact_def(amount->type) : NULL;
     if (!def) continue;
-    shown[count++] = (icon_artifact_t){
-      .id = def->type, .count = amount->count, .image = { def->texture, def->image_w, def->image_h },
+    shown[count++] = (agent_artifact_t){
+      .id = def->type, .count = amount->count,
+      .texture = def->texture, .image_w = def->image_w, .image_h = def->image_h,
       .label = def->label, .item_data = def,
-      .count_badge = { g_count_badge.texture, g_count_badge.image_w, g_count_badge.image_h },
+      .count_badge_texture = g_count_badge.texture,
+      .count_badge_w = g_count_badge.image_w, .count_badge_h = g_count_badge.image_h,
     };
   }
-  send_message(icon->win, icSetArtifacts, (uint32_t)count, shown);
+  send_message(icon->win, aimSetOutputArtifacts, (uint32_t)count, shown);
 }
 
 static void refresh_icon_input_artifacts(vibe_icon_t *icon) {
   if (!icon || !icon->win) return;
-  icon_artifact_t shown[ICON_MAX_ARTIFACTS]; int count = 0;
-  for (int i = 0; i < ICON_MAX_ARTIFACTS; i++) {
+  agent_artifact_t shown[AGENT_ICON_MAX_ARTIFACTS]; int count = 0;
+  for (int i = 0; i < AGENT_ICON_MAX_ARTIFACTS; i++) {
     vibe_artifact_amount_t *amount = &icon->input_artifacts[i];
     vibe_artifact_def_t *def = amount->count > 0 ? artifact_def(amount->type) : NULL;
     if (!def) continue;
-    shown[count++] = (icon_artifact_t){
-      .id = def->type, .count = amount->count, .image = { def->texture, def->image_w, def->image_h },
+    shown[count++] = (agent_artifact_t){
+      .id = def->type, .count = amount->count,
+      .texture = def->texture, .image_w = def->image_w, .image_h = def->image_h,
       .label = def->label, .item_data = def,
-      .count_badge = { g_count_badge.texture, g_count_badge.image_w, g_count_badge.image_h },
+      .count_badge_texture = g_count_badge.texture,
+      .count_badge_w = g_count_badge.image_w, .count_badge_h = g_count_badge.image_h,
     };
   }
-  send_message(icon->win, icSetInputArtifacts, (uint32_t)count, shown);
+  send_message(icon->win, aimSetInputArtifacts, (uint32_t)count, shown);
 }
 
 static bool transfer_artifact(vibe_icon_t *source, vibe_icon_t *target, int type, bool input) {
   vibe_artifact_amount_t *from = artifact_amount(source, type, false);
   vibe_artifact_amount_t *to;
   if (input) {
-    // Find or allocate in target's input_artifacts
     to = NULL;
-    for (int i = 0; i < ICON_MAX_ARTIFACTS; i++) {
+    for (int i = 0; i < AGENT_ICON_MAX_ARTIFACTS; i++) {
       if (target->input_artifacts[i].type == type && target->input_artifacts[i].count > 0) { to = &target->input_artifacts[i]; break; }
       if (!target->input_artifacts[i].count && !to) to = &target->input_artifacts[i];
     }
@@ -311,7 +308,7 @@ static void inspector_submit(inspector_t *inspector) {
   const vibe_model_info_t *model = vibe_model_by_id(icon->model_id);
   if (!model || !vibe_task_submit(&icon->process, icon->id, model->opencode_id,
                                   input, error, sizeof(error))) {
-    (void)error; // the failure is reflected through the desk task file when possible
+    (void)error;
   }
   refresh_from_task_files();
 }
@@ -327,7 +324,6 @@ static window_t *inspector_open(vibe_icon_t *icon) {
     set_focus(inspector->win);
     return inspector->win;
   }
-
   memset(inspector, 0, sizeof(*inspector));
   inspector->icon = icon;
   int i = icon_index(icon);
@@ -388,8 +384,8 @@ static result_t win_vibe_controller(window_t *win, uint32_t msg, uint32_t wparam
   switch (msg) {
     case evCreate: g_poll_timer = axSetTimer(win, INSPECTOR_POLL_MS, NULL, true); return true;
     case evCommand:
-      if (HIWORD(wparam) == icnArtifactDrop) {
-        icon_artifact_drop_t *drop = (icon_artifact_drop_t *)lparam;
+      if (HIWORD(wparam) == aimnArtifactDrop) {
+        agent_artifact_drop_t *drop = (agent_artifact_drop_t *)lparam;
         vibe_icon_t *source = drop ? icon_from_window(drop->source) : NULL;
         vibe_icon_t *target = drop ? icon_from_window(drop->target) : NULL;
         return transfer_artifact(source, target, drop ? drop->artifact_id : 0, drop ? drop->input : false);
@@ -438,9 +434,7 @@ static void layout_icons(void) {
   int status_h = 0;
   for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++) status_h = MAX(status_h, g_status_icons[i].image_h);
   int label_h = MAX(text_char_height(FONT_ICON), status_h);
-  // The Icon control reserves padding, a status label, and artifact strips
-  // inside its frame. Size the frame around the desired 128x128 agent image.
-  int icon_w = AGENT_IMAGE_SIZE + ICON_LAYOUT_ARTIFACT_W * 2; // input + output strips
+  int icon_w = AGENT_IMAGE_SIZE + ICON_LAYOUT_ARTIFACT_W * 2;
   int icon_h = AGENT_IMAGE_SIZE + label_h;
   int used_w = count * icon_w + (count - 1) * gap;
   int x = MAX(margin, (sw - used_w) / 2);
@@ -457,7 +451,6 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_hinstance = hinstance;
   g_desktop = get_desktop_window();
   if (!g_desktop) return false;
-  // Generated .orion forms resolve controls by registered class name.
   register_commctl_classes();
   g_models_db = vibe_models_create();
   if (!g_models_db) return false;
@@ -493,7 +486,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
     item->win = create_window(item->title,
                               WINDOW_NOTITLE | WINDOW_NORESIZE | WINDOW_TRANSPARENT | WINDOW_NOFILL,
                               MAKERECT(0, 0, 128, 144), g_desktop,
-                              win_icon, hinstance, &params);
+                              win_agent_icon, hinstance, &params);
     if (!item->win) continue;
     refresh_icon_model(item);
     refresh_icon_status(item);
