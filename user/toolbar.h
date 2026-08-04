@@ -18,4 +18,6 @@ bool toolbar_handle_notitle_nc_left_button_up(window_t *win, uint32_t wparam);
 
 bool toolbar_dispatch_embedded_mouse(window_t *parent, uint32_t msg, int tb_x, int tb_y);
 
+int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty);
+
 #endif

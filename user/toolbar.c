@@ -9,7 +9,7 @@
 
 extern bitmap_strip_t *ui_get_sysicon_strip(void);
 
-static int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
+int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
   if (!tb || !tb->item_rects) return -1;
   for (int i = 0; i < tb->item_count; i++) {
     irect16_t r = tb->item_rects[i];

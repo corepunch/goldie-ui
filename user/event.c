@@ -574,9 +574,29 @@ void dispatch_message(ui_event_t *msg) {
           resize_anchor[0] = sx - (resize_target->frame.x + resize_target->frame.w);
           resize_anchor[1] = sy - (resize_target->frame.y + resize_target->frame.h);
         } else if (window_in_drag_area(win, SCALE_POINT(py)) && win != g_ui_runtime.captured) {
-          g_ui_runtime.dragging = win;
-          drag_anchor[0] = SCALE_POINT(px) - win->frame.x;
-          drag_anchor[1] = SCALE_POINT(py) - win->frame.y;
+          // For WINDOW_NOTITLE toolbars, don't drag if the click hits a toolbar
+          // button — only drag from empty space.
+          bool skip_drag = false;
+          if (toolbar_host && (win->flags & WINDOW_NOTITLE)) {
+            toolbar_state_t *tb = window_toolbar_state(win);
+            int tb_x = sx - win->frame.x;
+            int tb_y = sy - win->frame.y;
+            if (tb && toolbar_item_hit(tb, tb_x, tb_y) >= 0)
+              skip_drag = true;
+          }
+          if (!skip_drag) {
+            g_ui_runtime.dragging = win;
+            drag_anchor[0] = SCALE_POINT(px) - win->frame.x;
+            drag_anchor[1] = SCALE_POINT(py) - win->frame.y;
+          } else {
+            // Route to toolbar instead of dragging
+            int tb_x = sx - win->frame.x;
+            int tb_y = sy - win->frame.y;
+            if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonDown, tb_x, tb_y)) {
+              send_message(toolbar_host, evLeftButtonDown,
+                           MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+            }
+          }
         } else {
           if (msg->message == kEventLeftButtonDown &&
               (win->flags & WINDOW_TOOLBAR) && toolbar_host) {
@@ -660,13 +680,26 @@ void dispatch_message(ui_event_t *msg) {
         if (window_has_state(win, WINDOW_STATE_DISABLED)) return;
         // Deliver to client area only if mouse is at or below the title bar / toolbar.
         if (SCALE_POINT(py) >= win->frame.y + titlebar_height(win) || win == g_ui_runtime.captured) {
-          int lx = LOCAL_X(px, py, win);
-          int ly = LOCAL_Y(px, py, win);
-          int wmsg = (msg->message == kEventLeftButtonUp)
-                     ? evLeftButtonUp
-                     : evRightButtonUp;
-          if (!handle_mouse(wmsg, win, lx, ly, NULL)) {
-            send_message(win, wmsg, MAKEDWORD(lx, ly), NULL);
+          // For WINDOW_NOTITLE toolbars, route button-up to toolbar host
+          // (toolbar items are owner-drawn, not child windows).
+          if ((win->flags & WINDOW_TOOLBAR) && (win->flags & WINDOW_NOTITLE) && win->toolbar) {
+            int sx = SCALE_POINT(px);
+            int sy = SCALE_POINT(py);
+            int tb_x = sx - win->frame.x;
+            int tb_y = sy - win->frame.y;
+            if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonUp, tb_x, tb_y)) {
+              send_message(win->toolbar, evLeftButtonUp,
+                           MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
+            }
+          } else {
+            int lx = LOCAL_X(px, py, win);
+            int ly = LOCAL_Y(px, py, win);
+            int wmsg = (msg->message == kEventLeftButtonUp)
+                       ? evLeftButtonUp
+                       : evRightButtonUp;
+            if (!handle_mouse(wmsg, win, lx, ly, NULL)) {
+              send_message(win, wmsg, MAKEDWORD(lx, ly), NULL);
+            }
           }
         } else {
           int sx = SCALE_POINT(px);
