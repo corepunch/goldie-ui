@@ -113,6 +113,29 @@ EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLES))
 GEM_BINS = $(patsubst %,$(GEM_DIR)/%.gem,$(filter-out shell,$(EXAMPLES)))
 COMPONENT_PLUGIN_BINS = $(patsubst components/%,$(LIB_DIR)/%_components.$(LIB_EXT),$(wildcard components/*))
 
+# ── Phony apps ─────────────────────────────────────────────────────────────
+# Phony apps are alternative builds of existing examples with extra compiler
+# flags. Add an entry below with PHONY_APPS_SRC_<name> and
+# PHONY_APPS_CFLAGS_<name>, then add <name> to PHONY_APP_NAMES.
+# The source example and its component plugin must exist under examples/ and
+# components/ respectively.
+PHONY_APPS_SRC_penciltest   = imageeditor
+PHONY_APPS_CFLAGS_penciltest = -DIMAGEEDITOR_BW=1 -DIMAGEEDITOR_BW_RETINA
+
+PHONY_APP_NAMES = \
+	penciltest
+
+PHONY_APP_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(PHONY_APP_NAMES))
+PHONY_APP_GEMS = $(patsubst %,$(GEM_DIR)/%.gem,$(PHONY_APP_NAMES))
+
+# Unity-built examples still need ordinary source prerequisites.  Without
+# these, editing an example leaves its existing binary newer than every listed
+# prerequisite and make silently runs the stale executable.
+$(foreach e,$(EXAMPLES),$(eval $(BIN_DIR)/$(e)$(EXE_EXT): $(shell find examples/$(e) -name "*.c" -o -name "*.h")))
+$(foreach e,$(EXAMPLES),$(eval $(GEM_DIR)/$(e).gem: $(shell find examples/$(e) -name "*.c" -o -name "*.h")))
+$(foreach a,$(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(a)$(EXE_EXT): $(shell find examples/$(PHONY_APPS_SRC_$(a)) -name "*.c" -o -name "*.h")))
+$(foreach a,$(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(a).gem: $(shell find examples/$(PHONY_APPS_SRC_$(a)) -name "*.c" -o -name "*.h")))
+
 GENERATED_HEADERS = $(patsubst examples/%.orion,$(GENERATED_DIR)/examples/%.h,$(wildcard examples/*/*.orion))
 
 .SECONDEXPANSION:
@@ -225,7 +248,11 @@ $(KERNEL_LIB): $(wildcard kernel/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
 
 # Examples
 .PHONY: examples
-examples: share $(EXAMPLE_BINS) $(COMPONENT_PLUGIN_BINS)
+examples: share $(EXAMPLE_BINS) $(COMPONENT_PLUGIN_BINS) $(PHONY_APP_BINS)
+
+# Individual phony-app convenience targets (e.g. "make penciltest").
+$(foreach a,$(PHONY_APP_NAMES),$(eval $(a): $(BIN_DIR)/$(a)$(EXE_EXT)))
+.PHONY: $(PHONY_APP_NAMES)
 
 .PHONY: plugins
 plugins: $(COMPONENT_PLUGIN_BINS)
@@ -244,6 +271,16 @@ $(EXAMPLE_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $
 	    $(LDFLAGS) $(LDFLAGS_EXAMPLE) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
 
+# Phony app binaries — same unity-build pattern as regular examples, but with
+# extra CFLAGS from PHONY_APPS_CFLAGS_<name> and SHAREDIR from the source app.
+$(PHONY_APP_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(BIN_DIR) share
+	@echo "PHONY   $@"
+	@{(find examples/$(PHONY_APPS_SRC_$*) -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "examples/$(PHONY_APPS_SRC_$*)/main.c"') | \
+		$(CC) $(CFLAGS) $(PHONY_APPS_CFLAGS_$*) -I. -Iexamples/$(PHONY_APPS_SRC_$*) -Icomponents -Icomponents/$(PHONY_APPS_SRC_$*) -DSHAREDIR='"../share/$(PHONY_APPS_SRC_$*)"' -x c -o $@ - -x none \
+	    $(LDFLAGS) $(LDFLAGS_EXAMPLE) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
+	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
+
 # Each .gem is built against the split core libraries (kernel/commctl/user)
 # so it shares the same runtime infrastructure as the shell.
 #
@@ -252,7 +289,7 @@ $(EXAMPLE_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $
 # every source file in the gem without requiring manual edits to each file.
 
 .PHONY: gems
-gems: $(GEM_BINS)
+gems: $(GEM_BINS) $(PHONY_APP_GEMS)
 	@echo "OK All .gems built and validated"
 
 $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(GEM_DIR)
@@ -261,6 +298,17 @@ $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED
 	 find examples/$* -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
 	 echo '#include "examples/$*/main.c"') | \
 		$(CC) $(GEM_CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents -Icomponents/$* -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
+	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
+	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
+	@$(MAKE) --no-print-directory validate-gem GEM=$@
+
+# Phony app gems — same pattern as regular gems with extra CFLAGS.
+$(PHONY_APP_GEMS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(GEM_DIR)
+	@echo "GEM(P)  $@"
+	@{(echo '#include "gem_magic.h"'; \
+	 find examples/$(PHONY_APPS_SRC_$*) -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "examples/$(PHONY_APPS_SRC_$*)/main.c"') | \
+		$(CC) $(GEM_CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(LIB_FLAGS) -I. -Iexamples/$(PHONY_APPS_SRC_$*) -Icomponents -Icomponents/$(PHONY_APPS_SRC_$*) -DSHAREDIR='"../share/$(PHONY_APPS_SRC_$*)"' -x c -o $@ - -x none \
 	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
@@ -343,13 +391,17 @@ help:
 	@echo "Orion UI Framework - Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "all       - Build library, examples, gems, and tools"
-	@echo "library   - Build shared library"
-	@echo "examples  - Build example applications"
-	@echo "gems      - Build all .gem shared libraries"
-	@echo "test      - Build and run tests"
-	@echo "clean     - Remove all build artifacts"
-	@echo "help      - Show this help message"
+	@echo "all          - Build library, examples, gems, and tools"
+	@echo "library      - Build shared library"
+	@echo "examples     - Build example applications"
+	@echo "gems         - Build all .gem shared libraries"
+	@echo "test         - Build and run tests"
+	@echo "clean        - Remove all build artifacts"
+	@echo "help         - Show this help message"
+	@echo ""
+	@echo "Phony apps (derived builds with extra flags):"
+	$(foreach a,$(PHONY_APP_NAMES),@echo "  $a       - examples/$(PHONY_APPS_SRC_$(a)) + $(PHONY_APPS_CFLAGS_$(a))"
+	)
 	@echo ""
 	@echo "Output directories:"
 	@echo "$(LIB_DIR)  - Libraries"

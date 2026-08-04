@@ -4,6 +4,7 @@
 #include "../user/user.h"
 #include "columnview.h"
 #include "menubar.h"
+#include "appchrome.h"
 #include "filelist.h"
 
 // Forward declarations for types from other subsystems

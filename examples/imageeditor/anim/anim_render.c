@@ -124,7 +124,25 @@ bool anim_render_frame_thumbnail(const anim_frame_t *frame, int w, int h,
   bool ok = false;
 
   if (frame->data && frame->data_size > 0) {
-    ok = anim_frame_expand(frame, rgba, w, h);
+    if (frame->format == FRAME_FORMAT_INDEXED) {
+      // Indexed frames: expand palette indices → RGBA manually.
+      // anim_frame_expand() in indexed builds does a raw memcpy of indices
+      // (targeting doc->pixels, which is 1-byte/pixel), but here we always
+      // need RGBA output.  Use the per-frame palette.
+      size_t npx = (size_t)w * (size_t)h;
+      if (frame->data_size < npx) { free(rgba); return false; }
+      for (size_t i = 0; i < npx; i++) {
+        uint8_t idx = frame->data[i];
+        uint32_t col = frame->palette[idx];
+        rgba[i*4+0] = COLOR_R(col);
+        rgba[i*4+1] = COLOR_G(col);
+        rgba[i*4+2] = COLOR_B(col);
+        rgba[i*4+3] = COLOR_A(col);
+      }
+      ok = true;
+    } else {
+      ok = anim_frame_expand(frame, rgba, w, h);
+    }
   } else {
     // Empty frame — produce a transparent black thumbnail.
     memset(rgba, 0, sz);

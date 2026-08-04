@@ -101,7 +101,8 @@ static int handle_mouse(int msg, window_t *win, int x, int y, void *lparam) {
 // was over the toolbar strip, or NULL if not.
 static window_t *find_toolbar_host_at(window_t *parent, int sx, int sy) {
   if (!parent || !(parent->flags & WINDOW_TOOLBAR)) return NULL;
-  if (sy >= parent->frame.y + titlebar_height(parent)) return NULL;
+  if (sy < window_screen_y(parent) ||
+      sy >= window_screen_y(parent) + titlebar_height(parent)) return NULL;
   // Toolbar is above the titlebar height line — hit is valid.
   // Return the toolbar host so the click can be routed to its mouse handler.
   return parent->toolbar;
@@ -579,8 +580,8 @@ void dispatch_message(ui_event_t *msg) {
           bool skip_drag = false;
           if (toolbar_host && (win->flags & WINDOW_NOTITLE)) {
             toolbar_state_t *tb = window_toolbar_state(win);
-            int tb_x = sx - win->frame.x;
-            int tb_y = sy - win->frame.y;
+            int tb_x = sx - window_screen_x(win);
+            int tb_y = sy - window_screen_y(win);
             if (tb && toolbar_item_hit(tb, tb_x, tb_y) >= 0)
               skip_drag = true;
           }
@@ -590,8 +591,8 @@ void dispatch_message(ui_event_t *msg) {
             drag_anchor[1] = SCALE_POINT(py) - win->frame.y;
           } else {
             // Route to toolbar instead of dragging
-            int tb_x = sx - win->frame.x;
-            int tb_y = sy - win->frame.y;
+            int tb_x = sx - window_screen_x(win);
+            int tb_y = sy - window_screen_y(win);
             if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonDown, tb_x, tb_y)) {
               send_message(toolbar_host, evLeftButtonDown,
                            MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
@@ -602,8 +603,8 @@ void dispatch_message(ui_event_t *msg) {
               (win->flags & WINDOW_TOOLBAR) && toolbar_host) {
             // Route to toolbar host's mouse handler (owner-draw item dispatch)
             int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
-            int tb_x = sx - win->frame.x;
-            int tb_y = sy - (win->frame.y + title_h);
+            int tb_x = sx - window_screen_x(win);
+            int tb_y = sy - (window_screen_y(win) + title_h);
             if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonDown, tb_x, tb_y)) {
               send_message(toolbar_host, evLeftButtonDown,
                            MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
@@ -685,8 +686,8 @@ void dispatch_message(ui_event_t *msg) {
           if ((win->flags & WINDOW_TOOLBAR) && (win->flags & WINDOW_NOTITLE) && win->toolbar) {
             int sx = SCALE_POINT(px);
             int sy = SCALE_POINT(py);
-            int tb_x = sx - win->frame.x;
-            int tb_y = sy - win->frame.y;
+            int tb_x = sx - window_screen_x(win);
+            int tb_y = sy - window_screen_y(win);
             if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonUp, tb_x, tb_y)) {
               send_message(win->toolbar, evLeftButtonUp,
                            MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);
@@ -708,8 +709,8 @@ void dispatch_message(ui_event_t *msg) {
             window_t *tb_host = find_toolbar_host_at(win, sx, sy);
             if ((win->flags & WINDOW_TOOLBAR) && tb_host) {
               int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
-              int tb_x = sx - win->frame.x;
-              int tb_y = sy - (win->frame.y + title_h);
+              int tb_x = sx - window_screen_x(win);
+              int tb_y = sy - (window_screen_y(win) + title_h);
               if (!toolbar_dispatch_embedded_mouse(win, evLeftButtonUp, tb_x, tb_y)) {
                 send_message(tb_host, evLeftButtonUp,
                              MAKEDWORD((uint16_t)tb_x, (uint16_t)tb_y), NULL);

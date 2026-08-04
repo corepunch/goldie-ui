@@ -536,7 +536,7 @@ void invalidate_window(window_t *win) {
 // Windows with WINDOW_NOTITLE have no title row; their toolbar area is the
 // only non-client space and may be dragged from freely (e.g. tool palettes).
 bool window_in_drag_area(window_t const *win, int sy) {
-  if (win->parent) return false;
+  if (win->parent || (win->flags & WINDOW_NODRAG)) return false;
   int t = titlebar_height(win);
   if (sy < win->frame.y || sy >= win->frame.y + t) return false;
   if (!(win->flags & WINDOW_TOOLBAR) || (win->flags & WINDOW_NOTITLE)) return true;

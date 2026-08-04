@@ -145,24 +145,42 @@ bool doc_confirm_close(canvas_doc_t *doc, window_t *parent_win) {
 
 canvas_doc_t *create_document(const char *filename, int w, int h) {
   if (!g_app) return NULL;
+
+#if IMAGEEDITOR_BW
+  // Pencil test: use full available screen space for the canvas.
+  // Override default CANVAS_W/CANVAS_H to fill screen below toolbar.
+  if (w == CANVAS_W && h == CANVAS_H) {
+    int screen_w = ui_get_system_metrics(kSystemMetricScreenWidth);
+    int screen_h = ui_get_system_metrics(kSystemMetricScreenHeight);
+    if (screen_w <= 0) screen_w = SCREEN_W;
+    if (screen_h <= 0) screen_h = SCREEN_H;
+    int top = APP_TOOLBAR_Y + APP_TOOLBAR_H;
+    w = screen_w;
+    h = screen_h - top - TIMELINE_WIN_H;
+  }
+#endif
+
   if (w <= 0 || h <= 0) return NULL;
+
+  int buf_w = w * g_bw_retina_scale;
+  int buf_h = h * g_bw_retina_scale;
 
   canvas_doc_t *doc = calloc(1, sizeof(canvas_doc_t));
   if (!doc) return NULL;
 
-  doc->canvas_w = w;
-  doc->canvas_h = h;
+  doc->canvas_w = buf_w;
+  doc->canvas_h = buf_h;
   doc->background.color = MAKE_COLOR(0xFF, 0xFF, 0xFF, 0xFF);
   doc->background.show = true;
   // Guard against integer overflow in the pixel buffer allocation.
   // Reject images larger than 16384x16384 to keep the size_t arithmetic safe.
-  if ((size_t)w > 16384 || (size_t)h > 16384 ||
-      (size_t)w * (size_t)h > (size_t)16384 * 16384) {
+  if ((size_t)buf_w > 16384 || (size_t)buf_h > 16384 ||
+      (size_t)buf_w * (size_t)buf_h > (size_t)16384 * 16384) {
     free(doc); return NULL;
   }
 
   // Allocate the composite scratch buffer.
-  doc->layer.composite_buf = malloc((size_t)w * (size_t)h * 4);
+  doc->layer.composite_buf = malloc((size_t)buf_w * (size_t)buf_h * 4);
   if (!doc->layer.composite_buf) { free(doc); return NULL; }
 
   // Add the initial transparent layer (doc_add_layer also sets doc->pixels).
@@ -176,9 +194,16 @@ canvas_doc_t *create_document(const char *filename, int w, int h) {
   doc->modified = false;
 
 #if IMAGEEDITOR_INDEXED
-  // Initialize the palette with 256 named colors.  We fill in a simple default
-  // palette: index 0 is the transparent "background" color (black, alpha 0),
-  // and indices 1–255 cycle through a compact set of common colors.
+  // Initialize the palette.
+#if IMAGEEDITOR_BW
+  // BW mode: just 2 colors (transparent + black + white).
+  doc->ipal.transparent = 0;
+  doc->ipal.entries[0] = MAKE_COLOR(0x00, 0x00, 0x00, 0x00); // transparent
+  doc->ipal.entries[1] = MAKE_COLOR(0x00, 0x00, 0x00, 0xFF); // black
+  doc->ipal.entries[2] = MAKE_COLOR(0xFF, 0xFF, 0xFF, 0xFF); // white
+  doc->ipal.count = 3;
+#else
+  // Full 256-color palette: index 0 is transparent, indices 1–255 cycle through common colors.
   doc->ipal.transparent = IMAGEEDITOR_TRANSPARENT_INDEX;
   doc->ipal.entries[0]  = MAKE_COLOR(0x00, 0x00, 0x00, 0x00); // transparent
   // Indices 1-15: a standard 4-bit EGA-style base palette.
@@ -212,13 +237,14 @@ canvas_doc_t *create_document(const char *filename, int w, int h) {
   for (int i = 0; i < 24 && idx < 256; i++, idx++)
     doc->ipal.entries[idx] = MAKE_COLOR(i*11, i*11, i*11, 255);
   doc->ipal.count = 256;
+#endif // IMAGEEDITOR_BW
 #endif
 
   // Always initialize the animation timeline with one frame capturing the
   // current canvas pixels.  Single-canvas workflows simply use frame 0.
-  doc->anim = anim_timeline_new(w, h);
+  doc->anim = anim_timeline_new(buf_w, buf_h);
   if (doc->anim)
-    anim_frame_compress(doc->anim->frames[0], doc->pixels, w, h,
+    anim_frame_compress(doc->anim->frames[0], doc->pixels, buf_w, buf_h,
 #if IMAGEEDITOR_INDEXED
                         FRAME_FORMAT_INDEXED);
 #else
@@ -230,6 +256,26 @@ canvas_doc_t *create_document(const char *filename, int w, int h) {
     doc->filename[sizeof(doc->filename) - 1] = '\0';
   }
 
+#if IMAGEEDITOR_BW
+  // Frameless full-screen window for pencil test.
+  // Tool palette and timeline float on top (always-on-top windows).
+  int doc_top = APP_TOOLBAR_Y + APP_TOOLBAR_H;
+  window_t *dwin = create_window(
+      "",
+      WINDOW_NOTITLE | WINDOW_NOFILL | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE,
+      MAKERECT(0, doc_top, w, h),
+      NULL, doc_win_proc, g_app->hinstance, NULL);
+  dwin->userdata = doc;
+  doc->win = dwin;
+
+  irect16_t cr = get_client_rect(dwin);
+  window_t *cwin = create_window(
+      "", WINDOW_NOTITLE | WINDOW_NOFILL,
+      MAKERECT(0, 0, cr.w, cr.h),
+      dwin, win_canvas_proc, 0, doc);
+  cwin->flags &= ~WINDOW_NOTABSTOP;
+  doc->canvas_win = cwin;
+#else
   int max_view_w = 1;
   int max_view_h = 1;
   imageeditor_max_canvas_viewport_size(&max_view_w, &max_view_h);
@@ -257,6 +303,7 @@ canvas_doc_t *create_document(const char *filename, int w, int h) {
       dwin, win_canvas_proc, 0, doc);
   cwin->flags &= ~WINDOW_NOTABSTOP;
   doc->canvas_win = cwin;
+#endif
 
   show_window(dwin, true);
 

@@ -32,11 +32,11 @@ static int canvas_view_w(int win_w) {
 }
 
 static int canvas_scaled_w(const canvas_doc_t *doc, float scale) {
-  return doc ? scaled_px(doc->canvas_w, scale) : 0;
+  return doc ? (scaled_px(doc->canvas_w, scale) / g_bw_retina_scale) : 0;
 }
 
 static int canvas_scaled_h(const canvas_doc_t *doc, float scale) {
-  return doc ? scaled_px(doc->canvas_h, scale) : 0;
+  return doc ? (scaled_px(doc->canvas_h, scale) / g_bw_retina_scale) : 0;
 }
 
 static int canvas_center_offset_x(const canvas_doc_t *doc, float scale, int win_w) {
@@ -68,20 +68,20 @@ static int canvas_view_axis_to_doc(int view_px, int origin_px, float scale) {
 }
 
 static ipoint16_t _canvas_view_to_doc_point(window_t *win,
-                                            canvas_win_state_t *state,
-                                            int view_x, int view_y) {
+                                             canvas_win_state_t *state,
+                                             int view_x, int view_y) {
   ipoint16_t pt;
-  pt.x = canvas_view_axis_to_doc(view_x, canvas_doc_origin_x(win, state), state->scale);
-  pt.y = canvas_view_axis_to_doc(view_y, canvas_doc_origin_y(win, state), state->scale);
+  pt.x = canvas_view_axis_to_doc(view_x, canvas_doc_origin_x(win, state), state->scale) * g_bw_retina_scale;
+  pt.y = canvas_view_axis_to_doc(view_y, canvas_doc_origin_y(win, state), state->scale) * g_bw_retina_scale;
   return pt;
 }
 
 static ipoint16_t _canvas_doc_to_view_point(window_t *win,
-                                            canvas_win_state_t *state,
-                                            int doc_x, int doc_y) {
+                                             canvas_win_state_t *state,
+                                             int doc_x, int doc_y) {
   ipoint16_t pt;
-  pt.x = canvas_doc_origin_x(win, state) + scaled_px(doc_x, state->scale);
-  pt.y = canvas_doc_origin_y(win, state) + scaled_px(doc_y, state->scale);
+  pt.x = canvas_doc_origin_x(win, state) + scaled_px(doc_x / g_bw_retina_scale, state->scale);
+  pt.y = canvas_doc_origin_y(win, state) + scaled_px(doc_y / g_bw_retina_scale, state->scale);
   return pt;
 }
 
@@ -168,6 +168,8 @@ void canvas_win_update_status(window_t *win, int px, int py, bool hover_valid) {
   canvas_doc_t *doc = state ? state->doc : NULL;
   if (!state || !doc || !doc->win) return;
 
+  int log_w = doc->canvas_w / g_bw_retina_scale;
+  int log_h = doc->canvas_h / g_bw_retina_scale;
   char sb[64];
   const char *view_suffix = doc->layer.mask_only_view ? "  [Mask Only]" : "";
   const char *edit_suffix = (doc->layer.editing_mask && doc->layer.count > 0) ? "  [Mask]" : "";
@@ -176,15 +178,15 @@ void canvas_win_update_status(window_t *win, int px, int py, bool hover_valid) {
     int sel_w = abs(px - doc->sel.start.x) + 1;
     int sel_h = abs(py - doc->sel.start.y) + 1;
     snprintf(sb, sizeof(sb), "Selection: %dx%d  |  %dx%d%s%s",
-             sel_w, sel_h, doc->canvas_w, doc->canvas_h,
+             sel_w, sel_h, log_w, log_h,
              view_suffix, edit_suffix);
   } else if (hover_valid) {
     snprintf(sb, sizeof(sb), "x=%d, y=%d  |  %dx%d%s%s",
-             px, py, doc->canvas_w, doc->canvas_h,
+             px, py, log_w, log_h,
              view_suffix, edit_suffix);
   } else {
     snprintf(sb, sizeof(sb), "%dx%d%s%s",
-             doc->canvas_w, doc->canvas_h, view_suffix, edit_suffix);
+             log_w, log_h, view_suffix, edit_suffix);
   }
 
   if (strcmp(sb, state->last_sb) != 0) {
@@ -200,7 +202,7 @@ static int brush_radius(void) {
   int idx = g_app ? g_app->brush_size : 0;
   if (idx < 0) idx = 0;
   if (idx >= NUM_BRUSH_SIZES) idx = NUM_BRUSH_SIZES - 1;
-  return kBrushSizes[idx];
+  return kBrushSizes[idx] * g_bw_retina_scale;
 }
 
 // Apply snap-to-grid to a canvas pixel position if the grid snap option is
@@ -224,8 +226,8 @@ static void snap_canvas_pos(int *px, int *py) {
 static void canvas_sync_scrollbars(window_t *win, canvas_win_state_t *state) {
   canvas_doc_t *doc = state->doc;
   window_t *dwin   = doc->win;  // document window owns the hscroll
-  int canvas_w = scaled_px(doc->canvas_w, state->scale);
-  int canvas_h = scaled_px(doc->canvas_h, state->scale);
+  int canvas_w = canvas_scaled_w(doc, state->scale);
+  int canvas_h = canvas_scaled_h(doc, state->scale);
   int win_w    = win->frame.w;
   int win_h    = win->frame.h;
 
@@ -276,8 +278,8 @@ static void canvas_sync_scrollbars(window_t *win, canvas_win_state_t *state) {
 // merged with the document-window status bar and does not eat canvas height.
 static void clamp_pan(canvas_win_state_t *state, int win_w, int win_h) {
   canvas_doc_t *doc = state->doc;
-  int canvas_w = scaled_px(doc->canvas_w, state->scale);
-  int canvas_h = scaled_px(doc->canvas_h, state->scale);
+  int canvas_w = canvas_scaled_w(doc, state->scale);
+  int canvas_h = canvas_scaled_h(doc, state->scale);
 
   // vscroll always occupies the right SCROLLBAR_WIDTH pixels; hscroll does not
   // reduce canvas height (it is rendered in the doc window's status bar row).
@@ -411,8 +413,8 @@ static void apply_zoom_centered(window_t *win, canvas_win_state_t *state,
   canvas_doc_t *doc = state->doc;
   int center_x = canvas_center_offset_x(doc, (float)new_scale, win->frame.w);
   int center_y = canvas_center_offset_y(doc, (float)new_scale, win->frame.h);
-  state->pan.x = scaled_px(cx, (float)new_scale) + center_x - mx;
-  state->pan.y = scaled_px(cy, (float)new_scale) + center_y - my;
+  state->pan.x = scaled_px(cx / g_bw_retina_scale, (float)new_scale) + center_x - mx;
+  state->pan.y = scaled_px(cy / g_bw_retina_scale, (float)new_scale) + center_y - my;
   canvas_win_set_zoom(win, new_scale);
 }
 
@@ -755,8 +757,8 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
       // mid-stroke would invalidate doc->last (stored in pre-pan pixel coords)
       // and produce a visible position jump on the next MouseMove segment.
       if (doc && doc->drawing) return true;
-      int canvas_w  = scaled_px(doc->canvas_w, state->scale);
-      int canvas_h  = scaled_px(doc->canvas_h, state->scale);
+      int canvas_w  = canvas_scaled_w(doc, state->scale);
+      int canvas_h  = canvas_scaled_h(doc, state->scale);
       // Only the vertical scrollbar lives inside the canvas; the horizontal one
       // is merged with the document-window status bar and does not eat height.
       int view_w    = canvas_view_w(win->frame.w);
@@ -1089,6 +1091,8 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
                                    doc->sel.start.x, doc->sel.start.y,
                                    &status_px, &status_py);
       }
+      status_px /= g_bw_retina_scale;
+      status_py /= g_bw_retina_scale;
       canvas_win_update_status(win, status_px, status_py, state->hover_valid);
 
       // Magnifier: repaint to update the loupe overlay; nothing else to do
@@ -1293,7 +1297,7 @@ result_t win_canvas_proc(window_t *win, uint32_t msg,
           canvas_win_sync_scrollbars(win);
           doc_update_title(doc);
           char sb[32];
-          snprintf(sb, sizeof(sb), "%dx%d", doc->canvas_w, doc->canvas_h);
+          snprintf(sb, sizeof(sb), "%dx%d", doc->canvas_w / g_bw_retina_scale, doc->canvas_h / g_bw_retina_scale);
           send_message(doc->win, evStatusBar, 0, sb);
         } else {
           doc_discard_undo(doc);  // crop failed — drop the no-op undo entry

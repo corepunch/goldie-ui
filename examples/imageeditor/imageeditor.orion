@@ -150,6 +150,9 @@
         <Button name="save" menu="file" icon="sysicon_disk_save" text="Save" tooltip="Save image" />
         <Button name="saveas" menu="file" icon="sysicon_disk_multiple" text="Save As" tooltip="Save image as..." />
         <spacer w="10" />
+        <Button name="undo" menu="edit" icon="sysicon_undo" text="Undo" tooltip="Undo" />
+        <Button name="redo" menu="edit" icon="sysicon_redo" text="Redo" tooltip="Redo" />
+        <spacer w="10" />
         <Button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="Zoom Out" tooltip="Zoom out" />
         <Button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="Zoom In" tooltip="Zoom in" />
         <Button name="zoom_1x" menu="view" icon="sysicon_image_dimensions" text="1x" tooltip="Zoom to 100%" />

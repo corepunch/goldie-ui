@@ -188,7 +188,7 @@ static bool timeline_select_frame(window_t *win, timeline_state_t *st,
   if (!anim_timeline_switch_frame(doc->anim, target_idx,
                                   &doc->pixels,
                                   doc->canvas_w, doc->canvas_h,
-                                  FRAME_FORMAT_RGBA)) {
+                                  IE_FRAME_FORMAT)) {
     doc_discard_undo(doc);
     return false;
   }
@@ -505,7 +505,7 @@ void anim_tick(canvas_doc_t *doc) {
 
   if (anim_timeline_switch_frame(tl, next, &doc->pixels,
                                   doc->canvas_w, doc->canvas_h,
-                                  FRAME_FORMAT_RGBA)) {
+                                  IE_FRAME_FORMAT)) {
     if (doc->layer.count > 0)
       doc->layer.stack[doc->layer.active]->pixels = doc->pixels;
     doc->canvas_dirty = true;

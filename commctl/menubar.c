@@ -445,8 +445,8 @@ static void open_popup(window_t *mb_win, menubar_data_t *data, int idx) {
   close_popup(mb_win, data);
 
   const menu_def_t *menu = &data->menus[idx];
-  int px = mb_win->frame.x + data->menu_x[idx] - 1; // TODO: why -1?
-  int py = mb_win->frame.y + MENUBAR_HEIGHT;
+  int px = window_screen_x(mb_win) + data->menu_x[idx] - 1; // TODO: why -1?
+  int py = window_screen_y(mb_win) + MENUBAR_HEIGHT;
 
   window_t *popup = create_popup_window(mb_win, NULL, menu->items,
                                         menu->item_count, data->accel,

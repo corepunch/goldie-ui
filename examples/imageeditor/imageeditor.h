@@ -25,17 +25,42 @@
 #define IMAGEEDITOR_INDEXED 0
 #endif
 
+#ifndef IMAGEEDITOR_BW
+#define IMAGEEDITOR_BW 0
+#endif
+
+// BW mode is just indexed mode with a 2-color palette.
+#if IMAGEEDITOR_BW
+#undef IMAGEEDITOR_INDEXED
+#define IMAGEEDITOR_INDEXED 1
+#endif
+
 #if IMAGEEDITOR_INDEXED
 // Which palette index is treated as transparent (the "eraser" target).
 #define IMAGEEDITOR_TRANSPARENT_INDEX 0
 #endif
 
+// Retina pixel buffer scale for BW mode (pencil test).  Set from axGetScaling()
+// at startup when IMAGEEDITOR_BW_RETINA is defined; otherwise compile-time 1.
+#ifdef IMAGEEDITOR_BW_RETINA
+extern int g_bw_retina_scale;
+#else
+#define g_bw_retina_scale 1
+#endif
+
 // Bytes per pixel in the layer pixel buffer.
-// 32-bit RGBA mode = 4; indexed mode = 1 (palette index).
-#if IMAGEEDITOR_INDEXED
+// 32-bit RGBA mode = 4; indexed mode = 1 (palette index); BW mode = 1 (0 or 1).
+#if IMAGEEDITOR_INDEXED || IMAGEEDITOR_BW
 #define DOC_BPP 1
 #else
 #define DOC_BPP 4
+#endif
+
+// Frame format used for animation timeline compress/expand.
+#if IMAGEEDITOR_INDEXED
+#define IE_FRAME_FORMAT FRAME_FORMAT_INDEXED
+#else
+#define IE_FRAME_FORMAT FRAME_FORMAT_RGBA
 #endif
 
 #ifndef IMAGEEDITOR_SHOW_SELECTION_BOUNDS
@@ -60,7 +85,10 @@
 // Maximum number of layers per document.
 #define LAYER_MAX     32
 
-#if UI_WINDOW_SCALE > 1
+#if IMAGEEDITOR_BW
+#define SCREEN_W      1080
+#define SCREEN_H      810
+#elif UI_WINDOW_SCALE > 1
 #define SCREEN_W      512
 #define SCREEN_H      342
 #else
@@ -70,7 +98,7 @@
 
 #define APP_TOOLBAR_Y   (MENUBAR_HEIGHT + 4)
 // App toolbar band height: button size + top/bottom bevel + top/bottom padding.
-#define APP_TOOLBAR_H   (TB_SPACING + 2*(TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH))
+#define APP_TOOLBAR_H   TOOLBAR_BAND_HEIGHT
 
 #define PALETTE_WIN_X   4
 #define IMAGEEDITOR_TOOL_ICON_PX 24
@@ -348,6 +376,7 @@ typedef struct {
 typedef struct {
   canvas_doc_t  *active_doc;
   canvas_doc_t  *docs;
+  window_t      *chrome_win;
   window_t      *menubar_win;
   window_t      *main_toolbar_win;
   window_t      *tool_win;
@@ -657,6 +686,7 @@ bool imageeditor_open_file_path(const char *path);
 // Also used by handle_menu_command to recreate closed palette windows.
 window_t *create_tool_palette_window(void);
 window_t *create_main_toolbar_window(void);
+result_t main_toolbar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 void imageeditor_sync_main_toolbar(void);
 window_t *create_tool_options_window(void);
 window_t *create_color_palette_window(void);

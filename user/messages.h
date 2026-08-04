@@ -265,6 +265,7 @@ typedef struct {
 #define WINDOW_FLEXSPACE    (1 << 20)  // space/spring child that absorbs leftover horizontal room
 #define WINDOW_AUTO_LAYOUT  (1 << 21)  // enable automatic measure/arrange for children
 #define WINDOW_LAYOUT_CONTAINER (1 << 22)  // window arranges children (stack/grid/flow/column)
+#define WINDOW_NODRAG       (1 << 23)  // fixed chrome/panel: never initiate a window drag
 #define WINDOW_STACK_VERTICAL   0
 
 // Runtime window state bits stored in window_t.flags.
@@ -346,6 +347,7 @@ typedef struct {
 #define TOOLBAR_SPACING         1               // minimal pixel gap between consecutive toolbar elements
 #define TOOLBAR_SPACING_GAP_WIDTH  4            // pixels of gap inserted by a TOOLBAR_ITEM_SPACER entry
 #define TOOLBAR_BEVEL_WIDTH     1               // width of the bevel border drawn around the toolbar button area (each side)
+#define TOOLBAR_BAND_HEIGHT     (TB_SPACING + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH))
 #define TOOLBAR_LABEL_PADDING           8       // horizontal padding added to auto-computed label width (left+right)
 #define TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT  3  // default combobox width = button_size * this multiplier
 #define TOOLBAR_BUTTON_FLAG_ACTIVE   (1u << 0)

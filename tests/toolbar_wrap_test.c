@@ -32,6 +32,27 @@ static result_t click_capture_proc(window_t *win, uint32_t msg,
     return 0;
 }
 
+static result_t test_menubar_proc(window_t *win, uint32_t msg,
+                                  uint32_t wparam, void *lparam) {
+    return win_menubar(win, msg, wparam, lparam);
+}
+
+static int g_chrome_toolbar_click;
+static result_t test_chrome_toolbar_proc(window_t *win, uint32_t msg,
+                                          uint32_t wparam, void *lparam) {
+    (void)lparam;
+    if (msg == evCreate) {
+        toolbar_item_t item = {TOOLBAR_ITEM_BUTTON, 91, 0, 0, 0, "Test"};
+        send_message(win, tbSetItems, 1, &item);
+        return 1;
+    }
+    if (msg == tbButtonClick) {
+        g_chrome_toolbar_click = (int)wparam;
+        return 1;
+    }
+    return 0;
+}
+
 // Count the children in a window's toolbar_children list.
 static int count_toolbar_children(window_t *win) {
     toolbar_state_t *tb = window_toolbar_state(win);
@@ -743,6 +764,68 @@ void test_toolbar_item_button_frame_clamped(void) {
     PASS();
 }
 
+void test_nodrag_toolbar_stays_fixed(void) {
+    TEST("WINDOW_NODRAG toolbar does not enter the drag path");
+
+    test_env_init();
+    irect16_t frame = {0, MENUBAR_HEIGHT, 200, TOOLBAR_BAND_HEIGHT};
+    window_t *win = create_window("Fixed", WINDOW_TOOLBAR | WINDOW_NOTITLE |
+                                  WINDOW_NORESIZE | WINDOW_NODRAG,
+                                  &frame, NULL, noop_proc, 0, NULL);
+    ASSERT_NOT_NULL(win);
+
+    dispatch_left_mouse_at(150, MENUBAR_HEIGHT + 5, kEventLeftButtonDown);
+    ASSERT_NULL(g_ui_runtime.dragging);
+
+    destroy_window(win);
+    test_env_shutdown();
+    PASS();
+}
+
+void test_app_chrome_owns_and_resizes_bands(void) {
+    TEST("App chrome owns fixed menu/toolbar bands and resizes them together");
+
+    test_env_init();
+    menu_def_t menu = {"File", NULL, 0};
+    window_t *chrome = create_app_chrome("Chrome", test_menubar_proc,
+                                         &menu, 1, test_chrome_toolbar_proc, 7);
+    ASSERT_NOT_NULL(chrome);
+    window_t *menubar = app_chrome_menubar(chrome);
+    window_t *toolbar = app_chrome_toolbar(chrome);
+    ASSERT_NOT_NULL(menubar);
+    ASSERT_NOT_NULL(toolbar);
+    ASSERT_TRUE(chrome->flags & WINDOW_NODRAG);
+    ASSERT_TRUE(menubar->parent == chrome);
+    ASSERT_TRUE(toolbar->parent == chrome);
+    ASSERT_EQUAL(menubar->frame.y, 0);
+    ASSERT_EQUAL(menubar->frame.h, MENUBAR_HEIGHT);
+    ASSERT_EQUAL(toolbar->frame.y, MENUBAR_HEIGHT);
+    ASSERT_EQUAL(toolbar->frame.h, TOOLBAR_BAND_HEIGHT);
+
+    send_message(chrome, evDisplayChange, MAKEDWORD(513, 400), NULL);
+    ASSERT_EQUAL(chrome->frame.w, 513);
+    ASSERT_EQUAL(menubar->frame.w, 513);
+    ASSERT_EQUAL(toolbar->frame.w, 513);
+
+    g_chrome_toolbar_click = 0;
+    toolbar_state_t *tb = require_toolbar_state(toolbar);
+    ASSERT_NOT_NULL(tb);
+    irect16_t item = tb->item_rects[0];
+    ASSERT_TRUE(find_window(item.x + item.w / 2,
+                            MENUBAR_HEIGHT + item.y + item.h / 2) == toolbar);
+    dispatch_left_mouse_at(item.x + item.w / 2,
+                           MENUBAR_HEIGHT + item.y + item.h / 2,
+                           kEventLeftButtonDown);
+    dispatch_left_mouse_at(item.x + item.w / 2,
+                           MENUBAR_HEIGHT + item.y + item.h / 2,
+                           kEventLeftButtonUp);
+    ASSERT_EQUAL(g_chrome_toolbar_click, 91);
+
+    destroy_window(chrome);
+    test_env_shutdown();
+    PASS();
+}
+
 int main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
@@ -768,6 +851,8 @@ int main(int argc, char *argv[]) {
     test_titlebar_height_single_row();
     test_toolbar_button_click_cancelled_if_released_outside();
     test_toolbar_item_button_frame_clamped();
+    test_nodrag_toolbar_stays_fixed();
+    test_app_chrome_owns_and_resizes_bands();
 
     TEST_END();
 }

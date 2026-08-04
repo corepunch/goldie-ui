@@ -10,6 +10,10 @@
 app_state_t *g_app = NULL;
 static bool g_loaded_component_plugins = false;
 
+#ifdef IMAGEEDITOR_BW_RETINA
+int g_bw_retina_scale = 1;
+#endif
+
 // ============================================================
 // Keyboard accelerators
 // ============================================================
@@ -93,14 +97,25 @@ static bool image_editor_open_file_handler(const char *path) {
 // ============================================================
 
 static void create_app_windows(hinstance_t hinstance) {
+#ifdef BUILD_AS_GEM
   g_app->menubar_win = set_app_menu(editor_menubar_proc, kMenus, kNumMenus,
                                     handle_menu_command, hinstance);
   create_main_toolbar_window();
+#else
+  g_app->chrome_win = create_app_chrome("Image Editor Chrome", editor_menubar_proc,
+                                        kMenus, kNumMenus, main_toolbar_proc,
+                                        hinstance);
+  g_app->menubar_win      = app_chrome_menubar(g_app->chrome_win);
+  g_app->main_toolbar_win = app_chrome_toolbar(g_app->chrome_win);
+  imageeditor_sync_main_toolbar();
+#endif
 
   create_tool_palette_window();
   create_tool_options_window();
+#if !IMAGEEDITOR_BW
   create_color_palette_window();
   create_layers_window();
+#endif
   create_timeline_window();
 }
 
@@ -108,7 +123,9 @@ static void create_app_windows(hinstance_t hinstance) {
 // .gem entry points
 // ============================================================
 
-#if IMAGEEDITOR_INDEXED
+#if IMAGEEDITOR_BW
+static const char *image_editor_types[] = { ".pcx", ".bmp", NULL };
+#elif IMAGEEDITOR_INDEXED
 static const char *image_editor_types[] = { ".pcx", ".bmp", NULL };
 #else
 static const char *image_editor_types[] = { ".png", ".bmp", ".jpg", ".jpeg", NULL };
@@ -157,11 +174,23 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   }
 #endif
 
-  g_app->current_tool = ID_TOOL_SELECT;
+  g_app->current_tool = ID_TOOL_PENCIL;
   g_app->hinstance    = hinstance;
+#if IMAGEEDITOR_BW
+  // BW mode: simple black/white palette, use pencil tool by default.
+  // The ipal will be initialized in create_document() with just 3 entries:
+  // 0=transparent, 1=black, 2=white.
+  g_app->fg_color = MAKE_COLOR(0x00, 0x00, 0x00, 0xFF); // black
+  g_app->bg_color = MAKE_COLOR(0xFF, 0xFF, 0xFF, 0xFF); // white
+  g_app->fg_palette_idx = 1; // index 1 = black (foreground draws black)
+  #ifdef IMAGEEDITOR_BW_RETINA
+  g_bw_retina_scale = MAX(1, (int)(axGetScaling() + 0.5f));
+  #endif
+#else
   memcpy(g_app->palette, kDefaultPalette, sizeof(kDefaultPalette));
   g_app->fg_color = g_app->palette[4];
   g_app->bg_color = g_app->palette[0];
+#endif
   g_app->brush_size = 1;  // default: radius 1 (3px diameter)
   g_app->text_tool.font_size = 16;
   g_app->text_tool.antialias = true;
@@ -258,6 +287,13 @@ void gem_shutdown(void) {
   free(g_app->clipboard);
   g_app->clipboard = NULL;
 
+  if (g_app->chrome_win && is_window(g_app->chrome_win)) {
+    destroy_window(g_app->chrome_win);
+  } else if (g_app->main_toolbar_win && is_window(g_app->main_toolbar_win)) {
+    destroy_window(g_app->main_toolbar_win);
+  }
+  g_app->chrome_win = g_app->menubar_win = g_app->main_toolbar_win = NULL;
+
 #if !IMAGEEDITOR_INDEXED
   imageeditor_free_filters();
 #endif // !IMAGEEDITOR_INDEXED
@@ -273,7 +309,12 @@ void gem_shutdown(void) {
   g_app = NULL;
 }
 
-#if IMAGEEDITOR_INDEXED
+#if IMAGEEDITOR_BW
+GEM_DEFINE("Pencil Test", "1.0", gem_init, gem_shutdown, image_editor_types)
+
+GEM_STANDALONE_MAIN("Orion Pencil Test", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,
+                    g_app->menubar_win, g_app->accel)
+#elif IMAGEEDITOR_INDEXED
 GEM_DEFINE("Image Editor 256", "1.0", gem_init, gem_shutdown, image_editor_types)
 
 GEM_STANDALONE_MAIN("Orion Image Editor 256", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,

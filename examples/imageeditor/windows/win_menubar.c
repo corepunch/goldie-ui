@@ -126,7 +126,7 @@ static bool anim_step_frame(canvas_doc_t *doc, int delta) {
   doc_push_undo(doc);
   if (!anim_timeline_switch_frame(tl, target, &doc->pixels,
                                   doc->canvas_w, doc->canvas_h,
-                                  FRAME_FORMAT_INDEXED)) {
+                                  IE_FRAME_FORMAT)) {
     doc_discard_undo(doc);
     return false;
   }
@@ -177,8 +177,8 @@ window_t *create_color_palette_window(void) {
   return cp;
 }
 
-static result_t main_toolbar_proc(window_t *win, uint32_t msg,
-                                  uint32_t wparam, void *lparam) {
+result_t main_toolbar_proc(window_t *win, uint32_t msg,
+                           uint32_t wparam, void *lparam) {
   (void)lparam;
   switch (msg) {
     case evCreate:
@@ -201,12 +201,13 @@ static result_t main_toolbar_proc(window_t *win, uint32_t msg,
 
 window_t *create_main_toolbar_window(void) {
   if (!g_app) return NULL;
+  if (g_app->chrome_win) return app_chrome_toolbar(g_app->chrome_win);
   int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
   window_t *win = create_window(
       "Toolbar",
       WINDOW_TOOLBAR | WINDOW_NOTITLE | WINDOW_ALWAYSONTOP |
-      WINDOW_NORESIZE | WINDOW_NOTRAYBUTTON,
-      MAKERECT(0, APP_TOOLBAR_Y, sw, APP_TOOLBAR_H),
+      WINDOW_NORESIZE | WINDOW_NOTRAYBUTTON | WINDOW_NODRAG,
+      MAKERECT(0, MENUBAR_HEIGHT, sw, APP_TOOLBAR_H),
       NULL, main_toolbar_proc,
       g_app->hinstance, NULL);
   if (!win) return NULL;
@@ -708,6 +709,7 @@ void handle_menu_command(uint16_t id) {
       }
       break;
 
+#if !IMAGEEDITOR_BW
     case ID_WINDOW_COLORS:
       if (g_app->color_win) {
         show_window(g_app->color_win, true);
@@ -723,6 +725,7 @@ void handle_menu_command(uint16_t id) {
         create_layers_window();
       }
       break;
+#endif
 
     case ID_LAYER_NEW:
       if (doc) {
@@ -855,13 +858,13 @@ void handle_menu_command(uint16_t id) {
         // drawing immediately on the next frame.
         if (anim_frame_compress(doc->anim->frames[doc->anim->active_frame],
                                 doc->pixels, doc->canvas_w, doc->canvas_h,
-                                FRAME_FORMAT_RGBA)) {
+                                IE_FRAME_FORMAT)) {
           int new_idx = anim_timeline_insert_frame(doc->anim, doc->anim->active_frame);
           if (new_idx >= 0 &&
               anim_timeline_switch_frame(doc->anim, new_idx,
                                          &doc->pixels,
                                          doc->canvas_w, doc->canvas_h,
-                                         FRAME_FORMAT_RGBA)) {
+                                         IE_FRAME_FORMAT)) {
             if (doc->layer.count > 0)
               doc->layer.stack[doc->layer.active]->pixels = doc->pixels;
             doc->canvas_dirty = true;
@@ -877,14 +880,14 @@ void handle_menu_command(uint16_t id) {
         anim_stop_playback(doc);
         if (anim_frame_compress(doc->anim->frames[doc->anim->active_frame],
                                 doc->pixels, doc->canvas_w, doc->canvas_h,
-                                FRAME_FORMAT_RGBA)) {
+                                IE_FRAME_FORMAT)) {
           int dup_idx = anim_timeline_duplicate_frame(doc->anim,
                                                        doc->anim->active_frame);
           if (dup_idx >= 0) {
             anim_timeline_switch_frame(doc->anim, dup_idx,
                                        &doc->pixels,
                                        doc->canvas_w, doc->canvas_h,
-                                       FRAME_FORMAT_RGBA);
+                                       IE_FRAME_FORMAT);
             if (doc->layer.count > 0)
               doc->layer.stack[doc->layer.active]->pixels = doc->pixels;
             doc->canvas_dirty = true;
