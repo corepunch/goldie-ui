@@ -30,6 +30,27 @@ SDL attribute requests — not tested there.)
 lighting without shadows, or `5` for white wireframe. Keys `2` and `3` show
 the shadow-volume diagnostics.
 
+## Reusable prefab variation
+
+Prefab instances support complete `pos`, `rot`, `scale`, and `pivotOffset`
+transforms. Their named attach points follow the same transform. A prefab may
+mark selected child shapes with `tint="1"`; `color` on an instance then
+replaces only those shapes' diffuse color while preserving their material
+shininess and leaving unmarked parts unchanged.
+
+```xml
+<!-- The book prefab marks covers tintable, but not its paper page block. -->
+<prefab source="book" color="0.58 0.08 0.06"/>
+<prefab source="book" pos="0.5 0 0" color="0.08 0.22 0.56"/>
+```
+
+Important authoring features still missing are named multi-color material
+slots, per-camera visibility or state variants, animation, object/layer names
+for CLI inspection, orthographic and aspect-safe cameras, textures and alpha,
+and area lights or soft shadows. Prefab-wide `material`, `shininess`,
+`castShadow`, and `renderable` inheritance are also not implemented; child
+shapes continue to own those properties.
+
 ## Rendering modes
 
 Normal rendering uses every light's `castShadows` setting and produces the

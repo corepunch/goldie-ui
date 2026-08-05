@@ -311,7 +311,7 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 }
 
 static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
-	(void)M; (void)color; (void)shin; (void)castsShadow; (void)renderable;
+	(void)parentM; (void)pos; (void)rot; (void)shin; (void)castsShadow; (void)renderable;
 	const char *source=xml_attr(n,"source",NULL);
 	if(!source) return;
 	XmlNode *proot=load_prefab(s,source);
@@ -320,21 +320,18 @@ static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec
 	if(name){
 		InstanceDef inst; memset(&inst,0,sizeof(inst));
 		strncpy(inst.name,name,31); strncpy(inst.ref,source,31);
-		inst.pos=mat4_xform_point(parentM,pos);
-		inst.rot=R;
+		inst.transform=M;
 		DA_PUSH(s->instances,s->ninstances,s->cinstances,inst);
 	}
-	vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
-	mat4 prefabM;
-	if(pvt.x!=0.0f||pvt.y!=0.0f||pvt.z!=0.0f){
-		mat4 Tp=mat4_translate(pvt);
-		mat4 Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
-		prefabM=mat4_mul(parentM, mat4_mul(mat4_translate(pos),
-			mat4_mul(Tp, mat4_mul(mat4_rot_xyz(rot), Tn))));
-	} else {
-		prefabM=mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
+	int oldTintActive=s->prefabTintActive;
+	vec3 oldTint=s->prefabTint;
+	if(xml_attr(n,"color",NULL)){
+		s->prefabTintActive=1;
+		s->prefabTint=color;
 	}
-	parse_nodes(s, proot, prefabM, R);
+	parse_nodes(s, proot, M, R);
+	s->prefabTintActive=oldTintActive;
+	s->prefabTint=oldTint;
 }
 
 static const struct {
@@ -373,8 +370,8 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 						if(strcmp(s->prefabs[m].ref,s->instances[k].ref)) continue;
 						for(int p=0;p<s->prefabs[m].nattaches;p++){
 							if(strcmp(s->prefabs[m].attaches[p].name,slot)) continue;
-							pos=vadd(s->instances[k].pos,
-								mat4_xform_dir(s->instances[k].rot,s->prefabs[m].attaches[p].pos));
+							pos=mat4_xform_point(s->instances[k].transform,
+								s->prefabs[m].attaches[p].pos);
 							break;
 						}
 						break;
@@ -397,6 +394,7 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		}
 		Material *mat = find_material(s, xml_attr(n,"material",NULL));
 		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
+		if(s->prefabTintActive && xml_attr_i(n,"tint",0)) color=s->prefabTint;
 		float shin = mat? mat->shininess : xml_attr_f(n,"shininess",8.0f);
 		int castsShadow = xml_attr_i(n,"castShadow",1);
 		int renderable = xml_attr_i(n,"renderable",1);

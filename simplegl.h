@@ -79,7 +79,7 @@ typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
 typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
-typedef struct { char name[32]; char ref[32]; vec3 pos; mat4 rot; } InstanceDef;
+typedef struct { char name[32]; char ref[32]; mat4 transform; } InstanceDef;
 
 typedef struct {
 	vec3 camPos,camLook; float camFov;
@@ -91,6 +91,7 @@ typedef struct {
 	ShadowVolume *svols;
 	PrefabDef *prefabs; int nprefabs,cprefabs;
 	InstanceDef *instances; int ninstances,cinstances;
+	vec3 prefabTint; int prefabTintActive;
 } Scene;
 
 int load_scene(const char *path,Scene *s);

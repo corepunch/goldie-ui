@@ -140,6 +140,7 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 | `renderable` | int    | 1                | Whether this object is drawn; non-renderable objects may still cast shadows |
 | `pivotOffset`| vec3   | 0 0 0            | Offsets the rotation center. Translate by offset, rotate, translate back |
 | `attach`     | string | (none)           | Snap to a named instance's attach point: `instanceName:slotName` |
+| `tint`       | int    | 0                | On prefab children, allow instance `color` to replace this part's diffuse color |
 
 If a `material` attribute is given, `color` and `shininess` are taken from the referenced material definition.
 
@@ -362,12 +363,33 @@ Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefa
 
 ### `<prefab>`
 
-Instantiate a prefab. Common attributes (`pos`, `rot`, `scale`, `material`, `color`, `shininess`, `castShadow`, `pivotOffset`) apply as usual.
+Instantiate a prefab. `pos`, `rot`, `scale`, `pivotOffset`, and `attach` apply
+to the complete instance. Instance `color` is a selective tint as described
+below. Prefab-wide `material`, `shininess`, `castShadow`, and `renderable`
+inheritance are not currently implemented; define those on child shapes.
 
 | Attribute | Type   | Default | Description |
 |-----------|--------|---------|-------------|
 | `source`  | string | (required) | Prefab file name, loads from `prefabs/<source>.xml` |
 | `name`    | string | (none)     | Instance name for `attach` references — only needed when something attaches to this instance |
+
+Prefab `scale` applies to its complete local transform, including named attach
+points. A prefab-level `color` selectively replaces the diffuse color of
+descendant shapes marked `tint="1"`; unmarked parts keep their own material or
+color. Tinting does not replace material shininess. This lets one book prefab
+produce different cover colors while its page block remains paper-colored:
+
+```xml
+<!-- prefabs/book.xml -->
+<prefab>
+  <box size="0.44 0.03 0.32" material="book_cover" tint="1"/>
+  <box pos="0 0.06 0" size="0.39 0.06 0.28" material="paper"/>
+</prefab>
+
+<!-- scene -->
+<prefab source="book" color="0.65 0.08 0.06"/>
+<prefab source="book" pos="0.5 0 0" color="0.06 0.20 0.62"/>
+```
 
 Example: place 4 chairs around a dining table (table spans X=±0.8, Z=-1.0 to -2.0):
 

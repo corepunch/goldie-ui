@@ -45,6 +45,19 @@ static float approx_box_vol(float sx, float sy, float sz){ return sx * sy * sz; 
 static float approx_sphere_vol(float r){ return 4.0f/3.0f * M_PIf * r * r * r; }
 static float approx_torus_vol(float R, float r){ return 2.0f * M_PIf * M_PIf * R * r * r; }
 
+static float mesh_width(Mesh *m){
+	float lo=m->verts[0].pos.x,hi=lo;
+	for(int i=1;i<m->nverts;i++){
+		if(m->verts[i].pos.x<lo) lo=m->verts[i].pos.x;
+		if(m->verts[i].pos.x>hi) hi=m->verts[i].pos.x;
+	}
+	return hi-lo;
+}
+
+static int color_eq(vec3 a,vec3 b){
+	return fabsf(a.x-b.x)<0.001f && fabsf(a.y-b.y)<0.001f && fabsf(a.z-b.z)<0.001f;
+}
+
 int main(void){
     fprintf(stderr,"=== Winding Tests ===\n");
 
@@ -146,6 +159,33 @@ int main(void){
         test_edges_sealed("pyramid apex-top sealed", m, 1);
         mesh_free(&m);
     }
+
+	fprintf(stderr,"\n=== Prefab Tests ===\n");
+
+	{
+		Scene s={0};
+		CHECK(load_scene("scenes/test_prefab_tint.xml",&s),"prefab tint fixture failed to load");
+		CHECK(s.nobjs==15,"prefab tint fixture: got %d objects, expected 15",s.nobjs);
+		if(s.nobjs==15){
+			vec3 red=v3(0.70f,0.10f,0.08f),blue=v3(0.08f,0.20f,0.70f),paper=v3(0.76f,0.68f,0.50f);
+			vec3 green=v3(0.10f,0.32f,0.18f);
+			CHECK(color_eq(s.objs[0].color,red) && color_eq(s.objs[2].color,red),
+			      "first book covers did not inherit red instance color");
+			CHECK(color_eq(s.objs[4].color,blue) && color_eq(s.objs[6].color,blue),
+			      "second book covers did not inherit blue instance color");
+			CHECK(color_eq(s.objs[1].color,paper) && color_eq(s.objs[5].color,paper),
+			      "book pages were incorrectly tinted");
+			CHECK(fabsf(mesh_width(&s.objs[4].mesh)/mesh_width(&s.objs[0].mesh)-2.0f)<0.01f,
+			      "prefab scale was not applied");
+			CHECK(s.objs[8].mesh.verts[0].pos.y>0.20f,
+			      "scaled prefab attachment was not transformed");
+			CHECK(color_eq(s.objs[9].color,green) && color_eq(s.objs[11].color,green),
+			      "nested repair-book covers did not inherit instance color");
+			CHECK(color_eq(s.objs[10].color,paper),"nested repair-book pages were incorrectly tinted");
+			PASS("selective prefab tint preserves pages and supports scale");
+		}
+		scene_free(&s);
+	}
 
 	fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
 
