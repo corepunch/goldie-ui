@@ -203,7 +203,7 @@ int main(void){
 		s.lights=calloc(1,sizeof(Light)); s.nlights=s.clights=1;
 		s.lights[0]=(Light){.pos=v3(0,3,0),.castsShadow=1};
 		s.svols=calloc(1,sizeof(ShadowVolume));
-		scene_add_obj(&s,gen_box(2,2,0.2f),mat4_identity(),mat4_identity(),v3(1,1,1),8,1,0);
+		scene_add_obj(&s,gen_box(2,2,0.2f),mat4_identity(),mat4_identity(),v3(1,1,1),8,1,0,0);
 		scene_build_all_shadow_volumes(&s);
 		CHECK(!s.objs[0].renderable && s.objs[0].castsShadow,
 		      "shadow-only object flags were not preserved");

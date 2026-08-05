@@ -126,16 +126,16 @@ void scene_free(Scene *s){
 }
 
 static Material preset_materials[] = {
-	{ "wall",     {0.80f,0.78f,0.72f}, 6.0f },
-	{ "floor",    {0.35f,0.28f,0.22f}, 12.0f },
-	{ "wood",     {0.50f,0.32f,0.18f}, 20.0f },
-	{ "metal",    {0.70f,0.70f,0.75f}, 60.0f },
-	{ "glass",    {0.65f,0.80f,0.85f}, 90.0f },
-	{ "stone",    {0.38f,0.36f,0.33f}, 8.0f },
-	{ "concrete", {0.52f,0.50f,0.46f}, 4.0f },
-	{ "plaster",  {0.90f,0.88f,0.80f}, 3.0f },
-	{ "bronze",   {0.48f,0.30f,0.14f}, 40.0f },
-	{ "iron",     {0.28f,0.28f,0.30f}, 55.0f },
+	{ "wall",     {0.80f,0.78f,0.72f}, 6.0f,  0 },
+	{ "floor",    {0.35f,0.28f,0.22f}, 12.0f, 0 },
+	{ "wood",     {0.50f,0.32f,0.18f}, 20.0f, 0 },
+	{ "metal",    {0.70f,0.70f,0.75f}, 60.0f, 0 },
+	{ "glass",    {0.65f,0.80f,0.85f}, 90.0f, 1 },
+	{ "stone",    {0.38f,0.36f,0.33f}, 8.0f,  0 },
+	{ "concrete", {0.52f,0.50f,0.46f}, 4.0f,  0 },
+	{ "plaster",  {0.90f,0.88f,0.80f}, 3.0f,  0 },
+	{ "bronze",   {0.48f,0.30f,0.14f}, 40.0f, 0 },
+	{ "iron",     {0.28f,0.28f,0.30f}, 55.0f, 0 },
 };
 static const int npreset_mats = (int)(sizeof(preset_materials)/sizeof(preset_materials[0]));
 
@@ -146,12 +146,12 @@ static Material* find_material(Scene*s, const char*id){
 	return NULL;
 }
 
-void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, int castsShadow, int renderable){
+void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	mesh_transform(&mesh, M, R);
 	if(castsShadow && mesh_signed_volume(&mesh) < 0.0f) mesh_flip_winding(&mesh);
 	mesh_compute_face_normals(&mesh);
 	if(castsShadow) mesh_build_edges(&mesh);
-	SceneObj o={ mesh, color, shin, castsShadow, renderable };
+	SceneObj o={ mesh, color, shin, castsShadow, renderable, transparent };
 	DA_PUSH(s->objs,s->nobjs,s->cobjs,o);
 }
 
@@ -212,62 +212,62 @@ static void apply_modifiers(Mesh *m, XmlNode *n){
 
 static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR);
 
-typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable);
+typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent);
 
-static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)parentM; (void)pos; (void)rot;
 	vec3 sz=xml_attr_v3(n,"size",v3(1,1,1));
 	Mesh mesh=gen_box(sz.x,sz.y,sz.z); apply_modifiers(&mesh,n);
-	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,transparent);
 }
 
-static void parse_sphere(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_sphere(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f);
 	Mesh mesh=gen_sphere(r,xml_attr_i(n,"rings",16),xml_attr_i(n,"slices",24)); apply_modifiers(&mesh,n);
-	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,transparent);
 }
 
-static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
 	Mesh mesh=gen_cylinder(r,h,xml_attr_i(n,"sides",24)); apply_modifiers(&mesh,n);
-	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,transparent);
 }
 
-static void parse_prism(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_prism(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
 	Mesh mesh=gen_prism(r,h,xml_attr_i(n,"sides",6)); apply_modifiers(&mesh,n);
-	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,transparent);
 }
 
-static void parse_cone(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_cone(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)parentM; (void)pos; (void)rot;
 	float rb=xml_attr_f(n,"radius",0.5f), rt=xml_attr_f(n,"radiusTop",0.0f), h=xml_attr_f(n,"height",1.0f);
 	int sides = xml_attr_i(n,"sides", !strcmp(n->tag,"pyramid")?4:24);
 	Mesh mesh=gen_cone(rb,rt,h,sides); apply_modifiers(&mesh,n);
-	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,transparent);
 }
 
-static void parse_torus(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_torus(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)parentM; (void)pos; (void)rot;
 	float R_=xml_attr_f(n,"majorRadius",0.5f), r_=xml_attr_f(n,"minorRadius",0.15f);
 	Mesh mesh=gen_torus(R_,r_,xml_attr_i(n,"majorSegments",24),xml_attr_i(n,"minorSegments",12)); apply_modifiers(&mesh,n);
-	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,transparent);
 }
 
-static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
-	(void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable;
+static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
+	(void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)transparent;
 	parse_nodes(s, n, M, R);
 }
 
 /* build the boxes that make up a wall with rectangular openings */
 typedef struct { float x,width,height,sill; } Opening;
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
-                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable);
+                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable, int transparent);
 
-static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
+static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
 	(void)M;
 	float L=xml_attr_f(n,"length",4.0f), H=xml_attr_f(n,"height",2.7f), T=xml_attr_f(n,"thickness",0.2f);
 	mat4 wallM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
@@ -283,7 +283,7 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 		o.sill = isDoor? 0.0f : xml_attr_f(c,"sill",0.9f);
 		DA_PUSH(op,nop,cop,o);
 	}
-	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin, castsShadow, renderable);
+	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin, castsShadow, renderable, transparent);
 	free(op);
 }
 
@@ -310,8 +310,8 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 	return root;
 }
 
-static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
-	(void)parentM; (void)pos; (void)rot; (void)shin; (void)castsShadow; (void)renderable;
+static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int transparent){
+	(void)M; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)transparent;
 	const char *source=xml_attr(n,"source",NULL);
 	if(!source) return;
 	XmlNode *proot=load_prefab(s,source);
@@ -396,12 +396,13 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
 		if(s->prefabTintActive && xml_attr_i(n,"tint",0)) color=s->prefabTint;
 		float shin = mat? mat->shininess : xml_attr_f(n,"shininess",8.0f);
-		int castsShadow = xml_attr_i(n,"castShadow",1);
+		int transparent = mat ? mat->transparent : xml_attr_i(n,"transparency",0);
+		int castsShadow = transparent ? 0 : xml_attr_i(n,"castShadow",1);
 		int renderable = xml_attr_i(n,"renderable",1);
 
 		for(int j=0;j<(int)(sizeof(shape_parsers)/sizeof(shape_parsers[0]));j++){
 			if(!strcmp(tag, shape_parsers[j].tag)){
-				shape_parsers[j].parse(s, n, M, R, parentM, pos, rot, color, shin, castsShadow, renderable);
+				shape_parsers[j].parse(s, n, M, R, parentM, pos, rot, color, shin, castsShadow, renderable, transparent);
 				break;
 			}
 		}
@@ -454,6 +455,7 @@ static void parse_material_tag(Scene *s, XmlNode *n){
 	Material m={0}; strncpy(m.id, xml_attr(n,"id","mat"), 31);
 	m.color = xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
 	m.shininess = xml_attr_f(n,"shininess",8.0f);
+	m.transparent = !strcmp(xml_attr(n,"transparency","false"),"true");
 	DA_PUSH(s->mats,s->nmats,s->cmats,m);
 }
 
@@ -547,7 +549,7 @@ void scene_select_camera(Scene *s, const char *name){
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
-                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable){
+                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable, int transparent){
 	float *bp=NULL; int nbp=0,cbp=0;
 	float b0=0,bL=L; DA_PUSH(bp,nbp,cbp,b0); DA_PUSH(bp,nbp,cbp,bL);
 	for(int i=0;i<nopen;i++){
@@ -577,7 +579,7 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 			vec3 localCenter = v3(xm - L*0.5f, y0+h*0.5f, 0);
 			Mesh box=gen_box(w,h,T);
 			mat4 M = mat4_mul(wallM, mat4_translate(localCenter));
-			scene_add_obj(s, box, M, wallR, color, shin, castsShadow, renderable);
+			scene_add_obj(s, box, M, wallR, color, shin, castsShadow, renderable, transparent);
 		}
 	}
 	free(bp);

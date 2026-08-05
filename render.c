@@ -50,8 +50,8 @@ static void end_shadow_pass(void){
 #endif
 }
 
-static void draw_mesh_flat(Mesh *m, vec3 color){
-    glColor3f(color.x,color.y,color.z);
+static void draw_mesh_flat(Mesh *m, vec3 color, float alpha){
+    glColor4f(color.x,color.y,color.z,alpha);
     glBegin(GL_TRIANGLES);
     for(int i=0;i<m->ntris;i++){
         Tri t=m->tris[i];
@@ -61,9 +61,9 @@ static void draw_mesh_flat(Mesh *m, vec3 color){
     }
     glEnd();
 }
-static void draw_mesh_lit(Mesh *m, vec3 color, float shininess){
-    glColor3f(color.x,color.y,color.z);
-    GLfloat spec[4]={0.25f,0.25f,0.25f,1.0f};
+static void draw_mesh_lit(Mesh *m, vec3 color, float shininess, float alpha){
+    glColor4f(color.x,color.y,color.z,alpha);
+    GLfloat spec[4]={0.25f,0.25f,0.25f,alpha};
     glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
     glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shininess);
     glBegin(GL_TRIANGLES);
@@ -98,7 +98,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         glDisable(GL_STENCIL_TEST);
         glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
         for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-            draw_mesh_flat(&s->objs[i].mesh,v3(1,1,1));
+            draw_mesh_flat(&s->objs[i].mesh,v3(1,1,1),1.0f);
         glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
         return;
     }
@@ -107,8 +107,8 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
     glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
     glEnable(GL_CULL_FACE); glCullFace(GL_BACK);
     glDisable(GL_LIGHTING);
-    for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-        draw_mesh_flat(&s->objs[i].mesh, vmul(s->objs[i].color, s->ambient));
+    for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].transparent)
+        draw_mesh_flat(&s->objs[i].mesh, vmul(s->objs[i].color, s->ambient), 1.0f);
 
     if(debugMode==DBG_SHOW_STENCIL){
         for(int li=0; li<s->nlights; li++){
@@ -212,19 +212,98 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
             glDepthFunc(GL_LEQUAL);
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
             glEnable(GL_LIGHTING);
-            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-                draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess);
+            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].transparent)
+                draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess, 1.0f);
             glDisable(GL_BLEND);
             glDisable(GL_STENCIL_TEST);
             glDepthFunc(GL_LESS);
         } else {
             glDepthFunc(GL_LEQUAL);
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
-            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-                draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess);
+            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].transparent)
+                draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess, 1.0f);
             glDisable(GL_BLEND);
             glDepthFunc(GL_LESS);
         }
     }
+
+    /* Transparent pass */
+    int ntrans = 0;
+    for (int i = 0; i < s->nobjs; i++)
+        if (s->objs[i].transparent && s->objs[i].renderable)
+            ntrans++;
+
+    if (ntrans > 0) {
+        SceneObj **tobjs = malloc((size_t)ntrans * sizeof(SceneObj*));
+        float *dists = malloc((size_t)ntrans * sizeof(float));
+        ntrans = 0;
+        for (int i = 0; i < s->nobjs; i++)
+            if (s->objs[i].transparent && s->objs[i].renderable) {
+                tobjs[ntrans] = &s->objs[i];
+                vec3 cent = v3(0,0,0);
+                Mesh *m = &s->objs[i].mesh;
+                if (m->nverts > 0) {
+                    for (int vi = 0; vi < m->nverts; vi++)
+                        cent = vadd(cent, m->verts[vi].pos);
+                    cent = vscale(cent, 1.0f / (float)m->nverts);
+                }
+                vec3 vc = mat4_xform_point(view, cent);
+                dists[ntrans] = vc.z;
+                ntrans++;
+            }
+
+        for (int i = 0; i < ntrans - 1; i++)
+            for (int j = i + 1; j < ntrans; j++)
+                if (dists[i] < dists[j]) {
+                    SceneObj *tmp = tobjs[i]; tobjs[i] = tobjs[j]; tobjs[j] = tmp;
+                    float td = dists[i]; dists[i] = dists[j]; dists[j] = td;
+                }
+
+        glDisable(GL_LIGHT0);
+
+        GLfloat amb[4] = {s->ambient.x, s->ambient.y, s->ambient.z, 1.0f};
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, amb);
+
+        int nl = s->nlights < 8 ? s->nlights : 8;
+        for (int li = 0; li < nl; li++) {
+            Light *L = &s->lights[li];
+            GLenum le = GL_LIGHT0 + li;
+            glEnable(le);
+            GLfloat lp[4];
+            if (L->isDirectional) {
+                vec3 toSource = light_to_source(L, v3(0,0,0));
+                lp[0] = toSource.x; lp[1] = toSource.y; lp[2] = toSource.z; lp[3] = 0.0f;
+            } else {
+                lp[0] = L->pos.x; lp[1] = L->pos.y; lp[2] = L->pos.z; lp[3] = 1.0f;
+            }
+            GLfloat lc[4] = {L->color.x*L->intensity, L->color.y*L->intensity, L->color.z*L->intensity, 1.0f};
+            GLfloat za[4] = {0,0,0,1};
+            glLightfv(le, GL_POSITION, lp);
+            glLightfv(le, GL_DIFFUSE, lc);
+            glLightfv(le, GL_SPECULAR, lc);
+            glLightfv(le, GL_AMBIENT, za);
+        }
+
+        glDepthMask(GL_FALSE);
+        glDepthFunc(GL_LEQUAL);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        for (int i = 0; i < ntrans; i++)
+            draw_mesh_lit(&tobjs[i]->mesh, tobjs[i]->color, tobjs[i]->shininess, 0.5f);
+
+        glDisable(GL_BLEND);
+        glDepthFunc(GL_LESS);
+
+        for (int li = 0; li < nl; li++)
+            glDisable(GL_LIGHT0 + li);
+        glEnable(GL_LIGHT0);
+
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, zero);
+
+        free(dists);
+        free(tobjs);
+    }
+
     glDepthMask(GL_TRUE);
 }

@@ -71,10 +71,10 @@ Mesh gen_cone(float rBase,float rTop,float h,int sides);
 Mesh gen_sphere(float r,int rings,int slices);
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
 
-typedef struct { char id[32]; vec3 color; float shininess; } Material;
+typedef struct { char id[32]; vec3 color; float shininess; int transparent; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
 typedef struct { vec3 pos,color,dir; float intensity; int castsShadow,isDirectional; } Light;
-typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable; } SceneObj;
+typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,transparent; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
@@ -97,7 +97,7 @@ typedef struct {
 int load_scene(const char *path,Scene *s);
 void scene_free(Scene *s);
 void scene_select_camera(Scene *s,const char *name);
-void scene_add_obj(Scene *s,Mesh mesh,mat4 M,mat4 R,vec3 color,float shin,int castsShadow,int renderable);
+void scene_add_obj(Scene *s,Mesh mesh,mat4 M,mat4 R,vec3 color,float shin,int castsShadow,int renderable,int transparent);
 vec3 light_to_source(Light *light,vec3 point);
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);

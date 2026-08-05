@@ -36,8 +36,13 @@
   <sphere pos="-1.5 0.64 -3.8" radius="0.16" material="fabric"/>
   <pyramid pos="-3.0 0.25 -0.9" radius="0.35" height="0.5" material="wood"/>
 
+  <box pos="-1.5 0.49 -3.8" size="1.1 0.01 0.6" material="glass"/>
+
   <!-- dining table with 4 chairs -->
   <prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
+
+  <cylinder pos="-0.35 0.75 -1.35" radius="0.04" height="0.12" material="glass"/>
+  <cylinder pos="0.35 0.75 -1.65" radius="0.04" height="0.12" material="glass"/>
 
   <sphere attach="dining_table:center" radius="0.14" material="fabric"/>
 
