@@ -27,7 +27,28 @@ insert center = (x + w/2 - L/2, s + h/2, 0)
 insert size   = (w - horizontal_clearance, h - vertical_clearance, thickness)
 ```
 
-Use deliberate, symmetric clearance. A pane that should nearly fill an opening normally subtracts `0.01` to `0.10` total scene units from width and height, depending on scene scale. Record unusually large clearance as an intentional design choice.
+Use deliberate, symmetric clearance. A pane can be inset behind a perimeter
+frame, but the frame's outside boundary must meet the opening boundary unless a
+visible construction gap is intentional. A crossbar or mullion alone is not a
+perimeter frame.
+
+Prefer packaging the opening and insert together:
+
+```xml
+<!-- prefab origin and cutter are at the opening center -->
+<prefab>
+  <bool-negative-box size="1.4 1.2 0.3"/>
+  <!-- frame outer extents are exactly 1.4 x 1.2 -->
+</prefab>
+```
+
+Place that prefab at the intended opening center, with its local Z aligned to
+wall thickness. Its cutter depth must span both wall faces with at least
+`0.001` scene units of excess per face. Keep the cutter wholly inside the
+wall's X/Y extents, and never combine it with a duplicate child `<opening>`.
+The renderer pre-collects prefab cutters, so the wall may appear earlier in the
+XML. Cutters are rectangular wall metadata; arbitrary or oblique mesh CSG is
+not supported.
 
 Do not place a pane as a world-space sibling of a rotated wall. If grouping is impossible, transform both its center and thin axis into world space explicitly. For a wall rotated 90 degrees around Y, an unrotated world-space box can represent the pane by swapping its X and Z sizes, but grouping remains safer.
 
@@ -55,6 +76,26 @@ Use `attach="instanceName:slotName"` on any shape or prefab to place it at a pre
 ```
 
 The sphere lands on the table surface without computing `y = tableTop + sphereRadius`. When `attach` is present the element's `pos` is replaced by the attach point's world-space position.
+
+Place a general-purpose surface attach at the usable surface center. Do not put
+the default shelf/table attach on its front edge: a child prefab is positioned
+by its origin, so doing so centers half of the child's footprint outside the
+support. If a composition needs multiple offsets, place the support and props
+inside one local `<group>`, use the surface height as each child's baseline,
+and author local X/Z offsets from the surface center.
+
+Before accepting a supported prop, transform all footprint corners by its
+scale and yaw and verify they remain within the support rectangle with a small
+visible margin. Checking only the origin is insufficient, especially after
+rotation.
+
+For shelves, desks, and active work surfaces, avoid mechanically uniform rows.
+Use small deterministic differences in yaw, spacing, depth, and scale while
+maintaining exact vertical contact and non-intersection. Rotate asymmetric
+props enough to read but not so far that they overhang. A cylinder does not
+visibly change under Y rotation; vary its position or neighboring silhouette
+instead. Use X/Z tilt only when the prefab origin is a plausible contact pivot
+and the resulting footprint does not penetrate the support.
 
 Use `pivotOffset` to rotate a shape around an edge instead of its center. The offset is in local space, applied before rotation:
 
@@ -100,6 +141,19 @@ Use `renderable="0" castShadow="1"` for scene boundaries that must remain invisi
 
 Use the `<array>` modifier to create repeating geometry (books, shelves, stairs). It duplicates the mesh `count` times with per-step `translation` and `rotation`, producing compact scene files for repetitive structures.
 
+## Interior enclosure and lighting
+
+Treat a room as a complete shell: floor, walls, and ceiling or roof. In the common box-room case, place the ceiling so its lower face meets the wall tops. Omit it only for an explicitly open or roofless design. Keep plan cameras below a visible ceiling so they continue to show the interior.
+
+Follow the enclosed-room pattern in `scenes/sample_room.xml`: combine a low ambient base with at least one motivated, shadow-casting key light. A room must contain light sources that shape the space, not merely enough ambient illumination to avoid black pixels.
+
+- Put a reusable practical point light inside the same prefab as its fixture geometry. Place it inside the bulb or flame, below the ceiling and on the emitting side of any opaque shade.
+- Mark the visible emitter `unlit="1" castShadow="0"`: unlit keeps its authored bright color, while disabling shadow casting prevents it from occluding its own point light. Keep the shade and fixture body shadow-casting.
+- Use a window, doorway, or second practical to motivate a weaker fill or rim. Keep it subordinate to the key so shadows remain dramatic.
+- Aim a directional sun or moon light through the corresponding opening rather than through a solid wall or ceiling.
+- Confirm important characters, props, and interactions receive both readable illumination and grounding cast shadows.
+- Avoid lifting ambient light until shadows disappear. Correct the key position, intensity, and motivated fill first.
+
 ## Camera declarations
 
 Aim cameras at useful targets, not arbitrary Euler directions. Keep the near plane away from geometry.
@@ -131,5 +185,11 @@ Before completion, verify:
 5. Every directional prefab faces its target.
 6. Repeated objects use prefabs or groups rather than divergent copies.
 7. Exterior face extents do not overlap on the same plane.
-8. Edited XML files pass `xmllint --noout`.
-9. The project builds, relevant tests pass, and the scene loads with `-list-cameras`.
+8. Every interior has its intended ceiling or roof, and overhead cameras remain inside the shell.
+9. Every room has a motivated shadow-casting key; reusable practicals own prefab-local point lights, emitters are unlit and shadow-free, and hero subjects remain readable.
+10. Every supported prop's transformed footprint stays inside its surface; default surface attach points are centered rather than placed on an edge.
+11. Lived-in prop clusters use deliberate variation without floating, penetration, overlap, or accidental overhang.
+12. Edited XML files pass `xmllint --noout`.
+13. Every practical point light remains inside its emitter and below the shade lip after instance transforms and scale.
+14. The project builds, relevant tests pass, and the scene loads with `-list-cameras`.
+15. Every window or door prefab cutter crosses its wall completely, remains wall-axis-aligned, and matches the visible outer frame boundary without an accidental reveal gap.

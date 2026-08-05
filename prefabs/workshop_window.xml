@@ -1,0 +1,11 @@
+<!-- Outer size 2.0 x 1.7; origin at opening center; local +Z faces the room. -->
+<prefab>
+  <bool-negative-box size="2.0 1.7 0.30"/>
+  <box pos="-0.94 0 0.04" size="0.12 1.70 0.16" material="dark_wood"/>
+  <box pos="0.94 0 0.04" size="0.12 1.70 0.16" material="dark_wood"/>
+  <box pos="0 0.79 0.04" size="1.76 0.12 0.16" material="dark_wood"/>
+  <box pos="0 -0.79 0.04" size="1.76 0.12 0.16" material="dark_wood"/>
+  <box pos="0 0 -0.025" size="1.76 1.46 0.03" material="moon_glass" castShadow="0"/>
+  <box pos="0 0 0.055" size="0.07 1.46 0.05" material="dark_wood"/>
+  <box pos="0 0 0.055" size="1.76 0.07 0.05" material="dark_wood"/>
+</prefab>

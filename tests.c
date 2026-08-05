@@ -54,8 +54,34 @@ static float mesh_width(Mesh *m){
 	return hi-lo;
 }
 
+static float mesh_min_y(Mesh *m){
+	float lo=m->verts[0].pos.y;
+	for(int i=1;i<m->nverts;i++) if(m->verts[i].pos.y<lo) lo=m->verts[i].pos.y;
+	return lo;
+}
+
 static int color_eq(vec3 a,vec3 b){
 	return fabsf(a.x-b.x)<0.001f && fabsf(a.y-b.y)<0.001f && fabsf(a.z-b.z)<0.001f;
+}
+
+static int scene_point_covered(Scene *s,vec3 p){
+	for(int i=0;i<s->nobjs;i++){
+		Mesh *m=&s->objs[i].mesh;
+		vec3 lo=m->verts[0].pos,hi=lo;
+		for(int j=1;j<m->nverts;j++){
+			vec3 v=m->verts[j].pos;
+			if(v.x<lo.x) lo.x=v.x;
+			if(v.x>hi.x) hi.x=v.x;
+			if(v.y<lo.y) lo.y=v.y;
+			if(v.y>hi.y) hi.y=v.y;
+			if(v.z<lo.z) lo.z=v.z;
+			if(v.z>hi.z) hi.z=v.z;
+		}
+		if(p.x>=lo.x-0.001f && p.x<=hi.x+0.001f &&
+		   p.y>=lo.y-0.001f && p.y<=hi.y+0.001f &&
+		   p.z>=lo.z-0.001f && p.z<=hi.z+0.001f) return 1;
+	}
+	return 0;
 }
 
 int main(void){
@@ -187,6 +213,49 @@ int main(void){
 		scene_free(&s);
 	}
 
+	{
+		Scene s={0};
+		CHECK(load_scene("scenes/test_prefab_light.xml",&s),"prefab light fixture failed to load");
+		CHECK(s.nobjs==6,"prefab light fixture: got %d objects, expected 6",s.nobjs);
+		CHECK(s.nlights==2,"prefab light fixture: got %d lights, expected 2",s.nlights);
+		if(s.nobjs==6 && s.nlights==2){
+			CHECK(s.objs[2].unlit && !s.objs[2].castsShadow,
+			      "first bulb is not unlit and shadow-free");
+			CHECK(s.objs[5].unlit && !s.objs[5].castsShadow,
+			      "scaled bulb is not unlit and shadow-free");
+			CHECK(s.lights[0].castsShadow && s.lights[1].castsShadow,
+			      "prefab lights do not cast shadows");
+			CHECK(fabsf(s.lights[0].pos.x-1.0f)<0.001f &&
+			      fabsf(s.lights[0].pos.y-3.36f)<0.001f &&
+			      fabsf(s.lights[0].pos.z+2.0f)<0.001f,
+			      "first prefab light transform is wrong");
+			CHECK(fabsf(s.lights[1].pos.x+1.0f)<0.001f &&
+			      fabsf(s.lights[1].pos.y-2.68f)<0.001f &&
+			      fabsf(s.lights[1].pos.z-1.0f)<0.001f,
+			      "scaled prefab light transform is wrong");
+			CHECK(s.lights[0].pos.y<mesh_min_y(&s.objs[1].mesh),
+			      "first light is not below the shade lip");
+			CHECK(s.lights[1].pos.y<mesh_min_y(&s.objs[4].mesh),
+			      "scaled light is not below the shade lip");
+			PASS("prefab lights transform with instances and bulbs stay unlit and shadow-free");
+		}
+		scene_free(&s);
+	}
+
+	{
+		Scene s={0};
+		CHECK(load_scene("scenes/test_wall_negative.xml",&s),"wall negative fixture failed to load");
+		CHECK(s.nobjs==4,"wall negative fixture: got %d wall boxes, expected 4",s.nobjs);
+		CHECK(!scene_point_covered(&s,v3(1,1.5f,-1.5f)),
+		      "prefab negative box did not cut the rotated wall");
+		CHECK(scene_point_covered(&s,v3(1,0.5f,-1.5f)),
+		      "wall below prefab negative box is missing");
+		if(s.nobjs==4 && !scene_point_covered(&s,v3(1,1.5f,-1.5f)) &&
+		   scene_point_covered(&s,v3(1,0.5f,-1.5f)))
+			PASS("prefab negative box cuts a rotated wall before wall construction");
+		scene_free(&s);
+	}
+
 	fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
 
 	{
@@ -203,7 +272,7 @@ int main(void){
 		s.lights=calloc(1,sizeof(Light)); s.nlights=s.clights=1;
 		s.lights[0]=(Light){.pos=v3(0,3,0),.castsShadow=1};
 		s.svols=calloc(1,sizeof(ShadowVolume));
-		scene_add_obj(&s,gen_box(2,2,0.2f),mat4_identity(),mat4_identity(),v3(1,1,1),8,1,0);
+		scene_add_obj(&s,gen_box(2,2,0.2f),mat4_identity(),mat4_identity(),v3(1,1,1),8,1,0,0);
 		scene_build_all_shadow_volumes(&s);
 		CHECK(!s.objs[0].renderable && s.objs[0].castsShadow,
 		      "shadow-only object flags were not preserved");

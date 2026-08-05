@@ -108,7 +108,8 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
     glEnable(GL_CULL_FACE); glCullFace(GL_BACK);
     glDisable(GL_LIGHTING);
     for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-        draw_mesh_flat(&s->objs[i].mesh, vmul(s->objs[i].color, s->ambient));
+        draw_mesh_flat(&s->objs[i].mesh, s->objs[i].unlit ? s->objs[i].color
+                                                         : vmul(s->objs[i].color, s->ambient));
 
     if(debugMode==DBG_SHOW_STENCIL){
         for(int li=0; li<s->nlights; li++){
@@ -212,7 +213,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
             glDepthFunc(GL_LEQUAL);
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
             glEnable(GL_LIGHTING);
-            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
+            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit)
                 draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess);
             glDisable(GL_BLEND);
             glDisable(GL_STENCIL_TEST);
@@ -220,7 +221,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         } else {
             glDepthFunc(GL_LEQUAL);
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
-            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
+            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit)
                 draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess);
             glDisable(GL_BLEND);
             glDepthFunc(GL_LESS);

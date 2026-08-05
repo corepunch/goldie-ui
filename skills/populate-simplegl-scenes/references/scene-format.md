@@ -105,6 +105,27 @@ Point light source.
 | `intensity`  | float| 1.0     | Brightness multiplier |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
 
+`<light>` is transformable scene content as well as a valid top-level node. A
+top-level position is in world space. Inside a `<group>` or prefab, its position
+is local and inherits the complete parent translation, rotation, and scale.
+Instance scale changes the light's positional offset but not its intensity.
+
+Keep reusable practical lights inside their fixture prefab:
+
+```xml
+<!-- origin is the ceiling suspension point -->
+<prefab>
+  <cone pos="0 -0.53 0" radius="0.28" radiusTop="0.08" height="0.20" material="brass"/>
+  <sphere pos="0 -0.61 0" radius="0.07" color="1 0.96 0.82"
+          unlit="1" castShadow="0"/>
+  <light pos="0 -0.64 0" color="1 0.70 0.36"
+         intensity="0.85" castShadows="1"/>
+</prefab>
+```
+
+The light above is inside the bulb and slightly below the opaque shade lip.
+The shade may cast shadows; the emitter must not.
+
 ### `<sun>`
 
 Directional light (infinite distance). Light rays travel parallel in the given `dir`. Useful for sunlight, moonlight, or any distant light source.
@@ -138,11 +159,17 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 | `shininess`  | float  | 8.0              | Specular exponent (used if no material ref) |
 | `castShadow` | int    | 1                | Whether this object casts shadows |
 | `renderable` | int    | 1                | Whether this object is drawn; non-renderable objects may still cast shadows |
+| `unlit`      | int    | 0                | Render the authored diffuse color without ambient or additive light contribution |
 | `pivotOffset`| vec3   | 0 0 0            | Offsets the rotation center. Translate by offset, rotate, translate back |
 | `attach`     | string | (none)           | Snap to a named instance's attach point: `instanceName:slotName` |
 | `tint`       | int    | 0                | On prefab children, allow instance `color` to replace this part's diffuse color |
 
 If a `material` attribute is given, `color` and `shininess` are taken from the referenced material definition.
+
+An unlit object still renders into the depth buffer. Its `castShadow` setting is
+independent, although visible emitter geometry normally uses
+`unlit="1" castShadow="0"` so it stays bright without blocking the light it
+represents.
 
 **Rotation convention:** `rot="rx ry rz"` applies rotations around X, then Y, then Z. Positive Y rotation maps the **+X** axis toward **-Z** and **+Z** toward **+X**.
 
@@ -236,6 +263,35 @@ Child `<opening>` elements:
 | `width`   | float  | 1.0         | Opening width |
 | `height`  | float  | 2.1/1.2     | Opening height (door: 2.1, window: 1.2) |
 | `sill`    | float  | 0.0/0.9     | Height from floor (door: 0.0, window: 0.9) |
+
+Walls also consume intersecting `<bool-negative-box>` nodes collected from the
+scene and instantiated prefabs before wall geometry is built. This makes a
+window or door prefab capable of carrying its own rough opening. Document order
+does not matter.
+
+### `<bool-negative-box>`
+
+A non-rendered rectangular wall cutter. It accepts the common `pos`, `rot`,
+`scale`, and `pivotOffset` transforms plus `size`. Its local X is opening width,
+local Y is opening height, and local Z must cross the wall thickness.
+
+This is deliberate wall-opening metadata, not unrestricted mesh CSG: it cuts
+only `<wall>` geometry, and its axes must align with the target wall's local
+axes. Parent or prefab rotation is supported when the cutter and wall remain
+aligned. Oblique cutters are ignored.
+
+```xml
+<!-- window.xml: origin is the opening center; local +Z faces the room -->
+<prefab>
+  <bool-negative-box size="2.0 1.7 0.30"/>
+  <box pos="-0.94 0 0.04" size="0.12 1.70 0.16" material="wood"/>
+  <box pos="0.94 0 0.04" size="0.12 1.70 0.16" material="wood"/>
+  <!-- top, bottom, pane, and mullions -->
+</prefab>
+```
+
+Place the complete insert once: `<prefab source="window" pos="x y z"/>`.
+Do not declare a duplicate child `<opening>` on the wall.
 
 ### `<group>`
 
@@ -358,6 +414,10 @@ Duplicates the mesh `count` times, applying a per-step translation and rotation 
 ## Prefabs
 
 Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefab file begins with an XML comment describing its default orientation (which way it "faces" at `rot="0 0 0"`). Prefabs are loaded lazily (on first reference) and cached for reuse.
+
+Prefabs may contain point lights. Each instance creates its own transformed
+light, allowing one fixture definition to keep its cord, shade, bulb, and light
+source aligned under translation, rotation, and scale.
 
 **Orientation convention:** every prefab that has a natural "front" (e.g. chair, sofa) must document which direction it faces at default rotation. Use the rotation convention above to place and orient prefabs.
 

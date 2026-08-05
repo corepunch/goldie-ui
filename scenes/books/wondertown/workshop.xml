@@ -9,9 +9,9 @@
   <camera name="WindBertrandAction" comment="Medium close action on Bertrand and winding key" pos="3.85 1.28 -6.05" look="2.58 1.03 -7.35" fov="33"/>
   <camera name="SpoolLiftAction" comment="Low diagonal action view up the moving spool lift" pos="4.15 0.42 -5.15" look="3.05 1.45 -7.85" fov="56"/>
   <camera name="CountertopEstablishing" comment="High destination view; open text zone at right" pos="1.15 1.82 -6.05" look="2.55 1.0 -7.4" fov="42"/>
-  <camera name="LayoutPlan" comment="Overhead blocking reference for the whole workshop" pos="0 8.2 -4.5" look="0 0 -4.5" fov="50"/>
+  <camera name="LayoutPlan" comment="Overhead blocking reference from inside the closed workshop" pos="0 4.02 -4.5" look="0 0 -4.5" fov="100"/>
 
-  <ambient color="0.075 0.065 0.075"/>
+  <ambient color="0.10 0.08 0.085"/>
   <background id="midnight"/>
 
   <material id="plaster" color="0.34 0.30 0.27" shininess="3"/>
@@ -27,24 +27,22 @@
   <material id="moon_glass" color="0.22 0.38 0.56" shininess="80"/>
   <material id="shadow" color="0.025 0.025 0.035" shininess="1"/>
 
-  <light pos="-2.55 2.75 -7.15" color="1.0 0.70 0.38" intensity="1.55" castShadows="1"/>
-  <light pos="2.55 2.6 -7.2" color="1.0 0.76 0.48" intensity="0.82" castShadows="0"/>
-  <sun dir="-0.72 -0.42 0.38" color="0.38 0.52 0.82" intensity="0.72" castShadows="1"/>
+  <light pos="2.90 2.40 -8.72" color="0.32 0.48 0.82" intensity="0.38" castShadows="0"/>
+  <sun dir="0 -0.16 1" color="0.34 0.48 0.82" intensity="0.82" castShadows="1"/>
 
   <box pos="0 -0.06 -4.5" size="10 0.12 9" material="floor" castShadow="0"/>
+  <box pos="0 4.25 -4.5" size="10 0.10 9" material="plaster" castShadow="0"/>
+  <box pos="0 4.10 -1.5" size="10 0.20 0.18" material="dark_wood"/>
+  <box pos="0 4.10 -4.5" size="10 0.20 0.18" material="dark_wood"/>
+  <box pos="0 4.10 -7.5" size="10 0.20 0.18" material="dark_wood"/>
   <wall pos="0 0 -9" length="10" height="4.2" thickness="0.2" material="plaster">
     <opening type="door" x="0.7" width="0.8" height="0.68"/>
-    <opening type="window" x="6.9" width="2.0" height="1.7" sill="1.55"/>
   </wall>
   <wall pos="-5 0 -4.5" rot="0 90 0" length="9" height="4.2" thickness="0.2" material="plaster"/>
   <wall pos="5 0 -4.5" rot="0 90 0" length="9" height="4.2" thickness="0.2" material="plaster"/>
   <wall pos="0 0 0" length="10" height="4.2" thickness="0.2" material="plaster" renderable="0" castShadow="0"/>
 
-  <box pos="2.9 2.4 -9" size="1.92 1.62 0.03" material="moon_glass" castShadow="0"/>
-  <group pos="2.9 2.4 -8.96">
-    <box size="0.07 1.62 0.05" material="dark_wood"/>
-    <box size="1.92 0.07 0.05" material="dark_wood"/>
-  </group>
+  <prefab source="workshop_window" pos="2.9 2.4 -9"/>
 
   <group pos="-3.9 0 -9.06">
     <box pos="0 0.32 0" size="0.72 0.62 0.04" material="shadow" castShadow="0"/>
@@ -59,8 +57,8 @@
   <prefab source="workbench" name="main_bench" pos="-2.65 0 -7.35"/>
   <prefab source="stool" pos="-2.55 0 -5.95"/>
   <prefab source="workbench" name="tool_bench" pos="2.55 0 -7.35"/>
-  <prefab source="hanging_lamp" pos="-2.65 3.35 -7.20"/>
-  <prefab source="hanging_lamp" pos="2.55 3.30 -7.20" scale="0.82 0.82 0.82"/>
+  <prefab source="hanging_lamp" pos="-2.65 4.10 -7.20"/>
+  <prefab source="hanging_lamp" pos="2.55 4.10 -7.20" scale="0.82 0.82 0.82"/>
 
   <group attach="main_bench:top_surface">
     <prefab source="repair_book" pos="0.23 0 0" rot="0 -8 0" color="0.10 0.24 0.16"/>
@@ -92,16 +90,18 @@
     <cone pos="0 0.53 0" radius="0.14" radiusTop="0.05" height="0.14" material="toy_red"/>
   </group>
 
-  <prefab source="shelf_unit" pos="-4.76 0.32 -5.10" rot="0 90 0"/>
-  <prefab source="book" pos="-4.56 0.38 -5.78" rot="0 90 0" scale="0.68 0.68 0.68" color="0.55 0.08 0.06"/>
-  <prefab source="book" pos="-4.56 0.38 -5.44" rot="0 90 0" scale="0.74 0.74 0.74" color="0.10 0.25 0.46"/>
-  <prefab source="book" pos="-4.56 0.38 -5.08" rot="0 90 0" scale="0.62 0.62 0.62" color="0.36 0.16 0.40"/>
-  <prefab source="book" pos="-4.56 1.00 -5.70" rot="0 90 0" scale="0.72 0.72 0.72" color="0.10 0.34 0.20"/>
-  <prefab source="book" pos="-4.56 1.00 -5.34" rot="0 90 0" scale="0.66 0.66 0.66" color="0.58 0.30 0.06"/>
-  <prefab source="jar" pos="-4.56 1.00 -4.83" scale="0.84 0.84 0.84" color="0.48 0.12 0.08"/>
-  <prefab source="jar" pos="-4.56 1.00 -4.52" scale="0.72 0.72 0.72" color="0.12 0.36 0.28"/>
-  <prefab source="jar" pos="-4.56 1.62 -5.48" scale="0.76 0.76 0.76" color="0.52 0.32 0.08"/>
-  <prefab source="parts_tray" pos="-4.56 1.62 -4.82" rot="0 90 0" scale="0.72 0.72 0.72" color="0.30 0.16 0.06"/>
+  <group pos="-4.76 0.32 -5.10" rot="0 90 0">
+    <prefab source="shelf_unit"/>
+    <prefab source="book" pos="0.70 0.06 -0.02" rot="0 -6 0" scale="0.68 0.68 0.68" color="0.55 0.08 0.06"/>
+    <prefab source="book" pos="0.34 0.06 0.03" rot="0 4 0" scale="0.74 0.74 0.74" color="0.10 0.25 0.46"/>
+    <prefab source="book" pos="-0.04 0.06 -0.01" rot="0 -3 0" scale="0.62 0.62 0.62" color="0.36 0.16 0.40"/>
+    <prefab source="book" pos="0.61 0.68 0.02" rot="0 5 0" scale="0.72 0.72 0.72" color="0.10 0.34 0.20"/>
+    <prefab source="book" pos="0.24 0.68 -0.025" rot="0 -7 0" scale="0.66 0.66 0.66" color="0.58 0.30 0.06"/>
+    <prefab source="jar" pos="-0.28 0.68 0.01" scale="0.84 0.84 0.84" color="0.48 0.12 0.08"/>
+    <prefab source="jar" pos="-0.59 0.68 -0.03" scale="0.72 0.72 0.72" color="0.12 0.36 0.28"/>
+    <prefab source="jar" pos="0.38 1.30 0.02" scale="0.76 0.76 0.76" color="0.52 0.32 0.08"/>
+    <prefab source="parts_tray" pos="-0.28 1.30 -0.01" rot="0 7 0" scale="0.72 0.72 0.72" color="0.30 0.16 0.06"/>
+  </group>
 
   <prefab source="sawhorse" pos="0.15 0 -6.20" rot="0 -8 0"/>
   <box pos="0.15 0.86 -6.20" rot="0 8 0" size="1.55 0.10 0.24" material="wood"/>

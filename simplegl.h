@@ -74,12 +74,13 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
 typedef struct { vec3 pos,color,dir; float intensity; int castsShadow,isDirectional; } Light;
-typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable; } SceneObj;
+typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
 typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
 typedef struct { char name[32]; char ref[32]; mat4 transform; } InstanceDef;
+typedef struct { mat4 transform; vec3 size; } NegativeBox;
 
 typedef struct {
 	vec3 camPos,camLook; float camFov;
@@ -91,13 +92,14 @@ typedef struct {
 	ShadowVolume *svols;
 	PrefabDef *prefabs; int nprefabs,cprefabs;
 	InstanceDef *instances; int ninstances,cinstances;
+	NegativeBox *negativeBoxes; int nnegativeBoxes,cnegativeBoxes;
 	vec3 prefabTint; int prefabTintActive;
 } Scene;
 
 int load_scene(const char *path,Scene *s);
 void scene_free(Scene *s);
 void scene_select_camera(Scene *s,const char *name);
-void scene_add_obj(Scene *s,Mesh mesh,mat4 M,mat4 R,vec3 color,float shin,int castsShadow,int renderable);
+void scene_add_obj(Scene *s,Mesh mesh,mat4 M,mat4 R,vec3 color,float shin,int castsShadow,int renderable,int unlit);
 vec3 light_to_source(Light *light,vec3 point);
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);

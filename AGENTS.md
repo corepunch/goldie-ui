@@ -53,9 +53,14 @@ requirements.
 
 Scene loading is in `scene.c`. Three dispatch tables:
 
-1. **`scene_tags[]`** — top-level scene config tags (`camera`, `ambient`, `background`, `material`, `light`, `sun`). Each has a `parse_*_tag(Scene*, XmlNode*)` function.
-2. **`shape_parsers[]`** — primitive shapes (`box`, `sphere`, `cylinder`, `prism`, `cone`, `pyramid`, `torus`) plus `group` and `wall`. Each has a `parse_*(Scene*, XmlNode*, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow)` function.
+1. **`scene_tags[]`** — top-level scene config tags (`camera`, `ambient`, `background`, `material`, `sun`). Each has a `parse_*_tag(Scene*, XmlNode*)` function.
+2. **`shape_parsers[]`** — transformable scene content: primitive shapes (`box`, `sphere`, `cylinder`, `prism`, `cone`, `pyramid`, `torus`), point `light`, `group`, `prefab`, and `wall`. This lets point lights inherit group and prefab transforms.
 3. **`modifier_parsers[]`** — mesh modifiers (`taper`, `twist`, `bend`, `stretch`, `skew`) applied as child elements of shape nodes. Each has a `parse_mod_*(Mesh*, XmlNode*)` function.
+
+`bool-negative-box` is handled by a prepass rather than `shape_parsers[]`. The
+prepass expands groups and prefabs before wall construction; each aligned box
+that fully crosses a wall becomes a rectangular opening in that wall. It is
+wall-opening metadata, not general mesh CSG.
 
 To add a new primitive:
 1. Add a `static void parse_newprim(...)` function in `scene.c`.
@@ -67,4 +72,4 @@ To add a new modifier:
 2. Add a `parse_mod_*(Mesh*, XmlNode*)` wrapper in `scene.c`.
 3. Add `{ "tag", parse_mod_* }` to the `modifier_parsers[]` array.
 
-Common attributes (`pos`, `rot`, `scale`, `color`, `shininess`, `material`, `castShadow`) are extracted before dispatch, so individual shape parsers only need to read shape-specific attributes.
+Common attributes (`pos`, `rot`, `scale`, `color`, `shininess`, `material`, `castShadow`, `renderable`, `unlit`) are extracted before dispatch, so individual shape parsers only need to read shape-specific attributes.
