@@ -1,3 +1,6 @@
+<!-- chair: seat 0.45x0.45 at z=0, backrest at z=-0.2 (behind seat).
+     Chair faces +Z direction (backrest = -Z, front = +Z).
+     Rotate around Y to change facing: rotY(+90) -> faces +X, rotY(-90) -> faces -X. -->
 <prefab>
   <box pos="0 0.45 0" size="0.45 0.05 0.45" material="wood"/>
   <box pos="0 0.75 -0.2" size="0.45 0.55 0.05" material="wood"/>

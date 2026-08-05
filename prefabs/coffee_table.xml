@@ -1,3 +1,5 @@
+<!-- coffee table: 1.2 x 0.7 top, 4 metal cylinder legs.
+     Centered at origin, flat on XZ plane, legs extend downward. -->
 <prefab>
   <box pos="0 0.45 0" size="1.2 0.06 0.7" material="wood"/>
   <cylinder pos="-0.5 0.2 -0.28" radius="0.03" height="0.4" material="metal"/>

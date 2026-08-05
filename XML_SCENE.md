@@ -85,6 +85,8 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 
 If a `material` attribute is given, `color` and `shininess` are taken from the referenced material definition.
 
+**Rotation convention:** `rot="yaw pitch roll"` applies rotations in Y→X→Z order. Positive Y rotation (looking from +Y toward origin) is **counter-clockwise** — it maps the **+X** axis toward the **-Z** axis. Equivalently, `rotY(+angle)` maps a **+Z** direction vector to **+X**.
+
 ### `<box>`
 
 Axis-aligned box centered at origin.
@@ -263,7 +265,9 @@ Shears the two perpendicular axes proportionally to position along the chosen ax
 
 ## Prefabs
 
-Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefab file contains a root `<prefab>` tag with shape children — the same tags you'd put inside a `<group>`.
+Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefab file begins with an XML comment describing its default orientation (which way it "faces" at `rot="0 0 0"`). Prefabs are loaded lazily (on first reference) and cached for reuse.
+
+**Orientation convention:** every prefab that has a natural "front" (e.g. chair, sofa) must document which direction it faces at default rotation. Use the rotation convention above to place and orient prefabs.
 
 ### `<prefab>`
 
@@ -273,15 +277,24 @@ Instantiate a prefab by reference. Common attributes (`pos`, `rot`, `scale`, `ma
 |-----------|--------|---------|-------------|
 | `ref`     | string | (none)  | Prefab name, loads from `prefabs/name.xml` |
 
+Example: place 4 chairs around a dining table (table spans X=±0.8, Z=-1.0 to -2.0):
+
 ```xml
-<prefab ref="chair" pos="2 0 1.5" rot="0 45 0"/>
-<prefab ref="sofa" pos="-2 0 -4"/>
-<prefab ref="dining_table" pos="0 0 -2"/>
+<prefab ref="dining_table" pos="0 0 -1.5"/>
+<!-- chair faces +Z by default; rotY(180) = faces -Z (into table) -->
+<prefab ref="chair" pos="0 0 -0.75" rot="0 180 0"/>
+<!-- chair at back: default +Z is already toward table -->
+<prefab ref="chair" pos="0 0 -2.25"/>
+<!-- chair at left: rotY(90) maps +Z -> +X (toward table right) -->
+<prefab ref="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
+<!-- chair at right: rotY(-90) maps +Z -> -X (toward table left) -->
+<prefab ref="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
 ```
 
-Prefab files are loaded lazily (on first reference) and cached for reuse. Example `prefabs/chair.xml`:
+Prefab file `prefabs/chair.xml`:
 
 ```xml
+<!-- chair: backrest at z=-0.2, front faces +Z. rotY(+90)->+X, rotY(-90)->-X -->
 <prefab>
   <box pos="0 0.45 0" size="0.45 0.05 0.45" material="wood"/>
   <box pos="0 0.75 -0.2" size="0.45 0.55 0.05" material="wood"/>

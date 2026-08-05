@@ -45,6 +45,6 @@
 
   <prefab ref="chair" pos="0 0 -0.75" rot="0 180 0"/>
   <prefab ref="chair" pos="0 0 -2.25"/>
-  <prefab ref="chair" pos="-1.05 0 -1.5" rot="0 -90 0"/>
-  <prefab ref="chair" pos=" 1.05 0 -1.5" rot="0 90 0"/>
+  <prefab ref="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
+  <prefab ref="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
 </scene>

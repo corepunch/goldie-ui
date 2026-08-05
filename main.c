@@ -46,6 +46,7 @@ int main(int argc,char**argv){
     vec3 pos=scene.camPos;
 
     int running=1;
+    int rightMouseDown=0;
     int debugMode=DBG_NONE;
     Uint32 lastTicks=SDL_GetTicks();
     while(running){
@@ -58,7 +59,11 @@ int main(int argc,char**argv){
                 else if(ev.key.keysym.sym==SDLK_2){ debugMode=DBG_WIRE_SHADOWVOL; fprintf(stderr,"debug: wireframe shadow vols (red)\n"); }
                 else if(ev.key.keysym.sym==SDLK_3){ debugMode=DBG_SHOW_STENCIL; fprintf(stderr,"debug: stencil != 0 (red overlay)\n"); }
             }
-            else if(ev.type==SDL_MOUSEMOTION){
+            else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){
+                rightMouseDown=1;
+            } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_RIGHT){
+                rightMouseDown=0;
+            } else if(ev.type==SDL_MOUSEMOTION && rightMouseDown){
                 yaw   += ev.motion.xrel * 0.15f;
                 pitch -= ev.motion.yrel * 0.15f;
                 if(pitch>89) pitch=89;
