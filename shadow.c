@@ -6,7 +6,7 @@
 #include "mesh.h"
 #include "math.h"
 
-#define SHADOW_EXTRUDE 200.0f
+#define SHADOW_EXTRUDE 100.0f
 
 void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
     memset(sv,0,sizeof(*sv));
@@ -17,6 +17,8 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
         facing[i] = vdot(m->triN[i], vsub(lightPos,p)) > 0.0f;
     }
     #define PUSHV(vv) DA_PUSH(sv->verts,sv->nverts,sv->cverts,(vv))
+
+    /* Side quads only — z-pass needs no caps */
     for(int i=0;i<m->nedges;i++){
         Edge *e=&m->edges[i];
         int f0=facing[e->t0], f1=(e->t1>=0)?facing[e->t1]:0;
@@ -29,6 +31,7 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
         PUSHV(v0); PUSHV(v1); PUSHV(v1e);
         PUSHV(v0); PUSHV(v1e); PUSHV(v0e);
     }
+
     #undef PUSHV
     free(facing);
 }

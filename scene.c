@@ -172,7 +172,7 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
             vec3 localCenter = v3(xm - L*0.5f, y0+h*0.5f, 0);
             Mesh box=gen_box(w,h,T);
             mat4 M = mat4_mul(wallM, mat4_translate(localCenter));
-            scene_add_obj(s, box, M, wallR, color, shin, 1);
+            scene_add_obj(s, box, M, wallR, color, shin, 0);
         }
     }
     free(bp);

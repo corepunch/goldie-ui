@@ -75,7 +75,7 @@ int main(int argc,char**argv){
         if(ks[SDL_SCANCODE_Q]) move=vsub(move, v3(0,1,0));
         if(vlen(move)>1e-6f) pos = vadd(pos, vscale(vnorm(move), speed*dt));
 
-        mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.05f, 500.0f);
+        mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.05f, 1000.0f);
         mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));
         render_frame(&scene, W,H, proj, view, debugMode);
 

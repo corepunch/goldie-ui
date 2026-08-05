@@ -54,3 +54,7 @@ dkms.conf
 # Build output
 build/
 .DS_Store
+
+# Screenshots (generated for testing)
+screenshots/*.ppm
+screenshots/*.png

@@ -4,6 +4,8 @@
 #include <math.h>
 #include "mesh.h"
 #include "math.h"
+#include "shadow.h"
+#include "scene.h"
 
 static int failures = 0;
 #define CHECK(cond, fmt, ...) do{ if(!(cond)){ fprintf(stderr,"FAIL: " fmt "\n", ##__VA_ARGS__); failures++; } }while(0)
@@ -126,6 +128,72 @@ int main(void){
         CHECK(vol > 0, "pyramid apex-top signed volume positive (%.4f)", vol);
         mesh_build_edges(&m);
         test_edges_sealed("pyramid apex-top sealed", m, 1);
+        mesh_free(&m);
+    }
+
+    fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
+
+    {
+        Mesh m = gen_box(1.0f, 1.0f, 1.0f);
+        mesh_compute_face_normals(&m);
+        mesh_build_edges(&m);
+        vec3 lightPos = v3(0, 5, 0);
+        ShadowVolume sv;
+        build_shadow_volume(&m, lightPos, &sv);
+
+        int silEdges = 0;
+        char *facing = malloc((size_t)m.ntris);
+        for(int i = 0; i < m.ntris; i++){
+            vec3 p = m.verts[m.tris[i].a].pos;
+            facing[i] = vdot(m.triN[i], vsub(lightPos, p)) > 0.0f;
+        }
+        for(int i = 0; i < m.nedges; i++){
+            Edge *e = &m.edges[i];
+            int f0 = facing[e->t0], f1 = (e->t1 >= 0) ? facing[e->t1] : 0;
+            if((e->t1 < 0) ? f0 : (f0 != f1)) silEdges++;
+        }
+        free(facing);
+
+        int expectedSideVerts = silEdges * 6;
+        CHECK(sv.nverts == expectedSideVerts,
+              "box shadow vol verts: got %d, expected %d (sides only)",
+              sv.nverts, expectedSideVerts);
+        if(sv.nverts == expectedSideVerts) PASS("box shadow volume has correct vert count (sides only)");
+
+        CHECK(sv.nverts % 3 == 0, "shadow volume vertex count divisible by 3");
+        if(sv.nverts % 3 == 0) PASS("shadow volume divisible by 3");
+
+        free(sv.verts);
+        mesh_free(&m);
+    }
+
+    {
+        Mesh m = gen_sphere(0.5f, 12, 16);
+        mesh_compute_face_normals(&m);
+        mesh_build_edges(&m);
+        vec3 lightPos = v3(0, 3, 0);
+        ShadowVolume sv;
+        build_shadow_volume(&m, lightPos, &sv);
+        CHECK(sv.nverts > 0, "sphere shadow volume non-empty");
+        CHECK(sv.nverts % 3 == 0, "sphere shadow volume divisible by 3");
+        if(sv.nverts > 0 && sv.nverts % 3 == 0)
+            PASS("sphere shadow volume well-formed");
+        free(sv.verts);
+        mesh_free(&m);
+    }
+
+    {
+        Mesh m = gen_box(4.0f, 2.8f, 0.2f);
+        mesh_compute_face_normals(&m);
+        mesh_build_edges(&m);
+        vec3 lightPos = v3(0.5f, 2.5f, -1.5f);
+        ShadowVolume sv;
+        build_shadow_volume(&m, lightPos, &sv);
+        CHECK(sv.nverts > 0, "wall-sized box shadow volume non-empty");
+        CHECK(sv.nverts % 3 == 0, "wall-sized box shadow volume divisible by 3");
+        if(sv.nverts > 0 && sv.nverts % 3 == 0)
+            PASS("wall-sized box shadow volume well-formed");
+        free(sv.verts);
         mesh_free(&m);
     }
 

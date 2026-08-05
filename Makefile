@@ -20,14 +20,17 @@ $(BINDIR):
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
+screenshot: screenshot.c math.c mesh.c scene.c shadow.c render.c | $(BINDIR)
+	$(CC) $(CFLAGS) -o $(BINDIR)/$@ screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
+
 run: simplegl
 	./$(BINDIR)/simplegl sample_room.xml
 
 test: simplegl tests
 	./$(BINDIR)/tests
 
-tests: tests.c math.c mesh.c | $(BINDIR)
-	$(CC) $(CFLAGS) -o $(BINDIR)/$@ tests.c math.c mesh.c $(LIBS)
+tests: tests.c math.c mesh.c shadow.c scene.c | $(BINDIR)
+	$(CC) $(CFLAGS) -o $(BINDIR)/$@ tests.c math.c mesh.c shadow.c scene.c $(LIBS)
 
 clean:
 	rm -rf build
