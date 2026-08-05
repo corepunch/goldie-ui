@@ -8,6 +8,10 @@
 #include "shadow.h"
 #include "render.h"
 
+#define MOUSE_SENSITIVITY 0.25f
+#define MOVE_SPEED 3.25f
+#define SPRINT_SPEED 7.8f
+
 int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
@@ -38,7 +42,6 @@ int main(int argc,char**argv){
     SDL_GLContext ctx=SDL_GL_CreateContext(win);
     if(!ctx){ fprintf(stderr,"GL_CreateContext: %s\n",SDL_GetError()); return 1; }
     SDL_GL_SetSwapInterval(1);
-    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     vec3 fwd=vnorm(vsub(scene.camLook,scene.camPos));
     float yaw = atan2f(fwd.x,-fwd.z) * 180.0f/M_PIf;
@@ -64,8 +67,8 @@ int main(int argc,char**argv){
             } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_RIGHT){
                 rightMouseDown=0;
             } else if(ev.type==SDL_MOUSEMOTION && rightMouseDown){
-                yaw   += ev.motion.xrel * 0.15f;
-                pitch -= ev.motion.yrel * 0.15f;
+                yaw   += ev.motion.xrel * MOUSE_SENSITIVITY;
+                pitch -= ev.motion.yrel * MOUSE_SENSITIVITY;
                 if(pitch>89) pitch=89;
                 if(pitch<-89) pitch=-89;
             } else if(ev.type==SDL_WINDOWEVENT && ev.window.event==SDL_WINDOWEVENT_RESIZED){
@@ -79,7 +82,7 @@ int main(int argc,char**argv){
         vec3 right = vnorm(vcross(look, v3(0,1,0)));
 
         const Uint8 *ks=SDL_GetKeyboardState(NULL);
-        float speed = (ks[SDL_SCANCODE_LSHIFT]||ks[SDL_SCANCODE_RSHIFT]) ? 6.0f : 2.5f;
+        float speed = (ks[SDL_SCANCODE_LSHIFT]||ks[SDL_SCANCODE_RSHIFT]) ? SPRINT_SPEED : MOVE_SPEED;
         vec3 move={0,0,0};
         if(ks[SDL_SCANCODE_W]) move=vadd(move, look);
         if(ks[SDL_SCANCODE_S]) move=vsub(move, look);

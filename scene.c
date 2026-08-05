@@ -245,10 +245,10 @@ static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 /* build the boxes that make up a wall with rectangular openings */
 typedef struct { float x,width,height,sill; } Opening;
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
-                              Opening *openings,int nopen, vec3 color,float shin);
+                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow);
 
 static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
-	(void)M; (void)castsShadow;
+	(void)M;
 	float L=xml_attr_f(n,"length",4.0f), H=xml_attr_f(n,"height",2.7f), T=xml_attr_f(n,"thickness",0.2f);
 	mat4 wallM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
 	Opening *op=NULL; int nop=0,cop=0;
@@ -263,7 +263,7 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 		o.sill = isDoor? 0.0f : xml_attr_f(c,"sill",0.9f);
 		DA_PUSH(op,nop,cop,o);
 	}
-	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin);
+	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin, castsShadow);
 	free(op);
 }
 
@@ -436,7 +436,7 @@ void scene_select_camera(Scene *s, const char *name){
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
-                              Opening *openings,int nopen, vec3 color,float shin){
+                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow){
 	float *bp=NULL; int nbp=0,cbp=0;
 	float b0=0,bL=L; DA_PUSH(bp,nbp,cbp,b0); DA_PUSH(bp,nbp,cbp,bL);
 	for(int i=0;i<nopen;i++){
@@ -466,7 +466,7 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 			vec3 localCenter = v3(xm - L*0.5f, y0+h*0.5f, 0);
 			Mesh box=gen_box(w,h,T);
 			mat4 M = mat4_mul(wallM, mat4_translate(localCenter));
-			scene_add_obj(s, box, M, wallR, color, shin, 0);
+			scene_add_obj(s, box, M, wallR, color, shin, castsShadow);
 		}
 	}
 	free(bp);
