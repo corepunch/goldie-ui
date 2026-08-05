@@ -4,10 +4,7 @@
 #include <OpenGL/glext.h>
 #include <stdio.h>
 #include <string.h>
-#include "render.h"
-#include "scene.h"
-#include "mesh.h"
-#include "math.h"
+#include "simplegl.h"
 
 #ifndef USE_ZPASS
 static int extension_present(const char *name){
@@ -93,6 +90,18 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
     glMatrixMode(GL_PROJECTION); glLoadMatrixf(proj.m);
     glMatrixMode(GL_MODELVIEW);  glLoadMatrixf(view.m);
 
+    if(debugMode==DBG_WHITE_WIREFRAME){
+        glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_LIGHTING);
+        glDisable(GL_BLEND);
+        glDisable(GL_STENCIL_TEST);
+        glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+        for(int i=0;i<s->nobjs;i++) draw_mesh_flat(&s->objs[i].mesh,v3(1,1,1));
+        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+        return;
+    }
+
     /* Pass 1: Render scene with ambient lighting (fills depth buffer) */
     glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
     glEnable(GL_CULL_FACE); glCullFace(GL_BACK);
@@ -156,7 +165,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         glLightfv(GL_LIGHT0, GL_DIFFUSE, lc);
         glLightfv(GL_LIGHT0, GL_SPECULAR, lc);
 
-        int drawShadows=L->castsShadow && s->svols[li].nverts>0;
+        int drawShadows=debugMode!=DBG_NO_SHADOWS && L->castsShadow && s->svols[li].nverts>0;
 #ifndef USE_ZPASS
         drawShadows=drawShadows && shadows_supported();
 #endif

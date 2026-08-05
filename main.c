@@ -3,10 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "math.h"
-#include "scene.h"
-#include "shadow.h"
-#include "render.h"
+#include "simplegl.h"
 
 #define MOUSE_SENSITIVITY 0.25f
 #define MOVE_SPEED 3.25f
@@ -16,12 +13,15 @@ int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
 	int listCameras = 0;
+	int renderMode = DBG_NONE;
 	for(int i=1;i<argc;i++){
 		if(!strcmp(argv[i],"-cam") && i+1<argc){ camName=argv[++i]; }
 		else if(!strcmp(argv[i],"-list-cameras")){ listCameras = 1; }
+		else if(!strcmp(argv[i],"-no-shadows")){ renderMode=DBG_NO_SHADOWS; }
+		else if(!strcmp(argv[i],"-wireframe")){ renderMode=DBG_WHITE_WIREFRAME; }
 		else if(!scenePath) scenePath=argv[i];
 	}
-	if(!scenePath) scenePath="scene.xml";
+	if(!scenePath) scenePath="scenes/sample_room.xml";
 
 	Scene scene;
 	if(!load_scene(scenePath,&scene)) return 1;
@@ -64,7 +64,7 @@ int main(int argc,char**argv){
 
     int running=1;
     int rightMouseDown=0;
-    int debugMode=DBG_NONE;
+    int debugMode=renderMode;
     Uint32 lastTicks=SDL_GetTicks();
     while(running){
         SDL_Event ev;
@@ -75,6 +75,8 @@ int main(int argc,char**argv){
                 else if(ev.key.keysym.sym==SDLK_1){ debugMode=DBG_NONE; fprintf(stderr,"debug: normal\n"); }
                 else if(ev.key.keysym.sym==SDLK_2){ debugMode=DBG_WIRE_SHADOWVOL; fprintf(stderr,"debug: wireframe shadow vols (red)\n"); }
                 else if(ev.key.keysym.sym==SDLK_3){ debugMode=DBG_SHOW_STENCIL; fprintf(stderr,"debug: stencil != 0 (red overlay)\n"); }
+                else if(ev.key.keysym.sym==SDLK_4){ debugMode=DBG_NO_SHADOWS; fprintf(stderr,"debug: lighting without shadows\n"); }
+                else if(ev.key.keysym.sym==SDLK_5){ debugMode=DBG_WHITE_WIREFRAME; fprintf(stderr,"debug: white wireframe\n"); }
             }
             else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){
                 rightMouseDown=1;
@@ -106,7 +108,7 @@ int main(int argc,char**argv){
         if(ks[SDL_SCANCODE_Q]) move=vsub(move, v3(0,1,0));
         if(vlen(move)>1e-6f) pos = vadd(pos, vscale(vnorm(move), speed*dt));
 
-        mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.05f, 1000.0f);
+        mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
         mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));
         render_frame(&scene, W,H, proj, view, debugMode);
 

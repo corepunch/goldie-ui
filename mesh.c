@@ -1,5 +1,4 @@
-#include "mesh.h"
-#include "math.h"
+#include "simplegl.h"
 
 void mesh_free(Mesh *m){
     free(m->verts); free(m->tris); free(m->edges); free(m->triN);

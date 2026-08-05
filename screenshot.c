@@ -5,10 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "math.h"
-#include "scene.h"
-#include "shadow.h"
-#include "render.h"
+#include "simplegl.h"
 
 static int write_ppm(const char *path, unsigned char *pixels, int w, int h){
     FILE *f = fopen(path, "wb");
@@ -21,7 +18,7 @@ static int write_ppm(const char *path, unsigned char *pixels, int w, int h){
 }
 
 int main(int argc, char **argv){
-    const char *scenePath = "sample_room.xml";
+    const char *scenePath = "scenes/sample_room.xml";
     const char *outPath = "screenshots/render.ppm";
     const char *camName = NULL;
     int W = 1280, H = 800;
@@ -33,6 +30,8 @@ int main(int argc, char **argv){
         else if(!strcmp(argv[i], "-w") && i+1 < argc) W = atoi(argv[++i]);
         else if(!strcmp(argv[i], "-h") && i+1 < argc) H = atoi(argv[++i]);
         else if(!strcmp(argv[i], "-d") && i+1 < argc) debugMode = atoi(argv[++i]);
+        else if(!strcmp(argv[i], "-no-shadows")) debugMode = DBG_NO_SHADOWS;
+        else if(!strcmp(argv[i], "-wireframe")) debugMode = DBG_WHITE_WIREFRAME;
         else scenePath = argv[i];
     }
 
@@ -59,7 +58,7 @@ int main(int argc, char **argv){
     SDL_GLContext ctx = SDL_GL_CreateContext(win);
     if(!ctx){ fprintf(stderr, "GL_CreateContext: %s\n", SDL_GetError()); return 1; }
 
-    mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.05f, 1000.0f);
+    mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
     vec3 fwd = vnorm(vsub(scene.camLook, scene.camPos));
     mat4 view = mat4_lookat(scene.camPos, vadd(scene.camPos, fwd), v3(0,1,0));
 

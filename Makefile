@@ -11,7 +11,7 @@ OBJS = $(addprefix $(OBJDIR)/, $(SRCS:.c=.o))
 simplegl: $(OBJS) | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ $^ $(LIBS)
 
-$(OBJDIR)/%.o: %.c | $(OBJDIR)
+$(OBJDIR)/%.o: %.c simplegl.h | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BINDIR):
@@ -20,31 +20,31 @@ $(BINDIR):
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-screenshot: screenshot.c math.c mesh.c scene.c shadow.c render.c | $(BINDIR)
+screenshot: screenshot.c math.c mesh.c scene.c shadow.c render.c simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
 
-zpass: | $(BINDIR)
+zpass: simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/simplegl-zpass $(SRCS) $(LIBS)
 
-screenshot-zpass: | $(BINDIR)
+screenshot-zpass: simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/screenshot-zpass screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
 
-tests-zpass: | $(BINDIR)
+tests-zpass: simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/tests-zpass tests.c math.c mesh.c shadow.c scene.c $(LIBS)
 
 test-zpass: zpass tests-zpass
 	./$(BINDIR)/tests-zpass
 
 run-zpass: zpass
-	./$(BINDIR)/simplegl-zpass sample_room.xml
+	./$(BINDIR)/simplegl-zpass scenes/sample_room.xml
 
 run: simplegl
-	./$(BINDIR)/simplegl sample_room.xml
+	./$(BINDIR)/simplegl scenes/sample_room.xml
 
 test: simplegl tests
 	./$(BINDIR)/tests
 
-tests: tests.c math.c mesh.c shadow.c scene.c | $(BINDIR)
+tests: tests.c math.c mesh.c shadow.c scene.c simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ tests.c math.c mesh.c shadow.c scene.c $(LIBS)
 
 clean:

@@ -1,10 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "shadow.h"
-#include "scene.h"
-#include "mesh.h"
-#include "math.h"
+#include "simplegl.h"
 
 void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
     memset(sv,0,sizeof(*sv));

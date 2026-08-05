@@ -2,10 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "mesh.h"
-#include "math.h"
-#include "shadow.h"
-#include "scene.h"
+#include "simplegl.h"
 
 static int failures = 0;
 #define CHECK(cond, fmt, ...) do{ if(!(cond)){ fprintf(stderr,"FAIL: " fmt "\n", ##__VA_ARGS__); failures++; } }while(0)

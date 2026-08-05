@@ -2,9 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "scene.h"
-#include "mesh.h"
-#include "math.h"
+#include "simplegl.h"
 
 /* -------------------------------------------------------------- Tiny XML */
 

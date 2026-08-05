@@ -43,6 +43,8 @@ For assemblies, calculate positions from declared dimensions. Avoid visually tun
 
 Use `0.001` scene units as the default contact tolerance. For a nominally grounded or connected part, the absolute difference between its lower/upper surface and the target surface must not exceed that tolerance. Small gaps such as `0.005` are errors, not harmless rounding.
 
+Do not overlap visible faces on the same plane. A depth buffer cannot consistently decide which coplanar fragment owns a pixel, so the result flickers or forms striped patches as the camera moves. Build assemblies from non-overlapping exterior regions: for example, fit a sofa base and backrest between its arms instead of extending all three boxes across the same front or side planes. Adjacent parts may share an edge, and hidden structural intersections are acceptable only when none of their exterior faces overlap. Do not use tiny offsets or polygon offset to conceal unintended duplicate geometry.
+
 ## Rotation and facing
 
 `rot="rx ry rz"` applies X, then Y, then Z rotations. Positive Y rotation maps local +Z toward world +X and local +X toward world -Z.
@@ -73,20 +75,14 @@ Materials provide diffuse color and shininess only. There is no transparency or 
 
 Use `castShadow="0"` for floors, panes, and decorative surfaces that should not create stencil volumes. Use `castShadows="0"` on a light for an unshadowed additive light.
 
-## Camera plan
+## Camera declarations
 
-Include views that prove the layout:
-
-- Main: intended presentation or navigation start.
-- Top/elevated: footprints, spacing, intersections, and objects outside walls.
-- Close or side: thin geometry, openings, floor contact, and orientation.
-
-Aim cameras at useful targets, not arbitrary Euler directions. Keep the near plane away from geometry when diagnosing ordinary layout.
+Aim cameras at useful targets, not arbitrary Euler directions. Keep the near plane away from geometry.
 
 Every `<camera>` must carry a `comment` attribute describing its purpose. The `-list-cameras` flag reads these comments so an automated agent can select the right view without parsing the full XML:
 
 ```sh
-./build/bin/simplegl scene.xml -list-cameras
+./build/bin/simplegl scenes/scene.xml -list-cameras
 ```
 
 Example output:
@@ -109,5 +105,6 @@ Before completion, verify:
 4. Every grounded object touches the intended surface without penetrating it.
 5. Every directional prefab faces its target.
 6. Repeated objects use prefabs or groups rather than divergent copies.
-7. Main, elevated, and close/side views have been rendered and inspected.
-8. Layout remains sensible with shadows disabled or in stencil-debug mode, so lighting cannot hide geometry errors.
+7. Exterior face extents do not overlap on the same plane.
+8. Edited XML files pass `xmllint --noout`.
+9. The project builds, relevant tests pass, and the scene loads with `-list-cameras`.

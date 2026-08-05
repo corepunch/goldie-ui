@@ -1,4 +1,4 @@
-#include "math.h"
+#include "simplegl.h"
 
 vec3 v3(float x,float y,float z){ vec3 v={x,y,z}; return v; }
 vec3 vadd(vec3 a,vec3 b){ return v3(a.x+b.x,a.y+b.y,a.z+b.z); }

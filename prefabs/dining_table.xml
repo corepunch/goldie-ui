@@ -1,9 +1,9 @@
-<!-- dining table: 1.6 x 1.0 top, 4 wooden cylinder legs.
-     Centered at origin, flat on XZ plane, legs extend downward. -->
+<!-- dining table: footprint 1.6x1.0, baseline y=0, no front direction.
+     Centered at origin with 4 wooden cylinder legs. -->
 <prefab>
   <box pos="0 0.75 0" size="1.6 0.06 1.0" material="wood"/>
-  <cylinder pos="-0.7 0.38 -0.42" radius="0.04" height="0.75" material="wood"/>
-  <cylinder pos=" 0.7 0.38 -0.42" radius="0.04" height="0.75" material="wood"/>
-  <cylinder pos="-0.7 0.38  0.42" radius="0.04" height="0.75" material="wood"/>
-  <cylinder pos=" 0.7 0.38  0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos="-0.7 0.375 -0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos=" 0.7 0.375 -0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos="-0.7 0.375  0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos=" 0.7 0.375  0.42" radius="0.04" height="0.75" material="wood"/>
 </prefab>

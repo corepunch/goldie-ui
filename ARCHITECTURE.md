@@ -54,7 +54,7 @@ All modifiers compute the mesh Y bounding box, map each vertex y to [0,1], then 
 
 **Tiny XML parser** (no external deps): `XmlNode` tree with `XmlAttr` key-value pairs. Handles tags, attributes with quoted values, comments, self-closing tags, and text content (ignored). Parser is recursive-descent operating on a `const char**` pointer.
 
-**Scene data model** (`scene.h`):
+**Scene data model** (`simplegl.h`):
 - `Camera` — named viewpoint with position, look-at target, FOV
 - `Material` — named material with RGB color and Phong shininess
 - `Light` — point light with position, color, intensity, shadow-casting flag
@@ -86,7 +86,7 @@ static const struct { const char *tag; modifier_parser_fn parse; } modifier_pars
 
 **Group support:** `parse_group` calls `parse_nodes` recursively, passing its accumulated `M` (model matrix with scale) and `R` (rotation-only matrix for normals). This enables nested coordinate-space hierarchies.
 
-**Wall support:** `parse_wall` handles a `<wall>` tag with child `<opening>` tags. It performs "boolean via boxes" — the wall length axis is partitioned at opening boundaries, and each segment produces up to 3 rectangular boxes (below sill, above opening, above wall). Walls ignore scale and never cast shadows.
+**Wall support:** `parse_wall` handles a `<wall>` tag with child `<opening>` tags. It performs "boolean via boxes" — the wall length axis is partitioned at opening boundaries, and each segment produces rectangular boxes below/above openings or across uninterrupted spans. Walls ignore scale; `castShadow` applies to the generated boxes.
 
 ### shadow.c — Stencil shadow volumes
 
@@ -133,7 +133,7 @@ OpenGL framebuffer ──► SDL_GL_SwapWindow
 
 ## Adding features
 
-- **New primitive shape**: Add `gen_*` to `mesh.c`/`mesh.h`, add `parse_*` to `shape_parsers[]` in `scene.c`.
+- **New primitive shape**: Add the `gen_*` declaration to `simplegl.h`, implement it in `mesh.c`, and add `parse_*` to `shape_parsers[]` in `scene.c`.
 - **New scene tag**: Add `parse_*_tag` to `scene_tags[]` in `scene.c`.
 - **New render pass**: Modify `render_frame()` in `render.c`.
 - **New shadow technique**: Modify `build_shadow_volume()` in `shadow.c`.

@@ -1,13 +1,14 @@
 # simplegl
 
-A very small OpenGL scene renderer, one C file, with real-time **stencil
-shadow volumes**. It reads a room/scene description from an XML file (so an
-LLM can just generate the XML) and draws it: walls, furniture, and basic
-primitives, lit and shadowed by a point light.
+A very small modular OpenGL scene renderer with real-time **stencil shadow
+volumes**. Shadows are a first-class composition tool: position lights and
+casters to create long silhouettes, pools of light, strong contrast, and
+dramatic architectural shots. Scenes are described in XML and built from
+walls, furniture, and basic primitives.
 
-Everything lives in **`renderer.c`** — no external XML library, no shader
-files, no asset pipeline. Dependencies: SDL2 (window/GL context/input) and
-your system's OpenGL. That's it.
+The active build uses small C modules with their declarations consolidated in
+**`simplegl.h`**. There is no external XML library, shader file, or asset
+pipeline. Dependencies are SDL2, OpenGL, and libm.
 
 ## Build & run
 
@@ -16,13 +17,7 @@ your system's OpenGL. That's it.
 sudo apt install libsdl2-dev libgl1-mesa-dev
 
 make
-./simplegl sample_room.xml
-```
-
-or directly:
-
-```sh
-gcc -O2 renderer.c -o simplegl $(pkg-config --cflags --libs sdl2) -lGL -lm
+./build/bin/simplegl scenes/sample_room.xml
 ```
 
 It compiles clean with `-Wall -Wextra` on gcc/clang, Linux. (It uses only
@@ -30,8 +25,40 @@ OpenGL 2.1 fixed-function calls plus `glStencilOpSeparate`, so it should also
 run on macOS's legacy GL / most Windows drivers with minimal changes to the
 SDL attribute requests — not tested there.)
 
-**Controls:** mouse looks around (captured on start), `W A S D` move,
-`Q`/`E` down/up, `Shift` to move faster, `Esc` to quit.
+**Controls:** mouse looks around, `W A S D` move, `Q`/`E` move down/up,
+`Shift` moves faster, and `Esc` quits. Press `1` for normal shadows, `4` for
+lighting without shadows, or `5` for white wireframe. Keys `2` and `3` show
+the shadow-volume diagnostics.
+
+## Rendering modes
+
+Normal rendering uses every light's `castShadows` setting and produces the
+full stencil-shadow result:
+
+```sh
+./build/bin/simplegl scenes/sample_room.xml
+```
+
+Render with the same materials and lighting but disable all shadows:
+
+```sh
+./build/bin/simplegl scenes/sample_room.xml -no-shadows
+```
+
+Render scene geometry as an unlit white wireframe:
+
+```sh
+./build/bin/simplegl scenes/sample_room.xml -wireframe
+```
+
+The offscreen screenshot tool accepts the same flags:
+
+```sh
+make screenshot
+./build/bin/screenshot scenes/sample_room.xml -cam Main -o shot.ppm
+./build/bin/screenshot scenes/sample_room.xml -cam Main -no-shadows -o shot-no-shadows.ppm
+./build/bin/screenshot scenes/sample_room.xml -cam Main -wireframe -o shot-wireframe.ppm
+```
 
 ## Why these choices
 
@@ -99,58 +126,12 @@ kept separate from the shading normal (`Vertex.nrm`, smooth for
 sphere/torus, per-facet for box/prism/cone) so the shadow math never cares
 how a mesh happens to be shaded.
 
-## XML scene schema
+## XML scene authoring
 
-```xml
-<scene>
-  <camera pos="0 1.6 5" look="0 1 0" fov="60"/>
-  <ambient color="0.12 0.12 0.14"/>
-  <background color="0.05 0.06 0.08"/>
-
-  <light pos="0 3 0" color="1 1 1" intensity="1.0" castShadows="1"/>
-
-  <material id="wood" color="0.5 0.32 0.18" shininess="20"/>
-
-  <!-- primitives: pos / rot (xyz degrees) / scale, material="id" or color="r g b" -->
-  <box      pos="0 0.5 0" size="1 1 1" material="wood"/>
-  <sphere   pos="0 1 0" radius="0.5" rings="16" slices="24" material="wood"/>
-  <cylinder pos="0 0.5 0" radius="0.3" height="1" sides="24" material="wood"/>
-  <prism    pos="0 0.5 0" radius="0.3" height="1" sides="6" material="wood"/>
-  <cone     pos="0 0.5 0" radius="0.5" radiusTop="0" height="1" sides="24" material="wood"/>
-  <pyramid  pos="0 0.5 0" radius="0.5" height="1" material="wood"/> <!-- cone, sides=4 -->
-  <torus    pos="0 1 0" majorRadius="0.5" minorRadius="0.15" material="wood"/>
-
-  <!-- wall built from boxes, with punched openings (the "boolean") -->
-  <wall pos="0 0 -3" length="6" height="2.8" thickness="0.2" material="wall">
-    <opening type="door"   x="2" width="1.0" height="2.1"/>
-    <opening type="window" x="4" width="1.2" height="1.2" sill="0.9"/>
-  </wall>
-
-  <!-- group: composes furniture from primitives under one transform -->
-  <group pos="2 0 1" rot="0 30 0">
-    <box .../> <box .../> <cylinder .../>
-  </group>
-</scene>
-```
-
-Notes:
-- Every primitive/`group`/`wall` accepts `pos="x y z"`, `rot="rx ry rz"`
-  (degrees, applied X then Y then Z), and (except `wall`) `scale="x y z"`.
-- `material="id"` looks up a `<material>`; or skip it and set `color="r g b"`
-  / `shininess="n"` directly on the element.
-- `castShadow="0"` on any primitive excludes it from shadow-casting (useful
-  for the floor/glass panes). `castShadows="0"` on `<light>` makes that
-  light unconditionally additive with no shadow test.
-- `<wall>`'s local X axis is its length, Y is height (0 = floor at the
-  wall's `pos`), Z is thickness, centered. `<opening x=".." width="..">`
-  positions the opening along that length axis. `type="door"` defaults
-  `sill=0`; `type="window"` defaults `sill=0.9`.
-
-`sample_room.xml` is a worked example: four walls (two with openings), a
-floor, a glass pane in the window, a sofa/coffee table/dining chair built
-from boxes/cylinders/prisms, and a torus/sphere/pyramid as decoration —
-enough to see the whole feature set at once, including a shadow cast by
-the sofa onto the floor.
+Scene construction, placement conventions, prefab rules, the complete XML
+schema, and required CLI validation live in the
+[`populate-simplegl-scenes`](skills/populate-simplegl-scenes/SKILL.md) skill.
+Use that skill whenever creating or changing scene and prefab XML files.
 
 ## Known limitations (all fixable, kept out on purpose for scope)
 

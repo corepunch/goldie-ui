@@ -5,7 +5,7 @@
 ```sh
 make              # Build the binary -> build/bin/simplegl
 make test         # Build and run unit tests
-make run          # Build and run with sample_room.xml
+make run          # Build and run with scenes/sample_room.xml
 make clean        # Remove build/ directory
 ```
 
@@ -14,8 +14,8 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 ## Run-time
 
 ```sh
-./build/bin/simplegl scene.xml             # use first camera
-./build/bin/simplegl scene.xml -cam Cam2   # select camera by name
+./build/bin/simplegl scenes/sample_room.xml             # use first camera
+./build/bin/simplegl scenes/sample_room.xml -cam Cam2   # select camera by name
 ```
 
 ## Project files
@@ -23,27 +23,33 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 | File | Purpose |
 |------|---------|
 | `main.c` | Entry point, SDL2 window, FPS camera, game loop, `-cam` arg |
-| `math.h` / `math.c` | `vec3`, `mat4`, linear algebra |
-| `mesh.h` / `mesh.c` | `Mesh` (verts, tris, edges), primitive generators, **modifiers** (taper, twist, bend, stretch, skew) |
-| `scene.h` / `scene.c` | Tiny XML parser, scene loading, named cameras, modifier dispatch, **prefab loading** |
-| `render.h` / `render.c` | OpenGL 1.x fixed-function renderer with stencil shadows |
-| `shadow.h` / `shadow.c` | Stencil shadow volume construction (silhouette detection + edge extrusion) |
+| `simplegl.h` | Shared declarations for all modules |
+| `math.c` | `vec3`, `mat4`, linear algebra |
+| `mesh.c` | `Mesh` (verts, tris, edges), primitive generators, **modifiers** (taper, twist, bend, stretch, skew) |
+| `scene.c` | Tiny XML parser, scene loading, named cameras, modifier dispatch, **prefab loading** |
+| `render.c` | OpenGL 1.x fixed-function renderer with stencil shadows |
+| `shadow.c` | Stencil shadow volume construction (silhouette detection + edge extrusion) |
 | `tests.c` | Unit tests for mesh winding, edge sealing, volume, shadow volumes |
 | `renderer.c` | Original monolithic single-file version (not in main build) |
 | `screenshot.c` | Offscreen headless renderer, outputs PPM |
-| `XML_SCENE.md` | Full XML scene format reference |
+| `skills/populate-simplegl-scenes/` | XML scene population workflow and format reference |
+| `scenes/` | Runnable and diagnostic scene XML files |
 | `prefabs/` | Reusable object XML files (`chair.xml`, `sofa.xml`, etc.) |
 
 ## Code conventions
 
 - **No comments** unless absolutely necessary.
 - Compact K&R brace style, tabs for indentation.
-- `DA_PUSH` macro (from `math.h`) for all dynamic arrays.
+- `DA_PUSH` macro (from `simplegl.h`) for all dynamic arrays.
 - `vec3` and `mat4` are value types, passed and returned by value.
 - All scene parsing uses dispatch tables: static arrays of `{ tag, parser_function }` to avoid `if/else` chains.
 - Forward declarations are used sparingly, only when call order requires them.
 
 ## Scene file dispatch
+
+Use `skills/populate-simplegl-scenes/SKILL.md` for any task that creates,
+populates, edits, or validates scene or prefab XML. Follow its CLI validation
+requirements.
 
 Scene loading is in `scene.c`. Three dispatch tables:
 
@@ -57,7 +63,7 @@ To add a new primitive:
 3. Generate the mesh (returning a `Mesh`), call `apply_modifiers(&mesh, n)`, then `scene_add_obj()`.
 
 To add a new modifier:
-1. Add a `mesh_apply_*(Mesh*, ...)` function in `mesh.h`/`mesh.c`.
+1. Add a `mesh_apply_*(Mesh*, ...)` declaration in `simplegl.h` and its implementation in `mesh.c`.
 2. Add a `parse_mod_*(Mesh*, XmlNode*)` wrapper in `scene.c`.
 3. Add `{ "tag", parse_mod_* }` to the `modifier_parsers[]` array.
 

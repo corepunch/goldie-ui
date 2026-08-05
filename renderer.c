@@ -7,7 +7,7 @@
      (see Makefile)
 
    RUN
-     ./simplegl scene.xml
+     ./simplegl scenes/sample_room.xml
 
    CONTROLS
      mouse       look around (mouse is captured; press ESC to release/quit)
@@ -826,7 +826,7 @@ static void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view){
 
 /* ------------------------------------------------------------------ main */
 int main(int argc,char**argv){
-    const char *scenePath = argc>1? argv[1] : "scene.xml";
+    const char *scenePath = argc>1? argv[1] : "scenes/sample_room.xml";
     Scene scene;
     if(!load_scene(scenePath,&scene)) return 1;
     scene_build_all_shadow_volumes(&scene);
