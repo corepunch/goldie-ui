@@ -64,7 +64,7 @@ All modifiers compute the mesh Y bounding box, map each vertex y to [0,1], then 
 **Loading flow:**
 1. `read_file()` reads the entire XML into a null-terminated buffer.
 2. `xml_parse()` builds the `XmlNode` tree.
-3. `load_scene()` iterates root children through `scene_tags[]` dispatch table for `camera`, `ambient`, `background`, `material`, `light`.
+3. `load_scene()` reads `ambient` and `background` from `<scene>` attributes, then iterates root children through `scene_tags[]` dispatch table for `camera`, `material`, `sun`.
 4. `parse_nodes()` iterates root children through `shape_parsers[]` dispatch table for `box`, `sphere`, `cylinder`, `prism`, `cone`, `pyramid`, `torus`, `group`, `wall`.
 5. Each shape parser reads shape-specific attributes, generates a `Mesh`, calls `apply_modifiers()` to process any child `<taper>`, `<twist>`, `<bend>`, `<stretch>`, `<skew>` elements, then calls `scene_add_obj()` to transform it, fix winding, compute normals, and build edges.
 

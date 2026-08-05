@@ -1,12 +1,9 @@
-<scene>
+<scene ambient="0.10 0.10 0.13" background="dusk">
   <camera name="Main" comment="Front-half view from entrance" pos="0 1.6 4.5" look="0 1.0 -3" fov="65"/>
   <camera name="Top"  comment="Overhead top-down" pos="0 6.0 -2" look="0 1.0 -2" fov="50"/>
   <camera name="Close" comment="Close-up of dining table" pos="-2.5 1.5 -2.7" look="-4 1.5 -2.7" fov="60"/>
 
-  <ambient color="0.10 0.10 0.13"/>
-  <background id="dusk"/>
-
-  <light pos="0.5 2.5 -1.5" color="1.0 0.95 0.85" intensity="1.3" castShadows="1"/>
+  <light pos="0.5 2.5 -1.5" color="1.0 0.95 0.85" intensity="1.3" radius="6" castShadows="1"/>
   <sun dir="0.75 -0.55 0.35" color="0.95 0.90 0.80" intensity="1.1" castShadows="1"/>
 
   <material id="fabric" color="0.55 0.15 0.18" shininess="4"/>

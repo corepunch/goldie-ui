@@ -168,10 +168,20 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         } else {
             lp[0]=L->pos.x; lp[1]=L->pos.y; lp[2]=L->pos.z; lp[3]=1.0f;
         }
-        GLfloat lc[4]={L->color.x*L->intensity, L->color.y*L->intensity, L->color.z*L->intensity, 1.0f};
-        glLightfv(GL_LIGHT0, GL_POSITION, lp);
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, lc);
-        glLightfv(GL_LIGHT0, GL_SPECULAR, lc);
+		GLfloat lc[4]={L->color.x*L->intensity, L->color.y*L->intensity, L->color.z*L->intensity, 1.0f};
+		glLightfv(GL_LIGHT0, GL_POSITION, lp);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, lc);
+		glLightfv(GL_LIGHT0, GL_SPECULAR, lc);
+		if(!L->isDirectional && L->radius > 0.0f){
+			float r=L->radius;
+			glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0f);
+			glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 2.0f/r);
+			glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 1.0f/(r*r));
+		} else {
+			glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0f);
+			glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.0f);
+			glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0f);
+		}
 
         int drawShadows=debugMode!=DBG_NO_SHADOWS && L->castsShadow && s->svols[li].nverts>0;
 #ifndef USE_ZPASS

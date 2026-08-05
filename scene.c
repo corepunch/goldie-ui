@@ -414,6 +414,7 @@ static void parse_light(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 	L.pos=mat4_xform_point(M,v3(0,0,0));
 	L.color=xml_attr_v3(n,"color",v3(1,1,1));
 	L.intensity=xml_attr_f(n,"intensity",1.0f);
+	L.radius=xml_attr_f(n,"radius",0.0f);
 	L.castsShadow=xml_attr_i(n,"castShadows",1);
 	DA_PUSH(s->lights,s->nlights,s->clights,L);
 }
@@ -510,10 +511,6 @@ static void parse_camera_tag(Scene *s, XmlNode *n){
 	}
 }
 
-static void parse_ambient_tag(Scene *s, XmlNode *n){
-	s->ambient = xml_attr_v3(n,"color",s->ambient);
-}
-
 static const struct { const char *id; vec3 color; } preset_bgs[] = {
 	{ "midnight", {0.02f,0.03f,0.07f} },
 	{ "twilight", {0.06f,0.05f,0.10f} },
@@ -525,16 +522,6 @@ static const struct { const char *id; vec3 color; } preset_bgs[] = {
 	{ "black",    {0.00f,0.00f,0.00f} },
 };
 static const int npreset_bgs = (int)(sizeof(preset_bgs)/sizeof(preset_bgs[0]));
-
-static void parse_background_tag(Scene *s, XmlNode *n){
-	const char *id=xml_attr(n,"id",NULL);
-	if(id){
-		for(int i=0;i<npreset_bgs;i++){
-			if(!strcmp(preset_bgs[i].id,id)){ s->bg=preset_bgs[i].color; return; }
-		}
-	}
-	s->bg=xml_attr_v3(n,"color",s->bg);
-}
 
 static void parse_material_tag(Scene *s, XmlNode *n){
 	Material m={0}; strncpy(m.id, xml_attr(n,"id","mat"), 31);
@@ -548,6 +535,7 @@ static void parse_sun_tag(Scene *s, XmlNode *n){
 	L.dir = vnorm(xml_attr_v3(n,"dir",v3(1,-1,0)));
 	L.color = xml_attr_v3(n,"color",v3(1,1,1));
 	L.intensity = xml_attr_f(n,"intensity",1.0f);
+	L.radius = 0.0f;
 	L.castsShadow = xml_attr_i(n,"castShadows",1);
 	L.isDirectional = 1;
 	DA_PUSH(s->lights,s->nlights,s->clights,L);
@@ -562,8 +550,6 @@ static const struct {
 	scene_tag_parser_fn parse;
 } scene_tags[] = {
 	{ "camera",     parse_camera_tag },
-	{ "ambient",    parse_ambient_tag },
-	{ "background", parse_background_tag },
 	{ "material",   parse_material_tag },
 	{ "sun",        parse_sun_tag },
 };
@@ -586,6 +572,21 @@ int load_scene(const char *path, Scene *s){
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
 	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }
+
+	s->ambient = xml_attr_v3(root,"ambient",s->ambient);
+	{
+		const char *bg=xml_attr(root,"background",NULL);
+		if(bg){
+			if(strchr(bg,' ')){
+				vec3 c=s->bg; sscanf(bg,"%f %f %f",&c.x,&c.y,&c.z); s->bg=c;
+			} else {
+				for(int i=0;i<npreset_bgs;i++){
+					if(!strcmp(preset_bgs[i].id,bg)){ s->bg=preset_bgs[i].color; break; }
+				}
+			}
+		}
+	}
+
 	mat4 I=mat4_identity();
 	collect_negative_boxes(s,root,I);
 

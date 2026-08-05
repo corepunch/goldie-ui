@@ -12,7 +12,7 @@ Transforms are hierarchical. A child inside `<group>` uses group-local coordinat
     <opening type="window" x="2" width="1.4" height="1.2" sill="0.9"/>
   </wall>
   <box pos="-0.3 1.5 0" size="1.3 1.1 0.03"
-       material="glass" castShadow="0"/>
+       material="glass"/>
 </group>
 ```
 
@@ -131,11 +131,11 @@ For a prefab whose default front is local +Z and a target direction `(dx, dz)`, 
 
 Built-in preset materials are always available: `wall`, `floor`, `wood`, `metal`, `glass`. Reference them without defining `<material>` tags. Define custom materials explicitly; a scene-defined `<material>` with the same `id` overrides a preset.
 
-Built-in background presets: `midnight`, `twilight`, `dusk`, `dawn`, `overcast`, `noon`, `neutral`, `black`. Use `<background id="dusk"/>` or `<background color="r g b"/>` for custom values.
+Built-in background presets: `midnight`, `twilight`, `dusk`, `dawn`, `overcast`, `noon`, `neutral`, `black`. Use `<scene background="dusk">` for presets or `<scene background="r g b">` for a custom color.
 
-Materials provide diffuse color and shininess only. There is no transparency or texture support. A material named `glass` renders as an opaque shiny surface; make it thin and set `castShadow="0"`, but do not promise transparent glass.
+Materials provide diffuse color and shininess only. There is no transparency or texture support. A material named `glass` renders as an opaque shiny surface; make it thin, and do not promise transparent glass.
 
-Use `castShadow="0"` for floors, panes, and decorative surfaces that should not create stencil volumes. Use `castShadows="0"` on a light for an unshadowed additive light.
+Use the default shadow casting for floors, panes, and decorative surfaces. Reserve `castShadow="0"` for self-luminous emitters or explicitly documented non-physical helper geometry. Use `castShadows="0"` on a light for an unshadowed additive light.
 
 Use `renderable="0" castShadow="1"` for scene boundaries that must remain invisible to the camera while still blocking light and contributing to stencil shadow volumes.
 

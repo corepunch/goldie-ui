@@ -50,7 +50,7 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Prefer built-in preset materials (`wall`, `floor`, `wood`, `metal`, `glass`) and backgrounds (`midnight`, `dusk`, `neutral`, `black`). Define `<material>` tags only for custom materials.
 - Close interior shells with a ceiling or roof at the wall-top elevation unless an opening is intentional. Keep overhead cameras below a visible ceiling or provide a deliberate non-production plan view.
 - Motivate every light with visible or implied scene geometry such as a lamp, window, fire, or doorway. Put a reusable practical's `<light>` inside its prefab so geometry and illumination share one transform.
-- Mark visible bulbs, flames, and other self-luminous source geometry `unlit="1" castShadow="0"`. Place the point light inside that source volume and below any opaque shade or lamp body so the fixture does not block its own useful light.
+- Treat `castShadow="0"` as an exceptional opt-out, not a normal scene-layout setting: ordinary walls, floors, ceilings, furniture, panes, and props should omit it and use the default shadow casting. Reserve it for visible self-luminous emitters (with `unlit="1"`) or explicitly documented non-physical helper geometry. Place the point light inside an emitter volume and below any opaque shade or lamp body so the fixture does not block its own useful light.
 - Give each room a dominant shadow-casting key light. Keep ambient light low enough for shape, but never leave the hero subject or interaction in featureless darkness; add a weaker motivated fill or rim when required for readability.
 - Aim directional exterior light through an actual opening. Check that the ceiling and wall shell do not accidentally block the intended window-light path.
 

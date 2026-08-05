@@ -1,14 +1,11 @@
-<scene>
+<scene ambient="0.06 0.07 0.10" background="0.015 0.02 0.035">
   <camera name="Overview" comment="Top-down layout of the full shrine and its shadow axes" pos="0 15 2" look="0 0.5 -1.5" fov="48"/>
   <camera name="Approach" comment="Hero view from the shrine entrance toward the eclipse ring" pos="0 2.6 10" look="0 2.2 -2" fov="58"/>
   <camera name="Oblique" comment="Three-quarter view across the pylons and eclipse ring" pos="8 3.8 5" look="0 2.0 -2" fov="55"/>
 
-  <ambient color="0.06 0.07 0.10"/>
-  <background color="0.015 0.02 0.035"/>
-
   <sun dir="0.72 -0.62 0.28" color="0.70 0.82 1.00" intensity="0.85" castShadows="1"/>
-  <light pos="0 4.2 -1.4" color="1.00 0.38 0.16" intensity="1.35" castShadows="1"/>
-  <light pos="-5 2.5 3" color="0.20 0.38 0.90" intensity="0.45" castShadows="0"/>
+  <light pos="0 4.2 -1.4" color="1.00 0.38 0.16" intensity="1.35" radius="8" castShadows="1"/>
+  <light pos="-5 2.5 3" color="0.20 0.38 0.90" intensity="0.45" radius="5" castShadows="0"/>
 
   <material id="voidstone" color="0.09 0.11 0.16" shininess="14"/>
   <material id="slate" color="0.18 0.22 0.30" shininess="20"/>

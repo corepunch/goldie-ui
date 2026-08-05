@@ -1,14 +1,12 @@
 # SimpleGL XML scene format reference
 
-SimpleGL reads scenes from XML files. The root node is `<scene>`, containing a mix of config tags and shape objects.
+SimpleGL reads scenes from XML files. The root node is `<scene>`, which accepts scene-wide attributes and contains a mix of config tags and shape objects.
 
 ## Quick example
 
 ```xml
-<scene>
+<scene ambient="0.10 0.10 0.13" background="0.04 0.05 0.07">
   <camera name="Main" comment="Default forward view" pos="0 2 6" look="0 1 0" fov="60"/>
-  <ambient color="0.10 0.10 0.13"/>
-  <background color="0.04 0.05 0.07"/>
 
   <light pos="0 4 0" color="1.0 0.95 0.85" intensity="1.3" castShadows="1"/>
 
@@ -17,6 +15,46 @@ SimpleGL reads scenes from XML files. The root node is `<scene>`, containing a m
   <box pos="0 0 0" size="2 2 2" material="red"/>
   <sphere pos="3 1 0" radius="0.8" color="0.2 0.5 1.0"/>
 </scene>
+```
+
+## Scene root attributes
+
+The `<scene>` element accepts `ambient` and `background` attributes. These are not child elements.
+
+### `ambient` (attribute of `<scene>`)
+
+Global ambient light color applied to all objects before per-light additive passes. A vec3 value.
+
+| Attribute | Type | Default           | Description |
+|-----------|------|-------------------|-------------|
+| `ambient` | vec3 | 0.12 0.12 0.14    | Global ambient light |
+
+### `background` (attribute of `<scene>`)
+
+Background clear color. Accepts either a preset ID (one-word string, no spaces) or a raw vec3 color.
+
+| Attribute    | Type   | Default         | Description |
+|--------------|--------|-----------------|-------------|
+| `background` | string/vec3 | 0.08 0.10 0.14  | Preset ID or custom vec3 clear color |
+
+Preset background IDs:
+
+| Preset     | Color           | Notes |
+|------------|-----------------|-------|
+| `midnight` | 0.02 0.03 0.07 | Deep night blue |
+| `twilight` | 0.06 0.05 0.10 | Purple-blue, post-sunset |
+| `dusk`     | 0.08 0.10 0.14 | Dark blue-grey |
+| `dawn`     | 0.16 0.10 0.14 | Warm dusky pink |
+| `overcast` | 0.25 0.27 0.30 | Flat cloudy grey |
+| `noon`     | 0.40 0.48 0.64 | Bright sky blue |
+| `neutral`  | 0.18 0.20 0.24 | Mid-grey |
+| `black`    | 0.00 0.00 0.00 | Pure black for compositing |
+
+```xml
+<scene ambient="0.06 0.07 0.10" background="midnight">
+```
+```xml
+<scene ambient="0.10 0.10 0.13" background="0.04 0.05 0.07">
 ```
 
 ## Config tags (top-level children of `<scene>`)
@@ -34,38 +72,6 @@ Defines a viewpoint. Multiple cameras allowed; select via `-cam Name` on the com
 | `fov`     | float  | 60       | Vertical FOV in degrees |
 
 When no `<camera>` tag is present, a default "Camera1" is created with the defaults above.
-
-### `<ambient>`
-
-| Attribute | Type | Default           | Description |
-|-----------|------|-------------------|-------------|
-| `color`   | vec3 | 0.12 0.12 0.14    | Global ambient light |
-
-### `<background>`
-
-| Attribute | Type   | Default         | Description |
-|-----------|--------|-----------------|-------------|
-| `id`      | string | (none)          | Reference a preset background by name |
-| `color`   | vec3   | 0.08 0.10 0.14  | Custom clear/background colour |
-
-Preset backgrounds (use via `id`):
-
-| Preset     | Color           | Notes |
-|------------|-----------------|-------|
-| `midnight` | 0.02 0.03 0.07 | Deep night blue |
-| `twilight` | 0.06 0.05 0.10 | Purple-blue, post-sunset |
-| `dusk`     | 0.08 0.10 0.14 | Dark blue-grey |
-| `dawn`     | 0.16 0.10 0.14 | Warm dusky pink |
-| `overcast` | 0.25 0.27 0.30 | Flat cloudy grey |
-| `noon`     | 0.40 0.48 0.64 | Bright sky blue |
-| `neutral`  | 0.18 0.20 0.24 | Mid-grey |
-| `black`    | 0.00 0.00 0.00 | Pure black for compositing |
-
-```xml
-<background id="dusk"/>
-<!-- or custom: -->
-<background color="0.04 0.05 0.07"/>
-```
 
 ### `<material>`
 
@@ -96,14 +102,19 @@ To override a preset, define a `<material>` with the same `id` in the scene. Unl
 
 ### `<light>`
 
-Point light source.
+Point light source with distance attenuation.
 
 | Attribute    | Type | Default | Description |
 |--------------|------|---------|-------------|
 | `pos`        | vec3 | 0 3 0   | Light position |
 | `color`      | vec3 | 1 1 1   | Light RGB colour |
 | `intensity`  | float| 1.0     | Brightness multiplier |
+| `radius`     | float| 0       | Attenuation radius (0 = no falloff). Light reaches 25% at this distance |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
+
+When `radius` is 0 (default), the light has no distance attenuation — it illuminates at full intensity regardless of distance. When `radius` > 0, smooth quadratic attenuation is applied: the light is 25% of nominal strength at the given radius and reaches roughly 10% around `2.16 × radius`.
+
+A good rule of thumb: set `radius` to about double the distance from the light to the farthest object it should noticeably illuminate.
 
 `<light>` is transformable scene content as well as a valid top-level node. A
 top-level position is in world space. Inside a `<group>` or prefab, its position
@@ -513,12 +524,9 @@ Prefab file `prefabs/chair.xml`:
 ## Complete example
 
 ```xml
-<scene>
+<scene ambient="0.1 0.1 0.12" background="0.05 0.05 0.07">
   <camera name="Front" comment="Frontal view from outside the scene" pos="0 3 8" look="0 1.5 0" fov="55"/>
   <camera name="Back"  comment="Rear view from behind" pos="0 3 -8" look="0 1.5 0" fov="55"/>
-
-  <ambient color="0.1 0.1 0.12"/>
-  <background color="0.05 0.05 0.07"/>
 
   <material id="brass" color="0.8 0.7 0.2" shininess="40"/>
   <material id="steel" color="0.6 0.6 0.65" shininess="80"/>

@@ -73,7 +73,7 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
-typedef struct { vec3 pos,color,dir; float intensity; int castsShadow,isDirectional; } Light;
+typedef struct { vec3 pos,color,dir; float intensity,radius; int castsShadow,isDirectional; } Light;
 typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
