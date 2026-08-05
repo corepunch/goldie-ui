@@ -4,7 +4,7 @@
 #include "mesh.h"
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
-typedef struct { char name[32]; vec3 pos, look; float fov; } Camera;
+typedef struct { char name[32]; char comment[64]; vec3 pos, look; float fov; } Camera;
 typedef struct { vec3 pos,color; float intensity; int castsShadow; } Light;
 typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;

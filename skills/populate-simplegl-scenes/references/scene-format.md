@@ -1,4 +1,4 @@
-# XML Scene Format
+# SimpleGL XML scene format reference
 
 SimpleGL reads scenes from XML files. The root node is `<scene>`, containing a mix of config tags and shape objects.
 
@@ -6,7 +6,7 @@ SimpleGL reads scenes from XML files. The root node is `<scene>`, containing a m
 
 ```xml
 <scene>
-  <camera name="Main" pos="0 2 6" look="0 1 0" fov="60"/>
+  <camera name="Main" comment="Default forward view" pos="0 2 6" look="0 1 0" fov="60"/>
   <ambient color="0.10 0.10 0.13"/>
   <background color="0.04 0.05 0.07"/>
 
@@ -23,14 +23,15 @@ SimpleGL reads scenes from XML files. The root node is `<scene>`, containing a m
 
 ### `<camera>`
 
-Defines a viewpoint. Multiple cameras allowed; select via `-cam Name` on the command line.
+Defines a viewpoint. Multiple cameras allowed; select via `-cam Name` on the command line, or list all cameras with `-list-cameras`.
 
-| Attribute | Type   | Default | Description |
-|-----------|--------|---------|-------------|
-| `name`    | string | Camera1 | Camera identifier |
-| `pos`     | vec3   | 0 1.6 5 | Eye position |
-| `look`    | vec3   | 0 1.2 0 | Look-at target |
-| `fov`     | float  | 60      | Vertical FOV in degrees |
+| Attribute | Type   | Default  | Description |
+|-----------|--------|----------|-------------|
+| `name`    | string | Camera1  | Camera identifier |
+| `comment` | string | (empty)  | Human-readable description shown by `-list-cameras` |
+| `pos`     | vec3   | 0 1.6 5  | Eye position |
+| `look`    | vec3   | 0 1.2 0  | Look-at target |
+| `fov`     | float  | 60       | Vertical FOV in degrees |
 
 When no `<camera>` tag is present, a default "Camera1" is created with the defaults above.
 
@@ -76,7 +77,7 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 | Attribute    | Type   | Default          | Description |
 |--------------|--------|------------------|-------------|
 | `pos`        | vec3   | 0 0 0            | World position |
-| `rot`        | vec3   | 0 0 0            | Euler rotation (degrees, X→Y→Z order) |
+| `rot`        | vec3   | 0 0 0            | Euler rotation `rx ry rz` in degrees, applied X→Y→Z |
 | `scale`      | vec3   | 1 1 1            | Non-uniform scale (ignored by `<wall>`) |
 | `material`   | string | (none)           | Reference to a `<material id="...">` |
 | `color`      | vec3   | 0.8 0.8 0.8      | Diffuse colour (used if no material ref) |
@@ -85,7 +86,7 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 
 If a `material` attribute is given, `color` and `shininess` are taken from the referenced material definition.
 
-**Rotation convention:** `rot="yaw pitch roll"` applies rotations in Y→X→Z order. Positive Y rotation (looking from +Y toward origin) is **counter-clockwise** — it maps the **+X** axis toward the **-Z** axis. Equivalently, `rotY(+angle)` maps a **+Z** direction vector to **+X**.
+**Rotation convention:** `rot="rx ry rz"` applies rotations around X, then Y, then Z. Positive Y rotation maps the **+X** axis toward **-Z** and **+Z** toward **+X**.
 
 ### `<box>`
 
@@ -149,7 +150,7 @@ Torus lying in the XZ plane, centered at origin.
 
 ### `<wall>`
 
-A flat wall with rectangular openings (doors/windows). Uses "boolean via boxes" — the wall is split into box segments around openings. Walls ignore `scale` and `castShadow`.
+A flat wall with rectangular openings (doors/windows). Uses "boolean via boxes" — the wall is split into box segments around openings. Walls ignore `scale`; `castShadow` applies to the generated wall boxes.
 
 | Attribute   | Type  | Default | Description |
 |-------------|-------|---------|-------------|
@@ -309,8 +310,8 @@ Prefab file `prefabs/chair.xml`:
 
 ```xml
 <scene>
-  <camera name="Front" pos="0 3 8" look="0 1.5 0" fov="55"/>
-  <camera name="Back"  pos="0 3 -8" look="0 1.5 0" fov="55"/>
+  <camera name="Front" comment="Frontal view from outside the scene" pos="0 3 8" look="0 1.5 0" fov="55"/>
+  <camera name="Back"  comment="Rear view from behind" pos="0 3 -8" look="0 1.5 0" fov="55"/>
 
   <ambient color="0.1 0.1 0.12"/>
   <background color="0.05 0.05 0.07"/>

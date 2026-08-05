@@ -337,6 +337,7 @@ typedef void (*scene_tag_parser_fn)(Scene *s, XmlNode *n);
 
 static void parse_camera_tag(Scene *s, XmlNode *n){
 	Camera cam={0}; strncpy(cam.name, xml_attr(n,"name","Camera1"), 31);
+	strncpy(cam.comment, xml_attr(n,"comment",""), 63);
 	cam.pos = xml_attr_v3(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
 	cam.look = xml_attr_v3(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
 	cam.fov = xml_attr_f(n,"fov",60.0f);

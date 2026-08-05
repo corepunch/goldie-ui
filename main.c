@@ -15,14 +15,28 @@
 int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
+	int listCameras = 0;
 	for(int i=1;i<argc;i++){
 		if(!strcmp(argv[i],"-cam") && i+1<argc){ camName=argv[++i]; }
+		else if(!strcmp(argv[i],"-list-cameras")){ listCameras = 1; }
 		else if(!scenePath) scenePath=argv[i];
 	}
 	if(!scenePath) scenePath="scene.xml";
 
 	Scene scene;
 	if(!load_scene(scenePath,&scene)) return 1;
+
+	if(listCameras){
+		for(int i=0;i<scene.ncameras;i++){
+			Camera *c = &scene.cameras[i];
+			fprintf(stderr,"%-16s %s%s%s\n", c->name,
+			        c->comment[0] ? "\"" : "", c->comment,
+			        c->comment[0] ? "\"" : "");
+		}
+		scene_free(&scene);
+		return 0;
+	}
+
 	if(camName) scene_select_camera(&scene,camName);
 	scene_build_all_shadow_volumes(&scene);
 	fprintf(stderr,"loaded %d objects, %d lights, %d materials, %d cameras\n",
