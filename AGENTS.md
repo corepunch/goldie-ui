@@ -53,7 +53,7 @@ requirements.
 
 Scene loading is in `scene.c`. Three dispatch tables:
 
-1. **`scene_tags[]`** — top-level scene config tags (`camera`, `ambient`, `background`, `material`, `light`). Each has a `parse_*_tag(Scene*, XmlNode*)` function.
+1. **`scene_tags[]`** — top-level scene config tags (`camera`, `ambient`, `background`, `material`, `light`, `sun`). Each has a `parse_*_tag(Scene*, XmlNode*)` function.
 2. **`shape_parsers[]`** — primitive shapes (`box`, `sphere`, `cylinder`, `prism`, `cone`, `pyramid`, `torus`) plus `group` and `wall`. Each has a `parse_*(Scene*, XmlNode*, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow)` function.
 3. **`modifier_parsers[]`** — mesh modifiers (`taper`, `twist`, `bend`, `stretch`, `skew`) applied as child elements of shape nodes. Each has a `parse_mod_*(Mesh*, XmlNode*)` function.
 

@@ -7,6 +7,7 @@
   <background color="0.04 0.05 0.07"/>
 
   <light pos="0.5 2.5 -1.5" color="1.0 0.95 0.85" intensity="1.3" castShadows="1"/>
+  <sun dir="0.75 -0.55 0.35" color="0.95 0.90 0.80" intensity="1.1" castShadows="1"/>
 
   <material id="wall"   color="0.80 0.78 0.72" shininess="6"/>
   <material id="floor"  color="0.35 0.28 0.22" shininess="12"/>
@@ -16,19 +17,19 @@
   <material id="glass"  color="0.65 0.80 0.85" shininess="90"/>
 
   <box pos="0 -0.05 -3" size="8 0.1 6" material="floor" castShadow="0"/>
+  <box pos="0 2.85 -3" size="8 0.1 6" material="wall"/>
 
   <wall pos="0 0 -6" length="8" height="2.8" thickness="0.2" material="wall">
     <opening type="door" x="4" width="1.0" height="2.1"/>
   </wall>
 
-  <group pos="-4 0 -3" rot="0 90 0">
-    <wall length="6" height="2.8" thickness="0.2" material="wall">
-      <opening type="window" x="2" width="1.4" height="1.2" sill="0.9"/>
-    </wall>
-    <box pos="-0.3 1.5 0" size="1.3 1.1 0.03" material="glass" castShadow="0"/>
-  </group>
+  <wall pos="-4 0 -3" rot="0 90 0" length="6" height="2.8" thickness="0.2" material="wall">
+    <opening type="window" x="2" width="1.4" height="1.2" sill="0.9"/>
+  </wall>
 
   <wall pos="4 0 -3" rot="0 90 0" length="6" height="2.8" thickness="0.2" material="wall"/>
+
+  <wall pos="0 0 0" length="8" height="2.8" thickness="0.2" material="wall" renderable="0" castShadow="1"/>
 
   <!-- ================= furniture ================= -->
 

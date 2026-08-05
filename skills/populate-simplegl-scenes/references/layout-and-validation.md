@@ -75,6 +75,8 @@ Materials provide diffuse color and shininess only. There is no transparency or 
 
 Use `castShadow="0"` for floors, panes, and decorative surfaces that should not create stencil volumes. Use `castShadows="0"` on a light for an unshadowed additive light.
 
+Use `renderable="0" castShadow="1"` for scene boundaries that must remain invisible to the camera while still blocking light and contributing to stencil shadow volumes.
+
 ## Camera declarations
 
 Aim cameras at useful targets, not arbitrary Euler directions. Keep the near plane away from geometry.

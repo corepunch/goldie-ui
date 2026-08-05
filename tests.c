@@ -147,7 +147,31 @@ int main(void){
         mesh_free(&m);
     }
 
-    fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
+	fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
+
+	{
+		Light sun={.dir=vnorm(v3(0.75f,-0.55f,0.35f)),.isDirectional=1};
+		vec3 toSource=light_to_source(&sun,v3(4,2,-3));
+		CHECK(toSource.x < 0 && toSource.y > 0 && toSource.z < 0,
+		      "sun direction does not point back toward source");
+		if(toSource.x < 0 && toSource.y > 0 && toSource.z < 0)
+			PASS("sun travel direction converts to source direction");
+	}
+
+	{
+		Scene s={0};
+		s.lights=calloc(1,sizeof(Light)); s.nlights=s.clights=1;
+		s.lights[0]=(Light){.pos=v3(0,3,0),.castsShadow=1};
+		s.svols=calloc(1,sizeof(ShadowVolume));
+		scene_add_obj(&s,gen_box(2,2,0.2f),mat4_identity(),mat4_identity(),v3(1,1,1),8,1,0);
+		scene_build_all_shadow_volumes(&s);
+		CHECK(!s.objs[0].renderable && s.objs[0].castsShadow,
+		      "shadow-only object flags were not preserved");
+		CHECK(s.svols[0].nverts > 0,"non-renderable object missing from shadow volume");
+		if(!s.objs[0].renderable && s.objs[0].castsShadow && s.svols[0].nverts > 0)
+			PASS("non-renderable object still casts shadows");
+		scene_free(&s);
+	}
 
     {
         Mesh m = gen_box(1.0f, 1.0f, 1.0f);
@@ -155,7 +179,7 @@ int main(void){
         mesh_build_edges(&m);
         vec3 lightPos = v3(0, 5, 0);
         ShadowVolume sv;
-        build_shadow_volume(&m, lightPos, &sv);
+        build_shadow_volume(&m, lightPos, v3(0,0,0), 0, &sv);
 
         int silEdges = 0;
         char *facing = malloc((size_t)m.ntris);
@@ -208,7 +232,7 @@ int main(void){
         mesh_build_edges(&m);
         vec3 lightPos = v3(0, 3, 0);
         ShadowVolume sv;
-        build_shadow_volume(&m, lightPos, &sv);
+        build_shadow_volume(&m, lightPos, v3(0,0,0), 0, &sv);
         CHECK(sv.nverts > 0, "sphere shadow volume non-empty");
         CHECK(sv.nverts % 3 == 0, "sphere shadow volume divisible by 3");
         if(sv.nverts > 0 && sv.nverts % 3 == 0)
@@ -223,7 +247,7 @@ int main(void){
         mesh_build_edges(&m);
         vec3 lightPos = v3(0.5f, 2.5f, -1.5f);
         ShadowVolume sv;
-        build_shadow_volume(&m, lightPos, &sv);
+        build_shadow_volume(&m, lightPos, v3(0,0,0), 0, &sv);
         CHECK(sv.nverts > 0, "wall-sized box shadow volume non-empty");
         CHECK(sv.nverts % 3 == 0, "wall-sized box shadow volume divisible by 3");
         if(sv.nverts > 0 && sv.nverts % 3 == 0)

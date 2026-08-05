@@ -68,6 +68,23 @@ Point light source.
 | `intensity`  | float| 1.0     | Brightness multiplier |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
 
+### `<sun>`
+
+Directional light (infinite distance). Light rays travel parallel in the given `dir`. Useful for sunlight, moonlight, or any distant light source.
+
+| Attribute    | Type | Default | Description |
+|--------------|------|---------|-------------|
+| `dir`        | vec3 | 1 -1 0  | Direction light travels (normalized automatically) |
+| `color`      | vec3 | 1 1 1   | Light RGB colour |
+| `intensity`  | float| 1.0     | Brightness multiplier |
+| `castShadows`| int  | 1       | Whether this light casts stencil shadows |
+
+Example: sunlight streaming through a window from the left:
+
+```xml
+<sun dir="0.75 -0.55 0.35" color="0.95 0.90 0.80" intensity="1.1" castShadows="1"/>
+```
+
 ## Shape objects
 
 All shapes share common attributes plus shape-specific ones. Shapes may contain modifier child elements.
@@ -83,6 +100,7 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 | `color`      | vec3   | 0.8 0.8 0.8      | Diffuse colour (used if no material ref) |
 | `shininess`  | float  | 8.0              | Specular exponent (used if no material ref) |
 | `castShadow` | int    | 1                | Whether this object casts shadows |
+| `renderable` | int    | 1                | Whether this object is drawn; non-renderable objects may still cast shadows |
 
 If a `material` attribute is given, `color` and `shininess` are taken from the referenced material definition.
 
