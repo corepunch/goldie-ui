@@ -38,22 +38,35 @@ Defines `Mesh` as a triangle soup: `Vertex*` (position + normal), `Tri*` (3 vert
 
 Mesh utilities: `mesh_transform` (applies model + rotation matrix), `mesh_compute_face_normals` (cross-product per-triangle, face-averaged per-vertex), `mesh_build_edges` (for shadow volume silhouette detection), `mesh_flip_winding` (fixes inside-out geometry), `mesh_signed_volume` (winding consistency check).
 
+**Modifiers** — 5 mesh deformation functions applied to local-space vertices before transform:
+
+| Function | Effect |
+|----------|--------|
+| `mesh_apply_taper(m, amount, curvature)` | Scale X,Z non-uniformly along Y |
+| `mesh_apply_twist(m, angle_deg)` | Rotate around Y proportional to Y |
+| `mesh_apply_bend(m, angle_deg)` | Map Y axis into circular arc in XY plane |
+| `mesh_apply_stretch(m, amount, amplify)` | Non-linear squash/stretch along Y |
+| `mesh_apply_skew(m, amount)` | Shear X,Z proportional to Y |
+
+All modifiers compute the mesh Y bounding box, map each vertex y to [0,1], then apply the deformation.
+
 ### scene.c — XML parser + scene loader
 
 **Tiny XML parser** (no external deps): `XmlNode` tree with `XmlAttr` key-value pairs. Handles tags, attributes with quoted values, comments, self-closing tags, and text content (ignored). Parser is recursive-descent operating on a `const char**` pointer.
 
 **Scene data model** (`scene.h`):
+- `Camera` — named viewpoint with position, look-at target, FOV
 - `Material` — named material with RGB color and Phong shininess
 - `Light` — point light with position, color, intensity, shadow-casting flag
 - `SceneObj` — a transformed `Mesh` with resolved material/color, shininess, shadow flag
-- `Scene` — aggregates: camera (pos, look, fov), ambient color, background color, dynamic arrays of lights/materials/objects, plus one `ShadowVolume` per light
+- `Scene` — aggregates: active camera (convenience fields), `Camera*` array, ambient color, background color, dynamic arrays of lights/materials/objects, plus one `ShadowVolume` per light
 
 **Loading flow:**
 1. `read_file()` reads the entire XML into a null-terminated buffer.
 2. `xml_parse()` builds the `XmlNode` tree.
 3. `load_scene()` iterates root children through `scene_tags[]` dispatch table for `camera`, `ambient`, `background`, `material`, `light`.
 4. `parse_nodes()` iterates root children through `shape_parsers[]` dispatch table for `box`, `sphere`, `cylinder`, `prism`, `cone`, `pyramid`, `torus`, `group`, `wall`.
-5. Each shape parser reads shape-specific attributes, generates a `Mesh`, and calls `scene_add_obj()` to transform it, fix winding, compute normals, and build edges.
+5. Each shape parser reads shape-specific attributes, generates a `Mesh`, calls `apply_modifiers()` to process any child `<taper>`, `<twist>`, `<bend>`, `<stretch>`, `<skew>` elements, then calls `scene_add_obj()` to transform it, fix winding, compute normals, and build edges.
 
 **Dispatch tables** use static C arrays of `{ "tagname", parser_function }` to eliminate if-else chains:
 ```c
@@ -62,7 +75,14 @@ static const struct { const char *tag; shape_parser_fn parse; } shape_parsers[] 
     { "sphere",   parse_sphere },
     ...
 };
+static const struct { const char *tag; modifier_parser_fn parse; } modifier_parsers[] = {
+    { "taper",   parse_mod_taper },
+    { "twist",   parse_mod_twist },
+    ...
+};
 ```
+
+**Multiple cameras:** Each `<camera>` tag is stored in a `Camera*` array with a `name` attribute. `scene_select_camera()` chooses the active camera. Command-line `-cam Name` calls this after loading. If no cameras are defined, a default "Camera1" is created.
 
 **Group support:** `parse_group` calls `parse_nodes` recursively, passing its accumulated `M` (model matrix with scale) and `R` (rotation-only matrix for normals). This enables nested coordinate-space hierarchies.
 

@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include "math.h"
 #include "scene.h"
@@ -8,12 +9,20 @@
 #include "render.h"
 
 int main(int argc,char**argv){
-    const char *scenePath = argc>1? argv[1] : "scene.xml";
-    Scene scene;
-    if(!load_scene(scenePath,&scene)) return 1;
-    scene_build_all_shadow_volumes(&scene);
-    fprintf(stderr,"loaded %d objects, %d lights, %d materials\n",
-            scene.nobjs, scene.nlights, scene.nmats);
+	const char *scenePath = NULL;
+	const char *camName = NULL;
+	for(int i=1;i<argc;i++){
+		if(!strcmp(argv[i],"-cam") && i+1<argc){ camName=argv[++i]; }
+		else if(!scenePath) scenePath=argv[i];
+	}
+	if(!scenePath) scenePath="scene.xml";
+
+	Scene scene;
+	if(!load_scene(scenePath,&scene)) return 1;
+	if(camName) scene_select_camera(&scene,camName);
+	scene_build_all_shadow_volumes(&scene);
+	fprintf(stderr,"loaded %d objects, %d lights, %d materials, %d cameras\n",
+	        scene.nobjs, scene.nlights, scene.nmats, scene.ncameras);
 
     if(SDL_Init(SDL_INIT_VIDEO)!=0){ fprintf(stderr,"SDL_Init: %s\n",SDL_GetError()); return 1; }
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);

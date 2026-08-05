@@ -121,7 +121,7 @@ static XmlNode* xml_parse(const char *buf){
 void scene_free(Scene *s){
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
 	memset(s,0,sizeof(*s));
 }
 
@@ -140,6 +140,49 @@ void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, 
 	DA_PUSH(s->objs,s->nobjs,s->cobjs,o);
 }
 
+/* ---------------------------------------------------- Modifiers ---------- */
+
+typedef void (*modifier_parser_fn)(Mesh *m, XmlNode *n);
+
+static void parse_mod_taper(Mesh *m, XmlNode *n){
+	mesh_apply_taper(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"curvature",1.0f));
+}
+static void parse_mod_twist(Mesh *m, XmlNode *n){
+	mesh_apply_twist(m, xml_attr_f(n,"angle",0.0f));
+}
+static void parse_mod_bend(Mesh *m, XmlNode *n){
+	mesh_apply_bend(m, xml_attr_f(n,"angle",0.0f));
+}
+static void parse_mod_stretch(Mesh *m, XmlNode *n){
+	mesh_apply_stretch(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"amplify",1.0f));
+}
+static void parse_mod_skew(Mesh *m, XmlNode *n){
+	mesh_apply_skew(m, xml_attr_f(n,"amount",0.0f));
+}
+
+static const struct {
+	const char *tag;
+	modifier_parser_fn parse;
+} modifier_parsers[] = {
+	{ "taper",   parse_mod_taper },
+	{ "twist",   parse_mod_twist },
+	{ "bend",    parse_mod_bend },
+	{ "stretch", parse_mod_stretch },
+	{ "skew",    parse_mod_skew },
+};
+
+static void apply_modifiers(Mesh *m, XmlNode *n){
+	for(int i=0;i<n->nkids;i++){
+		XmlNode *c=n->kids[i];
+		for(int j=0;j<(int)(sizeof(modifier_parsers)/sizeof(modifier_parsers[0]));j++){
+			if(!strcmp(c->tag, modifier_parsers[j].tag)){
+				modifier_parsers[j].parse(m, c);
+				break;
+			}
+		}
+	}
+}
+
 /* ---------------------------------------------------- Shape parsers ------- */
 
 static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR);
@@ -149,38 +192,44 @@ typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 paren
 static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
 	(void)parentM; (void)pos; (void)rot;
 	vec3 sz=xml_attr_v3(n,"size",v3(1,1,1));
-	scene_add_obj(s, gen_box(sz.x,sz.y,sz.z), M,R, color,shin,castsShadow);
+	Mesh mesh=gen_box(sz.x,sz.y,sz.z); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow);
 }
 
 static void parse_sphere(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f);
-	scene_add_obj(s, gen_sphere(r,xml_attr_i(n,"rings",16),xml_attr_i(n,"slices",24)), M,R, color,shin,castsShadow);
+	Mesh mesh=gen_sphere(r,xml_attr_i(n,"rings",16),xml_attr_i(n,"slices",24)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow);
 }
 
 static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
-	scene_add_obj(s, gen_cylinder(r,h,xml_attr_i(n,"sides",24)), M,R, color,shin,castsShadow);
+	Mesh mesh=gen_cylinder(r,h,xml_attr_i(n,"sides",24)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow);
 }
 
 static void parse_prism(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
-	scene_add_obj(s, gen_prism(r,h,xml_attr_i(n,"sides",6)), M,R, color,shin,castsShadow);
+	Mesh mesh=gen_prism(r,h,xml_attr_i(n,"sides",6)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow);
 }
 
 static void parse_cone(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
 	(void)parentM; (void)pos; (void)rot;
 	float rb=xml_attr_f(n,"radius",0.5f), rt=xml_attr_f(n,"radiusTop",0.0f), h=xml_attr_f(n,"height",1.0f);
 	int sides = xml_attr_i(n,"sides", !strcmp(n->tag,"pyramid")?4:24);
-	scene_add_obj(s, gen_cone(rb,rt,h,sides), M,R, color,shin,castsShadow);
+	Mesh mesh=gen_cone(rb,rt,h,sides); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow);
 }
 
 static void parse_torus(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
 	(void)parentM; (void)pos; (void)rot;
 	float R_=xml_attr_f(n,"majorRadius",0.5f), r_=xml_attr_f(n,"minorRadius",0.15f);
-	scene_add_obj(s, gen_torus(R_,r_,xml_attr_i(n,"majorSegments",24),xml_attr_i(n,"minorSegments",12)), M,R, color,shin,castsShadow);
+	Mesh mesh=gen_torus(R_,r_,xml_attr_i(n,"majorSegments",24),xml_attr_i(n,"minorSegments",12)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow);
 }
 
 static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
@@ -256,9 +305,14 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 typedef void (*scene_tag_parser_fn)(Scene *s, XmlNode *n);
 
 static void parse_camera_tag(Scene *s, XmlNode *n){
-	s->camPos = xml_attr_v3(n,"pos",s->camPos);
-	s->camLook = xml_attr_v3(n,"look",s->camLook);
-	s->camFov = xml_attr_f(n,"fov",s->camFov);
+	Camera cam={0}; strncpy(cam.name, xml_attr(n,"name","Camera1"), 31);
+	cam.pos = xml_attr_v3(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
+	cam.look = xml_attr_v3(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
+	cam.fov = xml_attr_f(n,"fov",60.0f);
+	DA_PUSH(s->cameras,s->ncameras,s->ccameras,cam);
+	if(s->ncameras==1){
+		s->camPos=cam.pos; s->camLook=cam.look; s->camFov=cam.fov;
+	}
 }
 
 static void parse_ambient_tag(Scene *s, XmlNode *n){
@@ -328,8 +382,25 @@ int load_scene(const char *path, Scene *s){
 	parse_nodes(s, root, I, I);
 	xml_free(root);
 
+	if(s->ncameras==0){
+		Camera def={0}; strncpy(def.name,"Camera1",31);
+		def.pos=s->camPos; def.look=s->camLook; def.fov=s->camFov;
+		DA_PUSH(s->cameras,s->ncameras,s->ccameras,def);
+	}
+
 	s->svols = calloc((size_t)s->nlights, sizeof(ShadowVolume));
 	return 1;
+}
+
+void scene_select_camera(Scene *s, const char *name){
+	for(int i=0;i<s->ncameras;i++){
+		if(!strcmp(s->cameras[i].name,name)){
+			s->camPos=s->cameras[i].pos;
+			s->camLook=s->cameras[i].look;
+			s->camFov=s->cameras[i].fov;
+			return;
+		}
+	}
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */

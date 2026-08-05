@@ -158,20 +158,99 @@ Mesh gen_sphere(float r,int rings,int slices){
 }
 
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
-    Mesh m={0}; if(majorSeg<3) majorSeg=24; if(minorSeg<3) minorSeg=12;
-    for(int i=0;i<=majorSeg;i++){
-        float u=(float)i/majorSeg*2.0f*M_PIf;
-        for(int j=0;j<=minorSeg;j++){
-            float v=(float)j/minorSeg*2.0f*M_PIf;
-            vec3 n=v3(cosf(u)*cosf(v), sinf(v), sinf(u)*cosf(v));
-            vec3 p=v3((R+r*cosf(v))*cosf(u), r*sinf(v), (R+r*cosf(v))*sinf(u));
-            mesh_add_vert(&m,p,n);
-        }
-    }
-    int stride=minorSeg+1;
-    for(int i=0;i<majorSeg;i++) for(int j=0;j<minorSeg;j++){
-        int a=i*stride+j, b=a+1, c=(i+1)*stride+j, d=c+1;
-        mesh_add_tri(&m,a,b,d); mesh_add_tri(&m,a,d,c);
-    }
-    return m;
+	Mesh m={0}; if(majorSeg<3) majorSeg=24; if(minorSeg<3) minorSeg=12;
+	for(int i=0;i<=majorSeg;i++){
+		float u=(float)i/majorSeg*2.0f*M_PIf;
+		for(int j=0;j<=minorSeg;j++){
+			float v=(float)j/minorSeg*2.0f*M_PIf;
+			vec3 n=v3(cosf(u)*cosf(v), sinf(v), sinf(u)*cosf(v));
+			vec3 p=v3((R+r*cosf(v))*cosf(u), r*sinf(v), (R+r*cosf(v))*sinf(u));
+			mesh_add_vert(&m,p,n);
+		}
+	}
+	int stride=minorSeg+1;
+	for(int i=0;i<majorSeg;i++) for(int j=0;j<minorSeg;j++){
+		int a=i*stride+j, b=a+1, c=(i+1)*stride+j, d=c+1;
+		mesh_add_tri(&m,a,b,d); mesh_add_tri(&m,a,d,c);
+	}
+	return m;
+}
+
+/* ---------------------------------------------------------- modifiers ------ */
+
+static void mesh_find_bounds(Mesh *m, float *minY, float *maxY){
+	*minY=1e9f; *maxY=-1e9f;
+	for(int i=0;i<m->nverts;i++){
+		float y=m->verts[i].pos.y;
+		if(y<*minY) *minY=y; if(y>*maxY) *maxY=y;
+	}
+	if(*maxY-*minY < 1e-6f){ *minY=-0.5f; *maxY=0.5f; }
+}
+
+void mesh_apply_taper(Mesh *m, float amount, float curvature){
+	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
+	float range=maxY-minY;
+	for(int i=0;i<m->nverts;i++){
+		float t=(m->verts[i].pos.y-minY)/range;
+		float s=1.0f+amount*powf(2.0f*t-1.0f, curvature>0?curvature:1.0f);
+		m->verts[i].pos.x*=s;
+		m->verts[i].pos.z*=s;
+	}
+}
+
+void mesh_apply_twist(Mesh *m, float angle_deg){
+	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
+	float range=maxY-minY;
+	float rad=angle_deg*M_PIf/180.0f;
+	for(int i=0;i<m->nverts;i++){
+		float t=(m->verts[i].pos.y-minY)/range;
+		float a=rad*t, ca=cosf(a), sa=sinf(a);
+		float x=m->verts[i].pos.x, z=m->verts[i].pos.z;
+		m->verts[i].pos.x=x*ca - z*sa;
+		m->verts[i].pos.z=x*sa + z*ca;
+		vec3 n=m->verts[i].nrm;
+		m->verts[i].nrm.x=n.x*ca - n.z*sa;
+		m->verts[i].nrm.z=n.x*sa + n.z*ca;
+	}
+}
+
+void mesh_apply_bend(Mesh *m, float angle_deg){
+	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
+	float range=maxY-minY;
+	float alpha=angle_deg*M_PIf/180.0f;
+	float R=range/alpha;
+	if(fabsf(alpha)<1e-6f) return;
+	for(int i=0;i<m->nverts;i++){
+		float y=m->verts[i].pos.y-minY;
+		float theta=y/R;
+		float cr=cosf(theta), sr=sinf(theta);
+		float x=m->verts[i].pos.x;
+		float ny=m->verts[i].nrm.y, nx=m->verts[i].nrm.x;
+		m->verts[i].pos.x = (R+x)*sr;
+		m->verts[i].pos.y = minY + R - (R+x)*cr;
+		m->verts[i].nrm.x = nx*cr - ny*sr;
+		m->verts[i].nrm.y = nx*sr + ny*cr;
+	}
+}
+
+void mesh_apply_stretch(Mesh *m, float amount, float amplify){
+	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
+	float range=maxY-minY;
+	for(int i=0;i<m->nverts;i++){
+		float t=(m->verts[i].pos.y-minY)/range;
+		float s=1.0f+amount*(t*t - t);
+		m->verts[i].pos.x*=1.0f-s*amplify;
+		m->verts[i].pos.z*=1.0f-s*amplify;
+		m->verts[i].pos.y = minY + t*range*(1.0f+s);
+	}
+}
+
+void mesh_apply_skew(Mesh *m, float amount){
+	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
+	float range=maxY-minY;
+	for(int i=0;i<m->nverts;i++){
+		float t=(m->verts[i].pos.y-minY)/range;
+		m->verts[i].pos.x+=amount*t;
+		m->verts[i].pos.z+=amount*t;
+	}
 }
