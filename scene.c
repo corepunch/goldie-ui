@@ -118,9 +118,10 @@ static XmlNode* xml_parse(const char *buf){
 
 void scene_free(Scene *s){
 	for(int i=0;i<s->nprefabs;i++) xml_free((XmlNode*)s->prefabs[i].root);
+	for(int i=0;i<s->nprefabs;i++) free(s->prefabs[i].attaches);
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances);
 	memset(s,0,sizeof(*s));
 }
 
@@ -275,18 +276,43 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 	XmlNode *root=xml_parse(buf);
 	free(buf);
 	if(!root) return NULL;
-	PrefabDef pd; strncpy(pd.ref,name,31); pd.root=root;
+	PrefabDef pd; memset(&pd,0,sizeof(pd)); strncpy(pd.ref,name,31); pd.root=root;
+	for(int i=0;i<root->nkids;i++){
+		if(!strcmp(root->kids[i]->tag,"attach")){
+			AttachPoint ap;
+			strncpy(ap.name,xml_attr(root->kids[i],"name",""),31);
+			ap.pos=xml_attr_v3(root->kids[i],"pos",v3(0,0,0));
+			DA_PUSH(pd.attaches,pd.nattaches,pd.cattaches,ap);
+		}
+	}
 	DA_PUSH(s->prefabs,s->nprefabs,s->cprefabs,pd);
 	return root;
 }
 
 static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable){
 	(void)M; (void)color; (void)shin; (void)castsShadow; (void)renderable;
-	const char *ref=xml_attr(n,"ref",NULL);
-	if(!ref) return;
-	XmlNode *proot=load_prefab(s,ref);
-	if(!proot){ fprintf(stderr,"prefab not found: %s\n",ref); return; }
-	mat4 prefabM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
+	const char *source=xml_attr(n,"source",NULL);
+	if(!source) return;
+	XmlNode *proot=load_prefab(s,source);
+	if(!proot){ fprintf(stderr,"prefab not found: %s\n",source); return; }
+	const char *name=xml_attr(n,"name",NULL);
+	if(name){
+		InstanceDef inst; memset(&inst,0,sizeof(inst));
+		strncpy(inst.name,name,31); strncpy(inst.ref,source,31);
+		inst.pos=mat4_xform_point(parentM,pos);
+		inst.rot=R;
+		DA_PUSH(s->instances,s->ninstances,s->cinstances,inst);
+	}
+	vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
+	mat4 prefabM;
+	if(pvt.x!=0.0f||pvt.y!=0.0f||pvt.z!=0.0f){
+		mat4 Tp=mat4_translate(pvt);
+		mat4 Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
+		prefabM=mat4_mul(parentM, mat4_mul(mat4_translate(pos),
+			mat4_mul(Tp, mat4_mul(mat4_rot_xyz(rot), Tn))));
+	} else {
+		prefabM=mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
+	}
 	parse_nodes(s, proot, prefabM, R);
 }
 
@@ -313,8 +339,41 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		vec3 pos=xml_attr_v3(n,"pos",v3(0,0,0));
 		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
 		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
+		const char *attach=xml_attr(n,"attach",NULL);
+		if(attach){
+			const char *colon=strchr(attach,':');
+			if(colon){
+				int len=(int)(colon-attach);
+				char instName[32]; memcpy(instName,attach,(size_t)(len<31?len:31)); instName[len]=0;
+				const char *slot=colon+1;
+				for(int k=0;k<s->ninstances;k++){
+					if(strcmp(s->instances[k].name,instName)) continue;
+					for(int m=0;m<s->nprefabs;m++){
+						if(strcmp(s->prefabs[m].ref,s->instances[k].ref)) continue;
+						for(int p=0;p<s->prefabs[m].nattaches;p++){
+							if(strcmp(s->prefabs[m].attaches[p].name,slot)) continue;
+							pos=vadd(s->instances[k].pos,
+								mat4_xform_dir(s->instances[k].rot,s->prefabs[m].attaches[p].pos));
+							break;
+						}
+						break;
+					}
+					break;
+				}
+			}
+		}
 		mat4 R = mat4_mul(parentR, mat4_rot_xyz(rot));
-		mat4 M = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl))));
+		vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
+		mat4 M;
+		if(pvt.x!=0.0f||pvt.y!=0.0f||pvt.z!=0.0f){
+			mat4 Tp=mat4_translate(pvt);
+			mat4 Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
+			M=mat4_mul(parentM, mat4_mul(mat4_translate(pos),
+				mat4_mul(Tp, mat4_mul(mat4_rot_xyz(rot), mat4_mul(Tn, mat4_scale(scl))))));
+		} else {
+			M=mat4_mul(parentM, mat4_mul(mat4_translate(pos),
+				mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl))));
+		}
 		Material *mat = find_material(s, xml_attr(n,"material",NULL));
 		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
 		float shin = mat? mat->shininess : xml_attr_f(n,"shininess",8.0f);

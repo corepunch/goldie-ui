@@ -39,6 +39,8 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Prefer swapping box dimensions over adding a rotation when both describe the same axis-aligned shape in the current local frame.
 - Document the default front direction in every directional prefab's leading XML comment.
 - Orient prefab instances toward their intended target using the documented front direction; never infer it only from the prefab name.
+- Use `attach="name:slot"` for placing objects on prefab surfaces rather than manual vertical position calculations.
+- Use `pivotOffset` for hinged rotations (book covers, open drawers) instead of `group` nesting workarounds.
 
 ## Required CLI validation
 
@@ -56,6 +58,8 @@ Run `xmllint` on every edited scene and prefab. Use the actual target path in pl
 - Keep prefab geometry centered around a useful placement origin, normally floor center.
 - Keep prefab materials externally resolvable by the containing scene.
 - State footprint, baseline, and front direction in the leading comment.
+- Declare `<attach>` elements on prefabs that have meaningful surface reference points (tabletop center, seat surface, shelf height).
+- Use `source=` on `<prefab>` to specify the file; `name=` only when something references this instance via `attach`.
 - Verify a directional prefab's `0`, `90`, `-90`, and `180` orientation mappings numerically before using it repeatedly.
 - Prefer a prefab over copied groups so later corrections propagate to every instance.
 

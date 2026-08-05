@@ -33,19 +33,21 @@
 
   <!-- ================= furniture ================= -->
 
-  <prefab ref="sofa" pos="-1.5 0 -5"/>
+  <prefab source="sofa" pos="-1.5 0 -5"/>
 
-  <prefab ref="coffee_table" pos="-1.5 0 -3.8"/>
+  <prefab source="coffee_table" pos="-1.5 0 -3.8"/>
 
   <torus pos="2.6 0.05 -3.6" majorRadius="0.28" minorRadius="0.05" material="metal"/>
   <sphere pos="-1.5 0.64 -3.8" radius="0.16" material="fabric"/>
   <pyramid pos="-3.0 0.25 -0.9" radius="0.35" height="0.5" material="wood"/>
 
   <!-- dining table with 4 chairs -->
-  <prefab ref="dining_table" pos="0 0 -1.5"/>
+  <prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
 
-  <prefab ref="chair" pos="0 0 -0.75" rot="0 180 0"/>
-  <prefab ref="chair" pos="0 0 -2.25"/>
-  <prefab ref="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
-  <prefab ref="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
+  <sphere attach="dining_table:center" radius="0.14" material="fabric"/>
+
+  <prefab source="chair" pos="0 0 -0.75" rot="0 180 0"/>
+  <prefab source="chair" pos="0 0 -2.25"/>
+  <prefab source="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
+  <prefab source="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
 </scene>

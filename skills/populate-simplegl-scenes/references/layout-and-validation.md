@@ -45,6 +45,23 @@ Use `0.001` scene units as the default contact tolerance. For a nominally ground
 
 Do not overlap visible faces on the same plane. A depth buffer cannot consistently decide which coplanar fragment owns a pixel, so the result flickers or forms striped patches as the camera moves. Build assemblies from non-overlapping exterior regions: for example, fit a sofa base and backrest between its arms instead of extending all three boxes across the same front or side planes. Adjacent parts may share an edge, and hidden structural intersections are acceptable only when none of their exterior faces overlap. Do not use tiny offsets or polygon offset to conceal unintended duplicate geometry.
 
+## Attach points and pivot offset
+
+Use `attach="instanceName:slotName"` on any shape or prefab to place it at a prefab's named reference point without manual surface-height calculations. The target instance must carry a `name` attribute.
+
+```xml
+<prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
+<sphere attach="dining_table:center" radius="0.14" material="fabric"/>
+```
+
+The sphere lands on the table surface without computing `y = tableTop + sphereRadius`. When `attach` is present the element's `pos` is replaced by the attach point's world-space position.
+
+Use `pivotOffset` to rotate a shape around an edge instead of its center. The offset is in local space, applied before rotation:
+
+```xml
+<box size="0.3 0.02 0.2" rot="0 0 45" pivotOffset="-0.15 0 0"/>
+```
+
 ## Rotation and facing
 
 `rot="rx ry rz"` applies X, then Y, then Z rotations. Positive Y rotation maps local +Z toward world +X and local +X toward world -Z.

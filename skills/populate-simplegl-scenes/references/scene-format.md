@@ -101,10 +101,23 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 | `shininess`  | float  | 8.0              | Specular exponent (used if no material ref) |
 | `castShadow` | int    | 1                | Whether this object casts shadows |
 | `renderable` | int    | 1                | Whether this object is drawn; non-renderable objects may still cast shadows |
+| `pivotOffset`| vec3   | 0 0 0            | Offsets the rotation center. Translate by offset, rotate, translate back |
+| `attach`     | string | (none)           | Snap to a named instance's attach point: `instanceName:slotName` |
 
 If a `material` attribute is given, `color` and `shininess` are taken from the referenced material definition.
 
 **Rotation convention:** `rot="rx ry rz"` applies rotations around X, then Y, then Z. Positive Y rotation maps the **+X** axis toward **-Z** and **+Z** toward **+X**.
+
+### `pivotOffset` attribute
+
+Shifts the rotation center away from the object's origin. The object is translated by `+pivotOffset`, rotated, then translated by `-pivotOffset`. Useful for hinged objects (book covers, open drawers) or any shape that should rotate around an edge instead of its center.
+
+```xml
+<!-- box rotating 45° around its left edge (half-width = -0.15) -->
+<box pos="0 0.5 0" size="0.3 0.02 0.2" rot="0 0 45" pivotOffset="-0.15 0 0"/>
+```
+
+The `pivotOffset` is in local space, applied before the object's own `rot`. Rotation-only matrices (for normals) are unaffected.
 
 ### `<box>`
 
@@ -290,31 +303,63 @@ Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefa
 
 ### `<prefab>`
 
-Instantiate a prefab by reference. Common attributes (`pos`, `rot`, `scale`, `material`, `color`, `shininess`, `castShadow`) apply as usual.
+Instantiate a prefab. Common attributes (`pos`, `rot`, `scale`, `material`, `color`, `shininess`, `castShadow`, `pivotOffset`) apply as usual.
 
 | Attribute | Type   | Default | Description |
 |-----------|--------|---------|-------------|
-| `ref`     | string | (none)  | Prefab name, loads from `prefabs/name.xml` |
+| `source`  | string | (required) | Prefab file name, loads from `prefabs/<source>.xml` |
+| `name`    | string | (none)     | Instance name for `attach` references — only needed when something attaches to this instance |
 
 Example: place 4 chairs around a dining table (table spans X=±0.8, Z=-1.0 to -2.0):
 
 ```xml
-<prefab ref="dining_table" pos="0 0 -1.5"/>
+<prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
 <!-- chair faces +Z by default; rotY(180) = faces -Z (into table) -->
-<prefab ref="chair" pos="0 0 -0.75" rot="0 180 0"/>
+<prefab source="chair" pos="0 0 -0.75" rot="0 180 0"/>
 <!-- chair at back: default +Z is already toward table -->
-<prefab ref="chair" pos="0 0 -2.25"/>
+<prefab source="chair" pos="0 0 -2.25"/>
 <!-- chair at left: rotY(90) maps +Z -> +X (toward table right) -->
-<prefab ref="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
+<prefab source="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
 <!-- chair at right: rotY(-90) maps +Z -> -X (toward table left) -->
-<prefab ref="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
+<prefab source="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
 ```
+
+### Attach points
+
+Prefabs can declare named reference points using `<attach>` elements. These enable placing objects on surfaces without manual Y calculation.
+
+**Defining attach points** — in the prefab file (`prefabs/dining_table.xml`):
+
+```xml
+<prefab>
+  <attach name="center" pos="0 0.78 0"/>
+  <attach name="edge_n" pos="0 0.78 -0.53"/>
+  <attach name="edge_s" pos="0 0.78 0.53"/>
+  <attach name="edge_e" pos="0.83 0.78 0"/>
+  <attach name="edge_w" pos="-0.83 0.78 0"/>
+  <box pos="0 0.75 0" size="1.6 0.06 1.0" material="wood"/>
+  ...
+</prefab>
+```
+
+Attach point positions are in the prefab's local coordinate space.
+
+**Using attach points** — in any scene element via `attach="instanceName:slotName"`:
+
+```xml
+<prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
+<!-- Sphere placed on the table's center without calculating y=0.78 -->
+<sphere attach="dining_table:center" radius="0.14" material="fabric"/>
+```
+
+When `attach` is present, the element's `pos` is replaced by the world-space position of the named attach point. Only the owning prefab instance needs a `name` attribute; the element using `attach` does not.
 
 Prefab file `prefabs/chair.xml`:
 
 ```xml
 <!-- chair: backrest at z=-0.2, front faces +Z. rotY(+90)->+X, rotY(-90)->-X -->
 <prefab>
+  <attach name="seat" pos="0 0.475 0"/>
   <box pos="0 0.45 0" size="0.45 0.05 0.45" material="wood"/>
   <box pos="0 0.75 -0.2" size="0.45 0.55 0.05" material="wood"/>
   <prism pos="-0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>

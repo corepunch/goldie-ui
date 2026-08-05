@@ -76,7 +76,9 @@ typedef struct { vec3 pos,color,dir; float intensity; int castsShadow,isDirectio
 typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
-typedef struct { char ref[32]; void *root; } PrefabDef;
+typedef struct { char name[32]; vec3 pos; } AttachPoint;
+typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
+typedef struct { char name[32]; char ref[32]; vec3 pos; mat4 rot; } InstanceDef;
 
 typedef struct {
 	vec3 camPos,camLook; float camFov;
@@ -87,6 +89,7 @@ typedef struct {
 	SceneObj *objs; int nobjs,cobjs;
 	ShadowVolume *svols;
 	PrefabDef *prefabs; int nprefabs,cprefabs;
+	InstanceDef *instances; int ninstances,cinstances;
 } Scene;
 
 int load_scene(const char *path,Scene *s);
