@@ -8,6 +8,7 @@ typedef struct { char name[32]; vec3 pos, look; float fov; } Camera;
 typedef struct { vec3 pos,color; float intensity; int castsShadow; } Light;
 typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow; } SceneObj;
 typedef struct { vec3 *verts; int nverts,cverts; } ShadowVolume;
+typedef struct { char ref[32]; void *root; } PrefabDef;
 
 typedef struct {
 	vec3 camPos, camLook; float camFov;
@@ -17,6 +18,7 @@ typedef struct {
 	Material *mats; int nmats,cmats;
 	SceneObj *objs; int nobjs,cobjs;
 	ShadowVolume *svols;
+	PrefabDef *prefabs; int nprefabs,cprefabs;
 } Scene;
 
 int  load_scene(const char *path, Scene *s);

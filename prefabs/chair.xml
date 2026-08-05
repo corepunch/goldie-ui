@@ -1,0 +1,8 @@
+<prefab>
+  <box pos="0 0.45 0" size="0.45 0.05 0.45" material="wood"/>
+  <box pos="0 0.75 -0.2" size="0.45 0.55 0.05" material="wood"/>
+  <prism pos="-0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <prism pos=" 0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <prism pos="-0.18 0.22  0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <prism pos=" 0.18 0.22  0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+</prefab>

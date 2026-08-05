@@ -24,12 +24,12 @@ void mesh_build_edges(Mesh *m);
 float mesh_signed_volume(Mesh *m);
 void mesh_flip_winding(Mesh *m);
 
-/* modifiers (operate on vertices in-place, local-space) */
-void mesh_apply_taper(Mesh *m, float amount, float curvature);
-void mesh_apply_twist(Mesh *m, float angle_deg);
-void mesh_apply_bend(Mesh *m, float angle_deg);
-void mesh_apply_stretch(Mesh *m, float amount, float amplify);
-void mesh_apply_skew(Mesh *m, float amount);
+/* modifiers (operate on vertices in-place, local-space, axis 'x'/'y'/'z') */
+void mesh_apply_taper(Mesh *m, float amount, float curvature, char axis);
+void mesh_apply_twist(Mesh *m, float angle_deg, char axis);
+void mesh_apply_bend(Mesh *m, float angle_deg, char axis);
+void mesh_apply_stretch(Mesh *m, float amount, float amplify, char axis);
+void mesh_apply_skew(Mesh *m, float amount, char axis);
 
 /* primitive generators (local-space, centered at origin) */
 Mesh gen_box(float sx,float sy,float sz);

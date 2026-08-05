@@ -1,0 +1,7 @@
+<prefab>
+  <box pos="0 0.75 0" size="1.6 0.06 1.0" material="wood"/>
+  <cylinder pos="-0.7 0.38 -0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos=" 0.7 0.38 -0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos="-0.7 0.38  0.42" radius="0.04" height="0.75" material="wood"/>
+  <cylinder pos=" 0.7 0.38  0.42" radius="0.04" height="0.75" material="wood"/>
+</prefab>

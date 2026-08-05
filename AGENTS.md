@@ -25,13 +25,14 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 | `main.c` | Entry point, SDL2 window, FPS camera, game loop, `-cam` arg |
 | `math.h` / `math.c` | `vec3`, `mat4`, linear algebra |
 | `mesh.h` / `mesh.c` | `Mesh` (verts, tris, edges), primitive generators, **modifiers** (taper, twist, bend, stretch, skew) |
-| `scene.h` / `scene.c` | Tiny XML parser, scene loading, named cameras, modifier dispatch |
+| `scene.h` / `scene.c` | Tiny XML parser, scene loading, named cameras, modifier dispatch, **prefab loading** |
 | `render.h` / `render.c` | OpenGL 1.x fixed-function renderer with stencil shadows |
 | `shadow.h` / `shadow.c` | Stencil shadow volume construction (silhouette detection + edge extrusion) |
 | `tests.c` | Unit tests for mesh winding, edge sealing, volume, shadow volumes |
 | `renderer.c` | Original monolithic single-file version (not in main build) |
 | `screenshot.c` | Offscreen headless renderer, outputs PPM |
 | `XML_SCENE.md` | Full XML scene format reference |
+| `prefabs/` | Reusable object XML files (`chair.xml`, `sofa.xml`, etc.) |
 
 ## Code conventions
 

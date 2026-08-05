@@ -180,90 +180,116 @@ A container that applies its transform to all children. Groups do not render geo
 
 Modifiers are child elements of any shape (`<box>`, `<sphere>`, `<cylinder>`, `<prism>`, `<cone>`, `<pyramid>`, `<torus>`). They are applied in document order, in local-space (before transform).
 
-All modifiers operate relative to the object's Y-axis bounding box. The Y range [minY, maxY] is mapped to [0, 1].
+All modifiers operate relative to the object's bounding box along the chosen axis. The axis range [min, max] is mapped to [0, 1].
+
+Each modifier accepts `axis="y"` (`x`, `y`, or `z`), defaulting to `"y"`.
 
 ### `<taper>`
 
-Scales X and Z proportionally along Y.
+Scales the two perpendicular axes along the chosen axis.
 
-| Attribute    | Type  | Default | Description |
-|--------------|-------|---------|-------------|
-| `amount`     | float | 0.0     | Taper intensity (± values, positive = narrow top) |
-| `curvature`  | float | 1.0     | Non-linearity exponent (1 = linear, >1 = bowed, <1 = pinched) |
+| Attribute    | Type   | Default | Description |
+|--------------|--------|---------|-------------|
+| `amount`     | float  | 0.0     | Taper intensity (± values, positive = narrow top along axis) |
+| `curvature`  | float  | 1.0     | Non-linearity exponent (1 = linear, >1 = bowed, <1 = pinched) |
+| `axis`       | char   | y       | Axis along which taper varies (x, y, or z) |
 
 ```xml
 <box size="2 3 2">
-  <taper amount="0.4"/>
+  <taper amount="0.4" axis="y"/>
 </box>
 ```
 
 ### `<twist>`
 
-Rotates the mesh around the Y axis proportionally to Y position.
+Rotates the perpendicular axes around the chosen axis proportionally to position along it. Normals are also rotated.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
 | `angle`   | float | 0.0     | Total twist angle in degrees |
+| `axis`    | char  | y       | Axis around which to twist (x, y, or z) |
 
 ```xml
 <box size="2 4 2">
-  <twist angle="45"/>
+  <twist angle="45" axis="y"/>
 </box>
 ```
 
 ### `<bend>`
 
-Bends the mesh into a circular arc. The Y axis of the mesh becomes an arc in the XZ? no, XY plane.
+Bends the chosen axis into a circular arc in the plane defined by the axis and its first perpendicular component.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
 | `angle`   | float | 0.0     | Bend angle in degrees |
+| `axis`    | char  | y       | Axis to bend (x, y, or z) |
 
 ```xml
 <cylinder radius="0.2" height="3">
-  <bend angle="90"/>
+  <bend angle="90" axis="y"/>
 </cylinder>
 ```
 
 ### `<stretch>`
 
-Non-linear stretch/squash along Y: pinches the middle, expands the ends (or vice versa).
+Non-linear stretch/squash along the chosen axis; pinch the middle, expand the ends (or vice versa).
 
 | Attribute  | Type  | Default | Description |
 |------------|-------|---------|-------------|
 | `amount`   | float | 0.0     | Stretch amount (positive = squeeze middle) |
-| `amplify`  | float | 1.0     | How much XZ stretches to match (1.0 for volume preservation-like) |
+| `amplify`  | float | 1.0     | How much perpendicular axes squeeze in response |
+| `axis`     | char  | y       | Axis along which to stretch (x, y, or z) |
 
 ```xml
 <sphere radius="0.5">
-  <stretch amount="0.5" amplify="0.5"/>
+  <stretch amount="0.5" amplify="0.5" axis="y"/>
 </sphere>
 ```
 
 ### `<skew>`
 
-Shears the mesh: shifts X and Z proportionally to Y position.
+Shears the two perpendicular axes proportionally to position along the chosen axis.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `amount`  | float | 0.0     | Skew intensity (positive = top shifts right) |
+| `amount`  | float | 0.0     | Skew intensity (positive = top shifts along perpendiculars) |
+| `axis`    | char  | y       | Axis along which to skew (x, y, or z) |
 
 ```xml
 <box size="1 3 1">
-  <skew amount="0.5"/>
+  <skew amount="0.5" axis="y"/>
 </box>
 ```
 
-## Multiple modifiers stacking
+## Prefabs
 
-Modifiers are applied sequentially, each operating on the mesh produced by the previous:
+Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefab file contains a root `<prefab>` tag with shape children — the same tags you'd put inside a `<group>`.
+
+### `<prefab>`
+
+Instantiate a prefab by reference. Common attributes (`pos`, `rot`, `scale`, `material`, `color`, `shininess`, `castShadow`) apply as usual.
+
+| Attribute | Type   | Default | Description |
+|-----------|--------|---------|-------------|
+| `ref`     | string | (none)  | Prefab name, loads from `prefabs/name.xml` |
 
 ```xml
-<box size="1 4 1">
-  <taper amount="0.3"/>
-  <twist angle="60"/>
-  <bend angle="30"/>
-</box>
+<prefab ref="chair" pos="2 0 1.5" rot="0 45 0"/>
+<prefab ref="sofa" pos="-2 0 -4"/>
+<prefab ref="dining_table" pos="0 0 -2"/>
+```
+
+Prefab files are loaded lazily (on first reference) and cached for reuse. Example `prefabs/chair.xml`:
+
+```xml
+<prefab>
+  <box pos="0 0.45 0" size="0.45 0.05 0.45" material="wood"/>
+  <box pos="0 0.75 -0.2" size="0.45 0.55 0.05" material="wood"/>
+  <prism pos="-0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <prism pos=" 0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <prism pos="-0.18 0.22  0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <prism pos=" 0.18 0.22  0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+</prefab>
 ```
 
 ## Complete example

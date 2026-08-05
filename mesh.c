@@ -178,79 +178,111 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
 
 /* ---------------------------------------------------------- modifiers ------ */
 
-static void mesh_find_bounds(Mesh *m, float *minY, float *maxY){
-	*minY=1e9f; *maxY=-1e9f;
+static void mesh_find_bounds(Mesh *m, char axis, float *minV, float *maxV){
+	*minV=1e9f; *maxV=-1e9f;
 	for(int i=0;i<m->nverts;i++){
-		float y=m->verts[i].pos.y;
-		if(y<*minY) *minY=y; if(y>*maxY) *maxY=y;
+		float v = axis=='x' ? m->verts[i].pos.x
+		       : axis=='y' ? m->verts[i].pos.y : m->verts[i].pos.z;
+		if(v<*minV) *minV=v; if(v>*maxV) *maxV=v;
 	}
-	if(*maxY-*minY < 1e-6f){ *minY=-0.5f; *maxY=0.5f; }
+	if(*maxV-*minV < 1e-6f){ *minV=-0.5f; *maxV=0.5f; }
 }
 
-void mesh_apply_taper(Mesh *m, float amount, float curvature){
-	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
-	float range=maxY-minY;
+void mesh_apply_taper(Mesh *m, float amount, float curvature, char axis){
+	float mn,mx; mesh_find_bounds(m,axis,&mn,&mx);
+	float range=mx-mn;
 	for(int i=0;i<m->nverts;i++){
-		float t=(m->verts[i].pos.y-minY)/range;
+		float *pa, *pb, *pc;
+		switch(axis){
+			case 'x': pa=&m->verts[i].pos.x; pb=&m->verts[i].pos.y; pc=&m->verts[i].pos.z; break;
+			case 'y': pa=&m->verts[i].pos.y; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.z; break;
+			default:  pa=&m->verts[i].pos.z; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.y; break;
+		}
+		float t=(*pa-mn)/range;
 		float s=1.0f+amount*powf(2.0f*t-1.0f, curvature>0?curvature:1.0f);
-		m->verts[i].pos.x*=s;
-		m->verts[i].pos.z*=s;
+		*pb*=s; *pc*=s;
 	}
 }
 
-void mesh_apply_twist(Mesh *m, float angle_deg){
-	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
-	float range=maxY-minY;
+void mesh_apply_twist(Mesh *m, float angle_deg, char axis){
+	float mn,mx; mesh_find_bounds(m,axis,&mn,&mx);
+	float range=mx-mn;
 	float rad=angle_deg*M_PIf/180.0f;
 	for(int i=0;i<m->nverts;i++){
-		float t=(m->verts[i].pos.y-minY)/range;
+		float *pa, *pb, *pc, *nb, *nc;
+		switch(axis){
+			case 'x': pa=&m->verts[i].pos.x; pb=&m->verts[i].pos.y; pc=&m->verts[i].pos.z;
+			          nb=&m->verts[i].nrm.y; nc=&m->verts[i].nrm.z; break;
+			case 'y': pa=&m->verts[i].pos.y; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.z;
+			          nb=&m->verts[i].nrm.x; nc=&m->verts[i].nrm.z; break;
+			default:  pa=&m->verts[i].pos.z; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.y;
+			          nb=&m->verts[i].nrm.x; nc=&m->verts[i].nrm.y; break;
+		}
+		float t=(*pa-mn)/range;
 		float a=rad*t, ca=cosf(a), sa=sinf(a);
-		float x=m->verts[i].pos.x, z=m->verts[i].pos.z;
-		m->verts[i].pos.x=x*ca - z*sa;
-		m->verts[i].pos.z=x*sa + z*ca;
-		vec3 n=m->verts[i].nrm;
-		m->verts[i].nrm.x=n.x*ca - n.z*sa;
-		m->verts[i].nrm.z=n.x*sa + n.z*ca;
+		float b=*pb, c=*pc;
+		*pb=b*ca - c*sa; *pc=b*sa + c*ca;
+		float n_b=*nb, n_c=*nc;
+		*nb=n_b*ca - n_c*sa; *nc=n_b*sa + n_c*ca;
 	}
 }
 
-void mesh_apply_bend(Mesh *m, float angle_deg){
-	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
-	float range=maxY-minY;
+void mesh_apply_bend(Mesh *m, float angle_deg, char axis){
+	float mn,mx; mesh_find_bounds(m,axis,&mn,&mx);
+	float range=mx-mn;
 	float alpha=angle_deg*M_PIf/180.0f;
 	float R=range/alpha;
 	if(fabsf(alpha)<1e-6f) return;
 	for(int i=0;i<m->nverts;i++){
-		float y=m->verts[i].pos.y-minY;
-		float theta=y/R;
+		float *pa, *pb, *na, *nb;
+		switch(axis){
+			case 'x': pa=&m->verts[i].pos.x; pb=&m->verts[i].pos.y;
+			          na=&m->verts[i].nrm.x; nb=&m->verts[i].nrm.y; break;
+			case 'y': pa=&m->verts[i].pos.y; pb=&m->verts[i].pos.x;
+			          na=&m->verts[i].nrm.y; nb=&m->verts[i].nrm.x; break;
+			default:  pa=&m->verts[i].pos.z; pb=&m->verts[i].pos.x;
+			          na=&m->verts[i].nrm.z; nb=&m->verts[i].nrm.x; break;
+		}
+		float along=*pa-mn;
+		float theta=along/R;
 		float cr=cosf(theta), sr=sinf(theta);
-		float x=m->verts[i].pos.x;
-		float ny=m->verts[i].nrm.y, nx=m->verts[i].nrm.x;
-		m->verts[i].pos.x = (R+x)*sr;
-		m->verts[i].pos.y = minY + R - (R+x)*cr;
-		m->verts[i].nrm.x = nx*cr - ny*sr;
-		m->verts[i].nrm.y = nx*sr + ny*cr;
+		float radial=*pb;
+		*pb = (R+radial)*sr;
+		*pa = mn + R - (R+radial)*cr;
+		float n_al=*na, n_rd=*nb;
+		*na = n_rd*sr + n_al*cr;
+		*nb = n_rd*cr - n_al*sr;
 	}
 }
 
-void mesh_apply_stretch(Mesh *m, float amount, float amplify){
-	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
-	float range=maxY-minY;
+void mesh_apply_stretch(Mesh *m, float amount, float amplify, char axis){
+	float mn,mx; mesh_find_bounds(m,axis,&mn,&mx);
+	float range=mx-mn;
 	for(int i=0;i<m->nverts;i++){
-		float t=(m->verts[i].pos.y-minY)/range;
-		float s=1.0f+amount*(t*t - t);
-		m->verts[i].pos.x*=1.0f-s*amplify;
-		m->verts[i].pos.z*=1.0f-s*amplify;
-		m->verts[i].pos.y = minY + t*range*(1.0f+s);
+		float *pa, *pb, *pc;
+		switch(axis){
+			case 'x': pa=&m->verts[i].pos.x; pb=&m->verts[i].pos.y; pc=&m->verts[i].pos.z; break;
+			case 'y': pa=&m->verts[i].pos.y; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.z; break;
+			default:  pa=&m->verts[i].pos.z; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.y; break;
+		}
+		float t=(*pa-mn)/range;
+		float s=amount*(t*t - t);
+		*pb*=1.0f-s*amplify; *pc*=1.0f-s*amplify;
+		*pa = mn + t*range*(1.0f+s);
 	}
 }
 
-void mesh_apply_skew(Mesh *m, float amount){
-	float minY,maxY; mesh_find_bounds(m,&minY,&maxY);
-	float range=maxY-minY;
+void mesh_apply_skew(Mesh *m, float amount, char axis){
+	float mn,mx; mesh_find_bounds(m,axis,&mn,&mx);
+	float range=mx-mn;
 	for(int i=0;i<m->nverts;i++){
-		float t=(m->verts[i].pos.y-minY)/range;
-		m->verts[i].pos.x+=amount*t;
-		m->verts[i].pos.z+=amount*t;
+		float *pa, *pb, *pc;
+		switch(axis){
+			case 'x': pa=&m->verts[i].pos.x; pb=&m->verts[i].pos.y; pc=&m->verts[i].pos.z; break;
+			case 'y': pa=&m->verts[i].pos.y; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.z; break;
+			default:  pa=&m->verts[i].pos.z; pb=&m->verts[i].pos.x; pc=&m->verts[i].pos.y; break;
+		}
+		float t=(*pa-mn)/range;
+		*pb+=amount*t; *pc+=amount*t;
 	}
 }

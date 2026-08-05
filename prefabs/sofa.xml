@@ -1,0 +1,6 @@
+<prefab>
+  <box pos="0 0.25 0"   size="2.2 0.5 0.9"  material="fabric"/>
+  <box pos="0 0.75 -0.4" size="2.2 0.5 0.15" material="fabric"/>
+  <box pos="-1.05 0.55 0" size="0.15 0.55 0.9" material="fabric"/>
+  <box pos=" 1.05 0.55 0" size="0.15 0.55 0.9" material="fabric"/>
+</prefab>

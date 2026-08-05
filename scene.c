@@ -119,9 +119,10 @@ static XmlNode* xml_parse(const char *buf){
 /* ------------------------------------------------------------- Scene ------ */
 
 void scene_free(Scene *s){
+	for(int i=0;i<s->nprefabs;i++) xml_free((XmlNode*)s->prefabs[i].root);
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs);
 	memset(s,0,sizeof(*s));
 }
 
@@ -142,22 +143,26 @@ void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, 
 
 /* ---------------------------------------------------- Modifiers ---------- */
 
+static char* read_file(const char*path);
+
 typedef void (*modifier_parser_fn)(Mesh *m, XmlNode *n);
 
+static char mod_axis(XmlNode *n){ const char *a=xml_attr(n,"axis","y"); return a[0]? a[0] : 'y'; }
+
 static void parse_mod_taper(Mesh *m, XmlNode *n){
-	mesh_apply_taper(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"curvature",1.0f));
+	mesh_apply_taper(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"curvature",1.0f), mod_axis(n));
 }
 static void parse_mod_twist(Mesh *m, XmlNode *n){
-	mesh_apply_twist(m, xml_attr_f(n,"angle",0.0f));
+	mesh_apply_twist(m, xml_attr_f(n,"angle",0.0f), mod_axis(n));
 }
 static void parse_mod_bend(Mesh *m, XmlNode *n){
-	mesh_apply_bend(m, xml_attr_f(n,"angle",0.0f));
+	mesh_apply_bend(m, xml_attr_f(n,"angle",0.0f), mod_axis(n));
 }
 static void parse_mod_stretch(Mesh *m, XmlNode *n){
-	mesh_apply_stretch(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"amplify",1.0f));
+	mesh_apply_stretch(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"amplify",1.0f), mod_axis(n));
 }
 static void parse_mod_skew(Mesh *m, XmlNode *n){
-	mesh_apply_skew(m, xml_attr_f(n,"amount",0.0f));
+	mesh_apply_skew(m, xml_attr_f(n,"amount",0.0f), mod_axis(n));
 }
 
 static const struct {
@@ -262,6 +267,31 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	free(op);
 }
 
+static XmlNode* load_prefab(Scene *s, const char *name){
+	for(int i=0;i<s->nprefabs;i++)
+		if(!strcmp(s->prefabs[i].ref,name)) return (XmlNode*)s->prefabs[i].root;
+	char path[256];
+	snprintf(path,sizeof(path),"prefabs/%s.xml",name);
+	char *buf=read_file(path);
+	if(!buf) return NULL;
+	XmlNode *root=xml_parse(buf);
+	free(buf);
+	if(!root) return NULL;
+	PrefabDef pd; strncpy(pd.ref,name,31); pd.root=root;
+	DA_PUSH(s->prefabs,s->nprefabs,s->cprefabs,pd);
+	return root;
+}
+
+static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow){
+	(void)M; (void)color; (void)shin; (void)castsShadow;
+	const char *ref=xml_attr(n,"ref",NULL);
+	if(!ref) return;
+	XmlNode *proot=load_prefab(s,ref);
+	if(!proot){ fprintf(stderr,"prefab not found: %s\n",ref); return; }
+	mat4 prefabM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
+	parse_nodes(s, proot, prefabM, R);
+}
+
 static const struct {
 	const char *tag;
 	shape_parser_fn parse;
@@ -274,6 +304,7 @@ static const struct {
 	{ "pyramid",  parse_cone },
 	{ "torus",    parse_torus },
 	{ "group",    parse_group },
+	{ "prefab",   parse_prefab },
 	{ "wall",     parse_wall },
 };
 
