@@ -92,8 +92,9 @@ static const struct { const char *tag; modifier_parser_fn parse; } modifier_pars
 
 Implements the classic vertex-shader-free algorithm:
 1. For each triangle edge: classify as silhouette edge if one adjacent face faces the light and the other faces away.
-2. Extrude silhouette edges away from the light: `extruded_vertex = lightDir * large_distance`.
-3. Store extruded quads (2 triangles each) as triangle list in `ShadowVolume.verts`.
+2. Extrude silhouette edges away from the light as homogeneous directions with `w=0`.
+3. Close each volume with finite light caps and infinite dark caps.
+4. Store the sides and caps as a homogeneous triangle list in `ShadowVolume.verts`.
 
 `scene_build_all_shadow_volumes()` builds a shadow volume per light for every shadow-casting object.
 
@@ -104,7 +105,7 @@ Uses OpenGL 1.x fixed-function pipeline (no shaders). Rendering passes:
 1. **Ambient pass**: Enable depth-write, disable stencil-write. Draw all objects with ambient color.
 2. **Per-light pass** (for each shadow-casting light):
    - Clear stencil buffer to 0.
-   - **Shadow volume pass (Z-fail)**: Disable color writes, disable depth-write, set stencil op to increment on Z-fail for front faces and decrement on Z-fail for back faces. Render shadow volume geometry.
+   - **Shadow volume pass (Z-fail)**: Disable color writes and depth writes, enable required depth clamp, and update stencil on depth failure. Render the closed, infinitely extruded volume. If depth clamp is unavailable, log that stencil shadows are unsupported and render the lights without shadows.
    - **Lighting pass**: Enable additive blending, depth-test EQUAL, stencil-test EQUAL to 0. Draw all objects with diffuse + specular using point-light math via `glColor`.
 3. **Debug modes**: wireframe shadow volumes (red), stencil != 0 overlay (red).
 

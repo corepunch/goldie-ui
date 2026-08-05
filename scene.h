@@ -7,7 +7,8 @@ typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; vec3 pos, look; float fov; } Camera;
 typedef struct { vec3 pos,color; float intensity; int castsShadow; } Light;
 typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow; } SceneObj;
-typedef struct { vec3 *verts; int nverts,cverts; } ShadowVolume;
+typedef struct { float x,y,z,w; } ShadowVertex;
+typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
 typedef struct { char ref[32]; void *root; } PrefabDef;
 
 typedef struct {

@@ -6,8 +6,6 @@
 #include "mesh.h"
 #include "math.h"
 
-#define SHADOW_EXTRUDE 100.0f
-
 void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
     memset(sv,0,sizeof(*sv));
     int nt=m->ntris;
@@ -16,9 +14,9 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
         vec3 p=m->verts[m->tris[i].a].pos;
         facing[i] = vdot(m->triN[i], vsub(lightPos,p)) > 0.0f;
     }
-    #define PUSHV(vv) DA_PUSH(sv->verts,sv->nverts,sv->cverts,(vv))
+    #define PUSHP(vv) DA_PUSH(sv->verts,sv->nverts,sv->cverts,((ShadowVertex){(vv).x,(vv).y,(vv).z,1.0f}))
+    #define PUSHD(vv) DA_PUSH(sv->verts,sv->nverts,sv->cverts,((ShadowVertex){(vv).x-lightPos.x,(vv).y-lightPos.y,(vv).z-lightPos.z,0.0f}))
 
-    /* Side quads only — z-pass needs no caps */
     for(int i=0;i<m->nedges;i++){
         Edge *e=&m->edges[i];
         int f0=facing[e->t0], f1=(e->t1>=0)?facing[e->t1]:0;
@@ -26,13 +24,26 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, ShadowVolume *sv){
         if(!silhouette) continue;
         vec3 v0,v1;
         if(f0){ v0=e->p0; v1=e->p1; } else { v0=e->p1; v1=e->p0; }
-        vec3 v0e = vadd(lightPos, vscale(vsub(v0,lightPos), SHADOW_EXTRUDE));
-        vec3 v1e = vadd(lightPos, vscale(vsub(v1,lightPos), SHADOW_EXTRUDE));
-        PUSHV(v0); PUSHV(v1); PUSHV(v1e);
-        PUSHV(v0); PUSHV(v1e); PUSHV(v0e);
+#ifdef USE_ZPASS
+        PUSHP(v0); PUSHP(v1); PUSHD(v1);
+        PUSHP(v0); PUSHD(v1); PUSHD(v0);
+#else
+        PUSHP(v1); PUSHP(v0); PUSHD(v0);
+        PUSHP(v1); PUSHD(v0); PUSHD(v1);
+#endif
     }
 
-    #undef PUSHV
+#ifndef USE_ZPASS
+    for(int i=0;i<nt;i++){
+        Tri t=m->tris[i];
+        vec3 a=m->verts[t.a].pos, b=m->verts[t.b].pos, c=m->verts[t.c].pos;
+        if(facing[i]){ PUSHP(a); PUSHP(b); PUSHP(c); }
+        else { PUSHD(a); PUSHD(b); PUSHD(c); }
+    }
+#endif
+
+    #undef PUSHP
+    #undef PUSHD
     free(facing);
 }
 

@@ -2,10 +2,56 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
+#include <stdio.h>
+#include <string.h>
 #include "render.h"
 #include "scene.h"
 #include "mesh.h"
 #include "math.h"
+
+#ifndef USE_ZPASS
+static int extension_present(const char *name){
+    const char *base=(const char*)glGetString(GL_EXTENSIONS), *ext=base;
+    size_t n=strlen(name);
+    if(!ext || !n || strchr(name,' ')) return 0;
+    while((ext=strstr(ext,name))){
+        if((ext==base || ext[-1]==' ') &&
+           (ext[n]==' ' || ext[n]=='\0')) return 1;
+        ext+=n;
+    }
+    return 0;
+}
+
+static int shadows_supported(void){
+    static int checked, supported;
+    if(!checked){
+        supported=extension_present("GL_ARB_depth_clamp") ||
+                  extension_present("GL_NV_depth_clamp") ||
+                  extension_present("GL_EXT_depth_clamp");
+        if(supported) fprintf(stderr,"stencil shadows: supported (depth clamp available)\n");
+        else fprintf(stderr,"stencil shadows: not supported (depth clamp unavailable); rendering lights without shadows\n");
+        checked=1;
+    }
+    return supported;
+}
+#endif
+
+static void begin_shadow_pass(void){
+#ifdef USE_ZPASS
+    glStencilOpSeparate(GL_BACK,GL_KEEP,GL_KEEP,GL_INCR_WRAP);
+    glStencilOpSeparate(GL_FRONT,GL_KEEP,GL_KEEP,GL_DECR_WRAP);
+#else
+    glEnable(GL_DEPTH_CLAMP);
+    glStencilOpSeparate(GL_BACK,GL_KEEP,GL_INCR_WRAP,GL_KEEP);
+    glStencilOpSeparate(GL_FRONT,GL_KEEP,GL_DECR_WRAP,GL_KEEP);
+#endif
+}
+
+static void end_shadow_pass(void){
+#ifndef USE_ZPASS
+    glDisable(GL_DEPTH_CLAMP);
+#endif
+}
 
 static void draw_mesh_flat(Mesh *m, vec3 color){
     glColor3f(color.x,color.y,color.z);
@@ -34,7 +80,7 @@ static void draw_mesh_lit(Mesh *m, vec3 color, float shininess){
 }
 static void draw_shadow_volume(ShadowVolume *sv){
     glBegin(GL_TRIANGLES);
-    for(int i=0;i<sv->nverts;i++) glVertex3fv(&sv->verts[i].x);
+    for(int i=0;i<sv->nverts;i++) glVertex4fv(&sv->verts[i].x);
     glEnd();
 }
 
@@ -58,16 +104,18 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         for(int li=0; li<s->nlights; li++){
             Light *L=&s->lights[li];
             if(!L->castsShadow || s->svols[li].nverts==0) continue;
+#ifndef USE_ZPASS
+            if(!shadows_supported()) continue;
+#endif
             glClear(GL_STENCIL_BUFFER_BIT);
             glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
             glDepthMask(GL_FALSE);
             glEnable(GL_STENCIL_TEST);
             glStencilFunc(GL_ALWAYS,0,0xFF);
             glDisable(GL_CULL_FACE);
-            /* z-pass: increment on back-face depth PASS, decrement on front-face depth PASS */
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-            glStencilOpSeparate(GL_FRONT,GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            begin_shadow_pass();
             draw_shadow_volume(&s->svols[li]);
+            end_shadow_pass();
             glDisable(GL_STENCIL_TEST);
             glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
             glDepthMask(GL_TRUE);
@@ -78,9 +126,14 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
             glStencilFunc(GL_NOTEQUAL,0,0xFF);
             glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
             glColor3f(1,0,0);
+            glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity();
+            glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
             glBegin(GL_QUADS);
             glVertex2f(-1,-1); glVertex2f(1,-1); glVertex2f(1,1); glVertex2f(-1,1);
             glEnd();
+            glPopMatrix();
+            glMatrixMode(GL_PROJECTION); glPopMatrix();
+            glMatrixMode(GL_MODELVIEW);
             glDisable(GL_STENCIL_TEST);
             glEnable(GL_DEPTH_TEST);
             return;
@@ -103,10 +156,11 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         glLightfv(GL_LIGHT0, GL_DIFFUSE, lc);
         glLightfv(GL_LIGHT0, GL_SPECULAR, lc);
 
-        if(L->castsShadow && s->svols[li].nverts>0){
-            /* Pass 2: Stencil — z-pass (Depth Pass) method.
-               No caps needed. Counts shadow volume faces between camera and surface.
-               Stencil != 0 means the pixel is in shadow. */
+        int drawShadows=L->castsShadow && s->svols[li].nverts>0;
+#ifndef USE_ZPASS
+        drawShadows=drawShadows && shadows_supported();
+#endif
+        if(drawShadows){
             glClear(GL_STENCIL_BUFFER_BIT);
             glDisable(GL_LIGHTING);
             glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
@@ -114,9 +168,9 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
             glEnable(GL_STENCIL_TEST);
             glStencilFunc(GL_ALWAYS,0,0xFF);
             glDisable(GL_CULL_FACE);
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-            glStencilOpSeparate(GL_FRONT,GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            begin_shadow_pass();
             draw_shadow_volume(&s->svols[li]);
+            end_shadow_pass();
 
             if(debugMode==DBG_WIRE_SHADOWVOL){
                 glDisable(GL_STENCIL_TEST);

@@ -11,6 +11,25 @@ static int failures = 0;
 #define CHECK(cond, fmt, ...) do{ if(!(cond)){ fprintf(stderr,"FAIL: " fmt "\n", ##__VA_ARGS__); failures++; } }while(0)
 #define PASS(msg) fprintf(stderr,"  OK  %s\n", msg)
 
+#ifndef USE_ZPASS
+static int shadow_vert_eq(ShadowVertex a, ShadowVertex b){
+    return a.x==b.x && a.y==b.y && a.z==b.z && a.w==b.w;
+}
+
+static int shadow_volume_closed(ShadowVolume *sv){
+    for(int i=0;i<sv->nverts;i++){
+        int ni=(i/3)*3+(i+1)%3, mates=0;
+        for(int j=0;j<sv->nverts;j++){
+            int nj=(j/3)*3+(j+1)%3;
+            if(shadow_vert_eq(sv->verts[i],sv->verts[nj]) &&
+               shadow_vert_eq(sv->verts[ni],sv->verts[j])) mates++;
+        }
+        if(mates!=1) return 0;
+    }
+    return 1;
+}
+#endif
+
 static void test_edges_sealed(const char *name, Mesh m, int expect_sealed){
     int open_edges=0;
     for(int i=0;i<m.nedges;i++){
@@ -154,11 +173,30 @@ int main(void){
         }
         free(facing);
 
-        int expectedSideVerts = silEdges * 6;
-        CHECK(sv.nverts == expectedSideVerts,
-              "box shadow vol verts: got %d, expected %d (sides only)",
-              sv.nverts, expectedSideVerts);
-        if(sv.nverts == expectedSideVerts) PASS("box shadow volume has correct vert count (sides only)");
+#ifdef USE_ZPASS
+        int expectedVerts = silEdges*6;
+#else
+        int expectedVerts = silEdges*6 + m.ntris*3;
+#endif
+        CHECK(sv.nverts == expectedVerts,
+              "box shadow vol verts: got %d, expected %d (sides + caps)",
+              sv.nverts, expectedVerts);
+        if(sv.nverts == expectedVerts) PASS("box shadow volume has expected geometry");
+
+        int points=0, directions=0;
+        for(int i=0;i<sv.nverts;i++){
+            if(sv.verts[i].w==1.0f) points++;
+            if(sv.verts[i].w==0.0f) directions++;
+        }
+#ifdef USE_ZPASS
+        CHECK(points>0 && directions>0, "z-pass shadow volume lacks finite or infinite vertices");
+        if(points>0 && directions>0) PASS("z-pass side quads use homogeneous infinity");
+#else
+        CHECK(points>0 && directions>0, "z-fail shadow volume lacks finite or infinite vertices");
+        if(points>0 && directions>0) PASS("z-fail shadow volume uses homogeneous infinity");
+        CHECK(shadow_volume_closed(&sv), "shadow volume is not consistently oriented and closed");
+        if(shadow_volume_closed(&sv)) PASS("shadow volume is consistently oriented and closed");
+#endif
 
         CHECK(sv.nverts % 3 == 0, "shadow volume vertex count divisible by 3");
         if(sv.nverts % 3 == 0) PASS("shadow volume divisible by 3");

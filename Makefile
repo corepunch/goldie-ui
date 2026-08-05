@@ -23,6 +23,21 @@ $(OBJDIR):
 screenshot: screenshot.c math.c mesh.c scene.c shadow.c render.c | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
 
+zpass: | $(BINDIR)
+	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/simplegl-zpass $(SRCS) $(LIBS)
+
+screenshot-zpass: | $(BINDIR)
+	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/screenshot-zpass screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
+
+tests-zpass: | $(BINDIR)
+	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/tests-zpass tests.c math.c mesh.c shadow.c scene.c $(LIBS)
+
+test-zpass: zpass tests-zpass
+	./$(BINDIR)/tests-zpass
+
+run-zpass: zpass
+	./$(BINDIR)/simplegl-zpass sample_room.xml
+
 run: simplegl
 	./$(BINDIR)/simplegl sample_room.xml
 
@@ -35,4 +50,4 @@ tests: tests.c math.c mesh.c shadow.c scene.c | $(BINDIR)
 clean:
 	rm -rf build
 
-.PHONY: run test clean
+.PHONY: run test zpass screenshot-zpass tests-zpass test-zpass run-zpass clean

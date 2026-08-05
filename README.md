@@ -72,14 +72,21 @@ SDL attribute requests — not tested there.)
 Classic robust **z-fail (Carmack's Reverse)** stencil shadow volumes, one
 point light per pass:
 
+The side-only, infinitely extruded Z-pass implementation is available with
+`make zpass`, `make run-zpass`, and `make test-zpass`. These targets compile
+with `USE_ZPASS` and write separate `*-zpass` binaries under `build/bin`.
+
 1. **Ambient pass** – draw everything flat-shaded at `ambient * color`, with
    depth writes on. This seeds the depth buffer and the base (unlit) look.
 2. For each shadow-casting light:
-   a. **Stencil pass** – draw the light's shadow volume (silhouette side
-      quads + near/far caps) with color writes off, depth writes off,
+   a. **Stencil pass** – draw the light's closed shadow volume (silhouette
+      side quads + light/dark caps) with color writes off, depth writes off,
       `glStencilOpSeparate`: back faces `INCR_WRAP` / front faces
       `DECR_WRAP` on depth-fail. This is the part that's still correct even
       when the camera itself is inside a shadow.
+      Extruded vertices use homogeneous directions (`w=0`), and depth clamp
+      prevents near/far clipping. If depth clamp is unavailable, stencil
+      shadows are disabled and the lights render without shadows.
    b. **Lit pass** – redraw the scene fully lit (diffuse+specular, ambient
       zeroed to avoid double-counting), additively blended (`GL_ONE,
       GL_ONE`), only where the stencil value is `0` (i.e. *not* in shadow).

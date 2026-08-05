@@ -23,11 +23,13 @@ static int write_ppm(const char *path, unsigned char *pixels, int w, int h){
 int main(int argc, char **argv){
     const char *scenePath = "sample_room.xml";
     const char *outPath = "screenshots/render.ppm";
+    const char *camName = NULL;
     int W = 1280, H = 800;
     int debugMode = DBG_NONE;
 
     for(int i = 1; i < argc; i++){
         if(!strcmp(argv[i], "-o") && i+1 < argc) outPath = argv[++i];
+        else if(!strcmp(argv[i], "-cam") && i+1 < argc) camName = argv[++i];
         else if(!strcmp(argv[i], "-w") && i+1 < argc) W = atoi(argv[++i]);
         else if(!strcmp(argv[i], "-h") && i+1 < argc) H = atoi(argv[++i]);
         else if(!strcmp(argv[i], "-d") && i+1 < argc) debugMode = atoi(argv[++i]);
@@ -36,6 +38,7 @@ int main(int argc, char **argv){
 
     Scene scene;
     if(!load_scene(scenePath, &scene)) return 1;
+    if(camName) scene_select_camera(&scene, camName);
     scene_build_all_shadow_volumes(&scene);
     fprintf(stderr, "loaded %d objects, %d lights, %d materials\n",
             scene.nobjs, scene.nlights, scene.nmats);
