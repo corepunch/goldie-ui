@@ -43,19 +43,56 @@ When no `<camera>` tag is present, a default "Camera1" is created with the defau
 
 ### `<background>`
 
-| Attribute | Type | Default           | Description |
-|-----------|------|-------------------|-------------|
-| `color`   | vec3 | 0.05 0.06 0.08    | Clear/background colour |
+| Attribute | Type   | Default         | Description |
+|-----------|--------|-----------------|-------------|
+| `id`      | string | (none)          | Reference a preset background by name |
+| `color`   | vec3   | 0.08 0.10 0.14  | Custom clear/background colour |
+
+Preset backgrounds (use via `id`):
+
+| Preset     | Color           | Notes |
+|------------|-----------------|-------|
+| `midnight` | 0.02 0.03 0.07 | Deep night blue |
+| `twilight` | 0.06 0.05 0.10 | Purple-blue, post-sunset |
+| `dusk`     | 0.08 0.10 0.14 | Dark blue-grey |
+| `dawn`     | 0.16 0.10 0.14 | Warm dusky pink |
+| `overcast` | 0.25 0.27 0.30 | Flat cloudy grey |
+| `noon`     | 0.40 0.48 0.64 | Bright sky blue |
+| `neutral`  | 0.18 0.20 0.24 | Mid-grey |
+| `black`    | 0.00 0.00 0.00 | Pure black for compositing |
+
+```xml
+<background id="dusk"/>
+<!-- or custom: -->
+<background color="0.04 0.05 0.07"/>
+```
 
 ### `<material>`
 
-Named material referenced by shapes via the `material` attribute.
+Named material referenced by shapes via the `material` attribute. Scene-defined materials override built-in presets of the same name.
 
 | Attribute    | Type   | Default        | Description |
 |--------------|--------|----------------|-------------|
 | `id`         | string | (required)     | Unique material name |
 | `color`      | vec3   | 0.8 0.8 0.8    | Diffuse RGB colour |
 | `shininess`  | float  | 8.0            | Phong specular exponent |
+
+Built-in presets (always available, no `<material>` tag needed):
+
+| Preset    | Color           | Shininess | Notes |
+|-----------|-----------------|-----------|-------|
+| `wall`    | 0.80 0.78 0.72 | 6         | Warm off-white interior |
+| `floor`   | 0.35 0.28 0.22 | 12        | Dark wood floor |
+| `wood`    | 0.50 0.32 0.18 | 20        | Mid-brown furniture wood |
+| `metal`   | 0.70 0.70 0.75 | 60        | Grey metallic |
+| `glass`   | 0.65 0.80 0.85 | 90        | Blue-tinted shiny |
+| `stone`   | 0.38 0.36 0.33 | 8         | Grey stone block |
+| `concrete`| 0.52 0.50 0.46 | 4         | Matte grey |
+| `plaster` | 0.90 0.88 0.80 | 3         | Warm flat white |
+| `bronze`  | 0.48 0.30 0.14 | 40        | Dark brown metallic |
+| `iron`    | 0.28 0.28 0.30 | 55        | Dark grey metallic |
+
+To override a preset, define a `<material>` with the same `id` in the scene. Unlisted materials (e.g. `brass`, `slate`, `fabric`) must be defined explicitly.
 
 ### `<light>`
 
@@ -214,9 +251,9 @@ A container that applies its transform to all children. Groups do not render geo
 
 Modifiers are child elements of any shape (`<box>`, `<sphere>`, `<cylinder>`, `<prism>`, `<cone>`, `<pyramid>`, `<torus>`). They are applied in document order, in local-space (before transform).
 
-All modifiers operate relative to the object's bounding box along the chosen axis. The axis range [min, max] is mapped to [0, 1].
+Deform modifiers (`taper`, `twist`, `bend`, `stretch`, `skew`) operate relative to the object's bounding box along the chosen axis. The axis range [min, max] is mapped to [0, 1]. Each accepts `axis="y"` (`x`, `y`, or `z`), defaulting to `"y"`.
 
-Each modifier accepts `axis="y"` (`x`, `y`, or `z`), defaulting to `"y"`.
+The `<array>` modifier duplicates the mesh rather than deforming it. Place it last so copies include the effect of any preceding deform modifiers.
 
 ### `<taper>`
 
@@ -292,6 +329,28 @@ Shears the two perpendicular axes proportionally to position along the chosen ax
 ```xml
 <box size="1 3 1">
   <skew amount="0.5" axis="y"/>
+</box>
+```
+
+### `<array>`
+
+Duplicates the mesh `count` times, applying a per-step translation and rotation to each copy. Useful for rows of books, shelf tiers, stair steps, or any repeating geometry. The array operates in local mesh space before the shape's own transform.
+
+| Attribute     | Type  | Default | Description |
+|---------------|-------|---------|-------------|
+| `count`       | int   | 1       | Total copies (original + duplicates). Must be >= 1 |
+| `translation` | vec3  | 0 0 0   | Offset per step |
+| `rotation`    | vec3  | 0 0 0   | Euler rotation per step in degrees |
+
+```xml
+<!-- 8 books in a row, each 0.03 apart along X -->
+<box size="0.02 0.3 0.2" material="fabric">
+  <array count="8" translation="0.03 0 0"/>
+</box>
+
+<!-- Spiral staircase: 12 steps, each raised 0.2 in Y and rotated 15° around Y -->
+<box size="0.8 0.05 0.3" material="wood">
+  <array count="12" translation="0 0.2 0" rotation="0 15 0"/>
 </box>
 ```
 

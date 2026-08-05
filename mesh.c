@@ -285,3 +285,19 @@ void mesh_apply_skew(Mesh *m, float amount, char axis){
 		*pb+=amount*t; *pc+=amount*t;
 	}
 }
+
+void mesh_apply_array(Mesh *m, int count, vec3 off, vec3 rot){
+	if(count<2) return;
+	int ov=m->nverts, ot=m->ntris;
+	for(int c=1;c<count;c++){
+		mat4 step=mat4_mul(mat4_translate(v3(off.x*c,off.y*c,off.z*c)),
+			mat4_rot_xyz(v3(rot.x*c,rot.y*c,rot.z*c)));
+		for(int v=0;v<ov;v++){
+			vec3 p=mat4_xform_point(step, m->verts[v].pos);
+			vec3 n=mat4_xform_dir(mat4_rot_xyz(v3(rot.x*c,rot.y*c,rot.z*c)), m->verts[v].nrm);
+			mesh_add_vert(m,p,n);
+		}
+		for(int t=0;t<ot;t++)
+			mesh_add_tri(m,m->tris[t].a+c*ov,m->tris[t].b+c*ov,m->tris[t].c+c*ov);
+	}
+}

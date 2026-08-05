@@ -125,9 +125,24 @@ void scene_free(Scene *s){
 	memset(s,0,sizeof(*s));
 }
 
-static Material* find_material(Scene*s,const char*id){
+static Material preset_materials[] = {
+	{ "wall",     {0.80f,0.78f,0.72f}, 6.0f },
+	{ "floor",    {0.35f,0.28f,0.22f}, 12.0f },
+	{ "wood",     {0.50f,0.32f,0.18f}, 20.0f },
+	{ "metal",    {0.70f,0.70f,0.75f}, 60.0f },
+	{ "glass",    {0.65f,0.80f,0.85f}, 90.0f },
+	{ "stone",    {0.38f,0.36f,0.33f}, 8.0f },
+	{ "concrete", {0.52f,0.50f,0.46f}, 4.0f },
+	{ "plaster",  {0.90f,0.88f,0.80f}, 3.0f },
+	{ "bronze",   {0.48f,0.30f,0.14f}, 40.0f },
+	{ "iron",     {0.28f,0.28f,0.30f}, 55.0f },
+};
+static const int npreset_mats = (int)(sizeof(preset_materials)/sizeof(preset_materials[0]));
+
+static Material* find_material(Scene*s, const char*id){
 	if(!id) return NULL;
 	for(int i=0;i<s->nmats;i++) if(!strcmp(s->mats[i].id,id)) return &s->mats[i];
+	for(int i=0;i<npreset_mats;i++) if(!strcmp(preset_materials[i].id,id)) return &preset_materials[i];
 	return NULL;
 }
 
@@ -163,6 +178,11 @@ static void parse_mod_stretch(Mesh *m, XmlNode *n){
 static void parse_mod_skew(Mesh *m, XmlNode *n){
 	mesh_apply_skew(m, xml_attr_f(n,"amount",0.0f), mod_axis(n));
 }
+static void parse_mod_array(Mesh *m, XmlNode *n){
+	mesh_apply_array(m, xml_attr_i(n,"count",1),
+		xml_attr_v3(n,"translation",v3(0,0,0)),
+		xml_attr_v3(n,"rotation",v3(0,0,0)));
+}
 
 static const struct {
 	const char *tag;
@@ -173,6 +193,7 @@ static const struct {
 	{ "bend",    parse_mod_bend },
 	{ "stretch", parse_mod_stretch },
 	{ "skew",    parse_mod_skew },
+	{ "array",   parse_mod_array },
 };
 
 static void apply_modifiers(Mesh *m, XmlNode *n){
@@ -409,8 +430,26 @@ static void parse_ambient_tag(Scene *s, XmlNode *n){
 	s->ambient = xml_attr_v3(n,"color",s->ambient);
 }
 
+static const struct { const char *id; vec3 color; } preset_bgs[] = {
+	{ "midnight", {0.02f,0.03f,0.07f} },
+	{ "twilight", {0.06f,0.05f,0.10f} },
+	{ "dusk",     {0.08f,0.10f,0.14f} },
+	{ "dawn",     {0.16f,0.10f,0.14f} },
+	{ "overcast", {0.25f,0.27f,0.30f} },
+	{ "noon",     {0.40f,0.48f,0.64f} },
+	{ "neutral",  {0.18f,0.20f,0.24f} },
+	{ "black",    {0.00f,0.00f,0.00f} },
+};
+static const int npreset_bgs = (int)(sizeof(preset_bgs)/sizeof(preset_bgs[0]));
+
 static void parse_background_tag(Scene *s, XmlNode *n){
-	s->bg = xml_attr_v3(n,"color",s->bg);
+	const char *id=xml_attr(n,"id",NULL);
+	if(id){
+		for(int i=0;i<npreset_bgs;i++){
+			if(!strcmp(preset_bgs[i].id,id)){ s->bg=preset_bgs[i].color; return; }
+		}
+	}
+	s->bg=xml_attr_v3(n,"color",s->bg);
 }
 
 static void parse_material_tag(Scene *s, XmlNode *n){
@@ -468,7 +507,7 @@ static char* read_file(const char*path){
 int load_scene(const char *path, Scene *s){
 	memset(s,0,sizeof(*s));
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
-	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.05f,0.06f,0.08f);
+	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
 
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);

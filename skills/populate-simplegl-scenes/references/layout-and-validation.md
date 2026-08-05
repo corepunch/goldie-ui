@@ -88,11 +88,17 @@ For a prefab whose default front is local +Z and a target direction `(dx, dz)`, 
 
 ## Materials and renderer constraints
 
+Built-in preset materials are always available: `wall`, `floor`, `wood`, `metal`, `glass`. Reference them without defining `<material>` tags. Define custom materials explicitly; a scene-defined `<material>` with the same `id` overrides a preset.
+
+Built-in background presets: `midnight`, `twilight`, `dusk`, `dawn`, `overcast`, `noon`, `neutral`, `black`. Use `<background id="dusk"/>` or `<background color="r g b"/>` for custom values.
+
 Materials provide diffuse color and shininess only. There is no transparency or texture support. A material named `glass` renders as an opaque shiny surface; make it thin and set `castShadow="0"`, but do not promise transparent glass.
 
 Use `castShadow="0"` for floors, panes, and decorative surfaces that should not create stencil volumes. Use `castShadows="0"` on a light for an unshadowed additive light.
 
 Use `renderable="0" castShadow="1"` for scene boundaries that must remain invisible to the camera while still blocking light and contributing to stencil shadow volumes.
+
+Use the `<array>` modifier to create repeating geometry (books, shelves, stairs). It duplicates the mesh `count` times with per-step `translation` and `rotation`, producing compact scene files for repetitive structures.
 
 ## Camera declarations
 

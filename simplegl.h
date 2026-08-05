@@ -62,6 +62,7 @@ void mesh_apply_twist(Mesh *m,float angle_deg,char axis);
 void mesh_apply_bend(Mesh *m,float angle_deg,char axis);
 void mesh_apply_stretch(Mesh *m,float amount,float amplify,char axis);
 void mesh_apply_skew(Mesh *m,float amount,char axis);
+void mesh_apply_array(Mesh *m,int count,vec3 off,vec3 rot);
 Mesh gen_box(float sx,float sy,float sz);
 Mesh gen_cylinder_like(int sides,float rBot,float rTop,float height,int smooth);
 Mesh gen_cylinder(float r,float h,int sides);

@@ -11,6 +11,7 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 
 - Read [references/scene-format.md](references/scene-format.md) for supported XML tags, attributes, defaults, rotations, modifiers, and prefabs.
 - Read [references/layout-and-validation.md](references/layout-and-validation.md) whenever placing walls, openings, inserts, furniture, cameras, lights, or prefabs.
+- Read [references/shot-composition-guide.md](references/shot-composition-guide.md) whenever placing or revising cameras, and use it to define each shot's story purpose, framing, continuity, negative space, and field of view.
 
 ## Workflow
 
@@ -41,6 +42,8 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Orient prefab instances toward their intended target using the documented front direction; never infer it only from the prefab name.
 - Use `attach="name:slot"` for placing objects on prefab surfaces rather than manual vertical position calculations.
 - Use `pivotOffset` for hinged rotations (book covers, open drawers) instead of `group` nesting workarounds.
+- Use the `<array>` modifier for repeating geometry (books, shelves, stairs) rather than copy-pasting shapes.
+- Prefer built-in preset materials (`wall`, `floor`, `wood`, `metal`, `glass`) and backgrounds (`midnight`, `dusk`, `neutral`, `black`). Define `<material>` tags only for custom materials.
 
 ## Required CLI validation
 
