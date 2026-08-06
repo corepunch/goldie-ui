@@ -68,3 +68,4 @@ libcglm*
 *.log
 test.xml
 /output
+*.save
