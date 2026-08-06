@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "../../ui.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 #include "browser.h"
 

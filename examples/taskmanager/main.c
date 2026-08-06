@@ -7,7 +7,7 @@
 //                  view_dlg_task.c / view_dlg_about.c
 
 #include "taskmanager.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 // ============================================================
 // gem_init / gem_shutdown (works standalone and as a .gem)

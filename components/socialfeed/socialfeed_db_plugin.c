@@ -1,5 +1,5 @@
 #include "../../ui.h"
-#include "../../gem_magic.h"
+#include "../../gem.h"
 #include "../../platform/platform.h"
 
 #include "../../examples/socialfeed/socialfeed.h"

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 #include "../../ui.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 // ---------------------------------------------------------------------------
 // filemanager_proc — thin wrapper around win_filelist.

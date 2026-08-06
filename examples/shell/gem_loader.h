@@ -2,7 +2,7 @@
 #define SHELL_GEM_LOADER_H
 
 #include "../ui.h"
-#include "../user/gem_magic.h"
+#include "../gem.h"
 #include <stdbool.h>
 
 // Load a .gem file, call its init function with the supplied arguments,

@@ -1,7 +1,7 @@
 // Menu bar and command dispatch — uses generated menus from gitclient.orion.
 
 #include "gitclient.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 // ============================================================
 // Accelerator table

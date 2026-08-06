@@ -2,7 +2,7 @@
 // A simple terminal emulator using the Orion framework's VGA font rendering.
 
 #include "vgat.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 // File types this GEM handles (NULL-terminated).
 static const char *terminal_file_types[] = { ".lua", NULL };

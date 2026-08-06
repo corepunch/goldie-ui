@@ -1,5 +1,5 @@
 #include "formeditor.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 app_state_t *g_app = NULL;
 

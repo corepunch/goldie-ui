@@ -4,7 +4,7 @@
 // PNG open/save via libpng.
 
 #include "imageeditor.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 
 // Global application state
 app_state_t *g_app = NULL;

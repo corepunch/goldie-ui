@@ -85,7 +85,7 @@ gem_interface_t *gem_get_interface(void);
 // -----------------------------------------------------------------------
 // GEM_MAIN — magic standalone-to-gem bridge (-Dmain=gem_main)
 //
-// Add #include "gem_magic.h" + GEM_MAIN() to a simple standalone program
+// Add #include "gem.h" + GEM_MAIN() to a simple standalone program
 // and it compiles both as an executable and as a .gem loaded by the shell.
 //
 // In .gem mode the following are automatically handled:
@@ -105,7 +105,7 @@ gem_interface_t *gem_get_interface(void);
 // the standalone main() with #ifndef BUILD_AS_GEM … #endif.
 //
 // Usage:
-//   #include "../../gem_magic.h"
+//   #include "../../gem.h"
 //   GEM_MAIN("My App", "1.0", NULL)   // NULL = no file associations
 //
 //   int main(int argc, char *argv[]) {

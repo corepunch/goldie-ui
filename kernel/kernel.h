@@ -128,7 +128,7 @@ float *get_sprite_matrix(void);
 // Application lifecycle — prefer these over direct access to 'running'.
 // ui_is_running()   returns true while the event loop should keep going.
 // ui_request_quit() signals the event loop to stop (analogous to PostQuitMessage).
-// In BUILD_AS_GEM mode these are provided as macros by gem_magic.h instead.
+// In BUILD_AS_GEM mode these are provided as macros by gem.h instead.
 #ifndef BUILD_AS_GEM
 bool ui_is_running(void);
 void ui_request_quit(void);

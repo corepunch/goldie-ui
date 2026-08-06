@@ -18,7 +18,7 @@
 //    "comments" collection with a "parent_id" relationship field)
 
 #include "socialfeed.h"
-#include "../../user/gem_magic.h"
+#include "../../gem.h"
 #include "../../commctl/commctl.h"
 #include "../../platform/platform.h"
 
