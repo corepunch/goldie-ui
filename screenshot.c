@@ -169,6 +169,7 @@ int main(int argc, char **argv){
 	}
 
 	free(pixels);
+	shader_deinit();
 	SDL_GL_DeleteContext(ctx);
 	SDL_DestroyWindow(win);
 	SDL_Quit();
