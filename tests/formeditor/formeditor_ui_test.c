@@ -79,6 +79,14 @@ static window_t *descendant_by_proc(window_t *parent, winproc_t proc) {
   return NULL;
 }
 
+static window_t *paint_expected;
+static int paint_expected_count;
+static void count_expected_paint(window_t *win, uint32_t msg, uint32_t wparam,
+                                 void *lparam, void *userdata) {
+  (void)msg; (void)wparam; (void)lparam; (void)userdata;
+  if (win == paint_expected) paint_expected_count++;
+}
+
 static void install_form_xml(window_t *doc, const char *xml) {
   xmlDocPtr parsed = xmlReadMemory(xml, (int)strlen(xml), "test.orion", NULL, XML_PARSE_NONET);
   xmlNodePtr root = parsed ? xmlDocGetRootElement(parsed) : NULL;
@@ -274,6 +282,63 @@ void test_database_field_drop_rejects_other_database(void) {
   PASS();
 }
 
+void test_socialfeed_project_loads_runtime_and_database(void) {
+  TEST("SocialFeed project: plugin, database, forms, layout, and rows load");
+  setup();
+  ASSERT_TRUE(fe_project_load("examples/socialfeed/socialfeed.orion"));
+  ASSERT_EQUAL(g_app->project.plugin_count, 1);
+  ASSERT_STR_EQUAL(g_app->project.plugins[0].name, "socialfeed_components");
+  ASSERT_EQUAL(g_app->project.database_count, 1);
+  ASSERT_NOT_NULL(g_app->project.databases[0]);
+  ASSERT_STR_EQUAL(g_app->project.databases[0]->name, "socialfeed");
+  ASSERT_TRUE(ui_get_database() == g_app->project.databases[0]);
+  ASSERT_EQUAL(g_app->form_count, 4);
+
+  window_t *doc = g_app->forms[0];
+  ASSERT_NOT_NULL(doc);
+  ASSERT_STR_EQUAL(doc->title, "Social Feed");
+  ASSERT_TRUE((doc->flags & WINDOW_TOOLBAR) != 0);
+  ASSERT_TRUE((doc->flags & WINDOW_STATUSBAR) != 0);
+  ASSERT_NOT_NULL(doc->children);
+  ASSERT_TRUE(doc->children->frame.w > 0);
+  ASSERT_TRUE(doc->children->frame.h > 0);
+
+  window_t *table = descendant_by_proc(doc, win_tableview);
+  ASSERT_NOT_NULL(table);
+  ASSERT_TRUE((table->flags & WINDOW_FLEXSPACE) != 0);
+  ASSERT_TRUE((table->flags & WINDOW_VSCROLL) != 0);
+  ASSERT_TRUE(table->frame.w > 0);
+  ASSERT_TRUE(table->frame.h > 0);
+  ASSERT_EQUAL((int)send_message(table, RVM_GETCOLUMNCOUNT, 0, NULL), 4);
+  ASSERT_EQUAL((int)send_message(table, RVM_GETITEMCOUNT, 0, NULL), 5);
+  paint_expected = table;
+  paint_expected_count = 0;
+  register_window_hook(evPaint, count_expected_paint, NULL);
+  send_message(doc, evPaint, 0, NULL);
+  deregister_window_hook(evPaint, count_expected_paint, NULL);
+  paint_expected = NULL;
+  ASSERT_TRUE(paint_expected_count > 0);
+
+  formeditor_show_database_object_window(0);
+  window_t *db_window = NULL;
+  for (window_t *win = g_ui_runtime.windows; win; win = win->next)
+    if (strcmp(win->title, "Databases") == 0) { db_window = win; break; }
+  ASSERT_NOT_NULL(db_window);
+  window_t *browser = db_window->children;
+  window_t *tables_list = browser ? browser->children : NULL;
+  ASSERT_NOT_NULL(tables_list);
+  ASSERT_EQUAL((int)send_message(tables_list, RVM_GETITEMCOUNT, 0, NULL), 3);
+  send_message(tables_list, RVM_SETSELECTION, 1, NULL);
+  send_message(browser, evCommand, 0, tables_list);
+  ASSERT_EQUAL((int)send_message(browser, cbGetColumnCount, 0, NULL), 2);
+  window_t *fields_list = tables_list->next;
+  ASSERT_NOT_NULL(fields_list);
+  ASSERT_TRUE((int)send_message(fields_list, RVM_GETITEMCOUNT, 0, NULL) >= 6);
+
+  teardown();
+  PASS();
+}
+
 int main(void) {
   TEST_START("Form Editor Window-First Recovery");
   test_window_first_document_state();
@@ -282,5 +347,6 @@ int main(void) {
   test_database_browser_cascades();
   test_database_field_drop_updates_xml_column();
   test_database_field_drop_rejects_other_database();
+  test_socialfeed_project_loads_runtime_and_database();
   TEST_END();
 }

@@ -2,6 +2,7 @@
 #include "../../commctl/commctl.h"
 #include <ctype.h>
 #include <libxml/tree.h>
+#include <strings.h>
 
 #define FE_RUNTIME_MAX_CONTROLS 512
 #define FE_RUNTIME_MAX_ALLOCS 4096
@@ -226,9 +227,14 @@ static bool str_ieq(const char *a, const char *b) {
 
 static flags_t runtime_flag_from_name(const char *name) {
   if (!name || !*name) return 0;
+  if (strncasecmp(name, "WINDOW_", 7) == 0) name += 7;
+  else if (strncasecmp(name, "BUTTON_", 7) == 0) name += 7;
   if (str_ieq(name, "autolayout")) return WINDOW_AUTO_LAYOUT;
+  if (str_ieq(name, "auto_layout")) return WINDOW_AUTO_LAYOUT;
   if (str_ieq(name, "stackh")) return WINDOW_STACK_HORIZONTAL;
+  if (str_ieq(name, "stack_horizontal")) return WINDOW_STACK_HORIZONTAL;
   if (str_ieq(name, "stackv")) return WINDOW_STACK_VERTICAL;
+  if (str_ieq(name, "stack_vertical")) return WINDOW_STACK_VERTICAL;
   if (str_ieq(name, "flexspace")) return WINDOW_FLEXSPACE;
   if (str_ieq(name, "vscroll")) return WINDOW_VSCROLL;
   if (str_ieq(name, "hscroll")) return WINDOW_HSCROLL;
@@ -240,7 +246,14 @@ static flags_t runtime_flag_from_name(const char *name) {
   if (str_ieq(name, "noresize")) return WINDOW_NORESIZE;
   if (str_ieq(name, "notraybutton")) return WINDOW_NOTRAYBUTTON;
   if (str_ieq(name, "notabstop")) return WINDOW_NOTABSTOP;
+  if (str_ieq(name, "alwaysontop")) return WINDOW_ALWAYSONTOP;
+  if (str_ieq(name, "alwaysinback")) return WINDOW_ALWAYSINBACK;
+  if (str_ieq(name, "hidden")) return WINDOW_HIDDEN;
+  if (str_ieq(name, "noactivate")) return WINDOW_NOACTIVATE;
+  if (str_ieq(name, "transparent")) return WINDOW_TRANSPARENT;
+  if (str_ieq(name, "layout_container")) return WINDOW_LAYOUT_CONTAINER;
   if (str_ieq(name, "default")) return BUTTON_DEFAULT;
+  if (str_ieq(name, "autoradio")) return BUTTON_AUTORADIO;
   if (str_ieq(name, "pushlike")) return BUTTON_PUSHLIKE;
   return 0;
 }
@@ -257,14 +270,14 @@ static flags_t runtime_parse_flags(const char *expr) {
   flags_t out = 0;
   const char *p = expr;
   while (*p) {
-    while (*p && (isspace((unsigned char)*p) || *p == ','))
+    while (*p && (isspace((unsigned char)*p) || *p == ',' || *p == '|'))
       p++;
     if (!*p)
       break;
 
     char tok[96];
     int n = 0;
-    while (*p && *p != ',') {
+    while (*p && *p != ',' && *p != '|') {
       if (n < (int)sizeof(tok) - 1)
         tok[n++] = *p;
       p++;

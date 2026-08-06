@@ -151,6 +151,8 @@ lresult_t win_canvas_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
     case evHitTest: return (lresult_t)(intptr_t)win;
     case evPaint:
       (void)lparam;
+      for (window_t *child = win->children; child; child = child->next)
+        send_message(child, evPaint, wparam, lparam);
       if (st && st->selected_window && st->selected_window != win) {
         canvas_restore_local_draw_space(win);
         draw_sel_rect(client_rect_in_host(win, st->selected_window));

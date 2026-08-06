@@ -232,6 +232,51 @@ static void fe_load_project_meta(xmlNodePtr root) {
   feio_xml_attr_copy(root, "root", g_app->project.root, sizeof(g_app->project.root));
 }
 
+static bool fe_plugin_name_in_refs(const form_plugin_ref_t *refs, int count,
+                                   const char *name) {
+  for (int i = 0; refs && i < count; i++)
+    if (strcmp(refs[i].name, name) == 0) return true;
+  return false;
+}
+
+static bool fe_load_plugin_named(const char *name) {
+  if (!name || !*name) return false;
+  if (strchr(name, '/') || strstr(name, AX_DYNLIB_EXT))
+    return fe_load_component_plugin(name);
+  char path[4096];
+  int n = snprintf(path, sizeof(path), "%s/../lib/%s%s",
+                   ui_get_exe_dir(), name, AX_DYNLIB_EXT);
+  return n > 0 && (size_t)n < sizeof(path) && fe_load_component_plugin(path);
+}
+
+static bool fe_load_project_plugins(xmlNodePtr root) {
+  if (!g_app || !root) return false;
+  form_plugin_ref_t previous[FE_MAX_PROJECT_PLUGINS];
+  int previous_count = g_app->project.plugin_count;
+  memcpy(previous, g_app->project.plugins, sizeof(previous));
+  memset(g_app->project.plugins, 0, sizeof(g_app->project.plugins));
+  g_app->project.plugin_count = 0;
+
+  for (xmlNodePtr group = root->children; group; group = group->next) {
+    if (!feio_xml_elem(group, "plugins")) continue;
+    for (xmlNodePtr node = group->children; node; node = node->next) {
+      if (!feio_xml_elem(node, "plugin")) continue;
+      char name[64] = {0};
+      feio_xml_attr_copy(node, "name", name, sizeof(name));
+      if (!name[0] || fe_plugin_name_in_refs(g_app->project.plugins,
+                                             g_app->project.plugin_count, name))
+        continue;
+      if (g_app->project.plugin_count >= FE_MAX_PROJECT_PLUGINS) return false;
+      if (!fe_plugin_name_in_refs(previous, previous_count, name) &&
+          !fe_load_plugin_named(name))
+        return false;
+      snprintf(g_app->project.plugins[g_app->project.plugin_count++].name,
+               sizeof(g_app->project.plugins[0].name), "%s", name);
+    }
+  }
+  return true;
+}
+
 static int fe_parse_sysicon_name(const char *name) {
   if (!name || !*name)
     return sysicon_missing;
@@ -258,15 +303,15 @@ static uint32_t fe_parse_form_chrome_flags(xmlNodePtr form_node) {
   snprintf(buf, sizeof(buf), "%s", flags_expr);
   uint32_t out = 0;
   char *save = NULL;
-  for (char *tok = strtok_r(buf, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+  for (char *tok = strtok_r(buf, ",|", &save); tok; tok = strtok_r(NULL, ",|", &save)) {
     while (*tok == ' ' || *tok == '\t' || *tok == '\n' || *tok == '\r')
       tok++;
     size_t n = strlen(tok);
     while (n > 0 && (tok[n - 1] == ' ' || tok[n - 1] == '\t' || tok[n - 1] == '\n' || tok[n - 1] == '\r'))
       tok[--n] = '\0';
-    if (strcasecmp(tok, "toolbar") == 0)
+    if (strcasecmp(tok, "toolbar") == 0 || strcasecmp(tok, "WINDOW_TOOLBAR") == 0)
       out |= WINDOW_TOOLBAR;
-    else if (strcasecmp(tok, "statusbar") == 0)
+    else if (strcasecmp(tok, "statusbar") == 0 || strcasecmp(tok, "WINDOW_STATUSBAR") == 0)
       out |= WINDOW_STATUSBAR;
   }
   return out;
@@ -515,6 +560,11 @@ bool fe_project_load(const char *path) {
 
   xmlNodePtr root = xmlDocGetRootElement(xdoc);
   if (!root || xmlStrcasecmp(root->name, BAD_CAST "orion") != 0) {
+    xmlFreeDoc(xdoc);
+    return false;
+  }
+
+  if (!fe_load_project_plugins(root)) {
     xmlFreeDoc(xdoc);
     return false;
   }
