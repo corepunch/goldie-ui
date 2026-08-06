@@ -2,6 +2,7 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "simplegl.h"
@@ -62,6 +63,9 @@ static void draw_mesh_flat(Mesh *m, vec3 color){
     }
     glEnd();
 }
+static vec3 srgb_to_linear(vec3 color){
+    return v3(powf(color.x,2.2f),powf(color.y,2.2f),powf(color.z,2.2f));
+}
 static void draw_shadow_volume(ShadowVolume *sv){
     glBegin(GL_TRIANGLES);
     for(int i=0;i<sv->nverts;i++) glVertex4fv(&sv->verts[i].x);
@@ -69,8 +73,10 @@ static void draw_shadow_volume(ShadowVolume *sv){
 }
 
 void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int flags){
+    glEnable(GL_FRAMEBUFFER_SRGB);
     glViewport(0,0,w,h);
-    glClearColor(s->bg.x,s->bg.y,s->bg.z,1.0f);
+    vec3 bg=srgb_to_linear(s->bg);
+    glClearColor(bg.x,bg.y,bg.z,1.0f);
     glClearStencil(0);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
 
@@ -81,9 +87,11 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int 
     glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
     glEnable(GL_CULL_FACE); glCullFace(GL_BACK);
     glDisable(GL_LIGHTING);
-    for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-        draw_mesh_flat(&s->objs[i].mesh, s->objs[i].unlit ? s->objs[i].color
-                                                         : vmul(s->objs[i].color, s->ambient));
+    vec3 ambient=srgb_to_linear(s->ambient);
+    for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable){
+        vec3 color=srgb_to_linear(s->objs[i].color);
+        draw_mesh_flat(&s->objs[i].mesh, s->objs[i].unlit ? color : vmul(color,ambient));
+    }
 
     /* Per-light pass: shadow volume + PBR lit */
     mat4 viewProj = mat4_mul(proj, view);
@@ -168,7 +176,8 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int 
         OverlayLine *ln=&s->overlayLines[i];
         if((flags&DBG_HIDE_CHARS) && ln->category==0) continue;
         if((flags&DBG_HIDE_LIGHTS) && ln->category>=1) continue;
-        glColor3f(ln->color.x,ln->color.y,ln->color.z);
+        vec3 color=srgb_to_linear(ln->color);
+        glColor3f(color.x,color.y,color.z);
         glVertex3f(ln->start.x,ln->start.y,ln->start.z);
         glVertex3f(ln->end.x,ln->end.y,ln->end.z);
     }

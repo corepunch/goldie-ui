@@ -2,6 +2,7 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "shader.h"
@@ -32,6 +33,16 @@ static const char *fs_src =
 "uniform float uLightRadius;\n"
 "uniform vec3 uColor;\n"
 "uniform float uShininess;\n"
+"vec3 linearToSrgb(vec3 c){\n"
+"    vec3 lo=c*12.92;\n"
+"    vec3 hi=1.055*pow(c,vec3(1.0/2.4))-0.055;\n"
+"    return mix(lo,hi,step(vec3(0.0031308),c));\n"
+"}\n"
+"vec3 srgbToLinear(vec3 c){\n"
+"    vec3 lo=c/12.92;\n"
+"    vec3 hi=pow((c+0.055)/1.055,vec3(2.4));\n"
+"    return mix(lo,hi,step(vec3(0.04045),c));\n"
+"}\n"
 "void main(){\n"
 "    vec3 N=normalize(vWorldNrm);\n"
 "    vec3 V=normalize(uViewPos-vWorldPos);\n"
@@ -58,7 +69,11 @@ static const char *fs_src =
 "        float dist=length(uLightPos.xyz-vWorldPos);\n"
 "        att=1.0/(1.0+2.0*dist/uLightRadius+(dist*dist)/(uLightRadius*uLightRadius));\n"
 "    }\n"
-"    gl_FragColor=vec4((diff+spec)*att,1.0);\n"
+"    vec3 lit=(diff+spec)*att;\n"
+"    float seed=dot(uLightPos.xyz,vec3(17.0,59.0,113.0));\n"
+"    float noise=fract(52.9829189*fract(dot(gl_FragCoord.xy+seed,vec2(0.06711056,0.00583715))))-0.5;\n"
+"    vec3 encoded=clamp(linearToSrgb(max(lit,vec3(0.0)))+noise/255.0,0.0,1.0);\n"
+"    gl_FragColor=vec4(srgbToLinear(encoded),1.0);\n"
 "}\n";
 
 static GLuint compile_shader(GLenum type, const char *src){
@@ -75,6 +90,10 @@ static GLuint compile_shader(GLenum type, const char *src){
 		return 0;
 	}
 	return s;
+}
+
+static vec3 srgb_to_linear(vec3 color){
+	return v3(powf(color.x,2.2f),powf(color.y,2.2f),powf(color.z,2.2f));
 }
 
 void shader_init(void){
@@ -140,15 +159,17 @@ void shader_set_camera_pos(vec3 pos){
 }
 
 void shader_set_light(Light *L){
+	vec3 color=srgb_to_linear(L->color);
 	if(L->isDirectional)
-		glUniform4f(ulocLightPos, L->dir.x, L->dir.y, L->dir.z, 0.0f);
+		glUniform4f(ulocLightPos, -L->dir.x, -L->dir.y, -L->dir.z, 0.0f);
 	else
 		glUniform4f(ulocLightPos, L->pos.x, L->pos.y, L->pos.z, 1.0f);
-	glUniform3f(ulocLightColor, L->color.x*L->intensity, L->color.y*L->intensity, L->color.z*L->intensity);
+	glUniform3f(ulocLightColor, color.x*L->intensity, color.y*L->intensity, color.z*L->intensity);
 	glUniform1f(ulocLightRadius, L->isDirectional ? 0.0f : L->radius);
 }
 
 void shader_set_material(vec3 color, float shininess){
+	color=srgb_to_linear(color);
 	glUniform3f(ulocColor, color.x, color.y, color.z);
 	glUniform1f(ulocShininess, shininess);
 }
