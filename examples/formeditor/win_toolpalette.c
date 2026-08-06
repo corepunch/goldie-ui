@@ -35,10 +35,11 @@ static void build_tool_items(void) {
 static void select_tool_by_ident(window_t *win, int ident) {
   if (g_app) {
     g_app->current_tool = ident;
-    if (g_app->doc && g_app->doc->canvas_win)
-      invalidate_window(g_app->doc->canvas_win);
-    if (g_app->menubar_win)
-      send_message(g_app->menubar_win, evCommand,
+    window_t *doc = g_app->active_form;
+    if (doc && doc->children)
+      invalidate_window(doc->children);
+    if (g_app->windows[FE_WIN_MENUBAR])
+      send_message(g_app->windows[FE_WIN_MENUBAR], evCommand,
                    MAKEDWORD((uint16_t)ident, btnClicked),
                    win);
     else
@@ -74,7 +75,7 @@ window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance) {
   if (rows < 2) rows = 2;
   window_t *tp = create_window(
       "Toolbox",
-      WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE,
+      WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE,
       MAKERECT(PALETTE_WIN_X, MENUBAR_HEIGHT + 4,
                TOOLBOX_COLS * FE_VB_TOOLBOX_BTN_SIZE,
                TITLEBAR_HEIGHT + rows * FE_VB_TOOLBOX_BTN_SIZE),
@@ -83,7 +84,7 @@ window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance) {
   return tp;
 }
 
-result_t win_tool_palette_proc(window_t *win, uint32_t msg,
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:

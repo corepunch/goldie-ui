@@ -134,29 +134,30 @@ static const form_def_t kGridForm = {
 };
 
 typedef struct {
-  form_doc_t *doc;
+  window_t *doc;
   bool        accepted;
 } grid_dlg_state_t;
 
-static result_t grid_dlg_proc(window_t *win, uint32_t msg,
+static lresult_t grid_dlg_proc(window_t *win, uint32_t msg,
                                uint32_t wparam, void *lparam) {
   grid_dlg_state_t *gs = (grid_dlg_state_t *)win->userdata;
   switch (msg) {
     case evCreate: {
       gs = (grid_dlg_state_t *)lparam;
       win->userdata = gs;
-      form_doc_t *doc = gs->doc;
+      if (!g_app)
+        return false;
       // Set checkbox states manually (no checkbox DDX helper yet).
       window_t *chk_show = get_window_item(win, GRID_ID_SHOW);
       window_t *chk_snap = get_window_item(win, GRID_ID_SNAP);
       if (chk_show)
         send_message(chk_show, btnSetCheck,
-                     doc->show_grid ? btnStateChecked : btnStateUnchecked, NULL);
+                     g_app->show_grid ? btnStateChecked : btnStateUnchecked, NULL);
       if (chk_snap)
         send_message(chk_snap, btnSetCheck,
-                     doc->snap_to_grid ? btnStateChecked : btnStateUnchecked, NULL);
+                     g_app->snap_to_grid ? btnStateChecked : btnStateUnchecked, NULL);
       // Push grid_size via DDX.
-      grid_size_data_t gsd = { doc->grid_size };
+      grid_size_data_t gsd = { g_app->grid_size };
       dialog_push(win, &gsd, k_grid_bindings, ARRAY_LEN(k_grid_bindings));
       return true;
     }
@@ -165,20 +166,21 @@ static result_t grid_dlg_proc(window_t *win, uint32_t msg,
       window_t *src = (window_t *)lparam;
       if (!src) return false;
       if (src->id == GRID_ID_OK) {
-        form_doc_t *doc = gs->doc;
+        if (!g_app)
+          return false;
         // Pull grid_size via DDX.
-        grid_size_data_t gsd = { doc->grid_size };
+        grid_size_data_t gsd = { g_app->grid_size };
         dialog_pull(win, &gsd, k_grid_bindings, ARRAY_LEN(k_grid_bindings));
         if (gsd.grid_size < GRID_SIZE_MIN) gsd.grid_size = GRID_SIZE_MIN;
         if (gsd.grid_size > GRID_SIZE_MAX) gsd.grid_size = GRID_SIZE_MAX;
-        doc->grid_size = gsd.grid_size;
+        g_app->grid_size = gsd.grid_size;
         // Pull checkboxes manually.
         window_t *chk_show = get_window_item(win, GRID_ID_SHOW);
         window_t *chk_snap = get_window_item(win, GRID_ID_SNAP);
         if (chk_show)
-          doc->show_grid = (send_message(chk_show, btnGetCheck, 0, NULL) == btnStateChecked);
+          g_app->show_grid = (send_message(chk_show, btnGetCheck, 0, NULL) == btnStateChecked);
         if (chk_snap)
-          doc->snap_to_grid = (send_message(chk_snap, btnGetCheck, 0, NULL) == btnStateChecked);
+          g_app->snap_to_grid = (send_message(chk_snap, btnGetCheck, 0, NULL) == btnStateChecked);
         gs->accepted = true;
         end_dialog(win, 1);
         return true;
@@ -194,11 +196,13 @@ static result_t grid_dlg_proc(window_t *win, uint32_t msg,
   }
 }
 
-void show_grid_settings_dialog(window_t *parent, form_doc_t *doc) {
+void show_grid_settings_dialog(window_t *parent, window_t *doc) {
+  if (!g_app)
+    return;
   grid_dlg_state_t gs = { doc, false };
   show_dialog_from_form(&kGridForm, "Grid Settings", parent, grid_dlg_proc, &gs);
-  if (gs.accepted && doc->canvas_win)
-    invalidate_window(doc->canvas_win);
+  if (gs.accepted && doc && doc->children)
+    invalidate_window(doc->children);
 }
 
 // ============================================================
@@ -272,26 +276,7 @@ static const form_ctrl_def_t kPropsChildren[] = {
   },
 };
 
-// DDX bindings: caption and name edits ↔ form_element_t.text / .name
-static const ctrl_binding_t k_props_bindings[] = {
-  DDX_TEXT(PROPS_ID_CAPTION, form_element_t, text),
-  DDX_TEXT(PROPS_ID_NAME, form_element_t, name),
-};
-
-static const form_def_t kPropsForm = {
-  .name          = "Element Properties",
-  .width         = PROPS_W,
-  .height        = PROPS_H,
-  .flags = (0) | WINDOW_AUTO_LAYOUT,
-  .layout_spacing = 6,
-  .padding       = {8, 8, 8, 8},
-  .children      = kPropsChildren,
-  .child_count   = ARRAY_LEN(kPropsChildren),
-  .bindings      = k_props_bindings,
-  .binding_count = ARRAY_LEN(k_props_bindings),
-  .ok_id         = PROPS_ID_OK,
-  .cancel_id     = PROPS_ID_CANCEL,
-};
+// Element-properties dialog is disabled in window-first migration mode.
 
 // ============================================================
 // Form Properties dialog
@@ -422,14 +407,14 @@ static const form_def_t kFormPropsForm = {
   .cancel_id     = FORM_PROPS_ID_CANCEL,
 };
 
-static result_t form_props_proc(window_t *win, uint32_t msg,
+static lresult_t form_props_proc(window_t *win, uint32_t msg,
                                 uint32_t wparam, void *lparam) {
   form_props_state_t *ps = (form_props_state_t *)win->userdata;
   switch (msg) {
     case evCreate:
       ps = (form_props_state_t *)lparam;
       win->userdata = ps;
-      if (ps && g_app && g_app->doc) {
+      if (ps && g_app && g_app->active_form) {
         form_props_fill_layout_combos(win);
         dialog_push(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
       }
@@ -439,32 +424,21 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
       window_t *src = (window_t *)lparam;
       if (!src) return false;
       if (src->id == FORM_PROPS_ID_OK) {
-        if (g_app && g_app->doc) {
-          form_doc_t *doc = g_app->doc;
+        if (g_app && g_app->active_form) {
+          window_t *doc = g_app->active_form;
           bool old_auto_layout = (doc->flags & WINDOW_AUTO_LAYOUT) != 0;
-          uint8_t old_kind = doc->layout_mode;
           flags_t old_orient = doc->flags & WINDOW_STACK_HORIZONTAL;
-          uint8_t old_columns = doc->layout_columns;
           dialog_pull(win, ps, k_form_props_bindings, ARRAY_LEN(k_form_props_bindings));
           if (ps->auto_layout_enabled)
             doc->flags |= WINDOW_AUTO_LAYOUT;
           else
             doc->flags &= ~WINDOW_AUTO_LAYOUT;
-          doc->layout_mode = (uint8_t)ps->layout_mode;
           if (ps->layout_orientation & WINDOW_STACK_HORIZONTAL)
             doc->flags |= WINDOW_STACK_HORIZONTAL;
           else
             doc->flags &= ~WINDOW_STACK_HORIZONTAL;
-          {
-            int cols = atoi(ps->layout_columns);
-            if (cols < 0) cols = 0;
-            if (cols > 255) cols = 255;
-            doc->layout_columns = (uint8_t)cols;
-          }
           if (((doc->flags & WINDOW_AUTO_LAYOUT) != 0) != old_auto_layout ||
-              doc->layout_mode != old_kind ||
-              (doc->flags & WINDOW_STACK_HORIZONTAL) != old_orient ||
-              doc->layout_columns != old_columns) {
+              (doc->flags & WINDOW_STACK_HORIZONTAL) != old_orient) {
             fe_doc_mark_modified(doc);
           }
           if (doc->flags & WINDOW_AUTO_LAYOUT) {
@@ -486,82 +460,23 @@ static result_t form_props_proc(window_t *win, uint32_t msg,
   }
 }
 
-bool show_form_props_dialog(window_t *parent, form_doc_t *doc) {
+bool show_form_props_dialog(window_t *parent, window_t *doc) {
   if (!doc) return false;
   form_props_state_t st = {
     .auto_layout_enabled = (doc->flags & WINDOW_AUTO_LAYOUT) != 0,
-    .layout_mode = doc->layout_mode,
+    .layout_mode = 0,
     .layout_orientation = (doc->flags & WINDOW_STACK_HORIZONTAL) ? WINDOW_STACK_HORIZONTAL : WINDOW_STACK_VERTICAL,
   };
-  snprintf(st.layout_columns, sizeof(st.layout_columns), "%u",
-           (unsigned)doc->layout_columns);
+  snprintf(st.layout_columns, sizeof(st.layout_columns), "0");
   show_dialog_from_form(&kFormPropsForm, "Form Properties", parent, form_props_proc, &st);
   return st.accepted;
 }
-
-typedef struct {
-  form_element_t *el;
-  bool            accepted;
-} props_state_t;
-
-static result_t props_proc(window_t *win, uint32_t msg,
-                            uint32_t wparam, void *lparam) {
-  props_state_t *ps = (props_state_t *)win->userdata;
-  switch (msg) {
-    case evCreate: {
-      ps = (props_state_t *)lparam;
-      win->userdata = ps;
-
-      // Dynamic type-info label (content is computed at runtime).
-      char info[64];
-      snprintf(info, sizeof(info), "Type: %s  ID: %d  (%d, %d)  %d x %d",
-                 "Unknown", ps->el->id,
-               ps->el->frame.x, ps->el->frame.y, ps->el->frame.w, ps->el->frame.h);
-      create_window(info, WINDOW_NOTITLE | WINDOW_NOFILL,
-          MAKERECT(4, PROPS_INFO_Y, PROPS_W - 8, CONTROL_HEIGHT),
-          win, "label", 0, (void *)(uintptr_t)brTextDisabled);
-
-      // Pre-populate caption/name edits from the element.
-      dialog_push(win, ps->el, k_props_bindings, ARRAY_LEN(k_props_bindings));
-      return true;
-    }
-
-    case evCommand: {
-      if (HIWORD(wparam) != btnClicked) return false;
-      window_t *src = (window_t *)lparam;
-      if (!src) return false;
-
-      if (src->id == PROPS_ID_OK) {
-        dialog_pull(win, ps->el, k_props_bindings, ARRAY_LEN(k_props_bindings));
-        ps->accepted = true;
-        end_dialog(win, 1);
-        return true;
-      }
-      if (src->id == PROPS_ID_CANCEL) {
-        end_dialog(win, 0);
-        return true;
-      }
-      return false;
-    }
-    default:
-      return false;
-  }
-}
-
-bool show_props_dialog(window_t *parent, form_element_t *el) {
-  props_state_t ps = {0};
-  ps.el       = el;
-  ps.accepted = false;
-  show_dialog_from_form(&kPropsForm, "Element Properties", parent, props_proc, &ps);
-  return ps.accepted;
-}
-
 
 // ============================================================
 // Menu bar window procedure
 // ============================================================
 
-result_t editor_menubar_proc(window_t *win, uint32_t msg,
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg,
                               uint32_t wparam, void *lparam) {
   if (msg == evCommand) {
     uint16_t notif = HIWORD(wparam);

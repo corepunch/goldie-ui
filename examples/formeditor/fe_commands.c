@@ -3,7 +3,6 @@
 // ============================================================
 
 #include "formeditor.h"
-#include "fe_commands.h"
 
 // ============================================================
 // File picker helper
@@ -28,7 +27,7 @@ static bool show_form_file_picker(window_t *parent, bool save_mode,
 
 void handle_menu_command(uint16_t id) {
   if (!g_app) return;
-  form_doc_t *doc = g_app->doc;
+  window_t *doc = g_app->active_form;
 
   switch (id) {
     case ID_FILE_NEW:
@@ -37,7 +36,7 @@ void handle_menu_command(uint16_t id) {
 
     case ID_FILE_OPEN: {
       char path[512] = {0};
-      window_t *owner = doc ? doc->doc_win : (g_app->menubar_win);
+      window_t *owner = doc ? doc : g_app->windows[FE_WIN_MENUBAR];
       if (show_form_file_picker(owner, false, path, sizeof(path))) {
         if (!fe_project_load(path) && owner)
           message_box(owner, "Failed to load Orion project.", "Open", MB_OK);
@@ -48,10 +47,10 @@ void handle_menu_command(uint16_t id) {
     case ID_FILE_SAVE:
       if (g_app->project.loaded && g_app->project.filename[0]) {
         if (fe_project_save(g_app->project.filename)) {
-          if (doc && doc->doc_win)
-            send_message(doc->doc_win, evStatusBar, 0, (void *)"Project saved");
-        } else if (doc && doc->doc_win) {
-          send_message(doc->doc_win, evStatusBar, 0, (void *)"Project save failed");
+          if (doc)
+            send_message(doc, evStatusBar, 0, (void *)"Project saved");
+        } else if (doc) {
+          send_message(doc, evStatusBar, 0, (void *)"Project save failed");
         }
       } else {
         goto do_save_as;
@@ -60,16 +59,16 @@ void handle_menu_command(uint16_t id) {
 
     do_save_as:
     case ID_FILE_SAVEAS: {
-      if (!doc && !g_app->docs) break;
+      if (!doc && g_app->form_count == 0) break;
       char path[512] = {0};
-      window_t *owner = doc ? doc->doc_win : g_app->menubar_win;
+      window_t *owner = doc ? doc : g_app->windows[FE_WIN_MENUBAR];
       if (show_form_file_picker(owner, true, path, sizeof(path))) {
         if (fe_project_save(path)) {
-          if (doc && doc->doc_win)
-            send_message(doc->doc_win, evStatusBar, 0, path);
+          if (doc)
+            send_message(doc, evStatusBar, 0, path);
         } else {
-          if (doc && doc->doc_win)
-            send_message(doc->doc_win, evStatusBar, 0, (void *)"Project save failed");
+          if (doc)
+            send_message(doc, evStatusBar, 0, (void *)"Project save failed");
         }
       }
       break;
@@ -78,10 +77,10 @@ void handle_menu_command(uint16_t id) {
     case ID_FILE_QUIT:
 #ifdef BUILD_AS_GEM
       if (g_app) {
-        while (g_app->docs)
-          close_form_doc(g_app->docs);
-        if (g_app->tool_win)    destroy_window(g_app->tool_win);
-        if (g_app->menubar_win) destroy_window(g_app->menubar_win);
+        while (g_app->form_count > 0 && g_app->forms[0])
+          close_form_doc(g_app->forms[0]);
+        if (g_app->windows[FE_WIN_TOOL])    destroy_window(g_app->windows[FE_WIN_TOOL]);
+        if (g_app->windows[FE_WIN_MENUBAR]) destroy_window(g_app->windows[FE_WIN_MENUBAR]);
       }
 #else
       ui_request_quit();
@@ -89,39 +88,16 @@ void handle_menu_command(uint16_t id) {
       break;
 
     case ID_EDIT_DELETE: {
-      if (!doc) break;
-      window_t *cwin = doc->canvas_win;
-      if (!cwin) break;
-      canvas_state_t *cs = (canvas_state_t *)cwin->userdata;
-      if (!cs || cs->selected_idx < 0) break;
-      int idx = cs->selected_idx;
-      if (doc->elements[idx].live_win)
-        destroy_window(doc->elements[idx].live_win);
-      // Remove element by shifting the array
-      for (int i = idx; i < doc->element_count - 1; i++)
-        doc->elements[i] = doc->elements[i + 1];
-      doc->element_count--;
-      cs->selected_idx = -1;
-      fe_doc_mark_modified(doc);
-      canvas_rebuild_live_controls(doc);
+      if (doc)
+        send_message(doc, evStatusBar, 0,
+                     (void *)"Delete is disabled in window-only migration mode");
       break;
     }
 
     case ID_EDIT_PROPS: {
       if (!doc) break;
-      window_t *cwin = doc->canvas_win;
-      if (!cwin) break;
-      canvas_state_t *cs = (canvas_state_t *)cwin->userdata;
-      window_t *owner = g_app->menubar_win ? g_app->menubar_win : doc->doc_win;
-      if (!cs || cs->selected_idx < 0) {
-        show_form_props_dialog(owner, doc);
-      } else {
-        form_element_t *el = &doc->elements[cs->selected_idx];
-        if (show_props_dialog(owner, el)) {
-          fe_doc_mark_modified(doc);
-          property_browser_refresh(doc);
-        }
-      }
+      window_t *owner = g_app->windows[FE_WIN_MENUBAR] ? g_app->windows[FE_WIN_MENUBAR] : doc;
+      show_form_props_dialog(owner, doc);
       break;
     }
   }

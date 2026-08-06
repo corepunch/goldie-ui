@@ -230,10 +230,10 @@ static void comp_build_tool_items(void) {
 static void comp_select_tool_by_ident(window_t *win, int ident) {
   if (g_app) {
     g_app->current_tool = ident;
-    if (g_app->doc && g_app->doc->canvas_win)
-      invalidate_window(g_app->doc->canvas_win);
-    if (g_app->menubar_win)
-      send_message(g_app->menubar_win, evCommand,
+    if (g_app->active_form)
+      invalidate_window(g_app->active_form);
+    if (g_app->windows[FE_WIN_MENUBAR])
+      send_message(g_app->windows[FE_WIN_MENUBAR], evCommand,
                    MAKEDWORD((uint16_t)ident, btnClicked),
                    win);
     else
@@ -311,17 +311,17 @@ window_t *formeditor_create_components_palette(hinstance_t hinstance) {
 
 void formeditor_rebuild_tool_palette(void) {
   if (!g_app) return;
-  if (g_app->tool_win) {
-    destroy_window(g_app->tool_win);
-    g_app->tool_win = NULL;
+  if (g_app->windows[FE_WIN_TOOL]) {
+    destroy_window(g_app->windows[FE_WIN_TOOL]);
+    g_app->windows[FE_WIN_TOOL] = NULL;
   }
   g_app->current_tool = ID_TOOL_SELECT;
   g_drag = (palette_drag_state_t){0};
   components_hide_ghost();
 #if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
-  g_app->tool_win = formeditor_create_components_palette(g_app->hinstance);
+  g_app->windows[FE_WIN_TOOL] = formeditor_create_components_palette(g_app->hinstance);
 #else
-  g_app->tool_win = formeditor_create_legacy_toolpalette(g_app->hinstance);
+  g_app->windows[FE_WIN_TOOL] = formeditor_create_legacy_toolpalette(g_app->hinstance);
 #endif
 }
 
@@ -354,8 +354,8 @@ result_t win_components_proc(window_t *win, uint32_t msg,
       return true;
 
     case evDestroy:
-      if (g_app && g_app->tool_win == win)
-        g_app->tool_win = NULL;
+      if (g_app && g_app->windows[FE_WIN_TOOL] == win)
+        g_app->windows[FE_WIN_TOOL] = NULL;
       return false;
 
     case evCommand:
@@ -409,11 +409,11 @@ result_t win_components_proc(window_t *win, uint32_t msg,
             int lx = (int16_t)LOWORD(pn->child_wparam);
             int ly = (int16_t)HIWORD(pn->child_wparam);
             ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
-            window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
+            window_t *target = canvas_find_component_drop_target(g_app ? g_app->active_form : NULL,
                                                                  g_drag.tool_ident,
                                                                  screen.x, screen.y);
-            if (g_app && g_app->doc) {
-              canvas_set_component_drag_hover(g_app->doc, target != NULL, target);
+            if (g_app && g_app->active_form) {
+              canvas_set_component_drag_hover(g_app->active_form, target != NULL, target);
             }
             components_update_ghost(g_drag.tool_ident, screen.x, screen.y);
           }
@@ -427,17 +427,17 @@ result_t win_components_proc(window_t *win, uint32_t msg,
             ipoint16_t screen = window_local_point_to_screen(st->list_win, lx, ly);
             int sx = screen.x;
             int sy = screen.y;
-            window_t *target = canvas_find_component_drop_target(g_app ? g_app->doc : NULL,
+            window_t *target = canvas_find_component_drop_target(g_app ? g_app->active_form : NULL,
                                                                  g_drag.tool_ident,
                                                                  sx, sy);
-            if (g_app && g_app->doc && target)
-              canvas_drop_component_to_target(g_app->doc, g_drag.tool_ident, target, sx, sy);
-            if (g_app && g_app->doc)
-              canvas_set_component_drag_hover(g_app->doc, false, NULL);
+            if (g_app && g_app->active_form && target)
+              canvas_drop_component_to_target(g_app->active_form, g_drag.tool_ident, target, sx, sy);
+            if (g_app && g_app->active_form)
+              canvas_set_component_drag_hover(g_app->active_form, false, NULL);
             if (g_app) {
               g_app->current_tool = ID_TOOL_SELECT;
-              if (g_app->tool_win)
-                send_message(g_app->tool_win, bxSetActiveItem, (uint32_t)ID_TOOL_SELECT, NULL);
+              if (g_app->windows[FE_WIN_TOOL])
+                send_message(g_app->windows[FE_WIN_TOOL], bxSetActiveItem, (uint32_t)ID_TOOL_SELECT, NULL);
             }
           }
           components_hide_ghost();

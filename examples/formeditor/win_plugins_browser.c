@@ -13,8 +13,8 @@ typedef struct {
 } plugins_browser_state_t;
 
 static const toolbar_item_t kPluginsToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_ADD,  sysicon_add,  0, 0, NULL, "Add plugin" },
-  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_LOAD, sysicon_play, 0, 0, NULL, "Load plugin" },
+  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_ADD,  sysicon_add,  0, 0, "Add plugin" },
+  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_LOAD, sysicon_play, 0, 0, "Load plugin" },
 };
 
 static bool plugin_has_dynlib_ext(const char *path) {
@@ -86,12 +86,12 @@ static void plugins_browser_rebuild(plugins_browser_state_t *st) {
 }
 
 void plugins_browser_refresh(void) {
-  if (!g_app || !g_app->plugins_win) return;
-  plugins_browser_state_t *st = (plugins_browser_state_t *)g_app->plugins_win->userdata;
+  if (!g_app || !g_app->windows[FE_WIN_PLUGINS]) return;
+  plugins_browser_state_t *st = (plugins_browser_state_t *)g_app->windows[FE_WIN_PLUGINS]->userdata;
   plugins_browser_rebuild(st);
 }
 
-static void plugins_browser_observer(fe_event_type_t event, form_doc_t *doc, void *ctx) {
+static void plugins_browser_observer(fe_event_type_t event, window_t *doc, void *ctx) {
   (void)doc;
   (void)ctx;
   switch (event) {
@@ -164,7 +164,7 @@ static void plugins_load_selected(plugins_browser_state_t *st, window_t *owner) 
   formeditor_rebuild_tool_palette();
 }
 
-result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
+lresult_t win_plugins_browser_proc(window_t *win, uint32_t msg,
                                   uint32_t wparam, void *lparam) {
   plugins_browser_state_t *st = (plugins_browser_state_t *)win->userdata;
   (void)lparam;
@@ -221,8 +221,8 @@ result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
     case evDestroy:
       if (st)
         fe_unsubscribe(st->subscription_id);
-      if (g_app && g_app->plugins_win == win)
-        g_app->plugins_win = NULL;
+      if (g_app && g_app->windows[FE_WIN_PLUGINS] == win)
+        g_app->windows[FE_WIN_PLUGINS] = NULL;
       return false;
 
     default:

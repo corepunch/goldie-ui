@@ -6,14 +6,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <libxml/tree.h>
 
 #include "../../ui.h"
-#include "fe_document.h"  // Document model types
-#include "fe_layout.h"  // Layout computation
-#include "fe_project_io.h"  // XML project I/O
-#include "fe_project.h"  // Project-level document management
-#include "fe_commands.h"  // Command dispatcher
-#include "fe_notifications.h"  // Observer pattern for browser updates
+
+typedef database_t db_t;
 
 // ============================================================
 // Layout constants
@@ -55,7 +52,97 @@ static inline bool fe_default_auto_layout_enabled(void) {
 #define FE_COMPONENTS_BTN_SIZE 56  // large-icon grid cell width/height
 #define FE_COMPONENTS_MIN_ROWS 5   // default palette height shows a little over 4.5 icons
 
-#include "controls-icons.h"
+typedef enum IC_ICONS {
+  IC_ADD,
+  IC_ALIGN_CENTER_HORIZONTAL,
+  IC_ALIGN_CENTER_VERTICAL,
+  IC_ANCHOR,
+  IC_BUTTON,
+  IC_CANCEL,
+  IC_CHECKBOX,
+  IC_CLIPBOARD,
+  IC_CLOCK,
+  IC_CLOUD,
+  IC_CODE_FILE,
+  IC_COLOR_PICKER,
+  IC_COMBO_BOX,
+  IC_CONFIRM,
+  IC_CROP,
+  IC_CUT,
+  IC_DATABASE,
+  IC_DATE_PICKER,
+  IC_DETAILS_VIEW,
+  IC_DOCUMENT_STACK,
+  IC_DOWNLOAD,
+  IC_DROP_DOWN,
+  IC_DUPLICATE,
+  IC_EDIT,
+  IC_FILTER,
+  IC_FOLDER,
+  IC_FULLSCREEN,
+  IC_GRID_LAYOUT,
+  IC_GRID_VIEW,
+  IC_HAND_CURSOR,
+  IC_HELP,
+  IC_IMAGE,
+  IC_INFO,
+  IC_KEYPAD,
+  IC_KNOB,
+  IC_LIST_VIEW,
+  IC_LOADING_SPINNER,
+  IC_MARQUEE_SELECT,
+  IC_MENU,
+  IC_MORE_VERTICAL,
+  IC_MOVE_CURSOR,
+  IC_NETWORK,
+  IC_NEXT,
+  IC_NUMBER_STEPPER,
+  IC_OPEN_FOLDER,
+  IC_PALETTE,
+  IC_PAN_HAND,
+  IC_PANEL,
+  IC_PASSWORD_FIELD,
+  IC_POINTER,
+  IC_PREVIEW,
+  IC_PROGRESS_BAR,
+  IC_RADIO_BUTTON,
+  IC_REDO,
+  IC_REFRESH,
+  IC_REMOVE,
+  IC_RESIZE_DIAGONAL,
+  IC_RESIZE_HORIZONTAL,
+  IC_RESIZE_SELECTION,
+  IC_RESIZE_VERTICAL,
+  IC_RESPONSIVE_PREVIEW,
+  IC_SAVE,
+  IC_SEARCH,
+  IC_SEARCH_COMBO_BOX,
+  IC_SEGMENTED_HORIZONTAL,
+  IC_SEGMENTED_VERTICAL,
+  IC_SETTINGS,
+  IC_SETTINGS_SLIDERS,
+  IC_SIDEBAR_LAYOUT,
+  IC_SLIDER,
+  IC_SPLIT_VIEW,
+  IC_STOP,
+  IC_STOPWATCH,
+  IC_TABLE,
+  IC_TERMINAL,
+  IC_TEXT,
+  IC_TEXT_AREA,
+  IC_TEXT_CURSOR,
+  IC_TEXT_FIELD,
+  IC_TOGGLE_SWITCH,
+  IC_TRANSFORM,
+  IC_TRASH,
+  IC_UNDO,
+  IC_UPLOAD,
+  IC_WARNING,
+  IC_WINDOW,
+  IC_ZOOM_IN,
+  IC_ZOOM_OUT,
+  IC_ICON_COUNT = 88
+} IC_ICONS;
 
 // Palette window dimensions.
 #define PALETTE_WIN_X     4
@@ -80,12 +167,6 @@ static inline bool fe_default_auto_layout_enabled(void) {
 #define PLUGINS_WIN_Y     (PROPBROWSER_WIN_Y + PROPBROWSER_WIN_H + 4)
 #define PLUGINS_WIN_W     PROPBROWSER_WIN_W
 #define PLUGINS_WIN_H     120
-
-// Database browser (NSBrowser-style).
-#define DATABASES_WIN_X   PROPBROWSER_WIN_X
-#define DATABASES_WIN_Y   (PLUGINS_WIN_Y + PLUGINS_WIN_H + 4)
-#define DATABASES_WIN_W   PROPBROWSER_WIN_W
-#define DATABASES_WIN_H   (SCREEN_H - DATABASES_WIN_Y - 4)
 
 // Document window initial position
 // frame.y is the window top; place it 8px below the menu bar.
@@ -125,8 +206,9 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // Limits
 // ============================================================
 
-// Note: MAX_ELEMENTS, CTRL_ID_BASE, and FE_MAX_COMPONENTS
-// are now defined in fe_document.h
+#define MAX_ELEMENTS  256
+#define CTRL_ID_BASE  1001
+#define FE_MAX_TABLE_COLUMNS 16
 
 // Built-in component indices as registered by formeditor_components.
 // Kept as compatibility aliases for tests and older form editor code; project
@@ -141,7 +223,27 @@ static inline bool fe_default_auto_layout_enabled(void) {
 // ============================================================
 // Project and App State Types
 // ============================================================
-// Note: form_element_t and form_doc_t are now defined in fe_document.h
+
+typedef struct {
+  char database[64];
+  char table[64];
+  char field[64];
+} fe_database_field_ref_t;
+
+typedef struct form_doc_state_t {
+  bool   modified;
+  bool   drag_overlay_active;
+  irect16_t drag_overlay_rect;
+  window_t *selected_window;
+} form_doc_state_t;
+
+static inline form_doc_state_t *fe_doc_state(window_t *doc) {
+  return doc ? (form_doc_state_t *)doc->userdata : NULL;
+}
+
+static inline const form_doc_state_t *fe_doc_state_const(const window_t *doc) {
+  return doc ? (const form_doc_state_t *)doc->userdata : NULL;
+}
 
 typedef struct {
   char name[64];
@@ -149,68 +251,39 @@ typedef struct {
 
 #define FE_MAX_PROJECT_PLUGINS 32
 #define FE_MAX_PROJECT_DATABASES 8
-#define FE_MAX_PROJECT_DB_TABLES 32
-#define FE_MAX_PROJECT_DB_FIELDS 64
-#define FE_MAX_PROJECT_DB_JOINS 16
-
-typedef struct {
-  char name[64];
-  db_field_type_t type;
-  int length;
-  bool primary_key;
-  char relation_table[64];
-  char relation_field[64];
-} form_project_db_field_t;
-
-typedef struct {
-  char name[64];
-  char local_field[64];
-  char foreign_table[64];
-  char foreign_field[64];
-} form_project_db_join_t;
-
-typedef struct {
-  int table_id;
-  char name[64];
-  char model[64];
-  form_project_db_field_t fields[FE_MAX_PROJECT_DB_FIELDS];
-  int field_count;
-  form_project_db_join_t joins[FE_MAX_PROJECT_DB_JOINS];
-  int join_count;
-} form_project_db_table_t;
-
-typedef struct {
-  char name[64];
-  char class_name[64];
-  char source_path[256];
-  form_project_db_table_t tables[FE_MAX_PROJECT_DB_TABLES];
-  int table_count;
-} form_project_database_t;
 
 typedef struct {
   char filename[512];
   char name[64];
   char title[128];
   char root[256];
+  void *xml_root;
   char menus_xml[16384];
-  char databases_xml[16384];
   form_plugin_ref_t plugins[FE_MAX_PROJECT_PLUGINS];
   int plugin_count;
-  form_project_database_t databases[FE_MAX_PROJECT_DATABASES];
+  db_t *databases[FE_MAX_PROJECT_DATABASES];
   int database_count;
   bool loaded;
   bool modified;
 } form_project_t;
 
+typedef enum {
+  FE_WIN_MENUBAR = 0,
+  FE_WIN_TOOL,
+  FE_WIN_PROP,
+  FE_WIN_FORMS,
+  FE_WIN_PLUGINS,
+  FE_NUM_WINDOWS
+} fe_window_idx_t;
+
 typedef struct {
-  form_doc_t  *doc;
-  form_doc_t  *docs;
-  window_t    *menubar_win;
-  window_t    *tool_win;
-  window_t    *prop_win;
-  window_t    *forms_win;
-  window_t    *plugins_win;
-  window_t    *databases_win;
+  window_t       *active_form;
+  window_t       *forms[MAX_ELEMENTS];
+  int             form_count;
+  int             grid_size;
+  bool            show_grid;
+  bool            snap_to_grid;
+  window_t       *windows[FE_NUM_WINDOWS];
   hinstance_t  hinstance;  // owning app instance
   int          current_tool;
   accel_table_t *accel;
@@ -218,60 +291,23 @@ typedef struct {
 } app_state_t;
 
 // ============================================================
-// Drag mode for the canvas window
+// Notifications
 // ============================================================
 
 typedef enum {
-  DRAG_NONE,
-  DRAG_MOVE,
-  DRAG_RESIZE,
-  DRAG_RUBBERBND,
-} drag_mode_t;
+  FE_EVENT_DOCUMENT_CREATED,
+  FE_EVENT_DOCUMENT_CLOSED,
+  FE_EVENT_DOCUMENT_ACTIVATED,
+  FE_EVENT_DOCUMENT_MODIFIED,
+  FE_EVENT_SELECTION_CHANGED,
+  FE_EVENT_ELEMENT_ADDED,
+  FE_EVENT_ELEMENT_DELETED,
+  FE_EVENT_ELEMENT_MODIFIED,
+  FE_EVENT_PROJECT_MODIFIED,
+  FE_EVENT_COMPONENT_REGISTRY_CHANGED,
+} fe_event_type_t;
 
-typedef struct {
-  int16_t x, y;
-} canvas_pt_t;
-
-typedef struct {
-  int16_t x, y;
-} form_pt_t;
-
-typedef struct {
-  drag_mode_t mode;
-  union {
-    struct {
-      canvas_pt_t start;
-      irect16_t   frame;
-    } move;
-    struct {
-      canvas_pt_t start;
-      irect16_t   frame;
-      int         handle;
-    } resize;
-    struct {
-      canvas_pt_t start;
-      irect16_t   band;       // rubber-band in form coords
-      int         ctrl_type;  // CTRL_* being placed
-    } place;
-  };
-} drag_state_t;
-
-// ============================================================
-// Canvas window state (stored in canvas_win->userdata)
-// ============================================================
-
-typedef struct {
-  form_doc_t *doc;
-  window_t   *form_root_win;
-  window_t   *preview_win;
-  int         preview_type;
-  ipoint16_t  pan;
-  int         selected_idx;   // -1 = no selection
-  int         hover_layout_idx; // auto-layout node under placement drag, -1 = form itself
-  irect16_t   hover_layout_rc;  // form-space rect for hover highlight
-  bool        external_component_drag; // true while toolbox drag hovers the canvas
-  drag_state_t drag;
-} canvas_state_t;
+typedef void (*fe_observer_fn_t)(fe_event_type_t event, window_t *doc, void *ctx);
 
 // ============================================================
 // Globals
@@ -283,52 +319,79 @@ extern app_state_t *g_app;
 // Window procedures
 // ============================================================
 
-result_t editor_menubar_proc(window_t *win, uint32_t msg,
-                              uint32_t wparam, void *lparam);
-result_t win_canvas_proc(window_t *win, uint32_t msg,
-                          uint32_t wparam, void *lparam);
-result_t win_components_proc(window_t *win, uint32_t msg,
-                              uint32_t wparam, void *lparam);
-result_t win_tool_palette_proc(window_t *win, uint32_t msg,
-                               uint32_t wparam, void *lparam);
-result_t win_property_browser_proc(window_t *win, uint32_t msg,
-                                    uint32_t wparam, void *lparam);
-result_t win_forms_browser_proc(window_t *win, uint32_t msg,
-                                uint32_t wparam, void *lparam);
-result_t win_plugins_browser_proc(window_t *win, uint32_t msg,
-                                  uint32_t wparam, void *lparam);
-void canvas_rebuild_live_controls(form_doc_t *doc);
-void canvas_sync_live_controls(form_doc_t *doc);
-void canvas_set_component_drag_hover(form_doc_t *doc, bool active, window_t *target);
-window_t *canvas_find_component_drop_target(form_doc_t *doc, int type,
-                                            int canvas_x, int canvas_y);
-void form_doc_auto_layout_reflow(form_doc_t *doc);  // Convenience wrapper for fe_layout_reflow
-bool canvas_drop_component(form_doc_t *doc, int type, int canvas_x, int canvas_y);
-bool canvas_drop_component_to_target(form_doc_t *doc, int type, window_t *target,
-                                     int screen_x, int screen_y);
+lresult_t editor_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_components_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_tool_palette_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_property_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_forms_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_plugins_browser_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_canvas_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t win_canvas_runtime_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+void canvas_rebuild_live_controls(window_t *doc);
+void canvas_set_component_drag_hover(window_t *doc, bool active, window_t *target);
+window_t *canvas_find_component_drop_target(window_t *doc, int type, int canvas_x, int canvas_y);
+bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target, int screen_x, int screen_y);
+bool canvas_bind_database_field(window_t *doc, const fe_database_field_ref_t *field,
+                                int screen_x, int screen_y);
 void formeditor_rebuild_tool_palette(void);
 window_t *formeditor_create_components_palette(hinstance_t hinstance);
 window_t *formeditor_create_legacy_toolpalette(hinstance_t hinstance);
 window_t *property_browser_create(hinstance_t hinstance);
-void property_browser_refresh(form_doc_t *doc);
+void property_browser_refresh(window_t *doc);
 window_t *forms_browser_create(hinstance_t hinstance);
 void forms_browser_refresh(void);
 window_t *plugins_browser_create(hinstance_t hinstance);
 void plugins_browser_refresh(void);
-window_t *create_database_browser(const irect16_t *frame, window_t *parent);
-void databases_browser_refresh(void);
+void formeditor_show_database_object_window(int db_index);
+void formeditor_close_database_object_window(void);
 
 // ============================================================
-// Document helpers — declared in fe_project.h
+// Document model helpers
 // ============================================================
 
-// ============================================================
-// Project I/O — declared in fe_project_io.h
-// ============================================================
+void fe_doc_mark_modified(window_t *doc);
+bool fe_doc_drop_create_component(int component_id, window_t *parent_target);
+
+void fe_error_set(char *error, size_t error_sz, const char *message);
+bool fe_resolve_table_column_database_field(xmlNodePtr table_node,
+    const fe_database_field_ref_t *field, char *field_expr, size_t field_expr_sz,
+    char *title, size_t title_sz, char *error, size_t error_sz);
+xmlNodePtr fe_project_table_node_for_window(window_t *doc, window_t *target);
+bool fe_project_update_table_column_binding(window_t *doc, window_t *table,
+    int column, const char *field_expr, const char *title);
+bool fe_project_append_component_node(window_t *doc, window_t *parent_target, window_t *child, const char *class_name);
 
 // ============================================================
-// Menu dispatch — declared in fe_commands.h
+// Layout / project / runtime form APIs
 // ============================================================
+
+window_t *create_form_doc(int w, int h);
+void        close_form_doc(window_t *doc);
+void form_doc_update_title(window_t *doc);
+void form_doc_activate(window_t *doc);
+void form_doc_show_only(window_t *doc);
+irect16_t form_doc_frame_for_size(int form_w, int form_h, uint32_t form_flags);
+
+bool fe_project_load(const char *path);
+bool fe_project_save(const char *path);
+void fe_project_clear_xml(void);
+void fe_project_clear_doc_xml(window_t *doc);
+
+window_t *fe_create_runtime_form_window(window_t *doc, window_t *parent, winproc_t proc);
+
+// ============================================================
+// Notifications API
+// ============================================================
+
+int fe_subscribe(fe_observer_fn_t callback, void *ctx);
+void fe_unsubscribe(int subscription_id);
+void fe_notify(fe_event_type_t event, window_t *doc);
+
+// ============================================================
+// Menu dispatch
+// ============================================================
+
+void handle_menu_command(uint16_t id);
 
 extern menu_def_t  kMenus[];
 extern const int   kNumMenus;
@@ -338,8 +401,7 @@ extern const int   kNumMenus;
 // ============================================================
 
 void show_about_dialog(window_t *parent);
-bool show_props_dialog(window_t *parent, form_element_t *el);
-void show_grid_settings_dialog(window_t *parent, form_doc_t *doc);
-bool show_form_props_dialog(window_t *parent, form_doc_t *doc);
+void show_grid_settings_dialog(window_t *parent, window_t *doc);
+bool show_form_props_dialog(window_t *parent, window_t *doc);
 
 #endif // __FORMEDITOR_H__
