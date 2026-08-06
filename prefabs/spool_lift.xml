@@ -1,9 +1,0 @@
-<!-- spool_lift: footprint 1.45x1.55, baseline y=0, climbs toward -Z. -->
-<prefab>
-  <prefab source="spool" pos="0 0 0" color="0.43 0.25 0.12">
-    <array count="5" translation="-0.18 0.22 -0.30"/>
-  </prefab>
-  <box pos="-0.35 0.48 -0.26" size="0.13 0.90 0.13" color="0.20 0.21 0.24" shininess="50"/>
-  <torus pos="-0.35 0.84 -0.26" rot="90 0 0" majorRadius="0.13" minorRadius="0.025" color="0.20 0.21 0.24" shininess="50"/>
-  <cylinder pos="-0.35 0.48 -0.26" radius="0.04" height="0.96" color="0.62 0.28 0.10" shininess="48"/>
-</prefab>

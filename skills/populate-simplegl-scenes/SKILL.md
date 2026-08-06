@@ -26,6 +26,11 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 9. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
 10. Correct every invariant violation found through coordinate calculations, XML validation, scene loading, or tests.
 
+Declare scene-wide ambient light and background only as attributes on the root
+element: `<scene ambient="r g b" background="preset-or-rgb">`. Never emit
+`<ambient>` or `<background>` child elements. The XML parser accepts those
+unknown nodes but ignores them, silently falling back to its defaults.
+
 ## Spatial invariants
 
 - Treat `pos`, `rot`, and `scale` as transforms in the parent group's coordinate frame.
@@ -61,12 +66,15 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 
 ```sh
 xmllint --noout scenes/scene.xml
+xmllint --xpath 'count(/scene/ambient | /scene/background)' scenes/scene.xml
 make
 make test
 ./build/bin/simplegl scenes/scene.xml -list-cameras
 ```
 
-Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.xml`. Treat parser errors, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Do not render screenshots or perform visual inspection as part of validation.
+Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.xml`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Do not render screenshots or perform visual inspection as part of validation.
+The XPath count must print `0`; any other value means scene-wide settings were
+written as ignored child elements instead of root attributes.
 
 ## Prefab rules
 

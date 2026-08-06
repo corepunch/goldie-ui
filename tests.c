@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 #include "simplegl.h"
 
 static int failures = 0;
@@ -187,6 +188,33 @@ int main(void){
     }
 
 	fprintf(stderr,"\n=== Prefab Tests ===\n");
+
+	{
+		char path[128]; snprintf(path,sizeof(path),"/tmp/simplegl-unknown-%ld.xml",(long)getpid());
+		FILE *fixture=fopen(path,"w");
+		CHECK(fixture!=NULL,"could not create unknown-element fixture");
+		if(fixture){
+			fputs("<scene><ambient/><box><mystery/></box></scene>",fixture);
+			fclose(fixture);
+			FILE *capture=tmpfile();
+			int saved=dup(fileno(stderr));
+			CHECK(capture!=NULL && saved>=0,"could not capture unknown-element warnings");
+			if(capture && saved>=0){
+				fflush(stderr); dup2(fileno(capture),fileno(stderr));
+				Scene s={0}; load_scene(path,&s); scene_free(&s);
+				fflush(stderr); dup2(saved,fileno(stderr)); close(saved);
+				rewind(capture);
+				char warnings[1024]={0}; fread(warnings,1,sizeof(warnings)-1,capture);
+				CHECK(strstr(warnings,"unsupported XML element <ambient> in <scene>")!=NULL,
+				      "unknown top-level element did not warn");
+				CHECK(strstr(warnings,"unsupported XML element <mystery> in <box>")!=NULL,
+				      "unknown shape child did not warn");
+				PASS("unknown XML elements report their parent context");
+			}
+			if(capture) fclose(capture);
+			unlink(path);
+		}
+	}
 
 	{
 		Scene s={0};

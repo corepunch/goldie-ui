@@ -158,6 +158,7 @@ void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, 
 /* ---------------------------------------------------- Modifiers ---------- */
 
 static char* read_file(const char*path);
+static void warn_unknown_elements(XmlNode *root, const char *path, int prefab);
 
 typedef void (*modifier_parser_fn)(Mesh *m, XmlNode *n);
 
@@ -243,18 +244,37 @@ static void add_cross_lines(Scene *s, vec3 center, float radius, vec3 normal, ve
 }
 
 static void add_character_dummy(Scene *s, vec3 pos, CharDef *cd, vec3 color){
-	vec3 top=v3(pos.x,pos.y+cd->height,pos.z);
-	scene_add_overlay_line(s,pos,top,color,0);
 	float h=cd->height, r=cd->radius;
+	float yHead=pos.y+cd->top*h;
+	float yNeck=pos.y+cd->neck*h;
+	float yPelvis=pos.y+cd->pelvis*h;
+	float yFeet=pos.y+cd->feet*h;
+	float shoulderW=r*1.8f;
+	float hipW=r*1.3f;
 	vec3 up=v3(0,1,0);
-	add_circle_lines(s,v3(pos.x,pos.y+cd->top*h,pos.z),r,up,color,16,0);
-	add_cross_lines(s,v3(pos.x,pos.y+cd->top*h,pos.z),r,up,color,0);
-	add_circle_lines(s,v3(pos.x,pos.y+cd->neck*h,pos.z),r,up,color,16,0);
-	add_cross_lines(s,v3(pos.x,pos.y+cd->neck*h,pos.z),r,up,color,0);
-	add_circle_lines(s,v3(pos.x,pos.y+cd->pelvis*h,pos.z),r,up,color,16,0);
-	add_cross_lines(s,v3(pos.x,pos.y+cd->pelvis*h,pos.z),r,up,color,0);
-	add_circle_lines(s,v3(pos.x,pos.y+cd->feet*h,pos.z),r,up,color,16,0);
-	add_cross_lines(s,v3(pos.x,pos.y+cd->feet*h,pos.z),r,up,color,0);
+	vec3 head=v3(pos.x,yHead,pos.z);
+	vec3 neck=v3(pos.x,yNeck,pos.z);
+	vec3 pelvis=v3(pos.x,yPelvis,pos.z);
+	vec3 feet=v3(pos.x,yFeet,pos.z);
+	vec3 shoulderL=v3(pos.x-shoulderW,yNeck,pos.z);
+	vec3 shoulderR=v3(pos.x+shoulderW,yNeck,pos.z);
+	vec3 hipL=v3(pos.x-hipW,yPelvis,pos.z);
+	vec3 hipR=v3(pos.x+hipW,yPelvis,pos.z);
+	vec3 legSplit=v3(pos.x,yPelvis-r*0.2f,pos.z);
+	scene_add_overlay_line(s,feet,head,color,0);
+	scene_add_overlay_line(s,shoulderL,shoulderR,color,0);
+	scene_add_overlay_line(s,hipL,hipR,color,0);
+	scene_add_overlay_line(s,shoulderL,hipL,color,0);
+	scene_add_overlay_line(s,shoulderR,hipR,color,0);
+	scene_add_overlay_line(s,neck,pelvis,color,0);
+	scene_add_overlay_line(s,legSplit,hipL,color,0);
+	scene_add_overlay_line(s,legSplit,hipR,color,0);
+	add_circle_lines(s,head,r,up,color,16,0);
+	add_cross_lines(s,head,r,up,color,0);
+	add_circle_lines(s,neck,r*0.55f,up,color,16,0);
+	add_circle_lines(s,pelvis,r*0.85f,up,color,16,0);
+	add_cross_lines(s,pelvis,r*0.85f,up,color,0);
+	add_circle_lines(s,feet,r*0.65f,up,color,16,0);
 }
 
 static void add_lamp_dummy(Scene *s, vec3 pos, float radius, vec3 color, int category){
@@ -449,6 +469,7 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 	XmlNode *root=xml_parse(buf);
 	free(buf);
 	if(!root) return NULL;
+	warn_unknown_elements(root,path,1);
 	PrefabDef pd; memset(&pd,0,sizeof(pd)); strncpy(pd.ref,name,31); pd.root=root;
 	for(int i=0;i<root->nkids;i++){
 		if(!strcmp(root->kids[i]->tag,"attach")){
@@ -691,6 +712,57 @@ static const struct {
 	{ "chardef",    parse_chardef_tag },
 };
 
+static int has_shape_parser(const char *tag){
+	for(int i=0;i<(int)(sizeof(shape_parsers)/sizeof(shape_parsers[0]));i++)
+		if(!strcmp(tag,shape_parsers[i].tag)) return 1;
+	return 0;
+}
+
+static int has_scene_parser(const char *tag){
+	for(int i=0;i<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));i++)
+		if(!strcmp(tag,scene_tags[i].tag)) return 1;
+	return 0;
+}
+
+static int has_modifier_parser(const char *tag){
+	for(int i=0;i<(int)(sizeof(modifier_parsers)/sizeof(modifier_parsers[0]));i++)
+		if(!strcmp(tag,modifier_parsers[i].tag)) return 1;
+	return 0;
+}
+
+static void warn_unsupported_tree(XmlNode *n, const char *path, const char *parent){
+	fprintf(stderr,"warning: %s: unsupported XML element <%s> in <%s>\n",path,n->tag,parent);
+	for(int i=0;i<n->nkids;i++) warn_unsupported_tree(n->kids[i],path,n->tag);
+}
+
+static void warn_unknown_children(XmlNode *parent, const char *path, int root, int prefab){
+	for(int i=0;i<parent->nkids;i++){
+		XmlNode *n=parent->kids[i];
+		int supported=0;
+		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") ||
+			(prefab ? !strcmp(n->tag,"attach") : has_scene_parser(n->tag));
+		else if(!strcmp(parent->tag,"group"))
+			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box");
+		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
+		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
+		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
+		if(!supported){
+			warn_unsupported_tree(n,path,parent->tag);
+			continue;
+		}
+		warn_unknown_children(n,path,0,prefab);
+	}
+}
+
+static void warn_unknown_elements(XmlNode *root, const char *path, int prefab){
+	const char *expected=prefab?"prefab":"scene";
+	if(strcmp(root->tag,expected)){
+		warn_unsupported_tree(root,path,"document");
+		return;
+	}
+	warn_unknown_children(root,path,1,prefab);
+}
+
 /* --------------------------------------------------------------- IO & load */
 
 static char* read_file(const char*path){
@@ -709,6 +781,7 @@ int load_scene(const char *path, Scene *s){
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
 	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }
+	warn_unknown_elements(root,path,0);
 
 	s->ambient = xml_attr_v3(root,"ambient",s->ambient);
 	{

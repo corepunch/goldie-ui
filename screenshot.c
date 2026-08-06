@@ -1,5 +1,6 @@
 #define GL_SILENCE_DEPRECATION
 #define GL_GLEXT_PROTOTYPES 1
+#include <ApplicationServices/ApplicationServices.h>
 #include <SDL2/SDL.h>
 #include <OpenGL/gl.h>
 #include <stdio.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "simplegl.h"
+#include "shader.h"
 
 static int write_ppm(const char *path, unsigned char *pixels, int w, int h){
 	FILE *f = fopen(path, "wb");
@@ -16,6 +18,51 @@ static int write_ppm(const char *path, unsigned char *pixels, int w, int h){
 		fwrite(pixels + y*w*3, 3, (size_t)w, f);
 	fclose(f);
 	return 1;
+}
+
+static int write_png(const char *path, unsigned char *pixels, int w, int h){
+	unsigned char *rgba = malloc((size_t)w * (size_t)h * 4);
+	if(!rgba) return fprintf(stderr, "out of memory writing %s\n", path), 0;
+	for(int y = 0; y < h; y++){
+		unsigned char *dst = rgba + (size_t)y * (size_t)w * 4;
+		unsigned char *src = pixels + (size_t)(h - 1 - y) * (size_t)w * 3;
+		for(int x = 0; x < w; x++){
+			dst[x*4+0] = src[x*3+0];
+			dst[x*4+1] = src[x*3+1];
+			dst[x*4+2] = src[x*3+2];
+			dst[x*4+3] = 255;
+		}
+	}
+	CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8*)path, (CFIndex)strlen(path), 0);
+	CFDataRef data = url ? CFDataCreate(NULL, rgba, (CFIndex)((size_t)w * (size_t)h * 4)) : NULL;
+	CGDataProviderRef provider = data ? CGDataProviderCreateWithCFData(data) : NULL;
+	CGColorSpaceRef cs = provider ? CGColorSpaceCreateDeviceRGB() : NULL;
+	CGImageRef img = cs ? CGImageCreate(w, h, 8, 32, (size_t)w * 4, cs,
+		kCGImageAlphaLast | kCGBitmapByteOrderDefault, provider, NULL, 0, kCGRenderingIntentDefault) : NULL;
+	CGImageDestinationRef dest = img ? CGImageDestinationCreateWithURL(url, CFSTR("public.png"), 1, NULL) : NULL;
+	int ok = 0;
+	if(dest){
+		CGImageDestinationAddImage(dest, img, NULL);
+		ok = CGImageDestinationFinalize(dest);
+	}
+	if(!ok) fprintf(stderr, "cannot write %s\n", path);
+	if(dest) CFRelease(dest);
+	if(img) CGImageRelease(img);
+	if(cs) CGColorSpaceRelease(cs);
+	if(provider) CGDataProviderRelease(provider);
+	if(data) CFRelease(data);
+	if(url) CFRelease(url);
+	free(rgba);
+	return ok;
+}
+
+static int has_ext(const char *path, const char *ext){
+	size_t n = strlen(path), m = strlen(ext);
+	return n >= m && !strcmp(path + n - m, ext);
+}
+
+static int write_image(const char *path, unsigned char *pixels, int w, int h){
+	return has_ext(path, ".ppm") ? write_ppm(path, pixels, w, h) : write_png(path, pixels, w, h);
 }
 
 static void strip_ext(char *dst, const char *path, size_t dstsz){
@@ -42,7 +89,7 @@ int main(int argc, char **argv){
 	const char *outPath = NULL;
 	const char *camName = NULL;
 	int allCameras = 0;
-	int W = 1280, H = 800;
+	int W = 1024, H = 768;
 	int debugMode = DBG_HIDE_LIGHTS;
 
 	for(int i = 1; i < argc; i++){
@@ -78,6 +125,7 @@ int main(int argc, char **argv){
 	if(!win){ fprintf(stderr, "CreateWindow: %s\n", SDL_GetError()); return 1; }
 	SDL_GLContext ctx = SDL_GL_CreateContext(win);
 	if(!ctx){ fprintf(stderr, "GL_CreateContext: %s\n", SDL_GetError()); return 1; }
+	shader_init();
 
 	unsigned char *pixels = malloc((size_t)(W * H * 3));
 	char outDir[256];
@@ -103,20 +151,20 @@ int main(int argc, char **argv){
 		vec3 fwd = vnorm(vsub(scene.camLook, scene.camPos));
 		mat4 view = mat4_lookat(scene.camPos, vadd(scene.camPos, fwd), v3(0,1,0));
 
-		render_frame(&scene, W, H, proj, view, debugMode);
+		render_frame(&scene, W, H, proj, view, scene.camPos, debugMode);
 		glFinish();
 
 		glReadPixels(0, 0, W, H, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
 		char filePath[512];
 		if(allCameras)
-			snprintf(filePath, sizeof(filePath), "%s/%s.ppm", outDir, scene.cameras[ci].name);
+			snprintf(filePath, sizeof(filePath), "%s/%s.png", outDir, scene.cameras[ci].name);
 		else if(outPath)
 			snprintf(filePath, sizeof(filePath), "%s", outPath);
 		else
-			snprintf(filePath, sizeof(filePath), "screenshots/render.ppm");
+			snprintf(filePath, sizeof(filePath), "screenshots/render.png");
 
-		write_ppm(filePath, pixels, W, H);
+		write_image(filePath, pixels, W, H);
 		fprintf(stderr, "wrote %s (%dx%d)\n", filePath, W, H);
 	}
 

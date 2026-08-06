@@ -19,7 +19,23 @@ SimpleGL reads scenes from XML files. The root node is `<scene>`, which accepts 
 
 ## Scene root attributes
 
-The `<scene>` element accepts `ambient` and `background` attributes. These are not child elements.
+The `<scene>` element accepts `ambient` and `background` attributes. These are
+not child elements. Never write `<ambient color="..."/>` or
+`<background id="..."/>`; the parser ignores those nodes without reporting an
+error and uses its defaults instead.
+
+```xml
+<!-- correct -->
+<scene ambient="0.10 0.10 0.13" background="midnight">
+```
+
+```xml
+<!-- wrong: both nodes are silently ignored -->
+<scene>
+  <ambient color="0.10 0.10 0.13"/>
+  <background id="midnight"/>
+</scene>
+```
 
 ### `ambient` (attribute of `<scene>`)
 

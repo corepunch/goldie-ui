@@ -1,11 +1,11 @@
 CC      ?= cc
 CFLAGS  ?= -O2 -Wall -Wextra -std=c11 $(shell pkg-config --cflags sdl2)
-LIBS    ?= $(shell pkg-config --libs sdl2) -framework OpenGL -lm
+LIBS    ?= $(shell pkg-config --libs sdl2) -framework OpenGL -framework ApplicationServices -lm
 
 BINDIR  = build/bin
 OBJDIR  = build/obj
 
-SRCS = main.c math.c mesh.c scene.c shadow.c render.c
+SRCS = main.c math.c mesh.c scene.c shadow.c render.c shader.c
 OBJS = $(addprefix $(OBJDIR)/, $(SRCS:.c=.o))
 
 simplegl: $(OBJS) | $(BINDIR)
@@ -20,14 +20,14 @@ $(BINDIR):
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
-screenshot: screenshot.c math.c mesh.c scene.c shadow.c render.c simplegl.h | $(BINDIR)
-	$(CC) $(CFLAGS) -o $(BINDIR)/$@ screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
+screenshot: screenshot.c math.c mesh.c scene.c shadow.c render.c shader.c simplegl.h | $(BINDIR)
+	$(CC) $(CFLAGS) -o $(BINDIR)/$@ screenshot.c math.c mesh.c scene.c shadow.c render.c shader.c $(LIBS)
 
 zpass: simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/simplegl-zpass $(SRCS) $(LIBS)
 
 screenshot-zpass: simplegl.h | $(BINDIR)
-	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/screenshot-zpass screenshot.c math.c mesh.c scene.c shadow.c render.c $(LIBS)
+	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/screenshot-zpass screenshot.c math.c mesh.c scene.c shadow.c render.c shader.c $(LIBS)
 
 tests-zpass: simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -DUSE_ZPASS -o $(BINDIR)/tests-zpass tests.c math.c mesh.c shadow.c scene.c $(LIBS)

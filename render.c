@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "simplegl.h"
+#include "shader.h"
 
 #ifndef USE_ZPASS
 static int extension_present(const char *name){
@@ -61,27 +62,13 @@ static void draw_mesh_flat(Mesh *m, vec3 color){
     }
     glEnd();
 }
-static void draw_mesh_lit(Mesh *m, vec3 color, float shininess){
-    glColor3f(color.x,color.y,color.z);
-    GLfloat spec[4]={0.25f,0.25f,0.25f,1.0f};
-    glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,spec);
-    glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,shininess);
-    glBegin(GL_TRIANGLES);
-    for(int i=0;i<m->ntris;i++){
-        Tri t=m->tris[i];
-        glNormal3fv(&m->verts[t.a].nrm.x); glVertex3fv(&m->verts[t.a].pos.x);
-        glNormal3fv(&m->verts[t.b].nrm.x); glVertex3fv(&m->verts[t.b].pos.x);
-        glNormal3fv(&m->verts[t.c].nrm.x); glVertex3fv(&m->verts[t.c].pos.x);
-    }
-    glEnd();
-}
 static void draw_shadow_volume(ShadowVolume *sv){
     glBegin(GL_TRIANGLES);
     for(int i=0;i<sv->nverts;i++) glVertex4fv(&sv->verts[i].x);
     glEnd();
 }
 
-void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int flags){
+void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int flags){
     glViewport(0,0,w,h);
     glClearColor(s->bg.x,s->bg.y,s->bg.z,1.0f);
     glClearStencil(0);
@@ -98,36 +85,15 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int flags){
         draw_mesh_flat(&s->objs[i].mesh, s->objs[i].unlit ? s->objs[i].color
                                                          : vmul(s->objs[i].color, s->ambient));
 
-    /* Pass 2+3: Per-light shadow volume + lit pass */
-    glEnable(GL_LIGHTING); glEnable(GL_LIGHT0);
-    glEnable(GL_COLOR_MATERIAL); glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
-    GLfloat zero[4]={0,0,0,1};
-    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, zero);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, zero);
+    /* Per-light pass: shadow volume + PBR lit */
+    mat4 viewProj = mat4_mul(proj, view);
+    shader_bind();
+    shader_set_viewproj(viewProj);
+    shader_set_camera_pos(camPos);
 
     for(int li=0; li<s->nlights; li++){
         Light *L=&s->lights[li];
-        GLfloat lp[4];
-        if(L->isDirectional){
-            vec3 toSource=light_to_source(L,v3(0,0,0));
-            lp[0]=toSource.x; lp[1]=toSource.y; lp[2]=toSource.z; lp[3]=0.0f;
-        } else {
-            lp[0]=L->pos.x; lp[1]=L->pos.y; lp[2]=L->pos.z; lp[3]=1.0f;
-        }
-		GLfloat lc[4]={L->color.x*L->intensity, L->color.y*L->intensity, L->color.z*L->intensity, 1.0f};
-		glLightfv(GL_LIGHT0, GL_POSITION, lp);
-		glLightfv(GL_LIGHT0, GL_DIFFUSE, lc);
-		glLightfv(GL_LIGHT0, GL_SPECULAR, lc);
-		if(!L->isDirectional && L->radius > 0.0f){
-			float r=L->radius;
-			glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0f);
-			glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 2.0f/r);
-			glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 1.0f/(r*r));
-		} else {
-			glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION, 1.0f);
-			glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.0f);
-			glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0f);
-		}
+        shader_set_light(L);
 
         int drawShadows=!(flags&DBG_NO_SHADOWS) && L->castsShadow && s->svols[li].nverts>0;
 #ifndef USE_ZPASS
@@ -135,6 +101,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int flags){
 #endif
         if(drawShadows){
             glClear(GL_STENCIL_BUFFER_BIT);
+            shader_unbind();
             glDisable(GL_LIGHTING);
             glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
             glDepthMask(GL_FALSE);
@@ -161,31 +128,37 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int flags){
                 glEnable(GL_STENCIL_TEST);
             }
 
-            /* Pass 3: Lit — draw where stencil==0 (not in shadow) */
+            /* Lit via PBR shader where stencil==0 */
+            shader_bind();
             glEnable(GL_CULL_FACE);
             glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
             glStencilFunc(GL_EQUAL,0,0xFF);
             glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
             glDepthFunc(GL_LEQUAL);
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
-            glEnable(GL_LIGHTING);
-            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit)
-                draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess);
+            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit){
+                shader_set_material(s->objs[i].color, s->objs[i].shininess);
+                shader_draw_mesh(&s->objs[i].mesh);
+            }
             glDisable(GL_BLEND);
             glDisable(GL_STENCIL_TEST);
             glDepthFunc(GL_LESS);
         } else {
             glDepthFunc(GL_LEQUAL);
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
-            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit)
-                draw_mesh_lit(&s->objs[i].mesh, s->objs[i].color, s->objs[i].shininess);
+            for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit){
+                shader_set_material(s->objs[i].color, s->objs[i].shininess);
+                shader_draw_mesh(&s->objs[i].mesh);
+            }
             glDisable(GL_BLEND);
             glDepthFunc(GL_LESS);
         }
     }
+
+    shader_unbind();
     glDepthMask(GL_TRUE);
 
-    /* Pass 4: overlay lines — drawn on top of everything */
+    /* Pass 4: overlay lines */
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
     glDisable(GL_STENCIL_TEST);

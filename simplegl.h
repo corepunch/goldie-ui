@@ -116,6 +116,6 @@ void scene_build_all_shadow_volumes(Scene *s);
 #define DBG_HIDE_LIGHTS     (1 << 3)
 #define DBG_HIDE_CHARS      (1 << 4)
 
-void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,int debugFlags);
+void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,vec3 camPos,int debugFlags);
 
 #endif

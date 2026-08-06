@@ -4,6 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include "simplegl.h"
+#include "shader.h"
 
 #define MOUSE_SENSITIVITY 0.25f
 #define MOVE_SPEED 3.25f
@@ -55,6 +56,7 @@ int main(int argc,char**argv){
     if(!win){ fprintf(stderr,"CreateWindow: %s\n",SDL_GetError()); return 1; }
     SDL_GLContext ctx=SDL_GL_CreateContext(win);
     if(!ctx){ fprintf(stderr,"GL_CreateContext: %s\n",SDL_GetError()); return 1; }
+    shader_init();
     SDL_GL_SetSwapInterval(1);
 
     vec3 fwd=vnorm(vsub(scene.camLook,scene.camPos));
@@ -110,11 +112,12 @@ int main(int argc,char**argv){
 
         mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
         mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));
-        render_frame(&scene, W,H, proj, view, debugFlags);
+        render_frame(&scene, W,H, proj, view, pos, debugFlags);
 
         SDL_GL_SwapWindow(win);
     }
 
+    shader_deinit();
     SDL_GL_DeleteContext(ctx);
     SDL_DestroyWindow(win);
     SDL_Quit();
