@@ -131,8 +131,13 @@ int main(int argc, char **argv){
 	char outDir[256];
 
 	if(allCameras){
-		if(outPath) snprintf(outDir, sizeof(outDir), "%s", outPath);
-		else strip_ext(outDir, scenePath, sizeof(outDir));
+		if(outPath){
+			snprintf(outDir, sizeof(outDir), "%s", outPath);
+		} else {
+			char name[64];
+			strip_ext(name, scenePath, sizeof(name));
+			snprintf(outDir, sizeof(outDir), "screenshots/%s", name);
+		}
 		mkdir_p(outDir);
 	}
 

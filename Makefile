@@ -48,7 +48,7 @@ tests: tests.c math.c mesh.c shadow.c scene.c simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ tests.c math.c mesh.c shadow.c scene.c $(LIBS)
 
 render-scene: screenshot
-	./$(BINDIR)/screenshot scenes/books/wondertown/workshop.xml -all -o screenshots/workshop
+	./$(BINDIR)/screenshot scenes/books/wondertown/workshop.xml -all
 
 render-shrine: screenshot
 	./$(BINDIR)/screenshot scenes/eclipse_shrine.xml -all
