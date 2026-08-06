@@ -47,7 +47,13 @@ test: simplegl tests
 tests: tests.c math.c mesh.c shadow.c scene.c simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ tests.c math.c mesh.c shadow.c scene.c $(LIBS)
 
+render-scene: screenshot
+	./$(BINDIR)/screenshot scenes/books/wondertown/workshop.xml -all -o screenshots/workshop
+
+render-shrine: screenshot
+	./$(BINDIR)/screenshot scenes/eclipse_shrine.xml -all
+
 clean:
 	rm -rf build
 
-.PHONY: run test zpass screenshot-zpass tests-zpass test-zpass run-zpass clean
+.PHONY: run test zpass screenshot-zpass tests-zpass test-zpass run-zpass clean render-scene render-shrine

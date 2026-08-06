@@ -121,7 +121,7 @@ void scene_free(Scene *s){
 	for(int i=0;i<s->nprefabs;i++) free(s->prefabs[i].attaches);
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->overlayLines); free(s->charDefs);
 	memset(s,0,sizeof(*s));
 }
 
@@ -206,6 +206,80 @@ static void apply_modifiers(Mesh *m, XmlNode *n){
 			}
 		}
 	}
+}
+
+/* ---------------------------------------------------- Overlay lines ------- */
+
+static void scene_add_overlay_line(Scene *s, vec3 start, vec3 end, vec3 color, int category){
+	OverlayLine ol={start,end,color,category};
+	DA_PUSH(s->overlayLines,s->noverlayLines,s->coverlayLines,ol);
+}
+
+static void add_circle_lines(Scene *s, vec3 center, float radius, vec3 normal, vec3 color, int n, int category){
+	vec3 u,v;
+	if(fabsf(normal.x)>0.001f||fabsf(normal.z)>0.001f)
+		u=vnorm(v3(-normal.z,0,normal.x));
+	else
+		u=vnorm(v3(1,0,0));
+	v=vnorm(vcross(normal,u));
+	vec3 prev=vadd(center,vscale(u,radius));
+	for(int i=1;i<=n;i++){
+		float angle=2.0f*M_PIf*(float)i/(float)n;
+		vec3 next=vadd(center,vadd(vscale(u,radius*cosf(angle)),vscale(v,radius*sinf(angle))));
+		scene_add_overlay_line(s,prev,next,color,category);
+		prev=next;
+	}
+}
+
+static void add_cross_lines(Scene *s, vec3 center, float radius, vec3 normal, vec3 color, int category){
+	vec3 u,v;
+	if(fabsf(normal.x)>0.001f||fabsf(normal.z)>0.001f)
+		u=vnorm(v3(-normal.z,0,normal.x));
+	else
+		u=vnorm(v3(1,0,0));
+	v=vnorm(vcross(normal,u));
+	scene_add_overlay_line(s,vadd(center,vscale(u,radius)),vadd(center,vscale(u,-radius)),color,category);
+	scene_add_overlay_line(s,vadd(center,vscale(v,radius)),vadd(center,vscale(v,-radius)),color,category);
+}
+
+static void add_character_dummy(Scene *s, vec3 pos, CharDef *cd, vec3 color){
+	vec3 top=v3(pos.x,pos.y+cd->height,pos.z);
+	scene_add_overlay_line(s,pos,top,color,0);
+	float h=cd->height, r=cd->radius;
+	vec3 up=v3(0,1,0);
+	add_circle_lines(s,v3(pos.x,pos.y+cd->top*h,pos.z),r,up,color,16,0);
+	add_cross_lines(s,v3(pos.x,pos.y+cd->top*h,pos.z),r,up,color,0);
+	add_circle_lines(s,v3(pos.x,pos.y+cd->neck*h,pos.z),r,up,color,16,0);
+	add_cross_lines(s,v3(pos.x,pos.y+cd->neck*h,pos.z),r,up,color,0);
+	add_circle_lines(s,v3(pos.x,pos.y+cd->pelvis*h,pos.z),r,up,color,16,0);
+	add_cross_lines(s,v3(pos.x,pos.y+cd->pelvis*h,pos.z),r,up,color,0);
+	add_circle_lines(s,v3(pos.x,pos.y+cd->feet*h,pos.z),r,up,color,16,0);
+	add_cross_lines(s,v3(pos.x,pos.y+cd->feet*h,pos.z),r,up,color,0);
+}
+
+static void add_lamp_dummy(Scene *s, vec3 pos, float radius, vec3 color, int category){
+	add_circle_lines(s,pos,radius,v3(1,0,0),color,16,category);
+	add_circle_lines(s,pos,radius,v3(0,1,0),color,16,category);
+	add_circle_lines(s,pos,radius,v3(0,0,1),color,16,category);
+}
+
+static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, vec3 color, int category){
+	vec3 forward=vnorm(vsub(look,pos));
+	vec3 worldUp=v3(0,1,0);
+	vec3 right=vnorm(vcross(forward,worldUp));
+	vec3 up=vnorm(vcross(right,forward));
+	float dist=0.3f;
+	float hh=dist*tanf(fov*M_PIf/360.0f);
+	float hw=hh;
+	vec3 center=vadd(pos,vscale(forward,dist));
+	vec3 tl=vadd(center,vadd(vscale(up,hh),vscale(right,-hw)));
+	vec3 tr=vadd(center,vadd(vscale(up,hh),vscale(right,hw)));
+	vec3 bl=vadd(center,vadd(vscale(up,-hh),vscale(right,-hw)));
+	vec3 br=vadd(center,vadd(vscale(up,-hh),vscale(right,hw)));
+	scene_add_overlay_line(s,pos,tl,color,category); scene_add_overlay_line(s,pos,tr,color,category);
+	scene_add_overlay_line(s,pos,bl,color,category); scene_add_overlay_line(s,pos,br,color,category);
+	scene_add_overlay_line(s,tl,tr,color,category); scene_add_overlay_line(s,tr,br,color,category);
+	scene_add_overlay_line(s,br,bl,color,category); scene_add_overlay_line(s,bl,tl,color,category);
 }
 
 /* ---------------------------------------------------- Shape parsers ------- */
@@ -337,6 +411,34 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	free(op);
 }
 
+static void parse_line(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	vec3 lcolor=xml_attr_v3(n,"color",v3(0.85f,0.15f,0.15f));
+	scene_add_overlay_line(s,
+		mat4_xform_point(M,xml_attr_v3(n,"start",v3(0,0,0))),
+		mat4_xform_point(M,xml_attr_v3(n,"end",v3(0,1,0))),
+		lcolor, 0);
+}
+
+static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	vec3 worldPos=mat4_xform_point(M,v3(0,0,0));
+	vec3 lcolor=xml_attr_v3(n,"color",v3(0.85f,0.15f,0.15f));
+	const char *type=xml_attr(n,"type","character");
+	if(!strcmp(type,"character")){
+		const char *ref=xml_attr(n,"ref",NULL);
+		if(ref){
+			CharDef *cd=NULL;
+			for(int i=0;i<s->ncharDefs;i++) if(!strcmp(s->charDefs[i].name,ref)){ cd=&s->charDefs[i]; break; }
+			if(cd) add_character_dummy(s,worldPos,cd,lcolor);
+		}
+	} else if(!strcmp(type,"lamp")){
+		add_lamp_dummy(s,worldPos,xml_attr_f(n,"radius",0.15f),lcolor,1);
+	} else if(!strcmp(type,"camera")){
+		add_camera_dummy(s,worldPos,xml_attr_v3(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),lcolor,2);
+	}
+}
+
 static XmlNode* load_prefab(Scene *s, const char *name){
 	for(int i=0;i<s->nprefabs;i++)
 		if(!strcmp(s->prefabs[i].ref,name)) return (XmlNode*)s->prefabs[i].root;
@@ -394,7 +496,7 @@ static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec
 	if(name){
 		InstanceDef inst; memset(&inst,0,sizeof(inst));
 		strncpy(inst.name,name,31); strncpy(inst.ref,source,31);
-		inst.transform=M;
+		inst.transform=M; inst.rotMatrix=R;
 		DA_PUSH(s->instances,s->ninstances,s->cinstances,inst);
 	}
 	int oldTintActive=s->prefabTintActive;
@@ -434,6 +536,8 @@ static const struct {
 	{ "light",    parse_light },
 	{ "prefab",   parse_prefab },
 	{ "wall",     parse_wall },
+	{ "line",     parse_line },
+	{ "dummy",    parse_dummy },
 };
 
 static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
@@ -444,6 +548,7 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
 		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
 		const char *attach=xml_attr(n,"attach",NULL);
+		mat4 attachM=mat4_identity(), attachRmat=mat4_identity();
 		if(attach){
 			const char *colon=strchr(attach,':');
 			if(colon){
@@ -456,8 +561,9 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 						if(strcmp(s->prefabs[m].ref,s->instances[k].ref)) continue;
 						for(int p=0;p<s->prefabs[m].nattaches;p++){
 							if(strcmp(s->prefabs[m].attaches[p].name,slot)) continue;
-							pos=mat4_xform_point(s->instances[k].transform,
-								s->prefabs[m].attaches[p].pos);
+							attachM=mat4_mul(s->instances[k].transform,
+								mat4_translate(s->prefabs[m].attaches[p].pos));
+							attachRmat=s->instances[k].rotMatrix;
 							break;
 						}
 						break;
@@ -466,17 +572,17 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 				}
 			}
 		}
-		mat4 R = mat4_mul(parentR, mat4_rot_xyz(rot));
+		mat4 R = mat4_mul(parentR, mat4_mul(attachRmat, mat4_rot_xyz(rot)));
 		vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
 		mat4 M;
 		if(pvt.x!=0.0f||pvt.y!=0.0f||pvt.z!=0.0f){
 			mat4 Tp=mat4_translate(pvt);
 			mat4 Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
-			M=mat4_mul(parentM, mat4_mul(mat4_translate(pos),
-				mat4_mul(Tp, mat4_mul(mat4_rot_xyz(rot), mat4_mul(Tn, mat4_scale(scl))))));
+			M=mat4_mul(parentM, mat4_mul(attachM, mat4_mul(mat4_translate(pos),
+				mat4_mul(Tp, mat4_mul(mat4_rot_xyz(rot), mat4_mul(Tn, mat4_scale(scl)))))));
 		} else {
-			M=mat4_mul(parentM, mat4_mul(mat4_translate(pos),
-				mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl))));
+			M=mat4_mul(parentM, mat4_mul(attachM, mat4_mul(mat4_translate(pos),
+				mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl)))));
 		}
 		Material *mat = find_material(s, xml_attr(n,"material",NULL));
 		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
@@ -541,6 +647,18 @@ static void parse_sun_tag(Scene *s, XmlNode *n){
 	DA_PUSH(s->lights,s->nlights,s->clights,L);
 }
 
+static void parse_chardef_tag(Scene *s, XmlNode *n){
+	CharDef cd={0};
+	strncpy(cd.name,xml_attr(n,"name",""),31);
+	cd.height=xml_attr_f(n,"height",1.0f);
+	cd.radius=xml_attr_f(n,"radius",0.10f);
+	cd.top=xml_attr_f(n,"top",1.0f);
+	cd.neck=xml_attr_f(n,"neck",0.75f);
+	cd.pelvis=xml_attr_f(n,"pelvis",0.25f);
+	cd.feet=xml_attr_f(n,"feet",0.0f);
+	DA_PUSH(s->charDefs,s->ncharDefs,s->ccharDefs,cd);
+}
+
 vec3 light_to_source(Light *light, vec3 point){
 	return light->isDirectional ? vscale(light->dir,-1.0f) : vsub(light->pos,point);
 }
@@ -552,6 +670,7 @@ static const struct {
 	{ "camera",     parse_camera_tag },
 	{ "material",   parse_material_tag },
 	{ "sun",        parse_sun_tag },
+	{ "chardef",    parse_chardef_tag },
 };
 
 /* --------------------------------------------------------------- IO & load */
@@ -609,6 +728,18 @@ int load_scene(const char *path, Scene *s){
 	}
 
 	s->svols = calloc((size_t)s->nlights, sizeof(ShadowVolume));
+	int nlamp=0;
+	for(int li=0;li<s->nlights;li++){
+		if(!s->lights[li].isDirectional){
+			add_lamp_dummy(s,s->lights[li].pos,0.15f,v3(1.0f,0.7f,0.2f),1);
+			nlamp++;
+		}
+	}
+	for(int ci=0;ci<s->ncameras;ci++){
+		Camera *c=&s->cameras[ci];
+		add_camera_dummy(s,c->pos,c->look,c->fov,v3(0.2f,0.8f,0.2f),2);
+	}
+	fprintf(stderr,"overlay: %d lines (%d lamps, %d cameras)\n",s->noverlayLines,nlamp,s->ncameras);
 	return 1;
 }
 

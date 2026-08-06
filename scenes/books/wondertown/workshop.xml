@@ -1,15 +1,18 @@
-<scene ambient="0.10 0.08 0.085" background="noon">
-  <camera name="WorkshopEstablishing" comment="Wide floor geography; open text zone at upper left" pos="4.2 2.1 -0.4" look="-1.2 0.9 -6.8" fov="62"/>
-  <camera name="EmptyHookReveal" comment="Pip-scale reaction view toward the empty key hook" pos="-1.6 0.62 -4.9" look="0 1.65 -8.9" fov="38"/>
-  <camera name="ClimbWorkbenchAction" comment="Low diagonal action view up the main workbench leg" pos="-0.7 0.24 -5.7" look="-2.65 0.88 -7.35" fov="58"/>
-  <camera name="WorkbenchTopEstablishing" comment="New workbench-top scene; text zone at upper left" pos="-0.9 1.72 -5.85" look="-2.7 0.99 -7.4" fov="46"/>
-  <camera name="RepairBookCloseup" comment="Closed repair book and half-finished toy projects" pos="-1.55 1.34 -6.35" look="-2.72 0.99 -7.42" fov="32"/>
-  <camera name="OilCanCloseup" comment="Under-bench discovery of the copper oil can" pos="-1.25 0.28 -6.15" look="-2.62 0.17 -7.25" fov="34"/>
-  <camera name="ToolBenchEstablishing" comment="Bertrand blocking the route above the tool bench" pos="4.45 1.55 -4.65" look="2.55 0.88 -7.35" fov="48"/>
-  <camera name="WindBertrandAction" comment="Medium close action on Bertrand and winding key" pos="3.85 1.28 -6.05" look="2.58 1.03 -7.35" fov="33"/>
-  <camera name="SpoolLiftAction" comment="Low diagonal action view up the moving spool lift" pos="4.15 0.42 -5.15" look="3.05 1.45 -7.85" fov="56"/>
-  <camera name="CountertopEstablishing" comment="High destination view; open text zone at right" pos="1.15 1.82 -6.05" look="2.55 1.0 -7.4" fov="42"/>
+<scene>
+  <camera name="WorkshopEstablishing" comment="Wide floor geography; open text zone at upper left" pos="3.5 2.5 -0.5" look="-1 1 -4.5" fov="62"/>
+  <camera name="EmptyHookReveal" comment="Pip-scale reaction view toward the empty key hook" pos="-1.5 0.7 -5.5" look="0 1.65 -8.9" fov="38"/>
+  <camera name="ClimbWorkbenchAction" comment="Low diagonal action view up the main workbench leg" pos="-3.5 0.3 -4.5" look="-4.45 0.88 -4.5" fov="58"/>
+  <camera name="WorkbenchTopEstablishing" comment="New workbench-top scene; text zone at upper left" pos="-3.5 1.7 -4.5" look="-4.45 0.94 -4.5" fov="46"/>
+  <camera name="RepairBookCloseup" comment="Closed repair book and half-finished toy projects" pos="-3.8 1.3 -4.5" look="-4.45 0.94 -4.5" fov="32"/>
+  <camera name="OilCanCloseup" comment="Under-bench discovery of the copper oil can" pos="-3.8 0.3 -4.3" look="-4.3 0.12 -4.5" fov="34"/>
+  <camera name="ToolBenchEstablishing" comment="Bertrand blocking the route above the tool bench" pos="3.5 1.5 -2.5" look="4.45 0.88 -2.5" fov="48"/>
+  <camera name="WindBertrandAction" comment="Medium close action on Bertrand and winding key" pos="3.2 1.3 -2.3" look="4.45 0.94 -2.5" fov="33"/>
+  <camera name="SpoolLiftAction" comment="Low diagonal action view up the moving spool lift" pos="3.5 0.4 -5.0" look="3.7 1.4 -6.5" fov="56"/>
+  <camera name="CountertopEstablishing" comment="High destination view; open text zone at right" pos="3.0 1.8 -1.5" look="4.45 0.94 -2.5" fov="42"/>
   <camera name="LayoutPlan" comment="Overhead blocking reference from inside the closed workshop" pos="0 4.02 -4.5" look="0 0 -4.5" fov="100"/>
+
+  <ambient color="0.10 0.08 0.085"/>
+  <background id="midnight"/>
 
   <material id="plaster" color="0.34 0.30 0.27" shininess="3"/>
   <material id="wood" color="0.43 0.25 0.12" shininess="18"/>
@@ -24,10 +27,13 @@
   <material id="moon_glass" color="0.22 0.38 0.56" shininess="80"/>
   <material id="shadow" color="0.025 0.025 0.035" shininess="1"/>
 
-  <light pos="2.90 2.40 -8.72" color="0.32 0.48 0.82" intensity="2.5" radius="8" castShadows="0"/>
-  <sun dir="0.2 -0.707 0.707" color="1.0 0.95 0.85" intensity="2.0" castShadows="1"/>
+  <light pos="2.90 2.40 -8.72" color="0.32 0.48 0.82" intensity="0.38" castShadows="0"/>
+  <sun dir="-0.6 -1 1" color="0.34 0.48 0.82" intensity="0.82" castShadows="1"/>
 
-  <box pos="0 -0.06 -4.5" size="10 0.12 9" material="floor"/>
+  <chardef name="pip" height="0.50" radius="0.06" top="1.0" neck="0.75" pelvis="0.40" feet="0.0"/>
+  <chardef name="bertrand" height="0.90" radius="0.08" top="1.0" neck="0.75" pelvis="0.40" feet="0.0"/>
+
+  <box pos="0 -0.06 -4.5" size="10 0.12 9" material="floor" castShadow="0"/>
   <box pos="0 4.25 -4.5" size="10 0.10 9" material="plaster"/>
   <box pos="0 4.10 -1.5" size="10 0.20 0.18" material="dark_wood"/>
   <box pos="0 4.10 -4.5" size="10 0.20 0.18" material="dark_wood"/>
@@ -51,43 +57,7 @@
   <prefab source="key_hook" pos="0 1.7 -8.84"/>
   <prefab source="wall_clock" pos="1.62 2.25 -8.91"/>
 
-  <prefab source="workbench" name="main_bench" pos="-2.65 0 -7.35"/>
-  <prefab source="stool" pos="-2.55 0 -5.95"/>
-  <prefab source="workbench" name="tool_bench" pos="2.55 0 -7.35"/>
-  <prefab source="hanging_lamp" pos="-2.65 4.10 -7.20"/>
-  <prefab source="hanging_lamp" pos="2.55 4.10 -7.20" scale="0.82 0.82 0.82"/>
-
-  <group attach="main_bench:top_surface">
-    <prefab source="repair_book" pos="0.23 0 0" rot="0 -8 0" color="0.10 0.24 0.16"/>
-    <prefab source="toy_train" pos="-0.64 0 0.22" rot="0 -12 0" scale="0.72 0.72 0.72" color="0.54 0.09 0.06"/>
-    <prefab source="toy_boat" pos="-0.63 0 -0.23" rot="0 8 0" scale="0.68 0.68 0.68" color="0.08 0.30 0.46"/>
-    <prefab source="tool_caddy" pos="0.72 0 0.22" rot="0 6 0" scale="0.58 0.58 0.58" color="0.28 0.13 0.05"/>
-    <prefab source="mug" pos="0.76 0 -0.23" scale="0.62 0.62 0.62" color="0.22 0.40 0.42"/>
-    <prefab source="paper_notes" pos="-0.17 0 -0.31" rot="0 -14 0" scale="0.72 0.72 0.72"/>
-    <prefab source="shavings" pos="-0.31 0 0.28" scale="0.55 0.55 0.55"/>
-  </group>
-
-  <prefab source="oil_can" pos="-2.66 0 -7.12" rot="0 -12 0"/>
-  <prefab source="shavings" pos="-2.02 0 -6.65" rot="0 22 0" scale="0.72 0.72 0.72"/>
-
-  <group attach="tool_bench:top_surface">
-    <prefab source="nutcracker" pos="0.02 0 0.02" scale="0.74 0.74 0.74" color="0.54 0.07 0.05"/>
-    <prefab source="parts_tray" pos="-0.58 0 0.20" rot="0 -8 0" scale="0.72 0.72 0.72" color="0.26 0.13 0.05"/>
-    <prefab source="toy_train" pos="-0.58 0 -0.22" rot="0 12 0" scale="0.64 0.64 0.64" color="0.10 0.28 0.45"/>
-    <prefab source="tool_caddy" pos="0.58 0 0.20" scale="0.56 0.56 0.56" color="0.32 0.17 0.06"/>
-    <prefab source="mug" pos="0.62 0 -0.20" scale="0.60 0.60 0.60" color="0.48 0.22 0.08"/>
-    <prefab source="book" pos="0.31 0 -0.29" rot="0 -5 0" scale="0.58 0.58 0.58" color="0.36 0.08 0.10"/>
-  </group>
-
-  <prefab source="spool_lift" pos="3.72 0 -7.08"/>
-
-  <group pos="-0.95 0 -5.55">
-    <cylinder pos="0 0.13 0" radius="0.10" height="0.26" material="pip_blue"/>
-    <sphere pos="0 0.37 0" radius="0.12" material="paper"/>
-    <cone pos="0 0.53 0" radius="0.14" radiusTop="0.05" height="0.14" material="toy_red"/>
-  </group>
-
-  <group pos="-4.76 0.32 -5.10" rot="0 90 0">
+  <group pos="-4.76 0.32 -7.5" rot="0 90 0">
     <prefab source="shelf_unit"/>
     <prefab source="book" pos="0.70 0.06 -0.02" rot="0 -6 0" scale="0.68 0.68 0.68" color="0.55 0.08 0.06"/>
     <prefab source="book" pos="0.34 0.06 0.03" rot="0 4 0" scale="0.74 0.74 0.74" color="0.10 0.25 0.46"/>
@@ -100,15 +70,53 @@
     <prefab source="parts_tray" pos="-0.28 1.30 -0.01" rot="0 7 0" scale="0.72 0.72 0.72" color="0.30 0.16 0.06"/>
   </group>
 
-  <prefab source="sawhorse" pos="0.15 0 -6.20" rot="0 -8 0"/>
-  <box pos="0.15 0.86 -6.20" rot="0 8 0" size="1.55 0.10 0.24" material="wood"/>
-  <prefab source="paper_notes" pos="0.30 0.91 -6.12" rot="0 -12 0" scale="0.72 0.72 0.72"/>
-  <prefab source="shavings" pos="0.45 0 -5.74" rot="0 -18 0" scale="0.82 0.82 0.82"/>
+  <prefab source="workbench" name="main_bench" pos="-4.45 0 -4.5" rot="0 90 0"/>
+  <prefab source="stool" pos="-3.2 0 -4.35" rot="0 8 0"/>
+  <prefab source="hanging_lamp" pos="-4.45 4.10 -4.5"/>
 
-  <prefab source="wooden_crate" pos="4.20 0 -2.10" rot="0 -12 0" color="0.24 0.13 0.05"/>
-  <prefab source="wooden_crate" pos="4.08 0.48 -2.16" rot="0 8 0" scale="0.78 0.78 0.78" color="0.34 0.17 0.06"/>
-  <prefab source="broom" pos="4.58 0.03 -4.15" rot="0 0 -8"/>
-  <box pos="3.98 0.035 -2.92" rot="0 28 0" size="0.18 0.07 0.94" material="wood"/>
-  <box pos="4.24 0.065 -3.02" rot="0 -18 0" size="0.16 0.07 0.72" material="dark_wood"/>
-  <prefab source="shavings" pos="3.86 0 -3.54" rot="0 34 0" scale="0.65 0.65 0.65"/>
+  <group attach="main_bench:top_surface">
+    <prefab source="repair_book" pos="0.23 0 0" rot="0 -8 0" color="0.10 0.24 0.16"/>
+    <prefab source="toy_train" pos="-0.64 0 0.22" rot="0 -12 0" scale="0.72 0.72 0.72" color="0.54 0.09 0.06"/>
+    <prefab source="toy_boat" pos="-0.63 0 -0.23" rot="0 8 0" scale="0.68 0.68 0.68" color="0.08 0.30 0.46"/>
+    <prefab source="tool_caddy" pos="0.72 0 0.22" rot="0 6 0" scale="0.58 0.58 0.58" color="0.28 0.13 0.05"/>
+    <prefab source="mug" pos="0.76 0 -0.23" scale="0.62 0.62 0.62" color="0.22 0.40 0.42"/>
+    <prefab source="paper_notes" pos="-0.17 0 -0.31" rot="0 -14 0" scale="0.72 0.72 0.72"/>
+    <prefab source="shavings" pos="-0.31 0 0.28" scale="0.55 0.55 0.55"/>
+  </group>
+
+  <prefab source="oil_can" pos="-4.3 0 -4.5" rot="0 -12 0"/>
+  <prefab source="shavings" pos="-3.8 0 -3.8" rot="0 22 0" scale="0.72 0.72 0.72"/>
+
+  <prefab source="workbench" name="tool_bench" pos="4.45 0 -2.5" rot="0 -90 0"/>
+  <prefab source="hanging_lamp" pos="4.45 4.10 -2.5" scale="0.82 0.82 0.82"/>
+
+  <group attach="tool_bench:top_surface">
+    <dummy type="character" ref="bertrand" pos="0.02 0 0.02" color="0.85 0.15 0.15"/>
+    <prefab source="parts_tray" pos="-0.58 0 0.20" rot="0 -8 0" scale="0.72 0.72 0.72" color="0.26 0.13 0.05"/>
+    <prefab source="toy_train" pos="-0.58 0 -0.22" rot="0 12 0" scale="0.64 0.64 0.64" color="0.10 0.28 0.45"/>
+    <prefab source="tool_caddy" pos="0.58 0 0.20" scale="0.56 0.56 0.56" color="0.32 0.17 0.06"/>
+    <prefab source="mug" pos="0.62 0 -0.20" scale="0.60 0.60 0.60" color="0.48 0.22 0.08"/>
+    <prefab source="book" pos="0.31 0 -0.29" rot="0 -5 0" scale="0.58 0.58 0.58" color="0.36 0.08 0.10"/>
+  </group>
+
+  <prefab source="spool_lift" pos="3.7 0 -6.0"/>
+
+  <dummy type="character" ref="pip" pos="-1.0 0 -5.5" color="0.85 0.15 0.15"/>
+  <dummy type="character" ref="pip" pos="-3.5 0 -4.5" color="0.85 0.15 0.15"/>
+  <dummy type="character" ref="pip" pos="-4.3 0 -4.5" color="0.85 0.15 0.15"/>
+  <dummy type="character" ref="pip" pos="-3.5 0.94 -4.5" color="0.85 0.15 0.15"/>
+  <dummy type="character" ref="pip" pos="4.0 0.94 -2.5" color="0.85 0.15 0.15"/>
+  <dummy type="character" ref="pip" pos="3.3 0 -5.5" color="0.85 0.15 0.15"/>
+
+  <prefab source="sawhorse" pos="0.5 0 -3.5" rot="0 -8 0"/>
+  <box pos="0.5 0.86 -3.5" rot="0 8 0" size="1.55 0.10 0.24" material="wood"/>
+  <prefab source="paper_notes" pos="0.65 0.91 -3.42" rot="0 -12 0" scale="0.72 0.72 0.72"/>
+  <prefab source="shavings" pos="0.8 0 -3.0" rot="0 -18 0" scale="0.82 0.82 0.82"/>
+
+  <prefab source="wooden_crate" pos="4.0 0 -2.0" rot="0 -12 0" color="0.24 0.13 0.05"/>
+  <prefab source="wooden_crate" pos="3.9 0.48 -2.1" rot="0 8 0" scale="0.78 0.78 0.78" color="0.34 0.17 0.06"/>
+  <prefab source="broom" pos="4.5 0.03 -4.0" rot="0 0 -8"/>
+  <box pos="3.8 0.035 -3.5" rot="0 28 0" size="0.18 0.07 0.94" material="wood"/>
+  <box pos="4.1 0.065 -3.6" rot="0 -18 0" size="0.16 0.07 0.72" material="dark_wood"/>
+  <prefab source="shavings" pos="3.7 0 -3.0" rot="0 34 0" scale="0.65 0.65 0.65"/>
 </scene>

@@ -141,6 +141,13 @@ The shade may cast shadows; the emitter must not.
 
 Directional light (infinite distance). Light rays travel parallel in the given `dir`. Useful for sunlight, moonlight, or any distant light source.
 
+Aim sun or moon light **45–60 degrees below horizontal** so cast shadows have
+readable depth and shape. Offset the horizontal angle **15–45 degrees from the
+wall axis** so shadows fall diagonally across the room rather than parallel to
+walls. Never set one horizontal component to zero — axial shadows read as flat
+and uninteresting. The Y component magnitude should be roughly 0.7–1.7 times
+the horizontal component magnitude.
+
 | Attribute    | Type | Default | Description |
 |--------------|------|---------|-------------|
 | `dir`        | vec3 | 1 -1 0  | Direction light travels (normalized automatically) |
@@ -148,10 +155,10 @@ Directional light (infinite distance). Light rays travel parallel in the given `
 | `intensity`  | float| 1.0     | Brightness multiplier |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
 
-Example: sunlight streaming through a window from the left:
+Example: moon through a back-wall window at 45° down and 30° horizontal offset:
 
 ```xml
-<sun dir="0.75 -0.55 0.35" color="0.95 0.90 0.80" intensity="1.1" castShadows="1"/>
+<sun dir="-0.6 -1 1" color="0.34 0.48 0.82" intensity="0.82" castShadows="1"/>
 ```
 
 ## Shape objects
@@ -504,7 +511,23 @@ Attach point positions are in the prefab's local coordinate space.
 <sphere attach="dining_table:center" radius="0.14" material="fabric"/>
 ```
 
-When `attach` is present, the element's `pos` is replaced by the world-space position of the named attach point. Only the owning prefab instance needs a `name` attribute; the element using `attach` does not.
+When `attach` is present, the element's `pos`, `rot`, and `scale` are applied
+**in the referenced instance's local frame** at the named attach point. The
+element automatically inherits the instance's world-space rotation and scale.
+This means objects placed with `attach` on a rotated surface remain correctly
+flat on that surface without any manual rotation calculation:
+
+```xml
+<prefab source="workbench" name="main_bench" pos="-4.45 0 -4.5" rot="0 90 0"/>
+
+<!-- Children automatically inherit the bench's rotated frame -->
+<group attach="main_bench:top_surface">
+  <prefab source="repair_book" pos="0.23 0 0"/> <!-- X spreads along bench length -->
+</group>
+```
+
+Without `attach`, or for elements that need the old world-space behavior, omit
+the attribute and place the element directly.
 
 Prefab file `prefabs/chair.xml`:
 
@@ -550,4 +573,66 @@ Prefab file `prefabs/chair.xml`:
     <box pos="0 -0.8 0" size="0.3 0.3 0.3" color="0.3 0.3 0.9"/>
   </group>
 </scene>
+```
+
+## Overlay lines and dummies
+
+Overlay lines are rendered in a final pass with depth testing disabled, so they
+appear on top of all geometry. Use them for annotation: character pose
+reference, light indicators, and camera frustum visualisation.
+
+### `<line>`
+
+A single line segment. Inherits parent `<group>` transforms.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `start`   | vec3 | 0 0 0   | Start point in local space |
+| `end`     | vec3 | 0 1 0   | End point in local space |
+| `color`   | vec3 | 0.85 0.15 0.15 | Line colour |
+
+```xml
+<line start="0 0 0" end="0 2 0" color="1 0 0"/>
+```
+
+### `<dummy>`
+
+Generates annotation geometry for characters, lights, or cameras. Each type
+produces a fixed set of overlay lines. Inherits parent `<group>` and `attach`
+transforms.
+
+| Attribute | Type   | Default            | Description |
+|-----------|--------|--------------------|-------------|
+| `type`    | string | "character"        | `"character"`, `"lamp"`, or `"camera"` |
+| `color`   | vec3   | 0.85 0.15 0.15     | Line colour |
+
+**`type="character"`** — a vertical spine from baseline to top, plus four
+horizontal landmark circles at top, neck, pelvis, and feet:
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `height`  | float | 0.5     | Character height from baseline to head |
+
+**`type="lamp"`** — three orthogonal circles (XY, XZ, YZ planes) forming a
+wireframe sphere cage around the light:
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `radius`  | float | 0.15    | Cage radius |
+
+**`type="camera"`** — a pyramid from camera position toward the view
+target, with a rectangular base at distance 1.0:
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `look`    | vec3  | 0 0 -1  | Look-at target |
+| `fov`     | float | 60      | Vertical field of view in degrees |
+
+Lamp and camera dummies are **auto-generated** for every point light and
+camera in the scene — no manual XML needed. Place `<dummy type="character">`
+manually at each pose reference location:
+
+```xml
+<dummy type="character" pos="-1.0 0 -5.5" height="0.50" color="0.85 0.15 0.15"/>
+<dummy type="character" attach="tool_bench:top_surface" pos="0.02 0 0.02" height="0.90"/>
 ```

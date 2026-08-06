@@ -81,7 +81,7 @@ static void draw_shadow_volume(ShadowVolume *sv){
     glEnd();
 }
 
-void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
+void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int flags){
     glViewport(0,0,w,h);
     glClearColor(s->bg.x,s->bg.y,s->bg.z,1.0f);
     glClearStencil(0);
@@ -90,67 +90,13 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
     glMatrixMode(GL_PROJECTION); glLoadMatrixf(proj.m);
     glMatrixMode(GL_MODELVIEW);  glLoadMatrixf(view.m);
 
-    if(debugMode==DBG_WHITE_WIREFRAME){
-        glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_LIGHTING);
-        glDisable(GL_BLEND);
-        glDisable(GL_STENCIL_TEST);
-        glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
-        for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
-            draw_mesh_flat(&s->objs[i].mesh,v3(1,1,1));
-        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-        return;
-    }
-
-    /* Pass 1: Render scene with ambient lighting (fills depth buffer) */
+    /* Pass 1: ambient fill (fills depth buffer) */
     glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
     glEnable(GL_CULL_FACE); glCullFace(GL_BACK);
     glDisable(GL_LIGHTING);
     for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable)
         draw_mesh_flat(&s->objs[i].mesh, s->objs[i].unlit ? s->objs[i].color
                                                          : vmul(s->objs[i].color, s->ambient));
-
-    if(debugMode==DBG_SHOW_STENCIL){
-        for(int li=0; li<s->nlights; li++){
-            Light *L=&s->lights[li];
-            if(!L->castsShadow || s->svols[li].nverts==0) continue;
-#ifndef USE_ZPASS
-            if(!shadows_supported()) continue;
-#endif
-            glClear(GL_STENCIL_BUFFER_BIT);
-            glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
-            glDepthMask(GL_FALSE);
-            glEnable(GL_STENCIL_TEST);
-            glStencilFunc(GL_ALWAYS,0,0xFF);
-            glDisable(GL_CULL_FACE);
-            begin_shadow_pass();
-            draw_shadow_volume(&s->svols[li]);
-            end_shadow_pass();
-            glDisable(GL_STENCIL_TEST);
-            glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
-            glDepthMask(GL_TRUE);
-            glEnable(GL_CULL_FACE);
-
-            glDisable(GL_DEPTH_TEST);
-            glEnable(GL_STENCIL_TEST);
-            glStencilFunc(GL_NOTEQUAL,0,0xFF);
-            glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
-            glColor3f(1,0,0);
-            glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity();
-            glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
-            glBegin(GL_QUADS);
-            glVertex2f(-1,-1); glVertex2f(1,-1); glVertex2f(1,1); glVertex2f(-1,1);
-            glEnd();
-            glPopMatrix();
-            glMatrixMode(GL_PROJECTION); glPopMatrix();
-            glMatrixMode(GL_MODELVIEW);
-            glDisable(GL_STENCIL_TEST);
-            glEnable(GL_DEPTH_TEST);
-            return;
-        }
-        return;
-    }
 
     /* Pass 2+3: Per-light shadow volume + lit pass */
     glEnable(GL_LIGHTING); glEnable(GL_LIGHT0);
@@ -183,7 +129,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
 			glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0f);
 		}
 
-        int drawShadows=debugMode!=DBG_NO_SHADOWS && L->castsShadow && s->svols[li].nverts>0;
+        int drawShadows=!(flags&DBG_NO_SHADOWS) && L->castsShadow && s->svols[li].nverts>0;
 #ifndef USE_ZPASS
         drawShadows=drawShadows && shadows_supported();
 #endif
@@ -199,7 +145,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
             draw_shadow_volume(&s->svols[li]);
             end_shadow_pass();
 
-            if(debugMode==DBG_WIRE_SHADOWVOL){
+            if(flags&DBG_WIRE_SHADOWVOL){
                 glDisable(GL_STENCIL_TEST);
                 glEnable(GL_POLYGON_OFFSET_LINE);
                 glPolygonOffset(-1,-1);
@@ -238,4 +184,39 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, int debugMode){
         }
     }
     glDepthMask(GL_TRUE);
+
+    /* Pass 4: overlay lines — drawn on top of everything */
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_CULL_FACE);
+    glBegin(GL_LINES);
+    for(int i=0;i<s->noverlayLines;i++){
+        OverlayLine *ln=&s->overlayLines[i];
+        if((flags&DBG_HIDE_CHARS) && ln->category==0) continue;
+        if((flags&DBG_HIDE_LIGHTS) && ln->category>=1) continue;
+        glColor3f(ln->color.x,ln->color.y,ln->color.z);
+        glVertex3f(ln->start.x,ln->start.y,ln->start.z);
+        glVertex3f(ln->end.x,ln->end.y,ln->end.z);
+    }
+    glEnd();
+
+    if(flags&DBG_SHOW_STENCIL){
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_NOTEQUAL,0,0xFF);
+        glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
+        glColor3f(1,0,0);
+        glMatrixMode(GL_PROJECTION); glPushMatrix(); glLoadIdentity();
+        glMatrixMode(GL_MODELVIEW); glPushMatrix(); glLoadIdentity();
+        glBegin(GL_QUADS);
+        glVertex2f(-1,-1); glVertex2f(1,-1); glVertex2f(1,1); glVertex2f(-1,1);
+        glEnd();
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION); glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+        glDisable(GL_STENCIL_TEST);
+        glDepthMask(GL_TRUE);
+    }
 }

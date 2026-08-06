@@ -79,8 +79,10 @@ typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
 typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
-typedef struct { char name[32]; char ref[32]; mat4 transform; } InstanceDef;
+typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } InstanceDef;
 typedef struct { mat4 transform; vec3 size; } NegativeBox;
+typedef struct { vec3 start, end, color; int category; } OverlayLine;
+typedef struct { char name[32]; float height, radius; float top, neck, pelvis, feet; } CharDef;
 
 typedef struct {
 	vec3 camPos,camLook; float camFov;
@@ -94,6 +96,8 @@ typedef struct {
 	InstanceDef *instances; int ninstances,cinstances;
 	NegativeBox *negativeBoxes; int nnegativeBoxes,cnegativeBoxes;
 	vec3 prefabTint; int prefabTintActive;
+	OverlayLine *overlayLines; int noverlayLines, coverlayLines;
+	CharDef *charDefs; int ncharDefs, ccharDefs;
 } Scene;
 
 int load_scene(const char *path,Scene *s);
@@ -105,15 +109,13 @@ vec3 light_to_source(Light *light,vec3 point);
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);
 
-enum {
-	DBG_NONE=0,
-	DBG_WIRE_SHADOWVOL,
-	DBG_SHOW_STENCIL,
-	DBG_NO_SHADOWS,
-	DBG_WHITE_WIREFRAME,
-	DBG_COUNT
-};
+#define DBG_NONE            0
+#define DBG_NO_SHADOWS      (1 << 0)
+#define DBG_WIRE_SHADOWVOL  (1 << 1)
+#define DBG_SHOW_STENCIL    (1 << 2)
+#define DBG_HIDE_LIGHTS     (1 << 3)
+#define DBG_HIDE_CHARS      (1 << 4)
 
-void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,int debugMode);
+void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,int debugFlags);
 
 #endif

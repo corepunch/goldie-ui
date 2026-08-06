@@ -77,12 +77,16 @@ Use `attach="instanceName:slotName"` on any shape or prefab to place it at a pre
 
 The sphere lands on the table surface without computing `y = tableTop + sphereRadius`. When `attach` is present the element's `pos` is replaced by the attach point's world-space position.
 
-Place a general-purpose surface attach at the usable surface center. Do not put
-the default shelf/table attach on its front edge: a child prefab is positioned
-by its origin, so doing so centers half of the child's footprint outside the
-support. If a composition needs multiple offsets, place the support and props
-inside one local `<group>`, use the surface height as each child's baseline,
-and author local X/Z offsets from the surface center.
+Place a general-purpose surface attach at the usable surface center. Name it
+`top_surface` for the primary work or table surface. Name additional named
+slots by location: `under_center` for the clearance volume beneath a bench,
+`shelf_lower` and `shelf_upper` for tiered storage, or `edge_n`/`edge_s` for
+perimeter positions. Do not put the default shelf/table attach on its front
+edge: a child prefab is positioned by its origin, so doing so centers half of
+the child's footprint outside the support. If a composition needs multiple
+offsets, place the support and props inside one local `<group>`, use the
+surface height as each child's baseline, and author local X/Z offsets from the
+surface center.
 
 Before accepting a supported prop, transform all footprint corners by its
 scale and yaw and verify they remain within the support rectangle with a small
@@ -145,12 +149,22 @@ Use the `<array>` modifier to create repeating geometry (books, shelves, stairs)
 
 Treat a room as a complete shell: floor, walls, and ceiling or roof. In the common box-room case, place the ceiling so its lower face meets the wall tops. Omit it only for an explicitly open or roofless design. Keep plan cameras below a visible ceiling so they continue to show the interior.
 
+When cameras need to view a closed room from outside, mark the camera-facing wall
+`renderable="0" castShadow="1"`. It stays invisible to the viewer but continues
+blocking directional light and contributing to stencil shadow volumes so the
+interior lighting remains correct:
+
+```xml
+<wall pos="0 0 0" length="10" height="4.2" thickness="0.2"
+      material="plaster" renderable="0" castShadow="1"/>
+```
+
 Follow the enclosed-room pattern in `scenes/sample_room.xml`: combine a low ambient base with at least one motivated, shadow-casting key light. A room must contain light sources that shape the space, not merely enough ambient illumination to avoid black pixels.
 
 - Put a reusable practical point light inside the same prefab as its fixture geometry. Place it inside the bulb or flame, below the ceiling and on the emitting side of any opaque shade.
 - Mark the visible emitter `unlit="1" castShadow="0"`: unlit keeps its authored bright color, while disabling shadow casting prevents it from occluding its own point light. Keep the shade and fixture body shadow-casting.
 - Use a window, doorway, or second practical to motivate a weaker fill or rim. Keep it subordinate to the key so shadows remain dramatic.
-- Aim a directional sun or moon light through the corresponding opening rather than through a solid wall or ceiling.
+- Aim a directional sun or moon light through the corresponding opening rather than through a solid wall or ceiling. Point`dir` **45–60 degrees below horizontal** and offset it **15–45 degrees horizontally from the wall axis**: `dir="-0.6 -1 1"` for 45° down with 30° offset, `dir="0 -1.7 1"` for ~60° down. Never let either horizontal component be zero — shadows parallel to walls read as flat and uninteresting.
 - Confirm important characters, props, and interactions receive both readable illumination and grounding cast shadows.
 - Avoid lifting ambient light until shadows disappear. Correct the key position, intensity, and motivated fill first.
 

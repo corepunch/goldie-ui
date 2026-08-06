@@ -42,7 +42,7 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Prefer swapping box dimensions over adding a rotation when both describe the same axis-aligned shape in the current local frame.
 - Document the default front direction in every directional prefab's leading XML comment.
 - Orient prefab instances toward their intended target using the documented front direction; never infer it only from the prefab name.
-- Use `attach="name:slot"` for placing objects on prefab surfaces rather than manual vertical position calculations.
+- Use `attach="name:slot"` for placing objects on prefab surfaces rather than manual vertical position calculations. The attached element inherits the instance's full world transform — its `pos`, `rot`, and `scale` are applied in the instance's local frame at the attach point. Objects placed on a rotated workbench automatically stay flat on the surface without the author needing to match rotations.
 - Put surface attach points at the usable surface center, not its front or side edge. Apply deliberate offsets in a shared local group, and keep each object's complete rotated footprint inside the support boundary with visible margin.
 - Make lived-in prop clusters irregular but authored: vary yaw, spacing, depth, and scale slightly instead of aligning every center on one axis. Keep the variation deterministic, preserve contact, prevent intersections, and do not tilt an object away from its support unless it pivots plausibly from a contact edge.
 - Use `pivotOffset` for hinged rotations (book covers, open drawers) instead of `group` nesting workarounds.
@@ -50,9 +50,11 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Prefer built-in preset materials (`wall`, `floor`, `wood`, `metal`, `glass`) and backgrounds (`midnight`, `dusk`, `neutral`, `black`). Define `<material>` tags only for custom materials.
 - Close interior shells with a ceiling or roof at the wall-top elevation unless an opening is intentional. Keep overhead cameras below a visible ceiling or provide a deliberate non-production plan view.
 - Motivate every light with visible or implied scene geometry such as a lamp, window, fire, or doorway. Put a reusable practical's `<light>` inside its prefab so geometry and illumination share one transform.
-- Treat `castShadow="0"` as an exceptional opt-out, not a normal scene-layout setting: ordinary walls, floors, ceilings, furniture, panes, and props should omit it and use the default shadow casting. Reserve it for visible self-luminous emitters (with `unlit="1"`) or explicitly documented non-physical helper geometry. Place the point light inside an emitter volume and below any opaque shade or lamp body so the fixture does not block its own useful light.
+- Mark visible bulbs, flames, and other self-luminous source geometry `unlit="1" castShadow="0"`. Place the point light inside that source volume and below any opaque shade or lamp body so the fixture does not block its own useful light.
+- Every scene object and architectural element must cast shadows (`castShadow="1"`) unless it is self-luminous emitter geometry. Ceilings, floors, walls, furniture, and props all contribute to the stencil shadow volumes. The only legitimate `castShadow="0"` exceptions are: unlit light bulbs/flames, glass panes (which are opaque in fixed-function but conceptually transparent), shadow-catcher placeholder planes, and deliberately composited scene boundaries.
 - Give each room a dominant shadow-casting key light. Keep ambient light low enough for shape, but never leave the hero subject or interaction in featureless darkness; add a weaker motivated fill or rim when required for readability.
-- Aim directional exterior light through an actual opening. Check that the ceiling and wall shell do not accidentally block the intended window-light path.
+- Aim directional exterior light through an actual opening. Use a **45–60 degree downward** angle and offset it **15–45 degrees from the wall axis** so cast shadows fall diagonally rather than parallel to walls. `dir="-0.6 -1 1"` gives ~45° down and ~30° horizontal offset; `dir="0 -1.7 1"` gives ~60° down. Never set the horizontal component to zero — that produces shadows aligned to walls, which reads as flat and uninteresting. Check that the ceiling and wall shell do not accidentally block the intended window-light path.
+- When the camera must view a closed room from the outside, mark the camera-facing wall `renderable="0" castShadow="1"`. It remains invisible while preserving correct interior shadow and light-blocking behavior.
 
 ## Required CLI validation
 
@@ -70,8 +72,8 @@ Run `xmllint` on every edited scene and prefab. Use the actual target path in pl
 - Keep prefab geometry centered around a useful placement origin, normally floor center.
 - Keep prefab materials externally resolvable by the containing scene.
 - State footprint, baseline, and front direction in the leading comment.
-- Declare `<attach>` elements on prefabs that have meaningful surface reference points (tabletop center, seat surface, shelf height).
-- Define a shelf attach at the center of each usable shelf surface. Treat edge anchors as separate, explicitly named slots rather than using an edge as the default surface anchor.
+- Declare `<attach>` elements on prefabs that have meaningful surface reference points (tabletop center, seat surface, shelf height). Name the primary work surface `top_surface`; use `under_center`, `shelf_lower`, `shelf_upper`, or `edge_n`/`edge_s` for secondary slots.
+- Define a shelf attach at the center of each usable shelf surface. Name them by tier (`shelf_lower`, `shelf_upper`). Treat edge anchors as separate, explicitly named slots rather than using an edge as the default surface anchor.
 - Keep a practical light, its unlit emitter, and its shadow-casting shade in one prefab. Verify transformed and scaled instances keep the point light inside the emitter and on the emitting side of the shade lip.
 - Put a wall insert's `<bool-negative-box>` and all visible frame geometry in the same prefab. Center the prefab on the desired opening, align its local Z with wall thickness, and make the cutter deep enough to cross the complete wall.
 - Use `source=` on `<prefab>` to specify the file; `name=` only when something references this instance via `attach`.

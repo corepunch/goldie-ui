@@ -13,12 +13,12 @@ int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
 	int listCameras = 0;
-	int renderMode = DBG_NONE;
+	int renderFlags = 0;
 	for(int i=1;i<argc;i++){
 		if(!strcmp(argv[i],"-cam") && i+1<argc){ camName=argv[++i]; }
 		else if(!strcmp(argv[i],"-list-cameras")){ listCameras = 1; }
-		else if(!strcmp(argv[i],"-no-shadows")){ renderMode=DBG_NO_SHADOWS; }
-		else if(!strcmp(argv[i],"-wireframe")){ renderMode=DBG_WHITE_WIREFRAME; }
+		else if(!strcmp(argv[i],"-no-shadows")){ renderFlags|=DBG_NO_SHADOWS; }
+		else if(!strcmp(argv[i],"-show-stencil")){ renderFlags|=DBG_SHOW_STENCIL; }
 		else if(!scenePath) scenePath=argv[i];
 	}
 	if(!scenePath) scenePath="scenes/sample_room.xml";
@@ -64,7 +64,7 @@ int main(int argc,char**argv){
 
     int running=1;
     int rightMouseDown=0;
-    int debugMode=renderMode;
+    int debugFlags=renderFlags;
     Uint32 lastTicks=SDL_GetTicks();
     while(running){
         SDL_Event ev;
@@ -72,11 +72,11 @@ int main(int argc,char**argv){
             if(ev.type==SDL_QUIT) running=0;
             else if(ev.type==SDL_KEYDOWN){
                 if(ev.key.keysym.sym==SDLK_ESCAPE) running=0;
-                else if(ev.key.keysym.sym==SDLK_1){ debugMode=DBG_NONE; fprintf(stderr,"debug: normal\n"); }
-                else if(ev.key.keysym.sym==SDLK_2){ debugMode=DBG_WIRE_SHADOWVOL; fprintf(stderr,"debug: wireframe shadow vols (red)\n"); }
-                else if(ev.key.keysym.sym==SDLK_3){ debugMode=DBG_SHOW_STENCIL; fprintf(stderr,"debug: stencil != 0 (red overlay)\n"); }
-                else if(ev.key.keysym.sym==SDLK_4){ debugMode=DBG_NO_SHADOWS; fprintf(stderr,"debug: lighting without shadows\n"); }
-                else if(ev.key.keysym.sym==SDLK_5){ debugMode=DBG_WHITE_WIREFRAME; fprintf(stderr,"debug: white wireframe\n"); }
+                else if(ev.key.keysym.sym==SDLK_1){ debugFlags^=DBG_NO_SHADOWS; fprintf(stderr,"shadows: %s\n",(debugFlags&DBG_NO_SHADOWS)?"off":"on"); }
+                else if(ev.key.keysym.sym==SDLK_2){ debugFlags^=DBG_WIRE_SHADOWVOL; fprintf(stderr,"shadow volume wire: %s\n",(debugFlags&DBG_WIRE_SHADOWVOL)?"on":"off"); }
+                else if(ev.key.keysym.sym==SDLK_3){ debugFlags^=DBG_SHOW_STENCIL; fprintf(stderr,"stencil overlay: %s\n",(debugFlags&DBG_SHOW_STENCIL)?"on":"off"); }
+                else if(ev.key.keysym.sym==SDLK_4){ debugFlags^=DBG_HIDE_LIGHTS; fprintf(stderr,"cam/lamp dummies: %s\n",(debugFlags&DBG_HIDE_LIGHTS)?"hidden":"visible"); }
+                else if(ev.key.keysym.sym==SDLK_5){ debugFlags^=DBG_HIDE_CHARS; fprintf(stderr,"character dummies: %s\n",(debugFlags&DBG_HIDE_CHARS)?"hidden":"visible"); }
             }
             else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){
                 rightMouseDown=1;
@@ -110,7 +110,7 @@ int main(int argc,char**argv){
 
         mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
         mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));
-        render_frame(&scene, W,H, proj, view, debugMode);
+        render_frame(&scene, W,H, proj, view, debugFlags);
 
         SDL_GL_SwapWindow(win);
     }

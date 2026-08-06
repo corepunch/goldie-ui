@@ -56,5 +56,4 @@ build/
 .DS_Store
 
 # Screenshots (generated for testing)
-screenshots/*.ppm
-screenshots/*.png
+screenshots/
