@@ -5,7 +5,7 @@
 // generated forms header included via socialfeed.h.
 
 #include "socialfeed.h"
-#include "../../gem_magic.h"
+#include "../../user/gem_magic.h"
 
 // ============================================================
 // Accelerator table

@@ -1,7 +1,7 @@
 // VIEW: Menu bar and command dispatch for the Task Manager.
 
 #include "taskmanager.h"
-#include "../../gem_magic.h"
+#include "../../user/gem_magic.h"
 
 // ============================================================
 // Menu definitions

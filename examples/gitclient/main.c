@@ -1,7 +1,7 @@
 // Git Client — entry point.
 
 #include "gitclient.h"
-#include "../../gem_magic.h"
+#include "../../user/gem_magic.h"
 #include "../../commctl/commctl.h"
 
 // ============================================================

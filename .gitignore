@@ -69,3 +69,4 @@ libcglm*
 test.xml
 /output
 *.save
+plans/

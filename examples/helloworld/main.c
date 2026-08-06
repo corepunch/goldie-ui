@@ -7,7 +7,7 @@
 
 // Include UI framework headers
 #include "../../ui.h"
-#include "../../gem_magic.h"
+#include "../../user/gem_magic.h"
 
 // Button ID constant
 #define ID_BUTTON_CLICKME 101
