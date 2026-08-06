@@ -1,7 +1,7 @@
 #ifndef GC_DIFF_VIEW_H
 #define GC_DIFF_VIEW_H
 
-#include "../../orion/user/vga_text.h"
+#include <orion/user/vga_text.h>
 #include <orion/ui.h>
 
 #define GC_DIFF_VIEW_CLASS_NAME "DiffView"

@@ -1,5 +1,5 @@
 #include "formeditor.h"
-#include "../../orion/commctl/commctl.h"
+#include <orion/commctl/commctl.h>
 
 typedef struct {
   window_t *list_win;

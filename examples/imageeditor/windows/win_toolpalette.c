@@ -7,9 +7,9 @@
 // No child button windows are used.
 
 #include "imageeditor.h"
-#include "kernel/renderer.h"
-#include "user/image.h"
-#include "user/rect.h"
+#include <orion/kernel/renderer.h>
+#include <orion/user/image.h>
+#include <orion/user/rect.h>
 
 // Image editor atlas tile size (all icons are square).
 #define ICON_W  TOOL_ICON_W

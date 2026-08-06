@@ -1,8 +1,8 @@
 // Project plugins browser for the Orion Form Editor.
 
 #include "formeditor.h"
-#include "../../orion/commctl/commctl.h"
-#include "../../orion/user/icons.h"
+#include <orion/commctl/commctl.h>
+#include <orion/user/icons.h>
 
 #define PLUGINS_ID_ADD   1
 #define PLUGINS_ID_LOAD  2

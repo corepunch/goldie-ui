@@ -2,7 +2,7 @@
 
 #include "gitclient.h"
 #include <orion/gem.h>
-#include "../../orion/commctl/commctl.h"
+#include <orion/commctl/commctl.h>
 
 // ============================================================
 // Module-level application state

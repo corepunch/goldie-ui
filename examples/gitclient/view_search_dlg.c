@@ -1,7 +1,7 @@
 // Search dialog — filter commits, branches, files by text.
 
 #include "gitclient.h"
-#include "../../components/gitclient/diff_view.h"
+#include "components/diff_view.h"
 
 static result_t search_dlg_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {

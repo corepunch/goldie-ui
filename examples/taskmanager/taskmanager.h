@@ -9,10 +9,10 @@
 #include <time.h>
 
 #include <orion/ui.h>
-#include "../../orion/commctl/columnview.h"
-#include "../../orion/commctl/menubar.h"
-#include "../../orion/user/accel.h"
-#include "../../orion/user/icons.h"
+#include <orion/commctl/columnview.h>
+#include <orion/commctl/menubar.h>
+#include <orion/user/accel.h>
+#include <orion/user/icons.h>
 
 #ifndef TASKMANAGER_DEBUG
 #define TASKMANAGER_DEBUG 1

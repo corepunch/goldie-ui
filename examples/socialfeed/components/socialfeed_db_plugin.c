@@ -2,7 +2,7 @@
 #include <orion/gem.h>
 #include "../../platform/platform.h"
 
-#include "../../examples/socialfeed/socialfeed.h"
+#include "../socialfeed.h"
 
 #ifndef SHAREDIR
 #define SHAREDIR "."

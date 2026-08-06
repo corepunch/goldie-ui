@@ -1,4 +1,4 @@
-#include "../../orion/user/icons.h"
+#include <orion/user/icons.h>
 #include <orion/ui.h>
 
 #include "lv_cmpn.h"

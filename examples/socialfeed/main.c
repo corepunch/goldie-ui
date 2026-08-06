@@ -19,7 +19,7 @@
 
 #include "socialfeed.h"
 #include <orion/gem.h>
-#include "../../orion/commctl/commctl.h"
+#include <orion/commctl/commctl.h>
 #include "../../platform/platform.h"
 
 #ifndef SHAREDIR

@@ -70,6 +70,9 @@ LIBS += -lm
 # Compile flags for .gem shared libraries
 GEM_CFLAGS = $(CFLAGS) -DBUILD_AS_GEM
 
+APPS = examples
+COMPS = components
+
 # Build directories
 BUILD_DIR = build
 LIB_DIR = $(BUILD_DIR)/lib
@@ -111,18 +114,17 @@ TOOLS_SRCS = $(filter-out tools/orionc.c,$(wildcard tools/*.c))
 TOOLS_BINS = $(patsubst tools/%.c,$(BIN_DIR)/%$(EXE_EXT),$(TOOLS_SRCS)) $(ORIONC_BIN)
 TOOLS_CFLAGS = $(CFLAGS) -Wno-unused-function
 
-# Examples are directory names under examples/, independent of their contents.
-EXAMPLES = $(patsubst examples/%/,%,$(filter %/,$(wildcard examples/*/)))
+# Examples are directory names under $(APPS)/, independent of their contents.
+EXAMPLES = $(patsubst $(APPS)/%/,%,$(filter %/,$(wildcard $(APPS)/*/)))
 EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLES))
 GEM_BINS = $(patsubst %,$(GEM_DIR)/%.gem,$(filter-out shell,$(EXAMPLES)))
-COMPONENT_PLUGIN_BINS = $(patsubst components/%,$(LIB_DIR)/%_components.$(LIB_EXT),$(wildcard components/*))
+COMPONENT_PLUGIN_BINS = $(patsubst $(APPS)/%/$(COMPS),$(LIB_DIR)/%_components.$(LIB_EXT),$(wildcard $(APPS)/*/$(COMPS)))
 
 # ── Phony apps ─────────────────────────────────────────────────────────────
 # Phony apps are alternative builds of existing examples with extra compiler
 # flags. Add an entry below with PHONY_APPS_SRC_<name> and
 # PHONY_APPS_CFLAGS_<name>, then add <name> to PHONY_APP_NAMES.
-# The source example and its component plugin must exist under examples/ and
-# components/ respectively.
+# The source example and its component plugin must exist under $(APPS)/
 PHONY_APPS_SRC_penciltest   = imageeditor
 PHONY_APPS_CFLAGS_penciltest = -DIMAGEEDITOR_BW=1 -DIMAGEEDITOR_BW_RETINA
 
@@ -135,12 +137,12 @@ PHONY_APP_GEMS = $(patsubst %,$(GEM_DIR)/%.gem,$(PHONY_APP_NAMES))
 # Unity-built examples still need ordinary source prerequisites.  Without
 # these, editing an example leaves its existing binary newer than every listed
 # prerequisite and make silently runs the stale executable.
-$(foreach e,$(EXAMPLES),$(eval $(BIN_DIR)/$(e)$(EXE_EXT): $(shell find examples/$(e) -name "*.c" -o -name "*.h")))
-$(foreach e,$(EXAMPLES),$(eval $(GEM_DIR)/$(e).gem: $(shell find examples/$(e) -name "*.c" -o -name "*.h")))
-$(foreach a,$(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(a)$(EXE_EXT): $(shell find examples/$(PHONY_APPS_SRC_$(a)) -name "*.c" -o -name "*.h")))
-$(foreach a,$(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(a).gem: $(shell find examples/$(PHONY_APPS_SRC_$(a)) -name "*.c" -o -name "*.h")))
+$(foreach e,$(EXAMPLES),$(eval $(BIN_DIR)/$(e)$(EXE_EXT): $(shell find $(APPS)/$(e) -name "*.c" -o -name "*.h")))
+$(foreach e,$(EXAMPLES),$(eval $(GEM_DIR)/$(e).gem: $(shell find $(APPS)/$(e) -name "*.c" -o -name "*.h")))
+$(foreach a,$(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(a)$(EXE_EXT): $(shell find $(APPS)/$(PHONY_APPS_SRC_$(a)) -name "*.c" -o -name "*.h")))
+$(foreach a,$(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(a).gem: $(shell find $(APPS)/$(PHONY_APPS_SRC_$(a)) -name "*.c" -o -name "*.h")))
 
-GENERATED_HEADERS = $(patsubst examples/%.orion,$(GENERATED_DIR)/examples/%.h,$(wildcard examples/*/*.orion))
+GENERATED_HEADERS = $(patsubst $(APPS)/%.orion,$(GENERATED_DIR)/$(APPS)/%.h,$(wildcard $(APPS)/*/*.orion))
 
 .SECONDEXPANSION:
 
@@ -190,7 +192,7 @@ $(ORIONC_BIN): tools/orionc.c | $(BIN_DIR)
 	@echo "TOOL    $@"
 	@$(CC) $(TOOLS_CFLAGS) -I. -Itools -o $@ $< $(LDFLAGS) $(LIBS)
 
-$(GENERATED_DIR)/examples/%.h: examples/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
+$(GENERATED_DIR)/$(APPS)/%.h: $(APPS)/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
 	@mkdir -p $(dir $@)
 	@echo "GEN     $@"
 	@$(ORIONC_BIN) --input $< --output $@ --prefix $(notdir $(basename $<))
@@ -219,7 +221,7 @@ $(VGA_FONT_TTF): $(VGA_FONT_SRC) | $(SHARE_DIR)
 share: $(VGA_FONT_TTF) | $(SHARE_DIR)
 	@mkdir -p $(SHARE_DIR)/orion
 	@cp -R share/. $(SHARE_DIR)/orion/
-	@for dir in examples/*/share; do \
+	@for dir in $(APPS)/*/share; do \
 	  [ -d "$$dir" ] || continue; \
 	  name=$$(basename $$(dirname "$$dir")); \
 	  mkdir -p $(SHARE_DIR)/$$name; \
@@ -261,17 +263,17 @@ $(foreach a,$(PHONY_APP_NAMES),$(eval $(a): $(BIN_DIR)/$(a)$(EXE_EXT)))
 .PHONY: plugins
 plugins: $(COMPONENT_PLUGIN_BINS)
 
-$(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard components/$$*/*.c) $(CORE_LIBS) $(GENERATED_HEADERS) | $(LIB_DIR)
+$(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard $(APPS)/$$*/$(COMPS)/*.c) $(CORE_LIBS) $(GENERATED_HEADERS) | $(LIB_DIR)
 	@echo "PLUGIN  $@"
-	@$(CC) $(CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents/$* -o $@ $(wildcard components/$*/*.c) \
+	@$(CC) $(CFLAGS) $(LIB_FLAGS) -I. -I$(APPS)/$* -I$(APPS)/$*/$(COMPS) -o $@ $(wildcard $(APPS)/$*/$(COMPS)/*.c) \
 	    $(LDFLAGS) $(FE_PLUGIN_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
 
 $(EXAMPLE_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(BIN_DIR) share
 	@echo "BIN     $@"
-	@{(find examples/$* -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
-	 echo '#include "examples/$*/main.c"') | \
-		$(CC) $(CFLAGS) -I. -Iexamples/$* -Icomponents -Icomponents/$* -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
+	@{(find $(APPS)/$* -name "*.c" ! -name "main.c" ! -path "*/$(COMPS)/*" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "$(APPS)/$*/main.c"') | \
+		$(CC) $(CFLAGS) -I. -I$(APPS)/$* -I$(APPS)/$*/$(COMPS) -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
 	    $(LDFLAGS) $(LDFLAGS_EXAMPLE) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
 
@@ -279,9 +281,9 @@ $(EXAMPLE_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $
 # extra CFLAGS from PHONY_APPS_CFLAGS_<name> and SHAREDIR from the source app.
 $(PHONY_APP_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(BIN_DIR) share
 	@echo "PHONY   $@"
-	@{(find examples/$(PHONY_APPS_SRC_$*) -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
-	 echo '#include "examples/$(PHONY_APPS_SRC_$*)/main.c"') | \
-		$(CC) $(CFLAGS) $(PHONY_APPS_CFLAGS_$*) -I. -Iexamples/$(PHONY_APPS_SRC_$*) -Icomponents -Icomponents/$(PHONY_APPS_SRC_$*) -DSHAREDIR='"../share/$(PHONY_APPS_SRC_$*)"' -x c -o $@ - -x none \
+	@{(find $(APPS)/$(PHONY_APPS_SRC_$*) -name "*.c" ! -name "main.c" ! -path "*/$(COMPS)/*" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "$(APPS)/$(PHONY_APPS_SRC_$*)/main.c"') | \
+		$(CC) $(CFLAGS) $(PHONY_APPS_CFLAGS_$*) -I. -I$(APPS)/$(PHONY_APPS_SRC_$*) -I$(APPS)/$(PHONY_APPS_SRC_$*)/$(COMPS) -DSHAREDIR='"../share/$(PHONY_APPS_SRC_$*)"' -x c -o $@ - -x none \
 	    $(LDFLAGS) $(LDFLAGS_EXAMPLE) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
 
@@ -299,9 +301,9 @@ gems: $(GEM_BINS) $(PHONY_APP_GEMS)
 $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(GEM_DIR)
 	@echo "GEM     $@"
 	@{(echo '#include "gem_magic.h"'; \
-	 find examples/$* -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
-	 echo '#include "examples/$*/main.c"') | \
-		$(CC) $(GEM_CFLAGS) $(LIB_FLAGS) -I. -Iexamples/$* -Icomponents -Icomponents/$* -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
+	 find $(APPS)/$* -name "*.c" ! -name "main.c" ! -path "*/$(COMPS)/*" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "$(APPS)/$*/main.c"') | \
+		$(CC) $(GEM_CFLAGS) $(LIB_FLAGS) -I. -I$(APPS)/$* -I$(APPS)/$*/$(COMPS) -DSHAREDIR='"../share/$*"' -x c -o $@ - -x none \
 	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
@@ -310,9 +312,9 @@ $(GEM_BINS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED
 $(PHONY_APP_GEMS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(GEM_DIR)
 	@echo "GEM(P)  $@"
 	@{(echo '#include "gem_magic.h"'; \
-	 find examples/$(PHONY_APPS_SRC_$*) -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
-	 echo '#include "examples/$(PHONY_APPS_SRC_$*)/main.c"') | \
-		$(CC) $(GEM_CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(LIB_FLAGS) -I. -Iexamples/$(PHONY_APPS_SRC_$*) -Icomponents -Icomponents/$(PHONY_APPS_SRC_$*) -DSHAREDIR='"../share/$(PHONY_APPS_SRC_$*)"' -x c -o $@ - -x none \
+	 find $(APPS)/$(PHONY_APPS_SRC_$*) -name "*.c" ! -name "main.c" ! -path "*/$(COMPS)/*" | sort | sed 's/.*/#include "&"/'; \
+	 echo '#include "$(APPS)/$(PHONY_APPS_SRC_$*)/main.c"') | \
+		$(CC) $(GEM_CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(LIB_FLAGS) -I. -I$(APPS)/$(PHONY_APPS_SRC_$*) -I$(APPS)/$(PHONY_APPS_SRC_$*)/$(COMPS) -DSHAREDIR='"../share/$(PHONY_APPS_SRC_$*)"' -x c -o $@ - -x none \
 	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS);}
 	@$(MAKE) --no-print-directory validate-gem GEM=$@
@@ -356,23 +358,23 @@ $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $
 	esac; \
 	if [ -z "$$app" ]; then \
 	  cand=$${stem%_test}; \
-	  if [ -d "examples/$$cand" ]; then app="$$cand"; fi; \
+	  if [ -d "$(APPS)/$$cand" ]; then app="$$cand"; fi; \
 	fi; \
 	if [ -z "$$app" ]; then \
 	  cand=$${stem%%_*}; \
-	  if [ -d "examples/$$cand" ]; then app="$$cand"; fi; \
+	  if [ -d "$(APPS)/$$cand" ]; then app="$$cand"; fi; \
 	fi; \
 	{ \
 	  printf '#include "%s"\n' "$$src"; \
 	  printf '#include "$(TEST_DIR)/test_env.c"\n'; \
-	  if [ -n "$$app_dir" ] && [ -d "examples/$$app_dir" ]; then \
-	    find "examples/$$app_dir" -name "*.c" ! -name "main.c" | sort | sed 's/.*/#include "&"/'; \
+	  if [ -n "$$app_dir" ] && [ -d "$(APPS)/$$app_dir" ]; then \
+	    find "$(APPS)/$$app_dir" -name "*.c" ! -name "main.c" ! -path "*/$(COMPS)/*" | sort | sed 's/.*/#include "&"/'; \
 	  fi; \
 	  if [ -n "$$app_dir" ] && [ -d "$(TEST_DIR)/$$app_dir/support" ]; then \
 	    find "$(TEST_DIR)/$$app_dir/support" -name "*.c" | sort | sed 's/.*/#include "&"/'; \
 	  fi; \
 	} | \
-		$(CC) $(CFLAGS) -I. -Itests -Iexamples/$$app -Icomponents -Icomponents/$$app -x c -o $@ - -x none \
+		$(CC) $(CFLAGS) -I. -Itests -I$(APPS)/$$app -I$(APPS)/$$app/$(COMPS) -x c -o $@ - -x none \
 	    $(LDFLAGS) $(LDFLAGS_TEST) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) -L$(LIB_DIR) \
 	    $(COMPONENT_PLUGIN_BINS) $(LIBS)
 
@@ -404,7 +406,7 @@ help:
 	@echo "help         - Show this help message"
 	@echo ""
 	@echo "Phony apps (derived builds with extra flags):"
-	$(foreach a,$(PHONY_APP_NAMES),@echo "  $a       - examples/$(PHONY_APPS_SRC_$(a)) + $(PHONY_APPS_CFLAGS_$(a))"
+	$(foreach a,$(PHONY_APP_NAMES),@echo "  $a       - $(APPS)/$(PHONY_APPS_SRC_$(a)) + $(PHONY_APPS_CFLAGS_$(a))"
 	)
 	@echo ""
 	@echo "Output directories:"

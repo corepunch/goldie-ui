@@ -1,7 +1,7 @@
 #include "diff_view.h"
-#include "../../orion/user/vga_font.h"
-#include "../../orion/user/ansi.h"
-#include "../../orion/user/rect.h"
+#include <orion/user/vga_font.h>
+#include <orion/user/ansi.h>
+#include <orion/user/rect.h>
 
 #define CLR_CTX_BG   0xFF1E1E1E
 #define CLR_HUNK_SEL 0xFF333355

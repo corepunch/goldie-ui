@@ -1,6 +1,6 @@
 #include "ansi_parser.h"
 #include "vgat.h"
-#include "../../orion/user/vga_font.h"
+#include <orion/user/vga_font.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

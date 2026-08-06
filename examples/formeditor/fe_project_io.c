@@ -1,7 +1,7 @@
 // Minimal project XML I/O for window-first form runtime.
 
 #include "formeditor.h"
-#include "../../orion/user/icons.h"
+#include <orion/user/icons.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 

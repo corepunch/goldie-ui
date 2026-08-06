@@ -2,8 +2,8 @@
 // for the Orion Form Editor.
 
 #include "formeditor.h"
-#include "../../orion/commctl/commctl.h"
-#include "../../orion/user/enum_parse.h"
+#include <orion/commctl/commctl.h>
+#include <orion/user/enum_parse.h>
 #include <ctype.h>
 #include <inttypes.h>
 #include <libxml/parser.h>

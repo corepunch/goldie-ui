@@ -4,8 +4,8 @@
 // The window proc lives in the gitclient_components plugin (diff_view.c).
 
 #include "gitclient.h"
-#include "../../components/gitclient/diff_view.h"
-#include "../../orion/user/vga_font.h"
+#include "components/diff_view.h"
+#include <orion/user/vga_font.h>
 
 static void parse_hunks(gc_diff_state_t *st) {
   st->hunk_count = 0;

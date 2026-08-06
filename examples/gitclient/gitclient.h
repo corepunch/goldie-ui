@@ -8,11 +8,11 @@
 #include <stdbool.h>
 
 #include <orion/ui.h>
-#include "../../components/gitclient/diff_view.h"
-#include "../../orion/commctl/columnview.h"
-#include "../../orion/commctl/menubar.h"
-#include "../../orion/user/accel.h"
-#include "../../orion/user/icons.h"
+#include "components/diff_view.h"
+#include <orion/commctl/columnview.h>
+#include <orion/commctl/menubar.h>
+#include <orion/user/accel.h>
+#include <orion/user/icons.h>
 
 // Generated from gitclient.orion — IDs, structs, field metadata, forms
 #include "build/generated/examples/gitclient/gitclient.h"
