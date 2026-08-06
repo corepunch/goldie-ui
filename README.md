@@ -9,6 +9,9 @@ Orion is a retro-styled UI framework written in C that brings the familiar Windo
 
 <a href="https://www.youtube.com/watch?v=US-BxhRw2qA">
 <img width="1654" height="1224" alt="Screenshot 2026-05-12 at 07 30 29" src="https://github.com/user-attachments/assets/a5671731-81d0-4e03-a348-4ae824783c90" /></a>
+*Orion Shell loading multiple .gem applications -- a windowing system where apps run as sub-processes, similar to how Windows itself began as a GUI shell for DOS programs*
+
+Orion applications compile to `.gem` shared libraries that are loaded and managed by the Orion Shell -- much like how early Windows served as a graphical shell for launching EXE programs. Each `.gem` runs in-process with its own `hinstance`, message loop, and window hierarchy, yet they coexist in a single desktop with unified focus and z-order. This architecture enables a modular design pattern: you can split a large application into independent sub-programs that communicate through the framework's message system. For example, a strategy game could structure its city view, world map, and diplomacy screens as separate `.gem` modules -- each self-contained, renderable, and independently testable -- all talking to a shared game kernel through the same message-passing API that drives the UI.
 
 ---
 
