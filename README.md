@@ -1,6 +1,7 @@
 # Orion UI Framework
 
 ![Orion Form Editor -- SocialFeed Project](screenshots/formeditor_socialfeed.jpg)
+*Form editor with socialfeed project, component palette, and database bindings*
 
 ---
 
@@ -62,6 +63,7 @@ show_db_dialog(&form, "Edit Author", parent, db, author_id);
 **Code reduction: 95%** (200 lines to 10 lines)
 
 ![Orion Social Feed -- Database-Driven Application](screenshots/socialfeed_main.jpg)
+*Social feed application with database-driven posts, authors, and comments*
 
 **[Read the complete Database Forms guide](docs/database-forms.md)**
 
