@@ -62,7 +62,7 @@ static uint8_t *read_raw_font(const char *path) {
 
 int main(int argc, char *argv[]) {
   const char *out_path = (argc > 1) ? argv[1] : "share/fonts/vga-rom-font-8x16.png";
-  const char *raw_path = (argc > 2) ? argv[2] : "fonts/Topaz_a500_v1.0.raw";
+  const char *raw_path = (argc > 2) ? argv[2] : "share/fonts/Topaz_a500_v1.0.raw";
 
   uint8_t *raw = read_raw_font(raw_path);
   if (!raw)

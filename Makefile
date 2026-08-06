@@ -164,11 +164,11 @@ tools: $(TOOLS_BINS)
 
 fonts: tools
 	@mkdir -p share/fonts
-	@$(BIN_DIR)/font_atlas fonts/ChiKareGo2.ttf share/fonts/Chicago-12.png -pixelsize=16 -em -sharp -cellw=10 -cellh=15 -v
-	@$(BIN_DIR)/font_atlas fonts/FindersKeepers.ttf share/fonts/FindersKeepers.png -pixelsize=16 -em -sharp -cellw=8 -cellh=9 -v
-# 	$(BIN_DIR)/font_atlas fonts/Pix32.ttf share/fonts/Geneva-12.png -pixelsize=12 -em -sharp -cellw=8 -cellh=16 -v
-	@$(BIN_DIR)/font_atlas fonts/PixelOperator.ttf share/fonts/Geneva-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v -scan-width -letter-spacing=2
-	@$(BIN_DIR)/font_atlas fonts/PixelOperatorMono.ttf share/fonts/Mono-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v
+	@$(BIN_DIR)/font_atlas share/fonts/ChiKareGo2.ttf share/fonts/Chicago-12.png -pixelsize=16 -em -sharp -cellw=10 -cellh=15 -v
+	@$(BIN_DIR)/font_atlas share/fonts/FindersKeepers.ttf share/fonts/FindersKeepers.png -pixelsize=16 -em -sharp -cellw=8 -cellh=9 -v
+# 	$(BIN_DIR)/font_atlas share/fonts/Pix32.ttf share/fonts/Geneva-12.png -pixelsize=12 -em -sharp -cellw=8 -cellh=16 -v
+	@$(BIN_DIR)/font_atlas share/fonts/PixelOperator.ttf share/fonts/Geneva-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v -scan-width -letter-spacing=2
+	@$(BIN_DIR)/font_atlas share/fonts/PixelOperatorMono.ttf share/fonts/Mono-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v
 	
 $(BIN_DIR)/%$(EXE_EXT): tools/%.c $(CORE_LIBS) | $(BIN_DIR)
 	@echo "TOOL    $@"
