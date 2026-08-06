@@ -1,8 +1,8 @@
 // Git Client — entry point.
 
 #include "gitclient.h"
-#include "../../gem.h"
-#include "../../commctl/commctl.h"
+#include <orion/gem.h>
+#include "../../orion/commctl/commctl.h"
 
 // ============================================================
 // Module-level application state

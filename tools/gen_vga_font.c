@@ -21,7 +21,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "../user/image.h"
+#include "../orion/user/image.h"
 
 #define GLYPH_W     8
 #define GLYPH_H     16

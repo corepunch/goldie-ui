@@ -2,7 +2,7 @@
 // Tests terminal_run_lua_file() directly without a GL context.
 
 #include "test_framework.h"
-#include "../ui.h"
+#include <orion/ui.h>
 #include "../examples/terminal/vgat.h"
 #include <string.h>
 #include <stdio.h>

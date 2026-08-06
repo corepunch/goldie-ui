@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../../ui.h"
-#include "../../gem.h"
+#include <orion/ui.h>
+#include <orion/gem.h>
 
 // ---------------------------------------------------------------------------
 // filemanager_proc — thin wrapper around win_filelist.

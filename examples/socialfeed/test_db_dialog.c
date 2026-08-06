@@ -1,7 +1,7 @@
 // Simple test of database-driven dialog (manual bindings)
 // This demonstrates the runtime infrastructure before automating code generation.
 
-#include "../../ui.h"
+#include <orion/ui.h>
 #include "socialfeed.h"
 #include <stdio.h>
 

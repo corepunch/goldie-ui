@@ -18,8 +18,8 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "test_framework.h"
-#include "../kernel/http.h"
-#include "../user/messages.h"
+#include "../orion/kernel/http.h"
+#include "../orion/user/messages.h"
 
 #include <stddef.h>
 #include <string.h>

@@ -1,7 +1,7 @@
 #ifndef AGENT_ICON_H
 #define AGENT_ICON_H
 
-#include "../../ui.h"
+#include <orion/ui.h>
 
 #define AGENT_ICON_MAX_ARTIFACTS 6
 #define AGENT_ICON_STRIP_W 16

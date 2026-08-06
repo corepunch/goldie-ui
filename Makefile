@@ -90,7 +90,7 @@ COMMCTL_LIB = $(LIB_DIR)/libcommctl.$(LIB_EXT)
 COMMDLG_LIB = $(LIB_DIR)/libcommdlg.$(LIB_EXT)
 CORE_LIBS = $(USER_LIB) $(COMMCTL_LIB) $(COMMDLG_LIB) $(KERNEL_LIB)
 
-USER_SRCS = $(filter-out user/dialog.c user/component_registry.c,$(wildcard user/*.c))
+USER_SRCS = $(filter-out orion/user/dialog.c orion/user/component_registry.c,$(wildcard orion/user/*.c))
 
 # Shared rpath used exactly once per link command to avoid duplicate-rpath warnings.
 RPATH_FLAGS = -Wl,-rpath,$(abspath $(LIB_DIR))
@@ -235,19 +235,19 @@ $(USER_LIB): $(USER_SRCS) $(COMMDLG_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_D
 	@printf '%s\n' $(sort $(USER_SRCS)) | sed 's/.*/#include "&"/' | \
 	   $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(USER_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 # Build commdlg static library
-$(COMMDLG_LIB): $(wildcard commdlg/*.c) | $(LIB_DIR)
+$(COMMDLG_LIB): $(wildcard orion/commdlg/*.c) | $(LIB_DIR)
 	@echo "LIB     $@"
-	@$(MAKE) -C commdlg CC="$(CC)" CFLAGS="$(CFLAGS)"
-	@cp commdlg/libcommdlg.a $(COMMDLG_LIB)
+	@$(MAKE) -C orion/commdlg CC="$(CC)" CFLAGS="$(CFLAGS) -I$(abspath .)"
+	@cp orion/commdlg/libcommdlg.a $(COMMDLG_LIB)
 
-$(COMMCTL_LIB): $(wildcard commctl/*.c) $(USER_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
+$(COMMCTL_LIB): $(wildcard orion/commctl/*.c) $(USER_LIB) $(KERNEL_LIB) $(PLATFORM_LIB) | $(LIB_DIR)
 	@echo "LIB     $@"
-	@find commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
+	@find orion/commctl -name "*.c" | sort | sed 's/.*/#include "&"/' | \
 	    $(CC) $(CFLAGS) $(LIB_FLAGS) -Icomponents -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(COMMCTL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
-$(KERNEL_LIB): $(wildcard kernel/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
+$(KERNEL_LIB): $(wildcard orion/kernel/*.c) $(PLATFORM_LIB) | $(LIB_DIR)
 	@echo "LIB     $@"
-	@find kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
+	@find orion/kernel -name "*.c" | sort | sed 's/.*/#include "&"/' | \
 	    $(CC) $(CFLAGS) $(LIB_FLAGS) -x c -o $@ - -x none $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(KERNEL_LDLIBS) $(LIBS) $(IMPLIB_FLAGS)
 
 # Examples

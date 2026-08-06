@@ -1,8 +1,8 @@
 // Main window — uses generated form from gitclient.orion.
 
 #include "gitclient.h"
-#include "../../user/vga_font.h"
-#include "../../commctl/menubar.h"
+#include "../../orion/user/vga_font.h"
+#include "../../orion/commctl/menubar.h"
 
 // ============================================================
 // Open / refresh

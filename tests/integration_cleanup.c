@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include "../ui.h"
+#include <orion/ui.h>
 
 // Simple window procedure
 result_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {

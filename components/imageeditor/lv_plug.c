@@ -1,5 +1,5 @@
-#include "../../user/icons.h"
-#include "../../ui.h"
+#include "../../orion/user/icons.h"
+#include <orion/ui.h>
 
 #include "lv_cmpn.h"
 #include "fg_preview.h"

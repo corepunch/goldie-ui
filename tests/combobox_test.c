@@ -5,8 +5,8 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
-#include "../commctl/commctl.h"
+#include <orion/ui.h>
+#include "../orion/commctl/commctl.h"
 
 // ── notification capture ──────────────────────────────────────────────────
 

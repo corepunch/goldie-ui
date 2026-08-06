@@ -4,7 +4,7 @@
 // Programs are loaded as .gem shared libraries; each .gem creates its own
 // windows and the shell dispatches all messages to them.
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include "gem_loader.h"
 #include <stdio.h>
 #include <stdlib.h>

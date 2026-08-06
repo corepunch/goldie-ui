@@ -3,7 +3,7 @@
 // Inspired by Windows 1.0 basic functionality tests
 
 #include "test_framework.h"
-#include "../ui.h"
+#include <orion/ui.h>
 
 // Test constants
 #define TEST_DWORD_VALUE 0x12345678

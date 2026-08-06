@@ -1,5 +1,5 @@
 #include "formeditor.h"
-#include "../../commctl/commctl.h"
+#include "../../orion/commctl/commctl.h"
 #include <ctype.h>
 #include <libxml/tree.h>
 #include <strings.h>

@@ -6,8 +6,8 @@
 #include <string.h>
 
 // Include UI framework headers
-#include "../../ui.h"
-#include "../../gem.h"
+#include <orion/ui.h>
+#include <orion/gem.h>
 
 // Button ID constant
 #define ID_BUTTON_CLICKME 101

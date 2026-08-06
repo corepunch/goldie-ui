@@ -1,5 +1,5 @@
 // SimpleXMLDatabase implementation (message-based proc pattern)
-#include "../../ui.h"
+#include <orion/ui.h>
 #include "socialfeed.h"  // Includes generated types: db_author_t, db_post_t, db_comment_t + field metadata
 #include "../../platform/platform.h"  // for LOWORD/HIWORD
 #include <stdio.h>

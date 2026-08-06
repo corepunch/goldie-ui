@@ -2,7 +2,7 @@
 //   [Tables] -> [Fields and relationships] -> [Related fields ...]
 
 #include "formeditor.h"
-#include "../../commctl/commctl.h"
+#include "../../orion/commctl/commctl.h"
 
 #define DB_DRAG_THRESHOLD 2
 

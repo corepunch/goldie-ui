@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include "../ui.h"
+#include <orion/ui.h>
 
 // Simple test framework
 #define TEST_ASSERT(cond, msg) do { \

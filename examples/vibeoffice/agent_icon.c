@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../ui.h"
+#include <orion/ui.h>
 #include "agent_icon.h"
 
 #define ICON_STATUS_SIZE 9

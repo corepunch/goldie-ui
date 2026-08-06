@@ -2,7 +2,7 @@
 #define __IMAGEEDITOR_RENDER_EFFECTS_H__
 
 #include <stdint.h>
-#include "../../ui.h"
+#include <orion/ui.h>
 
 typedef enum {
   IE_RENDER_EFFECT_COPY = 0,

@@ -13,8 +13,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../../ui.h"
-#include "../../user/icons.h"
+#include <orion/ui.h>
+#include "../../orion/user/icons.h"
 #include "image-editor.h"
 
 #ifndef IMAGEEDITOR_DEBUG

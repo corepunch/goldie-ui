@@ -1,7 +1,7 @@
 #ifndef VIBEOFFICE_MODELS_H
 #define VIBEOFFICE_MODELS_H
 
-#include "../../ui.h"
+#include <orion/ui.h>
 
 typedef struct {
   int id;

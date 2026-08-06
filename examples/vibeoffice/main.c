@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../ui.h"
-#include "../../gem.h"
+#include <orion/ui.h>
+#include <orion/gem.h>
 #include "build/generated/examples/vibeoffice/vibeoffice.h"
 #include "models.h"
 #include "tasks.h"

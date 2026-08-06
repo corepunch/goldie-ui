@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "../../user/messages.h"
+#include "../../orion/user/messages.h"
 
 // Runtime class names exported by the imageeditor components plugin.
 // Keep these aligned with generated .orion class tags.

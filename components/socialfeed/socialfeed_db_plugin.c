@@ -1,5 +1,5 @@
-#include "../../ui.h"
-#include "../../gem.h"
+#include <orion/ui.h>
+#include <orion/gem.h>
 #include "../../platform/platform.h"
 
 #include "../../examples/socialfeed/socialfeed.h"

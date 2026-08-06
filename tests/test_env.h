@@ -4,7 +4,7 @@
 #ifndef __TEST_ENV_H__
 #define __TEST_ENV_H__
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include <stdbool.h>
 #include <stdio.h>
 

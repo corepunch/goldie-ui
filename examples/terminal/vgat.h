@@ -12,12 +12,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../../ui.h"
-#include "../../user/vga_font.h"
-#include "../../user/vga_text.h"
-#include "../../user/scrollbar.h"
+#include <orion/ui.h>
+#include "../../orion/user/vga_font.h"
+#include "../../orion/user/vga_text.h"
+#include "../../orion/user/scrollbar.h"
 #include "../../platform/platform.h"
-#include "../../user/ansi.h"
+#include "../../orion/user/ansi.h"
 #include "pty.h"
 #include "ansi_parser.h"
 

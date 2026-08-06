@@ -5,7 +5,7 @@
 // generated forms header included via socialfeed.h.
 
 #include "socialfeed.h"
-#include "../../gem.h"
+#include <orion/gem.h>
 
 // ============================================================
 // Accelerator table

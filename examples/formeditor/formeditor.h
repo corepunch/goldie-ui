@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <libxml/tree.h>
 
-#include "../../ui.h"
+#include <orion/ui.h>
 
 typedef database_t db_t;
 

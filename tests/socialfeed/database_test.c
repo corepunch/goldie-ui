@@ -5,7 +5,7 @@
 // rather than XML serialization details.
 
 #include "test_framework.h"
-#include "ui.h"
+#include <orion/ui.h>
 #include "examples/socialfeed/socialfeed.h"
 
 // Test database creation and destruction

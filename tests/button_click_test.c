@@ -4,7 +4,7 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
+#include <orion/ui.h>
 
 // Test state tracking
 static int test_kButtonNotificationClicked_count = 0;

@@ -3,7 +3,7 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
+#include <orion/ui.h>
 
 // Simple test database setup
 static database_t *g_test_db = NULL;

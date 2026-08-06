@@ -13,7 +13,7 @@
 // Pull in the image module implementation without the full static library.
 // user/image.c defines STB_IMAGE_IMPLEMENTATION before including stb_image.h,
 // so all stb symbols are compiled in here with no duplicate-symbol conflicts.
-#include "../user/image.c"
+#include "../orion/user/image.c"
 
 // ============================================================
 // Cross-platform temp directory helper.

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "../../ui.h"
+#include <orion/ui.h>
 
 #define ID_TB_BACK    1001
 #define ID_TB_FWD     1002

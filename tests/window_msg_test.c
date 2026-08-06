@@ -4,7 +4,7 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
+#include <orion/ui.h>
 
 // Test window procedure that handles messages
 static int test_wm_create_called = 0;

@@ -3,7 +3,7 @@
 // to verify that all resources are properly freed.
 
 #include "test_framework.h"
-#include "../ui.h"
+#include <orion/ui.h>
 #include <stdio.h>
 #include <stdbool.h>
 

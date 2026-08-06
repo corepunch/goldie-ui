@@ -1,8 +1,8 @@
 // VGA text grid tests
 
 #include "test_framework.h"
-#include "../user/vga_text.h"
-#include "../user/ansi.h"
+#include "../orion/user/vga_text.h"
+#include "../orion/user/ansi.h"
 
 void test_utf8_length_ascii(void) {
   TEST("vga_text_utf8_length returns 1 for ASCII bytes");

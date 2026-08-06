@@ -1,7 +1,7 @@
 #ifndef __IMAGEEDITOR_FILTER_GALLERY_PREVIEW_H__
 #define __IMAGEEDITOR_FILTER_GALLERY_PREVIEW_H__
 
-#include "../../ui.h"
+#include <orion/ui.h>
 
 #define FG_PREVIEW_CLASS_NAME "filter_preview"
 

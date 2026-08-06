@@ -18,7 +18,7 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
+#include <orion/ui.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>

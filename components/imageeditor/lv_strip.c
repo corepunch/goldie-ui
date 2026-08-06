@@ -1,7 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "../../ui.h"
+#include <orion/ui.h>
 
 #include "lv_cmpn.h"
 #include "lv_plug.h"

@@ -1,7 +1,7 @@
 // VIEW: Menu bar and command dispatch for the Task Manager.
 
 #include "taskmanager.h"
-#include "../../gem.h"
+#include <orion/gem.h>
 
 // ============================================================
 // Menu definitions

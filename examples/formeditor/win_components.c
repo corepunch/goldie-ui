@@ -4,12 +4,12 @@
 // grid view, the same way Filter Gallery does in ImageEditor.
 
 #include "formeditor.h"
-#include "../../commctl/commctl.h"
-#include "../../commctl/columnview.h"
-#include "../../kernel/renderer.h"
-#include "../../user/draw.h"
-#include "../../user/image.h"
-#include "../../user/icons.h"
+#include "../../orion/commctl/commctl.h"
+#include "../../orion/commctl/columnview.h"
+#include "../../orion/kernel/renderer.h"
+#include "../../orion/user/draw.h"
+#include "../../orion/user/image.h"
+#include "../../orion/user/icons.h"
 
 #define FE_TOOL_ICON_SIZE FE_COMPONENTS_ICON_W
 #define FE_DRAG_THRESHOLD 2

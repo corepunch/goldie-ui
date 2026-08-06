@@ -1,6 +1,6 @@
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
+#include <orion/ui.h>
 
 static int selection_count, click_count, open_count;
 static window_t *last_source;

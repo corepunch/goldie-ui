@@ -8,11 +8,11 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include "../../ui.h"
-#include "../../commctl/columnview.h"
-#include "../../commctl/menubar.h"
-#include "../../user/accel.h"
-#include "../../user/icons.h"
+#include <orion/ui.h>
+#include "../../orion/commctl/columnview.h"
+#include "../../orion/commctl/menubar.h"
+#include "../../orion/user/accel.h"
+#include "../../orion/user/icons.h"
 
 #ifndef TASKMANAGER_DEBUG
 #define TASKMANAGER_DEBUG 1

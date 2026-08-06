@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../ui.h"
-#include "../../gem.h"
+#include <orion/ui.h>
+#include <orion/gem.h>
 
 #include "browser.h"
 

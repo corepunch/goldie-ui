@@ -1,7 +1,7 @@
 // Test: Database registry and self-contained forms
 // Demonstrates the new registry pattern where forms look up databases by name
 
-#include "../../ui.h"
+#include <orion/ui.h>
 #include "socialfeed.h"
 #include <stdio.h>
 

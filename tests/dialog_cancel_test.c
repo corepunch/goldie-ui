@@ -21,7 +21,7 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "../ui.h"
+#include <orion/ui.h>
 
 extern void end_dialog(window_t *win, uint32_t code);
 

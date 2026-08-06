@@ -1,5 +1,5 @@
 #include "formeditor.h"
-#include "../../gem.h"
+#include <orion/gem.h>
 
 app_state_t *g_app = NULL;
 

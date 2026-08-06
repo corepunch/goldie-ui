@@ -1,6 +1,6 @@
 // Test: Verify space element expands in auto-layout.
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include "test_framework.h"
 #include "test_env.h"
 

@@ -6,7 +6,7 @@
 // Fix: Auto-add WINDOW_FLEXSPACE for <space> and <multiedit> elements in orionc,
 // so only intended flex controls expand, leaving buttons at fixed height.
 
-#include "ui.h"
+#include <orion/ui.h>
 #include "examples/socialfeed/socialfeed.h"
 #include "test_framework.h"
 #include "test_env.h"

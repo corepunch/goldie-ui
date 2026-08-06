@@ -6,8 +6,8 @@
 // NOT include test_env.h.
 
 #include "test_framework.h"
-#include "../ui.h"
-#include "../user/rect.h"
+#include <orion/ui.h>
+#include "../orion/user/rect.h"
 
 // ── rect_inset ────────────────────────────────────────────────────────────
 

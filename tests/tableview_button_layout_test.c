@@ -3,7 +3,7 @@
 // Tests form-based window creation with vertical stack layout where
 // tableview (WINDOW_FLEXSPACE) expands while button row stays fixed height.
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include "test_framework.h"
 #include "test_env.h"
 
