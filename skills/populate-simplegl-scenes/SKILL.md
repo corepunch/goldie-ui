@@ -55,6 +55,7 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Give each room a dominant shadow-casting key light. Keep ambient light low enough for shape, but never leave the hero subject or interaction in featureless darkness; add a weaker motivated fill or rim when required for readability.
 - Aim directional exterior light through an actual opening. Use a **45–60 degree downward** angle and offset it **15–45 degrees from the wall axis** so cast shadows fall diagonally rather than parallel to walls. `dir="-0.6 -1 1"` gives ~45° down and ~30° horizontal offset; `dir="0 -1.7 1"` gives ~60° down. Never set the horizontal component to zero — that produces shadows aligned to walls, which reads as flat and uninteresting. Check that the ceiling and wall shell do not accidentally block the intended window-light path.
 - When the camera must view a closed room from the outside, mark the camera-facing wall `renderable="0" castShadow="1"`. It remains invisible while preserving correct interior shadow and light-blocking behavior.
+- Verify that traversal mechanisms (lifts, stairs, ladders) are positioned adjacent to their destination platform. The base should sit near the lower platform and the top should reach near the upper platform so a single shot can capture both ends of the traversal.
 
 ## Required CLI validation
 

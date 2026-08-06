@@ -505,7 +505,25 @@ static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec
 		s->prefabTintActive=1;
 		s->prefabTint=color;
 	}
-	parse_nodes(s, proot, M, R);
+
+	int arrayCount=1;
+	vec3 arrayTrans=v3(0,0,0), arrayRot=v3(0,0,0);
+	for(int k=0;k<n->nkids;k++){
+		if(!strcmp(n->kids[k]->tag,"array")){
+			XmlNode *arr=n->kids[k];
+			arrayCount=xml_attr_i(arr,"count",1);
+			arrayTrans=xml_attr_v3(arr,"translation",v3(0,0,0));
+			arrayRot=xml_attr_v3(arr,"rotation",v3(0,0,0));
+			break;
+		}
+	}
+	for(int step=0;step<arrayCount;step++){
+		vec3 off=vscale(arrayTrans,(float)step);
+		vec3 r=vscale(arrayRot,(float)step);
+		mat4 stepM=mat4_mul(M,mat4_mul(mat4_translate(off),mat4_rot_xyz(r)));
+		parse_nodes(s, proot, stepM, R);
+	}
+
 	s->prefabTintActive=oldTintActive;
 	s->prefabTint=oldTint;
 }
