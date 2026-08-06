@@ -59,6 +59,8 @@ show_db_dialog(&form, "Edit Author", parent, db, author_id);
 
 **Code reduction: 95%** (200 lines to 10 lines)
 
+![Orion Social Feed -- Database-Driven Application](screenshots/socialfeed_main.jpg)
+
 **[Read the complete Database Forms guide](docs/database-forms.md)**
 
 ---
