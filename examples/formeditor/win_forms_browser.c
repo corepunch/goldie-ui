@@ -90,7 +90,7 @@ static void forms_browser_observer(fe_event_type_t event, form_doc_t *doc, void 
 
 window_t *forms_browser_create(hinstance_t hinstance) {
   window_t *win = create_window("Forms",
-      WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
+      WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
       MAKERECT(FORMS_WIN_X, FORMS_WIN_Y, FORMS_WIN_W, FORMS_WIN_H),
       NULL, win_forms_browser_proc, hinstance, NULL);
   if (win) show_window(win, true);

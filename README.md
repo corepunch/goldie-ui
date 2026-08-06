@@ -1,17 +1,17 @@
-<img width="1536" height="1024" alt="539931522-793ada60-d34d-4dfa-ac3a-688c1d70f67b" src="https://github.com/user-attachments/assets/272c216a-520f-42b8-a8ce-0baa1bbbacf2" />
+![Orion Form Editor -- SocialFeed Project](screenshots/formeditor_socialfeed.jpg)
 
 ---
 
-Orion is a retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from DOOM-ED, it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who've worked with Win32. Built on the [corepunch/platform](https://github.com/corepunch/platform) layer and OpenGL 3.2+, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
+Orion is a retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from DOOM-ED, it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who have worked with Win32. Built on the [corepunch/platform](https://github.com/corepunch/platform) layer and OpenGL 3.2+, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
 
 <a href="https://www.youtube.com/watch?v=US-BxhRw2qA">
 <img width="1654" height="1224" alt="Screenshot 2026-05-12 at 07 30 29" src="https://github.com/user-attachments/assets/a5671731-81d0-4e03-a348-4ae824783c90" /></a>
 
 ---
 
-## 🌟 Killer Feature: Zero-Boilerplate Database Forms
+## Zero-Boilerplate Database Forms
 
-Generate complete CRUD dialogs from XML with **ZERO manual binding code**.
+Generate complete CRUD dialogs from XML with **ZERO** manual binding code.
 
 **Traditional approach (200+ lines per table):**
 ```c
@@ -44,22 +44,41 @@ sprintf(sql, "UPDATE authors SET name='%s', email='%s' WHERE id=%d", ...);
 ```
 
 ```c
-// Use it everywhere - auto-fetch, auto-populate, auto-save
+// Use it everywhere -- auto-fetch, auto-populate, auto-save
 show_db_dialog(&form, "Edit Author", parent, db, author_id);
 ```
 
 **What you get automatically:**
-- ✅ Type-safe bindings with `offsetof()`/`sizeof()`
-- ✅ Auto-fetch record from database  
-- ✅ Auto-populate all controls
-- ✅ Auto-save on OK (INSERT or UPDATE)
-- ✅ Compile-time field validation
-- ✅ Multi-database support
-- ✅ Zero boilerplate code
+- Type-safe bindings with `offsetof()`/`sizeof()`
+- Auto-fetch record from database
+- Auto-populate all controls
+- Auto-save on OK (INSERT or UPDATE)
+- Compile-time field validation
+- Multi-database support
+- Zero boilerplate code
 
-**Code reduction: 95%** (200 lines → 10 lines)
+**Code reduction: 95%** (200 lines to 10 lines)
 
-**[📖 Read the complete Database Forms guide →](docs/database-forms.md)**
+**[Read the complete Database Forms guide](docs/database-forms.md)**
+
+---
+
+## Screenshots
+
+Press **F12** at any time to save a JPEG screenshot of the current application window to the user's settings directory. The filename includes a timestamp: `screenshot_YYYYMMDD_HHMMSS.jpg`.
+
+Programmatic capture is available through the public API:
+
+```c
+// Save a JPEG screenshot to a specific path
+bool ui_save_screenshot_jpg(const char *path, int quality);
+
+// Low-level framebuffer capture into an RGBA buffer
+bool capture_framebuffer_rgba(int w, int h, uint8_t *out_rgba);
+
+// Save raw RGBA pixels to JPEG
+bool save_image_jpg(const char *path, const uint8_t *pixels, int w, int h, int quality);
+```
 
 ---
 
@@ -67,7 +86,7 @@ show_db_dialog(&form, "Edit Author", parent, db, author_id);
 
 Orion follows a layered architecture similar to Windows:
 
-### ui/user/ - Window Management Layer
+### ui/user/ -- Window Management Layer
 Handles window creation, destruction, message passing, and basic rendering primitives.
 
 **Key Components:**
@@ -77,7 +96,7 @@ Handles window creation, destruction, message passing, and basic rendering primi
 - Drawing primitives (rectangles, text, icons)
 - Window messages (evCreate, evPaint, evLeftButtonUp, etc.)
 
-### ui/kernel/ - Event Management Layer
+### ui/kernel/ -- Event Management Layer
 Manages the platform (corepunch/platform) event loop and translates platform events into window messages. Also provides the Renderer API for OpenGL abstraction.
 
 **Key Components:**
@@ -87,7 +106,7 @@ Manages the platform (corepunch/platform) event loop and translates platform eve
 - **Renderer API**: High-level OpenGL abstraction (`R_Mesh`, `R_Texture`, `R_MeshDrawDynamic`)
   - See [docs/RENDERER_API.md](docs/RENDERER_API.md) for detailed documentation
 
-### ui/commctl/ - Common Controls Layer
+### ui/commctl/ -- Common Controls Layer
 Implements standard UI controls that can be used to build interfaces.
 
 **Available Controls:**
@@ -273,7 +292,7 @@ Dialogs and panels with multiple standard controls should be described using
 ```c
 #include "ui.h"
 
-// ── Define children (socialfeed-style auto layout) ───────────────
+// Define children (socialfeed-style auto layout)
 static const form_ctrl_def_t kMyDialogChildren[] = {
   {
     .class_name = "stack",
@@ -303,7 +322,7 @@ static const form_ctrl_def_t kMyDialogChildren[] = {
   },
 };
 
-// ── Define the form ───────────────────────────────────────────────
+// Define the form
 static const form_def_t kMyDialogForm = {
   .name        = "My Dialog",
   .width       = 160,
@@ -315,7 +334,7 @@ static const form_def_t kMyDialogForm = {
   .child_count = ARRAY_LEN(kMyDialogChildren),
 };
 
-// ── Window procedure ──────────────────────────────────────────────
+// Window procedure
 // Children already exist when evCreate fires.
 static result_t my_dlg_proc(window_t *win, uint32_t msg,
                              uint32_t wparam, void *lparam) {
@@ -343,15 +362,15 @@ static result_t my_dlg_proc(window_t *win, uint32_t msg,
   }
 }
 
-// ── Show as a modal dialog ────────────────────────────────────────
+// Show as a modal dialog
 // show_dialog_from_form() centers the window, adds WINDOW_DIALOG flags,
-// and runs the modal loop — no position/size arithmetic needed.
+// and runs the modal loop -- no position/size arithmetic needed.
 void show_my_dialog(window_t *parent) {
   my_state_t st = { ... };
   show_dialog_from_form(&kMyDialogForm, "My Dialog", parent, my_dlg_proc, &st);
 }
 
-// ── Or instantiate as a modeless window ──────────────────────────
+// Or instantiate as a modeless window
 void create_my_panel(window_t *parent, int x, int y) {
   create_window_from_form(&kMyDialogForm, x, y, parent, my_dlg_proc, NULL);
 }
@@ -368,7 +387,7 @@ void create_my_panel(window_t *parent, int x, int y) {
   `form_def_t` can express the same layout statically.
 - Use `set_window_item_text(win, id, ...)` in `evCreate` to set
   runtime-determined initial values (edit box contents, etc.).
-- Use `show_dialog_from_form()` for modal dialogs — it handles centering, dialog
+- Use `show_dialog_from_form()` for modal dialogs -- it handles centering, dialog
   flags, and the modal loop automatically.
 - Use `create_window_from_form()` for modeless panels / embedded sub-forms.
 - The form editor saves `.h` files that declare a compatible `form_def_t` struct
@@ -383,17 +402,17 @@ Declare a static `ctrl_binding_t[]` table and call `dialog_push()` on open and
 `dialog_pull()` on accept:
 
 ```c
-// Binding table — one entry per control/field pair.
+// Binding table -- one entry per control/field pair.
 static const ctrl_binding_t k_bindings[] = {
   { ID_TITLE_EDIT,    BIND_STRING,    offsetof(my_state_t, title),    sizeof_field(my_state_t, title), 0 },
   { ID_PRIORITY_COMBO,BIND_INT_COMBO, offsetof(my_state_t, priority), 0, 0 },
   { ID_SIZE_EDIT,     BIND_INT,       offsetof(my_state_t, size),     0, 0 },
 };
 
-// evCreate — push state into controls:
+// evCreate -- push state into controls:
 dialog_push(win, s, k_bindings, ARRAY_LEN(k_bindings));
 
-// OK handler — pull controls back into state:
+// OK handler -- pull controls back into state:
 dialog_pull(win, s, k_bindings, ARRAY_LEN(k_bindings));
 
 // Command-driven pull (evCommand notifications):
@@ -402,11 +421,11 @@ dialog_pull(win, s, k_bindings, ARRAY_LEN(k_bindings));
 
 | `bind_type_t` | Control | State field |
 |---|---|---|
-| `BIND_STRING` | `FORM_CTRL_TEXTEDIT` | `char[]` — `size` = `sizeof_field(…)` |
-| `BIND_INT_COMBO` | `FORM_CTRL_COMBOBOX` | `int` — selection index |
-| `BIND_INT` | `FORM_CTRL_TEXTEDIT` | `int` — decimal text |
+| `BIND_STRING` | `FORM_CTRL_TEXTEDIT` | `char[]` -- `size` = `sizeof_field(...)` |
+| `BIND_INT_COMBO` | `FORM_CTRL_COMBOBOX` | `int` -- selection index |
+| `BIND_INT` | `FORM_CTRL_TEXTEDIT` | `int` -- decimal text |
 
-See [Dialogs & DDX](docs/dialogs.md) for the full API reference.
+See [Dialogs and DDX](docs/dialogs.md) for the full API reference.
 
 ### Using the ColumnView
 
@@ -515,46 +534,46 @@ The terminal supports:
 
 The framework uses a message-based architecture. Common messages include:
 
-- `evCreate` - Window is being created
-- `evDestroy` - Window is being destroyed
-- `evPaint` - Window needs to be redrawn
-- `evLeftButtonDown` - Left mouse button pressed
-- `evLeftButtonUp` - Left mouse button released
-- `evKeyDown` - Key pressed
-- `evKeyUp` - Key released
-- `evCommand` - Control notification
+- `evCreate` -- Window is being created
+- `evDestroy` -- Window is being destroyed
+- `evPaint` -- Window needs to be redrawn
+- `evLeftButtonDown` -- Left mouse button pressed
+- `evLeftButtonUp` -- Left mouse button released
+- `evKeyDown` -- Key pressed
+- `evKeyUp` -- Key released
+- `evCommand` -- Control notification
 
 ## Control-Specific Messages
 
 ### Button Messages
-- `btnClicked` - Button was clicked
+- `btnClicked` -- Button was clicked
 
 ### Checkbox Messages
-- `btnSetCheck` - Set checkbox state
-- `btnGetCheck` - Get checkbox state
+- `btnSetCheck` -- Set checkbox state
+- `btnGetCheck` -- Get checkbox state
 
 ### Combobox Messages
-- `cbAddString` - Add item to combobox
-- `cbGetCurrentSelection` - Get currently selected item
-- `cbSetCurrentSelection` - Set currently selected item
-- `cbSelectionChange` - Selection changed notification
+- `cbAddString` -- Add item to combobox
+- `cbGetCurrentSelection` -- Get currently selected item
+- `cbSetCurrentSelection` -- Set currently selected item
+- `cbSelectionChange` -- Selection changed notification
 
 ### Edit Box Messages
-- `edUpdate` - Text was modified
+- `edUpdate` -- Text was modified
 
 ### ColumnView Messages
-- `RVM_ADDITEM` - Add item with icon, color, text, and userdata
-- `RVM_DELETEITEM` - Remove item by index
-- `RVM_GETITEMCOUNT` - Get total item count
-- `RVM_GETSELECTION` - Get current selection index
-- `RVM_SETSELECTION` - Set selection by index
-- `RVM_CLEAR` - Clear all items
-- `RVM_SETCOLUMNWIDTH` - Set column width (default 160)
-- `RVM_GETCOLUMNWIDTH` - Get current column width
-- `RVM_GETITEMDATA` - Get item data by index
-- `RVM_SETITEMDATA` - Update item data
-- `RVN_SELCHANGE` - Selection changed notification
-- `RVN_DBLCLK` - Item double-clicked notification
+- `RVM_ADDITEM` -- Add item with icon, color, text, and userdata
+- `RVM_DELETEITEM` -- Remove item by index
+- `RVM_GETITEMCOUNT` -- Get total item count
+- `RVM_GETSELECTION` -- Get current selection index
+- `RVM_SETSELECTION` -- Set selection by index
+- `RVM_CLEAR` -- Clear all items
+- `RVM_SETCOLUMNWIDTH` -- Set column width (default 160)
+- `RVM_GETCOLUMNWIDTH` -- Get current column width
+- `RVM_GETITEMDATA` -- Get item data by index
+- `RVM_SETITEMDATA` -- Update item data
+- `RVN_SELCHANGE` -- Selection changed notification
+- `RVN_DBLCLK` -- Item double-clicked notification
 
 ## Built-in System Icons
 
@@ -568,7 +587,7 @@ icons.  All icon names are defined as an enum in `user/icons.h`.
 
 Every `sysicon_*` value starts at `SYSICON_BASE` (`0x10000`).  When the
 framework sees a toolbar-button icon value `>= SYSICON_BASE` it draws the icon
-from the built-in sheet automatically — no `tbLoadStrip` call is
+from the built-in sheet automatically -- no `tbLoadStrip` call is
 required.
 
 ### Using sysicons in a WINDOW_TOOLBAR
@@ -605,7 +624,7 @@ if (strip) {
 
 All icons are listed in `user/icons.h` as `sysicon_<name>` enum values
 (e.g., `sysicon_add`, `sysicon_accept`, `sysicon_folder`, `sysicon_save`,
-`sysicon_world`, …).  The enum contains ~398 entries covering common UI
+`sysicon_world`, ...).  The enum contains approximately 398 entries covering common UI
 actions, file types, and editor concepts.
 
 ### Asset deployment
@@ -635,7 +654,7 @@ draw_text_small("Hello World", x, y, 0xFFFFFFFF); // color as RGBA
 int width = strwidth("Hello World");
 int partial_width = strnwidth("Hello", 5);
 
-// Advanced text rendering with wrapping and scrolling (NEW)
+// Advanced text rendering with wrapping and scrolling
 // Calculate text height with wrapping
 int height = calc_text_height(text, window_width);
 
@@ -673,21 +692,21 @@ int width = get_text_width("DOOM");
 
 This is an in-progress refactoring. The framework currently:
 
-✅ Has header files defining the API structure
-✅ Has extracted common control implementations (button, checkbox, edit, label, list, combobox, console)
-✅ Has extracted text rendering to `ui/user/text.c` (small bitmap font and DOOM/Hexen fonts)
-✅ Has moved console to `ui/commctl/console.c` (console message management and display)
-✅ Has integrated with build system (Makefile)
-✅ Has comprehensive cleanup functions with no memory leaks
-⏳ Still needs core window management code to be moved from mapview/window.c
-⏳ Still needs drawing primitives to be moved from mapview/sprites.c
+- Has header files defining the API structure
+- Has extracted common control implementations (button, checkbox, edit, label, list, combobox, console)
+- Has extracted text rendering to `ui/user/text.c` (small bitmap font and DOOM/Hexen fonts)
+- Has moved console to `ui/commctl/console.c` (console message management and display)
+- Has integrated with build system (Makefile)
+- Has comprehensive cleanup functions with no memory leaks
+- Core window management code still needs to be moved from mapview/window.c
+- Drawing primitives still need to be moved from mapview/sprites.c
 
 ## Memory Management
 
 Orion has been verified to have proper cleanup with no memory leaks:
 
 ### Cleanup Functions
-- `ui_shutdown_graphics()` - Main cleanup function that:
+- `ui_shutdown_graphics()` -- Main cleanup function that:
   - Destroys all windows
   - Cleans up all window hooks
   - Shuts down joystick subsystem (if initialized)
@@ -701,9 +720,9 @@ All cleanup functions are idempotent and safe to call multiple times.
 
 ### Memory Leak Verification
 Orion has been tested with Valgrind to ensure no memory leaks:
-- **definitely lost: 0 bytes** ✅
-- **indirectly lost: 0 bytes** ✅
-- **possibly lost: 0 bytes** ✅
+- **definitely lost: 0 bytes**
+- **indirectly lost: 0 bytes**
+- **possibly lost: 0 bytes**
 
 To verify cleanup yourself:
 ```bash
@@ -716,6 +735,12 @@ valgrind --leak-check=full ./build/bin/test_integration_cleanup
 ```
 
 ## Recent Changes
+
+### Screenshot Support (August 2026)
+- **F12 global shortcut**: Press F12 in any Orion application to save a JPEG screenshot
+- **`ui_save_screenshot_jpg()`**: Public API for programmatic screenshot capture
+- **`capture_framebuffer_rgba()`**: Low-level framebuffer-to-RGBA pixel readback
+- **`save_image_jpg()`**: JPEG encoding support via stb_image_write
 
 ### Cleanup and Memory Management (January 2026)
 - **Comprehensive cleanup functions**: Added `cleanup_all_windows()` and `cleanup_all_hooks()`

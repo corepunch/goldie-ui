@@ -3,6 +3,12 @@
 
 app_state_t *g_app = NULL;
 
+#ifdef BUILD_AS_GEM
+#define FE_QUIT_AFTER_SCREENSHOT false
+#else
+#define FE_QUIT_AFTER_SCREENSHOT true
+#endif
+
 static const accel_t kAccelEntries[] = {
   { FCONTROL|FVIRTKEY, AX_KEY_N, ID_FILE_NEW  },
   { FCONTROL|FVIRTKEY, AX_KEY_O, ID_FILE_OPEN },
@@ -50,7 +56,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   load_default_component_plugin();
   const char *project_path = NULL;
   for (int i = 1; i < argc; i++) {
-    if (has_dynlib_ext(argv[i]))
+    if (i + 1 < argc && strcmp(argv[i], "--screenshot") == 0) {
+      ui_request_screenshot_jpg(argv[i + 1], 90, FE_QUIT_AFTER_SCREENSHOT);
+      i++;
+    } else if (has_dynlib_ext(argv[i]))
       fe_load_component_plugin(argv[i]);
     else {
       size_t n = strlen(argv[i]);

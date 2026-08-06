@@ -302,7 +302,7 @@ static ipoint16_t window_local_point_to_screen(window_t *win, int lx, int ly) {
 window_t *formeditor_create_components_palette(hinstance_t hinstance) {
   window_t *tp = create_window(
       "Components",
-      WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON,
+      WINDOW_NOTRAYBUTTON,
       MAKERECT(PALETTE_WIN_X, components_win_y(), PALETTE_WIN_W, components_win_h()),
       NULL, win_components_proc, hinstance, NULL);
   if (tp) show_window(tp, true);

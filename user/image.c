@@ -180,3 +180,8 @@ void image_free(uint8_t *pixels) {
 bool save_image_png(const char *path, const uint8_t *pixels, int w, int h) {
   return stbi_write_png(path, w, h, 4, pixels, w * 4) != 0;
 }
+
+bool save_image_jpg(const char *path, const uint8_t *pixels, int w, int h,
+                    int quality) {
+  return stbi_write_jpg(path, w, h, 4, pixels, quality) != 0;
+}

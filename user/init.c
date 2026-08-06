@@ -383,6 +383,58 @@ void ui_end_frame(void) {
   axEndPaint();
 }
 
+// Take a screenshot of the current framebuffer and save as JPEG.
+// Quality 1-100 (90 is a good default).  Returns true on success.
+bool ui_save_screenshot_jpg(const char *path, int quality) {
+  struct AXsize sz;
+  axGetSize(&sz);
+  float scale = axGetScaling();
+  int pw = (int)((float)sz.width * scale);
+  int ph = (int)((float)sz.height * scale);
+  if (pw <= 0 || ph <= 0) return false;
+  uint8_t *rgba = malloc((size_t)pw * ph * 4);
+  if (!rgba) return false;
+  bool ok = capture_framebuffer_rgba(pw, ph, rgba);
+  if (!ok) { free(rgba); return false; }
+  ok = save_image_jpg(path, rgba, pw, ph, quality);
+  free(rgba);
+  return ok;
+}
+
+#define UI_SCREENSHOT_PATH_MAX 1024
+
+static struct {
+  char path[UI_SCREENSHOT_PATH_MAX];
+  int quality;
+  bool pending, quit_after;
+} g_screenshot_request;
+
+bool ui_request_screenshot_jpg(const char *path, int quality, bool quit_after) {
+  if (!path || !*path || quality < 1 || quality > 100) return false;
+  int n = snprintf(g_screenshot_request.path, sizeof(g_screenshot_request.path), "%s", path);
+  if (n < 0 || (size_t)n >= sizeof(g_screenshot_request.path)) return false;
+  g_screenshot_request.quality = quality;
+  g_screenshot_request.quit_after = quit_after;
+  g_screenshot_request.pending = true;
+  for (window_t *win = g_ui_runtime.windows; win; win = win->next) {
+    if (window_has_state(win, WINDOW_STATE_VISIBLE)) invalidate_window(win);
+  }
+  return true;
+}
+
+bool ui_dequeue_screenshot_for_frame(bool frame_had_paint, char *path,
+                                     size_t path_size, int *quality,
+                                     bool *quit_after) {
+  if (!frame_had_paint || !g_screenshot_request.pending || !path || path_size == 0)
+    return false;
+  int n = snprintf(path, path_size, "%s", g_screenshot_request.path);
+  if (n < 0 || (size_t)n >= path_size) return false;
+  if (quality) *quality = g_screenshot_request.quality;
+  if (quit_after) *quit_after = g_screenshot_request.quit_after;
+  g_screenshot_request.pending = false;
+  return true;
+}
+
 // Delay execution
 void ui_delay(unsigned int milliseconds) {
   axSleep(milliseconds);

@@ -20,4 +20,9 @@ void image_free(uint8_t *pixels);
 // Returns true on success.
 bool save_image_png(const char *path, const uint8_t *pixels, int w, int h);
 
+// Save RGBA pixel data to a JPEG file with the specified quality (1-100).
+// Returns true on success.
+bool save_image_jpg(const char *path, const uint8_t *pixels, int w, int h,
+                    int quality);
+
 #endif

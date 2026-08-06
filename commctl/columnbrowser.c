@@ -119,6 +119,10 @@ static void cb_create_column_list(window_t *win, column_browser_state_t *cbs, in
   
   list->id = 1000 + column;  // Unique ID per column
   list->userdata = (void *)(intptr_t)column;
+  send_message(list, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+  send_message(list, RVM_SETCOLUMNTITLESVISIBLE, 0, NULL);
+  reportview_column_t text_column = { "", 0 };
+  send_message(list, RVM_ADDCOLUMN, 0, &text_column);
   
   cbs->column_lists[column] = list;
   cb_populate_column(cbs, column);
@@ -221,10 +225,6 @@ result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *
         free(cbs);
         win->userdata = NULL;
       }
-      return true;
-    
-    case evPaint:
-      // Columns draw themselves
       return true;
     
     case cbSetDataSource: {

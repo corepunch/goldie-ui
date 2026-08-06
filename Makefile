@@ -1,6 +1,10 @@
 # Orion Framework Makefile
 # Builds Orion library, examples, and tests for Linux, macOS, and Windows
 
+# Keep plain `make` anchored to the complete build even if generated rules
+# appear before the all target below.
+.DEFAULT_GOAL := all
+
 # Compiler and flags
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "user.h"
 #include "messages.h"
@@ -371,6 +372,17 @@ void dispatch_message(ui_event_t *msg) {
           if (def) {
             send_message(def, evLeftButtonDown, 0, NULL);
             send_message(def, evLeftButtonUp, 0, NULL);
+          }
+        } else if (key == AX_KEY_F12) {
+          char path[1024];
+          time_t now = time(NULL);
+          struct tm *tm_now = localtime(&now);
+          if (tm_now) {
+            snprintf(path, sizeof(path), "%s/screenshot_%04d%02d%02d_%02d%02d%02d.jpg",
+                     axSettingsDirectory(),
+                     tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday,
+                     tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
+            ui_request_screenshot_jpg(path, 90, false);
           }
         }
       }

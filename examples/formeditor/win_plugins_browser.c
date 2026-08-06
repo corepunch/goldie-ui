@@ -106,7 +106,7 @@ static void plugins_browser_observer(fe_event_type_t event, form_doc_t *doc, voi
 
 window_t *plugins_browser_create(hinstance_t hinstance) {
   window_t *win = create_window("Plugins",
-      WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
+      WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE | WINDOW_TOOLBAR,
       MAKERECT(PLUGINS_WIN_X, PLUGINS_WIN_Y, PLUGINS_WIN_W, PLUGINS_WIN_H),
       NULL, win_plugins_browser_proc, hinstance, NULL);
   if (win) show_window(win, true);

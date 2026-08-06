@@ -493,7 +493,9 @@ bool is_valid_window_ptr(window_t *target, window_t *list) {
 }
 
 void repost_messages(void) {
-  if (g_ui_runtime.running) {
+  bool frame_began = g_ui_runtime.running;
+  bool frame_had_paint = false;
+  if (frame_began) {
     ui_begin_frame();   // make GL context current, bind platform framebuffer
   }
   for (uint8_t write = queue.write; queue.read != write;) {
@@ -513,10 +515,22 @@ void repost_messages(void) {
       free_posted_lparam(m->msg, m->lparam);
       continue;
     }
+    if (m->msg == evPaint) frame_had_paint = true;
     send_message(m->target, m->msg, m->wparam, m->lparam);
     free_posted_lparam(m->msg, m->lparam);
   }
-  if (g_ui_runtime.running) {
+  char screenshot_path[1024];
+  int screenshot_quality = 90;
+  bool quit_after_screenshot = false;
+  if (frame_began && ui_dequeue_screenshot_for_frame(frame_had_paint,
+        screenshot_path, sizeof(screenshot_path), &screenshot_quality,
+        &quit_after_screenshot)) {
+    ui_save_screenshot_jpg(screenshot_path, screenshot_quality);
+  }
+  // A window procedure may request quit while dispatching.  Still present any
+  // frame that was begun; otherwise its completed drawing is never swapped.
+  if (frame_began) {
     ui_end_frame();     // present frame (swap buffers / flushBuffer)
   }
+  if (quit_after_screenshot) ui_request_quit();
 }

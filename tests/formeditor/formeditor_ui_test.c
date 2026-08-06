@@ -217,6 +217,10 @@ static void fe_setup(void) {
             destroy_window(g_app->forms_win);
         if (g_app->plugins_win)
             destroy_window(g_app->plugins_win);
+        if (g_app->databases_win)
+            destroy_window(g_app->databases_win);
+        if (g_app->tool_win)
+            destroy_window(g_app->tool_win);
         free(g_app);
         g_app = NULL;
     }
@@ -243,9 +247,164 @@ static void fe_teardown(void) {
         destroy_window(g_app->forms_win);
     if (g_app->plugins_win)
         destroy_window(g_app->plugins_win);
+    if (g_app->databases_win)
+        destroy_window(g_app->databases_win);
+    if (g_app->tool_win)
+        destroy_window(g_app->tool_win);
     free(g_app);
     g_app = NULL;
     test_env_shutdown();
+}
+
+static window_t *fe_find_descendant_proc(window_t *win, winproc_t proc) {
+    if (!win) return NULL;
+    for (window_t *child = win->children; child; child = child->next) {
+        if (child->proc == proc) return child;
+        window_t *found = fe_find_descendant_proc(child, proc);
+        if (found) return found;
+    }
+    return NULL;
+}
+
+static int fe_collect_descendant_proc(window_t *win, winproc_t proc,
+                                      window_t **out, int capacity) {
+    if (!win) return 0;
+    int count = 0;
+    for (window_t *child = win->children; child; child = child->next) {
+        if (child->proc == proc) {
+            if (out && count < capacity) out[count] = child;
+            count++;
+        }
+        window_t **nested_out = out && count < capacity ? out + count : NULL;
+        int nested_capacity = capacity > count ? capacity - count : 0;
+        count += fe_collect_descendant_proc(child, proc, nested_out, nested_capacity);
+    }
+    return count;
+}
+
+static bool fe_window_received_message(window_t *win, uint32_t msg) {
+    for (int i = 0; i < test_env_get_event_count(); i++) {
+        test_event_t *event = test_env_get_event(i);
+        if (event && event->window == win && event->msg == msg) return true;
+    }
+    return false;
+}
+
+void test_fe_browser_surfaces_visible_populated_and_painted(void) {
+    TEST("browser surfaces: visible, populated, sized, and paint their content");
+
+    fe_setup();
+    snprintf(g_app->project.plugins[0].name,
+             sizeof(g_app->project.plugins[0].name), "socialfeed_components");
+    g_app->project.plugin_count = 1;
+    snprintf(g_app->project.databases[0].name,
+             sizeof(g_app->project.databases[0].name), "db");
+    g_app->project.database_count = 1;
+
+    g_app->tool_win = formeditor_create_components_palette(0);
+    g_app->prop_win = property_browser_create(0);
+    property_browser_refresh(g_app->doc);
+    g_app->forms_win = forms_browser_create(0);
+    g_app->plugins_win = plugins_browser_create(0);
+    g_app->databases_win = create_database_browser(
+        MAKERECT(DATABASES_WIN_X, DATABASES_WIN_Y,
+                 DATABASES_WIN_W, DATABASES_WIN_H), NULL);
+
+    window_t *roots[] = {
+        g_app->tool_win, g_app->prop_win, g_app->forms_win,
+        g_app->plugins_win, g_app->databases_win,
+    };
+    window_t *contents[] = {
+        fe_find_descendant_proc(g_app->tool_win, win_icongrid),
+        fe_find_descendant_proc(g_app->prop_win, win_reportview),
+        fe_find_descendant_proc(g_app->forms_win, win_reportview),
+        fe_find_descendant_proc(g_app->plugins_win, win_reportview),
+        fe_find_descendant_proc(g_app->databases_win, win_reportview),
+    };
+    int expected_rows[] = { -1, 1, 1, 1, 1 };
+    const char *surface_names[] = {
+        "Components", "Properties", "Forms", "Plugins", "Databases",
+    };
+
+    for (int i = 0; i < (int)ARRAY_LEN(roots); i++) {
+        ASSERT_NOT_NULL(roots[i]);
+        ASSERT_NOT_NULL(contents[i]);
+        ASSERT_TRUE(window_has_state(roots[i], WINDOW_STATE_VISIBLE));
+        ASSERT_TRUE(window_has_state(contents[i], WINDOW_STATE_VISIBLE));
+        ASSERT_TRUE(roots[i]->frame.w > 0 && roots[i]->frame.h > 0);
+        ASSERT_TRUE(contents[i]->frame.w > 0 && contents[i]->frame.h > 0);
+        int rows = (int)send_message(contents[i], RVM_GETITEMCOUNT, 0, NULL);
+        if (expected_rows[i] >= 0) {
+            if (rows != expected_rows[i])
+                printf("%s rows: expected %d, got %d\n",
+                       surface_names[i], expected_rows[i], rows);
+            ASSERT_EQUAL(rows, expected_rows[i]);
+        } else {
+            ASSERT_TRUE(rows > 0);
+        }
+    }
+
+    reportview_item_t item = {0};
+    ASSERT_TRUE(send_message(contents[1], RVM_GETITEMDATA, 0, &item));
+    ASSERT_STR_EQUAL(item.text, "Selection");
+    ASSERT_STR_EQUAL(item.subitems[0], "(None)");
+    ASSERT_TRUE(send_message(contents[3], RVM_GETITEMDATA, 0, &item));
+    ASSERT_STR_EQUAL(item.text, "socialfeed_components");
+    ASSERT_TRUE(send_message(contents[4], RVM_GETITEMDATA, 0, &item));
+    ASSERT_STR_EQUAL(item.text, "db");
+
+    test_env_enable_tracking(true);
+    for (int i = 0; i < (int)ARRAY_LEN(roots); i++)
+        send_message(roots[i], evPaint, 0, NULL);
+    for (int i = 0; i < (int)ARRAY_LEN(contents); i++)
+        ASSERT_TRUE(fe_window_received_message(contents[i], evPaint));
+
+    fe_teardown();
+    PASS();
+}
+
+void test_fe_database_browser_paints_loaded_project_database(void) {
+    TEST("Databases browser: loaded project database is populated and painted");
+
+    fe_setup();
+    g_app->project.database_count = 1;
+    snprintf(g_app->project.databases[0].name,
+             sizeof(g_app->project.databases[0].name), "db");
+    g_app->project.databases[0].table_count = 1;
+    snprintf(g_app->project.databases[0].tables[0].name,
+             sizeof(g_app->project.databases[0].tables[0].name), "posts");
+
+    g_app->databases_win = create_database_browser(
+        MAKERECT(0, 0, DATABASES_WIN_W, DATABASES_WIN_H), NULL);
+    ASSERT_NOT_NULL(g_app->databases_win);
+    ASSERT_TRUE(window_has_state(g_app->databases_win, WINDOW_STATE_VISIBLE));
+
+    window_t *column_browser = fe_find_descendant_proc(g_app->databases_win,
+                                                        win_column_browser);
+    window_t *database_list = fe_find_descendant_proc(g_app->databases_win,
+                                                       win_reportview);
+    ASSERT_NOT_NULL(column_browser);
+    ASSERT_NOT_NULL(database_list);
+    ASSERT_EQUAL((int)send_message(database_list, RVM_GETITEMCOUNT, 0, NULL), 1);
+    ASSERT_EQUAL((int)send_message(database_list, RVM_GETCOLUMNCOUNT, 0, NULL), 1);
+
+    send_message(database_list, evLeftButtonDown, MAKEDWORD(5, 5), NULL);
+    ASSERT_EQUAL((int)send_message(column_browser, cbGetColumnCount, 0, NULL), 2);
+    window_t *lists[3] = {0};
+    ASSERT_EQUAL(fe_collect_descendant_proc(g_app->databases_win, win_reportview,
+                                            lists, (int)ARRAY_LEN(lists)), 2);
+    window_t *table_list = lists[0] == database_list ? lists[1] : lists[0];
+    ASSERT_NOT_NULL(table_list);
+    ASSERT_EQUAL((int)send_message(table_list, RVM_GETITEMCOUNT, 0, NULL), 1);
+
+    test_env_enable_tracking(true);
+    send_message(g_app->databases_win, evPaint, 0, NULL);
+    ASSERT_TRUE(fe_window_received_message(database_list, evPaint));
+
+    destroy_window(g_app->databases_win);
+    g_app->databases_win = NULL;
+    fe_teardown();
+    PASS();
 }
 
 // ── Canvas interaction helpers ─────────────────────────────────────────────
@@ -2394,6 +2553,8 @@ int main(void) {
     TEST_START("Form Editor CRUD");
 
     test_fe_create_doc();
+    test_fe_browser_surfaces_visible_populated_and_painted();
+    test_fe_database_browser_paints_loaded_project_database();
     test_fe_create_doc_sizes_canvas_to_form();
     test_fe_create_large_doc_adds_needed_scrollbars();
     test_fe_doc_resize_updates_form_size();

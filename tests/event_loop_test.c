@@ -123,6 +123,25 @@ void test_wakeup_coalescing_rearms_after_consume(void) {
   PASS();
 }
 
+void test_screenshot_waits_for_completed_painted_frame(void) {
+  TEST("screenshot request: waits for a fully painted frame");
+  char path[1024] = {0};
+  int quality = 0;
+  bool quit_after = false;
+
+  ASSERT_TRUE(ui_request_screenshot_jpg("/tmp/orion-frame.jpg", 87, true));
+  ASSERT_FALSE(ui_dequeue_screenshot_for_frame(false, path, sizeof(path),
+                                               &quality, &quit_after));
+  ASSERT_TRUE(ui_dequeue_screenshot_for_frame(true, path, sizeof(path),
+                                              &quality, &quit_after));
+  ASSERT_STR_EQUAL(path, "/tmp/orion-frame.jpg");
+  ASSERT_EQUAL(quality, 87);
+  ASSERT_TRUE(quit_after);
+  ASSERT_FALSE(ui_dequeue_screenshot_for_frame(true, path, sizeof(path),
+                                               &quality, &quit_after));
+  PASS();
+}
+
 // =============================================================================
 // Part 2: post_message deduplication still works (integration, running=false)
 // =============================================================================
@@ -431,6 +450,7 @@ int main(int argc, char *argv[]) {
   test_null_target_not_treated_as_sentinel();
   test_wakeup_coalescing_single_post();
   test_wakeup_coalescing_rearms_after_consume();
+  test_screenshot_waits_for_completed_painted_frame();
 
   // Part 2: post_message deduplication
   test_post_message_deduplication();

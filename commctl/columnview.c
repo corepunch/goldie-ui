@@ -38,7 +38,10 @@ bool rv_valid_index(const reportview_data_t *data, int index) {
 void rv_notify(window_t *win, reportview_data_t *data, int index, uint16_t code) {
   if (!rv_valid_index(data, index))
     return;
-  send_message(get_root_window(win), evCommand,
+  window_t *target = get_root_window(win);
+  if (win->parent && win->parent->proc == win_column_browser)
+    target = win->parent;
+  send_message(target, evCommand,
                MAKEDWORD(index, code), (void *)win);
   if (code == RVN_SELCHANGE)
     tableview_handle_master_selection(get_root_window(win), win);

@@ -748,6 +748,44 @@ bool read_texture_rgba(int src_tex, int w, int h, uint8_t *out_rgba) {
   return true;
 }
 
+bool capture_framebuffer_rgba(int w, int h, uint8_t *out_rgba) {
+  if (w <= 0 || h <= 0 || !out_rgba)
+    return false;
+
+  GLint prev_fbo = 0;
+  GLint prev_view[4] = {0};
+  GLint prev_scissor[4] = {0};
+
+  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+  glGetIntegerv(GL_VIEWPORT, prev_view);
+  glGetIntegerv(GL_SCISSOR_BOX, prev_scissor);
+
+  glViewport(0, 0, w, h);
+  glScissor(0, 0, w, h);
+  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  size_t row_sz = (size_t)w * 4;
+  uint8_t *tmp = malloc((size_t)h * row_sz);
+  if (!tmp) {
+    glViewport(prev_view[0], prev_view[1], prev_view[2], prev_view[3]);
+    glScissor(prev_scissor[0], prev_scissor[1], prev_scissor[2], prev_scissor[3]);
+    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prev_fbo);
+    return false;
+  }
+  glReadBuffer(GL_BACK);
+  glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, tmp);
+  for (int y = 0; y < h; y++) {
+    memcpy(out_rgba + (size_t)y * row_sz,
+           tmp + (size_t)(h - 1 - y) * row_sz,
+           row_sz);
+  }
+  free(tmp);
+
+  glViewport(prev_view[0], prev_view[1], prev_view[2], prev_view[3]);
+  glScissor(prev_scissor[0], prev_scissor[1], prev_scissor[2], prev_scissor[3]);
+  glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prev_fbo);
+  return true;
+}
+
 int ui_get_system_metrics(ui_system_metrics_t metric) {
   switch (metric) {
     case kSystemMetricScreenWidth:
