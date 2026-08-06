@@ -23,7 +23,7 @@
 // Single compilation unit for stb_truetype — must be the only place in
 // libuser where STB_TRUETYPE_IMPLEMENTATION is defined.
 #define STB_TRUETYPE_IMPLEMENTATION
-#include "../../tools/stb_truetype.h"
+#include <tools/stb_truetype.h>
 
 #ifndef VGA_FONT_LOG
 #define VGA_FONT_LOG(...) do { axLog("[vga_font] " __VA_ARGS__); } while (0)

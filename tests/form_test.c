@@ -11,7 +11,7 @@
 #include "test_framework.h"
 #include "test_env.h"
 #include <orion/ui.h>
-#include "../examples/socialfeed/socialfeed.h"
+#include "../apps/socialfeed/socialfeed.h"
 
 extern bool do_windows_overlap(const window_t *a, const window_t *b);
 

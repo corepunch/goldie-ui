@@ -6,7 +6,7 @@
 
 #include "test_framework.h"
 #include <orion/ui.h>
-#include "examples/socialfeed/socialfeed.h"
+#include "apps/socialfeed/socialfeed.h"
 
 // Test database creation and destruction
 void test_database_lifecycle(void) {

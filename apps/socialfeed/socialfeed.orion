@@ -3,7 +3,7 @@
     version="1"
     name="socialfeed"
     title="Social Feed Dialogs"
-    root="examples/socialfeed">
+    root="apps/socialfeed">
 
     <plugins>
       <plugin name="socialfeed_components" />
@@ -48,7 +48,7 @@
 
     <databases>
       <!-- NeXTSTEP-style split: one database per model/table. -->
-      <database name="db" class="SimpleXMLDatabase" source="examples/socialfeed/share/socialfeed_seed.xml">
+      <database name="db" class="SimpleXMLDatabase" source="apps/socialfeed/share/socialfeed_seed.xml">
         <!-- Core entities -->
         <table name="authors">
           <field name="id" type="integer" key="YES"/>

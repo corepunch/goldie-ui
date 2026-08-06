@@ -3,7 +3,7 @@
     version="1"
     name="vibeoffice"
     title="Vibe Office"
-    root="examples/vibeoffice">
+    root="apps/vibeoffice">
 
   <databases>
     <database name="models" class="vibe_model_database">

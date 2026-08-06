@@ -3,7 +3,7 @@
     version="1"
     name="gitclient"
     title="Git Client"
-    root="examples/gitclient">
+    root="apps/gitclient">
 
     <menus var="kGCMenus" count="kGCMenuCount">
         <menu name="file" label="File">

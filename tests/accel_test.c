@@ -6,8 +6,8 @@
 #include "test_framework.h"
 #include "test_env.h"
 #include <orion/ui.h>
-#include "../orion/user/accel.h"
-#include "../platform/events.h"
+#include <orion/user/accel.h>
+#include <platform/events.h>
 
 // ── helpers ───────────────────────────────────────────────────────────────
 

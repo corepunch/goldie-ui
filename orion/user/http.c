@@ -39,7 +39,7 @@
 #include <pthread.h>
 #endif
 
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include "user.h"
 #include "messages.h"
 #include <orion/kernel/kernel.h>

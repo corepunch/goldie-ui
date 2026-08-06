@@ -7,7 +7,7 @@
 // so only intended flex controls expand, leaving buttons at fixed height.
 
 #include <orion/ui.h>
-#include "examples/socialfeed/socialfeed.h"
+#include "apps/socialfeed/socialfeed.h"
 #include "test_framework.h"
 #include "test_env.h"
 

@@ -3,7 +3,7 @@
     version="1"
     name="imageeditor"
     title="Image Editor Dialogs"
-    root="examples/imageeditor">
+    root="apps/imageeditor">
 
     <plugins>
       <plugin name="formeditor_components" />

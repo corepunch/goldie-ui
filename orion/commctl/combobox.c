@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include <orion/user/user.h>
 #include <orion/user/messages.h>
 #include <orion/user/draw.h>

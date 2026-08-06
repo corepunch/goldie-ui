@@ -1,7 +1,7 @@
 // Drawing primitives implementation
 // Extracted from mapview/window.c
 
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include "gl_compat.h"
 #include <stdio.h>
 #include <stdlib.h>

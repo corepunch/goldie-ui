@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../ui.h"
+#include <orion/ui.h>
 #include <orion/user/user.h>
 #include <orion/kernel/kernel.h>
 
@@ -137,7 +137,7 @@ uint32_t show_db_dialog(form_def_t const *def, const char *title,
   return show_db_dialog_ex(def, title, parent, record_id, NULL, 0);
 }
 #include <stdbool.h>
-#include "../ui.h"
+#include <orion/ui.h>
 
 void ddx_push_check(window_t *dlg, const ctrl_binding_t *b, const void *state) {
   const char *base = (const char *)state;
@@ -224,7 +224,7 @@ void dialog_pull(window_t *win, void *state,
 // Moved from user/dialog.c to commdlg/dialog.c
 #include <stdlib.h>
 #include <string.h>
-#include "../ui.h"
+#include <orion/ui.h>
 
 // ── Auto-height calculation helpers ──────────────────────────────────
 // Returns true only if some control stretches vertically (blocking auto-height).

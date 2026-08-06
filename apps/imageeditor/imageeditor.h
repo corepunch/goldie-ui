@@ -209,7 +209,7 @@ extern const int kZoomMenuIDs[NUM_ZOOM_LEVELS];
 #include "lv_cmpn.h"
 #include "fg_preview.h"
 #include "render_effects.h"
-#include "build/generated/examples/imageeditor/imageeditor.h"
+#include "build/generated/apps/imageeditor/imageeditor.h"
 
 // ============================================================
 // Color helpers

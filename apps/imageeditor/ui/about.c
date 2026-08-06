@@ -21,7 +21,7 @@ static GLuint load_banner_texture(void) {
   }
 #endif
   if (!found) {
-    static const char *kSourceTreeBanner = "examples/imageeditor/share/conan.png";
+    static const char *kSourceTreeBanner = "apps/imageeditor/share/conan.png";
     FILE *f = fopen(kSourceTreeBanner, "rb");
     if (f) { fclose(f); found = kSourceTreeBanner; }
   }

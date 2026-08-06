@@ -70,6 +70,5 @@ test.xml
 /output
 *.save
 plans/
-screenshots/
 third_party/
 fonts/

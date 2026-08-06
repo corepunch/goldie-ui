@@ -2,8 +2,8 @@
 
 #include "test_framework.h"
 #include "test_env.h"
-#include "examples/formeditor/formeditor.h"
-#include "commctl/commctl.h"
+#include "apps/formeditor/formeditor.h"
+#include <orion/commctl/commctl.h>
 
 #include <libxml/parser.h>
 #include <stdlib.h>
@@ -285,7 +285,7 @@ void test_database_field_drop_rejects_other_database(void) {
 void test_socialfeed_project_loads_runtime_and_database(void) {
   TEST("SocialFeed project: plugin, database, forms, layout, and rows load");
   setup();
-  ASSERT_TRUE(fe_project_load("examples/socialfeed/socialfeed.orion"));
+  ASSERT_TRUE(fe_project_load("apps/socialfeed/socialfeed.orion"));
   ASSERT_EQUAL(g_app->project.plugin_count, 1);
   ASSERT_STR_EQUAL(g_app->project.plugins[0].name, "socialfeed_components");
   ASSERT_EQUAL(g_app->project.database_count, 1);

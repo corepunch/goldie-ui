@@ -7,7 +7,7 @@
 
 #include "test_framework.h"
 #include <orion/ui.h>
-#include "../orion/user/rect.h"
+#include <orion/user/rect.h>
 
 // ── rect_inset ────────────────────────────────────────────────────────────
 

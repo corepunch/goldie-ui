@@ -15,7 +15,7 @@
 #include "test_framework.h"
 #include "test_env.h"
 #include "gitclient_test_helpers.h"
-#include "examples/gitclient/gitclient.h"
+#include "apps/gitclient/gitclient.h"
 
 #include <stdio.h>
 #include <string.h>

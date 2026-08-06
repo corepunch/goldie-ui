@@ -1,7 +1,7 @@
 // ANSI color and SGR parsing tests
 
 #include "test_framework.h"
-#include "../orion/user/ansi.h"
+#include <orion/user/ansi.h>
 
 void test_ansi16_palette_count(void) {
   TEST("kAnsi16 has exactly 16 entries");

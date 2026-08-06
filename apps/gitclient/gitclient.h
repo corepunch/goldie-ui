@@ -15,7 +15,7 @@
 #include <orion/user/icons.h>
 
 // Generated from gitclient.orion — IDs, structs, field metadata, forms
-#include "build/generated/examples/gitclient/gitclient.h"
+#include "build/generated/apps/gitclient/gitclient.h"
 
 // ============================================================
 // Debug logging

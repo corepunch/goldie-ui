@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../orion/user/enum_parse.h"
-#include "../orion/user/user.h"
+#include <orion/user/enum_parse.h>
+#include <orion/user/user.h>
 
 #define ORIONC_MAX_IDS 512
 #define ORIONC_MAX_IDENT 128

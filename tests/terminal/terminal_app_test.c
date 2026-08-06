@@ -3,7 +3,7 @@
 
 #include "test_framework.h"
 #include <orion/ui.h>
-#include "../examples/terminal/vgat.h"
+#include "../apps/terminal/vgat.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

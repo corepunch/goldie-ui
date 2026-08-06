@@ -20,7 +20,7 @@
 #include "socialfeed.h"
 #include <orion/gem.h>
 #include <orion/commctl/commctl.h>
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 
 #ifndef SHAREDIR
 #define SHAREDIR "."
@@ -78,20 +78,20 @@ static bool resolve_socialfeed_db_path(char *out, size_t out_sz) {
   }
 
   snprintf(candidate, sizeof(candidate),
-           "%s/../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
+           "%s/../../apps/socialfeed/share/socialfeed_seed.xml", exe_dir);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return true;
   }
 
   snprintf(candidate, sizeof(candidate),
-           "%s/../../../examples/socialfeed/share/socialfeed_seed.xml", exe_dir);
+           "%s/../../../apps/socialfeed/share/socialfeed_seed.xml", exe_dir);
   if (axPathExists(candidate)) {
     snprintf(out, out_sz, "%s", candidate);
     return true;
   }
 
-  snprintf(out, out_sz, "%s/../../examples/socialfeed/share/socialfeed_seed.xml",
+  snprintf(out, out_sz, "%s/../../apps/socialfeed/share/socialfeed_seed.xml",
            exe_dir);
   return false;
 }

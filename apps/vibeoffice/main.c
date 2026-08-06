@@ -4,7 +4,7 @@
 
 #include <orion/ui.h>
 #include <orion/gem.h>
-#include "build/generated/examples/vibeoffice/vibeoffice.h"
+#include "build/generated/apps/vibeoffice/vibeoffice.h"
 #include "models.h"
 #include "tasks.h"
 #include "agent_icon.h"
@@ -415,7 +415,7 @@ static uint32_t load_asset_texture(const char *filename, int *out_w, int *out_h)
   if (n >= 0 && (size_t)n < sizeof(path)) pixels = load_image(path, &w, &h);
 #endif
   if (!pixels) {
-    int n = snprintf(path, sizeof(path), "examples/vibeoffice/share/%s", filename);
+    int n = snprintf(path, sizeof(path), "apps/vibeoffice/share/%s", filename);
     if (n >= 0 && (size_t)n < sizeof(path)) pixels = load_image(path, &w, &h);
   }
   if (!pixels) return 0;

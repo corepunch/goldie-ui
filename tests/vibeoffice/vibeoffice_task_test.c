@@ -1,5 +1,5 @@
 #include "test_framework.h"
-#include "examples/vibeoffice/tasks.h"
+#include "apps/vibeoffice/tasks.h"
 
 #if !defined(_WIN32)
 #include <signal.h>

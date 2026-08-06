@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include "joystick.h"
 
 static bool g_joystick_open = false;

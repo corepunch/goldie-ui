@@ -4,7 +4,7 @@
 // of git state, cleared and repopulated on each gc_refresh_all().
 
 #include "gitclient.h"
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

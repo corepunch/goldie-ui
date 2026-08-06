@@ -1,9 +1,9 @@
 // NSBrowser-style multi-column hierarchical navigation control
 // Analogous to NeXTSTEP's NSBrowser - left-to-right drill-down navigation
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include "commctl.h"
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include <string.h>
 #include <stdlib.h>
 

@@ -1,6 +1,6 @@
 // Instagram-style filter manager for the image editor.
 //
-// Loads fragment shader presets from examples/imageeditor/share/filters,
+// Loads fragment shader presets from apps/imageeditor/share/filters,
 // compiles them through the shared renderer pipeline, and exposes them as a
 // dynamic menu in the main menubar.
 

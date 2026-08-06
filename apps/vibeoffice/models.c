@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "build/generated/examples/vibeoffice/vibeoffice.h"
+#include "build/generated/apps/vibeoffice/vibeoffice.h"
 
 static const vibe_model_info_t g_models[] = {
   { 1, "MiMo V2.5 Free", "opencode/mimo-v2.5-free" },

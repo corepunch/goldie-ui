@@ -12,9 +12,9 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "nanosvgrast.h"
 #define STB_IMAGE_IMPLEMENTATION
-#include "../orion/user/stb_image.h"
+#include <orion/user/stb_image.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../orion/user/stb_image_write.h"
+#include <orion/user/stb_image_write.h>
 
 typedef struct {
   char enum_name[96];

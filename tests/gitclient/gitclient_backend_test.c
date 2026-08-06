@@ -1,5 +1,5 @@
 // tests/gitclient_backend_test.c — headless unit tests for the git client
-// backend (examples/gitclient/git_backend.c).
+// backend (apps/gitclient/git_backend.c).
 //
 // Creates a real git repository in a temporary directory, makes commits and
 // branches, then exercises every public git_* API without touching any UI code.
@@ -9,7 +9,7 @@
 
 #include "test_framework.h"
 #include "gitclient_test_helpers.h"
-#include "examples/gitclient/gitclient.h"
+#include "apps/gitclient/gitclient.h"
 
 #include <stdio.h>
 #include <stdlib.h>

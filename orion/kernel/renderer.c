@@ -10,7 +10,7 @@
 #  include <unistd.h>
 #endif
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include <orion/user/gl_compat.h>
 #include "fmat16.h"
 

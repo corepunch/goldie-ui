@@ -1,5 +1,5 @@
 #define BUILD_AS_GEM 1
-#include "examples/vibeoffice/main.c"
+#include "apps/vibeoffice/main.c"
 #undef BUILD_AS_GEM
 #undef main
 

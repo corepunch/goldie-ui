@@ -1,4 +1,4 @@
-#include "examples/socialfeed/socialfeed.h"
+#include "apps/socialfeed/socialfeed.h"
 #include "test_framework.h"
 
 static void setup_feed(void) {

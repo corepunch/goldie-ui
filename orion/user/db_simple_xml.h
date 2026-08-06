@@ -10,7 +10,7 @@
 // Framework provides db_load_record_from_xml / db_save_record_to_xml helpers.
 
 #include "database.h"
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

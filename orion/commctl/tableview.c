@@ -24,7 +24,7 @@
 //                                MAKERECT(0, 0, w, h), parent,
 //                                win_tableview, &params);
 
-#include "../ui.h"
+#include <orion/ui.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

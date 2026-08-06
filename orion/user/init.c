@@ -13,7 +13,7 @@
 #  include <unistd.h>
 #endif
 
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include "gl_compat.h"
 #include "user.h"
 #include "draw.h"

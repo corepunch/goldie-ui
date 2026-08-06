@@ -15,7 +15,7 @@ void test_db_registry_setup(void) {
   // 1. Create database instance
   printf("1. Creating database 'db'...\n");
   g_db = create_database("db", "SimpleXMLDatabase",
-                         "examples/socialfeed/share/socialfeed_seed.xml");
+                         "apps/socialfeed/share/socialfeed_seed.xml");
   if (!g_db) {
     printf("   ❌ Failed to create database\n");
     return;

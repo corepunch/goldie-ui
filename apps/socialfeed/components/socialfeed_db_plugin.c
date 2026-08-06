@@ -1,6 +1,6 @@
 #include <orion/ui.h>
 #include <orion/gem.h>
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 
 #include "../socialfeed.h"
 

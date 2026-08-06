@@ -19,7 +19,7 @@
 #include <orion/kernel/kernel.h>
 
 // foNT chunk reader — no writer/stbtt deps needed.
-#include "../../tools/tiny_png.h"
+#include <tools/tiny_png.h>
 
 #define MAX_TEXT_LENGTH   4096
 #define VERTICES_PER_CHAR 6

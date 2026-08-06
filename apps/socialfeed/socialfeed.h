@@ -17,7 +17,7 @@
 // All definitions generated from socialfeed.orion:
 //   - Menu IDs, toolbar IDs, form definitions
 //   - Database schema (table enums, structs, field bindings)
-#include "build/generated/examples/socialfeed/socialfeed.h"
+#include "build/generated/apps/socialfeed/socialfeed.h"
 
 // ============================================================
 // Database Implementation (db_simple_xml.c)

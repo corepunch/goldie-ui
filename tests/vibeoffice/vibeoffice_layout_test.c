@@ -1,6 +1,6 @@
 #include "test_framework.h"
 #include "test_env.h"
-#include "build/generated/examples/vibeoffice/vibeoffice.h"
+#include "build/generated/apps/vibeoffice/vibeoffice.h"
 
 static result_t inspector_test_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {

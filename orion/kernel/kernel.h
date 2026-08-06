@@ -2,7 +2,7 @@
 #define __UI_KERNEL_H__
 
 #include <stdbool.h>
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include "renderer.h"
 
 typedef struct bitmap_strip_s bitmap_strip_t;

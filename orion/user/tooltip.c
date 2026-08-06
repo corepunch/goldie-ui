@@ -19,7 +19,7 @@
 #include "messages.h"
 #include "draw.h"
 #include "text.h"
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 
 // Delay in milliseconds before the tooltip appears (matches WinAPI default).
 #define TOOLTIP_DELAY_MS  600

@@ -16,7 +16,7 @@
 #include <orion/user/vga_font.h>
 #include <orion/user/vga_text.h>
 #include <orion/user/scrollbar.h>
-#include "../../platform/platform.h"
+#include <platform/platform.h>
 #include <orion/user/ansi.h>
 #include "pty.h"
 #include "ansi_parser.h"

@@ -1,6 +1,6 @@
 # Orion UI Framework
 
-![Orion Form Editor -- SocialFeed Project](screenshots/formeditor_socialfeed.jpg)
+![Orion Form Editor -- SocialFeed Project](docs/screenshots/formeditor_socialfeed.jpg)
 *Form editor with socialfeed project, component palette, and database bindings*
 
 **Orion** is a retro-styled UI framework _written in C_ that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from [corepunch/doom-ed](https://github.com/corepunch/doom-ed), it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who have worked with Win32. Built on the [corepunch/platform](https://github.com/corepunch/platform) layer and OpenGL, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
@@ -62,7 +62,7 @@ show_db_dialog(&form, "Edit Author", parent, db, author_id);
 
 **Code reduction: 95%** (200 lines to 10 lines)
 
-![Orion Social Feed -- Database-Driven Application](screenshots/socialfeed_main.jpg)
+![Orion Social Feed -- Database-Driven Application](docs/screenshots/socialfeed_main.jpg)
 *Social feed application with database-driven posts, authors, and comments*
 
 **[Read the complete Database Forms guide](docs/database-forms.md)**

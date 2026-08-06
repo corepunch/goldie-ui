@@ -26,8 +26,8 @@ jobs:
     - name: Build library
       run: make library
       
-    - name: Build examples
-      run: make examples
+    - name: Build apps
+      run: make apps
       
     - name: Build and run tests
       run: |
@@ -65,8 +65,8 @@ jobs:
     - name: Build library
       run: make library
       
-    - name: Build examples
-      run: make examples
+    - name: Build apps
+      run: make apps
       
     - name: Build and run tests
       run: |
@@ -120,8 +120,8 @@ jobs:
     - name: Build library
       run: make library
       
-    - name: Build examples
-      run: make examples
+    - name: Build apps
+      run: make apps
       
     - name: Build and run tests
       run: |

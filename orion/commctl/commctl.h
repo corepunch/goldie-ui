@@ -182,7 +182,7 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
 //   1. Call set_capture(parent_win) to receive subsequent mouse events.
 //   2. Track evMouseMove to recompute the layout.
 //   3. Call set_capture(NULL) + stop tracking on evLeftButtonUp.
-// See examples/gitclient/view_main.c for the canonical usage pattern.
+// See apps/gitclient/view_main.c for the canonical usage pattern.
 #define SPLIT_VERT 0
 #define SPLIT_HORZ 1
 result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
