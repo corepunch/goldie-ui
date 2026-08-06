@@ -71,3 +71,4 @@ test.xml
 *.save
 plans/
 screenshots/
+third_party/
