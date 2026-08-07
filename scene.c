@@ -37,6 +37,18 @@ static float xml_attr_f(XmlNode*n,const char*name,float def){
 static int xml_attr_i(XmlNode*n,const char*name,int def){
 	const char*s=xml_attr(n,name,NULL); return s? atoi(s): def;
 }
+static void xml_set_attr(XmlNode *n,const char *name,const char *value){
+	for(int i=0;i<n->nattrs;i++) if(!strcmp(n->attrs[i].name,name)){
+		free(n->attrs[i].value); n->attrs[i].value=strdup(value); return;
+	}
+	XmlAttr a={strdup(name),strdup(value)};
+	DA_PUSH(n->attrs,n->nattrs,n->cattrs,a);
+}
+static void xml_set_attr_v3(XmlNode *n,const char *name,vec3 v){
+	char value[96];
+	snprintf(value,sizeof(value),"%.6g %.6g %.6g",v.x,v.y,v.z);
+	xml_set_attr(n,name,value);
+}
 static int xml_attr_2f(XmlNode*n,const char*name,float defX,float defY,float *outX,float *outY){
 	const char*s=xml_attr(n,name,NULL);
 	if(!s){ *outX=defX; *outY=defY; return 0; }
@@ -125,11 +137,15 @@ static XmlNode* xml_parse(const char *buf){
 /* ------------------------------------------------------------- Scene ------ */
 
 void scene_free(Scene *s){
+	xml_free((XmlNode*)s->sceneRoot);
 	for(int i=0;i<s->nprefabs;i++) xml_free((XmlNode*)s->prefabs[i].root);
 	for(int i=0;i<s->nprefabs;i++) free(s->prefabs[i].attaches);
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches); free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs);
+	for(int i=0;i<s->nshapes;i++) shape2d_free(&s->shapes[i]);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
+	free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches);
+	free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs); free(s->shapes);
 	memset(s,0,sizeof(*s));
 }
 
@@ -160,7 +176,7 @@ void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, 
 	mesh_compute_face_normals(&mesh);
 	if(castsShadow) mesh_build_edges(&mesh);
 	SceneObj o={ mesh, color, shin, castsShadow, renderable, unlit,
-		s->sanityIgnoreActive, s->sanityFloorActive, s->sanityCheckActive };
+		s->sanityIgnoreActive, s->sanityFloorActive, s->sanityCheckActive, s->activeEditNode };
 	DA_PUSH(s->objs,s->nobjs,s->cobjs,o);
 }
 
@@ -216,6 +232,89 @@ static void apply_modifiers(Mesh *m, XmlNode *n){
 			}
 		}
 	}
+}
+
+/* ---------------------------------------------------- Shapes & sweeping -- */
+
+static Shape2D* find_shape(Scene *s,const char *id){
+	if(!id) return NULL;
+	for(int i=0;i<s->nshapes;i++)
+		if(!strcmp(s->shapes[i].name,id)) return &s->shapes[i];
+	return NULL;
+}
+
+static void collect_shapes_from_tree(Scene *s,XmlNode *root){
+	for(int i=0;i<root->nkids;i++){
+		XmlNode *n=root->kids[i];
+		if(!strcmp(n->tag,"shape")){
+			const char *id=xml_attr(n,"id",NULL);
+			if(!id) continue;
+			if(find_shape(s,id)) continue;
+			Shape2D sh={0};
+			strncpy(sh.name,id,31);
+			for(int k=0;k<n->nkids;k++){
+				if(!strcmp(n->kids[k]->tag,"v")){
+					float x=xml_attr_f(n->kids[k],"x",0), y=xml_attr_f(n->kids[k],"y",0);
+					vec3 p=v3(x,y,0); DA_PUSH(sh.pts,sh.npts,sh.cpts,p);
+				}
+			}
+			if(sh.npts<2) continue;
+			sh.closed=xml_attr_i(n,"closed",0);
+			shape2d_compute_normals(&sh);
+			DA_PUSH(s->shapes,s->nshapes,s->cshapes,sh);
+		} else if(!strcmp(n->tag,"group")||!strcmp(n->tag,"prefab")){
+			collect_shapes_from_tree(s,n);
+		}
+	}
+}
+
+static void parse_shape_tag(Scene *s,XmlNode *n){
+	(void)s; (void)n;
+}
+
+static void parse_lathe(Scene *s,XmlNode *n,mat4 M,mat4 R,mat4 parentM,vec3 pos,vec3 rot,vec3 color,float shin,int castsShadow,int renderable,int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	const char *sid=xml_attr(n,"shape",NULL);
+	Shape2D *sh=find_shape(s,sid);
+	if(!sh){ fprintf(stderr,"lathe: shape '%s' not found\n",sid?sid:"(null)"); return; }
+	Mesh mesh=gen_lathe(sh,xml_attr_i(n,"segments",24));
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s,mesh,M,R,color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_loft(Scene *s,XmlNode *n,mat4 M,mat4 R,mat4 parentM,vec3 pos,vec3 rot,vec3 color,float shin,int castsShadow,int renderable,int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	const char *ps=xml_attr(n,"pathShape",NULL);
+	const char *cs=xml_attr(n,"crossShape",NULL);
+	Shape2D *pathS=find_shape(s,ps), *crossS=find_shape(s,cs);
+	if(!pathS||!crossS){
+		fprintf(stderr,"loft: shapes '%s'/'%s' not found\n",ps?ps:"(null)",cs?cs:"(null)");
+		return;
+	}
+	int lclosed=xml_attr_i(n,"closed",0);
+	int nstations=xml_attr_i(n,"segments",pathS->npts);
+	if(nstations<2) nstations=2;
+	LoftPath lp={0};
+	for(int i=0;i<nstations;i++){
+		float u=(float)i/(float)nstations;
+		int idx=(int)(u*pathS->npts);
+		if(idx>=pathS->npts) idx=pathS->npts-1;
+		vec3 p=v3(pathS->pts[idx].x,0,pathS->pts[idx].y);
+		DA_PUSH(lp.pts,lp.npts,lp.cpts,p);
+	}
+	Shape2D tmp=crossS->closed?*crossS:(Shape2D){0};
+	if(!crossS->closed){
+		tmp.pts=malloc(sizeof(vec3)*(size_t)crossS->npts);
+		memcpy(tmp.pts,crossS->pts,sizeof(vec3)*(size_t)crossS->npts);
+		tmp.npts=crossS->npts; tmp.cpts=crossS->npts;
+		tmp.closed=1;
+	}
+	shape2d_compute_normals(&tmp);
+	Mesh mesh=gen_loft(&lp,&tmp,lclosed);
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s,mesh,M,R,color,shin,castsShadow,renderable,unlit);
+	if(!crossS->closed){ free(tmp.pts); free(tmp.nrm); }
+	free(lp.pts);
 }
 
 /* ---------------------------------------------------- Overlay lines ------- */
@@ -607,6 +706,7 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 	if(!root) return NULL;
 	warn_unknown_elements(root,path,1);
 	PrefabDef pd; memset(&pd,0,sizeof(pd)); strncpy(pd.ref,name,31); pd.root=root;
+	strncpy(pd.path,path,sizeof(pd.path)-1);
 	for(int i=0;i<root->nkids;i++){
 		if(!strcmp(root->kids[i]->tag,"attach")){
 			AttachPoint ap;
@@ -616,6 +716,7 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 		}
 	}
 	DA_PUSH(s->prefabs,s->nprefabs,s->cprefabs,pd);
+	collect_shapes_from_tree(s,root);
 	return root;
 }
 
@@ -727,11 +828,15 @@ static const struct {
 	{ "wall",     parse_wall },
 	{ "line",     parse_line },
 	{ "dummy",    parse_dummy },
+	{ "lathe",    parse_lathe },
+	{ "loft",     parse_loft },
 };
 
 static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 	for(int i=0;i<parent->nkids;i++){
 		XmlNode *n=parent->kids[i];
+		void *oldEditNode=s->activeEditNode;
+		if(!s->activeEditNode) s->activeEditNode=n;
 		int oldIgnore=s->sanityIgnoreActive, oldFloor=s->sanityFloorActive, oldCheck=s->sanityCheckActive;
 		s->sanityIgnoreActive |= xml_attr_i(n,"sanityIgnore",0);
 		s->sanityFloorActive |= xml_attr_i(n,"sanityFloor",0);
@@ -794,6 +899,7 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		s->sanityIgnoreActive=oldIgnore;
 		s->sanityFloorActive=oldFloor;
 		s->sanityCheckActive=oldCheck;
+		s->activeEditNode=oldEditNode;
 	}
 }
 
@@ -868,6 +974,7 @@ static const struct {
 	{ "material",   parse_material_tag },
 	{ "sun",        parse_sun_tag },
 	{ "chardef",    parse_chardef_tag },
+	{ "shape",      parse_shape_tag },
 };
 
 static int has_shape_parser(const char *tag){
@@ -898,9 +1005,9 @@ static void warn_unknown_children(XmlNode *parent, const char *path, int root, i
 		XmlNode *n=parent->kids[i];
 		int supported=0;
 		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") ||
-			(prefab ? !strcmp(n->tag,"attach") : has_scene_parser(n->tag));
+			prefab ? (!strcmp(n->tag,"attach") || !strcmp(n->tag,"shape")) : has_scene_parser(n->tag);
 		else if(!strcmp(parent->tag,"group"))
-			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder");
+			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") || !strcmp(n->tag,"shape");
 		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
 		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
 		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
@@ -931,66 +1038,76 @@ static char* read_file(const char*path){
 	return buf;
 }
 
-int load_scene(const char *path, Scene *s){
-	memset(s,0,sizeof(*s));
+static void scene_clear_view(Scene *s){
+	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
+	for(int i=0;i<s->nlights;i++) if(s->svols) free(s->svols[i].verts);
+	for(int i=0;i<s->nshapes;i++) shape2d_free(&s->shapes[i]);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
+	free(s->instances); free(s->negativeBoxes); free(s->negativeArches);
+	free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs); free(s->shapes);
+	s->lights=NULL; s->mats=NULL; s->objs=NULL; s->svols=NULL; s->cameras=NULL;
+	s->instances=NULL; s->negativeBoxes=NULL; s->negativeArches=NULL;
+	s->negativeCylinders=NULL; s->overlayLines=NULL; s->charDefs=NULL; s->shapes=NULL;
+	s->nlights=s->clights=s->nmats=s->cmats=s->nobjs=s->cobjs=0;
+	s->ncameras=s->ccameras=s->ninstances=s->cinstances=0;
+	s->nnegativeBoxes=s->cnegativeBoxes=s->nnegativeArches=s->cnegativeArches=0;
+	s->nnegativeCylinders=s->cnegativeCylinders=s->noverlayLines=s->coverlayLines=0;
+	s->ncharDefs=s->ccharDefs=s->nshapes=s->cshapes=0;
+}
+
+static void scene_rebuild_view(Scene *s){
+	XmlNode *root=(XmlNode*)s->editRoot;
+	void *selected=s->selectedNode;
+	scene_clear_view(s);
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
 	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
-	s->selectedObj=-1;
-	s->editMode=EDIT_W_MOVE;
-
-	char *buf=read_file(path); if(!buf) return 0;
-	XmlNode *root=xml_parse(buf); free(buf);
-	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }
-	warn_unknown_elements(root,path,0);
-
-	s->ambient = xml_attr_v3(root,"ambient",s->ambient);
-	{
+	if(s->editDepth){ s->ambient=v3(0.72f,0.72f,0.72f); s->bg=v3(0.18f,0.20f,0.24f); }
+	else {
+		s->ambient=xml_attr_v3(root,"ambient",s->ambient);
 		const char *bg=xml_attr(root,"background",NULL);
 		if(bg){
-			if(strchr(bg,' ')){
-				vec3 c=s->bg; sscanf(bg,"%f %f %f",&c.x,&c.y,&c.z); s->bg=c;
-			} else {
-				for(int i=0;i<npreset_bgs;i++){
-					if(!strcmp(preset_bgs[i].id,bg)){ s->bg=preset_bgs[i].color; break; }
-				}
-			}
+			if(strchr(bg,' ')) sscanf(bg,"%f %f %f",&s->bg.x,&s->bg.y,&s->bg.z);
+			else for(int i=0;i<npreset_bgs;i++) if(!strcmp(preset_bgs[i].id,bg)){ s->bg=preset_bgs[i].color; break; }
 		}
 	}
-
 	mat4 I=mat4_identity();
+	collect_shapes_from_tree(s,root);
 	collect_negative_boxes(s,root,I);
-
-	for(int i=0;i<root->nkids;i++){
-		XmlNode *n=root->kids[i];
-		for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++){
-			if(!strcmp(n->tag, scene_tags[j].tag)){
-				scene_tags[j].parse(s, n);
-				break;
-			}
-		}
-	}
-	parse_nodes(s, root, I, I);
-	xml_free(root);
-
-	if(s->ncameras==0){
+	if(!s->editDepth) for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
+		if(!strcmp(root->kids[i]->tag,scene_tags[j].tag)){ scene_tags[j].parse(s,root->kids[i]); break; }
+	s->activeEditNode=NULL;
+	parse_nodes(s,root,I,I);
+	if(!s->ncameras){
 		Camera def={0}; strncpy(def.name,"Camera1",31);
 		def.pos=s->camPos; def.look=s->camLook; def.fov=s->camFov;
 		DA_PUSH(s->cameras,s->ncameras,s->ccameras,def);
 	}
-
-	s->svols = calloc((size_t)s->nlights, sizeof(ShadowVolume));
-	int nlamp=0;
-	for(int li=0;li<s->nlights;li++){
-		if(!s->lights[li].isDirectional){
+	s->svols=calloc((size_t)s->nlights,sizeof(ShadowVolume));
+	if(!s->editDepth){
+		for(int li=0;li<s->nlights;li++) if(!s->lights[li].isDirectional)
 			add_lamp_dummy(s,s->lights[li].pos,0.15f,v3(1.0f,0.7f,0.2f),1,NULL);
-			nlamp++;
+		for(int ci=0;ci<s->ncameras;ci++){
+			Camera *c=&s->cameras[ci];
+			add_camera_dummy(s,c->pos,c->look,c->fov,1.0f,v3(0.2f,0.8f,0.2f),2,NULL);
 		}
 	}
-	for(int ci=0;ci<s->ncameras;ci++){
-		Camera *c=&s->cameras[ci];
-		add_camera_dummy(s,c->pos,c->look,c->fov,1.0f,v3(0.2f,0.8f,0.2f),2,NULL);
-	}
-	fprintf(stderr,"overlay: %d lines (%d lamps, %d cameras)\n",s->noverlayLines,nlamp,s->ncameras);
+	s->selectedNode=selected;
+	s->selectedObj=-1;
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==selected){ s->selectedObj=i; break; }
+	scene_build_all_shadow_volumes(s);
+}
+
+int load_scene(const char *path, Scene *s){
+	memset(s,0,sizeof(*s));
+	s->selectedObj=-1; s->editMode=EDIT_W_MOVE;
+	strncpy(s->scenePath,path,sizeof(s->scenePath)-1);
+	char *buf=read_file(path); if(!buf) return 0;
+	XmlNode *root=xml_parse(buf); free(buf);
+	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }
+	warn_unknown_elements(root,path,0);
+	s->sceneRoot=root; s->editRoot=root;
+	scene_rebuild_view(s);
+	fprintf(stderr,"overlay: %d lines\n",s->noverlayLines);
 	return 1;
 }
 
@@ -1062,7 +1179,14 @@ int scene_sanity_check(Scene *s){
 
 void scene_get_obj_bounds(Scene *s, int idx, vec3 *outMin, vec3 *outMax){
 	if(idx<0 || idx>=s->nobjs){ *outMin=v3(0,0,0); *outMax=v3(0,0,0); return; }
-	Bounds b=scene_obj_bounds(&s->objs[idx]);
+	void *node=s->objs[idx].editNode;
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==node){
+		Bounds p=scene_obj_bounds(&s->objs[i]);
+		if(p.min.x<b.min.x) b.min.x=p.min.x; if(p.max.x>b.max.x) b.max.x=p.max.x;
+		if(p.min.y<b.min.y) b.min.y=p.min.y; if(p.max.y>b.max.y) b.max.y=p.max.y;
+		if(p.min.z<b.min.z) b.min.z=p.min.z; if(p.max.z>b.max.z) b.max.z=p.max.z;
+	}
 	*outMin=b.min; *outMax=b.max;
 }
 
@@ -1070,14 +1194,94 @@ int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut){
 	int hit=-1; float bestT=1e30f;
 	for(int i=0;i<s->nobjs;i++){
 		if(!s->objs[i].renderable) continue;
-		Bounds b=scene_obj_bounds(&s->objs[i]);
+		void *node=s->objs[i].editNode;
+		int seen=0;
+		for(int j=0;j<i;j++) if(s->objs[j].editNode==node){ seen=1; break; }
+		if(seen) continue;
+		vec3 bmin,bmax; scene_get_obj_bounds(s,i,&bmin,&bmax);
 		float t;
-		if(ray_intersect_aabb(rayOrigin, rayDir, b.min, b.max, &t)){
+		if(ray_intersect_aabb(rayOrigin,rayDir,bmin,bmax,&t)){
 			if(t<bestT){ bestT=t; hit=i; }
 		}
 	}
+	s->selectedNode=hit>=0?s->objs[hit].editNode:NULL;
 	if(tOut) *tOut=bestT;
 	return hit;
+}
+
+void scene_get_bounds(Scene *s,vec3 *outMin,vec3 *outMax){
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable){
+		Bounds p=scene_obj_bounds(&s->objs[i]);
+		if(p.min.x<b.min.x) b.min.x=p.min.x; if(p.max.x>b.max.x) b.max.x=p.max.x;
+		if(p.min.y<b.min.y) b.min.y=p.min.y; if(p.max.y>b.max.y) b.max.y=p.max.y;
+		if(p.min.z<b.min.z) b.min.z=p.min.z; if(p.max.z>b.max.z) b.max.z=p.max.z;
+	}
+	if(!isfinite(b.min.x)) b.min=b.max=v3(0,0,0);
+	*outMin=b.min; *outMax=b.max;
+}
+
+int scene_enter_selected_prefab(Scene *s){
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n || strcmp(n->tag,"prefab") || s->editDepth>=32) return 0;
+	const char *source=xml_attr(n,"source",NULL);
+	XmlNode *root=source?load_prefab(s,source):NULL;
+	if(!root) return 0;
+	s->editStack[s->editDepth++]=s->editRoot;
+	s->editRoot=root; s->selectedNode=NULL;
+	scene_rebuild_view(s);
+	return 1;
+}
+
+int scene_exit_prefab(Scene *s){
+	if(!s->editDepth) return 0;
+	s->editRoot=s->editStack[--s->editDepth];
+	s->selectedNode=NULL;
+	scene_rebuild_view(s);
+	return 1;
+}
+
+int scene_is_prefab_mode(Scene *s){ return s->editDepth>0; }
+
+static void xml_write_escaped(FILE *f,const char *s){
+	for(;*s;s++){
+		if(*s=='&') fputs("&amp;",f);
+		else if(*s=='\"') fputs("&quot;",f);
+		else if(*s=='<') fputs("&lt;",f);
+		else if(*s=='>') fputs("&gt;",f);
+		else fputc(*s,f);
+	}
+}
+
+static void xml_write_node(FILE *f,XmlNode *n,int depth){
+	for(int i=0;i<depth;i++) fputc('\t',f);
+	fprintf(f,"<%s",n->tag);
+	for(int i=0;i<n->nattrs;i++){
+		fprintf(f," %s=\"",n->attrs[i].name);
+		xml_write_escaped(f,n->attrs[i].value);
+		fputc('\"',f);
+	}
+	if(!n->nkids){ fputs(" />\n",f); return; }
+	fputs(">\n",f);
+	for(int i=0;i<n->nkids;i++) xml_write_node(f,n->kids[i],depth+1);
+	for(int i=0;i<depth;i++) fputc('\t',f);
+	fprintf(f,"</%s>\n",n->tag);
+}
+
+static int xml_save_file(const char *path,XmlNode *root){
+	FILE *f=fopen(path,"wb");
+	if(!f){ fprintf(stderr,"cannot save %s\n",path); return 0; }
+	xml_write_node(f,root,0);
+	int error=ferror(f),closed=fclose(f);
+	int ok=!error && closed==0;
+	if(!ok) fprintf(stderr,"failed saving %s\n",path);
+	return ok;
+}
+
+int scene_save_all(Scene *s){
+	int ok=xml_save_file(s->scenePath,(XmlNode*)s->sceneRoot);
+	for(int i=0;i<s->nprefabs;i++) if(!xml_save_file(s->prefabs[i].path,(XmlNode*)s->prefabs[i].root)) ok=0;
+	return ok;
 }
 
 /* -------------------------------------------- gizmo interaction */
@@ -1191,166 +1395,79 @@ static vec3 mouse_ray(vec3 camRight, vec3 camUp, vec3 camLook,
 	return vnorm(vadd(vadd(vscale(camRight,ndcX*hw),vscale(camUp,ndcY*hh)),camLook));
 }
 
-void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
-	vec3 camPos, vec3 camRight, vec3 camUp, vec3 camLook, float camFov)
-{
+void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY){
 	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
-	if(s->draggingHandle==GIZMO_NONE) return;
-	SceneObj *obj=&s->objs[s->selectedObj];
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n) return;
+	s->draggingHandle=handle;
+	s->dragStartMouseX=mouseX; s->dragStartMouseY=mouseY;
+	s->dragStartPos=xml_attr_v3(n,"pos",v3(0,0,0));
+	s->dragStartRot=xml_attr_v3(n,"rot",v3(0,0,0));
+	s->dragStartScale=xml_attr_v3(n,"scale",v3(1,1,1));
+	vec3 bmin,bmax; scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
+	s->dragStartCenter=vscale(vadd(bmin,bmax),0.5f);
+}
+
+static int ray_plane_hit(vec3 ro,vec3 rd,vec3 point,vec3 normal,vec3 *hit){
+	float denom=vdot(rd,normal);
+	if(fabsf(denom)<1e-6f) return 0;
+	float t=vdot(vsub(point,ro),normal)/denom;
+	if(t<0) return 0;
+	*hit=vadd(ro,vscale(rd,t));
+	return 1;
+}
+
+void gizmo_apply_drag(Scene *s,int mX,int mY,int W,int H,
+	vec3 camPos,vec3 camRight,vec3 camUp,vec3 camLook,float camFov){
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n || s->draggingHandle==GIZMO_NONE) return;
 	int h=s->draggingHandle;
 	vec3 center=s->dragStartCenter;
-	vec3 sx=v3(1,0,0), sy=v3(0,1,0), sz=v3(0,0,1);
-	vec3 rayDir=mouse_ray(camRight,camUp,camLook,camFov,mX,mY,W,H);
-
-	int firstFrame=(s->dragPrevAnchor.x>1e20f);
+	vec3 sx=v3(1,0,0),sy=v3(0,1,0),sz=v3(0,0,1);
+	vec3 curRay=mouse_ray(camRight,camUp,camLook,camFov,mX,mY,W,H);
+	vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,s->dragStartMouseX,s->dragStartMouseY,W,H);
 	if(s->editMode==EDIT_W_MOVE){
-		vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,
-			s->dragStartMouseX,s->dragStartMouseY,W,H);
-		vec3 anchorCur, anchorStart;
-
+		vec3 a,b;
 		if(h==GIZMO_AXIS_X || h==GIZMO_AXIS_Y || h==GIZMO_AXIS_Z){
-			vec3 axis=(h==GIZMO_AXIS_X)?sx:(h==GIZMO_AXIS_Y)?sy:sz;
+			vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:sz;
 			vec3 pn=vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
-			float denom=vdot(rayDir,pn);
-			if(fabsf(denom)<1e-6f) return;
-			float t=vdot(vsub(center,camPos),pn)/denom;
-			if(t<0) return;
-			vec3 hit=vadd(camPos,vscale(rayDir,t));
-			anchorCur=vadd(center,vscale(axis,vdot(vsub(hit,center),axis)));
-
-			denom=vdot(startRay,pn);
-			if(fabsf(denom)<1e-6f) return;
-			t=vdot(vsub(center,camPos),pn)/denom;
-			if(t<0) return;
-			hit=vadd(camPos,vscale(startRay,t));
-			anchorStart=vadd(center,vscale(axis,vdot(vsub(hit,center),axis)));
+			if(!ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
+			vec3 delta=vscale(axis,vdot(vsub(b,a),axis));
+			xml_set_attr_v3(n,"pos",vadd(s->dragStartPos,delta));
 		} else {
-			vec3 nrmA,nrmB;
-			if(h==GIZMO_PLANE_XY)      { nrmA=sx; nrmB=sy; }
-			else if(h==GIZMO_PLANE_XZ) { nrmA=sx; nrmB=sz; }
-			else if(h==GIZMO_PLANE_YZ) { nrmA=sy; nrmB=sz; }
-			else return;
-			vec3 pn=vcross(nrmA,nrmB);
-			float denom=vdot(rayDir,pn);
-			if(fabsf(denom)<1e-6f) return;
-			float t=vdot(vsub(center,camPos),pn)/denom;
-			if(t<0) return;
-			anchorCur=vadd(camPos,vscale(rayDir,t));
-
-			denom=vdot(startRay,pn);
-			if(fabsf(denom)<1e-6f) return;
-			t=vdot(vsub(center,camPos),pn)/denom;
-			if(t<0) return;
-			anchorStart=vadd(camPos,vscale(startRay,t));
+			vec3 pn=h==GIZMO_PLANE_XY?sz:h==GIZMO_PLANE_XZ?sy:h==GIZMO_PLANE_YZ?sx:v3(0,0,0);
+			if(vlen(pn)<0.5f || !ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
+			xml_set_attr_v3(n,"pos",vadd(s->dragStartPos,vsub(b,a)));
 		}
-		vec3 delta=vsub(anchorCur,anchorStart);
-		for(int i=0;i<obj->mesh.nverts;i++)
-			obj->mesh.verts[i].pos=vadd(obj->mesh.verts[i].pos,delta);
 	} else if(s->editMode==EDIT_E_ROTATE){
-		vec3 axis;
-		if(h==GIZMO_AXIS_X) axis=sx;
-		else if(h==GIZMO_AXIS_Y) axis=sy;
-		else if(h==GIZMO_AXIS_Z) axis=sz;
-		else return;
-		float denom=vdot(rayDir,axis);
-		if(fabsf(denom)<1e-6f) return;
-		float t=vdot(vsub(center,camPos),axis)/denom;
-		if(t<0) return;
-		vec3 hitCur=vadd(camPos,vscale(rayDir,t));
-		vec3 vCur=vsub(hitCur,center);
-		float curLen=vlen(vCur);
-		vCur=curLen>1e-8f?vscale(vCur,1.0f/curLen):axis;
-
-		vec3 vPrev;
-		if(firstFrame){
-			vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,
-				s->dragStartMouseX,s->dragStartMouseY,W,H);
-			denom=vdot(startRay,axis);
-			if(fabsf(denom)<1e-6f) return;
-			t=vdot(vsub(center,camPos),axis)/denom;
-			if(t<0) return;
-			vec3 hitStart=vadd(camPos,vscale(startRay,t));
-			vPrev=vsub(hitStart,center);
-			float prevLen=vlen(vPrev);
-			vPrev=prevLen>1e-8f?vscale(vPrev,1.0f/prevLen):axis;
-			s->dragPrevAnchor=vPrev;
-			return;
-		}
-		vPrev=s->dragPrevAnchor;
-		s->dragPrevAnchor=vCur;
-		float dotP=vdot(vPrev,vCur);
-		if(dotP>1.0f) dotP=1.0f; if(dotP<-1.0f) dotP=-1.0f;
-		float angle=acosf(dotP);
-		float sign=vdot(axis,vcross(vPrev,vCur));
-		if(sign<0) angle=-angle;
-		if(fabsf(angle)<1e-8f) return;
-		float cosA=cosf(angle), sinA=sinf(angle);
-		for(int i=0;i<obj->mesh.nverts;i++){
-			vec3 p=vsub(obj->mesh.verts[i].pos,center);
-			vec3 r=vadd(vadd(vscale(p,cosA),
-				vscale(vcross(axis,p),sinA)),
-				vscale(axis,vdot(axis,p)*(1.0f-cosA)));
-			obj->mesh.verts[i].pos=vadd(r,center);
-		}
-		for(int i=0;i<obj->mesh.nverts;i++){
-			vec3 n=obj->mesh.verts[i].nrm;
-			vec3 r=vadd(vadd(vscale(n,cosA),
-				vscale(vcross(axis,n),sinA)),
-				vscale(axis,vdot(axis,n)*(1.0f-cosA)));
-			obj->mesh.verts[i].nrm=vnorm(r);
-		}
+		vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:h==GIZMO_AXIS_Z?sz:v3(0,0,0),a,b;
+		if(vlen(axis)<0.5f || !ray_plane_hit(camPos,startRay,center,axis,&a) || !ray_plane_hit(camPos,curRay,center,axis,&b)) return;
+		vec3 va=vnorm(vsub(a,center)),vb=vnorm(vsub(b,center));
+		float d=vdot(va,vb); if(d>1) d=1; if(d<-1) d=-1;
+		float angle=acosf(d)*180.0f/M_PIf;
+		if(vdot(axis,vcross(va,vb))<0) angle=-angle;
+		vec3 rot=s->dragStartRot;
+		if(h==GIZMO_AXIS_X) rot.x+=angle;
+		else if(h==GIZMO_AXIS_Y) rot.y+=angle;
+		else rot.z+=angle;
+		xml_set_attr_v3(n,"rot",rot);
 	} else if(s->editMode==EDIT_R_SCALE){
-		vec3 axis;
-		int isUniform=(h==GIZMO_CENTER);
-		if(isUniform) axis=v3(0,0,0);
-		else if(h==GIZMO_AXIS_X) axis=sx;
-		else if(h==GIZMO_AXIS_Y) axis=sy;
-		else if(h==GIZMO_AXIS_Z) axis=sz;
-		else return;
-		vec3 pn;
-		if(isUniform) pn=vnorm(vsub(camLook,vscale(camLook,
-			vdot(camLook,camLook)>0?1.0f:1.0f)));
-		else pn=vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
-		float denom=vdot(rayDir,pn);
-		if(fabsf(denom)<1e-6f) return;
-		float t=vdot(vsub(center,camPos),pn)/denom;
-		if(t<0) return;
-		vec3 hitCur=vadd(camPos,vscale(rayDir,t));
-		float curDist;
-		if(isUniform) curDist=vlen(vsub(hitCur,center));
-		else curDist=vdot(vsub(hitCur,center),axis);
-
-		float prevDist;
-		if(firstFrame){
-			vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,
-				s->dragStartMouseX,s->dragStartMouseY,W,H);
-			denom=vdot(startRay,pn);
-			if(fabsf(denom)<1e-6f) return;
-			t=vdot(vsub(center,camPos),pn)/denom;
-			if(t<0) return;
-			vec3 hitStart=vadd(camPos,vscale(startRay,t));
-			if(isUniform) prevDist=vlen(vsub(hitStart,center));
-			else prevDist=vdot(vsub(hitStart,center),axis);
-			if(fabsf(prevDist)<1e-6f) return;
-			s->dragPrevAnchor=v3(prevDist,0,0);
-			return;
-		}
-		prevDist=s->dragPrevAnchor.x;
-		if(fabsf(prevDist)<1e-6f) return;
-		s->dragPrevAnchor=v3(curDist,0,0);
-		float ratio=curDist/prevDist;
-		if(ratio<=0) return;
-		for(int i=0;i<obj->mesh.nverts;i++){
-			vec3 p=vsub(obj->mesh.verts[i].pos,center);
-			if(isUniform) p=vscale(p,ratio);
-			else if(h==GIZMO_AXIS_X) p.x*=ratio;
-			else if(h==GIZMO_AXIS_Y) p.y*=ratio;
-			else if(h==GIZMO_AXIS_Z) p.z*=ratio;
-			obj->mesh.verts[i].pos=vadd(p,center);
-		}
-		mesh_compute_face_normals(&obj->mesh);
+		int uniform=h==GIZMO_CENTER;
+		vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:h==GIZMO_AXIS_Z?sz:v3(0,0,0),a,b;
+		vec3 pn=uniform?camLook:vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
+		if((!uniform && vlen(axis)<0.5f) || !ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
+		float from=uniform?vlen(vsub(a,center)):vdot(vsub(a,center),axis);
+		float to=uniform?vlen(vsub(b,center)):vdot(vsub(b,center),axis);
+		if(fabsf(from)<1e-6f || to/from<=0) return;
+		float ratio=to/from;
+		vec3 scale=s->dragStartScale;
+		if(uniform) scale=vscale(scale,ratio);
+		else if(h==GIZMO_AXIS_X) scale.x*=ratio;
+		else if(h==GIZMO_AXIS_Y) scale.y*=ratio;
+		else scale.z*=ratio;
+		xml_set_attr_v3(n,"scale",scale);
 	}
-	scene_build_all_shadow_volumes(s);
+	scene_rebuild_view(s);
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */

@@ -233,21 +233,24 @@ Mesh gen_sphere(float r,int rings,int slices){
 }
 
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
-	Mesh m={0}; if(majorSeg<3) majorSeg=24; if(minorSeg<3) minorSeg=12;
-	for(int i=0;i<=majorSeg;i++){
+	if(majorSeg<3) majorSeg=24; if(minorSeg<3) minorSeg=12;
+	LoftPath path={0};
+	for(int i=0;i<majorSeg;i++){
 		float u=(float)i/majorSeg*2.0f*M_PIf;
-		for(int j=0;j<=minorSeg;j++){
-			float v=(float)j/minorSeg*2.0f*M_PIf;
-			vec3 n=v3(cosf(u)*cosf(v), sinf(v), sinf(u)*cosf(v));
-			vec3 p=v3((R+r*cosf(v))*cosf(u), r*sinf(v), (R+r*cosf(v))*sinf(u));
-			mesh_add_vert(&m,p,n);
-		}
+		vec3 p=v3(R*cosf(u),0,R*sinf(u));
+		DA_PUSH(path.pts,path.npts,path.cpts,p);
 	}
-	int stride=minorSeg+1;
-	for(int i=0;i<majorSeg;i++) for(int j=0;j<minorSeg;j++){
-		int a=i*stride+j, b=a+1, c=(i+1)*stride+j, d=c+1;
-		mesh_add_tri(&m,a,b,d); mesh_add_tri(&m,a,d,c);
+	Shape2D cross={0};
+	for(int j=0;j<minorSeg;j++){
+		float v=(float)j/minorSeg*2.0f*M_PIf;
+		vec3 p=v3(cosf(v)*r,sinf(v)*r,0);
+		DA_PUSH(cross.pts,cross.npts,cross.cpts,p);
 	}
+	cross.closed=1;
+	shape2d_compute_normals(&cross);
+	Mesh m=gen_loft(&path,&cross,1);
+	free(path.pts);
+	shape2d_free(&cross);
 	return m;
 }
 
@@ -466,6 +469,128 @@ Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
 	free(leftPts);
 	free(rightPts);
 
+	return m;
+}
+
+/* -------------------------------------------------- shape & loft helpers -- */
+
+void shape2d_free(Shape2D *s){
+	free(s->pts); free(s->nrm);
+	memset(s,0,sizeof(*s));
+}
+
+void shape2d_compute_normals(Shape2D *s){
+	free(s->nrm); s->nrm=malloc(sizeof(vec3)*(size_t)s->npts);
+	int n=s->npts;
+	for(int i=0;i<n;i++){
+		int p=(i==0)?(s->closed?n-1:i):i-1;
+		int nx=(i==n-1)?(s->closed?0:i):i+1;
+		vec3 a=vsub(s->pts[i],s->pts[p]);
+		vec3 b=vsub(s->pts[nx],s->pts[i]);
+		vec3 na=vnorm(v3(a.y,-a.x,0));
+		vec3 nb=vnorm(v3(b.y,-b.x,0));
+		s->nrm[i]=vnorm(vadd(na,nb));
+	}
+}
+
+Mesh gen_lathe(Shape2D *profile,int segments){
+	Mesh m={0};
+	if(segments<3) segments=24;
+	if(profile->npts<2) return m;
+	if(profile->closed){
+		return m;
+	}
+	int n=profile->npts;
+
+	for(int j=0;j<segments;j++){
+		float a0=(float)j/segments*2.0f*M_PIf;
+		float ca0=cosf(a0),sa0=sinf(a0);
+		for(int i=0;i<n;i++){
+			float px=profile->pts[i].x, py=profile->pts[i].y;
+			vec3 nrm=vnorm(v3(
+				profile->nrm[i].x*ca0,
+				profile->nrm[i].y,
+				profile->nrm[i].x*sa0));
+			mesh_add_vert(&m,v3(px*ca0,py,px*sa0),nrm);
+		}
+	}
+
+	for(int j=0;j<segments;j++){
+		int jn=(j+1)%segments;
+		for(int i=0;i<n-1;i++){
+			int v00=j*n+i, v01=j*n+i+1;
+			mesh_add_tri(&m,v00,v01,jn*n+i);
+			mesh_add_tri(&m,v01,jn*n+i+1,jn*n+i);
+		}
+	}
+
+	vec3 botN=v3(0,-1,0), topN=v3(0,1,0);
+	int vBot=mesh_add_vert(&m,v3(0,profile->pts[0].y,0),botN);
+	int vTop=mesh_add_vert(&m,v3(0,profile->pts[n-1].y,0),topN);
+	for(int j=0;j<segments;j++){
+		int jn=(j+1)%segments;
+		mesh_add_tri(&m,vBot,j*n,jn*n);
+		mesh_add_tri(&m,vTop,jn*n+n-1,j*n+n-1);
+	}
+
+	return m;
+}
+
+Mesh gen_loft(LoftPath *path,Shape2D *cross,int closed){
+	Mesh m={0};
+	int ns=path->npts, nr=cross->npts;
+	if(ns<2||nr<2) return m;
+
+	vec3 *T=malloc(sizeof(vec3)*(size_t)ns);
+	vec3 *N=malloc(sizeof(vec3)*(size_t)ns);
+	vec3 *B=malloc(sizeof(vec3)*(size_t)ns);
+	for(int i=0;i<ns;i++){
+		int p=(i==0)?(closed?ns-1:0):i-1;
+		int nx=(i==ns-1)?(closed?0:i):i+1;
+		T[i]=vnorm(vsub(path->pts[nx],path->pts[p]));
+		if(fabsf(T[i].y)<0.999f){
+			N[i]=vnorm(vcross(v3(0,1,0),T[i]));
+		} else {
+			N[i]=vnorm(vcross(v3(0,0,1),T[i]));
+		}
+		B[i]=vnorm(vcross(T[i],N[i]));
+	}
+
+	for(int i=0;i<ns;i++){
+		for(int j=0;j<nr;j++){
+			vec3 cs=cross->pts[j];
+			vec3 wp=vadd(vadd(path->pts[i],vscale(N[i],cs.x)),vscale(B[i],cs.y));
+			vec3 nrm=vnorm(vadd(vscale(N[i],cross->nrm[j].x),vscale(B[i],cross->nrm[j].y)));
+			mesh_add_vert(&m,wp,nrm);
+		}
+	}
+
+	int nloops=closed?ns:ns-1;
+	for(int i=0;i<nloops;i++){
+		int i0=i,i1=(i+1)%ns;
+		for(int j=0;j<nr;j++){
+			int jn=(j+1)%nr;
+			int a=i0*nr+j,b=i0*nr+jn,d=i1*nr+j,c=i1*nr+jn;
+			mesh_add_tri(&m,a,b,c);
+			mesh_add_tri(&m,a,c,d);
+		}
+	}
+
+	if(!closed){
+		vec3 capN0=vscale(T[0],-1.0f);
+		int c0=mesh_add_vert(&m,path->pts[0],capN0);
+		for(int j=0;j<nr;j++){
+			int jn=(j+1)%nr;
+			mesh_add_tri(&m,c0,jn,j);
+		}
+		int cn=mesh_add_vert(&m,path->pts[ns-1],T[ns-1]);
+		for(int j=0;j<nr;j++){
+			int jn=(j+1)%nr;
+			mesh_add_tri(&m,cn,(ns-1)*nr+j,(ns-1)*nr+jn);
+		}
+	}
+
+	free(T); free(N); free(B);
 	return m;
 }
 

@@ -51,6 +51,22 @@ typedef struct {
 	vec3 *triN;
 } Mesh;
 
+typedef struct {
+	vec3 *pts; int npts,cpts;
+	vec3 *nrm;
+	int closed;
+	char name[32];
+} Shape2D;
+
+typedef struct {
+	vec3 *pts; int npts,cpts;
+} LoftPath;
+
+void shape2d_free(Shape2D *s);
+void shape2d_compute_normals(Shape2D *s);
+Mesh gen_lathe(Shape2D *profile,int segments);
+Mesh gen_loft(LoftPath *path,Shape2D *cross,int closed);
+
 void mesh_free(Mesh *m);
 int mesh_add_vert(Mesh *m,vec3 p,vec3 n);
 void mesh_add_tri(Mesh *m,int a,int b,int c);
@@ -81,11 +97,11 @@ Mesh gen_box_hole_arch(float w,float h,float depth,int sides);
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
 typedef struct { vec3 pos,color,dir; float intensity,radius; int castsShadow,isDirectional; } Light;
-typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit,sanityIgnore,sanityFloor,sanityCheck; } SceneObj;
+typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit,sanityIgnore,sanityFloor,sanityCheck; void *editNode; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
-typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
+typedef struct { char ref[32]; char path[256]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
 typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } InstanceDef;
 typedef struct { mat4 transform; vec3 size; } NegativeBox;
 typedef struct { mat4 transform; float width,height,depth; } NegativeArch;
@@ -125,11 +141,15 @@ typedef struct {
 	NegativeBox *negativeBoxes; int nnegativeBoxes,cnegativeBoxes;
 	NegativeArch *negativeArches; int nnegativeArches,cnegativeArches;
 	NegativeCylinder *negativeCylinders; int nnegativeCylinders,cnegativeCylinders;
+	Shape2D *shapes; int nshapes,cshapes;
 	vec3 prefabTint; int prefabTintActive;
 	int sanityIgnoreActive, sanityFloorActive, sanityCheckActive;
 	OverlayLine *overlayLines; int noverlayLines, coverlayLines;
 	CharDef *charDefs; int ncharDefs, ccharDefs;
 	char activeCamera[32];
+	char scenePath[512];
+	void *sceneRoot, *editRoot, *selectedNode, *activeEditNode;
+	void *editStack[32]; int editDepth;
 	int selectedObj;
 	int editMode;
 	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */
@@ -137,6 +157,7 @@ typedef struct {
 	int dragStartMouseX, dragStartMouseY;
 	vec3 dragStartCenter; /* object centre at drag-start */
 	vec3 dragPrevAnchor; /* anchor point from previous frame (rotate/scale delta) */
+	vec3 dragStartPos,dragStartRot,dragStartScale;
 } Scene;
 
 int load_scene(const char *path,Scene *s);
@@ -148,8 +169,14 @@ vec3 light_to_source(Light *light,vec3 point);
 void scene_rebuild_camera_gizmos(Scene *s,float aspect);
 int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut);
 void scene_get_obj_bounds(Scene *s,int idx,vec3 *outMin,vec3 *outMax);
+int scene_enter_selected_prefab(Scene *s);
+int scene_exit_prefab(Scene *s);
+int scene_save_all(Scene *s);
+int scene_is_prefab_mode(Scene *s);
+void scene_get_bounds(Scene *s,vec3 *outMin,vec3 *outMax);
 /* Gizmo interaction helpers */
 int gizmo_pick_handle(Scene *s, vec3 rayOrigin, vec3 rayDir);
+void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY);
 void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
 	vec3 camPos, vec3 camRight, vec3 camUp, vec3 camLook, float camFov);
 

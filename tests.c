@@ -106,7 +106,15 @@ static int overlay_camera_stats(Scene *s,const char *camera,float *maxY){
 }
 
 int main(void){
-    fprintf(stderr,"=== Winding Tests ===\n");
+	fprintf(stderr,"=== Winding Tests ===\n");
+	{
+		float t=0;
+		CHECK(!ray_intersect_aabb(v3(0,0,0),v3(0,0,1),v3(-1,-1,-4),v3(1,1,-2),&t),
+		      "ray accepted an AABB behind its origin");
+		CHECK(ray_intersect_aabb(v3(0,0,0),v3(0,0,1),v3(-1,-1,2),v3(1,1,4),&t) && fabsf(t-2)<0.001f,
+		      "ray missed the forward AABB");
+		PASS("ray picking rejects objects behind the camera");
+	}
 
     {
         Mesh m = gen_box(2.0f, 1.0f, 3.0f);
@@ -337,6 +345,10 @@ int main(void){
 		CHECK(load_scene("scenes/test_prefab_tint.blks",&s),"prefab tint fixture failed to load");
 		CHECK(s.nobjs==15,"prefab tint fixture: got %d objects, expected 15",s.nobjs);
 		if(s.nobjs==15){
+			CHECK(s.objs[0].editNode==s.objs[1].editNode && s.objs[0].editNode==s.objs[3].editNode,
+			      "one prefab instance did not form one selection target");
+			CHECK(s.objs[0].editNode!=s.objs[4].editNode,
+			      "separate prefab instances shared a selection target");
 			vec3 red=v3(0.70f,0.10f,0.08f),blue=v3(0.08f,0.20f,0.70f),paper=v3(0.76f,0.68f,0.50f);
 			vec3 green=v3(0.10f,0.32f,0.18f);
 			CHECK(color_eq(s.objs[0].color,red) && color_eq(s.objs[2].color,red),
@@ -352,6 +364,11 @@ int main(void){
 			CHECK(color_eq(s.objs[9].color,green) && color_eq(s.objs[11].color,green),
 			      "nested repair-book covers did not inherit instance color");
 			CHECK(color_eq(s.objs[10].color,paper),"nested repair-book pages were incorrectly tinted");
+			s.selectedObj=0; s.selectedNode=s.objs[0].editNode;
+			CHECK(scene_enter_selected_prefab(&s) && scene_is_prefab_mode(&s),
+			      "double-click prefab isolation could not enter the prefab definition");
+			CHECK(scene_exit_prefab(&s) && !scene_is_prefab_mode(&s) && s.nobjs==15,
+			      "prefab isolation could not return to the scene");
 			PASS("selective prefab tint preserves pages and supports scale");
 		}
 		scene_free(&s);
@@ -430,6 +447,142 @@ int main(void){
 		   scene_point_covered(&s,v3(1,0.5f,-1.5f)))
 			PASS("prefab negative box cuts a rotated wall before wall construction");
 		scene_free(&s);
+	}
+
+	fprintf(stderr,"\n=== Lathe Tests ===\n");
+
+	{
+		Shape2D profile={0};
+		vec3 pts[]={v3(0.5f,0,0),v3(0.5f,0.2f,0),v3(0.2f,1.5f,0),v3(0.15f,2.0f,0),v3(0.0f,2.5f,0)};
+		for(int i=0;i<5;i++){ vec3 p=pts[i]; DA_PUSH(profile.pts,profile.npts,profile.cpts,p); }
+		profile.closed=0;
+		shape2d_compute_normals(&profile);
+		Mesh m=gen_lathe(&profile,24);
+		CHECK(m.nverts>0,"lathe open profile produced no vertices");
+		CHECK(m.ntris>0,"lathe open profile produced no triangles");
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"lathe open profile signed volume positive (%.4f)",vol);
+		if(vol>0) PASS("lathe open profile");
+		mesh_free(&m);
+		shape2d_free(&profile);
+	}
+
+	{
+		Shape2D profile={0};
+		vec3 pts[]={v3(0.3f,0,0),v3(0.5f,0,0),v3(0.5f,0.2f,0),v3(0.2f,1.5f,0),v3(0.12f,2.5f,0),v3(0.0f,2.5f,0)};
+		for(int i=0;i<6;i++){ vec3 p=pts[i]; DA_PUSH(profile.pts,profile.npts,profile.cpts,p); }
+		profile.closed=0;
+		shape2d_compute_normals(&profile);
+		Mesh m=gen_lathe(&profile,24);
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"lathe bottle profile signed volume positive (%.4f)",vol);
+		if(vol>0) PASS("lathe bottle profile");
+		mesh_free(&m);
+		shape2d_free(&profile);
+	}
+
+	{
+		Shape2D profile={0};
+		vec3 pts[]={v3(0.5f,0,0),v3(0.5f,1.0f,0)};
+		for(int i=0;i<2;i++){ vec3 p=pts[i]; DA_PUSH(profile.pts,profile.npts,profile.cpts,p); }
+		profile.closed=0;
+		shape2d_compute_normals(&profile);
+		Mesh m=gen_lathe(&profile,24);
+		float vol=mesh_signed_volume(&m);
+		float expect=approx_cylinder_vol(0.5f,1.0f);
+		CHECK(fabsf(vol-expect)/expect<0.05f,"lathe simple cylinder volume within 5%% of expected (%.4f vs %.4f)",vol,expect);
+		if(fabsf(vol-expect)/expect<0.05f) PASS("lathe cylinder");
+		mesh_free(&m);
+		shape2d_free(&profile);
+	}
+
+	fprintf(stderr,"\n=== Loft Tests ===\n");
+
+	{
+		LoftPath path={0};
+		DA_PUSH(path.pts,path.npts,path.cpts,v3(0,0,0));
+		DA_PUSH(path.pts,path.npts,path.cpts,v3(0,1,0));
+		DA_PUSH(path.pts,path.npts,path.cpts,v3(0,2,0));
+		Shape2D cross={0};
+		for(int j=0;j<16;j++){
+			float v=(float)j/16*2.0f*M_PIf;
+			vec3 p=v3(cosf(v)*0.3f,sinf(v)*0.3f,0);
+			DA_PUSH(cross.pts,cross.npts,cross.cpts,p);
+		}
+		cross.closed=1;
+		shape2d_compute_normals(&cross);
+		Mesh m=gen_loft(&path,&cross,0);
+		CHECK(m.nverts>0,"loft straight path produced no vertices");
+		CHECK(m.ntris>0,"loft straight path produced no triangles");
+		float vol=mesh_signed_volume(&m);
+		float expect=M_PIf*0.3f*0.3f*2.0f;
+		CHECK(fabsf(vol-expect)/expect<0.05f,"loft straight cylinder volume within 5%% of expected (%.4f vs %.4f)",vol,expect);
+		mesh_build_edges(&m);
+		test_edges_sealed("loft straight cylinder sealed",m,1);
+		mesh_free(&m);
+		free(path.pts);
+		shape2d_free(&cross);
+	}
+
+	{
+		float R=0.8f, r=0.2f;
+		int majorSeg=24, minorSeg=12;
+		Mesh m=gen_torus(R,r,majorSeg,minorSeg);
+		float vol=mesh_signed_volume(&m);
+		float expect=approx_torus_vol(R,r);
+		CHECK(vol>0,"torus via loft signed volume positive");
+		CHECK(fabsf(vol-expect)/expect<0.06f,"torus via loft volume within 6%% of expected (%.4f vs %.4f)",vol,expect);
+		mesh_build_edges(&m);
+		test_edges_sealed("torus via loft sealed",m,1);
+		mesh_free(&m);
+	}
+
+	{
+		float r=0.15f;
+		LoftPath path={0};
+		float pathR=1.0f;
+		int pathSegs=24;
+		for(int i=0;i<pathSegs;i++){
+			float u=(float)i/pathSegs*2.0f*M_PIf;
+			vec3 p=v3(pathR*cosf(u),0,pathR*sinf(u));
+			DA_PUSH(path.pts,path.npts,path.cpts,p);
+		}
+		Shape2D cross={0};
+		int crossSegs=8;
+		for(int j=0;j<crossSegs;j++){
+			float v=(float)j/crossSegs*2.0f*M_PIf;
+			vec3 p=v3(cosf(v)*r,sinf(v)*r,0);
+			DA_PUSH(cross.pts,cross.npts,cross.cpts,p);
+		}
+		cross.closed=1;
+		shape2d_compute_normals(&cross);
+		Mesh m=gen_loft(&path,&cross,1);
+		float vol=mesh_signed_volume(&m);
+		float expect=approx_torus_vol(pathR,r);
+		CHECK(vol>0,"gen_loft torus signed volume positive (%.4f vs %.4f)",vol,expect);
+		mesh_build_edges(&m);
+		test_edges_sealed("gen_loft torus sealed",m,1);
+		mesh_free(&m);
+		free(path.pts);
+		shape2d_free(&cross);
+	}
+
+	{
+		Shape2D circle={0};
+		for(int j=0;j<8;j++){
+			float v=(float)j/8*2.0f*M_PIf;
+			vec3 p=v3(cosf(v),sinf(v),0);
+			DA_PUSH(circle.pts,circle.npts,circle.cpts,p);
+		}
+		circle.closed=1;
+		shape2d_compute_normals(&circle);
+		CHECK(circle.nrm!=NULL,"shape normals array allocated");
+		int all_unit=1;
+		for(int j=0;j<circle.npts;j++){
+			if(fabsf(vlen(circle.nrm[j])-1.0f)>0.01f){ all_unit=0; break; }
+		}
+		CHECK(all_unit,"shape circle normals are unit length");
+		shape2d_free(&circle);
 	}
 
 	fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
