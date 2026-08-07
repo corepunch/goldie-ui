@@ -23,7 +23,7 @@ lighting coherent when an illustration needs multiple shots of the same
 location.
 
 The [cinematic overpaint section](#from-scene-layout-to-cinematic-overpaint)
-below walks through a concrete example using the Eclipse Shrine scene.
+below walks through a concrete example using the Workshop scene.
 
 ## Build & run
 
@@ -110,18 +110,24 @@ make screenshot
 
 ## From scene layout to cinematic overpaint
 
-[`scenes/eclipse_shrine.blks`](scenes/eclipse_shrine.blks) is a compact
-science-fantasy set built entirely from SimpleGL primitives. A stepped stone
-dais leads to a brass eclipse ring and suspended red orb. Four twisted pylons,
-two entrance obelisks, and a broken rectangular gate make the scene readable
-from more than one camera, while the same sun and point light keep its long
-shadows spatially consistent.
+[`scenes/books/wondertown/workshop.blks`](scenes/books/wondertown/workshop.blks)
+is a fully dressed toymaker's workshop assembled from reusable prefabs and
+simple primitives. A monumental desk with carved legs dominates the back wall;
+a stocked commode and ornate cuckoo clock hang beside a moonlit window. On the
+opposite side, a workbench bristles with tools, books, jars, and curios, while
+a wooden ladder climbs to a loft stacked with crates. Sawdust scatters the
+floorboards. A single blue lamp and a cold moonbeam through the door flap
+provide dramatic low-key lighting that pushes long shadows across every
+surface.
 
-![Top-down wireframe overview of the Eclipse Shrine layout](docs/crossfade.jpeg)
+![Overhead wireframe of the workshop layout](docs/crossfade.jpeg)
 
-The diagram is the `Overview` camera in white-wireframe mode. The entrance is
-at the bottom, the eclipse assembly is centered on the dais, and the rear gate
-frames it from both rendered viewpoints.
+Eleven named cameras follow Pip — a thumb-scale toymaker figure — through every
+story beat: entering through the moonlit door, discovering clues on the
+commode, crouching under the desk toward a copper oil can, climbing the
+workbench leg, and traversing the ladder into the loft. Each camera reuses the
+same geometry, materials, and lights, so spatial relationships lock regardless
+of framing.
 
 The comparisons below use the untouched SimpleGL output as an image-to-image
 guide for an AI overpaint. Material detail and atmosphere are added, but the
@@ -131,15 +137,13 @@ major cast-shadow shapes are constrained by the source render.
 | SimpleGL camera render | AI overpaint |
 |---|---|
 | ![Raw LadderTraversal camera render](docs/preview.jpeg) | ![AI overpaint of the LadderTraversal camera render](docs/final.jpeg) |
-| `LadderTraversal` — figure ascending through a wall opening | Lighting, silhouette, and spatial cues from the 3D render anchor the overpaint. |
+| `LadderTraversal` — Pip works the rusty winch from the ladder, framed through a wide vertical composition | Lighting, silhouette, and spatial cues from the 3D render anchor the overpaint. |
 
-Reproduce the three source images with:
+Reproduce any camera in the scene with:
 
 ```sh
 make screenshot
-./build/bin/screenshot scenes/eclipse_shrine.blks -cam Overview -wireframe -o overview.ppm
-./build/bin/screenshot scenes/eclipse_shrine.blks -cam Approach -o approach.ppm
-./build/bin/screenshot scenes/eclipse_shrine.blks -cam Oblique -o oblique.ppm
+./build/bin/screenshot scenes/books/wondertown/workshop.blks -cam LadderTraversal -o shot.ppm
 ```
 
 ## Why these choices
