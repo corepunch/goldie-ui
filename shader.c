@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include "shader.h"
 
+#define SRGB_TO_LINEAR_GAMMA 2.2f
+
 static GLuint prog;
 static GLuint vlocPos, vlocNrm;
 static GLint ulocViewProj, ulocViewPos, ulocLightPos, ulocLightColor, ulocLightRadius;
@@ -25,6 +27,18 @@ static const char *vs_src =
 "}\n";
 
 static const char *fs_src =
+"#define PI 3.14159\n"
+"#define SHININESS_SCALE 18.0\n"
+"#define BASE_REFLECTANCE 0.04\n"
+"#define MIN_ROUGHNESS 0.005\n"
+"#define MAX_ROUGHNESS 1.0\n"
+"#define MIN_SPECULAR 0.001\n"
+"#define LIGHT_ATT_QUAD 2.0\n"
+"#define FRESNEL_EXP 5.0\n"
+"#define NOISE_SCALE 52.9829189\n"
+"#define NOISE_PARAM vec2(0.06711056,0.00583715)\n"
+"#define NOISE_SEED vec3(17.0,59.0,113.0)\n"
+"#define NOISE_DIV 255.0\n"
 "varying vec3 vWorldPos;\n"
 "varying vec3 vWorldNrm;\n"
 "uniform vec3 uViewPos;\n"
@@ -33,16 +47,6 @@ static const char *fs_src =
 "uniform float uLightRadius;\n"
 "uniform vec3 uColor;\n"
 "uniform float uShininess;\n"
-"vec3 linearToSrgb(vec3 c){\n"
-"    vec3 lo=c*12.92;\n"
-"    vec3 hi=1.055*pow(c,vec3(1.0/2.4))-0.055;\n"
-"    return mix(lo,hi,step(vec3(0.0031308),c));\n"
-"}\n"
-"vec3 srgbToLinear(vec3 c){\n"
-"    vec3 lo=c/12.92;\n"
-"    vec3 hi=pow((c+0.055)/1.055,vec3(2.4));\n"
-"    return mix(lo,hi,step(vec3(0.04045),c));\n"
-"}\n"
 "void main(){\n"
 "    vec3 N=normalize(vWorldNrm);\n"
 "    vec3 V=normalize(uViewPos-vWorldPos);\n"
@@ -51,29 +55,28 @@ static const char *fs_src =
 "    float NdotL=max(dot(N,L),0.0);\n"
 "    float NdotH=max(dot(N,H),0.0);\n"
 "    float NdotV=max(dot(N,V),0.0);\n"
-"    float roughness=clamp(exp(-uShininess/18.0),0.005,1.0);\n"
+"    float roughness=clamp(exp(-uShininess/SHININESS_SCALE),MIN_ROUGHNESS,MAX_ROUGHNESS);\n"
 "    float alpha=roughness*roughness;\n"
 "    float a2=alpha*alpha;\n"
 "    float denom=NdotH*NdotH*(a2-1.0)+1.0;\n"
-"    float D=a2/(3.14159*denom*denom);\n"
+"    float D=a2/(PI*denom*denom);\n"
 "    float k=alpha/2.0;\n"
 "    float G1=NdotL/(NdotL*(1.0-k)+k);\n"
 "    float G2=NdotV/(NdotV*(1.0-k)+k);\n"
 "    float G=G1*G2;\n"
-"    float F0=0.04;\n"
-"    float F=F0+(1.0-F0)*pow(1.0-max(dot(V,H),0.0),5.0);\n"
-"    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,0.001))*uLightColor;\n"
-"    vec3 diff=uColor*(1.0-F)/3.14159*NdotL*uLightColor;\n"
+"    float F=BASE_REFLECTANCE+(1.0-BASE_REFLECTANCE)*pow(1.0-max(dot(V,H),0.0),FRESNEL_EXP);\n"
+"    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,MIN_SPECULAR))*uLightColor;\n"
+"    vec3 diff=uColor*(1.0-F)/PI*NdotL*uLightColor;\n"
 "    float att=1.0;\n"
 "    if(uLightRadius>0.0 && uLightPos.w>0.0){\n"
 "        float dist=length(uLightPos.xyz-vWorldPos);\n"
-"        att=1.0/(1.0+2.0*dist/uLightRadius+(dist*dist)/(uLightRadius*uLightRadius));\n"
+"        att=1.0/(1.0+LIGHT_ATT_QUAD*dist/uLightRadius+(dist*dist)/(uLightRadius*uLightRadius));\n"
 "    }\n"
 "    vec3 lit=(diff+spec)*att;\n"
-"    float seed=dot(uLightPos.xyz,vec3(17.0,59.0,113.0));\n"
-"    float noise=fract(52.9829189*fract(dot(gl_FragCoord.xy+seed,vec2(0.06711056,0.00583715))))-0.5;\n"
-"    vec3 encoded=clamp(linearToSrgb(max(lit,vec3(0.0)))+noise/255.0,0.0,1.0);\n"
-"    gl_FragColor=vec4(srgbToLinear(encoded),1.0);\n"
+"    float seed=dot(uLightPos.xyz,NOISE_SEED);\n"
+"    float noise=fract(NOISE_SCALE*fract(dot(gl_FragCoord.xy+seed,NOISE_PARAM)))-0.5;\n"
+"    vec3 encoded=clamp(lit + noise/NOISE_DIV,0.0,1.0);\n"
+"    gl_FragColor=vec4(encoded,1.0);\n"
 "}\n";
 
 static GLuint compile_shader(GLenum type, const char *src){

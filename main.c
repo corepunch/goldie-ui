@@ -55,7 +55,7 @@ int main(int argc,char**argv){
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,1);
 
-    int W=1280,H=800;
+    int W=1024,H=768;
     SDL_Window *win=SDL_CreateWindow("simplegl",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
         W,H, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
     if(!win){ fprintf(stderr,"CreateWindow: %s\n",SDL_GetError()); return 1; }
