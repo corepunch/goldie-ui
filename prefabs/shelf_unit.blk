@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- shelf_unit: footprint 2.40x0.34, baseline y=0, front faces +Z.
      Attach points mark the centers of shelf top surfaces at y=0.06, 0.68, and 1.30. -->
 <prefab>

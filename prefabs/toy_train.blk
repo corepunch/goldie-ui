@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- toy_train: footprint 0.42x0.20, baseline y=0, front faces +X.
      tint=1 changes the painted body; wheels and fittings stay fixed. -->
 <prefab>

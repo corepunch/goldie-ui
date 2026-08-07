@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- sawhorse: footprint 1.15x0.55, baseline y=0, beam runs X. -->
 <prefab>
   <box pos="0 0.76 0" size="1.15 0.10 0.20" color="0.43 0.25 0.12" shininess="18"/>

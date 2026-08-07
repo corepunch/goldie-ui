@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <scene ambient="0.10 0.10 0.13" background="0.04 0.05 0.07">
   <camera name="Main" comment="Sphere and receiver geometry diagnostic" pos="0 1.6 4.5" look="0 0.5 -3" fov="65"/>
 

@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <scene>
   <prefab source="book" name="red_book" color="0.70 0.10 0.08"/>
   <prefab source="book" name="blue_book" pos="1 0 0" scale="2 2 2" color="0.08 0.20 0.70"/>

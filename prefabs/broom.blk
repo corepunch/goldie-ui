@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- broom: footprint 0.42x0.18, baseline y=0, bristles spread along X. -->
 <prefab>
   <box pos="0 0.10 0" size="0.42 0.20 0.16" color="0.55 0.37 0.18" shininess="3">

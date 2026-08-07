@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- nutcracker: footprint 0.34x0.24, baseline y=0, front faces +Z.
      tint=1 changes the uniform coat; face, boots, and brass stay fixed. -->
 <prefab>

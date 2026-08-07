@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- paper_notes: footprint 0.40x0.30, baseline y=0, no natural front. -->
 <prefab>
   <box pos="0 0.006 0" rot="0 -4 0" size="0.38 0.012 0.28" color="0.76 0.68 0.50" shininess="2"/>

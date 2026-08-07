@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- oil_can: footprint 0.36x0.22, baseline y=0, spout points +X. -->
 <prefab>
   <cylinder pos="0 0.11 0" radius="0.09" height="0.22" color="0.62 0.28 0.10" shininess="48"/>

@@ -14,10 +14,12 @@ int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
 	int listCameras = 0;
+	int runSanity = 0;
 	int renderFlags = 0;
 	for(int i=1;i<argc;i++){
 		if(!strcmp(argv[i],"-cam") && i+1<argc){ camName=argv[++i]; }
 		else if(!strcmp(argv[i],"-list-cameras")){ listCameras = 1; }
+		else if(!strcmp(argv[i],"-test")){ runSanity = 1; }
 		else if(!strcmp(argv[i],"-no-shadows")){ renderFlags|=DBG_NO_SHADOWS; }
 		else if(!strcmp(argv[i],"-show-stencil")){ renderFlags|=DBG_SHOW_STENCIL; }
 		else if(!scenePath) scenePath=argv[i];
@@ -36,6 +38,11 @@ int main(int argc,char**argv){
 		}
 		scene_free(&scene);
 		return 0;
+	}
+	if(runSanity){
+		int ok=scene_sanity_check(&scene);
+		scene_free(&scene);
+		return ok ? 0 : 1;
 	}
 
 	if(camName) scene_select_camera(&scene,camName);

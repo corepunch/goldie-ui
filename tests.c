@@ -243,6 +243,20 @@ int main(void){
 
 	{
 		Scene s={0};
+		scene_add_obj(&s,gen_box(4,0.1f,4),mat4_translate(v3(0,-0.05f,0)),mat4_identity(),v3(1,1,1),8,0,0,0);
+		s.objs[0].sanityFloor=1;
+		s.sanityCheckActive=1;
+		scene_add_obj(&s,gen_box(1,1,1),mat4_translate(v3(0,0.5f,0)),mat4_identity(),v3(1,1,1),8,0,0,0);
+		CHECK(scene_sanity_check(&s),"supported sanity proxy was rejected");
+		if(scene_sanity_check(&s)) PASS("scene sanity accepts a grounded proxy");
+		scene_add_obj(&s,gen_box(1,1,1),mat4_translate(v3(0,0.5f,0)),mat4_identity(),v3(1,1,1),8,0,0,0);
+		CHECK(!scene_sanity_check(&s),"overlapping sanity proxies were not reported");
+		if(!scene_sanity_check(&s)) PASS("scene sanity reports intersecting proxies");
+		scene_free(&s);
+	}
+
+	{
+		Scene s={0};
 		CHECK(load_scene("scenes/test_prefab_light.blks",&s),"prefab light fixture failed to load");
 		CHECK(s.nobjs==6,"prefab light fixture: got %d objects, expected 6",s.nobjs);
 		CHECK(s.nlights==2,"prefab light fixture: got %d lights, expected 2",s.nlights);

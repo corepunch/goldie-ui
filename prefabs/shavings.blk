@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- shavings: footprint 0.65x0.48, baseline y=0, no natural front. -->
 <prefab>
   <torus pos="-0.18 0.025 -0.08" majorRadius="0.09" minorRadius="0.012" color="0.62 0.43 0.22" shininess="3"/>

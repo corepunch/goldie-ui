@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <scene ambient="0.10 0.10 0.13" background="dusk">
   <camera name="Main" comment="Front-half view from entrance" pos="0 1.6 4.5" look="0 1.0 -3" fov="65"/>
   <camera name="Top"  comment="Overhead top-down" pos="0 6.0 -2" look="0 1.0 -2" fov="50"/>

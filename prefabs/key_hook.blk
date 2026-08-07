@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- key_hook: wall-mount origin at ring center, front faces +Z. -->
 <prefab>
   <torus rot="90 0 0" majorRadius="0.20" minorRadius="0.035" color="0.72 0.47 0.12" shininess="58"/>

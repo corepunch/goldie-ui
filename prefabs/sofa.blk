@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- sofa: footprint 2.2x0.9, baseline y=0, backrest at z=-0.4.
      Front direction is +Z (backrest = -Z); arms are at x=±1.025. -->
 <prefab>

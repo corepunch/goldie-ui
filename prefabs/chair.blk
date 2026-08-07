@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- chair: footprint 0.45x0.45, baseline y=0, backrest at z=-0.2.
      Front direction is +Z (backrest = -Z).
      Rotate around Y to change facing: rotY(+90) -> faces +X, rotY(-90) -> faces -X. -->

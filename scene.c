@@ -151,7 +151,8 @@ void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, 
 	if(castsShadow && mesh_signed_volume(&mesh) < 0.0f) mesh_flip_winding(&mesh);
 	mesh_compute_face_normals(&mesh);
 	if(castsShadow) mesh_build_edges(&mesh);
-	SceneObj o={ mesh, color, shin, castsShadow, renderable, unlit };
+	SceneObj o={ mesh, color, shin, castsShadow, renderable, unlit,
+		s->sanityIgnoreActive, s->sanityFloorActive, s->sanityCheckActive };
 	DA_PUSH(s->objs,s->nobjs,s->cobjs,o);
 }
 
@@ -582,6 +583,10 @@ static const struct {
 static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 	for(int i=0;i<parent->nkids;i++){
 		XmlNode *n=parent->kids[i];
+		int oldIgnore=s->sanityIgnoreActive, oldFloor=s->sanityFloorActive, oldCheck=s->sanityCheckActive;
+		s->sanityIgnoreActive |= xml_attr_i(n,"sanityIgnore",0);
+		s->sanityFloorActive |= xml_attr_i(n,"sanityFloor",0);
+		s->sanityCheckActive |= xml_attr_i(n,"sanityCheck",0);
 		char *tag=n->tag;
 		vec3 pos=xml_attr_v3(n,"pos",v3(0,0,0));
 		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
@@ -637,6 +642,9 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 				break;
 			}
 		}
+		s->sanityIgnoreActive=oldIgnore;
+		s->sanityFloorActive=oldFloor;
+		s->sanityCheckActive=oldCheck;
 	}
 }
 
@@ -843,6 +851,59 @@ void scene_select_camera(Scene *s, const char *name){
 			return;
 		}
 	}
+}
+
+typedef struct { vec3 min,max; } Bounds;
+
+static Bounds scene_obj_bounds(SceneObj *o){
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<o->mesh.nverts;i++){
+		vec3 p=o->mesh.verts[i].pos;
+		if(p.x<b.min.x) b.min.x=p.x; if(p.x>b.max.x) b.max.x=p.x;
+		if(p.y<b.min.y) b.min.y=p.y; if(p.y>b.max.y) b.max.y=p.y;
+		if(p.z<b.min.z) b.min.z=p.z; if(p.z>b.max.z) b.max.z=p.z;
+	}
+	return b;
+}
+
+static float bounds_overlap(float amin,float amax,float bmin,float bmax){
+	float lo=amin>bmin?amin:bmin, hi=amax<bmax?amax:bmax;
+	return hi-lo;
+}
+
+int scene_sanity_check(Scene *s){
+	Bounds *bounds=calloc((size_t)s->nobjs,sizeof(*bounds));
+	int errors=0;
+	for(int i=0;i<s->nobjs;i++) bounds[i]=scene_obj_bounds(&s->objs[i]);
+	for(int i=0;i<s->nobjs;i++){
+		SceneObj *a=&s->objs[i];
+		if(a->sanityIgnore || a->sanityFloor || !a->sanityCheck) continue;
+		for(int j=i+1;j<s->nobjs;j++){
+			SceneObj *b=&s->objs[j];
+			if(b->sanityIgnore || b->sanityFloor || !b->sanityCheck) continue;
+			float x=bounds_overlap(bounds[i].min.x,bounds[i].max.x,bounds[j].min.x,bounds[j].max.x);
+			float y=bounds_overlap(bounds[i].min.y,bounds[i].max.y,bounds[j].min.y,bounds[j].max.y);
+			float z=bounds_overlap(bounds[i].min.z,bounds[i].max.z,bounds[j].min.z,bounds[j].max.z);
+			if(x>0.025f && y>0.025f && z>0.025f){
+				fprintf(stderr,"sanity: intersecting objects %d and %d (%.3f %.3f %.3f)\n",i,j,x,y,z);
+				errors++;
+			}
+		}
+		if(bounds[i].min.y>0.015f){
+			int supported=0;
+			for(int j=0;j<s->nobjs;j++){
+				SceneObj *b=&s->objs[j];
+				if(i==j || b->sanityIgnore || (!b->sanityCheck && !b->sanityFloor)) continue;
+				if(fabsf(bounds[i].min.y-bounds[j].max.y)>0.025f) continue;
+				if(bounds_overlap(bounds[i].min.x,bounds[i].max.x,bounds[j].min.x,bounds[j].max.x)>0.025f &&
+				   bounds_overlap(bounds[i].min.z,bounds[i].max.z,bounds[j].min.z,bounds[j].max.z)>0.025f){ supported=1; break; }
+			}
+			if(!supported){ fprintf(stderr,"sanity: floating object %d, base y=%.3f\n",i,bounds[i].min.y); errors++; }
+		}
+	}
+	free(bounds);
+	if(!errors) fprintf(stderr,"sanity: ok (%d objects)\n",s->nobjs);
+	return !errors;
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */

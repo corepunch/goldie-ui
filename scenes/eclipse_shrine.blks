@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <scene ambient="0.06 0.07 0.10" background="0.015 0.02 0.035">
   <camera name="Overview" comment="Top-down layout of the full shrine and its shadow axes" pos="0 15 2" look="0 0.5 -1.5" fov="48"/>
   <camera name="Approach" comment="Hero view from the shrine entrance toward the eclipse ring" pos="0 2.6 10" look="0 2.2 -2" fov="58"/>

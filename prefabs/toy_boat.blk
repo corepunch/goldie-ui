@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- toy_boat: footprint 0.42x0.20, baseline y=0, bow faces +X.
      tint=1 changes the hull; mast and sail keep their materials. -->
 <prefab>

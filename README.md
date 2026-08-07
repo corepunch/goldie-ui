@@ -72,6 +72,18 @@ Render scene geometry as an unlit white wireframe:
 ./build/bin/simplegl scenes/sample_room.blks -wireframe
 ```
 
+Check authored scene bounds before rendering:
+
+```sh
+./build/bin/simplegl scenes/sample_room.blks -test
+```
+
+`-test` checks explicit structural proxies. Add a non-rendered box with
+`sanityCheck="1"` for each furniture assembly or clearance volume, and mark
+the scene floor `sanityFloor="1"`. The checker reports overlapping proxies
+and checked proxies with no touching supporting proxy or floor. This avoids
+false positives from the deliberately intersecting pieces inside a prefab.
+
 The offscreen screenshot tool accepts the same flags:
 
 ```sh

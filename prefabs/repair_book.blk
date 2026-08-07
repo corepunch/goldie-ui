@@ -1,4 +1,4 @@
-<?xml?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- repair_book: footprint 0.62x0.45, baseline y=0, spine faces -X.
      Instance color reaches the nested book covers; pages and emblem stay fixed. -->
 <prefab>

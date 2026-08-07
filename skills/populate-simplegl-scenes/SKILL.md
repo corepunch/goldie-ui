@@ -23,8 +23,9 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 6. Keep all naturally grounded objects at the documented prefab baseline. Calculate primitive centers from half-height; do not guess vertical positions.
 7. Validate XML, build the project, and run the tests.
 8. Load the scene through the CLI and check its declared cameras.
-9. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
-10. Correct every invariant violation found through coordinate calculations, XML validation, scene loading, or tests.
+9. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. `-d 24` hides lamp and character editor overlays. Screenshot review complements, but does not replace, CLI validation.
+10. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
+11. Correct every invariant violation found through coordinate calculations, XML validation, scene loading, screenshot review, or tests.
 
 Declare scene-wide ambient light and background only as attributes on the root
 element: `<scene ambient="r g b" background="preset-or-rgb">`. Never emit
@@ -83,6 +84,8 @@ for the complete attribute classification and renderer data flow.
 - Every scene object and architectural element must cast shadows (`castShadow="1"`) unless it is self-luminous emitter geometry. Ceilings, floors, walls, furniture, and props all contribute to the stencil shadow volumes. The only legitimate `castShadow="0"` exceptions are: unlit light bulbs/flames, glass panes (which are opaque in fixed-function but conceptually transparent), shadow-catcher placeholder planes, and deliberately composited scene boundaries.
 - Give each room a dominant shadow-casting key light. Keep ambient light low enough for shape, but never leave the hero subject or interaction in featureless darkness; add a weaker motivated fill or rim when required for readability.
 - Aim directional exterior light through an actual opening. Use a **45–60 degree downward** angle and offset it **15–45 degrees from the wall axis** so cast shadows fall diagonally rather than parallel to walls. `dir="-0.6 -1 1"` gives ~45° down and ~30° horizontal offset; `dir="0 -1.7 1"` gives ~60° down. Never set the horizontal component to zero — that produces shadows aligned to walls, which reads as flat and uninteresting. Check that the ceiling and wall shell do not accidentally block the intended window-light path.
+- Treat a window as both a compositional subject and a lighting instrument, not background decoration. In at least one establishing or action camera, frame the window itself or its bright spill so the source of the key is legible. Place the window on the side of the hero work surface that the camera can plausibly see; a distant window behind the action often lights only an empty floor and contributes neither story nor depth.
+- Solve daylight placement against the hero surface before committing to the room layout. For a window-center ray `p + t * dir` (where `dir.y < 0`) and a tabletop at height `h`, use `t = (h - p.y) / dir.y`, then check the resulting X/Z point lands inside the tabletop footprint. Move the opening or adjust the sun direction until it crosses a prop cluster rather than bare floor. Window frames and mullions must cast shadows so this spill creates readable, crisp patterned shapes across the table and its objects.
 - When the camera must view a closed room from the outside, mark the camera-facing wall `renderable="0" castShadow="1"`. It remains invisible while preserving correct interior shadow and light-blocking behavior.
 - Verify that traversal mechanisms (lifts, stairs, ladders) are positioned adjacent to their destination platform. The base should sit near the lower platform and the top should reach near the upper platform so a single shot can capture both ends of the traversal.
 
@@ -94,6 +97,7 @@ xmllint --xpath 'count(/scene/ambient | /scene/background)' scenes/scene.blks
 make
 make test
 ./build/bin/simplegl scenes/scene.blks -list-cameras
+./build/bin/simplegl scenes/scene.blks -test
 ```
 
 Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.blks`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Do not render screenshots or perform visual inspection as part of validation.
