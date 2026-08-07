@@ -133,6 +133,28 @@ static void draw_wire_box(vec3 center, vec3 half, vec3 color){
 	for(int i=0;i<12;i++) draw_line(p[edges[i][0]],p[edges[i][1]],color);
 }
 
+static vec3 pick_color(vec3 base, int isHovered){
+	if(isHovered) return v3(1,1,0);
+	return base;
+}
+
+static void draw_plane_quad(vec3 center, vec3 u, vec3 v, float s, vec3 color){
+	vec3 a=vadd(vadd(center,vscale(u,s)),vscale(v,s));
+	vec3 b=vadd(vsub(center,vscale(u,s)),vscale(v,s));
+	vec3 c=vsub(vsub(center,vscale(u,s)),vscale(v,s));
+	vec3 d=vadd(vsub(center,vscale(u,s)),vscale(v,s));
+	(void)c; (void)d;
+	/* draw as a small square outline offset from center along both axes */
+	vec3 off=vadd(vscale(u,s*2.5f),vscale(v,s*2.5f));
+	vec3 p0=vadd(center,vadd(vscale(u,s*1.5f),vscale(v,s*1.5f)));
+	vec3 p1=vadd(center,vadd(vscale(u,s*3.5f),vscale(v,s*1.5f)));
+	vec3 p2=vadd(center,vadd(vscale(u,s*3.5f),vscale(v,s*3.5f)));
+	vec3 p3=vadd(center,vadd(vscale(u,s*1.5f),vscale(v,s*3.5f)));
+	(void)off; (void)a; (void)b;
+	draw_line(p0,p1,color); draw_line(p1,p2,color);
+	draw_line(p2,p3,color); draw_line(p3,p0,color);
+}
+
 static void draw_editor_gizmos(Scene *s){
 	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
 	if(!s->objs[s->selectedObj].renderable) return;
@@ -144,8 +166,16 @@ static void draw_editor_gizmos(Scene *s){
 	float gizmoSize=vlen(half)*0.7f;
 	if(gizmoSize<0.3f) gizmoSize=0.3f;
 
-	vec3 white=v3(1,1,1), red=v3(1,0.2f,0.2f), green=v3(0.2f,1,0.2f), blue=v3(0.2f,0.2f,1);
+	int hov=s->hoveredHandle;
+	vec3 white=v3(1,1,1);
+	vec3 red  =pick_color(v3(1,0.2f,0.2f), hov==GIZMO_AXIS_X);
+	vec3 green=pick_color(v3(0.2f,1,0.2f), hov==GIZMO_AXIS_Y);
+	vec3 blue =pick_color(v3(0.2f,0.2f,1), hov==GIZMO_AXIS_Z);
+	vec3 cXY  =pick_color(v3(1,1,0.3f),    hov==GIZMO_PLANE_XY);
+	vec3 cXZ  =pick_color(v3(0.3f,1,1),    hov==GIZMO_PLANE_XZ);
+	vec3 cYZ  =pick_color(v3(1,0.3f,1),    hov==GIZMO_PLANE_YZ);
 	vec3 sx=v3(1,0,0), sy=v3(0,1,0), sz=v3(0,0,1);
+	float qs=gizmoSize*0.12f;
 
 	draw_wire_box(center,half,white);
 
@@ -153,25 +183,24 @@ static void draw_editor_gizmos(Scene *s){
 		draw_axis_arrow(center,sx,gizmoSize,red);
 		draw_axis_arrow(center,sy,gizmoSize,green);
 		draw_axis_arrow(center,sz,gizmoSize,blue);
-		draw_line(vsub(center,vscale(sx,gizmoSize*0.2f)),vadd(center,vscale(sx,gizmoSize)),vscale(red,0.5f));
-		draw_line(vsub(center,vscale(sy,gizmoSize*0.2f)),vadd(center,vscale(sy,gizmoSize)),vscale(green,0.5f));
-		draw_line(vsub(center,vscale(sz,gizmoSize*0.2f)),vadd(center,vscale(sz,gizmoSize)),vscale(blue,0.5f));
+		/* plane-quad handles */
+		draw_plane_quad(center,sx,sy,qs,cXY);
+		draw_plane_quad(center,sx,sz,qs,cXZ);
+		draw_plane_quad(center,sy,sz,qs,cYZ);
 	} else if(s->editMode==EDIT_E_ROTATE){
 		draw_circle(center,sy,gizmoSize,green,48);
 		draw_circle(center,sz,gizmoSize,blue,48);
 		draw_circle(center,sx,gizmoSize,red,48);
 	} else if(s->editMode==EDIT_R_SCALE){
 		float h=gizmoSize*0.12f;
+		vec3 cCtr=pick_color(white, hov==GIZMO_CENTER);
 		draw_line(center,vadd(center,vscale(sx,gizmoSize)),red);
 		draw_line(center,vadd(center,vscale(sy,gizmoSize)),green);
 		draw_line(center,vadd(center,vscale(sz,gizmoSize)),blue);
-		draw_line(vsub(center,vscale(sx,gizmoSize*0.15f)),vadd(center,vscale(sx,gizmoSize*0.15f)),vscale(red,0.35f));
-		draw_line(vsub(center,vscale(sy,gizmoSize*0.15f)),vadd(center,vscale(sy,gizmoSize*0.15f)),vscale(green,0.35f));
-		draw_line(vsub(center,vscale(sz,gizmoSize*0.15f)),vadd(center,vscale(sz,gizmoSize*0.15f)),vscale(blue,0.35f));
 		draw_wire_box(vadd(center,vscale(sx,gizmoSize)),v3(h,h,h),red);
 		draw_wire_box(vadd(center,vscale(sy,gizmoSize)),v3(h,h,h),green);
 		draw_wire_box(vadd(center,vscale(sz,gizmoSize)),v3(h,h,h),blue);
-		draw_wire_box(center,v3(h,h,h),white);
+		draw_wire_box(center,v3(h,h,h),cCtr);
 	}
 }
 
@@ -305,6 +334,21 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int 
         glDepthMask(GL_TRUE);
     }
 
+    /* Bounding box: depth-tested so it sits on the mesh surface correctly */
+    if(s->selectedObj>=0 && s->selectedObj<s->nobjs && s->objs[s->selectedObj].renderable){
+        vec3 bmin,bmax;
+        scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
+        vec3 bc=vscale(vadd(bmin,bmax),0.5f);
+        vec3 bh=vscale(vsub(bmax,bmin),0.5f);
+        glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_FALSE);
+        glDisable(GL_LIGHTING);
+        glBegin(GL_LINES);
+        draw_wire_box(bc,bh,v3(1,1,1));
+        glEnd();
+        glDepthMask(GL_TRUE);
+    }
+
+    /* Gizmo handles: drawn without depth test so they're always visible */
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
     glBegin(GL_LINES);

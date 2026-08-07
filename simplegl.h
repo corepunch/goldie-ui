@@ -100,6 +100,18 @@ enum {
 	EDIT_R_SCALE
 };
 
+/* Gizmo handle IDs — returned by gizmo_pick_handle() */
+enum {
+	GIZMO_NONE   = 0,
+	GIZMO_AXIS_X = 1,  /* move: X arrow / rotate: X ring / scale: X cube  */
+	GIZMO_AXIS_Y = 2,
+	GIZMO_AXIS_Z = 3,
+	GIZMO_PLANE_XY = 4, /* move: XY plane quad */
+	GIZMO_PLANE_XZ = 5,
+	GIZMO_PLANE_YZ = 6,
+	GIZMO_CENTER   = 7  /* scale: centre cube */
+};
+
 typedef struct {
 	vec3 camPos,camLook; float camFov;
 	Camera *cameras; int ncameras,ccameras;
@@ -119,6 +131,11 @@ typedef struct {
 	CharDef *charDefs; int ncharDefs, ccharDefs;
 	int selectedObj;
 	int editMode;
+	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */
+	int draggingHandle;  /* GIZMO_* — active drag handle, GIZMO_NONE when idle */
+	int dragStartMouseX, dragStartMouseY;
+	vec3 dragStartCenter; /* gizmo centre at drag-start */
+	float dragAccum;     /* accumulated angle for rotate, scale factor for scale */
 } Scene;
 
 int load_scene(const char *path,Scene *s);
@@ -130,6 +147,9 @@ vec3 light_to_source(Light *light,vec3 point);
 void scene_rebuild_camera_gizmos(Scene *s,float aspect);
 int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut);
 void scene_get_obj_bounds(Scene *s,int idx,vec3 *outMin,vec3 *outMax);
+/* Gizmo interaction helpers */
+int gizmo_pick_handle(Scene *s, vec3 rayOrigin, vec3 rayDir);
+void gizmo_apply_drag(Scene *s, int dx, int dy, vec3 camRight, vec3 camUp, vec3 camLook);
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);
