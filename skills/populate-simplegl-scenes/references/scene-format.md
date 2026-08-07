@@ -144,6 +144,21 @@ Built-in presets (always available, no `<material>` tag needed):
 
 To override a preset, define a `<material>` with the same `id` in the scene. Unlisted materials (e.g. `brass`, `slate`, `fabric`) must be defined explicitly.
 
+### `<chardef>`
+
+Defines reusable character-gizmo proportions for `<dummy type="character"
+ref="...">`. Declare it as a top-level scene child.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | (required) | Definition name referenced by a character dummy |
+| `height` | float | 1.0 | Baseline-to-head height |
+| `radius` | float | 0.10 | Head and landmark radius basis |
+| `top` | float | 1.0 | Head-center height as a fraction of `height` |
+| `neck` | float | 0.75 | Shoulder/neck height fraction |
+| `pelvis` | float | 0.25 | Pelvis height fraction |
+| `feet` | float | 0.0 | Foot landmark height fraction |
+
 ### `<light>`
 
 Point light source with distance attenuation.
@@ -369,6 +384,21 @@ aligned. Oblique cutters are ignored.
 
 Place the complete insert once: `<prefab source="window" pos="x y z"/>`.
 Do not declare a duplicate child `<opening>` on the wall.
+
+### `<bool-negative-arch>`
+
+A non-rendered round-arch wall cutter using the same transform rules and wall-only
+scope as `<bool-negative-box>`. It accepts `width`, `height`, `depth`, and
+`segments`; align local Z to the wall thickness and extend `depth` completely
+through both wall faces. Pair it with visible `<arch>` frame geometry carrying
+the same outer width, height, and segment count.
+
+```xml
+<prefab>
+  <bool-negative-arch width="2.2" height="2.35" depth="0.34" segments="16"/>
+  <arch width="2.2" height="2.35" depth="0.10" tube="0.14" segments="16" material="wood"/>
+</prefab>
+```
 
 ### `<group>`
 
@@ -649,6 +679,7 @@ A single line segment. Inherits parent `<group>` transforms.
 | `start`   | vec3 | 0 0 0   | Start point in local space |
 | `end`     | vec3 | 0 1 0   | End point in local space |
 | `color`   | vec3 | 0.85 0.15 0.15 | Line colour |
+| `camera`  | string | (all) | Optional camera name; render this annotation only while that camera is active |
 
 ```xml
 <line start="0 0 0" end="0 2 0" color="1 0 0"/>
@@ -664,6 +695,7 @@ transforms.
 |-----------|--------|--------------------|-------------|
 | `type`    | string | "character"        | `"character"`, `"lamp"`, or `"camera"` |
 | `color`   | vec3   | 0.85 0.15 0.15     | Line colour |
+| `camera`  | string | (all)               | Optional camera name; render this dummy only while that camera is active |
 
 **`type="character"`** — a vertical spine from baseline to top, plus four
 horizontal landmark circles at top, neck, pelvis, and feet:
@@ -671,6 +703,27 @@ horizontal landmark circles at top, neck, pelvis, and feet:
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
 | `height`  | float | 0.5     | Character height from baseline to head |
+| `ref`     | string | (none) | Optional top-level `<chardef>` name; when omitted, inline proportions are used |
+| `radius`  | float | 10% of height | Landmark-circle radius for an inline character definition |
+| `pose`    | string | stand | `stand`, `walk`, `look`, `reach`, `inspect`, `crouch`, `work`, or `climb` |
+| `target`  | vec3 | (none) | World-space action target used to aim gaze or hand gestures |
+
+Character dummies face local `+Z`, inherit their complete transform, and gain
+simple limb lines appropriate to `pose`. Use `rot` to orient the body and
+`target` to make the action legible. Define a shared character once when many
+shots use the same proportions:
+
+```xml
+<chardef name="Pip" height="0.30" radius="0.034"
+         top="1" neck="0.72" pelvis="0.34" feet="0"/>
+<dummy type="character" ref="Pip" camera="OilCanDiscovery"
+       pos="2.58 0 -8.62" rot="0 153 0" pose="crouch"
+       target="3.06 0.08 -9.12" color="0.16 0.72 0.95"/>
+```
+
+Camera binding is important in a one-scene/many-camera project. Without it,
+every alternate pose is visible in every camera and one actor appears as a
+crowd of duplicates.
 
 **`type="lamp"`** — three orthogonal circles (XY, XZ, YZ planes) forming a
 wireframe sphere cage around the light:

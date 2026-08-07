@@ -99,6 +99,12 @@ physical connection.
 
 ## Attach points and pivot offset
 
+Use semantic subfolders to organize authored prefab families and composite
+objects. Keep generic furniture and items independent, then reference them from
+room-specific composites such as `workshop/desks/main.blk` or
+`workshop/commode/stocked.blk`. Do not encode hierarchy with underscore
+prefixes in a flat filename.
+
 Use `attach="instanceName:slotName"` on any shape or prefab to place it at a prefab's named reference point without manual surface-height calculations. The target instance must carry a `name` attribute.
 
 ```xml
@@ -131,6 +137,11 @@ props enough to read but not so far that they overhang. A cylinder does not
 visibly change under Y rotation; vary its position or neighboring silhouette
 instead. Use X/Z tilt only when the prefab origin is a plausible contact pivot
 and the resulting footprint does not penetrate the support.
+
+Treat visible storage volume as part of the authored object. A commode with an
+open lower bay, a cubby wall, or a dressed desk should usually be a composite
+prefab that owns smaller item-prefab instances. Stock the volume at multiple
+depths and heights while keeping item footprints inside the support.
 
 Use `pivotOffset` to rotate a shape around an edge instead of its center. The offset is in local space, applied before rotation:
 

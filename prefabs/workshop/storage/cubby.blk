@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- stocked cubby: footprint 1.42x0.38, baseline y=0, front faces +Z. -->
+<prefab>
+  <prefab source="furniture/shelf_unit" scale="0.90 0.90 0.90"/>
+  <prefab source="items/book" pos="0.42 0.06 0.02" rot="0 -6 0" scale="0.56 0.56 0.56" color="0.55 0.08 0.06"/>
+  <prefab source="items/book" pos="0.08 0.06 0.04" rot="0 4 0" scale="0.62 0.62 0.62" color="0.10 0.25 0.46"/>
+  <prefab source="items/jar" pos="-0.37 0.06 0.02" scale="0.68 0.68 0.68" color="0.48 0.12 0.08"/>
+  <prefab source="items/jar" pos="0.38 0.62 0.02" scale="0.68 0.68 0.68" color="0.12 0.36 0.28"/>
+  <prefab source="items/spool" pos="0.02 0.62 0.03" scale="0.52 0.52 0.52"/>
+  <prefab source="items/parts_tray" pos="-0.36 0.62 0.02" scale="0.50 0.50 0.50" color="0.30 0.16 0.06"/>
+  <prefab source="items/tool_jar" pos="-0.38 1.18 0.02" scale="0.62 0.62 0.62" color="0.42 0.23 0.08"/>
+  <prefab source="items/jar" pos="0.05 1.18 0.02" scale="0.64 0.64 0.64" color="0.52 0.32 0.08"/>
+  <prefab source="items/book" pos="0.42 1.18 0.02" rot="0 7 0" scale="0.54 0.54 0.54" color="0.36 0.16 0.40"/>
+</prefab>

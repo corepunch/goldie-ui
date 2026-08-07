@@ -69,7 +69,7 @@ Tolliver's workshop is an old, beloved toymaker's cathedral of work: ordinary fu
 
 ## Spatial plan
 
-- Preserve the existing roughly rectangular workshop and 4.2-unit ceiling so established story cameras remain usable.
+- Rebuild the roughly rectangular workshop with a 6-unit high shell so the loft, rafters, tall clock and hanging work read as a true vertical volume. This supersedes the earlier 4.2-unit preservation constraint after the explicit restart direction.
 - Treat the back wall as the principal readable elevation: monumental main door at left, storage/landmark zone in the center, ornate arched window and main bench at right.
 - Keep the main bench centered under the window so directional light patterns cross its active work clusters.
 - Place the drawer cabinet in the center-left wall bay, leaving visible plaster between it, the hook, clock, door and window.
@@ -115,14 +115,14 @@ The current single scene represents the initial workshop state; later state vari
 
 | Camera/story beat | Focal subject | Required canon | Reference-driven context | Depth planes | Text zone | Density risks |
 |---|---|---|---|---|---|---|
-| WorkshopEstablishing | Giant bench and window-lit workshop | Bench, hook, clock, sawdust, pet-door direction | Drawers, cabinet, wall framing, shelves, rafters | Foreground sawhorse; mid bench; back wall | Upper-left plaster/beam bay | Tiny props may vanish; wall must not remain blank |
-| EmptyHookReveal | Empty hook and string | Hook/string | Cabinet edge, clock and shelf context | Foreground wall detail; clock/window edge behind | Left field | Do not merge hook with cabinet or clock |
-| ClimbWorkbenchAction | Drawer-handle climb | Bench, Pip route | Thick carved leg, apron, drawer pulls, vise | Foreground leg; Pip; tabletop/window | Upper-left | Added drawers must remain plausible footholds |
-| WorkbenchTopEstablishing | Repair landscape | Tools, toys, repair book, shavings | Tool rack and window spill | Foreground props; tabletop; wall storage | Upper-left | Cluster scale must read without intersections |
-| OilCanCloseup | Copper can under bench | Oil can, bench under-space | Drawer/apron silhouette and shelf stock | Foreground leg; can; lower shelf | Upper-right shadow | Do not close discovery sightline |
-| ToolBenchEstablishing | Makeshift climb route | Crate, chair, books, Bertrand | Tool rack, shelves, drawers | Foreground crate; route; tool wall | Upper-left | Wall dressing must not obscure route silhouette |
+| WorkshopEstablishing | Pip approaches the giant bench | Bench, hook, clock, sawdust, pet-door direction | Drawers, cabinet, wall framing, shelves, rafters | Foreground sawhorse; Pip and bench; back wall | Upper-left plaster/beam bay | Tiny props may vanish; wall must not remain blank |
+| EmptyHookReveal | Pip reaches toward the empty hook and string | Hook/string | Cabinet edge, clock and shelf context | Foreground wall detail; Pip; clock/window edge behind | Left field | Do not merge hook with cabinet or clock |
+| ClimbWorkbenchAction | Pip climbs toward a drawer handle | Bench, Pip route | Thick carved leg, apron, drawer pulls, vise | Foreground leg; Pip; tabletop/window | Upper-left | Added drawers must remain plausible footholds |
+| WorkbenchTopEstablishing | Pip works among the repair landscape | Tools, toys, repair book, shavings | Tool rack and window spill | Foreground props; Pip/tabletop; wall storage | Upper-left | Cluster scale must read without intersections |
+| OilCanCloseup | Pip crouches toward the copper can | Oil can, bench under-space | Drawer/apron silhouette and shelf stock | Foreground leg; Pip/can; lower shelf | Upper-right shadow | Do not close discovery sightline |
+| ToolBenchEstablishing | Pip climbs the crate-chair-book route | Crate, chair, books, Bertrand | Tool rack, shelves, drawers | Foreground crate; Pip/route; tool wall | Upper-left | Wall dressing must not obscure route silhouette |
 | LayoutPlan | Navigable room geography | All canonical zones | Perimeter storage and open center | Whole room | Not production text | Clutter must stay outside circulation |
-| LadderTraversal | Rusty ladder puzzle | Ladder and mechanism | High posts, rafters, loft implication | Winch foreground; ladder mid; beams high | Right wall bay | Both ends of traversal must fit |
+| LadderTraversal | Pip works the rusty ladder mechanism | Ladder and mechanism | High posts, rafters, loft implication | Winch/Pip foreground; ladder mid; beams high | Right wall bay | Both ends of traversal must fit |
 
 ## Implementation priorities
 

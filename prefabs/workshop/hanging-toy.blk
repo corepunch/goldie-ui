@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- hanging toy: origin at ceiling hook; toy boat hangs 1.35 units below. -->
+<prefab>
+  <torus pos="0 -0.05 0" majorRadius="0.09" minorRadius="0.018" material="brass"/>
+  <cylinder pos="0 -0.58 0" radius="0.010" height="1.06" material="paper"/>
+  <prefab source="toys/toy_boat" pos="0 -1.34 0" rot="0 18 5" scale="0.84 0.84 0.84" color="0.08 0.30 0.46"/>
+  <cylinder pos="-0.28 -1.14 0" rot="0 0 -22" radius="0.008" height="0.48" material="paper"/>
+  <cylinder pos="0.28 -1.14 0" rot="0 0 22" radius="0.008" height="0.48" material="paper"/>
+</prefab>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- shelf: width 1.70, wall origin at back center, front faces +Z, top at y=0.05. -->
+<prefab>
+  <attach name="top_surface" pos="0 0.05 0.18"/>
+  <box pos="0 0 0.18" size="1.70 0.10 0.42" material="wood"/>
+  <box pos="-0.64 -0.22 0.04" size="0.09 0.48 0.09" material="dark_wood"/>
+  <box pos="0.64 -0.22 0.04" size="0.09 0.48 0.09" material="dark_wood"/>
+  <box pos="-0.64 -0.20 0.19" rot="0 0 -43" size="0.07 0.50 0.09" material="wood"/>
+  <box pos="0.64 -0.20 0.19" rot="0 0 43" size="0.07 0.50 0.09" material="wood"/>
+</prefab>

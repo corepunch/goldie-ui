@@ -150,9 +150,7 @@ int main(int argc, char **argv){
 	for(int ci = 0; ci < ncam; ci++){
 		if(allCameras){
 			Camera *c = &scene.cameras[ci];
-			scene.camPos = c->pos;
-			scene.camLook = c->look;
-			scene.camFov = c->fov;
+			scene_select_camera(&scene,c->name);
 		} else if(camName){
 			scene_select_camera(&scene, camName);
 		}

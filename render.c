@@ -308,6 +308,7 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int 
         OverlayLine *ln=&s->overlayLines[i];
         if((flags&DBG_HIDE_CHARS) && ln->category==0) continue;
         if((flags&DBG_HIDE_LIGHTS) && ln->category>=1) continue;
+        if(ln->camera[0] && strcmp(ln->camera,s->activeCamera)) continue;
         vec3 color=srgb_to_linear(ln->color);
         glColor3f(color.x,color.y,color.z);
         glVertex3f(ln->start.x,ln->start.y,ln->start.z);

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- clock: wall-mount origin at dial center, footprint 1.46x2.78, front faces +Z. -->
+<prefab>
+  <attach name="hinge" pos="-0.70 0 0"/>
+  <arch pos="0 0.18 0.10" width="1.34" height="2.06" depth="0.24" segments="3" material="dark_wood"/>
+  <arch pos="0 0.08 0.235" width="1.10" height="1.70" depth="0.08" tube="0.10" segments="3" material="wood"/>
+  <box pos="0 -0.66 0.25" size="1.16 0.18 0.18" material="wood"/>
+  <box pos="-0.45 0.88 0.24" rot="0 0 -38" size="0.16 0.78 0.18" material="wood"/>
+  <box pos="0.45 0.88 0.24" rot="0 0 38" size="0.16 0.78 0.18" material="wood"/>
+  <box pos="0 1.19 0.24" size="1.12 0.13 0.20" material="dark_wood"/>
+  <sphere pos="0 1.34 0.24" radius="0.10" material="brass"/>
+  <prism pos="0 1.47 0.24" radius="0.09" height="0.22" sides="6" material="wood"/>
+  <sphere pos="-0.66 0.66 0.22" radius="0.11" material="wood"/>
+  <sphere pos="0.66 0.66 0.22" radius="0.11" material="wood"/>
+  <prism pos="-0.66 0.78 0.22" radius="0.075" height="0.22" sides="6" material="brass"/>
+  <prism pos="0.66 0.78 0.22" radius="0.075" height="0.22" sides="6" material="brass"/>
+  <arch pos="0 0.67 0.27" width="0.42" height="0.52" depth="0.08" tube="0.06" segments="3" material="brass"/>
+  <arch pos="0 0.67 0.255" width="0.30" height="0.40" depth="0.05" segments="3" material="shadow"/>
+  <sphere pos="0 0.67 0.34" radius="0.075" material="wood"/>
+  <cone pos="0.10 0.67 0.39" rot="0 0 -90" radius="0.035" height="0.16" material="brass"/>
+  <sphere pos="-0.045 0.73 0.34" radius="0.018" material="shadow"/>
+  <sphere pos="0.045 0.73 0.34" radius="0.018" material="shadow"/>
+  <cylinder pos="0 0.02 0.30" rot="90 0 0" radius="0.39" height="0.08" material="paper"/>
+  <torus pos="0 0.02 0.36" rot="90 0 0" majorRadius="0.39" minorRadius="0.045" material="brass"/>
+  <box pos="0 0.335 0.405" size="0.035 0.11 0.035" material="dark_wood"/>
+  <box pos="0.16 0.295 0.405" rot="0 0 -30" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="0.275 0.18 0.405" rot="0 0 -60" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="0.315 0.02 0.405" rot="0 0 90" size="0.035 0.11 0.035" material="dark_wood"/>
+  <box pos="0.275 -0.14 0.405" rot="0 0 60" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="0.16 -0.255 0.405" rot="0 0 30" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="0 -0.295 0.405" size="0.035 0.11 0.035" material="dark_wood"/>
+  <box pos="-0.16 -0.255 0.405" rot="0 0 -30" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="-0.275 -0.14 0.405" rot="0 0 -60" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="-0.315 0.02 0.405" rot="0 0 90" size="0.035 0.11 0.035" material="dark_wood"/>
+  <box pos="-0.275 0.18 0.405" rot="0 0 60" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="-0.16 0.295 0.405" rot="0 0 30" size="0.032 0.10 0.032" material="dark_wood"/>
+  <box pos="-0.015 0.14 0.43" rot="0 0 -4" size="0.035 0.27 0.035" material="iron"/>
+  <box pos="0.095 0.085 0.44" rot="0 0 -52" size="0.035 0.22 0.035" material="iron"/>
+  <cylinder pos="0 -0.91 0.24" radius="0.022" height="0.46" material="brass"/>
+  <sphere pos="0 -1.18 0.24" radius="0.115" material="brass"/>
+  <cylinder pos="-0.31 -0.98 0.22" radius="0.012" height="0.62" material="brass"/>
+  <cylinder pos="0.31 -1.06 0.22" radius="0.012" height="0.78" material="brass"/>
+  <prism pos="-0.31 -1.38 0.22" radius="0.11" height="0.34" sides="8" material="bronze"><taper amount="0.34"/></prism>
+  <prism pos="0.31 -1.54 0.22" radius="0.11" height="0.34" sides="8" material="bronze"><taper amount="0.34"/></prism>
+</prefab>

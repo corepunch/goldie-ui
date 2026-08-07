@@ -61,6 +61,7 @@ Checklist for every camera placement:
 2. **Avoid tangents:** don't let the camera angle cause unrelated scene edges to touch or align with character edges (e.g., a doorframe line appearing to grow out of a character's head). Nudge the camera position slightly to separate silhouettes.
 3. **One clear focal point per shot.** If two things compete for attention (a character and a bright window behind them), either reposition the camera, adjust which light is brightest, or defocus/darken the secondary element.
 4. **Overlap = depth, gaps = confusion.** Deliberate overlap of foreground/midground/background elements sells depth; accidental gaps that make the subject look "pasted on" over the background break it.
+5. **Actor/action/target test:** if the shot depicts an action, all three must read at a glance. A camera aimed at a hook, ladder, door, or tool without the acting character only establishes the object. In shared multi-camera blockouts, bind each alternate character pose to its intended camera so other shots do not inherit duplicate actors.
 
 ## 4. Foreground / midground / background — the three-plane rule
 

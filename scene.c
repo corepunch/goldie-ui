@@ -220,12 +220,13 @@ static void apply_modifiers(Mesh *m, XmlNode *n){
 
 /* ---------------------------------------------------- Overlay lines ------- */
 
-static void scene_add_overlay_line(Scene *s, vec3 start, vec3 end, vec3 color, int category){
-	OverlayLine ol={start,end,color,category};
+static void scene_add_overlay_line(Scene *s, vec3 start, vec3 end, vec3 color, int category, const char *camera){
+	OverlayLine ol={start,end,color,category,{0}};
+	if(camera) strncpy(ol.camera,camera,31);
 	DA_PUSH(s->overlayLines,s->noverlayLines,s->coverlayLines,ol);
 }
 
-static void add_circle_lines(Scene *s, vec3 center, float radius, vec3 normal, vec3 color, int n, int category){
+static void add_circle_lines(Scene *s, vec3 center, float radius, vec3 normal, vec3 color, int n, int category, const char *camera){
 	vec3 u,v;
 	if(fabsf(normal.x)>0.001f||fabsf(normal.z)>0.001f)
 		u=vnorm(v3(-normal.z,0,normal.x));
@@ -236,63 +237,82 @@ static void add_circle_lines(Scene *s, vec3 center, float radius, vec3 normal, v
 	for(int i=1;i<=n;i++){
 		float angle=2.0f*M_PIf*(float)i/(float)n;
 		vec3 next=vadd(center,vadd(vscale(u,radius*cosf(angle)),vscale(v,radius*sinf(angle))));
-		scene_add_overlay_line(s,prev,next,color,category);
+		scene_add_overlay_line(s,prev,next,color,category,camera);
 		prev=next;
 	}
 }
 
-static void add_cross_lines(Scene *s, vec3 center, float radius, vec3 normal, vec3 color, int category){
-	vec3 u,v;
-	if(fabsf(normal.x)>0.001f||fabsf(normal.z)>0.001f)
-		u=vnorm(v3(-normal.z,0,normal.x));
-	else
-		u=vnorm(v3(1,0,0));
-	v=vnorm(vcross(normal,u));
-	scene_add_overlay_line(s,vadd(center,vscale(u,radius)),vadd(center,vscale(u,-radius)),color,category);
-	scene_add_overlay_line(s,vadd(center,vscale(v,radius)),vadd(center,vscale(v,-radius)),color,category);
+static void add_character_circle(Scene *s, mat4 M, vec3 center, float radius, vec3 color, const char *camera){
+	vec3 prev=mat4_xform_point(M,vadd(center,v3(radius,0,0)));
+	for(int i=1;i<=16;i++){
+		float angle=2.0f*M_PIf*(float)i/16.0f;
+		vec3 next=mat4_xform_point(M,vadd(center,v3(radius*cosf(angle),0,radius*sinf(angle))));
+		scene_add_overlay_line(s,prev,next,color,0,camera);
+		prev=next;
+	}
 }
 
-static void add_character_dummy(Scene *s, vec3 pos, CharDef *cd, vec3 color){
+static void add_character_dummy(Scene *s, mat4 M, CharDef *cd, vec3 color, const char *camera, const char *pose, int hasTarget, vec3 target){
 	float h=cd->height, r=cd->radius;
-	float yHead=pos.y+cd->top*h;
-	float yNeck=pos.y+cd->neck*h;
-	float yPelvis=pos.y+cd->pelvis*h;
-	float yFeet=pos.y+cd->feet*h;
+	float yHead=cd->top*h;
+	float yNeck=cd->neck*h;
+	float yPelvis=cd->pelvis*h;
+	float yFeet=cd->feet*h;
+	float lean=0.0f;
+	if(!strcmp(pose,"crouch")){
+		yHead*=0.68f; yNeck*=0.66f; yPelvis*=0.72f; lean=h*0.12f;
+	} else if(!strcmp(pose,"inspect")) lean=h*0.10f;
 	float shoulderW=r*1.8f;
 	float hipW=r*1.3f;
-	vec3 up=v3(0,1,0);
-	vec3 head=v3(pos.x,yHead,pos.z);
-	vec3 neck=v3(pos.x,yNeck,pos.z);
-	vec3 pelvis=v3(pos.x,yPelvis,pos.z);
-	vec3 feet=v3(pos.x,yFeet,pos.z);
-	vec3 shoulderL=v3(pos.x-shoulderW,yNeck,pos.z);
-	vec3 shoulderR=v3(pos.x+shoulderW,yNeck,pos.z);
-	vec3 hipL=v3(pos.x-hipW,yPelvis,pos.z);
-	vec3 hipR=v3(pos.x+hipW,yPelvis,pos.z);
-	vec3 legSplit=v3(pos.x,yPelvis-r*0.2f,pos.z);
-	scene_add_overlay_line(s,feet,head,color,0);
-	scene_add_overlay_line(s,shoulderL,shoulderR,color,0);
-	scene_add_overlay_line(s,hipL,hipR,color,0);
-	scene_add_overlay_line(s,shoulderL,hipL,color,0);
-	scene_add_overlay_line(s,shoulderR,hipR,color,0);
-	scene_add_overlay_line(s,neck,pelvis,color,0);
-	scene_add_overlay_line(s,legSplit,hipL,color,0);
-	scene_add_overlay_line(s,legSplit,hipR,color,0);
-	add_circle_lines(s,head,r,up,color,16,0);
-	add_cross_lines(s,head,r,up,color,0);
-	add_circle_lines(s,neck,r*0.55f,up,color,16,0);
-	add_circle_lines(s,pelvis,r*0.85f,up,color,16,0);
-	add_cross_lines(s,pelvis,r*0.85f,up,color,0);
-	add_circle_lines(s,feet,r*0.65f,up,color,16,0);
+	vec3 head=mat4_xform_point(M,v3(0,yHead,lean));
+	vec3 neck=mat4_xform_point(M,v3(0,yNeck,lean));
+	vec3 pelvis=mat4_xform_point(M,v3(0,yPelvis,0));
+	vec3 feet=mat4_xform_point(M,v3(0,yFeet,0));
+	vec3 shoulderL=mat4_xform_point(M,v3(-shoulderW,yNeck,lean));
+	vec3 shoulderR=mat4_xform_point(M,v3(shoulderW,yNeck,lean));
+	vec3 hipL=mat4_xform_point(M,v3(-hipW,yPelvis,0));
+	vec3 hipR=mat4_xform_point(M,v3(hipW,yPelvis,0));
+	vec3 footL=mat4_xform_point(M,v3(-hipW,yFeet,!strcmp(pose,"walk")?h*0.12f:0));
+	vec3 footR=mat4_xform_point(M,v3(hipW,yFeet,!strcmp(pose,"climb")?h*0.12f:(!strcmp(pose,"walk")?-h*0.12f:0)));
+	vec3 handL=mat4_xform_point(M,v3(-shoulderW-r*0.7f,yPelvis+h*0.08f,lean+h*0.02f));
+	vec3 handR=mat4_xform_point(M,v3(shoulderW+r*0.7f,yPelvis+h*0.08f,lean+h*0.02f));
+	if(hasTarget){
+		vec3 dirL=vnorm(vsub(target,shoulderL));
+		vec3 dirR=vnorm(vsub(target,shoulderR));
+		if(!strcmp(pose,"reach") || !strcmp(pose,"inspect")) handR=vadd(shoulderR,vscale(dirR,h*0.42f));
+		else if(!strcmp(pose,"work") || !strcmp(pose,"climb")){
+			handL=vadd(shoulderL,vscale(dirL,h*0.38f));
+			handR=vadd(shoulderR,vscale(dirR,h*0.38f));
+		}
+		if(!strcmp(pose,"look")) scene_add_overlay_line(s,head,vadd(head,vscale(vnorm(vsub(target,head)),h*0.18f)),color,0,camera);
+	}
+	vec3 elbowL=lerp(shoulderL,handL,0.52f);
+	vec3 elbowR=lerp(shoulderR,handR,0.52f);
+	scene_add_overlay_line(s,feet,head,color,0,camera);
+	scene_add_overlay_line(s,shoulderL,shoulderR,color,0,camera);
+	scene_add_overlay_line(s,hipL,hipR,color,0,camera);
+	scene_add_overlay_line(s,shoulderL,hipL,color,0,camera);
+	scene_add_overlay_line(s,shoulderR,hipR,color,0,camera);
+	scene_add_overlay_line(s,neck,pelvis,color,0,camera);
+	scene_add_overlay_line(s,shoulderL,elbowL,color,0,camera);
+	scene_add_overlay_line(s,elbowL,handL,color,0,camera);
+	scene_add_overlay_line(s,shoulderR,elbowR,color,0,camera);
+	scene_add_overlay_line(s,elbowR,handR,color,0,camera);
+	scene_add_overlay_line(s,hipL,footL,color,0,camera);
+	scene_add_overlay_line(s,hipR,footR,color,0,camera);
+	add_character_circle(s,M,v3(0,yHead,lean),r,color,camera);
+	add_character_circle(s,M,v3(0,yNeck,lean),r*0.55f,color,camera);
+	add_character_circle(s,M,v3(0,yPelvis,0),r*0.85f,color,camera);
+	add_character_circle(s,M,v3(0,yFeet,0),r*0.65f,color,camera);
 }
 
-static void add_lamp_dummy(Scene *s, vec3 pos, float radius, vec3 color, int category){
-	add_circle_lines(s,pos,radius,v3(1,0,0),color,16,category);
-	add_circle_lines(s,pos,radius,v3(0,1,0),color,16,category);
-	add_circle_lines(s,pos,radius,v3(0,0,1),color,16,category);
+static void add_lamp_dummy(Scene *s, vec3 pos, float radius, vec3 color, int category, const char *camera){
+	add_circle_lines(s,pos,radius,v3(1,0,0),color,16,category,camera);
+	add_circle_lines(s,pos,radius,v3(0,1,0),color,16,category,camera);
+	add_circle_lines(s,pos,radius,v3(0,0,1),color,16,category,camera);
 }
 
-static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, float aspect, vec3 color, int category){
+static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, float aspect, vec3 color, int category, const char *camera){
 	vec3 forward=vnorm(vsub(look,pos));
 	vec3 worldUp=v3(0,1,0);
 	vec3 right=vnorm(vcross(forward,worldUp));
@@ -305,10 +325,10 @@ static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, float asp
 	vec3 tr=vadd(center,vadd(vscale(up,hh),vscale(right,hw)));
 	vec3 bl=vadd(center,vadd(vscale(up,-hh),vscale(right,-hw)));
 	vec3 br=vadd(center,vadd(vscale(up,-hh),vscale(right,hw)));
-	scene_add_overlay_line(s,pos,tl,color,category); scene_add_overlay_line(s,pos,tr,color,category);
-	scene_add_overlay_line(s,pos,bl,color,category); scene_add_overlay_line(s,pos,br,color,category);
-	scene_add_overlay_line(s,tl,tr,color,category); scene_add_overlay_line(s,tr,br,color,category);
-	scene_add_overlay_line(s,br,bl,color,category); scene_add_overlay_line(s,bl,tl,color,category);
+	scene_add_overlay_line(s,pos,tl,color,category,camera); scene_add_overlay_line(s,pos,tr,color,category,camera);
+	scene_add_overlay_line(s,pos,bl,color,category,camera); scene_add_overlay_line(s,pos,br,color,category,camera);
+	scene_add_overlay_line(s,tl,tr,color,category,camera); scene_add_overlay_line(s,tr,br,color,category,camera);
+	scene_add_overlay_line(s,br,bl,color,category,camera); scene_add_overlay_line(s,bl,tl,color,category,camera);
 }
 
 void scene_rebuild_camera_gizmos(Scene *s, float aspect){
@@ -319,7 +339,7 @@ void scene_rebuild_camera_gizmos(Scene *s, float aspect){
 	s->noverlayLines=w;
 	for(int ci=0;ci<s->ncameras;ci++){
 		Camera *c=&s->cameras[ci];
-		add_camera_dummy(s,c->pos,c->look,c->fov,aspect,v3(0.2f,0.8f,0.2f),2);
+		add_camera_dummy(s,c->pos,c->look,c->fov,aspect,v3(0.2f,0.8f,0.2f),2,NULL);
 	}
 }
 
@@ -542,25 +562,36 @@ static void parse_line(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	scene_add_overlay_line(s,
 		mat4_xform_point(M,xml_attr_v3(n,"start",v3(0,0,0))),
 		mat4_xform_point(M,xml_attr_v3(n,"end",v3(0,1,0))),
-		lcolor, 0);
+		lcolor,0,xml_attr(n,"camera",NULL));
 }
 
 static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
-	vec3 worldPos=mat4_xform_point(M,v3(0,0,0));
 	vec3 lcolor=xml_attr_v3(n,"color",v3(0.85f,0.15f,0.15f));
 	const char *type=xml_attr(n,"type","character");
 	if(!strcmp(type,"character")){
 		const char *ref=xml_attr(n,"ref",NULL);
+		CharDef inlineDef={0};
+		inlineDef.height=xml_attr_f(n,"height",0.5f);
+		inlineDef.radius=xml_attr_f(n,"radius",inlineDef.height*0.10f);
+		inlineDef.top=xml_attr_f(n,"top",1.0f);
+		inlineDef.neck=xml_attr_f(n,"neck",0.75f);
+		inlineDef.pelvis=xml_attr_f(n,"pelvis",0.25f);
+		inlineDef.feet=xml_attr_f(n,"feet",0.0f);
+		CharDef *cd=&inlineDef;
 		if(ref){
-			CharDef *cd=NULL;
+			cd=NULL;
 			for(int i=0;i<s->ncharDefs;i++) if(!strcmp(s->charDefs[i].name,ref)){ cd=&s->charDefs[i]; break; }
-			if(cd) add_character_dummy(s,worldPos,cd,lcolor);
+		}
+		if(cd){
+			const char *targetText=xml_attr(n,"target",NULL);
+			add_character_dummy(s,M,cd,lcolor,xml_attr(n,"camera",NULL),xml_attr(n,"pose","stand"),
+				targetText!=NULL,xml_attr_v3(n,"target",v3(0,0,0)));
 		}
 	} else if(!strcmp(type,"lamp")){
-		add_lamp_dummy(s,worldPos,xml_attr_f(n,"radius",0.15f),lcolor,1);
+		add_lamp_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_f(n,"radius",0.15f),lcolor,1,xml_attr(n,"camera",NULL));
 	} else if(!strcmp(type,"camera")){
-		add_camera_dummy(s,worldPos,xml_attr_v3(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),1.0f,lcolor,2);
+		add_camera_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_v3(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),1.0f,lcolor,2,xml_attr(n,"camera",NULL));
 	}
 }
 
@@ -779,6 +810,7 @@ static void parse_camera_tag(Scene *s, XmlNode *n){
 	DA_PUSH(s->cameras,s->ncameras,s->ccameras,cam);
 	if(s->ncameras==1){
 		s->camPos=cam.pos; s->camLook=cam.look; s->camFov=cam.fov;
+		strncpy(s->activeCamera,cam.name,31);
 	}
 }
 
@@ -950,13 +982,13 @@ int load_scene(const char *path, Scene *s){
 	int nlamp=0;
 	for(int li=0;li<s->nlights;li++){
 		if(!s->lights[li].isDirectional){
-			add_lamp_dummy(s,s->lights[li].pos,0.15f,v3(1.0f,0.7f,0.2f),1);
+			add_lamp_dummy(s,s->lights[li].pos,0.15f,v3(1.0f,0.7f,0.2f),1,NULL);
 			nlamp++;
 		}
 	}
 	for(int ci=0;ci<s->ncameras;ci++){
 		Camera *c=&s->cameras[ci];
-		add_camera_dummy(s,c->pos,c->look,c->fov,1.0f,v3(0.2f,0.8f,0.2f),2);
+		add_camera_dummy(s,c->pos,c->look,c->fov,1.0f,v3(0.2f,0.8f,0.2f),2,NULL);
 	}
 	fprintf(stderr,"overlay: %d lines (%d lamps, %d cameras)\n",s->noverlayLines,nlamp,s->ncameras);
 	return 1;
@@ -968,6 +1000,8 @@ void scene_select_camera(Scene *s, const char *name){
 			s->camPos=s->cameras[i].pos;
 			s->camLook=s->cameras[i].look;
 			s->camFov=s->cameras[i].fov;
+			strncpy(s->activeCamera,s->cameras[i].name,31);
+			s->activeCamera[31]=0;
 			return;
 		}
 	}

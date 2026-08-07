@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- window: outer size 2.20x2.35, origin at opening center, local +Z faces room. -->
+<prefab>
+  <bool-negative-arch width="2.20" height="2.35" depth="0.34"/>
+  <box pos="0 -1.14 0.15" size="2.34 0.14 0.32" material="dark_wood"/>
+  <arch pos="0 0 0.02" width="2.20" height="2.35" depth="0.09" tube="0.14" material="dark_wood"/>
+  <arch pos="0 0 0.06" width="1.90" height="2.05" depth="0.10" tube="0.10" material="wood"/>
+  <arch pos="0 0 -0.04" width="1.68" height="1.83" depth="0.03" material="moon_glass" castShadow="0"/>
+  <box pos="0 -0.69 0.08" size="1.68 0.07 0.06" material="dark_wood"/>
+  <box pos="0 0.105 0.08" size="0.07 1.59 0.06" material="dark_wood"/>
+  <box pos="-0.47 0.025 0.08" size="0.05 1.43 0.06" material="dark_wood"/>
+  <box pos="0.47 0.025 0.08" size="0.05 1.43 0.06" material="dark_wood"/>
+  <torus pos="0 0.43 0.10" rot="90 0 0" majorRadius="0.24" minorRadius="0.03" material="brass"/>
+  <box pos="0 0.43 0.10" size="0.45 0.028 0.028" material="brass"/>
+  <box pos="0 0.43 0.10" rot="0 0 45" size="0.028 0.45 0.028" material="brass"/>
+  <box pos="0 0.43 0.10" rot="0 0 -45" size="0.028 0.45 0.028" material="brass"/>
+</prefab>

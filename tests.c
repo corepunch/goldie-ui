@@ -92,6 +92,19 @@ static int scene_point_covered(Scene *s,vec3 p){
 	return 0;
 }
 
+static int overlay_camera_stats(Scene *s,const char *camera,float *maxY){
+	int count=0;
+	*maxY=-INFINITY;
+	for(int i=0;i<s->noverlayLines;i++){
+		OverlayLine *line=&s->overlayLines[i];
+		if(line->category || strcmp(line->camera,camera)) continue;
+		count++;
+		if(line->start.y>*maxY) *maxY=line->start.y;
+		if(line->end.y>*maxY) *maxY=line->end.y;
+	}
+	return count;
+}
+
 int main(void){
     fprintf(stderr,"=== Winding Tests ===\n");
 
@@ -341,6 +354,24 @@ int main(void){
 			CHECK(color_eq(s.objs[10].color,paper),"nested repair-book pages were incorrectly tinted");
 			PASS("selective prefab tint preserves pages and supports scale");
 		}
+		scene_free(&s);
+	}
+
+	{
+		Scene s={0};
+		CHECK(load_scene("scenes/test_character_dummy.blks",&s),"character dummy fixture failed to load");
+		float maxA,maxB;
+		int countA=overlay_camera_stats(&s,"ActionA",&maxA);
+		int countB=overlay_camera_stats(&s,"ActionB",&maxB);
+		CHECK(countA>0 && countB>0,"camera-scoped character lines were not generated");
+		CHECK(fabsf(maxA-0.30f)<0.001f,"named character definition height is %.3f, expected 0.300",maxA);
+		CHECK(fabsf(maxB-0.50f)<0.001f,"inline character height is %.3f, expected 0.500",maxB);
+		CHECK(!strcmp(s.activeCamera,"ActionA"),"first camera was not activated after load");
+		scene_select_camera(&s,"ActionB");
+		CHECK(!strcmp(s.activeCamera,"ActionB"),"camera selection did not update overlay scope");
+		if(countA>0 && countB>0 && fabsf(maxA-0.30f)<0.001f &&
+		   fabsf(maxB-0.50f)<0.001f && !strcmp(s.activeCamera,"ActionB"))
+			PASS("character dummies support named proportions, inline height, poses, and camera scope");
 		scene_free(&s);
 	}
 

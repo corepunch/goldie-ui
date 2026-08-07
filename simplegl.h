@@ -90,7 +90,7 @@ typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } Insta
 typedef struct { mat4 transform; vec3 size; } NegativeBox;
 typedef struct { mat4 transform; float width,height,depth; } NegativeArch;
 typedef struct { mat4 transform; float radius,depth; } NegativeCylinder;
-typedef struct { vec3 start, end, color; int category; } OverlayLine;
+typedef struct { vec3 start, end, color; int category; char camera[32]; } OverlayLine;
 typedef struct { char name[32]; float height, radius; float top, neck, pelvis, feet; } CharDef;
 
 enum {
@@ -129,6 +129,7 @@ typedef struct {
 	int sanityIgnoreActive, sanityFloorActive, sanityCheckActive;
 	OverlayLine *overlayLines; int noverlayLines, coverlayLines;
 	CharDef *charDefs; int ncharDefs, ccharDefs;
+	char activeCamera[32];
 	int selectedObj;
 	int editMode;
 	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */

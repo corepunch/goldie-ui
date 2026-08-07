@@ -12,24 +12,37 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Read [references/scene-format.md](references/scene-format.md) for supported XML tags, attributes, defaults, rotations, modifiers, and prefabs.
 - Read [references/layout-and-validation.md](references/layout-and-validation.md) whenever placing walls, openings, inserts, furniture, cameras, lights, or prefabs.
 - Read [references/shot-composition-guide.md](references/shot-composition-guide.md) whenever placing or revising cameras, and use it to define each shot's story purpose, framing, continuity, negative space, and field of view.
+- Read [references/alone-in-the-dark-layout-study.md](references/alone-in-the-dark-layout-study.md) whenever planning a multi-room floor, fixed-camera coverage regions and handoffs, corridors, column rhythms, or stair traversal shots.
 
 ## Workflow
 
 1. Locate the approved visual room design and its canonical source brief for story-driven or reference-driven work. If either is missing, use the appropriate source adapter and `$art-direct-room` before implementation. Do not derive the full environment directly from raw story objects when a design brief is required.
-2. Inspect the target scene, referenced prefabs, existing materials, brief inventory, state variants, priorities, and camera coverage matrix before editing.
+2. Inspect the target scene, referenced prefabs, existing materials, brief inventory, state variants, priorities, and camera coverage matrix before editing. When explicitly rebuilding from scratch, retain the approved briefs and reusable generic assets only; do not copy the discarded scene's transforms, clusters, or composition.
 3. Establish the room coordinate system, floor height, wall centers, local axes, spatial zones, circulation and story-action clearances.
 4. Create the structural shell first: floor, walls, ceiling or roof, openings, architectural articulation, cameras, and lights. An interior room is enclosed unless the design explicitly calls for an open or roofless space.
-5. Build hero furniture and large silhouettes before storage systems, prop clusters and accents. Reuse a prefab when an object appears more than once or has a natural front direction.
+5. Build hero furniture and large silhouettes before storage systems, prop clusters and accents. Give every hero a distinctive outer silhouette, secondary construction hierarchy, and story-specific detail; a generic box with an emblem is not a finished hero asset. Reuse a prefab when an object appears more than once or has a natural front direction.
 6. Place related geometry in a shared `<group>` coordinate frame. Never duplicate a rotated parent's world-space transform by hand when a group can express it.
 7. Keep all naturally grounded objects at the documented prefab baseline. Calculate primitive centers from half-height; do not guess vertical positions.
-8. Populate every density pass named by the visual design while preserving its intentional rest areas and text zones. Do not use raw object count as proof that a room is sufficiently authored.
+8. Populate every density pass named by the visual design while preserving its intentional rest areas and text zones. Fill visible drawers, cubbies, shelves, bins, racks, and under-furniture storage with plausible contents unless emptiness is deliberate and narratively legible. Do not use raw object count as proof that a room is sufficiently authored.
 9. Audit every visible contact: joined assembly parts terminate cleanly against their supports, while unrelated objects retain deliberate negative space without accidental overlap or tangency.
-10. Audit coverage: every `CANON` element and required initial state is represented, every hero/secondary design element reads in at least one intended camera, and any deliberate omission is documented.
+10. Audit coverage: every `CANON` element and required initial state is represented, every hero/secondary design element reads in at least one intended camera, and any deliberate omission is documented. For story cameras, audit the actor/action/target as well as the environment: place one camera-scoped character dummy for each character who must appear, choose a readable pose aimed toward the interaction target, and never rely on a camera merely pointing at an empty object to imply the action.
 11. Validate XML, build the project, and run the tests.
 12. Load the scene through the CLI and check its declared cameras.
-13. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. `-d 24` hides lamp and character editor overlays. Screenshot review complements, but does not replace, CLI validation.
+13. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. Review the result as an art-direction problem: identify generic hero silhouettes, empty functional volumes, weak upper-space occupation, flat front-on staging, repetitive prop rhythm, implausible scale, missing reference motifs, blocked actions, tangencies, and false grouping. Correct the scene and render again. `-d 24` hides lamp and character editor overlays. For every camera requiring a character, also render a blocking review with `-d 8`, which hides camera/lamp helpers but keeps character gizmos visible; confirm the correct actor appears once, at the correct support height, with a readable pose and gesture toward the focal target. Screenshot review complements, but does not replace, CLI validation.
 14. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
 15. Correct every invariant violation found through brief coverage, coordinate calculations, XML validation, scene loading, screenshot review, or tests.
+
+## Render critique gates
+
+- Judge hero assets in close view and at thumbnail scale. Replace generic inherited assets when their silhouette, construction, or ornament does not express the room's identity.
+- Check practical-light reach against the floor, hero furniture, storage interiors, ceiling/rafters, and story props. A technically lit room still fails when upper space becomes a black void or lower storage collapses into silhouette.
+- Check open storage in its intended camera, not only in XML. Contents need readable color/value separation, depth layering, and enough scale to register.
+- Check low cameras for foreground takeover. Foreground framing should lead toward the hero; move or reduce anything that becomes the dominant mass by accident.
+- Calibrate camera height against the declared character height. A supposed tiny-character viewpoint placed at twice the character's height weakens furniture monumentality even when the geometry is correctly scaled.
+- Check traversal shots for both endpoints. Showing a ladder or mechanism is insufficient unless the takeoff, complete route, and recognizable destination read together.
+- Check actor/action/target completeness. A shot of an interactive object without the acting character is object coverage, not action coverage. Keep alternate poses camera-scoped so a shared scene never shows duplicate copies of one actor.
+- Check small canonical props for discoverability. First improve placement, opening, silhouette, and camera angle; then add a restrained motivated bounce/glint only when the physical staging still needs contrast.
+- Compare the render against the reference decomposition after every major pass and name what remains absent. Add missing architectural or occupational motifs selectively rather than accepting a valid but generic room.
 
 ## Brief handoff
 
@@ -37,7 +50,16 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 - Treat the visual room design as authority for architecture, noncanonical furnishings, density, hierarchy, lighting, zones and camera intent.
 - Preserve the design classification of `CANON`, `REFERENCE`, `INFERRED` and `ATMOSPHERE`; noninteractive visual dressing does not need a game-parser object.
 - Implement the approved initial state unless the request names another state. Keep future state geometry feasible and document what remains unimplemented.
+- When a later explicit user direction supersedes an approved design decision, update the design brief before implementation and record the change in coverage. Never let a later coverage document silently override the design.
 - When a current scene conflicts with the briefs, correct the scene or record a deliberate renderer limitation. Do not silently weaken the brief to match existing assets.
+
+## Prefab architecture
+
+- Organize authored families with semantic subfolders: use `prefabs/workshop/clock.blk` or `prefabs/workshop/desks/main.blk`, never category or room prefixes joined into filenames such as `workshop_clock.blk` or `desk_with_items.blk`.
+- Keep generic undecorated construction in category folders such as `furniture/`, `fixtures/`, and `items/`. Put room-specific dressing and combinations under the room family.
+- Author furniture-with-contents, stocked shelves, dressed desks, and other meaningful object clusters as composite `.blk` prefabs that reference smaller prefabs. The scene should place the complete authored object, not rebuild its contents item by item.
+- Use scene-level groups only for relationships unique to room geography or story staging. If a cluster could move as one object or recur coherently, make it a prefab.
+- Preserve useful attach points on both base and composite prefabs so later state variants can relocate story props without dismantling the asset.
 
 Declare scene-wide ambient light and background only as attributes on the root
 element: `<scene ambient="r g b" background="preset-or-rgb">`. Never emit
@@ -115,13 +137,14 @@ make test
 ./build/bin/simplegl scenes/scene.blks -test
 ```
 
-Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.blks`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Do not render screenshots or perform visual inspection as part of validation.
+Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.blks`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Keep this technical gate distinct from the mandatory rendered-camera review; neither substitutes for the other.
 The XPath count must print `0`; any other value means scene-wide settings were
 written as ignored child elements instead of root attributes.
 
 ## Prefab rules
 
 - Keep prefab geometry centered around a useful placement origin, normally floor center.
+- Use semantic directory hierarchy instead of filename prefixes: `workshop/clock`, `workshop/desks/main`, and `workshop/shelves/jars`, not `workshop_clock`, `workshop_main_desk`, or `workshop_jars_shelf`.
 - Keep prefab materials externally resolvable by the containing scene.
 - State footprint, baseline, and front direction in the leading comment.
 - Declare `<attach>` elements on prefabs that have meaningful surface reference points (tabletop center, seat surface, shelf height). Name the primary work surface `top_surface`; use `under_center`, `shelf_lower`, `shelf_upper`, or `edge_n`/`edge_s` for secondary slots.
@@ -129,8 +152,11 @@ written as ignored child elements instead of root attributes.
 - Keep a practical light, its unlit emitter, and its shadow-casting shade in one prefab. Verify transformed and scaled instances keep the point light inside the emitter and on the emitting side of the shade lip.
 - Put a wall insert's `<bool-negative-box>` and all visible frame geometry in the same prefab. Center the prefab on the desired opening, align its local Z with wall thickness, and make the cutter deep enough to cross the complete wall.
 - Use `source=` on `<prefab>` to specify the file; `name=` only when something references this instance via `attach`.
+- Use `sanityIgnore="1"` only for a documented intentional overlap that the proxy checker cannot model, such as a wall insert owning its cutter. Never exempt a hero, furniture assembly, traversal mechanism, or practical light merely to obtain a passing scene test; correct its placement or explain the exact checker limitation.
 - Verify a directional prefab's `0`, `90`, `-90`, and `180` orientation mappings numerically before using it repeatedly.
 - Prefer a prefab over copied groups so later corrections propagate to every instance.
+- Make visible storage believable. An open commode, cubby, shelf, drawer, bin, rack, or under-desk bay should contain grouped objects with varied scale, yaw, depth, and silhouette unless its emptiness is a deliberate focal statement.
+- Make composite prefabs reference their component prefabs. A dressed desk owns its work clusters; a stocked commode owns its shelf contents; a lamp owns its emitter and light. Keep room XML focused on spatial relationships between these authored objects.
 
 ## Completion standard
 
