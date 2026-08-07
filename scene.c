@@ -903,6 +903,8 @@ int load_scene(const char *path, Scene *s){
 	memset(s,0,sizeof(*s));
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
 	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
+	s->selectedObj=-1;
+	s->editMode=EDIT_W_MOVE;
 
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
@@ -1022,6 +1024,212 @@ int scene_sanity_check(Scene *s){
 	free(bounds);
 	if(!errors) fprintf(stderr,"sanity: ok (%d objects)\n",s->nobjs);
 	return !errors;
+}
+
+void scene_get_obj_bounds(Scene *s, int idx, vec3 *outMin, vec3 *outMax){
+	if(idx<0 || idx>=s->nobjs){ *outMin=v3(0,0,0); *outMax=v3(0,0,0); return; }
+	Bounds b=scene_obj_bounds(&s->objs[idx]);
+	*outMin=b.min; *outMax=b.max;
+}
+
+int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut){
+	int hit=-1; float bestT=1e30f;
+	for(int i=0;i<s->nobjs;i++){
+		if(!s->objs[i].renderable) continue;
+		Bounds b=scene_obj_bounds(&s->objs[i]);
+		float t;
+		if(ray_intersect_aabb(rayOrigin, rayDir, b.min, b.max, &t)){
+			if(t<bestT){ bestT=t; hit=i; }
+		}
+	}
+	if(tOut) *tOut=bestT;
+	return hit;
+}
+
+/* -------------------------------------------- gizmo interaction */
+
+/* Ray–cylinder closest-approach test (infinite cylinder along an axis segment).
+   Returns the ray parameter t of closest approach, or -1 if farther than threshold. */
+static float ray_cylinder_dist(vec3 ro, vec3 rd, vec3 base, vec3 axis, float len, float thresh){
+	vec3 ab=vscale(axis,len);
+	vec3 ao=vsub(ro,base);
+	float dd=vdot(rd,rd), da=vdot(rd,axis), oa=vdot(ao,axis), od=vdot(ao,rd);
+	float denom=dd-da*da;
+	if(fabsf(denom)<1e-8f) return -1.0f;
+	float t=(od*da-oa*dd)/denom;
+	if(t<0.0f) return -1.0f;
+	float s=(t*da+oa); /* projection along axis */
+	if(s<0.0f || s>len) return -1.0f;
+	vec3 hit=vadd(ro,vscale(rd,t));
+	vec3 onAxis=vadd(base,vscale(axis,s));
+	(void)ab;
+	if(vlen(vsub(hit,onAxis))>thresh) return -1.0f;
+	return t;
+}
+
+/* Ray–sphere test for endpoint handles */
+static float ray_sphere_dist(vec3 ro, vec3 rd, vec3 center, float r){
+	vec3 oc=vsub(ro,center);
+	float b=vdot(oc,rd), c=vdot(oc,oc)-r*r, disc=b*b-c;
+	if(disc<0.0f) return -1.0f;
+	float t=-b-sqrtf(disc);
+	return t>0.0f ? t : -1.0f;
+}
+
+
+int gizmo_pick_handle(Scene *s, vec3 ro, vec3 rd){
+	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return GIZMO_NONE;
+	if(!s->objs[s->selectedObj].renderable) return GIZMO_NONE;
+	vec3 bmin,bmax;
+	scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
+	vec3 center=vscale(vadd(bmin,bmax),0.5f);
+	vec3 half=vscale(vsub(bmax,bmin),0.5f);
+	float gs=vlen(half)*0.7f; if(gs<0.3f) gs=0.3f;
+	float thresh=gs*0.18f;
+	vec3 sx=v3(1,0,0), sy=v3(0,1,0), sz=v3(0,0,1);
+
+	int   bestHandle=GIZMO_NONE;
+	float bestT=1e30f;
+
+	if(s->editMode==EDIT_W_MOVE || s->editMode==EDIT_R_SCALE){
+		/* Axis shafts */
+		float tx=ray_cylinder_dist(ro,rd,center,sx,gs,thresh);
+		float ty=ray_cylinder_dist(ro,rd,center,sy,gs,thresh);
+		float tz=ray_cylinder_dist(ro,rd,center,sz,gs,thresh);
+		if(tx>0 && tx<bestT){ bestT=tx; bestHandle=GIZMO_AXIS_X; }
+		if(ty>0 && ty<bestT){ bestT=ty; bestHandle=GIZMO_AXIS_Y; }
+		if(tz>0 && tz<bestT){ bestT=tz; bestHandle=GIZMO_AXIS_Z; }
+		/* Endpoint spheres (arrowheads / scale cubes) */
+		float ex=ray_sphere_dist(ro,rd,vadd(center,vscale(sx,gs)),thresh*1.5f);
+		float ey=ray_sphere_dist(ro,rd,vadd(center,vscale(sy,gs)),thresh*1.5f);
+		float ez=ray_sphere_dist(ro,rd,vadd(center,vscale(sz,gs)),thresh*1.5f);
+		if(ex>0 && ex<bestT){ bestT=ex; bestHandle=GIZMO_AXIS_X; }
+		if(ey>0 && ey<bestT){ bestT=ey; bestHandle=GIZMO_AXIS_Y; }
+		if(ez>0 && ez<bestT){ bestT=ez; bestHandle=GIZMO_AXIS_Z; }
+		if(s->editMode==EDIT_W_MOVE){
+			/* Plane quads: small square at (center + axis1*2.5*qs + axis2*2.5*qs) offset */
+			float qs=gs*0.12f*2.5f;
+			vec3 cXY=vadd(vadd(center,vscale(sx,qs)),vscale(sy,qs));
+			vec3 cXZ=vadd(vadd(center,vscale(sx,qs)),vscale(sz,qs));
+			vec3 cYZ=vadd(vadd(center,vscale(sy,qs)),vscale(sz,qs));
+			float pxy=ray_sphere_dist(ro,rd,cXY,thresh*1.5f);
+			float pxz=ray_sphere_dist(ro,rd,cXZ,thresh*1.5f);
+			float pyz=ray_sphere_dist(ro,rd,cYZ,thresh*1.5f);
+			if(pxy>0 && pxy<bestT){ bestT=pxy; bestHandle=GIZMO_PLANE_XY; }
+			if(pxz>0 && pxz<bestT){ bestT=pxz; bestHandle=GIZMO_PLANE_XZ; }
+			if(pyz>0 && pyz<bestT){ bestT=pyz; bestHandle=GIZMO_PLANE_YZ; }
+		}
+		if(s->editMode==EDIT_R_SCALE){
+			float ec=ray_sphere_dist(ro,rd,center,thresh*1.5f);
+			if(ec>0 && ec<bestT){ bestT=ec; bestHandle=GIZMO_CENTER; }
+		}
+	} else if(s->editMode==EDIT_E_ROTATE){
+		/* Rotation rings: test as torus — approximate with cylinder-of-points on the ring */
+		float ringThresh=thresh;
+		int segs=48;
+		vec3 axes[3]={sx,sy,sz};
+		int ids[3]={GIZMO_AXIS_X,GIZMO_AXIS_Y,GIZMO_AXIS_Z};
+		for(int a=0;a<3;a++){
+			vec3 normal=axes[a];
+			vec3 u,v2;
+			if(fabsf(normal.x)<0.9f) u=vnorm(vcross(normal,v3(1,0,0)));
+			else u=vnorm(vcross(normal,v3(0,1,0)));
+			v2=vnorm(vcross(normal,u));
+			for(int i=0;i<segs;i++){
+				float ang=2.0f*3.14159265f*(float)i/(float)segs;
+				vec3 pt=vadd(center,vadd(vscale(u,gs*cosf(ang)),vscale(v2,gs*sinf(ang))));
+				float ts=ray_sphere_dist(ro,rd,pt,ringThresh);
+				if(ts>0 && ts<bestT){ bestT=ts; bestHandle=ids[a]; }
+			}
+		}
+	}
+	return bestHandle;
+}
+
+void gizmo_apply_drag(Scene *s, int dx, int dy, vec3 camRight, vec3 camUp, vec3 camLook __attribute__((unused))){
+	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
+	if(s->draggingHandle==GIZMO_NONE) return;
+	SceneObj *obj=&s->objs[s->selectedObj];
+
+	if(s->editMode==EDIT_W_MOVE){
+		/* Project mouse delta onto the constraint axis/plane in world space */
+		vec3 moveDir=v3(0,0,0);
+		int h=s->draggingHandle;
+		if(h==GIZMO_AXIS_X){
+			/* Project screen delta onto world X axis */
+			float proj=vdot(camRight,v3(1,0,0))*(float)dx - vdot(camUp,v3(1,0,0))*(float)dy;
+			moveDir=vscale(v3(1,0,0),proj*0.01f);
+		} else if(h==GIZMO_AXIS_Y){
+			float proj=vdot(camRight,v3(0,1,0))*(float)dx - vdot(camUp,v3(0,1,0))*(float)dy;
+			moveDir=vscale(v3(0,1,0),proj*0.01f);
+		} else if(h==GIZMO_AXIS_Z){
+			float proj=vdot(camRight,v3(0,0,1))*(float)dx - vdot(camUp,v3(0,0,1))*(float)dy;
+			moveDir=vscale(v3(0,0,1),proj*0.01f);
+		} else if(h==GIZMO_PLANE_XY){
+			float mx=vdot(camRight,v3(1,0,0))*(float)dx - vdot(camUp,v3(1,0,0))*(float)dy;
+			float my=vdot(camRight,v3(0,1,0))*(float)dx - vdot(camUp,v3(0,1,0))*(float)dy;
+			moveDir=v3(mx*0.01f, my*0.01f, 0);
+		} else if(h==GIZMO_PLANE_XZ){
+			float mx=vdot(camRight,v3(1,0,0))*(float)dx - vdot(camUp,v3(1,0,0))*(float)dy;
+			float mz=vdot(camRight,v3(0,0,1))*(float)dx - vdot(camUp,v3(0,0,1))*(float)dy;
+			moveDir=v3(mx*0.01f, 0, mz*0.01f);
+		} else if(h==GIZMO_PLANE_YZ){
+			float my=vdot(camRight,v3(0,1,0))*(float)dx - vdot(camUp,v3(0,1,0))*(float)dy;
+			float mz=vdot(camRight,v3(0,0,1))*(float)dx - vdot(camUp,v3(0,0,1))*(float)dy;
+			moveDir=v3(0, my*0.01f, mz*0.01f);
+		}
+		for(int i=0;i<obj->mesh.nverts;i++){
+			obj->mesh.verts[i].pos=vadd(obj->mesh.verts[i].pos,moveDir);
+		}
+	} else if(s->editMode==EDIT_E_ROTATE){
+		vec3 bmin,bmax;
+		scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
+		vec3 center=vscale(vadd(bmin,bmax),0.5f);
+		int h=s->draggingHandle;
+		vec3 axis=v3(0,0,0);
+		if(h==GIZMO_AXIS_X) axis=v3(1,0,0);
+		else if(h==GIZMO_AXIS_Y) axis=v3(0,1,0);
+		else if(h==GIZMO_AXIS_Z) axis=v3(0,0,1);
+		if(vlen(axis)<0.5f) return;
+		/* Screen-space tangent of the ring: use the component of dx/dy
+		   that is tangential to the axis projected into screen space */
+		float screenTan=vdot(camRight,axis)*(float)dy + vdot(camUp,axis)*(float)dx;
+		float angleDeg=screenTan*0.5f;
+		float rad=angleDeg*3.14159265f/180.0f;
+		float cosA=cosf(rad), sinA=sinf(rad);
+		/* Rodrigues rotation around axis through center */
+		for(int i=0;i<obj->mesh.nverts;i++){
+			vec3 p=vsub(obj->mesh.verts[i].pos,center);
+			vec3 rotated=vadd(vadd(vscale(p,cosA),
+			                      vscale(vcross(axis,p),sinA)),
+			                      vscale(axis,vdot(axis,p)*(1.0f-cosA)));
+			obj->mesh.verts[i].pos=vadd(rotated,center);
+		}
+		/* Also rotate normals */
+		for(int i=0;i<obj->mesh.nverts;i++){
+			vec3 n=obj->mesh.verts[i].nrm;
+			vec3 rotated=vadd(vadd(vscale(n,cosA),
+			                      vscale(vcross(axis,n),sinA)),
+			                      vscale(axis,vdot(axis,n)*(1.0f-cosA)));
+			obj->mesh.verts[i].nrm=vnorm(rotated);
+		}
+	} else if(s->editMode==EDIT_R_SCALE){
+		vec3 bmin,bmax;
+		scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
+		vec3 center=vscale(vadd(bmin,bmax),0.5f);
+		int h=s->draggingHandle;
+		float delta=(float)dx*0.01f - (float)dy*0.01f;
+		for(int i=0;i<obj->mesh.nverts;i++){
+			vec3 p=vsub(obj->mesh.verts[i].pos,center);
+			if(h==GIZMO_AXIS_X)      p.x += p.x*delta;
+			else if(h==GIZMO_AXIS_Y) p.y += p.y*delta;
+			else if(h==GIZMO_AXIS_Z) p.z += p.z*delta;
+			else if(h==GIZMO_CENTER){ p.x+=p.x*delta; p.y+=p.y*delta; p.z+=p.z*delta; }
+			obj->mesh.verts[i].pos=vadd(p,center);
+		}
+		/* Recompute face normals after scale */
+		mesh_compute_face_normals(&obj->mesh);
+	}
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */

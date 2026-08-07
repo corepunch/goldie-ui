@@ -11,6 +11,27 @@ vec3 vcross(vec3 a,vec3 b){
 float vdot(vec3 a,vec3 b){ return a.x*b.x+a.y*b.y+a.z*b.z; }
 float vlen(vec3 a){ return sqrtf(vdot(a,a)); }
 vec3 vnorm(vec3 a){ float l=vlen(a); return l>1e-8f? vscale(a,1.0f/l): v3(0,0,1); }
+vec3 lerp(vec3 a, vec3 b, float t){ return v3(a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t, a.z+(b.z-a.z)*t); }
+
+int ray_intersect_aabb(vec3 origin, vec3 dir, vec3 bbMin, vec3 bbMax, float *tOut){
+	float tmin=-1e30f, tmax=1e30f;
+	float *minV=(float*)&bbMin, *maxV=(float*)&bbMax;
+	float *o=(float*)&origin, *d=(float*)&dir;
+	for(int i=0;i<3;i++){
+		if(fabsf(d[i])<1e-8f){
+			if(o[i]<minV[i] || o[i]>maxV[i]) return 0;
+			continue;
+		}
+		float t1=(minV[i]-o[i])/d[i], t2=(maxV[i]-o[i])/d[i];
+		if(t1>t2){ float tmp=t1; t1=t2; t2=tmp; }
+		if(t1>tmin) tmin=t1;
+		if(t2<tmax) tmax=t2;
+		if(tmin>tmax) return 0;
+	}
+	if(tmin<0) tmin=0;
+	if(tOut) *tOut=tmin;
+	return 1;
+}
 
 mat4 mat4_identity(void){
     mat4 r={{0}}; r.m[0]=r.m[5]=r.m[10]=r.m[15]=1.0f; return r;

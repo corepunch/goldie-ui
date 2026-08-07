@@ -106,8 +106,19 @@ int main(int argc,char**argv){
     int rightMouseDown=0;
 	int tabDown=0;
     int debugFlags=renderFlags;
+    scene.selectedObj=-1;
+    scene.editMode=EDIT_W_MOVE;
+    scene.hoveredHandle=GIZMO_NONE;
+    scene.draggingHandle=GIZMO_NONE;
+    int leftMouseDown=0;
+    int mouseX=W/2,mouseY=H/2;
     Uint32 lastTicks=SDL_GetTicks();
     while(running){
+        Uint32 now=SDL_GetTicks(); float dt=(now-lastTicks)/1000.0f; lastTicks=now;
+        float yawR=yaw*M_PIf/180.0f, pitchR=pitch*M_PIf/180.0f;
+        vec3 look = v3(sinf(yawR)*cosf(pitchR), sinf(pitchR), -cosf(yawR)*cosf(pitchR));
+        vec3 right = vnorm(vcross(look, v3(0,1,0)));
+
         SDL_Event ev;
         while(SDL_PollEvent(&ev)){
             if(ev.type==SDL_QUIT) running=0;
@@ -126,38 +137,76 @@ int main(int argc,char**argv){
                 else if(ev.key.keysym.sym==SDLK_3){ debugFlags^=DBG_SHOW_STENCIL; fprintf(stderr,"stencil overlay: %s\n",(debugFlags&DBG_SHOW_STENCIL)?"on":"off"); }
                 else if(ev.key.keysym.sym==SDLK_4){ debugFlags^=DBG_HIDE_LIGHTS; fprintf(stderr,"cam/lamp dummies: %s\n",(debugFlags&DBG_HIDE_LIGHTS)?"hidden":"visible"); }
                 else if(ev.key.keysym.sym==SDLK_5){ debugFlags^=DBG_HIDE_CHARS; fprintf(stderr,"character dummies: %s\n",(debugFlags&DBG_HIDE_CHARS)?"hidden":"visible"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_q){ scene.editMode=EDIT_Q_SELECT; fprintf(stderr,"edit mode: select\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_w){ scene.editMode=EDIT_W_MOVE; fprintf(stderr,"edit mode: move\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_e){ scene.editMode=EDIT_E_ROTATE; fprintf(stderr,"edit mode: rotate\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_r){ scene.editMode=EDIT_R_SCALE; fprintf(stderr,"edit mode: scale\n"); }
             }
 			else if(ev.type==SDL_KEYUP && ev.key.keysym.sym==SDLK_TAB) tabDown=0;
             else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){
                 rightMouseDown=1;
             } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_RIGHT){
                 rightMouseDown=0;
-            } else if(ev.type==SDL_MOUSEMOTION && rightMouseDown){
-                yaw   += ev.motion.xrel * MOUSE_SENSITIVITY;
-                pitch -= ev.motion.yrel * MOUSE_SENSITIVITY;
-                if(pitch>89) pitch=89;
-                if(pitch<-89) pitch=-89;
+            } else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_LEFT){
+                leftMouseDown=1;
+                float fovRad=scene.camFov*M_PIf/180.0f;
+                float hh=tanf(fovRad*0.5f);
+                float hw=hh*(float)W/(float)H;
+                float ndcX=(2.0f*mouseX)/W-1.0f;
+                float ndcY=1.0f-(2.0f*mouseY)/H;
+                vec3 cameraUp=vnorm(vcross(right,look));
+                vec3 rayDir=vnorm(vadd(vadd(vscale(right,ndcX*hw),vscale(cameraUp,ndcY*hh)),look));
+                /* Start gizmo drag if hovering a handle */
+                if(scene.hoveredHandle!=GIZMO_NONE){
+                    scene.draggingHandle=scene.hoveredHandle;
+                } else {
+                    scene.draggingHandle=GIZMO_NONE;
+                    scene.selectedObj=scene_pick_object(&scene,pos,rayDir,NULL);
+                    fprintf(stderr,"selected object %d\n",scene.selectedObj);
+                }
+            } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_LEFT){
+                leftMouseDown=0;
+                scene.draggingHandle=GIZMO_NONE;
+            } else if(ev.type==SDL_MOUSEMOTION){
+                mouseX=ev.motion.x; mouseY=ev.motion.y;
+                if(rightMouseDown){
+                    yaw   += ev.motion.xrel * MOUSE_SENSITIVITY;
+                    pitch -= ev.motion.yrel * MOUSE_SENSITIVITY;
+                    if(pitch>89) pitch=89;
+                    if(pitch<-89) pitch=-89;
+                } else if(leftMouseDown && scene.draggingHandle!=GIZMO_NONE){
+                    vec3 cameraUp=vnorm(vcross(right,look));
+                    gizmo_apply_drag(&scene, ev.motion.xrel, ev.motion.yrel, right, cameraUp, look);
+                }
             } else if(ev.type==SDL_WINDOWEVENT && ev.window.event==SDL_WINDOWEVENT_RESIZED){
                 W=ev.window.data1; H=ev.window.data2;
                 scene_rebuild_camera_gizmos(&scene,(float)W/(float)H);
             }
         }
-        Uint32 now=SDL_GetTicks(); float dt=(now-lastTicks)/1000.0f; lastTicks=now;
-
-        float yawR=yaw*M_PIf/180.0f, pitchR=pitch*M_PIf/180.0f;
-        vec3 look = v3(sinf(yawR)*cosf(pitchR), sinf(pitchR), -cosf(yawR)*cosf(pitchR));
-        vec3 right = vnorm(vcross(look, v3(0,1,0)));
-
         const Uint8 *ks=SDL_GetKeyboardState(NULL);
         float speed = (ks[SDL_SCANCODE_LSHIFT]||ks[SDL_SCANCODE_RSHIFT]) ? SPRINT_SPEED : MOVE_SPEED;
         vec3 move={0,0,0};
-        if(ks[SDL_SCANCODE_W]) move=vadd(move, look);
-        if(ks[SDL_SCANCODE_S]) move=vsub(move, look);
-        if(ks[SDL_SCANCODE_D]) move=vadd(move, right);
-        if(ks[SDL_SCANCODE_A]) move=vsub(move, right);
-        if(ks[SDL_SCANCODE_E]) move=vadd(move, v3(0,1,0));
-        if(ks[SDL_SCANCODE_Q]) move=vsub(move, v3(0,1,0));
+        if(rightMouseDown){
+            if(ks[SDL_SCANCODE_W]) move=vadd(move, look);
+            if(ks[SDL_SCANCODE_S]) move=vsub(move, look);
+            if(ks[SDL_SCANCODE_D]) move=vadd(move, right);
+            if(ks[SDL_SCANCODE_A]) move=vsub(move, right);
+            if(ks[SDL_SCANCODE_E]) move=vadd(move, v3(0,1,0));
+            if(ks[SDL_SCANCODE_Q]) move=vsub(move, v3(0,1,0));
+        }
         if(vlen(move)>1e-6f) pos = vadd(pos, vscale(vnorm(move), speed*dt));
+
+        /* Per-frame gizmo hover detection (only when not dragging) */
+        if(scene.draggingHandle==GIZMO_NONE){
+            float fovRad=scene.camFov*M_PIf/180.0f;
+            float hh=tanf(fovRad*0.5f);
+            float hw=hh*(float)W/(float)H;
+            float ndcX=(2.0f*mouseX)/(float)W-1.0f;
+            float ndcY=1.0f-(2.0f*mouseY)/(float)H;
+            vec3 cameraUp=vnorm(vcross(right,look));
+            vec3 rayDir=vnorm(vadd(vadd(vscale(right,ndcX*hw),vscale(cameraUp,ndcY*hh)),look));
+            scene.hoveredHandle=gizmo_pick_handle(&scene,pos,rayDir);
+        }
 
         mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
         mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));

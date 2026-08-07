@@ -24,6 +24,7 @@ vec3 vcross(vec3 a,vec3 b);
 float vdot(vec3 a,vec3 b);
 float vlen(vec3 a);
 vec3 vnorm(vec3 a);
+vec3 lerp(vec3 a, vec3 b, float t);
 
 mat4 mat4_identity(void);
 mat4 mat4_mul(mat4 a,mat4 b);
@@ -37,6 +38,7 @@ vec3 mat4_xform_point(mat4 m,vec3 p);
 vec3 mat4_xform_dir(mat4 m,vec3 p);
 mat4 mat4_perspective(float fovy_deg,float aspect,float znear,float zfar);
 mat4 mat4_lookat(vec3 eye,vec3 center,vec3 up);
+int ray_intersect_aabb(vec3 origin,vec3 dir,vec3 bbMin,vec3 bbMax,float *tOut);
 
 typedef struct { vec3 pos,nrm; } Vertex;
 typedef struct { int a,b,c; } Tri;
@@ -91,6 +93,25 @@ typedef struct { mat4 transform; float radius,depth; } NegativeCylinder;
 typedef struct { vec3 start, end, color; int category; } OverlayLine;
 typedef struct { char name[32]; float height, radius; float top, neck, pelvis, feet; } CharDef;
 
+enum {
+	EDIT_Q_SELECT = 0,
+	EDIT_W_MOVE,
+	EDIT_E_ROTATE,
+	EDIT_R_SCALE
+};
+
+/* Gizmo handle IDs — returned by gizmo_pick_handle() */
+enum {
+	GIZMO_NONE   = 0,
+	GIZMO_AXIS_X = 1,  /* move: X arrow / rotate: X ring / scale: X cube  */
+	GIZMO_AXIS_Y = 2,
+	GIZMO_AXIS_Z = 3,
+	GIZMO_PLANE_XY = 4, /* move: XY plane quad */
+	GIZMO_PLANE_XZ = 5,
+	GIZMO_PLANE_YZ = 6,
+	GIZMO_CENTER   = 7  /* scale: centre cube */
+};
+
 typedef struct {
 	vec3 camPos,camLook; float camFov;
 	Camera *cameras; int ncameras,ccameras;
@@ -108,6 +129,13 @@ typedef struct {
 	int sanityIgnoreActive, sanityFloorActive, sanityCheckActive;
 	OverlayLine *overlayLines; int noverlayLines, coverlayLines;
 	CharDef *charDefs; int ncharDefs, ccharDefs;
+	int selectedObj;
+	int editMode;
+	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */
+	int draggingHandle;  /* GIZMO_* — active drag handle, GIZMO_NONE when idle */
+	int dragStartMouseX, dragStartMouseY;
+	vec3 dragStartCenter; /* gizmo centre at drag-start */
+	float dragAccum;     /* accumulated angle for rotate, scale factor for scale */
 } Scene;
 
 int load_scene(const char *path,Scene *s);
@@ -117,6 +145,11 @@ void scene_add_obj(Scene *s,Mesh mesh,mat4 M,mat4 R,vec3 color,float shin,int ca
 int scene_sanity_check(Scene *s);
 vec3 light_to_source(Light *light,vec3 point);
 void scene_rebuild_camera_gizmos(Scene *s,float aspect);
+int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut);
+void scene_get_obj_bounds(Scene *s,int idx,vec3 *outMin,vec3 *outMax);
+/* Gizmo interaction helpers */
+int gizmo_pick_handle(Scene *s, vec3 rayOrigin, vec3 rayDir);
+void gizmo_apply_drag(Scene *s, int dx, int dy, vec3 camRight, vec3 camUp, vec3 camLook);
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);
