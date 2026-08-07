@@ -79,6 +79,11 @@ static void add_quad(Mesh *m, vec3 a,vec3 b,vec3 c,vec3 d, vec3 n){
         ic=mesh_add_vert(m,c,n), id=mesh_add_vert(m,d,n);
     mesh_add_tri(m,ia,ic,ib); mesh_add_tri(m,ia,id,ic);
 }
+static void add_quad_n4(Mesh *m, vec3 a,vec3 na, vec3 b,vec3 nb, vec3 c,vec3 nc, vec3 d,vec3 nd){
+    int ia=mesh_add_vert(m,a,na), ib=mesh_add_vert(m,b,nb),
+        ic=mesh_add_vert(m,c,nc), id=mesh_add_vert(m,d,nd);
+    mesh_add_tri(m,ia,ic,ib); mesh_add_tri(m,ia,id,ic);
+}
 
 static void mesh_append(Mesh *dst, Mesh src){
 	int base=dst->nverts;
@@ -225,45 +230,175 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
 	return m;
 }
 
-Mesh gen_arch(float width,float height,float depth,float wall,int segments){
+/* Roman arch: semicircle (radius=width/2) on rectangular stem, centered at origin.
+ * wall>0: hollow frame.  inset: recess front face in +Z. */
+Mesh gen_arch(float width,float height,float depth,float wall,int segments,float inset){
 	Mesh m={0};
-	if(segments<6) segments=12;
-	float halfW=width*0.5f, halfH=height*0.5f, radius=halfW;
-	float spring=halfH-radius;
-	if(radius<=1e-6f || height<=radius+1e-6f || depth<=1e-6f) return gen_box(width,height,depth);
-	float stemH=height-radius;
-	if(wall<=1e-6f || wall>=radius-1e-6f || width-2.0f*wall<=1e-6f || height-2.0f*wall<=1e-6f){
-		mesh_append_xform(&m,gen_box(width,stemH,depth),mat4_translate(v3(0,-radius*0.5f,0)),mat4_identity());
-		for(int i=0;i<segments;i++){
-			float x0=-radius + (2.0f*radius*(float)i/segments);
-			float x1=-radius + (2.0f*radius*(float)(i+1)/segments);
-			float xm=(x0+x1)*0.5f;
-			float yTop=spring + sqrtf(fmaxf(0.0f,radius*radius - xm*xm));
-			float bandH=yTop-spring;
-			if(bandH<=1e-4f) continue;
-			mesh_append_xform(&m,gen_box(x1-x0,bandH,depth),
-				mat4_translate(v3(xm,spring+bandH*0.5f,0)),mat4_identity());
+	if(segments<6) segments=16;
+	float halfW=width*0.5f, halfH=height*0.5f;
+	float outerR=halfW;
+	float spring=halfH-outerR;  /* Y of semicircle center */
+	float stemH=height-outerR;  /* height of rectangular stem below spring */
+	float halfD=depth*0.5f;
+	if(outerR<=1e-6f || stemH<1e-6f || depth<=1e-6f) return gen_box(width,height,depth);
+
+	int isFrame = (wall>1e-6f && wall<outerR-1e-6f);
+	float innerR = isFrame ? (outerR-wall) : 0.0f;
+
+	if(inset<0.0f) inset=0.0f;
+	if(inset>depth-1e-4f) inset=depth-1e-4f;
+	float frontZ = halfD - inset;
+	float backZ  = -halfD;
+
+	/* Pre-compute arc sample positions (segments+1 points, angle PI..0) */
+	int n=segments;
+	vec3 *oF = malloc(sizeof(vec3)*(size_t)(n+1)); /* outer arc, front face */
+	vec3 *oB = malloc(sizeof(vec3)*(size_t)(n+1)); /* outer arc, back face  */
+	vec3 *iF = malloc(sizeof(vec3)*(size_t)(n+1)); /* inner arc, front face (frame only) */
+	vec3 *iB = malloc(sizeof(vec3)*(size_t)(n+1)); /* inner arc, back face  (frame only) */
+	vec3 *oN = malloc(sizeof(vec3)*(size_t)(n+1)); /* outward radial normals */
+	vec3 *iN = malloc(sizeof(vec3)*(size_t)(n+1)); /* inward radial normals  */
+	for(int i=0;i<=n;i++){
+		float a = M_PIf - (float)i/(float)n * M_PIf; /* PI→0, left to right */
+		float ca=cosf(a), sa=sinf(a);
+		oF[i] = v3(ca*outerR, spring+sa*outerR, frontZ);
+		oB[i] = v3(ca*outerR, spring+sa*outerR, backZ);
+		oN[i] = v3(ca, sa, 0.0f);
+		if(isFrame){
+			iF[i] = v3(ca*innerR, spring+sa*innerR, frontZ);
+			iB[i] = v3(ca*innerR, spring+sa*innerR, backZ);
+			iN[i] = v3(-ca, -sa, 0.0f);
 		}
-		return m;
 	}
-	float innerW=width-2.0f*wall, innerR=innerW*0.5f;
-	mesh_append_xform(&m,gen_box(wall,stemH,depth),mat4_translate(v3(-halfW+wall*0.5f,-radius*0.5f,0)),mat4_identity());
-	mesh_append_xform(&m,gen_box(wall,stemH,depth),mat4_translate(v3(halfW-wall*0.5f,-radius*0.5f,0)),mat4_identity());
-	mesh_append_xform(&m,gen_box(innerW,wall,depth),mat4_translate(v3(0,-halfH+wall*0.5f,0)),mat4_identity());
-	for(int i=0;i<segments;i++){
-		float x0=-radius + (2.0f*radius*(float)i/segments);
-		float x1=-radius + (2.0f*radius*(float)(i+1)/segments);
-		float xm=(x0+x1)*0.5f;
-		float yOut=spring + sqrtf(fmaxf(0.0f,radius*radius - xm*xm));
-		float yIn=spring;
-		if(fabsf(xm)<innerR){
-			yIn=spring + sqrtf(fmaxf(0.0f,innerR*innerR - xm*xm));
+
+	/* add_quad(a,b,c,d,n): tris (a,c,b),(a,d,c). */
+	vec3 fN=v3(0,0,1), bN=v3(0,0,-1);
+	float botY=-halfH;
+
+	if(!isFrame){
+		/* ---- SOLID ARCH ---- */
+
+		for(int i=0;i<n;i++)
+			add_quad_n4(&m, oB[i],oN[i], oB[i+1],oN[i+1], oF[i+1],oN[i+1], oF[i],oN[i]);
+
+		/* front face (+Z): triangle fan from bl */
+		{
+			vec3 bl=v3(-halfW,botY,frontZ), br=v3(halfW,botY,frontZ);
+			int ibl=mesh_add_vert(&m,bl,fN);
+			int ibr=mesh_add_vert(&m,br,fN);
+			int iprev=mesh_add_vert(&m,oF[n],fN);
+			mesh_add_tri(&m, ibl, ibr, iprev);
+			for(int i=n-1;i>=0;i--){
+				int iv=mesh_add_vert(&m,oF[i],fN);
+				mesh_add_tri(&m, ibl, iprev, iv);
+				iprev=iv;
+			}
 		}
-		float bandH=yOut-yIn;
-		if(bandH<=1e-4f) continue;
-		mesh_append_xform(&m,gen_box(x1-x0,bandH,depth),
-			mat4_translate(v3(xm,yIn+bandH*0.5f,0)),mat4_identity());
+
+		/* back face (-Z): triangle fan from bl */
+		{
+			vec3 bl=v3(-halfW,botY,backZ), br=v3(halfW,botY,backZ);
+			int ibl=mesh_add_vert(&m,bl,bN);
+			int ibr=mesh_add_vert(&m,br,bN);
+			int iprev=mesh_add_vert(&m,oB[0],bN);
+			for(int i=0;i<n;i++){
+				int iv=mesh_add_vert(&m,oB[i+1],bN);
+				mesh_add_tri(&m, ibl, iprev, iv);
+				iprev=iv;
+			}
+			mesh_add_tri(&m, ibl, iprev, ibr);
+		}
+
+		/* left side (-X) */
+		{
+			vec3 lbF=v3(-halfW,botY,frontZ), lbB=v3(-halfW,botY,backZ);
+			add_quad(&m, lbF, lbB, oB[0], oF[0], v3(-1,0,0));
+		}
+		/* right side (+X) */
+		{
+			vec3 rbF=v3(halfW,botY,frontZ), rbB=v3(halfW,botY,backZ);
+			add_quad(&m, rbB, rbF, oF[n], oB[n], v3(1,0,0));
+		}
+		/* bottom (-Y) */
+		{
+			vec3 blF=v3(-halfW,botY,frontZ), brF=v3(halfW,botY,frontZ);
+			vec3 blB=v3(-halfW,botY,backZ),  brB=v3(halfW,botY,backZ);
+			add_quad(&m, blF, brF, brB, blB, v3(0,-1,0));
+		}
+
+	} else {
+		/* ---- FRAME ARCH ---- */
+
+		for(int i=0;i<n;i++)
+			add_quad_n4(&m, oB[i],oN[i], oB[i+1],oN[i+1], oF[i+1],oN[i+1], oF[i],oN[i]);
+		for(int i=0;i<n;i++)
+			add_quad_n4(&m, iB[i+1],iN[i+1], iB[i],iN[i], iF[i],iN[i], iF[i+1],iN[i+1]);
+		for(int i=0;i<n;i++)
+			add_quad(&m, oF[i], oF[i+1], iF[i+1], iF[i], fN);
+		for(int i=0;i<n;i++)
+			add_quad(&m, oB[i+1], oB[i], iB[i], iB[i+1], bN);
+
+		/* Arc end caps connecting outer to inner at the spring line */
+		{
+			add_quad(&m, oF[0], iF[0], iB[0], oB[0], v3(-1,0,0));
+			add_quad(&m, oB[n], iB[n], iF[n], oF[n], v3(1,0,0));
+		}
+
+		/* ---- U-shaped base: legs + sill as one sealed piece ----
+		 * Cross-section from front (U-shape):
+		 *   outerL..innerL = left leg column
+		 *   innerL..innerR = inner opening (sill top visible)
+		 *   innerR..outerR = right leg column
+		 *
+		 * Vertex naming: [l|r][O|I] = left/right outer/inner x,
+		 *   [b|s|p] = botY / sillTop / spring y,  [F|B] = front/back z.
+		 */
+		{
+			float lO=-outerR, lI=-innerR, rI=innerR, rO=outerR;
+			float bY=botY, sY=botY+wall, pY=spring;
+
+			/* front face (+Z): 5 quads matching all internal boundaries.
+			 * Bottom row split at lI, rI: [lO,lI] + [lI,rI] + [rI,rO] x [bY,sY]
+			 * Upper pillars: [lO,lI] + [rI,rO] x [sY,pY] */
+			add_quad(&m, v3(lI,bY,frontZ), v3(lO,bY,frontZ), v3(lO,sY,frontZ), v3(lI,sY,frontZ), fN);
+			add_quad(&m, v3(rI,bY,frontZ), v3(lI,bY,frontZ), v3(lI,sY,frontZ), v3(rI,sY,frontZ), fN);
+			add_quad(&m, v3(rO,bY,frontZ), v3(rI,bY,frontZ), v3(rI,sY,frontZ), v3(rO,sY,frontZ), fN);
+			add_quad(&m, v3(lI,sY,frontZ), v3(lO,sY,frontZ), v3(lO,pY,frontZ), v3(lI,pY,frontZ), fN);
+			add_quad(&m, v3(rO,sY,frontZ), v3(rI,sY,frontZ), v3(rI,pY,frontZ), v3(rO,pY,frontZ), fN);
+
+			/* back face (-Z): mirror */
+			add_quad(&m, v3(lO,bY,backZ), v3(lI,bY,backZ), v3(lI,sY,backZ), v3(lO,sY,backZ), bN);
+			add_quad(&m, v3(lI,bY,backZ), v3(rI,bY,backZ), v3(rI,sY,backZ), v3(lI,sY,backZ), bN);
+			add_quad(&m, v3(rI,bY,backZ), v3(rO,bY,backZ), v3(rO,sY,backZ), v3(rI,sY,backZ), bN);
+			add_quad(&m, v3(lO,sY,backZ), v3(lI,sY,backZ), v3(lI,pY,backZ), v3(lO,pY,backZ), bN);
+			add_quad(&m, v3(rI,sY,backZ), v3(rO,sY,backZ), v3(rO,pY,backZ), v3(rI,pY,backZ), bN);
+
+			/* outer left (-X): split at sY to match front/back decomposition */
+			add_quad(&m, v3(lO,bY,frontZ), v3(lO,bY,backZ), v3(lO,sY,backZ), v3(lO,sY,frontZ), v3(-1,0,0));
+			add_quad(&m, v3(lO,sY,frontZ), v3(lO,sY,backZ), v3(lO,pY,backZ), v3(lO,pY,frontZ), v3(-1,0,0));
+			/* outer right (+X): split at sY */
+			add_quad(&m, v3(rO,bY,backZ), v3(rO,bY,frontZ), v3(rO,sY,frontZ), v3(rO,sY,backZ), v3(1,0,0));
+			add_quad(&m, v3(rO,sY,backZ), v3(rO,sY,frontZ), v3(rO,pY,frontZ), v3(rO,pY,backZ), v3(1,0,0));
+			/* inner left (+X face at x=lI): [sY, pY] */
+			add_quad(&m, v3(lI,sY,backZ), v3(lI,sY,frontZ), v3(lI,pY,frontZ), v3(lI,pY,backZ), v3(1,0,0));
+			/* inner right (-X face at x=rI): [sY, pY] */
+			add_quad(&m, v3(rI,sY,frontZ), v3(rI,sY,backZ), v3(rI,pY,backZ), v3(rI,pY,frontZ), v3(-1,0,0));
+
+			/* bottom (-Y): split to match front/back decomposition */
+			add_quad(&m, v3(lO,bY,frontZ), v3(lI,bY,frontZ), v3(lI,bY,backZ), v3(lO,bY,backZ), v3(0,-1,0));
+			add_quad(&m, v3(lI,bY,frontZ), v3(rI,bY,frontZ), v3(rI,bY,backZ), v3(lI,bY,backZ), v3(0,-1,0));
+			add_quad(&m, v3(rI,bY,frontZ), v3(rO,bY,frontZ), v3(rO,bY,backZ), v3(rI,bY,backZ), v3(0,-1,0));
+
+			/* sill top (+Y at y=sY): only inner opening [lI, rI] */
+			add_quad(&m, v3(lI,sY,backZ), v3(rI,sY,backZ), v3(rI,sY,frontZ), v3(lI,sY,frontZ), v3(0,1,0));
+
+			/* leg tops (+Y at y=pY): pair with arc end caps */
+			add_quad(&m, v3(lO,pY,backZ), v3(lI,pY,backZ), v3(lI,pY,frontZ), v3(lO,pY,frontZ), v3(0,1,0));
+			add_quad(&m, v3(rI,pY,backZ), v3(rO,pY,backZ), v3(rO,pY,frontZ), v3(rI,pY,frontZ), v3(0,1,0));
+		}
 	}
+
+	free(oF); free(oB); free(iF); free(iB); free(oN); free(iN);
 	return m;
 }
 

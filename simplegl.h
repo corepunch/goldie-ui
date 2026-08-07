@@ -72,7 +72,7 @@ Mesh gen_prism(float r,float h,int sides);
 Mesh gen_cone(float rBase,float rTop,float h,int sides);
 Mesh gen_sphere(float r,int rings,int slices);
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
-Mesh gen_arch(float width,float height,float depth,float wall,int segments);
+Mesh gen_arch(float width,float height,float depth,float wall,int segments,float inset);
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
@@ -84,6 +84,7 @@ typedef struct { char name[32]; vec3 pos; } AttachPoint;
 typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
 typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } InstanceDef;
 typedef struct { mat4 transform; vec3 size; } NegativeBox;
+typedef struct { mat4 transform; float width,height,depth; } NegativeArch;
 typedef struct { vec3 start, end, color; int category; } OverlayLine;
 typedef struct { char name[32]; float height, radius; float top, neck, pelvis, feet; } CharDef;
 
@@ -98,6 +99,7 @@ typedef struct {
 	PrefabDef *prefabs; int nprefabs,cprefabs;
 	InstanceDef *instances; int ninstances,cinstances;
 	NegativeBox *negativeBoxes; int nnegativeBoxes,cnegativeBoxes;
+	NegativeArch *negativeArches; int nnegativeArches,cnegativeArches;
 	vec3 prefabTint; int prefabTintActive;
 	int sanityIgnoreActive, sanityFloorActive, sanityCheckActive;
 	OverlayLine *overlayLines; int noverlayLines, coverlayLines;

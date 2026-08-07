@@ -197,7 +197,7 @@ int main(void){
     }
 
     {
-        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.0f, 16);
+        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.0f, 16, 0.0f);
         float vol = mesh_signed_volume(&m);
         CHECK(vol > 0, "arch signed volume positive (%.4f)", vol);
         mesh_build_edges(&m);
@@ -206,7 +206,7 @@ int main(void){
     }
 
     {
-        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.12f, 16);
+        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.12f, 16, 0.0f);
         float vol = mesh_signed_volume(&m);
         CHECK(vol > 0, "arch tube signed volume positive (%.4f)", vol);
         mesh_build_edges(&m);

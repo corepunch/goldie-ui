@@ -129,7 +129,7 @@ void scene_free(Scene *s){
 	for(int i=0;i<s->nprefabs;i++) free(s->prefabs[i].attaches);
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->overlayLines); free(s->charDefs);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches); free(s->overlayLines); free(s->charDefs);
 	memset(s,0,sizeof(*s));
 }
 
@@ -383,7 +383,8 @@ static void parse_arch(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	(void)parentM; (void)pos; (void)rot;
 	float w=xml_attr_f(n,"width",1.0f), h=xml_attr_f(n,"height",1.5f), d=xml_attr_f(n,"depth",0.2f);
 	float wall=xml_attr_f(n,"tube",xml_attr_f(n,"thickness",0.0f));
-	Mesh mesh=gen_arch(w,h,d,wall,xml_attr_i(n,"segments",16));
+	float archInset=xml_attr_f(n,"inset",0.0f);
+	Mesh mesh=gen_arch(w,h,d,wall,xml_attr_i(n,"segments",16),archInset);
 	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
@@ -394,7 +395,7 @@ static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 }
 
 /* build the boxes that make up a wall with rectangular openings */
-typedef struct { float x,width,height,sill; } Opening;
+typedef struct { float x,width,height,sill; int isArch; } Opening;
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
                               Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable,int unlit);
 
@@ -442,7 +443,38 @@ static void add_negative_openings(Scene *s, mat4 wallM, float L,float H,float T,
 		if(hi.x>L*0.5f) hi.x=L*0.5f;
 		if(lo.y<0) lo.y=0;
 		if(hi.y>H) hi.y=H;
-		Opening o={lo.x+L*0.5f,hi.x-lo.x,hi.y-lo.y,lo.y};
+		Opening o={lo.x+L*0.5f,hi.x-lo.x,hi.y-lo.y,lo.y,0};
+		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
+	}
+}
+
+static void add_negative_arch_openings(Scene *s, mat4 wallM, float L,float H,float T,
+		Opening **op,int *nop,int *cop){
+	mat4 inv;
+	if(!mat4_inverse_affine(wallM,&inv)) return;
+	for(int i=0;i<s->nnegativeArches;i++){
+		NegativeArch *a=&s->negativeArches[i];
+		mat4 local=mat4_mul(inv,a->transform);
+		vec3 ax=vnorm(mat4_xform_dir(local,v3(1,0,0)));
+		vec3 ay=vnorm(mat4_xform_dir(local,v3(0,1,0)));
+		vec3 az=vnorm(mat4_xform_dir(local,v3(0,0,1)));
+		if(fabsf(ax.x)<0.999f || fabsf(ay.y)<0.999f || fabsf(az.z)<0.999f) continue;
+		vec3 center=mat4_xform_point(local,v3(0,0,0));
+		float halfW=a->width*0.5f, halfH=a->height*0.5f, halfD=a->depth*0.5f;
+		if(center.z-halfD>-T*0.5f+0.001f || center.z+halfD<T*0.5f-0.001f) continue;
+		float loX=center.x-halfW, hiX=center.x+halfW;
+		float loY=center.y-halfH, hiY=center.y+halfH;
+		if(hiX<=-L*0.5f || loX>=L*0.5f || hiY<=0 || loY>=H) continue;
+		if(loX<-L*0.5f) loX=-L*0.5f;
+		if(hiX>L*0.5f) hiX=L*0.5f;
+		if(loY<0) loY=0;
+		if(hiY>H) hiY=H;
+		Opening o;
+		o.x=loX+L*0.5f;
+		o.width=hiX-loX;
+		o.height=hiY-loY;
+		o.sill=loY;
+		o.isArch=1;
 		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
 	}
 }
@@ -461,9 +493,11 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 		int isDoor = !strcmp(xml_attr(c,"type","door"),"door");
 		o.height = xml_attr_f(c,"height", isDoor?2.1f:1.2f);
 		o.sill = isDoor? 0.0f : xml_attr_f(c,"sill",0.9f);
+		o.isArch = 0;
 		DA_PUSH(op,nop,cop,o);
 	}
 	add_negative_openings(s,wallM,L,H,T,&op,&nop,&cop);
+	add_negative_arch_openings(s,wallM,L,H,T,&op,&nop,&cop);
 	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin, castsShadow, renderable, unlit);
 	free(op);
 }
@@ -534,6 +568,13 @@ static void collect_negative_boxes(Scene *s, XmlNode *parent, mat4 parentM){
 		if(!strcmp(n->tag,"bool-negative-box")){
 			NegativeBox b={M,xml_attr_v3(n,"size",v3(1,1,1))};
 			DA_PUSH(s->negativeBoxes,s->nnegativeBoxes,s->cnegativeBoxes,b);
+		} else if(!strcmp(n->tag,"bool-negative-arch")){
+			NegativeArch a;
+			a.transform=M;
+			a.width=xml_attr_f(n,"width",1.0f);
+			a.height=xml_attr_f(n,"height",1.5f);
+			a.depth=xml_attr_f(n,"depth",xml_attr_f(n,"size_z",0.3f));
+			DA_PUSH(s->negativeArches,s->nnegativeArches,s->cnegativeArches,a);
 		} else if(!strcmp(n->tag,"group")){
 			collect_negative_boxes(s,n,M);
 		} else if(!strcmp(n->tag,"prefab")){
@@ -784,10 +825,10 @@ static void warn_unknown_children(XmlNode *parent, const char *path, int root, i
 	for(int i=0;i<parent->nkids;i++){
 		XmlNode *n=parent->kids[i];
 		int supported=0;
-		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") ||
+		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") ||
 			(prefab ? !strcmp(n->tag,"attach") : has_scene_parser(n->tag));
 		else if(!strcmp(parent->tag,"group"))
-			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box");
+			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch");
 		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
 		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
 		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
@@ -944,6 +985,16 @@ int scene_sanity_check(Scene *s){
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */
+static float opening_top_at(Opening *o, float xm){
+	if(!o->isArch) return o->sill + o->height;
+	float R = o->width * 0.5f;
+	float cx = o->x + R;
+	float stemH = o->height - R;
+	float dx = xm - cx;
+	if(fabsf(dx) >= R) return o->sill + stemH;
+	return o->sill + stemH + sqrtf(R*R - dx*dx);
+}
+
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
                               Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable,int unlit){
 	float *bp=NULL; int nbp=0,cbp=0;
@@ -951,6 +1002,13 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 	for(int i=0;i<nopen;i++){
 		float a=openings[i].x, b=openings[i].x+openings[i].width;
 		DA_PUSH(bp,nbp,cbp,a); DA_PUSH(bp,nbp,cbp,b);
+		if(openings[i].isArch){
+			int nSub=32;
+			for(int k=1;k<nSub;k++){
+				float t=(float)k/(float)nSub;
+				DA_PUSH(bp,nbp,cbp, a + t*(b-a));
+			}
+		}
 	}
 	for(int i=0;i<nbp;i++) for(int j=i+1;j<nbp;j++) if(bp[j]<bp[i]){ float t=bp[i]; bp[i]=bp[j]; bp[j]=t; }
 	for(int i=0;i+1<nbp;i++){
@@ -965,7 +1023,7 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 		if(!hit){ segs[0][0]=0; segs[0][1]=H; nseg=1; }
 		else {
 			if(hit->sill>1e-4f){ segs[nseg][0]=0; segs[nseg][1]=hit->sill; nseg++; }
-			float top=hit->sill+hit->height;
+			float top=opening_top_at(hit, xm);
 			if(top<H-1e-4f){ segs[nseg][0]=top; segs[nseg][1]=H; nseg++; }
 		}
 		for(int si=0;si<nseg;si++){
