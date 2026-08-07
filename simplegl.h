@@ -134,8 +134,8 @@ typedef struct {
 	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */
 	int draggingHandle;  /* GIZMO_* — active drag handle, GIZMO_NONE when idle */
 	int dragStartMouseX, dragStartMouseY;
-	vec3 dragStartCenter; /* gizmo centre at drag-start */
-	float dragAccum;     /* accumulated angle for rotate, scale factor for scale */
+	vec3 dragStartCenter; /* object centre at drag-start */
+	vec3 dragPrevAnchor; /* anchor point from previous frame (rotate/scale delta) */
 } Scene;
 
 int load_scene(const char *path,Scene *s);
@@ -149,7 +149,8 @@ int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut);
 void scene_get_obj_bounds(Scene *s,int idx,vec3 *outMin,vec3 *outMax);
 /* Gizmo interaction helpers */
 int gizmo_pick_handle(Scene *s, vec3 rayOrigin, vec3 rayDir);
-void gizmo_apply_drag(Scene *s, int dx, int dy, vec3 camRight, vec3 camUp, vec3 camLook);
+void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
+	vec3 camPos, vec3 camRight, vec3 camUp, vec3 camLook, float camFov);
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);

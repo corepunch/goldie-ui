@@ -1146,90 +1146,177 @@ int gizmo_pick_handle(Scene *s, vec3 ro, vec3 rd){
 	return bestHandle;
 }
 
-void gizmo_apply_drag(Scene *s, int dx, int dy, vec3 camRight, vec3 camUp, vec3 camLook __attribute__((unused))){
+static vec3 mouse_ray(vec3 camRight, vec3 camUp, vec3 camLook,
+	float camFov, int mx, int my, int W, int H)
+{
+	float fovRad=camFov*M_PIf/180.0f;
+	float hh=tanf(fovRad*0.5f);
+	float hw=hh*(float)W/(float)H;
+	float ndcX=(2.0f*mx)/(float)W-1.0f;
+	float ndcY=1.0f-(2.0f*my)/(float)H;
+	return vnorm(vadd(vadd(vscale(camRight,ndcX*hw),vscale(camUp,ndcY*hh)),camLook));
+}
+
+void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
+	vec3 camPos, vec3 camRight, vec3 camUp, vec3 camLook, float camFov)
+{
 	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
 	if(s->draggingHandle==GIZMO_NONE) return;
 	SceneObj *obj=&s->objs[s->selectedObj];
+	int h=s->draggingHandle;
+	vec3 center=s->dragStartCenter;
+	vec3 sx=v3(1,0,0), sy=v3(0,1,0), sz=v3(0,0,1);
+	vec3 rayDir=mouse_ray(camRight,camUp,camLook,camFov,mX,mY,W,H);
 
+	int firstFrame=(s->dragPrevAnchor.x>1e20f);
 	if(s->editMode==EDIT_W_MOVE){
-		/* Project mouse delta onto the constraint axis/plane in world space */
-		vec3 moveDir=v3(0,0,0);
-		int h=s->draggingHandle;
-		if(h==GIZMO_AXIS_X){
-			/* Project screen delta onto world X axis */
-			float proj=vdot(camRight,v3(1,0,0))*(float)dx - vdot(camUp,v3(1,0,0))*(float)dy;
-			moveDir=vscale(v3(1,0,0),proj*0.01f);
-		} else if(h==GIZMO_AXIS_Y){
-			float proj=vdot(camRight,v3(0,1,0))*(float)dx - vdot(camUp,v3(0,1,0))*(float)dy;
-			moveDir=vscale(v3(0,1,0),proj*0.01f);
-		} else if(h==GIZMO_AXIS_Z){
-			float proj=vdot(camRight,v3(0,0,1))*(float)dx - vdot(camUp,v3(0,0,1))*(float)dy;
-			moveDir=vscale(v3(0,0,1),proj*0.01f);
-		} else if(h==GIZMO_PLANE_XY){
-			float mx=vdot(camRight,v3(1,0,0))*(float)dx - vdot(camUp,v3(1,0,0))*(float)dy;
-			float my=vdot(camRight,v3(0,1,0))*(float)dx - vdot(camUp,v3(0,1,0))*(float)dy;
-			moveDir=v3(mx*0.01f, my*0.01f, 0);
-		} else if(h==GIZMO_PLANE_XZ){
-			float mx=vdot(camRight,v3(1,0,0))*(float)dx - vdot(camUp,v3(1,0,0))*(float)dy;
-			float mz=vdot(camRight,v3(0,0,1))*(float)dx - vdot(camUp,v3(0,0,1))*(float)dy;
-			moveDir=v3(mx*0.01f, 0, mz*0.01f);
-		} else if(h==GIZMO_PLANE_YZ){
-			float my=vdot(camRight,v3(0,1,0))*(float)dx - vdot(camUp,v3(0,1,0))*(float)dy;
-			float mz=vdot(camRight,v3(0,0,1))*(float)dx - vdot(camUp,v3(0,0,1))*(float)dy;
-			moveDir=v3(0, my*0.01f, mz*0.01f);
+		vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,
+			s->dragStartMouseX,s->dragStartMouseY,W,H);
+		vec3 anchorCur, anchorStart;
+
+		if(h==GIZMO_AXIS_X || h==GIZMO_AXIS_Y || h==GIZMO_AXIS_Z){
+			vec3 axis=(h==GIZMO_AXIS_X)?sx:(h==GIZMO_AXIS_Y)?sy:sz;
+			vec3 pn=vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
+			float denom=vdot(rayDir,pn);
+			if(fabsf(denom)<1e-6f) return;
+			float t=vdot(vsub(center,camPos),pn)/denom;
+			if(t<0) return;
+			vec3 hit=vadd(camPos,vscale(rayDir,t));
+			anchorCur=vadd(center,vscale(axis,vdot(vsub(hit,center),axis)));
+
+			denom=vdot(startRay,pn);
+			if(fabsf(denom)<1e-6f) return;
+			t=vdot(vsub(center,camPos),pn)/denom;
+			if(t<0) return;
+			hit=vadd(camPos,vscale(startRay,t));
+			anchorStart=vadd(center,vscale(axis,vdot(vsub(hit,center),axis)));
+		} else {
+			vec3 nrmA,nrmB;
+			if(h==GIZMO_PLANE_XY)      { nrmA=sx; nrmB=sy; }
+			else if(h==GIZMO_PLANE_XZ) { nrmA=sx; nrmB=sz; }
+			else if(h==GIZMO_PLANE_YZ) { nrmA=sy; nrmB=sz; }
+			else return;
+			vec3 pn=vcross(nrmA,nrmB);
+			float denom=vdot(rayDir,pn);
+			if(fabsf(denom)<1e-6f) return;
+			float t=vdot(vsub(center,camPos),pn)/denom;
+			if(t<0) return;
+			anchorCur=vadd(camPos,vscale(rayDir,t));
+
+			denom=vdot(startRay,pn);
+			if(fabsf(denom)<1e-6f) return;
+			t=vdot(vsub(center,camPos),pn)/denom;
+			if(t<0) return;
+			anchorStart=vadd(camPos,vscale(startRay,t));
 		}
-		for(int i=0;i<obj->mesh.nverts;i++){
-			obj->mesh.verts[i].pos=vadd(obj->mesh.verts[i].pos,moveDir);
-		}
+		vec3 delta=vsub(anchorCur,anchorStart);
+		for(int i=0;i<obj->mesh.nverts;i++)
+			obj->mesh.verts[i].pos=vadd(obj->mesh.verts[i].pos,delta);
 	} else if(s->editMode==EDIT_E_ROTATE){
-		vec3 bmin,bmax;
-		scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
-		vec3 center=vscale(vadd(bmin,bmax),0.5f);
-		int h=s->draggingHandle;
-		vec3 axis=v3(0,0,0);
-		if(h==GIZMO_AXIS_X) axis=v3(1,0,0);
-		else if(h==GIZMO_AXIS_Y) axis=v3(0,1,0);
-		else if(h==GIZMO_AXIS_Z) axis=v3(0,0,1);
-		if(vlen(axis)<0.5f) return;
-		/* Screen-space tangent of the ring: use the component of dx/dy
-		   that is tangential to the axis projected into screen space */
-		float screenTan=vdot(camRight,axis)*(float)dy + vdot(camUp,axis)*(float)dx;
-		float angleDeg=screenTan*0.5f;
-		float rad=angleDeg*3.14159265f/180.0f;
-		float cosA=cosf(rad), sinA=sinf(rad);
-		/* Rodrigues rotation around axis through center */
+		vec3 axis;
+		if(h==GIZMO_AXIS_X) axis=sx;
+		else if(h==GIZMO_AXIS_Y) axis=sy;
+		else if(h==GIZMO_AXIS_Z) axis=sz;
+		else return;
+		float denom=vdot(rayDir,axis);
+		if(fabsf(denom)<1e-6f) return;
+		float t=vdot(vsub(center,camPos),axis)/denom;
+		if(t<0) return;
+		vec3 hitCur=vadd(camPos,vscale(rayDir,t));
+		vec3 vCur=vsub(hitCur,center);
+		float curLen=vlen(vCur);
+		vCur=curLen>1e-8f?vscale(vCur,1.0f/curLen):axis;
+
+		vec3 vPrev;
+		if(firstFrame){
+			vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,
+				s->dragStartMouseX,s->dragStartMouseY,W,H);
+			denom=vdot(startRay,axis);
+			if(fabsf(denom)<1e-6f) return;
+			t=vdot(vsub(center,camPos),axis)/denom;
+			if(t<0) return;
+			vec3 hitStart=vadd(camPos,vscale(startRay,t));
+			vPrev=vsub(hitStart,center);
+			float prevLen=vlen(vPrev);
+			vPrev=prevLen>1e-8f?vscale(vPrev,1.0f/prevLen):axis;
+			s->dragPrevAnchor=vPrev;
+			return;
+		}
+		vPrev=s->dragPrevAnchor;
+		s->dragPrevAnchor=vCur;
+		float dotP=vdot(vPrev,vCur);
+		if(dotP>1.0f) dotP=1.0f; if(dotP<-1.0f) dotP=-1.0f;
+		float angle=acosf(dotP);
+		float sign=vdot(axis,vcross(vPrev,vCur));
+		if(sign<0) angle=-angle;
+		if(fabsf(angle)<1e-8f) return;
+		float cosA=cosf(angle), sinA=sinf(angle);
 		for(int i=0;i<obj->mesh.nverts;i++){
 			vec3 p=vsub(obj->mesh.verts[i].pos,center);
-			vec3 rotated=vadd(vadd(vscale(p,cosA),
-			                      vscale(vcross(axis,p),sinA)),
-			                      vscale(axis,vdot(axis,p)*(1.0f-cosA)));
-			obj->mesh.verts[i].pos=vadd(rotated,center);
+			vec3 r=vadd(vadd(vscale(p,cosA),
+				vscale(vcross(axis,p),sinA)),
+				vscale(axis,vdot(axis,p)*(1.0f-cosA)));
+			obj->mesh.verts[i].pos=vadd(r,center);
 		}
-		/* Also rotate normals */
 		for(int i=0;i<obj->mesh.nverts;i++){
 			vec3 n=obj->mesh.verts[i].nrm;
-			vec3 rotated=vadd(vadd(vscale(n,cosA),
-			                      vscale(vcross(axis,n),sinA)),
-			                      vscale(axis,vdot(axis,n)*(1.0f-cosA)));
-			obj->mesh.verts[i].nrm=vnorm(rotated);
+			vec3 r=vadd(vadd(vscale(n,cosA),
+				vscale(vcross(axis,n),sinA)),
+				vscale(axis,vdot(axis,n)*(1.0f-cosA)));
+			obj->mesh.verts[i].nrm=vnorm(r);
 		}
 	} else if(s->editMode==EDIT_R_SCALE){
-		vec3 bmin,bmax;
-		scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
-		vec3 center=vscale(vadd(bmin,bmax),0.5f);
-		int h=s->draggingHandle;
-		float delta=(float)dx*0.01f - (float)dy*0.01f;
+		vec3 axis;
+		int isUniform=(h==GIZMO_CENTER);
+		if(isUniform) axis=v3(0,0,0);
+		else if(h==GIZMO_AXIS_X) axis=sx;
+		else if(h==GIZMO_AXIS_Y) axis=sy;
+		else if(h==GIZMO_AXIS_Z) axis=sz;
+		else return;
+		vec3 pn;
+		if(isUniform) pn=vnorm(vsub(camLook,vscale(camLook,
+			vdot(camLook,camLook)>0?1.0f:1.0f)));
+		else pn=vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
+		float denom=vdot(rayDir,pn);
+		if(fabsf(denom)<1e-6f) return;
+		float t=vdot(vsub(center,camPos),pn)/denom;
+		if(t<0) return;
+		vec3 hitCur=vadd(camPos,vscale(rayDir,t));
+		float curDist;
+		if(isUniform) curDist=vlen(vsub(hitCur,center));
+		else curDist=vdot(vsub(hitCur,center),axis);
+
+		float prevDist;
+		if(firstFrame){
+			vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,
+				s->dragStartMouseX,s->dragStartMouseY,W,H);
+			denom=vdot(startRay,pn);
+			if(fabsf(denom)<1e-6f) return;
+			t=vdot(vsub(center,camPos),pn)/denom;
+			if(t<0) return;
+			vec3 hitStart=vadd(camPos,vscale(startRay,t));
+			if(isUniform) prevDist=vlen(vsub(hitStart,center));
+			else prevDist=vdot(vsub(hitStart,center),axis);
+			if(fabsf(prevDist)<1e-6f) return;
+			s->dragPrevAnchor=v3(prevDist,0,0);
+			return;
+		}
+		prevDist=s->dragPrevAnchor.x;
+		if(fabsf(prevDist)<1e-6f) return;
+		s->dragPrevAnchor=v3(curDist,0,0);
+		float ratio=curDist/prevDist;
+		if(ratio<=0) return;
 		for(int i=0;i<obj->mesh.nverts;i++){
 			vec3 p=vsub(obj->mesh.verts[i].pos,center);
-			if(h==GIZMO_AXIS_X)      p.x += p.x*delta;
-			else if(h==GIZMO_AXIS_Y) p.y += p.y*delta;
-			else if(h==GIZMO_AXIS_Z) p.z += p.z*delta;
-			else if(h==GIZMO_CENTER){ p.x+=p.x*delta; p.y+=p.y*delta; p.z+=p.z*delta; }
+			if(isUniform) p=vscale(p,ratio);
+			else if(h==GIZMO_AXIS_X) p.x*=ratio;
+			else if(h==GIZMO_AXIS_Y) p.y*=ratio;
+			else if(h==GIZMO_AXIS_Z) p.z*=ratio;
 			obj->mesh.verts[i].pos=vadd(p,center);
 		}
-		/* Recompute face normals after scale */
 		mesh_compute_face_normals(&obj->mesh);
 	}
+	scene_build_all_shadow_volumes(s);
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */

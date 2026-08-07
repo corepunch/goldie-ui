@@ -159,6 +159,12 @@ int main(int argc,char**argv){
                 /* Start gizmo drag if hovering a handle */
                 if(scene.hoveredHandle!=GIZMO_NONE){
                     scene.draggingHandle=scene.hoveredHandle;
+                    scene.dragStartMouseX=mouseX;
+                    scene.dragStartMouseY=mouseY;
+                    scene.dragPrevAnchor=v3(1e30f,1e30f,1e30f);
+                    vec3 bmin,bmax;
+                    scene_get_obj_bounds(&scene,scene.selectedObj,&bmin,&bmax);
+                    scene.dragStartCenter=vscale(vadd(bmin,bmax),0.5f);
                 } else {
                     scene.draggingHandle=GIZMO_NONE;
                     scene.selectedObj=scene_pick_object(&scene,pos,rayDir,NULL);
@@ -176,7 +182,8 @@ int main(int argc,char**argv){
                     if(pitch<-89) pitch=-89;
                 } else if(leftMouseDown && scene.draggingHandle!=GIZMO_NONE){
                     vec3 cameraUp=vnorm(vcross(right,look));
-                    gizmo_apply_drag(&scene, ev.motion.xrel, ev.motion.yrel, right, cameraUp, look);
+                    gizmo_apply_drag(&scene, mouseX, mouseY, W, H,
+                                     pos, right, cameraUp, look, scene.camFov);
                 }
             } else if(ev.type==SDL_WINDOWEVENT && ev.window.event==SDL_WINDOWEVENT_RESIZED){
                 W=ev.window.data1; H=ev.window.data2;
