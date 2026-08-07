@@ -138,6 +138,11 @@ major cast-shadow shapes are constrained by the source render.
 | ![Raw Oblique camera render](docs/images/eclipse-shrine-oblique.png) | ![AI overpaint of the Oblique camera render](docs/images/eclipse-shrine-oblique-overpaint.jpg) |
 | `Oblique` — three-quarter view across the platform | The same landmarks and lighting relationships survive the camera change, demonstrating multi-shot scene continuity. |
 
+| SimpleGL camera render | AI overpaint |
+|---|---|
+| ![Raw LadderTraversal camera render](docs/preview.jpeg) | ![AI overpaint of the LadderTraversal camera render](docs/final.jpeg) |
+| `LadderTraversal` — figure ascending through a wall opening | Lighting, silhouette, and spatial cues from the 3D render anchor the overpaint. |
+
 Reproduce the three source images with:
 
 ```sh
