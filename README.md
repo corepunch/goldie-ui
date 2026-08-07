@@ -117,7 +117,7 @@ two entrance obelisks, and a broken rectangular gate make the scene readable
 from more than one camera, while the same sun and point light keep its long
 shadows spatially consistent.
 
-![Top-down wireframe overview of the Eclipse Shrine layout](docs/images/crossfade.jpeg)
+![Top-down wireframe overview of the Eclipse Shrine layout](docs/crossfade.jpeg)
 
 The diagram is the `Overview` camera in white-wireframe mode. The entrance is
 at the bottom, the eclipse assembly is centered on the dais, and the rear gate
