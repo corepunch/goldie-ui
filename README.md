@@ -10,6 +10,21 @@ The active build uses small C modules with their declarations consolidated in
 **`simplegl.h`**. There is no external XML library, shader file, or asset
 pipeline. Dependencies are SDL2, OpenGL, and libm.
 
+## Workflow
+
+![SimpleGL workflow: AI prompt → 3D scene → render → AI overpaint](docs/workflow.jpeg)
+
+First, generate a 3D scene with AI via a prompt. Use SimpleGL to render it
+from multiple cameras — the same lighting, shadows, and spatial relationships
+stay consistent across every angle. Then feed those renders back to AI as
+image-to-image references to draw over into final art. The 3D scene acts as a
+**multi-view anchor** that keeps compositions, silhouettes, occlusions, and
+lighting coherent when an illustration needs multiple shots of the same
+location.
+
+The [cinematic overpaint section](#from-scene-layout-to-cinematic-overpaint)
+below walks through a concrete example using the Eclipse Shrine scene.
+
 ## Build & run
 
 ```sh
