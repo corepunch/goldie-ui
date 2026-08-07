@@ -17,6 +17,34 @@ SimpleGL reads scenes from XML files. The root node is `<scene>`, which accepts 
 </scene>
 ```
 
+## Color space and numeric units
+
+Scene files use author-facing sRGB values for every visible RGB color. Enter
+the values shown by an ordinary sRGB color picker; do not convert them before
+writing XML. The renderer stores those authored values unchanged while loading
+the scene, converts them to linear values at the rendering boundary, performs
+ambient and per-light calculations in linear space, then lets the sRGB
+framebuffer encode the result for display.
+
+| XML data | Authored meaning | Renderer treatment |
+|----------|------------------|--------------------|
+| `ambient`, `background` | sRGB color | Converted once to linear |
+| Material, shape, prefab, unlit, and dummy `color` | sRGB color | Converted once to linear |
+| Light and sun `color` | sRGB color/chromaticity | Converted once to linear |
+| Light and sun `intensity` | Linear scalar | Never color-converted |
+| Position, direction, radius, shininess, transforms | Linear/non-color data | Never color-converted |
+
+Keep color channels normally within `0..1` and use light `intensity` for values
+brighter than white. Do not pre-linearize colors or gamma-correct intensity to
+compensate for display appearance; either operation causes a double conversion
+or mixes two different units. This is the same authoring model commonly used
+by linear-space engines: colors are entered as sRGB while shaders receive
+linear colors.
+
+An `unlit="1"` object still follows the color pipeline: its authored sRGB color
+is converted to linear before drawing and encoded back to sRGB by the
+framebuffer. “Unlit” skips illumination; it does not mean “already linear.”
+
 ## Scene root attributes
 
 The `<scene>` element accepts `ambient` and `background` attributes. These are
@@ -43,7 +71,7 @@ Global ambient light color applied to all objects before per-light additive pass
 
 | Attribute | Type | Default           | Description |
 |-----------|------|-------------------|-------------|
-| `ambient` | vec3 | 0.12 0.12 0.14    | Global ambient light |
+| `ambient` | vec3 | 0.12 0.12 0.14    | Global ambient light, authored as sRGB color |
 
 ### `background` (attribute of `<scene>`)
 
@@ -51,7 +79,7 @@ Background clear color. Accepts either a preset ID (one-word string, no spaces) 
 
 | Attribute    | Type   | Default         | Description |
 |--------------|--------|-----------------|-------------|
-| `background` | string/vec3 | 0.08 0.10 0.14  | Preset ID or custom vec3 clear color |
+| `background` | string/vec3 | 0.08 0.10 0.14  | Preset ID or custom sRGB clear color |
 
 Preset background IDs:
 
@@ -96,7 +124,7 @@ Named material referenced by shapes via the `material` attribute. Scene-defined 
 | Attribute    | Type   | Default        | Description |
 |--------------|--------|----------------|-------------|
 | `id`         | string | (required)     | Unique material name |
-| `color`      | vec3   | 0.8 0.8 0.8    | Diffuse RGB colour |
+| `color`      | vec3   | 0.8 0.8 0.8    | Diffuse sRGB colour |
 | `shininess`  | float  | 8.0            | Phong specular exponent |
 
 Built-in presets (always available, no `<material>` tag needed):
@@ -123,8 +151,8 @@ Point light source with distance attenuation.
 | Attribute    | Type | Default | Description |
 |--------------|------|---------|-------------|
 | `pos`        | vec3 | 0 3 0   | Light position |
-| `color`      | vec3 | 1 1 1   | Light RGB colour |
-| `intensity`  | float| 1.0     | Brightness multiplier |
+| `color`      | vec3 | 1 1 1   | Light colour authored as sRGB |
+| `intensity`  | float| 1.0     | Linear brightness multiplier; never sRGB-converted |
 | `radius`     | float| 0       | Attenuation radius (0 = no falloff). Light reaches 25% at this distance |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
 
@@ -167,8 +195,8 @@ the horizontal component magnitude.
 | Attribute    | Type | Default | Description |
 |--------------|------|---------|-------------|
 | `dir`        | vec3 | 1 -1 0  | Direction light travels (normalized automatically) |
-| `color`      | vec3 | 1 1 1   | Light RGB colour |
-| `intensity`  | float| 1.0     | Brightness multiplier |
+| `color`      | vec3 | 1 1 1   | Light colour authored as sRGB |
+| `intensity`  | float| 1.0     | Linear brightness multiplier; never sRGB-converted |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
 
 Example: moon through a back-wall window at 45° down and 30° horizontal offset:
@@ -189,7 +217,7 @@ All shapes share common attributes plus shape-specific ones. Shapes may contain 
 | `rot`        | vec3   | 0 0 0            | Euler rotation `rx ry rz` in degrees, applied X→Y→Z |
 | `scale`      | vec3   | 1 1 1            | Non-uniform scale (ignored by `<wall>`) |
 | `material`   | string | (none)           | Reference to a `<material id="...">` |
-| `color`      | vec3   | 0.8 0.8 0.8      | Diffuse colour (used if no material ref) |
+| `color`      | vec3   | 0.8 0.8 0.8      | Diffuse sRGB colour (used if no material ref) |
 | `shininess`  | float  | 8.0              | Specular exponent (used if no material ref) |
 | `castShadow` | int    | 1                | Whether this object casts shadows |
 | `renderable` | int    | 1                | Whether this object is drawn; non-renderable objects may still cast shadows |

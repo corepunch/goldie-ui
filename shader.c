@@ -66,7 +66,7 @@ static const char *fs_src =
 "    float G=G1*G2;\n"
 "    float F=BASE_REFLECTANCE+(1.0-BASE_REFLECTANCE)*pow(1.0-max(dot(V,H),0.0),FRESNEL_EXP);\n"
 "    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,MIN_SPECULAR))*uLightColor;\n"
-"    vec3 diff=uColor*(1.0-F)/PI*NdotL*uLightColor;\n"
+"    vec3 diff=uColor*(1.0-F)*NdotL*uLightColor;\n"
 "    float att=1.0;\n"
 "    if(uLightRadius>0.0 && uLightPos.w>0.0){\n"
 "        float dist=length(uLightPos.xyz-vWorldPos);\n"

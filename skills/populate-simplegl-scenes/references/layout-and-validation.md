@@ -137,6 +137,16 @@ Built-in preset materials are always available: `wall`, `floor`, `wood`, `metal`
 
 Built-in background presets: `midnight`, `twilight`, `dusk`, `dawn`, `overcast`, `noon`, `neutral`, `black`. Use `<scene background="dusk">` for presets or `<scene background="r g b">` for a custom color.
 
+Author material, shape, ambient, background, light, sun, unlit-emitter, and
+dummy colors as sRGB `0..1` values. Do not manually linearize them. Light
+`intensity` is a separate linear scalar and must not be gamma-corrected or
+folded into `color`; keep the color within `0..1` and raise `intensity` when a
+source must be brighter than white. The renderer converts colors once before
+linear lighting and automatically encodes the result when writing the sRGB
+framebuffer. See
+[scene-format.md](scene-format.md#color-space-and-numeric-units) for the full
+attribute table.
+
 Materials provide diffuse color and shininess only. There is no transparency or texture support. A material named `glass` renders as an opaque shiny surface; make it thin, and do not promise transparent glass.
 
 Use the default shadow casting for floors, panes, and decorative surfaces. Reserve `castShadow="0"` for self-luminous emitters or explicitly documented non-physical helper geometry. Use `castShadows="0"` on a light for an unshadowed additive light.
@@ -167,6 +177,9 @@ Follow the enclosed-room pattern in `scenes/sample_room.xml`: combine a low ambi
 - Aim a directional sun or moon light through the corresponding opening rather than through a solid wall or ceiling. Point`dir` **45–60 degrees below horizontal** and offset it **15–45 degrees horizontally from the wall axis**: `dir="-0.6 -1 1"` for 45° down with 30° offset, `dir="0 -1.7 1"` for ~60° down. Never let either horizontal component be zero — shadows parallel to walls read as flat and uninteresting.
 - Confirm important characters, props, and interactions receive both readable illumination and grounding cast shadows.
 - Avoid lifting ambient light until shadows disappear. Correct the key position, intensity, and motivated fill first.
+- Compare and tune light intensities as linear multipliers. Do not apply gamma
+  compensation to an intensity because the displayed result already receives
+  sRGB encoding after lighting.
 
 ## Camera declarations
 
@@ -207,3 +220,5 @@ Before completion, verify:
 13. Every practical point light remains inside its emitter and below the shade lip after instance transforms and scale.
 14. The project builds, relevant tests pass, and the scene loads with `-list-cameras`.
 15. Every window or door prefab cutter crosses its wall completely, remains wall-axis-aligned, and matches the visible outer frame boundary without an accidental reveal gap.
+16. Every visible RGB value is authored directly as sRGB, while light
+    intensity remains a separate, unmodified linear scalar.

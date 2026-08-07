@@ -2,15 +2,15 @@
 
 ## Overview
 
-SimpleGL is a pure-C stencil-shadow demo renderer: a single `.exe` reads an XML scene description, parses it into a geometry database, then renders it in real-time using OpenGL 1.x fixed-function with stencil-buffer shadow volumes.
+SimpleGL is a pure-C stencil-shadow demo renderer: a single executable reads an XML scene description, parses it into a geometry database, then renders it in real time using a GLSL PBR lighting shader plus fixed-function ambient, overlay, and stencil-shadow-volume passes on OpenGL 2.1.
 
 ## Modules
 
 ```
-main.c ──► scene.c ──► shadow.c ──► render.c
-  │            │            │
-  ▼            ▼            ▼
-math.c      mesh.c       mesh.c
+main.c ──► scene.c ──► shadow.c ──► render.c ──► shader.c
+  │            │            │            │
+  ▼            ▼            ▼            ▼
+math.c      mesh.c       mesh.c       OpenGL 2.1
 ```
 
 ### math.c — Linear algebra
@@ -100,14 +100,38 @@ Implements the classic vertex-shader-free algorithm:
 
 ### render.c — OpenGL rasterizer
 
-Uses OpenGL 1.x fixed-function pipeline (no shaders). Rendering passes:
+Uses a hybrid OpenGL 2.1 pipeline. Rendering passes:
 
-1. **Ambient pass**: Enable depth-write, disable stencil-write. Draw all objects with ambient color.
-2. **Per-light pass** (for each shadow-casting light):
+1. **Ambient pass**: Enable depth-write, disable stencil-write. Draw all objects with fixed-function vertex colors containing the linear material × ambient product.
+2. **Per-light pass** (for each light):
    - Clear stencil buffer to 0.
    - **Shadow volume pass (Z-fail)**: Disable color writes and depth writes, enable required depth clamp, and update stencil on depth failure. Render the closed, infinitely extruded volume. If depth clamp is unavailable, log that stencil shadows are unsupported and render the lights without shadows.
-   - **Lighting pass**: Enable additive blending, depth-test EQUAL, stencil-test EQUAL to 0. Draw all objects with diffuse + specular using point-light math via `glColor`.
+   - **Lighting pass**: Enable additive blending, depth-test LEQUAL, and stencil-test EQUAL to 0. Draw diffuse plus GGX Cook-Torrance specular lighting through `shader.c`.
 3. **Debug modes**: wireframe shadow volumes (red), stencil != 0 overlay (red).
+
+### Color-space boundary
+
+Scene XML and the in-memory `Scene`, `Material`, `Light`, and `SceneObj` color
+fields hold author-facing sRGB values. Light intensity is a linear scalar and
+is stored separately; it is never subjected to a color-space conversion.
+
+`render.c` and `shader.c` convert RGB colors from sRGB to linear exactly once
+when preparing fixed-function draw colors or shader uniforms. All ambient,
+diffuse, specular, attenuation, and additive-light calculations therefore use
+linear values. `GL_FRAMEBUFFER_SRGB` converts the completed linear fragment to
+sRGB when it is written to the display framebuffer. Non-color values—light
+intensity, positions, directions, radius, shininess, normals, and transforms—
+remain unchanged.
+
+The current `srgb_to_linear()` helpers use `pow(component, 2.2)` as the sRGB
+transfer-curve approximation. Keep that implementation detail at the renderer
+boundary; scene authors still provide ordinary sRGB picker values.
+
+Do not move gamma conversion into scene loading: keeping the scene model in
+authored sRGB form preserves a clear serialization contract and prevents code
+that consumes scene colors from accidentally converting them twice. Do not
+gamma-correct light intensity or combine it with authored light color before
+the renderer boundary.
 
 ### main.c — Application loop
 
@@ -125,7 +149,7 @@ scene.c: load_scene() ──► Scene (lights[], objs[], mats[])
 shadow.c: scene_build_all_shadow_volumes() ──► ShadowVolume per light
   │
   ▼
-render.c: render_frame(scene, w, h, proj, view)
+render.c: render_frame(scene, w, h, proj, view, cameraPosition)
   │
   ▼
 OpenGL framebuffer ──► SDL_GL_SwapWindow

@@ -31,6 +31,30 @@ element: `<scene ambient="r g b" background="preset-or-rgb">`. Never emit
 `<ambient>` or `<background>` child elements. The XML parser accepts those
 unknown nodes but ignores them, silently falling back to its defaults.
 
+## Color-space contract
+
+- Author every XML value that represents a visible RGB color in sRGB space,
+  using the same `0..1` values a color picker displays. This includes scene
+  `ambient` and `background`, material and shape `color`, light and sun
+  `color`, unlit emitters, and colored dummy/overlay geometry.
+- Do not pre-linearize, gamma-correct, square, or otherwise transform authored
+  color values. The renderer converts sRGB colors to linear values exactly
+  once at its input boundary, performs lighting in linear space, and relies on
+  the sRGB framebuffer to encode the final output for display.
+- Treat light `intensity` as a linear scalar, not a color. Never apply an sRGB
+  conversion to intensity or fold intensity into the XML `color` value.
+  `intensity="2"` supplies twice the linear light energy of `intensity="1"`,
+  although the displayed pixel value is not necessarily twice as large after
+  lighting, clipping, and sRGB output encoding.
+- Treat positions, directions, radius, shininess, transforms, and every other
+  non-color number as linear data with no color-space conversion.
+- Keep light color channels normally within `0..1`; use `intensity` for HDR
+  brightness above white. Use `color="1 0.75 0.4" intensity="2"`, not
+  `color="2 1.5 0.8" intensity="1"`.
+
+See [references/scene-format.md](references/scene-format.md#color-space-and-numeric-units)
+for the complete attribute classification and renderer data flow.
+
 ## Spatial invariants
 
 - Treat `pos`, `rot`, and `scale` as transforms in the parent group's coordinate frame.
