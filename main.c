@@ -10,6 +10,29 @@
 #define MOVE_SPEED 3.25f
 #define SPRINT_SPEED 7.8f
 
+static int camera_index(Scene *scene,const char *name){
+	if(!name) return 0;
+	for(int i=0;i<scene->ncameras;i++) if(!strcmp(scene->cameras[i].name,name)) return i;
+	return 0;
+}
+
+static void snap_camera(Scene *scene,int index,vec3 *pos,float *yaw,float *pitch){
+	Camera *camera=&scene->cameras[index];
+	vec3 fwd=vnorm(vsub(camera->look,camera->pos));
+	scene->camPos=camera->pos;
+	scene->camLook=camera->look;
+	scene->camFov=camera->fov;
+	*pos=camera->pos;
+	*yaw=atan2f(fwd.x,-fwd.z)*180.0f/M_PIf;
+	*pitch=asinf(fwd.y)*180.0f/M_PIf;
+}
+
+static void set_camera_title(SDL_Window *win,Scene *scene,int index){
+	char title[128];
+	snprintf(title,sizeof(title),"simplegl - camera %d/%d: %s",index+1,scene->ncameras,scene->cameras[index].name);
+	SDL_SetWindowTitle(win,title);
+}
+
 int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
@@ -45,12 +68,14 @@ int main(int argc,char**argv){
 		return ok ? 0 : 1;
 	}
 
-	if(camName) scene_select_camera(&scene,camName);
+	int currentCamera=camera_index(&scene,camName);
+	scene_select_camera(&scene,scene.cameras[currentCamera].name);
 	scene_build_all_shadow_volumes(&scene);
 	fprintf(stderr,"loaded %d objects, %d lights, %d materials, %d cameras\n",
 	        scene.nobjs, scene.nlights, scene.nmats, scene.ncameras);
 
     if(SDL_Init(SDL_INIT_VIDEO)!=0){ fprintf(stderr,"SDL_Init: %s\n",SDL_GetError()); return 1; }
+    SDL_StopTextInput();
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE,8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,8);
@@ -68,16 +93,18 @@ int main(int argc,char**argv){
     if(!win){ fprintf(stderr,"CreateWindow: %s\n",SDL_GetError()); return 1; }
     SDL_GLContext ctx=SDL_GL_CreateContext(win);
     if(!ctx){ fprintf(stderr,"GL_CreateContext: %s\n",SDL_GetError()); return 1; }
+    set_camera_title(win,&scene,currentCamera);
     shader_init();
     SDL_GL_SetSwapInterval(1);
+    scene_rebuild_camera_gizmos(&scene,(float)W/(float)H);
 
-    vec3 fwd=vnorm(vsub(scene.camLook,scene.camPos));
-    float yaw = atan2f(fwd.x,-fwd.z) * 180.0f/M_PIf;
-    float pitch = asinf(fwd.y) * 180.0f/M_PIf;
-    vec3 pos=scene.camPos;
+    float yaw,pitch;
+    vec3 pos;
+    snap_camera(&scene,currentCamera,&pos,&yaw,&pitch);
 
     int running=1;
     int rightMouseDown=0;
+	int tabDown=0;
     int debugFlags=renderFlags;
     Uint32 lastTicks=SDL_GetTicks();
     while(running){
@@ -86,12 +113,21 @@ int main(int argc,char**argv){
             if(ev.type==SDL_QUIT) running=0;
             else if(ev.type==SDL_KEYDOWN){
                 if(ev.key.keysym.sym==SDLK_ESCAPE) running=0;
+				else if(ev.key.keysym.sym==SDLK_TAB && !tabDown){
+					tabDown=1;
+					if(ev.key.keysym.mod&KMOD_SHIFT) currentCamera=(currentCamera+scene.ncameras-1)%scene.ncameras;
+					else currentCamera=(currentCamera+1)%scene.ncameras;
+					snap_camera(&scene,currentCamera,&pos,&yaw,&pitch);
+					set_camera_title(win,&scene,currentCamera);
+					fprintf(stderr,"camera %d/%d: %s\n",currentCamera+1,scene.ncameras,scene.cameras[currentCamera].name);
+				}
                 else if(ev.key.keysym.sym==SDLK_1){ debugFlags^=DBG_NO_SHADOWS; fprintf(stderr,"shadows: %s\n",(debugFlags&DBG_NO_SHADOWS)?"off":"on"); }
                 else if(ev.key.keysym.sym==SDLK_2){ debugFlags^=DBG_WIRE_SHADOWVOL; fprintf(stderr,"shadow volume wire: %s\n",(debugFlags&DBG_WIRE_SHADOWVOL)?"on":"off"); }
                 else if(ev.key.keysym.sym==SDLK_3){ debugFlags^=DBG_SHOW_STENCIL; fprintf(stderr,"stencil overlay: %s\n",(debugFlags&DBG_SHOW_STENCIL)?"on":"off"); }
                 else if(ev.key.keysym.sym==SDLK_4){ debugFlags^=DBG_HIDE_LIGHTS; fprintf(stderr,"cam/lamp dummies: %s\n",(debugFlags&DBG_HIDE_LIGHTS)?"hidden":"visible"); }
                 else if(ev.key.keysym.sym==SDLK_5){ debugFlags^=DBG_HIDE_CHARS; fprintf(stderr,"character dummies: %s\n",(debugFlags&DBG_HIDE_CHARS)?"hidden":"visible"); }
             }
+			else if(ev.type==SDL_KEYUP && ev.key.keysym.sym==SDLK_TAB) tabDown=0;
             else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){
                 rightMouseDown=1;
             } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_RIGHT){
@@ -103,6 +139,7 @@ int main(int argc,char**argv){
                 if(pitch<-89) pitch=-89;
             } else if(ev.type==SDL_WINDOWEVENT && ev.window.event==SDL_WINDOWEVENT_RESIZED){
                 W=ev.window.data1; H=ev.window.data2;
+                scene_rebuild_camera_gizmos(&scene,(float)W/(float)H);
             }
         }
         Uint32 now=SDL_GetTicks(); float dt=(now-lastTicks)/1000.0f; lastTicks=now;

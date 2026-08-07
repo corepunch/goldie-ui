@@ -292,14 +292,14 @@ static void add_lamp_dummy(Scene *s, vec3 pos, float radius, vec3 color, int cat
 	add_circle_lines(s,pos,radius,v3(0,0,1),color,16,category);
 }
 
-static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, vec3 color, int category){
+static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, float aspect, vec3 color, int category){
 	vec3 forward=vnorm(vsub(look,pos));
 	vec3 worldUp=v3(0,1,0);
 	vec3 right=vnorm(vcross(forward,worldUp));
 	vec3 up=vnorm(vcross(right,forward));
 	float dist=0.3f;
 	float hh=dist*tanf(fov*M_PIf/360.0f);
-	float hw=hh;
+	float hw=hh*aspect;
 	vec3 center=vadd(pos,vscale(forward,dist));
 	vec3 tl=vadd(center,vadd(vscale(up,hh),vscale(right,-hw)));
 	vec3 tr=vadd(center,vadd(vscale(up,hh),vscale(right,hw)));
@@ -309,6 +309,18 @@ static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, vec3 colo
 	scene_add_overlay_line(s,pos,bl,color,category); scene_add_overlay_line(s,pos,br,color,category);
 	scene_add_overlay_line(s,tl,tr,color,category); scene_add_overlay_line(s,tr,br,color,category);
 	scene_add_overlay_line(s,br,bl,color,category); scene_add_overlay_line(s,bl,tl,color,category);
+}
+
+void scene_rebuild_camera_gizmos(Scene *s, float aspect){
+	int w=0;
+	for(int i=0;i<s->noverlayLines;i++){
+		if(s->overlayLines[i].category!=2) s->overlayLines[w++]=s->overlayLines[i];
+	}
+	s->noverlayLines=w;
+	for(int ci=0;ci<s->ncameras;ci++){
+		Camera *c=&s->cameras[ci];
+		add_camera_dummy(s,c->pos,c->look,c->fov,aspect,v3(0.2f,0.8f,0.2f),2);
+	}
 }
 
 /* ---------------------------------------------------- Shape parsers ------- */
@@ -480,7 +492,7 @@ static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 	} else if(!strcmp(type,"lamp")){
 		add_lamp_dummy(s,worldPos,xml_attr_f(n,"radius",0.15f),lcolor,1);
 	} else if(!strcmp(type,"camera")){
-		add_camera_dummy(s,worldPos,xml_attr_v3(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),lcolor,2);
+		add_camera_dummy(s,worldPos,xml_attr_v3(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),1.0f,lcolor,2);
 	}
 }
 
@@ -861,7 +873,7 @@ int load_scene(const char *path, Scene *s){
 	}
 	for(int ci=0;ci<s->ncameras;ci++){
 		Camera *c=&s->cameras[ci];
-		add_camera_dummy(s,c->pos,c->look,c->fov,v3(0.2f,0.8f,0.2f),2);
+		add_camera_dummy(s,c->pos,c->look,c->fov,1.0f,v3(0.2f,0.8f,0.2f),2);
 	}
 	fprintf(stderr,"overlay: %d lines (%d lamps, %d cameras)\n",s->noverlayLines,nlamp,s->ncameras);
 	return 1;

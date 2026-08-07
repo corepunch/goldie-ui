@@ -110,6 +110,7 @@ void scene_select_camera(Scene *s,const char *name);
 void scene_add_obj(Scene *s,Mesh mesh,mat4 M,mat4 R,vec3 color,float shin,int castsShadow,int renderable,int unlit);
 int scene_sanity_check(Scene *s);
 vec3 light_to_source(Light *light,vec3 point);
+void scene_rebuild_camera_gizmos(Scene *s,float aspect);
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);
