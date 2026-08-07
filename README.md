@@ -40,8 +40,8 @@ shininess and leaving unmarked parts unchanged.
 
 ```xml
 <!-- The book prefab marks covers tintable, but not its paper page block. -->
-<prefab source="book" color="0.58 0.08 0.06"/>
-<prefab source="book" pos="0.5 0 0" color="0.08 0.22 0.56"/>
+<prefab source="items/book" color="0.58 0.08 0.06"/>
+<prefab source="items/book" pos="0.5 0 0" color="0.08 0.22 0.56"/>
 ```
 
 Important authoring features still missing are named multi-color material

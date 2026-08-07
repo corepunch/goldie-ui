@@ -64,12 +64,15 @@ void mesh_apply_stretch(Mesh *m,float amount,float amplify,char axis);
 void mesh_apply_skew(Mesh *m,float amount,char axis);
 void mesh_apply_array(Mesh *m,int count,vec3 off,vec3 rot);
 Mesh gen_box(float sx,float sy,float sz);
+Mesh gen_box_inset(float sx,float sy,float sz,float insetX,float insetY);
 Mesh gen_cylinder_like(int sides,float rBot,float rTop,float height,int smooth);
 Mesh gen_cylinder(float r,float h,int sides);
+Mesh gen_cylinder_tube(float r,float h,float wall,int sides);
 Mesh gen_prism(float r,float h,int sides);
 Mesh gen_cone(float rBase,float rTop,float h,int sides);
 Mesh gen_sphere(float r,int rings,int slices);
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
+Mesh gen_arch(float width,float height,float depth,float wall,int segments);
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;

@@ -71,7 +71,7 @@ Do not overlap visible faces on the same plane. A depth buffer cannot consistent
 Use `attach="instanceName:slotName"` on any shape or prefab to place it at a prefab's named reference point without manual surface-height calculations. The target instance must carry a `name` attribute.
 
 ```xml
-<prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
+<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -1.5"/>
 <sphere attach="dining_table:center" radius="0.14" material="fabric"/>
 ```
 

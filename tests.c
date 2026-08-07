@@ -100,6 +100,15 @@ int main(void){
     }
 
     {
+        Mesh m = gen_box_inset(2.0f, 1.4f, 0.3f, 0.2f, 0.2f);
+        float vol = mesh_signed_volume(&m);
+        CHECK(vol > 0, "box inset signed volume positive (%.4f)", vol);
+        mesh_build_edges(&m);
+        test_edges_sealed("box inset sealed", m, 1);
+        mesh_free(&m);
+    }
+
+    {
         Mesh m = gen_cylinder(0.5f, 2.0f, 24);
         float vol = mesh_signed_volume(&m);
         float expect = approx_cylinder_vol(0.5, 2.0);
@@ -107,6 +116,15 @@ int main(void){
         CHECK(vol > 0, "cylinder signed volume positive");
         mesh_build_edges(&m);
         test_edges_sealed("cylinder sealed", m, 1);
+        mesh_free(&m);
+    }
+
+    {
+        Mesh m = gen_cylinder_tube(0.5f, 0.8f, 0.08f, 24);
+        float vol = mesh_signed_volume(&m);
+        CHECK(vol > 0, "cylinder tube signed volume positive (%.4f)", vol);
+        mesh_build_edges(&m);
+        test_edges_sealed("cylinder tube sealed", m, 1);
         mesh_free(&m);
     }
 
@@ -175,6 +193,24 @@ int main(void){
         CHECK(vol > 0, "torus signed volume positive");
         mesh_build_edges(&m);
         test_edges_sealed("torus sealed", m, 1);
+        mesh_free(&m);
+    }
+
+    {
+        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.0f, 16);
+        float vol = mesh_signed_volume(&m);
+        CHECK(vol > 0, "arch signed volume positive (%.4f)", vol);
+        mesh_build_edges(&m);
+        test_edges_sealed("arch sealed", m, 1);
+        mesh_free(&m);
+    }
+
+    {
+        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.12f, 16);
+        float vol = mesh_signed_volume(&m);
+        CHECK(vol > 0, "arch tube signed volume positive (%.4f)", vol);
+        mesh_build_edges(&m);
+        test_edges_sealed("arch tube sealed", m, 1);
         mesh_free(&m);
     }
 

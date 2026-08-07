@@ -253,6 +253,7 @@ Axis-aligned box centered at origin.
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `size`    | vec3 | 1 1 1   | Width, height, depth |
+| `inset`   | float/vec2 | 0 | Hollow the box into a rectangular tube. One value uses the same inset on X and Y; two values are `insetX insetY`. The opening passes fully through local Z |
 
 ### `<sphere>`
 
@@ -272,7 +273,21 @@ Capped cylinder along the Y axis.
 |-----------|-------|---------|-------------|
 | `radius`  | float | 0.5     | Radius |
 | `height`  | float | 1.0     | Height along Y |
+| `tube`    | float | 0       | Wall thickness for a hollow tube with open ends |
 | `sides`   | int   | 24      | Number of radial segments |
+
+### `<arch>`
+
+Round-arched solid or frame extruded along Z. This is useful for Roman-arch or round-top windows and doors.
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `width`   | float | 1.0     | Full outer width |
+| `height`  | float | 1.5     | Full outer height |
+| `depth`   | float | 0.2     | Extrusion depth along Z |
+| `tube`    | float | 0       | Frame thickness. `0` yields a solid arch; a positive value yields a hollow arched frame |
+| `thickness` | float | 0     | Alias for `tube` |
+| `segments` | int   | 16      | Semicircle subdivisions |
 
 ### `<prism>`
 
@@ -509,22 +524,22 @@ produce different cover colors while its page block remains paper-colored:
 </prefab>
 
 <!-- scene -->
-<prefab source="book" color="0.65 0.08 0.06"/>
-<prefab source="book" pos="0.5 0 0" color="0.06 0.20 0.62"/>
+<prefab source="items/book" color="0.65 0.08 0.06"/>
+<prefab source="items/book" pos="0.5 0 0" color="0.06 0.20 0.62"/>
 ```
 
 Example: place 4 chairs around a dining table (table spans X=±0.8, Z=-1.0 to -2.0):
 
 ```xml
-<prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
+<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -1.5"/>
 <!-- chair faces +Z by default; rotY(180) = faces -Z (into table) -->
-<prefab source="chair" pos="0 0 -0.75" rot="0 180 0"/>
+<prefab source="furniture/chair" pos="0 0 -0.75" rot="0 180 0"/>
 <!-- chair at back: default +Z is already toward table -->
-<prefab source="chair" pos="0 0 -2.25"/>
+<prefab source="furniture/chair" pos="0 0 -2.25"/>
 <!-- chair at left: rotY(90) maps +Z -> +X (toward table right) -->
-<prefab source="chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
+<prefab source="furniture/chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
 <!-- chair at right: rotY(-90) maps +Z -> -X (toward table left) -->
-<prefab source="chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
+<prefab source="furniture/chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
 ```
 
 ### Attach points
@@ -550,7 +565,7 @@ Attach point positions are in the prefab's local coordinate space.
 **Using attach points** — in any scene element via `attach="instanceName:slotName"`:
 
 ```xml
-<prefab source="dining_table" name="dining_table" pos="0 0 -1.5"/>
+<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -1.5"/>
 <!-- Sphere placed on the table's center without calculating y=0.78 -->
 <sphere attach="dining_table:center" radius="0.14" material="fabric"/>
 ```
@@ -562,11 +577,11 @@ This means objects placed with `attach` on a rotated surface remain correctly
 flat on that surface without any manual rotation calculation:
 
 ```xml
-<prefab source="workbench" name="main_bench" pos="-4.45 0 -4.5" rot="0 90 0"/>
+<prefab source="furniture/workbench" name="main_bench" pos="-4.45 0 -4.5" rot="0 90 0"/>
 
 <!-- Children automatically inherit the bench's rotated frame -->
 <group attach="main_bench:top_surface">
-  <prefab source="repair_book" pos="0.23 0 0"/> <!-- X spreads along bench length -->
+  <prefab source="items/repair_book" pos="0.23 0 0"/> <!-- X spreads along bench length -->
 </group>
 ```
 

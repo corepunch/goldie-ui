@@ -37,6 +37,14 @@ static float xml_attr_f(XmlNode*n,const char*name,float def){
 static int xml_attr_i(XmlNode*n,const char*name,int def){
 	const char*s=xml_attr(n,name,NULL); return s? atoi(s): def;
 }
+static int xml_attr_2f(XmlNode*n,const char*name,float defX,float defY,float *outX,float *outY){
+	const char*s=xml_attr(n,name,NULL);
+	if(!s){ *outX=defX; *outY=defY; return 0; }
+	*outX=defX; *outY=defY;
+	int count=sscanf(s,"%f %f",outX,outY);
+	if(count==1) *outY=*outX;
+	return count>0;
+}
 static void xp_skip_ws(const char**p){ while(**p && isspace((unsigned char)**p)) (*p)++; }
 
 static XmlNode* xml_parse_node(const char **p);
@@ -312,7 +320,11 @@ typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 paren
 static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
 	vec3 sz=xml_attr_v3(n,"size",v3(1,1,1));
-	Mesh mesh=gen_box(sz.x,sz.y,sz.z); apply_modifiers(&mesh,n);
+	float insetX=0.0f, insetY=0.0f;
+	xml_attr_2f(n,"inset",0.0f,0.0f,&insetX,&insetY);
+	Mesh mesh=(insetX>0.0f || insetY>0.0f) ? gen_box_inset(sz.x,sz.y,sz.z,insetX,insetY)
+		: gen_box(sz.x,sz.y,sz.z);
+	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
 
@@ -326,7 +338,10 @@ static void parse_sphere(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec
 static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
 	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
-	Mesh mesh=gen_cylinder(r,h,xml_attr_i(n,"sides",24)); apply_modifiers(&mesh,n);
+	float wall=xml_attr_f(n,"tube",0.0f);
+	Mesh mesh=wall>0.0f ? gen_cylinder_tube(r,h,wall,xml_attr_i(n,"sides",24))
+		: gen_cylinder(r,h,xml_attr_i(n,"sides",24));
+	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
 
@@ -349,6 +364,15 @@ static void parse_torus(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 	(void)parentM; (void)pos; (void)rot;
 	float R_=xml_attr_f(n,"majorRadius",0.5f), r_=xml_attr_f(n,"minorRadius",0.15f);
 	Mesh mesh=gen_torus(R_,r_,xml_attr_i(n,"majorSegments",24),xml_attr_i(n,"minorSegments",12)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_arch(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float w=xml_attr_f(n,"width",1.0f), h=xml_attr_f(n,"height",1.5f), d=xml_attr_f(n,"depth",0.2f);
+	float wall=xml_attr_f(n,"tube",xml_attr_f(n,"thickness",0.0f));
+	Mesh mesh=gen_arch(w,h,d,wall,xml_attr_i(n,"segments",16));
+	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
 
@@ -572,6 +596,7 @@ static const struct {
 	{ "cone",     parse_cone },
 	{ "pyramid",  parse_cone },
 	{ "torus",    parse_torus },
+	{ "arch",     parse_arch },
 	{ "group",    parse_group },
 	{ "light",    parse_light },
 	{ "prefab",   parse_prefab },

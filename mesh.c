@@ -80,6 +80,18 @@ static void add_quad(Mesh *m, vec3 a,vec3 b,vec3 c,vec3 d, vec3 n){
     mesh_add_tri(m,ia,ic,ib); mesh_add_tri(m,ia,id,ic);
 }
 
+static void mesh_append(Mesh *dst, Mesh src){
+	int base=dst->nverts;
+	for(int i=0;i<src.nverts;i++) mesh_add_vert(dst,src.verts[i].pos,src.verts[i].nrm);
+	for(int i=0;i<src.ntris;i++) mesh_add_tri(dst,src.tris[i].a+base,src.tris[i].b+base,src.tris[i].c+base);
+	mesh_free(&src);
+}
+
+static void mesh_append_xform(Mesh *dst, Mesh src, mat4 M, mat4 R){
+	mesh_transform(&src,M,R);
+	mesh_append(dst,src);
+}
+
 Mesh gen_box(float sx,float sy,float sz){
     Mesh m={0};
     float x=sx*0.5f,y=sy*0.5f,z=sz*0.5f;
@@ -92,6 +104,18 @@ Mesh gen_box(float sx,float sy,float sz){
     add_quad(&m,p[4],p[5],p[1],p[0], v3(0,-1,0));
     add_quad(&m,p[3],p[2],p[6],p[7], v3(0, 1,0));
     return m;
+}
+
+Mesh gen_box_inset(float sx,float sy,float sz,float insetX,float insetY){
+	Mesh m={0};
+	float halfX=sx*0.5f, halfY=sy*0.5f;
+	float innerX=halfX-insetX, innerY=halfY-insetY;
+	if(insetX<=1e-6f || insetY<=1e-6f || innerX<=1e-6f || innerY<=1e-6f) return gen_box(sx,sy,sz);
+	mesh_append_xform(&m,gen_box(insetX*2.0f,sy,sz),mat4_translate(v3(-halfX+insetX,0,0)),mat4_identity());
+	mesh_append_xform(&m,gen_box(insetX*2.0f,sy,sz),mat4_translate(v3(halfX-insetX,0,0)),mat4_identity());
+	mesh_append_xform(&m,gen_box(innerX*2.0f,insetY*2.0f,sz),mat4_translate(v3(0,halfY-insetY,0)),mat4_identity());
+	mesh_append_xform(&m,gen_box(innerX*2.0f,insetY*2.0f,sz),mat4_translate(v3(0,-halfY+insetY,0)),mat4_identity());
+	return m;
 }
 
 Mesh gen_cylinder_like(int sides,float rBot,float rTop,float height,int smooth){
@@ -133,6 +157,32 @@ Mesh gen_cylinder_like(int sides,float rBot,float rTop,float height,int smooth){
     return m;
 }
 Mesh gen_cylinder(float r,float h,int sides){ return gen_cylinder_like(sides<=0?24:sides,r,r,h,1); }
+Mesh gen_cylinder_tube(float r,float h,float wall,int sides){
+	Mesh m={0};
+	if(sides<3) sides=24;
+	if(wall<=1e-6f || wall>=r-1e-6f) return gen_cylinder(r,h,sides);
+	float inner=r-wall, hy=h*0.5f;
+	for(int i=0;i<sides;i++){
+		float a0=(float)i/sides*2.0f*M_PIf, a1=(float)(i+1)/sides*2.0f*M_PIf;
+		vec3 o0b=v3(cosf(a0)*r,-hy,sinf(a0)*r), o1b=v3(cosf(a1)*r,-hy,sinf(a1)*r);
+		vec3 o0t=v3(cosf(a0)*r, hy,sinf(a0)*r), o1t=v3(cosf(a1)*r, hy,sinf(a1)*r);
+		vec3 i0b=v3(cosf(a0)*inner,-hy,sinf(a0)*inner), i1b=v3(cosf(a1)*inner,-hy,sinf(a1)*inner);
+		vec3 i0t=v3(cosf(a0)*inner, hy,sinf(a0)*inner), i1t=v3(cosf(a1)*inner, hy,sinf(a1)*inner);
+		vec3 on0=vnorm(v3(cosf(a0),0,sinf(a0))), on1=vnorm(v3(cosf(a1),0,sinf(a1)));
+		vec3 in0=vscale(on0,-1.0f), in1=vscale(on1,-1.0f);
+		int io0b=mesh_add_vert(&m,o0b,on0), io1b=mesh_add_vert(&m,o1b,on1);
+		int io0t=mesh_add_vert(&m,o0t,on0), io1t=mesh_add_vert(&m,o1t,on1);
+		mesh_add_tri(&m,io0b,io1t,io1b);
+		mesh_add_tri(&m,io0b,io0t,io1t);
+		int ii0b=mesh_add_vert(&m,i0b,in0), ii1b=mesh_add_vert(&m,i1b,in1);
+		int ii0t=mesh_add_vert(&m,i0t,in0), ii1t=mesh_add_vert(&m,i1t,in1);
+		mesh_add_tri(&m,ii0b,ii1b,ii1t);
+		mesh_add_tri(&m,ii0b,ii1t,ii0t);
+		add_quad(&m,o0t,o1t,i1t,i0t,v3(0,1,0));
+		add_quad(&m,o1b,o0b,i0b,i1b,v3(0,-1,0));
+	}
+	return m;
+}
 Mesh gen_prism(float r,float h,int sides){ return gen_cylinder_like(sides<3?6:sides,r,r,h,0); }
 Mesh gen_cone(float rBase,float rTop,float h,int sides){
     return gen_cylinder_like(sides<3?4:sides, rBase, rTop, h, sides>=16);
@@ -171,6 +221,48 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
 	for(int i=0;i<majorSeg;i++) for(int j=0;j<minorSeg;j++){
 		int a=i*stride+j, b=a+1, c=(i+1)*stride+j, d=c+1;
 		mesh_add_tri(&m,a,b,d); mesh_add_tri(&m,a,d,c);
+	}
+	return m;
+}
+
+Mesh gen_arch(float width,float height,float depth,float wall,int segments){
+	Mesh m={0};
+	if(segments<6) segments=12;
+	float halfW=width*0.5f, halfH=height*0.5f, radius=halfW;
+	float spring=halfH-radius;
+	if(radius<=1e-6f || height<=radius+1e-6f || depth<=1e-6f) return gen_box(width,height,depth);
+	float stemH=height-radius;
+	if(wall<=1e-6f || wall>=radius-1e-6f || width-2.0f*wall<=1e-6f || height-2.0f*wall<=1e-6f){
+		mesh_append_xform(&m,gen_box(width,stemH,depth),mat4_translate(v3(0,-radius*0.5f,0)),mat4_identity());
+		for(int i=0;i<segments;i++){
+			float x0=-radius + (2.0f*radius*(float)i/segments);
+			float x1=-radius + (2.0f*radius*(float)(i+1)/segments);
+			float xm=(x0+x1)*0.5f;
+			float yTop=spring + sqrtf(fmaxf(0.0f,radius*radius - xm*xm));
+			float bandH=yTop-spring;
+			if(bandH<=1e-4f) continue;
+			mesh_append_xform(&m,gen_box(x1-x0,bandH,depth),
+				mat4_translate(v3(xm,spring+bandH*0.5f,0)),mat4_identity());
+		}
+		return m;
+	}
+	float innerW=width-2.0f*wall, innerR=innerW*0.5f;
+	mesh_append_xform(&m,gen_box(wall,stemH,depth),mat4_translate(v3(-halfW+wall*0.5f,-radius*0.5f,0)),mat4_identity());
+	mesh_append_xform(&m,gen_box(wall,stemH,depth),mat4_translate(v3(halfW-wall*0.5f,-radius*0.5f,0)),mat4_identity());
+	mesh_append_xform(&m,gen_box(innerW,wall,depth),mat4_translate(v3(0,-halfH+wall*0.5f,0)),mat4_identity());
+	for(int i=0;i<segments;i++){
+		float x0=-radius + (2.0f*radius*(float)i/segments);
+		float x1=-radius + (2.0f*radius*(float)(i+1)/segments);
+		float xm=(x0+x1)*0.5f;
+		float yOut=spring + sqrtf(fmaxf(0.0f,radius*radius - xm*xm));
+		float yIn=spring;
+		if(fabsf(xm)<innerR){
+			yIn=spring + sqrtf(fmaxf(0.0f,innerR*innerR - xm*xm));
+		}
+		float bandH=yOut-yIn;
+		if(bandH<=1e-4f) continue;
+		mesh_append_xform(&m,gen_box(x1-x0,bandH,depth),
+			mat4_translate(v3(xm,yIn+bandH*0.5f,0)),mat4_identity());
 	}
 	return m;
 }
