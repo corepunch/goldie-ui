@@ -21,11 +21,12 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 4. Place related geometry in a shared `<group>` coordinate frame. Never duplicate a rotated parent's world-space transform by hand when a group can express it.
 5. Populate large furniture before small decoration. Reuse a prefab when an object appears more than once or has a natural front direction.
 6. Keep all naturally grounded objects at the documented prefab baseline. Calculate primitive centers from half-height; do not guess vertical positions.
-7. Validate XML, build the project, and run the tests.
-8. Load the scene through the CLI and check its declared cameras.
-9. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. `-d 24` hides lamp and character editor overlays. Screenshot review complements, but does not replace, CLI validation.
-10. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
-11. Correct every invariant violation found through coordinate calculations, XML validation, scene loading, screenshot review, or tests.
+7. Audit every visible contact: joined assembly parts terminate cleanly against their supports, while unrelated objects retain deliberate negative space without accidental overlap or tangency.
+8. Validate XML, build the project, and run the tests.
+9. Load the scene through the CLI and check its declared cameras.
+10. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. `-d 24` hides lamp and character editor overlays. Screenshot review complements, but does not replace, CLI validation.
+11. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
+12. Correct every invariant violation found through coordinate calculations, XML validation, scene loading, screenshot review, or tests.
 
 Declare scene-wide ambient light and background only as attributes on the root
 element: `<scene ambient="r g b" background="preset-or-rgb">`. Never emit
@@ -68,6 +69,9 @@ for the complete attribute classification and renderer data flow.
 - Prefer a window or door prefab containing its own `<bool-negative-box>` so the opening and insert cannot drift apart. Match the outer frame extents to the cutter extents; inset only the pane or explicitly recessed pieces.
 - Keep inserts smaller than their opening only when visible construction clearance is intentional.
 - Treat a gap or penetration larger than `0.001` scene units as an error unless the design explicitly requires it.
+- Make structural and decorative members terminate deliberately. Bars, mullions, rails, legs, cords, and similar joined parts must meet their intended frame or support within `0.001`; never leave endpoints floating visibly inside open space. For a member ending at a curved boundary, calculate the curve intersection at the member's full width instead of extending or shortening it by eye.
+- Distinguish physical assemblies from unrelated neighbors. Parts meant to function together may touch or visually overlap where construction requires it; separate unrelated fixtures, furniture, and decorations with readable negative space. Avoid silhouette tangencies, near-tangencies, and shadow mergers that make separate objects look accidentally grouped.
+- Evaluate spacing in both world space and the affected camera views. As a starting point, give unrelated neighboring silhouettes a visible gap at least as wide as the smaller object's nearby trim or structural member, then increase it when perspective or cast shadows close the gap.
 - Never overlap coplanar visible faces. OpenGL depth settings cannot reliably order surfaces at the same depth; resize or reposition the parts so their exterior faces occupy distinct regions. Adjacent parts may meet at a shared edge.
 - Prefer swapping box dimensions over adding a rotation when both describe the same axis-aligned shape in the current local frame.
 - Document the default front direction in every directional prefab's leading XML comment.
