@@ -273,6 +273,11 @@ static vec3* arch_profile(float r,float spring,float bottom,float splitX,float s
 	return p;
 }
 
+static void extrude_rect_caps(Mesh *m,float x0,float y0,float x1,float y1,float depth){
+	vec3 p[4]={v3(x0,y0,0),v3(x1,y0,0),v3(x1,y1,0),v3(x0,y1,0)};
+	extrude_polygon(m,p,NULL,4,depth,1,0,0,0);
+}
+
 Mesh gen_arch(float width,float height,float depth,float wall,int segments,float inset){
 	Mesh m={0};
 	if(segments<6) segments=16;
@@ -306,16 +311,11 @@ Mesh gen_arch(float width,float height,float depth,float wall,int segments,float
 		vec3 *ql=mirror_profile_x(q,nq);
 		extrude_polygon(&m,q,NULL,nq,extrudedDepth,1,0,0,0);
 		extrude_polygon(&m,ql,NULL,nq,extrudedDepth,1,0,0,0);
-		vec3 sillL[4]={v3(-outer,bottom,0),v3(-inner,bottom,0),v3(-inner,sill,0),v3(-outer,sill,0)};
-		vec3 sillC[4]={v3(-inner,bottom,0),v3(inner,bottom,0),v3(inner,sill,0),v3(-inner,sill,0)};
-		vec3 sillR[4]={v3(inner,bottom,0),v3(outer,bottom,0),v3(outer,sill,0),v3(inner,sill,0)};
-		vec3 legL[4]={v3(-outer,sill,0),v3(-inner,sill,0),v3(-inner,spring,0),v3(-outer,spring,0)};
-		vec3 legR[4]={v3(inner,sill,0),v3(outer,sill,0),v3(outer,spring,0),v3(inner,spring,0)};
-		extrude_polygon(&m,sillL,NULL,4,extrudedDepth,1,0,0,0);
-		extrude_polygon(&m,sillC,NULL,4,extrudedDepth,1,0,0,0);
-		extrude_polygon(&m,sillR,NULL,4,extrudedDepth,1,0,0,0);
-		extrude_polygon(&m,legL,NULL,4,extrudedDepth,1,0,0,0);
-		extrude_polygon(&m,legR,NULL,4,extrudedDepth,1,0,0,0);
+		extrude_rect_caps(&m,-outer,bottom,-inner,sill,extrudedDepth);
+		extrude_rect_caps(&m,-inner,bottom,inner,sill,extrudedDepth);
+		extrude_rect_caps(&m,inner,bottom,outer,sill,extrudedDepth);
+		extrude_rect_caps(&m,-outer,sill,-inner,spring,extrudedDepth);
+		extrude_rect_caps(&m,inner,sill,outer,spring,extrudedDepth);
 		free(outerProfile); free(innerProfile); free(q); free(ql);
 	}
 	if(inset>0) mesh_transform(&m,mat4_translate(v3(0,0,-inset*0.5f)),mat4_identity());
