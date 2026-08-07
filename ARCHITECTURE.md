@@ -35,10 +35,36 @@ Defines `Mesh` as a triangle soup: `Vertex*` (position + normal), `Tri*` (3 vert
 | `gen_prism(r, h, sides)` | Regular N-gonal prism along Y |
 | `gen_cone(rb, rt, h, sides)` | Truncated cone/frustum along Y |
 | `gen_torus(R, r, majSeg, minSeg)` | Torus in XZ plane |
+| `gen_arch(w, h, d, wall, segments, inset)` | Solid Roman arch or hollow arch frame along Z |
+| `gen_box_hole_arch(w, h, d, segments)` | Wall lunette above a Roman-arch opening |
+| `gen_box_hole_cylinder(w, h, d, r, sides)` | Box profile surrounding a centered circular opening |
 
-Mesh utilities: `mesh_transform` (applies model + rotation matrix), `mesh_compute_face_normals` (cross-product per-triangle, face-averaged per-vertex), `mesh_build_edges` (for shadow volume silhouette detection), `mesh_flip_winding` (fixes inside-out geometry), `mesh_signed_volume` (winding consistency check).
+Mesh utilities: `mesh_transform` (applies model + rotation matrix), `mesh_compute_face_normals` (cross-product per triangle), `mesh_build_edges` (for shadow-volume silhouette detection), `mesh_flip_winding` (fixes inside-out geometry), `mesh_signed_volume` (winding consistency check).
 
-**Modifiers** — 5 mesh deformation functions applied to local-space vertices before transform:
+#### Mesh construction policy
+
+Primitive generators should work at the highest useful level. Prefer composing complete meshes from 2D profiles, symmetry, extrusion, and transforms over emitting individual vertices and triangles. The normal construction order is:
+
+1. Describe the smallest non-repeating 2D profile.
+2. Mirror that profile across X or Y when the shape is symmetric.
+3. Extrude the profile to create caps and boundary walls.
+4. Compose the resulting mesh regions, keeping shared boundary segmentation identical.
+5. Apply modifiers to the finished local-space mesh.
+6. Transform the mesh into world space only when it is added to the scene.
+
+`extrude_polygon()` is the common implementation for boxes, cylinders, cylinder tubes, Roman arches, and circular or arched wall-opening pieces. It triangulates convex or concave caps, can emit caps or boundary walls independently, supports inward-facing hole boundaries, and can smooth circular side normals. This keeps triangulation and winding rules in one place.
+
+For symmetric shapes, generate one half or one 90-degree corner and mirror it. A solid Roman arch extrudes one mirrored outline. A framed arch composes mirrored quarter-arch cap profiles with rectangular sill and leg cap profiles, then extrudes only its outer and inner boundaries. A cylinder tube uses one annular quarter for its caps plus extruded outer and inner circles. A box around a circular opening uses one corner profile mirrored across both axes plus extruded box and circle boundaries.
+
+Do not create overlapping or duplicate internal faces when composing profiles. Cap regions may share an edge, but that edge must appear once in each neighboring region with opposite directions. Boundary profiles must contain matching split points so cap edges and side-wall edges have identical endpoints.
+
+#### Sealed-mesh invariant
+
+Every renderable primitive should be a consistently wound, sealed mesh, and every shadow-casting mesh must be sealed. Each directed triangle edge must have exactly one oppositely directed mate. A valid outward-wound closed mesh has positive signed volume.
+
+Open edges, crossed cap triangles, duplicate faces, mismatched boundary segmentation, and non-manifold seams break silhouette classification and can create unbounded stencil shadows. Primitive tests must therefore check positive volume, expected approximate volume, and zero open edges. Hole generators must also verify that no cap triangle crosses the intended opening.
+
+**Modifiers** — mesh-level operations applied to local-space vertices before the scene transform:
 
 | Function | Effect |
 |----------|--------|
@@ -47,8 +73,9 @@ Mesh utilities: `mesh_transform` (applies model + rotation matrix), `mesh_comput
 | `mesh_apply_bend(m, angle_deg)` | Map Y axis into circular arc in XY plane |
 | `mesh_apply_stretch(m, amount, amplify)` | Non-linear squash/stretch along Y |
 | `mesh_apply_skew(m, amount)` | Shear X,Z proportional to Y |
+| `mesh_apply_array(m, count, translation, rotation)` | Duplicate and transform a complete mesh |
 
-All modifiers compute the mesh Y bounding box, map each vertex y to [0,1], then apply the deformation.
+Deformation modifiers accept an X, Y, or Z axis, compute the mesh bounds on that axis, and deform the already-complete mesh. XML child order is modifier order, so each modifier consumes the result of the previous one. Modifiers must preserve matching positions along welded edges; a modifier that separates formerly coincident boundary vertices will unseal the mesh. `array` operates on complete meshes rather than reconstructing their triangles.
 
 ### scene.c — XML parser + scene loader
 
@@ -66,7 +93,15 @@ All modifiers compute the mesh Y bounding box, map each vertex y to [0,1], then 
 2. `xml_parse()` builds the `XmlNode` tree.
 3. `load_scene()` reads `ambient` and `background` from `<scene>` attributes, then iterates root children through `scene_tags[]` dispatch table for `camera`, `material`, `sun`.
 4. `parse_nodes()` iterates root children through `shape_parsers[]` dispatch table for `box`, `sphere`, `cylinder`, `prism`, `cone`, `pyramid`, `torus`, `group`, `wall`.
-5. Each shape parser reads shape-specific attributes, generates a `Mesh`, calls `apply_modifiers()` to process any child `<taper>`, `<twist>`, `<bend>`, `<stretch>`, `<skew>` elements, then calls `scene_add_obj()` to transform it, fix winding, compute normals, and build edges.
+5. Each shape parser reads shape-specific attributes, generates a `Mesh`, calls `apply_modifiers()` to process any child `<taper>`, `<twist>`, `<bend>`, `<stretch>`, `<skew>`, or `<array>` elements, then calls `scene_add_obj()` to transform it, fix winding, compute normals, and build edges.
+
+The complete mesh pipeline is:
+
+```
+profile composition → mirror/extrude → local-space modifiers → world transform
+                    → winding correction → face normals → welded edge adjacency
+                    → rendering and shadow-volume construction
+```
 
 **Dispatch tables** use static C arrays of `{ "tagname", parser_function }` to eliminate if-else chains:
 ```c
@@ -97,6 +132,10 @@ Implements the classic vertex-shader-free algorithm:
 4. Store the sides and caps as a homogeneous triangle list in `ShadowVolume.verts`.
 
 `scene_build_all_shadow_volumes()` builds a shadow volume per light for every shadow-casting object.
+
+Shadow construction depends on the sealed-mesh invariant. `mesh_build_edges()` welds coincident positions and records the two adjacent triangles for each edge. `build_shadow_volume()` compares those two face directions against the light; an edge is a silhouette only when one face points toward the light and the other points away. It extrudes only those silhouette edges, then uses the original mesh triangles as the finite and infinite caps for Z-fail.
+
+An open mesh gives an edge only one adjacent face, so the shadow builder treats it as a boundary silhouette. The resulting volume is generally not closed and stencil increments cannot cancel reliably. Fix the primitive instead of special-casing its shadows. `castShadow="0"` is for intentionally non-shadowing geometry, not for hiding invalid topology.
 
 ### render.c — OpenGL rasterizer
 

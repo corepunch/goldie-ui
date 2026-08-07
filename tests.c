@@ -238,9 +238,27 @@ int main(void){
 	{
 		Mesh m=gen_arch(1.6f,1.9f,0.12f,0.12f,16,0.0f);
 		float vol=mesh_signed_volume(&m);
+		float outer=1.6f*1.1f+0.5f*M_PIf*0.8f*0.8f;
+		float inner=1.36f*0.98f+0.5f*M_PIf*0.68f*0.68f;
+		float expect=(outer-inner)*0.12f;
 		CHECK(vol>0,"arch tube signed volume positive (%.4f)",vol);
+		CHECK(fabsf(vol-expect)/expect<0.03f,"arch tube volume within 3%% of expected");
 		mesh_build_edges(&m);
 		test_edges_sealed("arch tube sealed",m,1);
+		mesh_free(&m);
+	}
+
+	{
+		Mesh m=gen_arch(1.6f,1.9f,0.30f,0.0f,16,0.08f);
+		float lo=m.verts[0].pos.z,hi=lo;
+		for(int i=1;i<m.nverts;i++){
+			if(m.verts[i].pos.z<lo) lo=m.verts[i].pos.z;
+			if(m.verts[i].pos.z>hi) hi=m.verts[i].pos.z;
+		}
+		CHECK(fabsf(lo+0.15f)<1e-4f && fabsf(hi-0.07f)<1e-4f,
+			"arch inset bounds are %.4f..%.4f, expected -0.1500..0.0700",lo,hi);
+		mesh_build_edges(&m);
+		test_edges_sealed("arch inset sealed",m,1);
 		mesh_free(&m);
 	}
 
