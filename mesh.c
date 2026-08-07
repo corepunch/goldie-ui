@@ -254,6 +254,24 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
 	return m;
 }
 
+Mesh gen_capsule(float r,float h,int rings,int slices){
+	if(rings<2) rings=6; if(slices<3) slices=16;
+	int halfRings=rings/2;
+	if(halfRings<1) halfRings=1;
+
+	Mesh top=gen_sphere(r,halfRings,slices);
+	Mesh bot=gen_sphere(r,halfRings,slices);
+	mesh_transform(&top,mat4_translate(v3(0,h*0.5f,0)),mat4_identity());
+	mesh_transform(&bot,mat4_translate(v3(0,-h*0.5f,0)),mat4_identity());
+
+	Mesh cyl=gen_cylinder(r,h,slices);
+	Mesh m={0};
+	mesh_append(&m,cyl);
+	mesh_append(&m,top);
+	mesh_append(&m,bot);
+	return m;
+}
+
 static vec3* arch_profile(float r,float spring,float bottom,float splitX,float splitY,int segments,int *out_n){
 	int half=segments/2,n=0;
 	vec3 *p=malloc(sizeof(vec3)*(size_t)(segments+10));
@@ -719,4 +737,127 @@ void mesh_apply_array(Mesh *m, int count, vec3 off, vec3 rot){
 		for(int t=0;t<ot;t++)
 			mesh_add_tri(m,m->tris[t].a+c*ov,m->tris[t].b+c*ov,m->tris[t].c+c*ov);
 	}
+}
+
+void mesh_apply_extrude(Mesh *m, float amount, char axis){
+	int ov=m->nverts, ot=m->ntris;
+	vec3 dir;
+	if(axis=='x') dir=v3(amount,0,0);
+	else if(axis=='y') dir=v3(0,amount,0);
+	else dir=v3(0,0,amount);
+
+	for(int v=0;v<ov;v++){
+		vec3 p=vadd(m->verts[v].pos,dir);
+		mesh_add_vert(m,p,m->verts[v].nrm);
+	}
+	for(int t=0;t<ot;t++)
+		mesh_add_tri(m,m->tris[t].b+ov,m->tris[t].a+ov,m->tris[t].c+ov);
+
+	mesh_build_edges(m);
+	for(int e=0;e<m->nedges;e++){
+		if(m->edges[e].t1>=0) continue;
+		vec3 e0=m->edges[e].p0, e1=m->edges[e].p1;
+		int v0=-1, v1=-1, nv0=-1, nv1=-1;
+		for(int v=0;v<ov;v++){
+			vec3 p=m->verts[v].pos;
+			if(v0<0 && vlen(vsub(p,e0))<1e-4f) v0=v;
+			if(v1<0 && vlen(vsub(p,e1))<1e-4f) v1=v;
+			vec3 np=vadd(p,dir);
+			if(nv0<0 && vlen(vsub(np,e0))<1e-4f) nv0=v+ov;
+			if(nv1<0 && vlen(vsub(np,e1))<1e-4f) nv1=v+ov;
+		}
+		if(v0>=0 && v1>=0 && nv0>=0 && nv1>=0){
+			mesh_add_tri(m,v0,v1,nv1);
+			mesh_add_tri(m,v0,nv1,nv0);
+		}
+	}
+}
+
+void mesh_apply_mirror(Mesh *m, char axis, float weldThreshold){
+	int ov=m->nverts, ot=m->ntris;
+
+	for(int v=0;v<ov;v++){
+		vec3 p=m->verts[v].pos, n=m->verts[v].nrm;
+		if(axis=='x'){ p.x=-p.x; n.x=-n.x; }
+		else if(axis=='y'){ p.y=-p.y; n.y=-n.y; }
+		else{ p.z=-p.z; n.z=-n.z; }
+		mesh_add_vert(m,p,n);
+	}
+	for(int t=0;t<ot;t++)
+		mesh_add_tri(m,m->tris[t].b+ov,m->tris[t].a+ov,m->tris[t].c+ov);
+
+	if(weldThreshold>0){
+		int *weld=malloc(sizeof(int)*(size_t)m->nverts);
+		for(int i=0;i<m->nverts;i++){
+			weld[i]=i;
+			for(int j=0;j<i;j++)
+				if(vlen(vsub(m->verts[i].pos,m->verts[j].pos))<weldThreshold)
+					{weld[i]=weld[j]; break;}
+		}
+		for(int t=0;t<m->ntris;t++){
+			m->tris[t].a=weld[m->tris[t].a];
+			m->tris[t].b=weld[m->tris[t].b];
+			m->tris[t].c=weld[m->tris[t].c];
+		}
+		free(weld);
+	}
+}
+
+void mesh_apply_noise(Mesh *m, float strength, int seed){
+	unsigned int s=(unsigned int)seed;
+	for(int i=0;i<m->nverts;i++){
+		s=s*1103515245+12345;
+		float rx=((float)(s&0xFFFF)/65535.0f-0.5f)*2.0f;
+		s=s*1103515245+12345;
+		float ry=((float)(s&0xFFFF)/65535.0f-0.5f)*2.0f;
+		s=s*1103515245+12345;
+		float rz=((float)(s&0xFFFF)/65535.0f-0.5f)*2.0f;
+		m->verts[i].pos=vadd(m->verts[i].pos,v3(rx*strength,ry*strength,rz*strength));
+	}
+}
+
+void mesh_apply_shell(Mesh *m, float amount){
+	mesh_compute_face_normals(m);
+	int ov=m->nverts, ot=m->ntris;
+	vec3 *vNorm=calloc((size_t)ov,sizeof(vec3));
+	int *vCount=calloc((size_t)ov,sizeof(int));
+	for(int t=0;t<ot;t++){
+		Tri tr=m->tris[t];
+		vNorm[tr.a]=vadd(vNorm[tr.a],m->triN[t]);
+		vNorm[tr.b]=vadd(vNorm[tr.b],m->triN[t]);
+		vNorm[tr.c]=vadd(vNorm[tr.c],m->triN[t]);
+		vCount[tr.a]++; vCount[tr.b]++; vCount[tr.c]++;
+	}
+	for(int v=0;v<ov;v++){
+		if(vCount[v]>0) vNorm[v]=vnorm(vscale(vNorm[v],1.0f/(float)vCount[v]));
+		vec3 p=vadd(m->verts[v].pos,vscale(vNorm[v],amount));
+		mesh_add_vert(m,p,vscale(vNorm[v],-1.0f));
+	}
+	for(int t=0;t<ot;t++)
+		mesh_add_tri(m,m->tris[t].b+ov,m->tris[t].a+ov,m->tris[t].c+ov);
+
+	mesh_build_edges(m);
+	for(int e=0;e<m->nedges;e++){
+		if(m->edges[e].t1>=0) continue;
+		vec3 e0=m->edges[e].p0, e1=m->edges[e].p1;
+		int v0=-1, v1=-1, nv0=-1, nv1=-1;
+		for(int v=0;v<ov;v++){
+			vec3 p=m->verts[v].pos;
+			if(v0<0 && vlen(vsub(p,e0))<1e-4f) v0=v;
+			if(v1<0 && vlen(vsub(p,e1))<1e-4f) v1=v;
+		}
+		if(v0>=0 && v1>=0){
+			for(int v=ov;v<m->nverts;v++){
+				float dist0=vlen(vsub(m->verts[v].pos,m->verts[v0].pos));
+				float dist1=vlen(vsub(m->verts[v].pos,m->verts[v1].pos));
+				if(nv0<0 && dist0<1e-4f) nv0=v;
+				if(nv1<0 && dist1<1e-4f) nv1=v;
+			}
+		}
+		if(v0>=0 && v1>=0 && nv0>=0 && nv1>=0){
+			mesh_add_tri(m,v0,v1,nv1);
+			mesh_add_tri(m,v0,nv1,nv0);
+		}
+	}
+	free(vNorm); free(vCount);
 }

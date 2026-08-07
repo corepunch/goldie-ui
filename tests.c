@@ -585,6 +585,58 @@ int main(void){
 		shape2d_free(&circle);
 	}
 
+	fprintf(stderr,"\n=== Capsule Tests ===\n");
+
+	{
+		Mesh m=gen_capsule(0.3f,1.0f,12,24);
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"capsule signed volume positive (%.4f)",vol);
+		mesh_build_edges(&m);
+		test_edges_sealed("capsule sealed",m,1);
+		mesh_free(&m);
+	}
+
+	fprintf(stderr,"\n=== Modifier Tests ===\n");
+
+	{
+		Mesh m=gen_box(1.0f,0.2f,1.0f);
+		int ov=m.nverts;
+		mesh_apply_extrude(&m,0.3f,'y');
+		CHECK(m.nverts>ov,"extrude added vertices");
+		PASS("extrude modifier");
+		mesh_free(&m);
+	}
+
+	{
+		Mesh m=gen_sphere(0.5f,8,12);
+		int ov=m.nverts;
+		mesh_apply_mirror(&m,'x',0.001f);
+		CHECK(m.nverts==ov*2,"mirror doubled vertex count");
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"mirrored sphere signed volume positive");
+		mesh_build_edges(&m);
+		test_edges_sealed("mirrored half sphere sealed",m,1);
+		mesh_free(&m);
+	}
+
+	{
+		Mesh m=gen_sphere(0.5f,8,12);
+		mesh_apply_noise(&m,0.05f,42);
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"noisy sphere still positive volume (%.4f)",vol);
+		PASS("noise modifier");
+		mesh_free(&m);
+	}
+
+	{
+		Mesh m=gen_box(1.0f,0.1f,1.0f);
+		int ov=m.nverts;
+		mesh_apply_shell(&m,0.05f);
+		CHECK(m.nverts>ov,"shell added vertices to box");
+		PASS("shell modifier");
+		mesh_free(&m);
+	}
+
 	fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
 
 	{

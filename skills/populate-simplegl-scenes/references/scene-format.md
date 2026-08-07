@@ -378,6 +378,18 @@ Round-arched solid or frame extruded along Z. This is useful for Roman-arch or r
 | `thickness` | float | 0     | Alias for `tube` |
 | `segments` | int   | 16      | Semicircle subdivisions |
 
+### `<capsule>`
+
+Cylinder capped with two hemispheres, centered at origin along the Y axis.
+Useful for pill shapes, table legs, railings, handles.
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `radius`  | float | 0.5     | Radius |
+| `height`  | float | 1.0     | Cylinder height (total = height + 2 × radius) |
+| `rings`   | int   | 12      | Subdivision rings for each hemisphere |
+| `slices`  | int   | 24      | Radial segments around the Y axis |
+
 ### `<prism>`
 
 Regular N-sided prism along Y (flat-shaded).
@@ -667,6 +679,72 @@ Duplicates the mesh `count` times, applying a per-step translation and rotation 
 <!-- Spiral staircase: 12 steps, each raised 0.2 in Y and rotated 15° around Y -->
 <box size="0.8 0.05 0.3" material="wood">
   <array count="12" translation="0 0.2 0" rotation="0 15 0"/>
+</box>
+```
+
+### `<extrude>`
+
+Duplicates the mesh offset along an axis and bridges boundary edges with quads.
+Turns flat or open shapes into solids with depth.
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `amount`  | float | 0.1     | Extrusion distance |
+| `axis`    | char  | y       | Extrusion axis (x, y, or z) |
+
+```xml
+<box size="2 0.05 1">
+  <extrude amount="0.2" axis="y"/>
+</box>
+```
+
+### `<mirror>`
+
+Creates a mirrored copy of the mesh across a plane, optionally welding vertices
+that lie on (or very near) the mirror plane. Useful for building symmetric
+objects from one half.
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `axis`    | char  | y       | Mirror plane normal axis (x=YZ plane, y=XZ plane, z=XY plane) |
+| `weld`    | float | 0.001   | Distance threshold for welding vertices on the mirror plane |
+
+```xml
+<box size="1 2 0.5" pos="-0.5 0 0">
+  <mirror axis="x" weld="0.001"/>
+</box>
+```
+
+### `<noise>`
+
+Displaces each vertex by a random vector for organic, uneven surfaces. Valid on
+any shape. Keep strength small on smooth primitives and larger on terrain or
+foliage. Seeded for deterministic output.
+
+| Attribute  | Type  | Default | Description |
+|------------|-------|---------|-------------|
+| `strength` | float | 0.1     | Maximum displacement magnitude per axis |
+| `seed`     | int   | 1       | Random seed for reproducible noise |
+
+```xml
+<sphere radius="0.5">
+  <noise strength="0.08" seed="42"/>
+</sphere>
+```
+
+### `<shell>`
+
+Thickens a mesh by pushing each face outward along its vertex-averaged normals
+and bridging boundary edges. Turns a flat plane into a slab, or adds wall
+thickness to an open container.
+
+| Attribute | Type  | Default | Description |
+|-----------|-------|---------|-------------|
+| `amount`  | float | 0.05    | Thickness amount pushed along normals |
+
+```xml
+<box size="2 0.02 1">
+  <shell amount="0.1"/>
 </box>
 ```
 

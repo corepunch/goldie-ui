@@ -209,6 +209,18 @@ static void parse_mod_array(Mesh *m, XmlNode *n){
 		xml_attr_v3(n,"translation",v3(0,0,0)),
 		xml_attr_v3(n,"rotation",v3(0,0,0)));
 }
+static void parse_mod_extrude(Mesh *m, XmlNode *n){
+	mesh_apply_extrude(m,xml_attr_f(n,"amount",0.1f),mod_axis(n));
+}
+static void parse_mod_mirror(Mesh *m, XmlNode *n){
+	mesh_apply_mirror(m,mod_axis(n),xml_attr_f(n,"weld",0.001f));
+}
+static void parse_mod_noise(Mesh *m, XmlNode *n){
+	mesh_apply_noise(m,xml_attr_f(n,"strength",0.1f),xml_attr_i(n,"seed",1));
+}
+static void parse_mod_shell(Mesh *m, XmlNode *n){
+	mesh_apply_shell(m,xml_attr_f(n,"amount",0.05f));
+}
 
 static const struct {
 	const char *tag;
@@ -220,6 +232,10 @@ static const struct {
 	{ "stretch", parse_mod_stretch },
 	{ "skew",    parse_mod_skew },
 	{ "array",   parse_mod_array },
+	{ "extrude", parse_mod_extrude },
+	{ "mirror",  parse_mod_mirror },
+	{ "noise",   parse_mod_noise },
+	{ "shell",   parse_mod_shell },
 };
 
 static void apply_modifiers(Mesh *m, XmlNode *n){
@@ -504,6 +520,14 @@ static void parse_arch(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	float wall=xml_attr_f(n,"tube",xml_attr_f(n,"thickness",0.0f));
 	float archInset=xml_attr_f(n,"inset",0.0f);
 	Mesh mesh=gen_arch(w,h,d,wall,xml_attr_i(n,"segments",16),archInset);
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_capsule(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
+	Mesh mesh=gen_capsule(r,h,xml_attr_i(n,"rings",12),xml_attr_i(n,"slices",24));
 	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
@@ -822,6 +846,7 @@ static const struct {
 	{ "pyramid",  parse_cone },
 	{ "torus",    parse_torus },
 	{ "arch",     parse_arch },
+	{ "capsule",  parse_capsule },
 	{ "group",    parse_group },
 	{ "light",    parse_light },
 	{ "prefab",   parse_prefab },
