@@ -66,6 +66,37 @@ Use `0.001` scene units as the default contact tolerance. For a nominally ground
 
 Do not overlap visible faces on the same plane. A depth buffer cannot consistently decide which coplanar fragment owns a pixel, so the result flickers or forms striped patches as the camera moves. Build assemblies from non-overlapping exterior regions: for example, fit a sofa base and backrest between its arms instead of extending all three boxes across the same front or side planes. Adjacent parts may share an edge, and hidden structural intersections are acceptable only when none of their exterior faces overlap. Do not use tiny offsets or polygon offset to conceal unintended duplicate geometry.
 
+## Visual relationships and termination
+
+Classify nearby geometry before spacing it:
+
+- **Assembly contact:** Parts that construct or operate as one object, such as a table and its chairs, a window frame and mullions, or a lamp and cord, may touch or overlap where the relationship is intentional.
+- **Independent objects:** Unrelated fixtures, furniture, and decorations must retain readable negative space. Do not let their bounds, silhouettes, or cast shadows touch accidentally; tangency makes separate objects read as one malformed assembly.
+
+Make every exposed linear member terminate against an intended support. Bars,
+mullions, rails, legs, and cords must not stop visibly inside open space. Keep a
+nominal contact within `0.001` scene units. For a rectangular member meeting a
+curved frame, calculate the boundary at the member's outermost edge so both
+corners reach or enter the support without leaving a visible gap. For a circular
+boundary centered at `(cx, cy)` with radius `r`, the upper intersection at local
+X coordinate `x` is:
+
+```text
+y = cy + sqrt(r*r - (x - cx)*(x - cx))
+```
+
+Use the member edge nearest the tighter part of the curve, not only its center
+line. Permit a small hidden penetration into the support when necessary, but do
+not overshoot through its visible exterior face.
+
+Check independent-object spacing in the rendered view as well as world space.
+Perspective can close a valid three-dimensional gap, and cast shadows can merge
+otherwise separate silhouettes. Start with a projected gap at least as wide as
+the smaller object's nearby trim or structural member, then enlarge it until the
+separation remains obvious in every affected story camera. Treat deliberate
+occlusion as a composition choice and verify that it does not imply a false
+physical connection.
+
 ## Attach points and pivot offset
 
 Use `attach="instanceName:slotName"` on any shape or prefab to place it at a prefab's named reference point without manual surface-height calculations. The target instance must carry a `name` attribute.
@@ -222,3 +253,5 @@ Before completion, verify:
 15. Every window or door prefab cutter crosses its wall completely, remains wall-axis-aligned, and matches the visible outer frame boundary without an accidental reveal gap.
 16. Every visible RGB value is authored directly as sRGB, while light
     intensity remains a separate, unmodified linear scalar.
+17. Every exposed bar, mullion, rail, leg, cord, or similar member terminates cleanly against its intended support without a visible floating endpoint or exterior overshoot.
+18. Unrelated neighboring objects retain readable negative space in every affected story camera; no accidental overlap, silhouette tangency, or shadow merger makes them appear grouped.

@@ -50,7 +50,7 @@
   <prefab source="architecture/workshop_door" pos="-3.9 0 -8.92" sanityIgnore="1"/>
 
   <prefab source="fixtures/key_hook" pos="0 1.7 -8.84" sanityIgnore="1"/>
-  <prefab source="fixtures/wall_clock" pos="1.62 2.25 -8.91" sanityIgnore="1"/>
+  <prefab source="fixtures/wall_clock" pos="1.25 2.25 -8.91" sanityIgnore="1"/>
 
   <group pos="-4.76 0 -7.5" rot="0 90 0">
     <prefab source="furniture/shelf_unit"/>
