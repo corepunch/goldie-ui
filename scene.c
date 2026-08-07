@@ -129,7 +129,7 @@ void scene_free(Scene *s){
 	for(int i=0;i<s->nprefabs;i++) free(s->prefabs[i].attaches);
 	for(int i=0;i<s->nobjs;i++) mesh_free(&s->objs[i].mesh);
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
-	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches); free(s->overlayLines); free(s->charDefs);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras); free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches); free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs);
 	memset(s,0,sizeof(*s));
 }
 
@@ -395,7 +395,14 @@ static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 }
 
 /* build the boxes that make up a wall with rectangular openings */
-typedef struct { float x,width,height,sill; int isArch; } Opening;
+#define OPENING_RECT     0
+#define OPENING_ARCH     1
+#define OPENING_CYLINDER 2
+typedef struct {
+	float x,width,height,sill;
+	int type;       /* OPENING_RECT / OPENING_ARCH / OPENING_CYLINDER */
+	float cylR;     /* cylinder: radius (in wall-local XY) */
+} Opening;
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
                               Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable,int unlit);
 
@@ -443,7 +450,8 @@ static void add_negative_openings(Scene *s, mat4 wallM, float L,float H,float T,
 		if(hi.x>L*0.5f) hi.x=L*0.5f;
 		if(lo.y<0) lo.y=0;
 		if(hi.y>H) hi.y=H;
-		Opening o={lo.x+L*0.5f,hi.x-lo.x,hi.y-lo.y,lo.y,0};
+		Opening o; memset(&o,0,sizeof(o));
+		o.x=lo.x+L*0.5f; o.width=hi.x-lo.x; o.height=hi.y-lo.y; o.sill=lo.y; o.type=OPENING_RECT;
 		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
 	}
 }
@@ -469,12 +477,37 @@ static void add_negative_arch_openings(Scene *s, mat4 wallM, float L,float H,flo
 		if(hiX>L*0.5f) hiX=L*0.5f;
 		if(loY<0) loY=0;
 		if(hiY>H) hiY=H;
-		Opening o;
-		o.x=loX+L*0.5f;
-		o.width=hiX-loX;
-		o.height=hiY-loY;
-		o.sill=loY;
-		o.isArch=1;
+		Opening o; memset(&o,0,sizeof(o));
+		o.x=loX+L*0.5f; o.width=hiX-loX; o.height=hiY-loY; o.sill=loY; o.type=OPENING_ARCH;
+		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
+	}
+}
+
+static void add_negative_cylinder_openings(Scene *s, mat4 wallM, float L,float H,float T,
+		Opening **op,int *nop,int *cop){
+	mat4 inv;
+	if(!mat4_inverse_affine(wallM,&inv)) return;
+	for(int i=0;i<s->nnegativeCylinders;i++){
+		NegativeCylinder *c=&s->negativeCylinders[i];
+		mat4 local=mat4_mul(inv,c->transform);
+		vec3 ax=vnorm(mat4_xform_dir(local,v3(1,0,0)));
+		vec3 ay=vnorm(mat4_xform_dir(local,v3(0,1,0)));
+		vec3 az=vnorm(mat4_xform_dir(local,v3(0,0,1)));
+		if(fabsf(ax.x)<0.999f || fabsf(ay.y)<0.999f || fabsf(az.z)<0.999f) continue;
+		vec3 center=mat4_xform_point(local,v3(0,0,0));
+		float halfD=c->depth*0.5f;
+		if(center.z-halfD>-T*0.5f+0.001f || center.z+halfD<T*0.5f-0.001f) continue;
+		float r=c->radius;
+		float loX=center.x-r, hiX=center.x+r;
+		float loY=center.y-r, hiY=center.y+r;
+		if(hiX<=-L*0.5f || loX>=L*0.5f || hiY<=0 || loY>=H) continue;
+		if(loX<-L*0.5f) loX=-L*0.5f;
+		if(hiX>L*0.5f) hiX=L*0.5f;
+		if(loY<0) loY=0;
+		if(hiY>H) hiY=H;
+		Opening o; memset(&o,0,sizeof(o));
+		o.x=loX+L*0.5f; o.width=hiX-loX; o.height=hiY-loY; o.sill=loY;
+		o.type=OPENING_CYLINDER; o.cylR=r;
 		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
 	}
 }
@@ -487,17 +520,18 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	for(int k=0;k<n->nkids;k++){
 		XmlNode *c=n->kids[k];
 		if(strcmp(c->tag,"opening")) continue;
-		Opening o;
+		Opening o; memset(&o,0,sizeof(o));
 		o.x = xml_attr_f(c,"x",0);
 		o.width = xml_attr_f(c,"width",1.0f);
 		int isDoor = !strcmp(xml_attr(c,"type","door"),"door");
 		o.height = xml_attr_f(c,"height", isDoor?2.1f:1.2f);
 		o.sill = isDoor? 0.0f : xml_attr_f(c,"sill",0.9f);
-		o.isArch = 0;
+		o.type = OPENING_RECT;
 		DA_PUSH(op,nop,cop,o);
 	}
 	add_negative_openings(s,wallM,L,H,T,&op,&nop,&cop);
 	add_negative_arch_openings(s,wallM,L,H,T,&op,&nop,&cop);
+	add_negative_cylinder_openings(s,wallM,L,H,T,&op,&nop,&cop);
 	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin, castsShadow, renderable, unlit);
 	free(op);
 }
@@ -575,6 +609,12 @@ static void collect_negative_boxes(Scene *s, XmlNode *parent, mat4 parentM){
 			a.height=xml_attr_f(n,"height",1.5f);
 			a.depth=xml_attr_f(n,"depth",xml_attr_f(n,"size_z",0.3f));
 			DA_PUSH(s->negativeArches,s->nnegativeArches,s->cnegativeArches,a);
+		} else if(!strcmp(n->tag,"bool-negative-cylinder")){
+			NegativeCylinder c;
+			c.transform=M;
+			c.radius=xml_attr_f(n,"radius",0.5f);
+			c.depth=xml_attr_f(n,"depth",xml_attr_f(n,"size_z",0.3f));
+			DA_PUSH(s->negativeCylinders,s->nnegativeCylinders,s->cnegativeCylinders,c);
 		} else if(!strcmp(n->tag,"group")){
 			collect_negative_boxes(s,n,M);
 		} else if(!strcmp(n->tag,"prefab")){
@@ -825,10 +865,10 @@ static void warn_unknown_children(XmlNode *parent, const char *path, int root, i
 	for(int i=0;i<parent->nkids;i++){
 		XmlNode *n=parent->kids[i];
 		int supported=0;
-		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") ||
+		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") ||
 			(prefab ? !strcmp(n->tag,"attach") : has_scene_parser(n->tag));
 		else if(!strcmp(parent->tag,"group"))
-			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch");
+			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder");
 		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
 		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
 		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
@@ -985,56 +1025,87 @@ int scene_sanity_check(Scene *s){
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */
-static float opening_top_at(Opening *o, float xm){
-	if(!o->isArch) return o->sill + o->height;
-	float R = o->width * 0.5f;
-	float cx = o->x + R;
-	float stemH = o->height - R;
-	float dx = xm - cx;
-	if(fabsf(dx) >= R) return o->sill + stemH;
-	return o->sill + stemH + sqrtf(R*R - dx*dx);
+
+/* Emit a single box piece of a wall segment */
+static void emit_wall_box(Scene *s, mat4 wallM, mat4 wallR, float T,
+		float y0, float y1, float x0, float x1,
+		vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	float w=x1-x0, h=y1-y0;
+	if(w<1e-4f || h<1e-4f) return;
+	vec3 localCenter=v3((x0+x1)*0.5f,(y0+y1)*0.5f,0);
+	Mesh box=gen_box(w,h,T);
+	mat4 M=mat4_mul(wallM,mat4_translate(localCenter));
+	scene_add_obj(s,box,M,wallR,color,shin,castsShadow,renderable,unlit);
 }
 
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
                               Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable,int unlit){
+	/* Convert x coordinates to wall-local space (origin at left edge, centered horizontally):
+	 * opening.x is already in [0,L] from left edge; wall mesh has center at x=0,
+	 * so wall-local x = opening.x - L/2. */
+	float half=L*0.5f;
+
+	/* Collect X breakpoints from all openings' bounding rects */
 	float *bp=NULL; int nbp=0,cbp=0;
 	float b0=0,bL=L; DA_PUSH(bp,nbp,cbp,b0); DA_PUSH(bp,nbp,cbp,bL);
 	for(int i=0;i<nopen;i++){
 		float a=openings[i].x, b=openings[i].x+openings[i].width;
 		DA_PUSH(bp,nbp,cbp,a); DA_PUSH(bp,nbp,cbp,b);
-		if(openings[i].isArch){
-			int nSub=32;
-			for(int k=1;k<nSub;k++){
-				float t=(float)k/(float)nSub;
-				DA_PUSH(bp,nbp,cbp, a + t*(b-a));
-			}
-		}
 	}
+	/* Sort breakpoints */
 	for(int i=0;i<nbp;i++) for(int j=i+1;j<nbp;j++) if(bp[j]<bp[i]){ float t=bp[i]; bp[i]=bp[j]; bp[j]=t; }
+
 	for(int i=0;i+1<nbp;i++){
 		float x0=bp[i], x1=bp[i+1];
 		if(x1-x0 < 1e-4f) continue;
 		float xm=(x0+x1)*0.5f;
+
+		/* Find the opening whose bounding rect this column is inside */
 		Opening *hit=NULL;
 		for(int k=0;k<nopen;k++){
 			if(xm>openings[k].x && xm<openings[k].x+openings[k].width){ hit=&openings[k]; break; }
 		}
-		float segs[2][2]; int nseg=0;
-		if(!hit){ segs[0][0]=0; segs[0][1]=H; nseg=1; }
-		else {
-			if(hit->sill>1e-4f){ segs[nseg][0]=0; segs[nseg][1]=hit->sill; nseg++; }
-			float top=opening_top_at(hit, xm);
-			if(top<H-1e-4f){ segs[nseg][0]=top; segs[nseg][1]=H; nseg++; }
+
+		if(!hit){
+			/* Solid column */
+			emit_wall_box(s,wallM,wallR,T,0,H,xm-half-(x1-x0)*0.5f,xm-half+(x1-x0)*0.5f,color,shin,castsShadow,renderable,unlit);
+			continue;
 		}
-		for(int si=0;si<nseg;si++){
-			float y0=segs[si][0], y1=segs[si][1];
-			float w=x1-x0, h=y1-y0;
-			if(w<1e-4f||h<1e-4f) continue;
-			vec3 localCenter = v3(xm - L*0.5f, y0+h*0.5f, 0);
-			Mesh box=gen_box(w,h,T);
-			mat4 M = mat4_mul(wallM, mat4_translate(localCenter));
-			scene_add_obj(s, box, M, wallR, color, shin, castsShadow, renderable, unlit);
+
+		if(hit->type==OPENING_RECT){
+			/* Simple rectangular opening: emit boxes below sill and above top */
+			float lx=xm-half, w=x1-x0;
+			if(hit->sill>1e-4f)
+				emit_wall_box(s,wallM,wallR,T,0,hit->sill,lx-w*0.5f,lx+w*0.5f,color,shin,castsShadow,renderable,unlit);
+			float top=hit->sill+hit->height;
+			if(top<H-1e-4f)
+				emit_wall_box(s,wallM,wallR,T,top,H,lx-w*0.5f,lx+w*0.5f,color,shin,castsShadow,renderable,unlit);
+			continue;
 		}
+
+		/* ARCH or CYLINDER: one column slice covers the full opening width (only 2 breakpoints per opening).
+		 * Emit 4 surrounding strips as plain boxes, then the shaped hole mesh for the opening rect. */
+		float ox=hit->x, ow=hit->width, oh=hit->height, os=hit->sill;
+		float ox_local=ox-half;
+		float ocx=ox_local+ow*0.5f;
+
+		if(ox>1e-4f)
+			emit_wall_box(s,wallM,wallR,T,0,H,-half,ox_local,color,shin,castsShadow,renderable,unlit);
+		if(ox+ow<L-1e-4f)
+			emit_wall_box(s,wallM,wallR,T,0,H,ox_local+ow,half,color,shin,castsShadow,renderable,unlit);
+		if(os>1e-4f)
+			emit_wall_box(s,wallM,wallR,T,0,os,ox_local,ox_local+ow,color,shin,castsShadow,renderable,unlit);
+		if(os+oh<H-1e-4f)
+			emit_wall_box(s,wallM,wallR,T,os+oh,H,ox_local,ox_local+ow,color,shin,castsShadow,renderable,unlit);
+
+		Mesh mesh;
+		if(hit->type==OPENING_CYLINDER)
+			mesh=gen_box_hole_cylinder(ow,oh,T,0,0,hit->cylR,32);
+		else
+			mesh=gen_box_hole_arch(ow,oh,T,16);
+		vec3 meshCenter=v3(ocx,os+oh*0.5f,0);
+		mat4 M=mat4_mul(wallM,mat4_translate(meshCenter));
+		scene_add_obj(s,mesh,M,wallR,color,shin,castsShadow,renderable,unlit);
 	}
 	free(bp);
 }

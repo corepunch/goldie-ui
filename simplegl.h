@@ -73,6 +73,8 @@ Mesh gen_cone(float rBase,float rTop,float h,int sides);
 Mesh gen_sphere(float r,int rings,int slices);
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
 Mesh gen_arch(float width,float height,float depth,float wall,int segments,float inset);
+Mesh gen_box_hole_cylinder(float w,float h,float depth,float cx,float cy,float r,int sides);
+Mesh gen_box_hole_arch(float w,float h,float depth,int sides);
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
@@ -85,6 +87,7 @@ typedef struct { char ref[32]; void *root; AttachPoint *attaches; int nattaches,
 typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } InstanceDef;
 typedef struct { mat4 transform; vec3 size; } NegativeBox;
 typedef struct { mat4 transform; float width,height,depth; } NegativeArch;
+typedef struct { mat4 transform; float radius,depth; } NegativeCylinder;
 typedef struct { vec3 start, end, color; int category; } OverlayLine;
 typedef struct { char name[32]; float height, radius; float top, neck, pelvis, feet; } CharDef;
 
@@ -100,6 +103,7 @@ typedef struct {
 	InstanceDef *instances; int ninstances,cinstances;
 	NegativeBox *negativeBoxes; int nnegativeBoxes,cnegativeBoxes;
 	NegativeArch *negativeArches; int nnegativeArches,cnegativeArches;
+	NegativeCylinder *negativeCylinders; int nnegativeCylinders,cnegativeCylinders;
 	vec3 prefabTint; int prefabTintActive;
 	int sanityIgnoreActive, sanityFloorActive, sanityCheckActive;
 	OverlayLine *overlayLines; int noverlayLines, coverlayLines;

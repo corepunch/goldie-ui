@@ -402,6 +402,181 @@ Mesh gen_arch(float width,float height,float depth,float wall,int segments,float
 	return m;
 }
 
+/* Box with a circular through-hole centered at (cx,cy) relative to the box center.
+ * Hole axis is Z (goes through the full depth). cx,cy are offsets from box center.
+ * Front/back faces are triangulated as an annulus via angular sweep from the hole center:
+ * for each arc segment, shoot rays to the box boundary and collect any box corners that
+ * fall in the angular wedge, then fan-triangulate the resulting polygon. */
+Mesh gen_box_hole_cylinder(float w, float h, float depth, float cx, float cy, float r, int sides){
+	Mesh m={0};
+	if(sides<8) sides=32;
+	float hw=w*0.5f, hh=h*0.5f, hd=depth*0.5f;
+	vec3 fN=v3(0,0,1), bN=v3(0,0,-1);
+
+	vec3 *aF=malloc(sizeof(vec3)*(size_t)sides);
+	vec3 *aB=malloc(sizeof(vec3)*(size_t)sides);
+	vec3 *aN=malloc(sizeof(vec3)*(size_t)sides);
+	for(int i=0;i<sides;i++){
+		float a=2.0f*M_PIf*(float)i/(float)sides;
+		float ca=cosf(a), sa=sinf(a);
+		aF[i]=v3(cx+ca*r, cy+sa*r,  hd);
+		aB[i]=v3(cx+ca*r, cy+sa*r, -hd);
+		aN[i]=v3(ca, sa, 0.0f);
+	}
+
+	/* Front (+Z) and back (-Z) annular faces */
+	for(int face=0;face<2;face++){
+		float fz=(face==0)?hd:-hd;
+		vec3 fn=(face==0)?fN:bN;
+		vec3 bTL=v3(-hw, hh,fz), bTR=v3( hw, hh,fz);
+		vec3 bBL=v3(-hw,-hh,fz), bBR=v3( hw,-hh,fz);
+		vec3 cpts[4]={bTL,bTR,bBR,bBL};
+		float cangs[4]={
+			atan2f( hh-cy,-hw-cx), atan2f( hh-cy, hw-cx),
+			atan2f(-hh-cy, hw-cx), atan2f(-hh-cy,-hw-cx)
+		};
+
+		for(int i=0;i<sides;i++){
+			int j=(i+1)%sides;
+			vec3 p0=(face==0)?aF[i]:aB[i];
+			vec3 p1=(face==0)?aF[j]:aB[j];
+			float a0=2.0f*M_PIf*(float)i/(float)sides;
+			float a1=2.0f*M_PIf*(float)j/(float)sides;
+			float ca0=cosf(a0), sa0=sinf(a0);
+			float ca1=cosf(a1), sa1=sinf(a1);
+
+			/* Ray from hole center in direction (ca,sa) to box boundary */
+			float t0=1e9f, t1=1e9f;
+			if(ca0<-1e-6f){ float t=(-hw-cx)/ca0; if(t>0&&t<t0){ float y=cy+sa0*t; if(y>=-hh&&y<=hh) t0=t; } }
+			if(ca0> 1e-6f){ float t=( hw-cx)/ca0; if(t>0&&t<t0){ float y=cy+sa0*t; if(y>=-hh&&y<=hh) t0=t; } }
+			if(sa0<-1e-6f){ float t=(-hh-cy)/sa0; if(t>0&&t<t0){ float x=cx+ca0*t; if(x>=-hw&&x<=hw) t0=t; } }
+			if(sa0> 1e-6f){ float t=( hh-cy)/sa0; if(t>0&&t<t0){ float x=cx+ca0*t; if(x>=-hw&&x<=hw) t0=t; } }
+			if(ca1<-1e-6f){ float t=(-hw-cx)/ca1; if(t>0&&t<t1){ float y=cy+sa1*t; if(y>=-hh&&y<=hh) t1=t; } }
+			if(ca1> 1e-6f){ float t=( hw-cx)/ca1; if(t>0&&t<t1){ float y=cy+sa1*t; if(y>=-hh&&y<=hh) t1=t; } }
+			if(sa1<-1e-6f){ float t=(-hh-cy)/sa1; if(t>0&&t<t1){ float x=cx+ca1*t; if(x>=-hw&&x<=hw) t1=t; } }
+			if(sa1> 1e-6f){ float t=( hh-cy)/sa1; if(t>0&&t<t1){ float x=cx+ca1*t; if(x>=-hw&&x<=hw) t1=t; } }
+
+			vec3 b0=v3(cx+ca0*t0, cy+sa0*t0, fz);
+			vec3 b1=v3(cx+ca1*t1, cy+sa1*t1, fz);
+
+			/* Collect box corners falling in the angular sector [a0, a1] */
+			float angStart=atan2f(sa0,ca0), angEnd=atan2f(sa1,ca1);
+			while(angEnd<angStart) angEnd+=2.0f*M_PIf;
+			vec3 corners[4]; int ncorners=0;
+			for(int k=0;k<4;k++){
+				float a=cangs[k]; while(a<angStart) a+=2.0f*M_PIf;
+				if(a<angEnd) corners[ncorners++]=cpts[k];
+			}
+			/* Sort by angle (insertion sort, at most 4 items) */
+			for(int a=1;a<ncorners;a++){
+				vec3 kv=corners[a]; float ka=atan2f(kv.y-cy,kv.x-cx); while(ka<angStart) ka+=2.0f*M_PIf;
+				int b=a-1;
+				while(b>=0){
+					float ba=atan2f(corners[b].y-cy,corners[b].x-cx); while(ba<angStart) ba+=2.0f*M_PIf;
+					if(ba<=ka) break;
+					corners[b+1]=corners[b]; b--;
+				}
+				corners[b+1]=kv;
+			}
+
+			/* Fan polygon: [p0, b0, corners..., b1, p1] */
+			vec3 chain[8]; int nc=0;
+			chain[nc++]=p0; chain[nc++]=b0;
+			for(int k=0;k<ncorners;k++) chain[nc++]=corners[k];
+			chain[nc++]=b1; chain[nc++]=p1;
+			for(int k=1;k+1<nc;k++){
+				int ia=mesh_add_vert(&m,chain[0],fn);
+				int ib,ic;
+				if(face==0){ ib=mesh_add_vert(&m,chain[k],fn);   ic=mesh_add_vert(&m,chain[k+1],fn); }
+				else        { ib=mesh_add_vert(&m,chain[k+1],fn); ic=mesh_add_vert(&m,chain[k],fn);   }
+				mesh_add_tri(&m,ia,ib,ic);
+			}
+		}
+	}
+
+	/* Cylindrical tunnel (inward normals) */
+	for(int i=0;i<sides;i++){
+		int j=(i+1)%sides;
+		vec3 inN0=vscale(aN[i],-1.0f), inN1=vscale(aN[j],-1.0f);
+		add_quad_n4(&m, aF[i],inN0, aF[j],inN1, aB[j],inN1, aB[i],inN0);
+	}
+
+	/* 4 outer box side walls */
+	add_quad(&m, v3(-hw,-hh,-hd), v3( hw,-hh,-hd), v3( hw,-hh, hd), v3(-hw,-hh, hd), v3(0,-1,0));
+	add_quad(&m, v3( hw,-hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3( hw,-hh, hd), v3(1,0,0));
+	add_quad(&m, v3( hw, hh,-hd), v3(-hw, hh,-hd), v3(-hw, hh, hd), v3( hw, hh, hd), v3(0,1,0));
+	add_quad(&m, v3(-hw, hh,-hd), v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3(-hw, hh, hd), v3(-1,0,0));
+
+	free(aF); free(aB); free(aN);
+	return m;
+}
+
+/* Box with a roman-arch through-hole: hole axis is Z (through the full depth).
+ * Arch radius = w/2 (semicircle sits on rectangular stem). Arch opening spans full width
+ * and full height of the box — the only solid face region is the lunette above the arc.
+ * Front/back lunettes are fan-triangulated from the top-left corner. */
+Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
+	Mesh m={0};
+	if(sides<8) sides=16;
+	float hw=w*0.5f, hh=h*0.5f, hd=depth*0.5f;
+	float archR=hw;
+	float springY=hh-archR; /* arc center Y relative to box center */
+	vec3 fN=v3(0,0,1), bN=v3(0,0,-1);
+
+	/* Arc sample points: angle PI→0 (left to right), sides+1 points */
+	vec3 *aF=malloc(sizeof(vec3)*(size_t)(sides+1));
+	vec3 *aB=malloc(sizeof(vec3)*(size_t)(sides+1));
+	vec3 *aN=malloc(sizeof(vec3)*(size_t)(sides+1));
+	for(int i=0;i<=sides;i++){
+		float a=M_PIf-(float)i/(float)sides*M_PIf;
+		float ca=cosf(a), sa=sinf(a);
+		aF[i]=v3(ca*archR, springY+sa*archR,  hd);
+		aB[i]=v3(ca*archR, springY+sa*archR, -hd);
+		aN[i]=v3(ca, sa, 0.0f);
+	}
+
+	/* Front (+Z) and back (-Z) lunette faces: polygon [TL, TR, arc[0..sides]]
+	 * fan-triangulated from TL. */
+	for(int face=0;face<2;face++){
+		float fz=(face==0)?hd:-hd;
+		vec3 fn=(face==0)?fN:bN;
+		vec3 *arc=(face==0)?aF:aB;
+		vec3 TL=v3(-hw,hh,fz), TR=v3(hw,hh,fz);
+		int iTL=mesh_add_vert(&m,TL,fn), iTR=mesh_add_vert(&m,TR,fn);
+		int iprev=mesh_add_vert(&m,arc[0],fn);
+		if(face==0) mesh_add_tri(&m,iTL,iTR,iprev);
+		else         mesh_add_tri(&m,iTL,iprev,iTR);
+		for(int i=0;i<sides;i++){
+			int inext=mesh_add_vert(&m,arc[i+1],fn);
+			if(face==0) mesh_add_tri(&m,iTL,iprev,inext);
+			else         mesh_add_tri(&m,iTL,inext,iprev);
+			iprev=inext;
+		}
+	}
+
+	/* Arch tunnel surface (inward normals) */
+	for(int i=0;i<sides;i++){
+		vec3 inN0=vscale(aN[i],-1.0f), inN1=vscale(aN[i+1],-1.0f);
+		add_quad_n4(&m, aF[i],inN0, aF[i+1],inN1, aB[i+1],inN1, aB[i],inN0);
+	}
+
+	/* Vertical tunnel walls at x=±hw from bottom to spring line (inward-facing) */
+	add_quad(&m, v3(-hw,-hh,-hd), v3(-hw,springY,-hd), v3(-hw,springY, hd), v3(-hw,-hh, hd), v3( 1,0,0));
+	add_quad(&m, v3( hw,-hh, hd), v3( hw,springY, hd), v3( hw,springY,-hd), v3( hw,-hh,-hd), v3(-1,0,0));
+
+	/* Tunnel floor (inward +Y) */
+	add_quad(&m, v3(-hw,-hh, hd), v3( hw,-hh, hd), v3( hw,-hh,-hd), v3(-hw,-hh,-hd), v3(0,1,0));
+
+	/* Outer side walls */
+	add_quad(&m, v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3(-hw, hh, hd), v3(-hw, hh,-hd), v3(-1,0,0));
+	add_quad(&m, v3( hw,-hh, hd), v3( hw,-hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3( 1,0,0));
+	add_quad(&m, v3(-hw, hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3(-hw, hh, hd), v3(0, 1,0));
+	add_quad(&m, v3( hw,-hh,-hd), v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3( hw,-hh, hd), v3(0,-1,0));
+
+	free(aF); free(aB); free(aN);
+	return m;
+}
+
 /* ---------------------------------------------------------- modifiers ------ */
 
 static void mesh_find_bounds(Mesh *m, char axis, float *minV, float *maxV){
