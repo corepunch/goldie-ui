@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- workshop_cabinet: footprint 1.20x0.54, baseline y=0, front faces +Z.
+     Two drawers above an open storage shelf; top surface at y=1.15. -->
+<prefab>
+  <attach name="top_surface" pos="0 1.15 0"/>
+  <attach name="shelf_lower" pos="0 0.10 0.04"/>
+  <box pos="0 0.05 0" size="1.20 0.10 0.54" material="dark_wood"/>
+  <box pos="0 1.11 0" size="1.20 0.08 0.54" material="wood"/>
+  <box pos="-0.56 0.58 0" size="0.08 1.06 0.54" material="wood"/>
+  <box pos="0.56 0.58 0" size="0.08 1.06 0.54" material="wood"/>
+  <box pos="0 0.56 -0.25" size="1.04 1.00 0.04" material="dark_wood"/>
+  <box pos="0 0.40 0" size="1.04 0.06 0.46" material="wood"/>
+  <box pos="0 0.92 0.20" size="1.04 0.34 0.08" material="dark_wood"/>
+  <box pos="-0.27 0.92 0.27" size="0.48 0.26 0.05" material="wood"/>
+  <box pos="0.27 0.92 0.27" size="0.48 0.26 0.05" material="wood"/>
+  <sphere pos="-0.27 0.92 0.32" radius="0.035" material="brass"/>
+  <sphere pos="0.27 0.92 0.32" radius="0.035" material="brass"/>
+</prefab>

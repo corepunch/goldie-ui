@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- sawdust_patch: footprint 1.20x0.80, baseline y=0, no natural front. -->
+<prefab>
+  <box pos="-0.42 0.012 -0.22" rot="0 18 0" size="0.18 0.024 0.025" color="0.70 0.50 0.27" shininess="3"/>
+  <box pos="-0.18 0.011 -0.28" rot="0 -27 0" size="0.14 0.022 0.022" color="0.62 0.43 0.22" shininess="3"/>
+  <box pos="0.08 0.013 -0.26" rot="0 38 0" size="0.22 0.026 0.024" color="0.68 0.47 0.24" shininess="3"/>
+  <box pos="0.38 0.011 -0.18" rot="0 -12 0" size="0.16 0.022 0.020" color="0.58 0.38 0.18" shininess="3"/>
+  <box pos="-0.50 0.010 0.05" rot="0 -42 0" size="0.13 0.020 0.022" color="0.58 0.38 0.18" shininess="3"/>
+  <box pos="-0.25 0.012 0.10" rot="0 9 0" size="0.24 0.024 0.024" color="0.70 0.50 0.27" shininess="3"/>
+  <box pos="0.05 0.010 0.02" rot="0 -18 0" size="0.15 0.020 0.020" color="0.62 0.43 0.22" shininess="3"/>
+  <box pos="0.30 0.013 0.12" rot="0 31 0" size="0.21 0.026 0.025" color="0.68 0.47 0.24" shininess="3"/>
+  <box pos="0.50 0.011 0.25" rot="0 -36 0" size="0.14 0.022 0.020" color="0.58 0.38 0.18" shininess="3"/>
+  <box pos="-0.36 0.011 0.30" rot="0 24 0" size="0.17 0.022 0.022" color="0.62 0.43 0.22" shininess="3"/>
+  <box pos="-0.05 0.012 0.31" rot="0 -8 0" size="0.20 0.024 0.024" color="0.70 0.50 0.27" shininess="3"/>
+  <torus pos="0.22 0.022 -0.05" majorRadius="0.045" minorRadius="0.007" color="0.70 0.50 0.27" shininess="3"/>
+  <torus pos="-0.12 0.020 0.18" majorRadius="0.035" minorRadius="0.006" color="0.62 0.43 0.22" shininess="3"/>
+</prefab>

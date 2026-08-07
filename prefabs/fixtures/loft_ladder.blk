@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- loft_ladder: footprint 0.84x0.18, baseline y=0, front faces +Z.
+     Initial state is extended toward the loft with a rusted wall-side winch. -->
+<prefab>
+  <box pos="-0.30 1.70 0" size="0.10 3.40 0.14" material="wood"/>
+  <box pos="0.30 1.70 0" size="0.10 3.40 0.14" material="wood"/>
+  <box pos="0 0.30 0.01" size="0.70 0.07 0.14" material="wood">
+    <array count="8" translation="0 0.40 0"/>
+  </box>
+  <cylinder pos="-0.42 0.40 0.02" rot="90 0 0" radius="0.18" height="0.10" material="iron"/>
+  <torus pos="-0.42 0.40 0.09" rot="90 0 0" majorRadius="0.12" minorRadius="0.025" material="brass"/>
+  <cylinder pos="-0.42 0.40 0.18" rot="90 0 0" radius="0.035" height="0.24" material="iron"/>
+  <box pos="-0.42 0.24 0.30" size="0.05 0.34 0.05" material="iron"/>
+  <sphere pos="-0.42 0.07 0.30" radius="0.07" material="wood"/>
+  <cylinder pos="0 3.43 0" rot="90 0 0" radius="0.11" height="0.20" material="iron"/>
+</prefab>

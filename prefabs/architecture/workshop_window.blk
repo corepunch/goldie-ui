@@ -10,4 +10,8 @@
   <box pos="0 0.1175 0.06" size="0.06 1.185 0.05" material="dark_wood"/>
   <box pos="-0.42 0.0475 0.06" size="0.04 1.045 0.05" material="dark_wood"/>
   <box pos="0.42 0.0475 0.06" size="0.04 1.045 0.05" material="dark_wood"/>
+  <torus pos="0 0.30 0.075" rot="90 0 0" majorRadius="0.20" minorRadius="0.025" material="brass"/>
+  <box pos="0 0.30 0.075" size="0.38 0.025 0.025" material="brass"/>
+  <box pos="0 0.30 0.075" rot="0 0 45" size="0.025 0.38 0.025" material="brass"/>
+  <box pos="0 0.30 0.075" rot="0 0 -45" size="0.025 0.38 0.025" material="brass"/>
 </prefab>

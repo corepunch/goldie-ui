@@ -1,6 +1,6 @@
 ---
 name: populate-simplegl-scenes
-description: Create, populate, edit, compose, or validate SimpleGL XML scenes and prefab XML files. Use for room layout, walls and openings, window or door inserts, furniture placement, materials, lights, cameras, groups, primitive selection, transforms, prefab authoring, and diagnosing misplaced, floating, intersecting, incorrectly oriented, or incorrectly scaled scene objects.
+description: Implement, populate, edit, compose, or validate SimpleGL XML scenes and prefab XML files from an approved visual room design or direct scene request. Use for room layout, walls and openings, window or door inserts, furniture placement, set dressing, materials, lights, cameras, groups, primitive selection, transforms, prefab authoring, design-coverage audits, and diagnosing sparse, misplaced, floating, intersecting, incorrectly oriented, or incorrectly scaled scene objects.
 ---
 
 # Populate SimpleGL XML Scenes
@@ -15,18 +15,29 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 
 ## Workflow
 
-1. Inspect the target scene, referenced prefabs, and existing materials before editing.
-2. Establish the room coordinate system, floor height, wall centers, and local axes.
-3. Create the structural shell first: floor, walls, ceiling or roof, openings, cameras, and lights. An interior room is enclosed unless the design explicitly calls for an open or roofless space.
-4. Place related geometry in a shared `<group>` coordinate frame. Never duplicate a rotated parent's world-space transform by hand when a group can express it.
-5. Populate large furniture before small decoration. Reuse a prefab when an object appears more than once or has a natural front direction.
-6. Keep all naturally grounded objects at the documented prefab baseline. Calculate primitive centers from half-height; do not guess vertical positions.
-7. Audit every visible contact: joined assembly parts terminate cleanly against their supports, while unrelated objects retain deliberate negative space without accidental overlap or tangency.
-8. Validate XML, build the project, and run the tests.
-9. Load the scene through the CLI and check its declared cameras.
-10. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. `-d 24` hides lamp and character editor overlays. Screenshot review complements, but does not replace, CLI validation.
-11. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
-12. Correct every invariant violation found through coordinate calculations, XML validation, scene loading, screenshot review, or tests.
+1. Locate the approved visual room design and its canonical source brief for story-driven or reference-driven work. If either is missing, use the appropriate source adapter and `$art-direct-room` before implementation. Do not derive the full environment directly from raw story objects when a design brief is required.
+2. Inspect the target scene, referenced prefabs, existing materials, brief inventory, state variants, priorities, and camera coverage matrix before editing.
+3. Establish the room coordinate system, floor height, wall centers, local axes, spatial zones, circulation and story-action clearances.
+4. Create the structural shell first: floor, walls, ceiling or roof, openings, architectural articulation, cameras, and lights. An interior room is enclosed unless the design explicitly calls for an open or roofless space.
+5. Build hero furniture and large silhouettes before storage systems, prop clusters and accents. Reuse a prefab when an object appears more than once or has a natural front direction.
+6. Place related geometry in a shared `<group>` coordinate frame. Never duplicate a rotated parent's world-space transform by hand when a group can express it.
+7. Keep all naturally grounded objects at the documented prefab baseline. Calculate primitive centers from half-height; do not guess vertical positions.
+8. Populate every density pass named by the visual design while preserving its intentional rest areas and text zones. Do not use raw object count as proof that a room is sufficiently authored.
+9. Audit every visible contact: joined assembly parts terminate cleanly against their supports, while unrelated objects retain deliberate negative space without accidental overlap or tangency.
+10. Audit coverage: every `CANON` element and required initial state is represented, every hero/secondary design element reads in at least one intended camera, and any deliberate omission is documented.
+11. Validate XML, build the project, and run the tests.
+12. Load the scene through the CLI and check its declared cameras.
+13. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. `-d 24` hides lamp and character editor overlays. Screenshot review complements, but does not replace, CLI validation.
+14. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
+15. Correct every invariant violation found through brief coverage, coordinate calculations, XML validation, scene loading, screenshot review, or tests.
+
+## Brief handoff
+
+- Treat the canonical source brief as factual authority for names, relationships, interactions, scale language and required states.
+- Treat the visual room design as authority for architecture, noncanonical furnishings, density, hierarchy, lighting, zones and camera intent.
+- Preserve the design classification of `CANON`, `REFERENCE`, `INFERRED` and `ATMOSPHERE`; noninteractive visual dressing does not need a game-parser object.
+- Implement the approved initial state unless the request names another state. Keep future state geometry feasible and document what remains unimplemented.
+- When a current scene conflicts with the briefs, correct the scene or record a deliberate renderer limitation. Do not silently weaken the brief to match existing assets.
 
 Declare scene-wide ambient light and background only as attributes on the root
 element: `<scene ambient="r g b" background="preset-or-rgb">`. Never emit
@@ -123,4 +134,4 @@ written as ignored child elements instead of root attributes.
 
 ## Completion standard
 
-Do not report a scene as complete until its XML validates, the project builds, relevant tests pass, and the scene loads through the CLI. For an interior, also verify that the shell includes its intended ceiling or roof, visible practicals own aligned prefab-local lights, emitter geometry is unlit and shadow-free, and every story camera has a readable focal subject with deliberate cast shadows. Report any limitation that CLI validation cannot establish.
+Do not report a scene as complete until its source/design coverage is audited, its XML validates, the project builds, relevant tests pass, and the scene loads through the CLI. For an interior, also verify that every density pass in the approved design is represented, the shell includes its intended ceiling or roof, visible practicals own aligned prefab-local lights, emitter geometry is unlit and shadow-free, and every story camera has a readable focal subject with deliberate cast shadows. Report unimplemented state variants and any limitation that CLI validation cannot establish.
