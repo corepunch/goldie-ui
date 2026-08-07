@@ -79,13 +79,19 @@ static void add_quad(Mesh *m, vec3 a,vec3 b,vec3 c,vec3 d, vec3 n){
         ic=mesh_add_vert(m,c,n), id=mesh_add_vert(m,d,n);
     mesh_add_tri(m,ia,ic,ib); mesh_add_tri(m,ia,id,ic);
 }
-static void add_quad_n4(Mesh *m, vec3 a,vec3 na, vec3 b,vec3 nb, vec3 c,vec3 nc, vec3 d,vec3 nd){
-    int ia=mesh_add_vert(m,a,na), ib=mesh_add_vert(m,b,nb),
-        ic=mesh_add_vert(m,c,nc), id=mesh_add_vert(m,d,nd);
-    mesh_add_tri(m,ia,ic,ib); mesh_add_tri(m,ia,id,ic);
+static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float depth,int caps,int sides,int flip,int smooth);
+
+static vec3* mirror_profile_x(vec3 *pts,int n){
+	vec3 *r=malloc(sizeof(vec3)*(size_t)n);
+	for(int i=0;i<n;i++) r[i]=v3(-pts[n-1-i].x,pts[n-1-i].y,0);
+	return r;
 }
 
-static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float depth,int caps,int flip,int smooth);
+static vec3* mirror_profile_y(vec3 *pts,int n){
+	vec3 *r=malloc(sizeof(vec3)*(size_t)n);
+	for(int i=0;i<n;i++) r[i]=v3(pts[n-1-i].x,-pts[n-1-i].y,0);
+	return r;
+}
 
 static void mesh_append(Mesh *dst, Mesh src){
 	int base=dst->nverts;
@@ -103,7 +109,7 @@ Mesh gen_box(float sx,float sy,float sz){
 	Mesh m={0};
 	float x=sx*0.5f,y=sy*0.5f;
 	vec3 p[4]={v3(-x,-y,0),v3(x,-y,0),v3(x,y,0),v3(-x,y,0)};
-	extrude_polygon(&m,p,NULL,4,sz,1,0,0);
+	extrude_polygon(&m,p,NULL,4,sz,1,1,0,0);
 	return m;
 }
 
@@ -165,35 +171,42 @@ Mesh gen_cylinder(float r,float h,int sides){
 		float a=(float)i/(float)sides*2.0f*M_PIf;
 		p[i]=v3(cosf(a)*r,sinf(a)*r,0);
 	}
-	extrude_polygon(&m,p,NULL,sides,h,1,0,1);
+	extrude_polygon(&m,p,NULL,sides,h,1,1,0,1);
 	mesh_transform(&m,mat4_rot_x(-90.0f),mat4_rot_x(-90.0f));
 	free(p);
 	return m;
 }
 Mesh gen_cylinder_tube(float r,float h,float wall,int sides){
 	Mesh m={0};
-	if(sides<3) sides=24;
+	if(sides<8) sides=24;
 	if(wall<=1e-6f || wall>=r-1e-6f) return gen_cylinder(r,h,sides);
-	float inner=r-wall, hy=h*0.5f;
+	sides=(sides+3)/4*4;
+	int quarter=sides/4,n=quarter*2+2;
+	float inner=r-wall;
+	vec3 *outer=malloc(sizeof(vec3)*(size_t)sides);
+	vec3 *innerPts=malloc(sizeof(vec3)*(size_t)sides);
 	for(int i=0;i<sides;i++){
-		float a0=(float)i/sides*2.0f*M_PIf, a1=(float)(i+1)/sides*2.0f*M_PIf;
-		vec3 o0b=v3(cosf(a0)*r,-hy,sinf(a0)*r), o1b=v3(cosf(a1)*r,-hy,sinf(a1)*r);
-		vec3 o0t=v3(cosf(a0)*r, hy,sinf(a0)*r), o1t=v3(cosf(a1)*r, hy,sinf(a1)*r);
-		vec3 i0b=v3(cosf(a0)*inner,-hy,sinf(a0)*inner), i1b=v3(cosf(a1)*inner,-hy,sinf(a1)*inner);
-		vec3 i0t=v3(cosf(a0)*inner, hy,sinf(a0)*inner), i1t=v3(cosf(a1)*inner, hy,sinf(a1)*inner);
-		vec3 on0=vnorm(v3(cosf(a0),0,sinf(a0))), on1=vnorm(v3(cosf(a1),0,sinf(a1)));
-		vec3 in0=vscale(on0,-1.0f), in1=vscale(on1,-1.0f);
-		int io0b=mesh_add_vert(&m,o0b,on0), io1b=mesh_add_vert(&m,o1b,on1);
-		int io0t=mesh_add_vert(&m,o0t,on0), io1t=mesh_add_vert(&m,o1t,on1);
-		mesh_add_tri(&m,io0b,io1t,io1b);
-		mesh_add_tri(&m,io0b,io0t,io1t);
-		int ii0b=mesh_add_vert(&m,i0b,in0), ii1b=mesh_add_vert(&m,i1b,in1);
-		int ii0t=mesh_add_vert(&m,i0t,in0), ii1t=mesh_add_vert(&m,i1t,in1);
-		mesh_add_tri(&m,ii0b,ii1b,ii1t);
-		mesh_add_tri(&m,ii0b,ii1t,ii0t);
-		add_quad(&m,o0t,o1t,i1t,i0t,v3(0,1,0));
-		add_quad(&m,o1b,o0b,i0b,i1b,v3(0,-1,0));
+		float a=(float)i/(float)sides*2.0f*M_PIf;
+		outer[i]=v3(cosf(a)*r,sinf(a)*r,0);
+		innerPts[i]=v3(cosf(a)*inner,sinf(a)*inner,0);
 	}
+	vec3 *q=malloc(sizeof(vec3)*(size_t)n);
+	for(int i=0;i<=quarter;i++){
+		float a=(float)i/(float)quarter*M_PIf*0.5f;
+		q[i]=v3(cosf(a)*r,sinf(a)*r,0);
+		q[quarter+1+i]=v3(sinf(a)*inner,cosf(a)*inner,0);
+	}
+	vec3 *qx=mirror_profile_x(q,n);
+	vec3 *qy=mirror_profile_y(q,n);
+	vec3 *qxy=mirror_profile_y(qx,n);
+	extrude_polygon(&m,q,NULL,n,h,1,0,0,0);
+	extrude_polygon(&m,qx,NULL,n,h,1,0,0,0);
+	extrude_polygon(&m,qy,NULL,n,h,1,0,0,0);
+	extrude_polygon(&m,qxy,NULL,n,h,1,0,0,0);
+	extrude_polygon(&m,outer,NULL,sides,h,0,1,0,1);
+	extrude_polygon(&m,innerPts,NULL,sides,h,0,1,1,1);
+	mesh_transform(&m,mat4_rot_x(-90.0f),mat4_rot_x(-90.0f));
+	free(outer); free(innerPts); free(q); free(qx); free(qy); free(qxy);
 	return m;
 }
 Mesh gen_prism(float r,float h,int sides){ return gen_cylinder_like(sides<3?6:sides,r,r,h,0); }
@@ -238,289 +251,117 @@ Mesh gen_torus(float R,float r,int majorSeg,int minorSeg){
 	return m;
 }
 
-/* Roman arch: semicircle (radius=width/2) on rectangular stem, centered at origin.
- * wall>0: hollow frame.  inset: recess front face in +Z. */
+static vec3* arch_profile(float r,float spring,float bottom,float splitX,float splitY,int segments,int *out_n){
+	int half=segments/2,n=0;
+	vec3 *p=malloc(sizeof(vec3)*(size_t)(segments+10));
+	p[n++]=v3(-r,bottom,0);
+	if(splitX>1e-6f && splitX<r-1e-6f) p[n++]=v3(-splitX,bottom,0);
+	if(splitX>1e-6f && splitX<r-1e-6f) p[n++]=v3(splitX,bottom,0);
+	p[n++]=v3(r,bottom,0);
+	if(splitY>bottom+1e-6f && splitY<spring-1e-6f) p[n++]=v3(r,splitY,0);
+	p[n++]=v3(r,spring,0);
+	for(int i=1;i<=half;i++){
+		float a=(float)i/(float)half*M_PIf*0.5f;
+		p[n++]=v3(cosf(a)*r,spring+sinf(a)*r,0);
+	}
+	for(int i=half-1;i>=0;i--){
+		float a=(float)i/(float)half*M_PIf*0.5f;
+		p[n++]=v3(-cosf(a)*r,spring+sinf(a)*r,0);
+	}
+	if(splitY>bottom+1e-6f && splitY<spring-1e-6f) p[n++]=v3(-r,splitY,0);
+	*out_n=n;
+	return p;
+}
+
 Mesh gen_arch(float width,float height,float depth,float wall,int segments,float inset){
 	Mesh m={0};
 	if(segments<6) segments=16;
-	float halfW=width*0.5f, halfH=height*0.5f;
-	float outerR=halfW;
-	float spring=halfH-outerR;  /* Y of semicircle center */
-	float stemH=height-outerR;  /* height of rectangular stem below spring */
-	float halfD=depth*0.5f;
-	if(outerR<=1e-6f || stemH<1e-6f || depth<=1e-6f) return gen_box(width,height,depth);
-
-	int isFrame = (wall>1e-6f && wall<outerR-1e-6f);
-	float innerR = isFrame ? (outerR-wall) : 0.0f;
-
-	if(inset<0.0f) inset=0.0f;
+	if(segments%2) segments++;
+	float outer=width*0.5f,halfH=height*0.5f,bottom=-halfH;
+	float spring=halfH-outer,stem=height-outer;
+	if(outer<=1e-6f || stem<1e-6f || depth<=1e-6f) return gen_box(width,height,depth);
+	if(inset<0) inset=0;
 	if(inset>depth-1e-4f) inset=depth-1e-4f;
-	float frontZ = halfD - inset;
-	float backZ  = -halfD;
-
-	/* Pre-compute arc sample positions (segments+1 points, angle PI..0) */
-	int n=segments;
-	vec3 *oF = malloc(sizeof(vec3)*(size_t)(n+1)); /* outer arc, front face */
-	vec3 *oB = malloc(sizeof(vec3)*(size_t)(n+1)); /* outer arc, back face  */
-	vec3 *iF = malloc(sizeof(vec3)*(size_t)(n+1)); /* inner arc, front face (frame only) */
-	vec3 *iB = malloc(sizeof(vec3)*(size_t)(n+1)); /* inner arc, back face  (frame only) */
-	vec3 *oN = malloc(sizeof(vec3)*(size_t)(n+1)); /* outward radial normals */
-	vec3 *iN = malloc(sizeof(vec3)*(size_t)(n+1)); /* inward radial normals  */
-	for(int i=0;i<=n;i++){
-		float a = M_PIf - (float)i/(float)n * M_PIf; /* PI→0, left to right */
-		float ca=cosf(a), sa=sinf(a);
-		oF[i] = v3(ca*outerR, spring+sa*outerR, frontZ);
-		oB[i] = v3(ca*outerR, spring+sa*outerR, backZ);
-		oN[i] = v3(ca, sa, 0.0f);
-		if(isFrame){
-			iF[i] = v3(ca*innerR, spring+sa*innerR, frontZ);
-			iB[i] = v3(ca*innerR, spring+sa*innerR, backZ);
-			iN[i] = v3(-ca, -sa, 0.0f);
-		}
-	}
-
-	/* add_quad(a,b,c,d,n): tris (a,c,b),(a,d,c). */
-	vec3 fN=v3(0,0,1), bN=v3(0,0,-1);
-	float botY=-halfH;
-
-	if(!isFrame){
-		/* ---- SOLID ARCH ---- */
-
-		for(int i=0;i<n;i++)
-			add_quad_n4(&m, oB[i],oN[i], oB[i+1],oN[i+1], oF[i+1],oN[i+1], oF[i],oN[i]);
-
-		/* front face (+Z): triangle fan from bl */
-		{
-			vec3 bl=v3(-halfW,botY,frontZ), br=v3(halfW,botY,frontZ);
-			int ibl=mesh_add_vert(&m,bl,fN);
-			int ibr=mesh_add_vert(&m,br,fN);
-			int iprev=mesh_add_vert(&m,oF[n],fN);
-			mesh_add_tri(&m, ibl, ibr, iprev);
-			for(int i=n-1;i>=0;i--){
-				int iv=mesh_add_vert(&m,oF[i],fN);
-				mesh_add_tri(&m, ibl, iprev, iv);
-				iprev=iv;
-			}
-		}
-
-		/* back face (-Z): triangle fan from bl */
-		{
-			vec3 bl=v3(-halfW,botY,backZ), br=v3(halfW,botY,backZ);
-			int ibl=mesh_add_vert(&m,bl,bN);
-			int ibr=mesh_add_vert(&m,br,bN);
-			int iprev=mesh_add_vert(&m,oB[0],bN);
-			for(int i=0;i<n;i++){
-				int iv=mesh_add_vert(&m,oB[i+1],bN);
-				mesh_add_tri(&m, ibl, iprev, iv);
-				iprev=iv;
-			}
-			mesh_add_tri(&m, ibl, iprev, ibr);
-		}
-
-		/* left side (-X) */
-		{
-			vec3 lbF=v3(-halfW,botY,frontZ), lbB=v3(-halfW,botY,backZ);
-			add_quad(&m, lbF, lbB, oB[0], oF[0], v3(-1,0,0));
-		}
-		/* right side (+X) */
-		{
-			vec3 rbF=v3(halfW,botY,frontZ), rbB=v3(halfW,botY,backZ);
-			add_quad(&m, rbB, rbF, oF[n], oB[n], v3(1,0,0));
-		}
-		/* bottom (-Y) */
-		{
-			vec3 blF=v3(-halfW,botY,frontZ), brF=v3(halfW,botY,frontZ);
-			vec3 blB=v3(-halfW,botY,backZ),  brB=v3(halfW,botY,backZ);
-			add_quad(&m, blF, brF, brB, blB, v3(0,-1,0));
-		}
-
+	float extrudedDepth=depth-inset;
+	int frame=wall>1e-6f && wall<outer-1e-6f;
+	if(!frame){
+		int n;
+		vec3 *profile=arch_profile(outer,spring,bottom,0,bottom,segments,&n);
+		extrude_polygon(&m,profile,NULL,n,extrudedDepth,1,1,0,0);
+		free(profile);
 	} else {
-		/* ---- FRAME ARCH ---- */
-
-		for(int i=0;i<n;i++)
-			add_quad_n4(&m, oB[i],oN[i], oB[i+1],oN[i+1], oF[i+1],oN[i+1], oF[i],oN[i]);
-		for(int i=0;i<n;i++)
-			add_quad_n4(&m, iB[i+1],iN[i+1], iB[i],iN[i], iF[i],iN[i], iF[i+1],iN[i+1]);
-		for(int i=0;i<n;i++)
-			add_quad(&m, oF[i], oF[i+1], iF[i+1], iF[i], fN);
-		for(int i=0;i<n;i++)
-			add_quad(&m, oB[i+1], oB[i], iB[i], iB[i+1], bN);
-
-		/* Arc end caps connecting outer to inner at the spring line */
-		{
-			add_quad(&m, oF[0], iF[0], iB[0], oB[0], v3(-1,0,0));
-			add_quad(&m, oB[n], iB[n], iF[n], oF[n], v3(1,0,0));
+		float inner=outer-wall,sill=bottom+wall;
+		int no,ni,half=segments/2;
+		vec3 *outerProfile=arch_profile(outer,spring,bottom,inner,sill,segments,&no);
+		vec3 *innerProfile=arch_profile(inner,spring,sill,0,sill,segments,&ni);
+		extrude_polygon(&m,outerProfile,NULL,no,extrudedDepth,0,1,0,0);
+		extrude_polygon(&m,innerProfile,NULL,ni,extrudedDepth,0,1,1,0);
+		int nq=(half+1)*2;
+		vec3 *q=malloc(sizeof(vec3)*(size_t)nq);
+		for(int i=0;i<=half;i++){
+			float a=(float)i/(float)half*M_PIf*0.5f;
+			q[i]=v3(cosf(a)*outer,spring+sinf(a)*outer,0);
+			q[half+1+i]=v3(sinf(a)*inner,spring+cosf(a)*inner,0);
 		}
-
-		/* ---- U-shaped base: legs + sill as one sealed piece ----
-		 * Cross-section from front (U-shape):
-		 *   outerL..innerL = left leg column
-		 *   innerL..innerR = inner opening (sill top visible)
-		 *   innerR..outerR = right leg column
-		 *
-		 * Vertex naming: [l|r][O|I] = left/right outer/inner x,
-		 *   [b|s|p] = botY / sillTop / spring y,  [F|B] = front/back z.
-		 */
-		{
-			float lO=-outerR, lI=-innerR, rI=innerR, rO=outerR;
-			float bY=botY, sY=botY+wall, pY=spring;
-
-			/* front face (+Z): 5 quads matching all internal boundaries.
-			 * Bottom row split at lI, rI: [lO,lI] + [lI,rI] + [rI,rO] x [bY,sY]
-			 * Upper pillars: [lO,lI] + [rI,rO] x [sY,pY] */
-			add_quad(&m, v3(lI,bY,frontZ), v3(lO,bY,frontZ), v3(lO,sY,frontZ), v3(lI,sY,frontZ), fN);
-			add_quad(&m, v3(rI,bY,frontZ), v3(lI,bY,frontZ), v3(lI,sY,frontZ), v3(rI,sY,frontZ), fN);
-			add_quad(&m, v3(rO,bY,frontZ), v3(rI,bY,frontZ), v3(rI,sY,frontZ), v3(rO,sY,frontZ), fN);
-			add_quad(&m, v3(lI,sY,frontZ), v3(lO,sY,frontZ), v3(lO,pY,frontZ), v3(lI,pY,frontZ), fN);
-			add_quad(&m, v3(rO,sY,frontZ), v3(rI,sY,frontZ), v3(rI,pY,frontZ), v3(rO,pY,frontZ), fN);
-
-			/* back face (-Z): mirror */
-			add_quad(&m, v3(lO,bY,backZ), v3(lI,bY,backZ), v3(lI,sY,backZ), v3(lO,sY,backZ), bN);
-			add_quad(&m, v3(lI,bY,backZ), v3(rI,bY,backZ), v3(rI,sY,backZ), v3(lI,sY,backZ), bN);
-			add_quad(&m, v3(rI,bY,backZ), v3(rO,bY,backZ), v3(rO,sY,backZ), v3(rI,sY,backZ), bN);
-			add_quad(&m, v3(lO,sY,backZ), v3(lI,sY,backZ), v3(lI,pY,backZ), v3(lO,pY,backZ), bN);
-			add_quad(&m, v3(rI,sY,backZ), v3(rO,sY,backZ), v3(rO,pY,backZ), v3(rI,pY,backZ), bN);
-
-			/* outer left (-X): split at sY to match front/back decomposition */
-			add_quad(&m, v3(lO,bY,frontZ), v3(lO,bY,backZ), v3(lO,sY,backZ), v3(lO,sY,frontZ), v3(-1,0,0));
-			add_quad(&m, v3(lO,sY,frontZ), v3(lO,sY,backZ), v3(lO,pY,backZ), v3(lO,pY,frontZ), v3(-1,0,0));
-			/* outer right (+X): split at sY */
-			add_quad(&m, v3(rO,bY,backZ), v3(rO,bY,frontZ), v3(rO,sY,frontZ), v3(rO,sY,backZ), v3(1,0,0));
-			add_quad(&m, v3(rO,sY,backZ), v3(rO,sY,frontZ), v3(rO,pY,frontZ), v3(rO,pY,backZ), v3(1,0,0));
-			/* inner left (+X face at x=lI): [sY, pY] */
-			add_quad(&m, v3(lI,sY,backZ), v3(lI,sY,frontZ), v3(lI,pY,frontZ), v3(lI,pY,backZ), v3(1,0,0));
-			/* inner right (-X face at x=rI): [sY, pY] */
-			add_quad(&m, v3(rI,sY,frontZ), v3(rI,sY,backZ), v3(rI,pY,backZ), v3(rI,pY,frontZ), v3(-1,0,0));
-
-			/* bottom (-Y): split to match front/back decomposition */
-			add_quad(&m, v3(lO,bY,frontZ), v3(lI,bY,frontZ), v3(lI,bY,backZ), v3(lO,bY,backZ), v3(0,-1,0));
-			add_quad(&m, v3(lI,bY,frontZ), v3(rI,bY,frontZ), v3(rI,bY,backZ), v3(lI,bY,backZ), v3(0,-1,0));
-			add_quad(&m, v3(rI,bY,frontZ), v3(rO,bY,frontZ), v3(rO,bY,backZ), v3(rI,bY,backZ), v3(0,-1,0));
-
-			/* sill top (+Y at y=sY): only inner opening [lI, rI] */
-			add_quad(&m, v3(lI,sY,backZ), v3(rI,sY,backZ), v3(rI,sY,frontZ), v3(lI,sY,frontZ), v3(0,1,0));
-
-			/* leg tops (+Y at y=pY): pair with arc end caps */
-			add_quad(&m, v3(lO,pY,backZ), v3(lI,pY,backZ), v3(lI,pY,frontZ), v3(lO,pY,frontZ), v3(0,1,0));
-			add_quad(&m, v3(rI,pY,backZ), v3(rO,pY,backZ), v3(rO,pY,frontZ), v3(rI,pY,frontZ), v3(0,1,0));
-		}
+		vec3 *ql=mirror_profile_x(q,nq);
+		extrude_polygon(&m,q,NULL,nq,extrudedDepth,1,0,0,0);
+		extrude_polygon(&m,ql,NULL,nq,extrudedDepth,1,0,0,0);
+		vec3 sillL[4]={v3(-outer,bottom,0),v3(-inner,bottom,0),v3(-inner,sill,0),v3(-outer,sill,0)};
+		vec3 sillC[4]={v3(-inner,bottom,0),v3(inner,bottom,0),v3(inner,sill,0),v3(-inner,sill,0)};
+		vec3 sillR[4]={v3(inner,bottom,0),v3(outer,bottom,0),v3(outer,sill,0),v3(inner,sill,0)};
+		vec3 legL[4]={v3(-outer,sill,0),v3(-inner,sill,0),v3(-inner,spring,0),v3(-outer,spring,0)};
+		vec3 legR[4]={v3(inner,sill,0),v3(outer,sill,0),v3(outer,spring,0),v3(inner,spring,0)};
+		extrude_polygon(&m,sillL,NULL,4,extrudedDepth,1,0,0,0);
+		extrude_polygon(&m,sillC,NULL,4,extrudedDepth,1,0,0,0);
+		extrude_polygon(&m,sillR,NULL,4,extrudedDepth,1,0,0,0);
+		extrude_polygon(&m,legL,NULL,4,extrudedDepth,1,0,0,0);
+		extrude_polygon(&m,legR,NULL,4,extrudedDepth,1,0,0,0);
+		free(outerProfile); free(innerProfile); free(q); free(ql);
 	}
-
-	free(oF); free(oB); free(iF); free(iB); free(oN); free(iN);
+	if(inset>0) mesh_transform(&m,mat4_translate(v3(0,0,-inset*0.5f)),mat4_identity());
 	return m;
 }
 
-/* Box with a circular through-hole centered at (cx,cy) relative to the box center.
- * Hole axis is Z (goes through the full depth). cx,cy are offsets from box center.
- * Front/back faces are triangulated as an annulus via angular sweep from the hole center:
- * for each arc segment, shoot rays to the box boundary and collect any box corners that
- * fall in the angular wedge, then fan-triangulate the resulting polygon. */
-Mesh gen_box_hole_cylinder(float w, float h, float depth, float cx, float cy, float r, int sides){
+Mesh gen_box_hole_cylinder(float w,float h,float depth,float r,int sides){
 	Mesh m={0};
 	if(sides<8) sides=32;
-	float hw=w*0.5f, hh=h*0.5f, hd=depth*0.5f;
-	vec3 fN=v3(0,0,1), bN=v3(0,0,-1);
-
-	vec3 *aF=malloc(sizeof(vec3)*(size_t)sides);
-	vec3 *aB=malloc(sizeof(vec3)*(size_t)sides);
-	vec3 *aN=malloc(sizeof(vec3)*(size_t)sides);
+	sides=(sides+3)/4*4;
+	int quarter=sides/4;
+	float hw=w*0.5f,hh=h*0.5f;
+	if(r<=1e-6f || r>=hw+1e-6f || r>=hh+1e-6f) return gen_box(w,h,depth);
+	vec3 box[8]={v3(-hw,-hh,0),v3(0,-hh,0),v3(hw,-hh,0),v3(hw,0,0),
+		v3(hw,hh,0),v3(0,hh,0),v3(-hw,hh,0),v3(-hw,0,0)};
+	vec3 *circle=malloc(sizeof(vec3)*(size_t)sides);
 	for(int i=0;i<sides;i++){
-		float a=2.0f*M_PIf*(float)i/(float)sides;
-		float ca=cosf(a), sa=sinf(a);
-		aF[i]=v3(cx+ca*r, cy+sa*r,  hd);
-		aB[i]=v3(cx+ca*r, cy+sa*r, -hd);
-		aN[i]=v3(ca, sa, 0.0f);
+		float a=(float)i/(float)sides*2.0f*M_PIf;
+		circle[i]=v3(cosf(a)*r,sinf(a)*r,0);
 	}
-
-	/* Front (+Z) and back (-Z) annular faces */
-	for(int face=0;face<2;face++){
-		float fz=(face==0)?hd:-hd;
-		vec3 fn=(face==0)?fN:bN;
-		vec3 bTL=v3(-hw, hh,fz), bTR=v3( hw, hh,fz);
-		vec3 bBL=v3(-hw,-hh,fz), bBR=v3( hw,-hh,fz);
-		vec3 cpts[4]={bTL,bTR,bBR,bBL};
-		float cangs[4]={
-			atan2f( hh-cy,-hw-cx), atan2f( hh-cy, hw-cx),
-			atan2f(-hh-cy, hw-cx), atan2f(-hh-cy,-hw-cx)
-		};
-
-		for(int i=0;i<sides;i++){
-			int j=(i+1)%sides;
-			vec3 p0=(face==0)?aF[i]:aB[i];
-			vec3 p1=(face==0)?aF[j]:aB[j];
-			float a0=2.0f*M_PIf*(float)i/(float)sides;
-			float a1=2.0f*M_PIf*(float)j/(float)sides;
-			float ca0=cosf(a0), sa0=sinf(a0);
-			float ca1=cosf(a1), sa1=sinf(a1);
-
-			/* Ray from hole center in direction (ca,sa) to box boundary */
-			float t0=1e9f, t1=1e9f;
-			if(ca0<-1e-6f){ float t=(-hw-cx)/ca0; if(t>0&&t<t0){ float y=cy+sa0*t; if(y>=-hh&&y<=hh) t0=t; } }
-			if(ca0> 1e-6f){ float t=( hw-cx)/ca0; if(t>0&&t<t0){ float y=cy+sa0*t; if(y>=-hh&&y<=hh) t0=t; } }
-			if(sa0<-1e-6f){ float t=(-hh-cy)/sa0; if(t>0&&t<t0){ float x=cx+ca0*t; if(x>=-hw&&x<=hw) t0=t; } }
-			if(sa0> 1e-6f){ float t=( hh-cy)/sa0; if(t>0&&t<t0){ float x=cx+ca0*t; if(x>=-hw&&x<=hw) t0=t; } }
-			if(ca1<-1e-6f){ float t=(-hw-cx)/ca1; if(t>0&&t<t1){ float y=cy+sa1*t; if(y>=-hh&&y<=hh) t1=t; } }
-			if(ca1> 1e-6f){ float t=( hw-cx)/ca1; if(t>0&&t<t1){ float y=cy+sa1*t; if(y>=-hh&&y<=hh) t1=t; } }
-			if(sa1<-1e-6f){ float t=(-hh-cy)/sa1; if(t>0&&t<t1){ float x=cx+ca1*t; if(x>=-hw&&x<=hw) t1=t; } }
-			if(sa1> 1e-6f){ float t=( hh-cy)/sa1; if(t>0&&t<t1){ float x=cx+ca1*t; if(x>=-hw&&x<=hw) t1=t; } }
-
-			vec3 b0=v3(cx+ca0*t0, cy+sa0*t0, fz);
-			vec3 b1=v3(cx+ca1*t1, cy+sa1*t1, fz);
-
-			/* Collect box corners falling in the angular sector [a0, a1] */
-			float angStart=atan2f(sa0,ca0), angEnd=atan2f(sa1,ca1);
-			while(angEnd<angStart) angEnd+=2.0f*M_PIf;
-			vec3 corners[4]; int ncorners=0;
-			for(int k=0;k<4;k++){
-				float a=cangs[k]; while(a<angStart) a+=2.0f*M_PIf;
-				if(a<angEnd) corners[ncorners++]=cpts[k];
-			}
-			/* Sort by angle (insertion sort, at most 4 items) */
-			for(int a=1;a<ncorners;a++){
-				vec3 kv=corners[a]; float ka=atan2f(kv.y-cy,kv.x-cx); while(ka<angStart) ka+=2.0f*M_PIf;
-				int b=a-1;
-				while(b>=0){
-					float ba=atan2f(corners[b].y-cy,corners[b].x-cx); while(ba<angStart) ba+=2.0f*M_PIf;
-					if(ba<=ka) break;
-					corners[b+1]=corners[b]; b--;
-				}
-				corners[b+1]=kv;
-			}
-
-			/* Fan polygon: [p0, b0, corners..., b1, p1] */
-			vec3 chain[8]; int nc=0;
-			chain[nc++]=p0; chain[nc++]=b0;
-			for(int k=0;k<ncorners;k++) chain[nc++]=corners[k];
-			chain[nc++]=b1; chain[nc++]=p1;
-			for(int k=1;k+1<nc;k++){
-				int ia=mesh_add_vert(&m,chain[0],fn);
-				int ib,ic;
-				if(face==0){ ib=mesh_add_vert(&m,chain[k],fn);   ic=mesh_add_vert(&m,chain[k+1],fn); }
-				else        { ib=mesh_add_vert(&m,chain[k+1],fn); ic=mesh_add_vert(&m,chain[k],fn);   }
-				mesh_add_tri(&m,ia,ib,ic);
-			}
-		}
+	vec3 *q=malloc(sizeof(vec3)*(size_t)(quarter+4));
+	int n=0;
+	q[n++]=v3(r,0,0);
+	if(hw>r+1e-6f) q[n++]=v3(hw,0,0);
+	q[n++]=v3(hw,hh,0);
+	if(hh>r+1e-6f) q[n++]=v3(0,hh,0);
+	for(int i=quarter;i>0;i--){
+		float a=(float)i/(float)quarter*M_PIf*0.5f;
+		q[n++]=v3(cosf(a)*r,sinf(a)*r,0);
 	}
-
-	/* Cylindrical tunnel (inward normals) */
-	for(int i=0;i<sides;i++){
-		int j=(i+1)%sides;
-		vec3 inN0=vscale(aN[i],-1.0f), inN1=vscale(aN[j],-1.0f);
-		add_quad_n4(&m, aF[i],inN0, aF[j],inN1, aB[j],inN1, aB[i],inN0);
-	}
-
-	/* 4 outer box side walls */
-	add_quad(&m, v3(-hw,-hh,-hd), v3( hw,-hh,-hd), v3( hw,-hh, hd), v3(-hw,-hh, hd), v3(0,-1,0));
-	add_quad(&m, v3( hw,-hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3( hw,-hh, hd), v3(1,0,0));
-	add_quad(&m, v3( hw, hh,-hd), v3(-hw, hh,-hd), v3(-hw, hh, hd), v3( hw, hh, hd), v3(0,1,0));
-	add_quad(&m, v3(-hw, hh,-hd), v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3(-hw, hh, hd), v3(-1,0,0));
-
-	free(aF); free(aB); free(aN);
+	vec3 *qx=mirror_profile_x(q,n);
+	vec3 *qy=mirror_profile_y(q,n);
+	vec3 *qxy=mirror_profile_y(qx,n);
+	extrude_polygon(&m,q,NULL,n,depth,1,0,0,0);
+	extrude_polygon(&m,qx,NULL,n,depth,1,0,0,0);
+	extrude_polygon(&m,qy,NULL,n,depth,1,0,0,0);
+	extrude_polygon(&m,qxy,NULL,n,depth,1,0,0,0);
+	extrude_polygon(&m,box,NULL,8,depth,0,1,0,0);
+	extrude_polygon(&m,circle,NULL,sides,depth,0,1,1,1);
+	free(circle); free(q); free(qx); free(qy); free(qxy);
 	return m;
 }
 
 /* Extrude a 2D polygon profile (CCW from front) along Z by depth.
  * caps=1: also emit triangulated front (+Z) and back (-Z) cap faces.
+ * sides=1: emit the profile boundary walls.
  * side_normals[i]: outward normal for edge pts[i]→pts[(i+1)%n]; NULL = auto-computed.
  * flip=1: reverse all winding and normals (use for inward/tunnel surfaces). */
 static float profile_cross(vec3 a,vec3 b,vec3 c){
@@ -563,7 +404,7 @@ static void extrude_cap(Mesh *m,vec3 *pts,int n,float z,vec3 normal,int reverse)
 	free(idx);
 }
 
-static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float depth,int caps,int flip,int smooth){
+static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float depth,int caps,int sides,int flip,int smooth){
 	float hd=depth*0.5f;
 
 	if(caps){
@@ -573,7 +414,7 @@ static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float dep
 		extrude_cap(m,pts,n,-hd,bN,!flip);
 	}
 
-	for(int i=0;i<n;i++){
+	if(sides) for(int i=0;i<n;i++){
 		int j=(i+1)%n;
 		vec3 p0=pts[i], p1=pts[j];
 		vec3 sn;
@@ -600,12 +441,6 @@ static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float dep
 	}
 }
 
-static vec3* mirror_profile_x(vec3 *pts,int n){
-	vec3 *r=malloc(sizeof(vec3)*(size_t)n);
-	for(int i=0;i<n;i++) r[i]=v3(-pts[n-1-i].x,pts[n-1-i].y,0);
-	return r;
-}
-
 /* Wall lunette above a roman-arch opening, extruded along Z.
  * The opening spans the full profile width and height, so the mirrored lunette is the complete solid. */
 Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
@@ -626,8 +461,8 @@ Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
 		leftPts[1+i]=v3(ca*archR,springY+sa*archR,0);
 	}
 	vec3 *rightPts=mirror_profile_x(leftPts,nLeft);
-	extrude_polygon(&m,leftPts,NULL,nLeft,depth,1,0,0);
-	extrude_polygon(&m,rightPts,NULL,nLeft,depth,1,0,0);
+	extrude_polygon(&m,leftPts,NULL,nLeft,depth,1,1,0,0);
+	extrude_polygon(&m,rightPts,NULL,nLeft,depth,1,1,0,0);
 	free(leftPts);
 	free(rightPts);
 

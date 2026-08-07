@@ -73,7 +73,7 @@ Mesh gen_cone(float rBase,float rTop,float h,int sides);
 Mesh gen_sphere(float r,int rings,int slices);
 Mesh gen_torus(float R,float r,int majorSeg,int minorSeg);
 Mesh gen_arch(float width,float height,float depth,float wall,int segments,float inset);
-Mesh gen_box_hole_cylinder(float w,float h,float depth,float cx,float cy,float r,int sides);
+Mesh gen_box_hole_cylinder(float w,float h,float depth,float r,int sides);
 Mesh gen_box_hole_arch(float w,float h,float depth,int sides);
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;

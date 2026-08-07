@@ -1097,7 +1097,7 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 
 		Mesh mesh;
 		if(hit->type==OPENING_CYLINDER)
-			mesh=gen_box_hole_cylinder(ow,oh,T,0,0,hit->cylR,32);
+			mesh=gen_box_hole_cylinder(ow,oh,T,hit->cylR,32);
 		else
 			mesh=gen_box_hole_arch(ow,oh,T,16);
 		vec3 meshCenter=v3(ocx,os+oh*0.5f,0);

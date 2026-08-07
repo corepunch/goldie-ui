@@ -126,14 +126,37 @@ int main(void){
         mesh_free(&m);
     }
 
-    {
-        Mesh m = gen_cylinder_tube(0.5f, 0.8f, 0.08f, 24);
-        float vol = mesh_signed_volume(&m);
-        CHECK(vol > 0, "cylinder tube signed volume positive (%.4f)", vol);
-        mesh_build_edges(&m);
-        test_edges_sealed("cylinder tube sealed", m, 1);
-        mesh_free(&m);
-    }
+	{
+		Mesh m = gen_cylinder_tube(0.5f, 0.8f, 0.08f, 24);
+		float vol = mesh_signed_volume(&m);
+		float expect=M_PIf*(0.5f*0.5f-0.42f*0.42f)*0.8f;
+		CHECK(vol > 0, "cylinder tube signed volume positive (%.4f)", vol);
+		CHECK(fabsf(vol-expect)/expect<0.03f,"cylinder tube volume within 3%% of expected");
+		mesh_build_edges(&m);
+		test_edges_sealed("cylinder tube sealed", m, 1);
+		mesh_free(&m);
+	}
+
+	{
+		float w=1.2f,h=1.2f,d=0.2f,r=0.6f;
+		Mesh m=gen_box_hole_cylinder(w,h,d,r,32);
+		float vol=mesh_signed_volume(&m);
+		float expect=(w*h-M_PIf*r*r)*d;
+		CHECK(vol>0,"box cylinder hole signed volume positive (%.4f)",vol);
+		CHECK(fabsf(vol-expect)/expect<0.03f,"box cylinder hole volume within 3%% of expected");
+		int crossing=0;
+		for(int i=0;i<m.ntris;i++){
+			Tri t=m.tris[i];
+			vec3 a=m.verts[t.a].pos,b=m.verts[t.b].pos,c=m.verts[t.c].pos;
+			if(fabsf(fabsf(a.z)-d*0.5f)>1e-4f || fabsf(a.z-b.z)>1e-4f || fabsf(a.z-c.z)>1e-4f) continue;
+			float x=(a.x+b.x+c.x)/3.0f,y=(a.y+b.y+c.y)/3.0f;
+			if(x*x+y*y<r*r-1e-3f) crossing++;
+		}
+		CHECK(crossing==0,"box cylinder hole has %d cap triangles crossing the opening",crossing);
+		mesh_build_edges(&m);
+		test_edges_sealed("box cylinder hole sealed",m,1);
+		mesh_free(&m);
+	}
 
     {
         Mesh m = gen_cylinder_like(4, 0.5f, 0.3f, 1.0f, 0);
