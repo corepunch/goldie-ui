@@ -117,7 +117,7 @@ two entrance obelisks, and a broken rectangular gate make the scene readable
 from more than one camera, while the same sun and point light keep its long
 shadows spatially consistent.
 
-![Top-down wireframe overview of the Eclipse Shrine layout](docs/images/eclipse-shrine-overview.png)
+![Top-down wireframe overview of the Eclipse Shrine layout](docs/images/crossfade.jpeg)
 
 The diagram is the `Overview` camera in white-wireframe mode. The entrance is
 at the bottom, the eclipse assembly is centered on the dais, and the rear gate
@@ -127,16 +127,6 @@ The comparisons below use the untouched SimpleGL output as an image-to-image
 guide for an AI overpaint. Material detail and atmosphere are added, but the
 camera, silhouettes, object placement, occlusion, lighting direction, and
 major cast-shadow shapes are constrained by the source render.
-
-| SimpleGL camera render | AI overpaint |
-|---|---|
-| ![Raw Approach camera render](docs/images/eclipse-shrine-approach.png) | ![AI overpaint of the Approach camera render](docs/images/eclipse-shrine-approach-overpaint.jpg) |
-| `Approach` — centered hero shot from the entrance | The ring, orb, pylons, obelisks, stairs, gate, and shadow directions remain anchored to the render. |
-
-| SimpleGL camera render | AI overpaint |
-|---|---|
-| ![Raw Oblique camera render](docs/images/eclipse-shrine-oblique.png) | ![AI overpaint of the Oblique camera render](docs/images/eclipse-shrine-oblique-overpaint.jpg) |
-| `Oblique` — three-quarter view across the platform | The same landmarks and lighting relationships survive the camera change, demonstrating multi-shot scene continuity. |
 
 | SimpleGL camera render | AI overpaint |
 |---|---|
