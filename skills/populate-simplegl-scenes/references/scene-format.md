@@ -159,6 +159,80 @@ ref="...">`. Declare it as a top-level scene child.
 | `pelvis` | float | 0.25 | Pelvis height fraction |
 | `feet` | float | 0.0 | Foot landmark height fraction |
 
+### `<shape>`
+
+Defines a reusable 2D profile for `<lathe>` and `<loft>`. The profile is
+constructed in the XY plane as a sequence of `(x, y)` vertices. Shapes may
+appear at the top level of a scene or prefab file; use them to model
+cross-sections and sweep paths that can be shared by many objects.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `id`      | string | (required) | Unique name, referenced by lathe/loft |
+| `closed`  | int | 0 | 1 if the profile closes back to its first point (for loft cross-sections) |
+
+Child `<v>` elements define vertices in order. Each vertex is a single point on
+the profile curve. The lathe sweeper reads them top-to-bottom; the loft sweeper
+projects the profile into world space along the chosen axis.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `x`       | float | 0 | Horizontal distance from the axis in the profile plane |
+| `y`       | float | 0 | Vertical position along the profile |
+
+**Lathe profiles must be open** (`closed="0"`); the first vertex defines the
+bottom cap radius and the last vertex defines the top cap radius. The profile
+starts at the minimum Y and ends at the maximum Y of the shape; intermediate
+vertices define the contour in between. Vertices at `x="0"` produce a closed
+tip (the lathe creates a single center point for the cap at that Y).
+
+**Loft cross-section profiles should be closed** (`closed="1"`) when they
+represent a closed tube cross-section (e.g. a circle for a pipe or torus). Open
+cross-sections (ribbons) are supported but less common.
+
+**Loft path profiles** map the shape's XY to the world XZ plane (Y=0) to form
+a 3D sweep path. The path can be open or closed.
+
+Example — a bottle profile for lathe (open, from bottom at y=0 to neck at y=3):
+
+```xml
+<shape id="bottle" closed="0">
+  <v x="0.0" y="0.0"/>
+  <v x="0.4" y="0.0"/>
+  <v x="0.4" y="0.3"/>
+  <v x="0.25" y="1.6"/>
+  <v x="0.12" y="2.7"/>
+  <v x="0.08" y="3.0"/>
+  <v x="0.0" y="3.0"/>
+</shape>
+```
+
+Example — a circle for loft cross-section (closed, radius 0.15, 8 segments):
+
+```xml
+<shape id="circle_small" closed="1">
+  <v x="0.15" y="0.0"/>
+  <v x="0.106" y="0.106"/>
+  <v x="0.0" y="0.15"/>
+  <v x="-0.106" y="0.106"/>
+  <v x="-0.15" y="0.0"/>
+  <v x="-0.106" y="-0.106"/>
+  <v x="0.0" y="-0.15"/>
+  <v x="0.106" y="-0.106"/>
+</shape>
+```
+
+Example — a rectangular loft path in XZ (the shape's Y becomes world Z):
+
+```xml
+<shape id="rect_path" closed="1">
+  <v x="-1.0" y="-0.5"/>
+  <v x="1.0" y="-0.5"/>
+  <v x="1.0" y="0.5"/>
+  <v x="-1.0" y="0.5"/>
+</shape>
+```
+
 ### `<light>`
 
 Point light source with distance attenuation.
@@ -222,7 +296,7 @@ Example: moon through a back-wall window at 45° down and 30° horizontal offset
 
 ## Shape objects
 
-All shapes share common attributes plus shape-specific ones. Shapes may contain modifier child elements.
+All shapes share common attributes plus shape-specific ones. Shapes may contain modifier child elements. The supported shapes are: `box`, `sphere`, `cylinder`, `arch`, `prism`, `cone`/`pyramid`, `torus`, `lathe`, `loft`, `wall`.
 
 ### Common attributes
 
@@ -327,7 +401,9 @@ Truncated cone (frustum) along Y. `<pyramid>` is a `4`-sided default.
 
 ### `<torus>`
 
-Torus lying in the XZ plane, centered at origin.
+Torus lying in the XZ plane, centered at origin. Internally constructed by
+sweeping a circular cross-section (2D circle in XY) along a circular path
+(circle in XZ) via loft.
 
 | Attribute       | Type  | Default | Description |
 |-----------------|-------|---------|-------------|
@@ -335,6 +411,82 @@ Torus lying in the XZ plane, centered at origin.
 | `minorRadius`   | float | 0.15    | Tube radius |
 | `majorSegments` | int   | 24      | Segments around the ring |
 | `minorSegments` | int   | 12      | Segments around the tube |
+
+### `<lathe>`
+
+Revolves a named 2D profile around the Y axis to produce a rotationally
+symmetric solid (bottle, vase, goblet, column, etc.). Think of it as a
+potter's wheel: you define the profile in the XY plane, and the lathe sweeps
+it around Y.
+
+The referenced shape **must be open** (`closed="0"`). The first profile vertex
+defines the radius of the bottom cap; the last defines the top cap. Ends at
+`x="0"` produce a pointed or closed tip (the lathe places a single center
+vertex for the cap).
+
+`<lathe>` accepts the [common transform attributes](#common-attributes) and
+[modifiers](#modifiers) as child elements.
+
+| Attribute   | Type   | Default | Description |
+|-------------|--------|---------|-------------|
+| `shape`     | string | (required) | Name of a `<shape id="...">` defined in the scene or prefab |
+| `segments`  | int    | 24      | Number of angular subdivisions around the Y axis |
+
+```xml
+<shape id="vase" closed="0">
+  <v x="0.0" y="0.0"/>
+  <v x="0.35" y="0.0"/>
+  <v x="0.35" y="0.1"/>
+  <v x="0.28" y="0.4"/>
+  <v x="0.15" y="1.6"/>
+  <v x="0.06" y="2.3"/>
+  <v x="0.06" y="2.5"/>
+  <v x="0.0" y="2.5"/>
+</shape>
+
+<lathe shape="vase" segments="32" pos="0 0 0" material="glass"/>
+```
+
+### `<loft>`
+
+Sweeps a 2D cross-section shape along a 2D path shape to create a 3D mesh
+(pipes, rails, molding, swept frames, etc.). The path shape's XY is mapped to
+the world XZ plane (with Y=0) to define 3D sweep stations. The cross-section
+shape is placed at each station, oriented perpendicular to the path tangent.
+
+When `closed="1"`, the loft wraps the last ring back to the first to form a
+closed loop. When `closed="0"`, the first and last rings receive flat end caps.
+
+`<loft>` accepts the [common transform attributes](#common-attributes) and
+[modifiers](#modifiers) as child elements.
+
+| Attribute    | Type   | Default | Description |
+|--------------|--------|---------|-------------|
+| `pathShape`  | string | (required) | Name of a shape defining the 3D sweep path (XY→XZ) |
+| `crossShape` | string | (required) | Name of a shape defining the 2D cross-section |
+| `closed`     | int    | 0       | 1 to connect end ring back to start ring (loop) |
+| `segments`   | int    | *pathShape points* | Number of stations along the path (defaults to the shape vertex count) |
+
+```xml
+<shape id="path_L" closed="0">
+  <v x="0.0" y="0.0"/>
+  <v x="2.0" y="0.0"/>
+  <v x="2.0" y="1.0"/>
+</shape>
+
+<shape id="circle_ring" closed="1">
+  <v x="0.08" y="0.0"/>
+  <v x="0.056" y="0.056"/>
+  <v x="0.0" y="0.08"/>
+  <v x="-0.056" y="0.056"/>
+  <v x="-0.08" y="0.0"/>
+  <v x="-0.056" y="-0.056"/>
+  <v x="0.0" y="-0.08"/>
+  <v x="0.056" y="-0.056"/>
+</shape>
+
+<loft pathShape="path_L" crossShape="circle_ring" closed="0" segments="16" material="metal"/>
+```
 
 ### `<wall>`
 
