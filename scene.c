@@ -1083,16 +1083,13 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 			continue;
 		}
 
-		/* ARCH or CYLINDER: one column slice covers the full opening width (only 2 breakpoints per opening).
-		 * Emit 4 surrounding strips as plain boxes, then the shaped hole mesh for the opening rect. */
+		/* ARCH or CYLINDER: the column slice exactly covers the opening width.
+		 * Left/right neighbor columns are handled as solid columns by the outer loop.
+		 * Only emit the below-sill and above-top strips within the opening's X span. */
 		float ox=hit->x, ow=hit->width, oh=hit->height, os=hit->sill;
 		float ox_local=ox-half;
 		float ocx=ox_local+ow*0.5f;
 
-		if(ox>1e-4f)
-			emit_wall_box(s,wallM,wallR,T,0,H,-half,ox_local,color,shin,castsShadow,renderable,unlit);
-		if(ox+ow<L-1e-4f)
-			emit_wall_box(s,wallM,wallR,T,0,H,ox_local+ow,half,color,shin,castsShadow,renderable,unlit);
 		if(os>1e-4f)
 			emit_wall_box(s,wallM,wallR,T,0,os,ox_local,ox_local+ow,color,shin,castsShadow,renderable,unlit);
 		if(os+oh<H-1e-4f)

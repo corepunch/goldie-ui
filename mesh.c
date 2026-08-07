@@ -511,69 +511,148 @@ Mesh gen_box_hole_cylinder(float w, float h, float depth, float cx, float cy, fl
 	return m;
 }
 
-/* Box with a roman-arch through-hole: hole axis is Z (through the full depth).
- * Arch radius = w/2 (semicircle sits on rectangular stem). Arch opening spans full width
- * and full height of the box — the only solid face region is the lunette above the arc.
- * Front/back lunettes are fan-triangulated from the top-left corner. */
-Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
-	Mesh m={0};
-	if(sides<8) sides=16;
-	float hw=w*0.5f, hh=h*0.5f, hd=depth*0.5f;
-	float archR=hw;
-	float springY=hh-archR; /* arc center Y relative to box center */
-	vec3 fN=v3(0,0,1), bN=v3(0,0,-1);
+/* Extrude a 2D polygon profile (CCW from front) along Z by depth.
+ * caps=1: also emit front (+Z) and back (-Z) cap faces (fan from pts[0]).
+ * side_normals[i]: outward normal for edge pts[i]→pts[(i+1)%n]; NULL = auto-computed.
+ * flip=1: reverse all winding and normals (use for inward/tunnel surfaces). */
+static void extrude_polygon(Mesh *m, vec3 *pts, vec3 *side_normals, int n, float depth, int caps, int flip){
+	float hd=depth*0.5f;
 
-	/* Arc sample points: angle PI→0 (left to right), sides+1 points */
-	vec3 *aF=malloc(sizeof(vec3)*(size_t)(sides+1));
-	vec3 *aB=malloc(sizeof(vec3)*(size_t)(sides+1));
-	vec3 *aN=malloc(sizeof(vec3)*(size_t)(sides+1));
-	for(int i=0;i<=sides;i++){
-		float a=M_PIf-(float)i/(float)sides*M_PIf;
-		float ca=cosf(a), sa=sinf(a);
-		aF[i]=v3(ca*archR, springY+sa*archR,  hd);
-		aB[i]=v3(ca*archR, springY+sa*archR, -hd);
-		aN[i]=v3(ca, sa, 0.0f);
-	}
-
-	/* Front (+Z) and back (-Z) lunette faces: polygon [TL, TR, arc[0..sides]]
-	 * fan-triangulated from TL. */
-	for(int face=0;face<2;face++){
-		float fz=(face==0)?hd:-hd;
-		vec3 fn=(face==0)?fN:bN;
-		vec3 *arc=(face==0)?aF:aB;
-		vec3 TL=v3(-hw,hh,fz), TR=v3(hw,hh,fz);
-		int iTL=mesh_add_vert(&m,TL,fn), iTR=mesh_add_vert(&m,TR,fn);
-		int iprev=mesh_add_vert(&m,arc[0],fn);
-		if(face==0) mesh_add_tri(&m,iTL,iTR,iprev);
-		else         mesh_add_tri(&m,iTL,iprev,iTR);
-		for(int i=0;i<sides;i++){
-			int inext=mesh_add_vert(&m,arc[i+1],fn);
-			if(face==0) mesh_add_tri(&m,iTL,iprev,inext);
-			else         mesh_add_tri(&m,iTL,inext,iprev);
-			iprev=inext;
+	if(caps){
+		vec3 fN = flip ? v3(0,0,-1) : v3(0,0,1);
+		vec3 bN = flip ? v3(0,0, 1) : v3(0,0,-1);
+		int i0F=mesh_add_vert(m, v3(pts[0].x,pts[0].y, hd), fN);
+		int i0B=mesh_add_vert(m, v3(pts[0].x,pts[0].y,-hd), bN);
+		for(int i=1;i+1<n;i++){
+			int iaF=mesh_add_vert(m, v3(pts[i  ].x,pts[i  ].y, hd), fN);
+			int ibF=mesh_add_vert(m, v3(pts[i+1].x,pts[i+1].y, hd), fN);
+			int iaB=mesh_add_vert(m, v3(pts[i  ].x,pts[i  ].y,-hd), bN);
+			int ibB=mesh_add_vert(m, v3(pts[i+1].x,pts[i+1].y,-hd), bN);
+			if(!flip){ mesh_add_tri(m,i0F,iaF,ibF); mesh_add_tri(m,i0B,ibB,iaB); }
+			else     { mesh_add_tri(m,i0F,ibF,iaF); mesh_add_tri(m,i0B,iaB,ibB); }
 		}
 	}
 
-	/* Arch tunnel surface (inward normals) */
-	for(int i=0;i<sides;i++){
-		vec3 inN0=vscale(aN[i],-1.0f), inN1=vscale(aN[i+1],-1.0f);
-		add_quad_n4(&m, aF[i],inN0, aF[i+1],inN1, aB[i+1],inN1, aB[i],inN0);
+	/* Side walls: one quad per edge */
+	for(int i=0;i<n;i++){
+		int j=(i+1)%n;
+		vec3 p0=pts[i], p1=pts[j];
+		vec3 sn;
+		if(side_normals){
+			sn = flip ? vscale(side_normals[i],-1.0f) : side_normals[i];
+		} else {
+			vec3 edge=vsub(p1,p0);
+			sn = vnorm(v3(edge.y,-edge.x,0));
+			if(flip) sn=vscale(sn,-1.0f);
+		}
+		vec3 f0=v3(p0.x,p0.y, hd), f1=v3(p1.x,p1.y, hd);
+		vec3 b0=v3(p0.x,p0.y,-hd), b1=v3(p1.x,p1.y,-hd);
+		if(!flip) add_quad(m, b0,b1,f1,f0, sn);
+		else      add_quad(m, f0,f1,b1,b0, sn);
 	}
+}
 
-	/* Vertical tunnel walls at x=±hw from bottom to spring line (inward-facing) */
-	add_quad(&m, v3(-hw,-hh,-hd), v3(-hw,springY,-hd), v3(-hw,springY, hd), v3(-hw,-hh, hd), v3( 1,0,0));
-	add_quad(&m, v3( hw,-hh, hd), v3( hw,springY, hd), v3( hw,springY,-hd), v3( hw,-hh,-hd), v3(-1,0,0));
+/* Mirror a polygon profile around x=0: appends the X-flipped points in reverse order.
+ * Input: left-side pts[0..n-1] where pts[0] is on the axis (x=0) and pts[n-1] may or may not be.
+ * Output: full CCW polygon with 2*n-1 points (shared axis point not duplicated).
+ * Caller must free the result. */
+static vec3* mirror_profile_x(vec3 *pts, int n, int *out_n){
+	int full = 2*n - 1;
+	vec3 *r = malloc(sizeof(vec3)*(size_t)full);
+	for(int i=0;i<n;i++) r[i]=pts[i];
+	for(int i=1;i<n;i++) r[n-1+i]=v3(-pts[n-1-i].x, pts[n-1-i].y, 0);
+	*out_n=full;
+	return r;
+}
 
-	/* Tunnel floor (inward +Y) */
-	add_quad(&m, v3(-hw,-hh, hd), v3( hw,-hh, hd), v3( hw,-hh,-hd), v3(-hw,-hh,-hd), v3(0,1,0));
+/* Box with a roman-arch through-hole: hole axis is Z (through the full depth).
+ * Arch radius = w/2 (semicircle sits on rectangular stem.
+ *
+ * The arch is symmetric, so we build the left half and mirror to avoid any crossed diagonals:
+ *
+ * Lunette (solid wall region, with caps):
+ *   Left half: TL(-hw,hh) → leftSpring(-hw,springY) → arc[0..half](apex at x=0,y=hh)
+ *   mirror_profile_x produces the full CCW polygon. Extruded with caps.
+ *
+ * Tunnel (arch opening, walls only — no caps to avoid filling the hole):
+ *   Full explicit polygon: arc[0..sides] + BotRight + BotLeft. No mirror needed.
+ *   Extruded with flip=1 (inward normals). */
+Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
+	Mesh m={0};
+	if(sides<8) sides=16;
+	if(sides%2) sides++; /* ensure even so half is exact */
+	int half=sides/2;
+	float hw=w*0.5f, hh=h*0.5f, hd=depth*0.5f;
+	float archR=hw;
+	float springY=hh-archR;
 
-	/* Outer side walls */
+	/* ---- Lunette: left-half profile, then mirror ----
+	 * Points (left side, going CCW on front face):
+	 *   [0] TL         (-hw,  hh)      edge→leftSpring: left outer wall
+	 *   [1] leftSpring (-hw,  springY) edge→arc[0]:     coincident, skip
+	 *   [1..1+half] arc[0..half]       arc left-spring → apex (0, hh)
+	 * mirror_profile_x(pts, n, out_n): mirrors around x=0, last point (apex) is on axis.
+	 * Result: TL, leftSpring, arc[0..half-1], apex, arc[half-1..0]_mirrored, rightSpring, TR
+	 */
+	int nLeft = 1 + (half+1); /* TL + arc[0..half] */
+	vec3 *leftPts  = malloc(sizeof(vec3)*(size_t)nLeft);
+	vec3 *leftSide = malloc(sizeof(vec3)*(size_t)nLeft);
+	leftPts[0] = v3(-hw, hh, 0); leftSide[0] = v3(-1, 0, 0); /* TL→leftSpring: left wall */
+	for(int i=0;i<=half;i++){
+		float a = M_PIf - (float)i/(float)sides*M_PIf;
+		float ca=cosf(a), sa=sinf(a);
+		leftPts[1+i]  = v3(ca*archR, springY+sa*archR, 0);
+		leftSide[1+i] = v3(-ca, -sa, 0); /* inward arc normal = outward lunette boundary */
+	}
+	/* leftPts[1]    = leftSpring (-hw, springY) — edge from TL covers left wall */
+	/* leftPts[half+1] = apex (0, hh)            — on mirror axis */
+
+	int nFull;
+	vec3 *fullPts = mirror_profile_x(leftPts, nLeft, &nFull);
+
+	/* Build side normals for full polygon.
+	 * Full polygon: [TL, arc[0..half], arc[half-1..0]_mirrored, TR]
+	 * Left half normals + mirrored right half normals (X-flip the side normals). */
+	vec3 *fullSide = malloc(sizeof(vec3)*(size_t)nFull);
+	for(int i=0;i<nLeft;i++) fullSide[i]=leftSide[i];
+	/* Right half: mirror of left half in reverse, X-flipped */
+	for(int i=1;i<nLeft;i++){
+		vec3 sn = leftSide[nLeft-1-i];
+		fullSide[nLeft-1+i] = v3(-sn.x, sn.y, sn.z);
+	}
+	/* Top edge of the full polygon: last point TR(+hw,hh) closes back to TL(-hw,hh).
+	 * That closing edge's normal should be (0,1,0) — top outer wall. */
+	fullSide[nFull-1] = v3(0, 1, 0);
+
+	extrude_polygon(&m, fullPts, fullSide, nFull, depth, 1/*caps*/, 0/*flip*/);
+	free(leftPts); free(leftSide); free(fullPts); free(fullSide);
+
+	/* ---- Tunnel: full explicit polygon, walls only ----
+	 * arc[0..sides] left→right, then BotRight, BotLeft. Closes BotLeft→arc[0].
+	 * Normals point outward from the opening (into the wall = inward to tunnel). */
+	int nArc=sides+1, nTun=nArc+2;
+	vec3 *tun    =malloc(sizeof(vec3)*(size_t)nTun);
+	vec3 *tunSide=malloc(sizeof(vec3)*(size_t)nTun);
+	for(int i=0;i<=sides;i++){
+		float a=M_PIf-(float)i/(float)sides*M_PIf;
+		float ca=cosf(a), sa=sinf(a);
+		tun[i]    =v3(ca*archR, springY+sa*archR, 0);
+		tunSide[i]=v3(ca, sa, 0);
+	}
+	tunSide[sides]   = v3(-1, 0, 0); /* arc[sides]→BotRight: right stem */
+	tun[nArc+0]      = v3( hw, -hh, 0);
+	tunSide[nArc+0]  = v3( 0,  1, 0); /* BotRight→BotLeft: floor */
+	tun[nArc+1]      = v3(-hw, -hh, 0);
+	tunSide[nArc+1]  = v3( 1,  0, 0); /* BotLeft→arc[0]: left stem */
+	extrude_polygon(&m, tun, tunSide, nTun, depth, 0/*no caps*/, 1/*flip=inward*/);
+	free(tun); free(tunSide);
+
+	/* ---- Outer box side faces ---- */
 	add_quad(&m, v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3(-hw, hh, hd), v3(-hw, hh,-hd), v3(-1,0,0));
 	add_quad(&m, v3( hw,-hh, hd), v3( hw,-hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3( 1,0,0));
 	add_quad(&m, v3(-hw, hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3(-hw, hh, hd), v3(0, 1,0));
 	add_quad(&m, v3( hw,-hh,-hd), v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3( hw,-hh, hd), v3(0,-1,0));
 
-	free(aF); free(aB); free(aN);
 	return m;
 }
 
