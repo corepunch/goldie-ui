@@ -31,6 +31,17 @@ static void set_camera_title(SDL_Window *win,Scene *scene,int index){
 	SDL_SetWindowTitle(win,title);
 }
 
+static void frame_scene(Scene *scene,vec3 *pos,float *yaw,float *pitch){
+	vec3 bmin,bmax; scene_get_bounds(scene,&bmin,&bmax);
+	vec3 center=vscale(vadd(bmin,bmax),0.5f);
+	float radius=vlen(vscale(vsub(bmax,bmin),0.5f));
+	if(radius<0.5f) radius=0.5f;
+	*pos=vadd(center,v3(radius*1.2f,radius*0.7f,radius*2.4f));
+	vec3 fwd=vnorm(vsub(center,*pos));
+	*yaw=atan2f(fwd.x,-fwd.z)*180.0f/M_PIf;
+	*pitch=asinf(fwd.y)*180.0f/M_PIf;
+}
+
 int main(int argc,char**argv){
 	const char *scenePath = NULL;
 	const char *camName = NULL;
@@ -99,6 +110,7 @@ int main(int argc,char**argv){
     float yaw,pitch;
     vec3 pos;
     snap_camera(&scene,currentCamera,&pos,&yaw,&pitch);
+	vec3 modePos[32]; float modeYaw[32],modePitch[32];
 
     int running=1;
     int rightMouseDown=0;
@@ -121,7 +133,17 @@ int main(int argc,char**argv){
         while(SDL_PollEvent(&ev)){
             if(ev.type==SDL_QUIT) running=0;
             else if(ev.type==SDL_KEYDOWN){
-                if(ev.key.keysym.sym==SDLK_ESCAPE) running=0;
+				if(ev.key.keysym.sym==SDLK_ESCAPE && !ev.key.repeat){
+					int depth=scene.editDepth;
+					if(scene_exit_prefab(&scene)){
+						pos=modePos[depth-1]; yaw=modeYaw[depth-1]; pitch=modePitch[depth-1];
+						set_camera_title(win,&scene,currentCamera);
+						fprintf(stderr,"prefab edit: back to level %d\n",scene.editDepth);
+					} else running=0;
+				}
+				else if(ev.key.keysym.sym==SDLK_s && (ev.key.keysym.mod&KMOD_GUI) && !ev.key.repeat){
+					fprintf(stderr,"save scene and prefabs: %s\n",scene_save_all(&scene)?"ok":"failed");
+				}
 				else if(ev.key.keysym.sym==SDLK_TAB && !tabDown){
 					tabDown=1;
 					if(ev.key.keysym.mod&KMOD_SHIFT) currentCamera=(currentCamera+scene.ncameras-1)%scene.ncameras;
@@ -155,18 +177,22 @@ int main(int argc,char**argv){
                 vec3 cameraUp=vnorm(vcross(right,look));
                 vec3 rayDir=vnorm(vadd(vadd(vscale(right,ndcX*hw),vscale(cameraUp,ndcY*hh)),look));
                 /* Start gizmo drag if hovering a handle */
-                if(scene.hoveredHandle!=GIZMO_NONE){
-                    scene.draggingHandle=scene.hoveredHandle;
-                    scene.dragStartMouseX=mouseX;
-                    scene.dragStartMouseY=mouseY;
-                    scene.dragPrevAnchor=v3(1e30f,1e30f,1e30f);
-                    vec3 bmin,bmax;
-                    scene_get_obj_bounds(&scene,scene.selectedObj,&bmin,&bmax);
-                    scene.dragStartCenter=vscale(vadd(bmin,bmax),0.5f);
+                if(scene.hoveredHandle!=GIZMO_NONE && ev.button.clicks<2){
+					gizmo_begin_drag(&scene,scene.hoveredHandle,mouseX,mouseY);
                 } else {
                     scene.draggingHandle=GIZMO_NONE;
                     scene.selectedObj=scene_pick_object(&scene,pos,rayDir,NULL);
                     fprintf(stderr,"selected object %d\n",scene.selectedObj);
+					if(ev.button.clicks>=2 && scene.selectedObj>=0){
+						int depth=scene.editDepth;
+						modePos[depth]=pos; modeYaw[depth]=yaw; modePitch[depth]=pitch;
+						if(scene_enter_selected_prefab(&scene)){
+							currentCamera=0;
+							frame_scene(&scene,&pos,&yaw,&pitch);
+							SDL_SetWindowTitle(win,"simplegl - prefab editing");
+							fprintf(stderr,"prefab edit: level %d\n",scene.editDepth);
+						}
+					}
                 }
             } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_LEFT){
                 leftMouseDown=0;

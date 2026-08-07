@@ -50,6 +50,7 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, vec3 lightDir, int isDir, Shado
 
 void scene_build_all_shadow_volumes(Scene *s){
 	for(int li=0; li<s->nlights; li++){
+		free(s->svols[li].verts);
 		ShadowVolume combined={0};
 		if(s->lights[li].castsShadow){
 			for(int oi=0; oi<s->nobjs; oi++){

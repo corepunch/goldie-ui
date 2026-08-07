@@ -28,6 +28,7 @@ int ray_intersect_aabb(vec3 origin, vec3 dir, vec3 bbMin, vec3 bbMax, float *tOu
 		if(t2<tmax) tmax=t2;
 		if(tmin>tmax) return 0;
 	}
+	if(tmax<0) return 0;
 	if(tmin<0) tmin=0;
 	if(tOut) *tOut=tmin;
 	return 1;
