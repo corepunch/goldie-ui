@@ -17,7 +17,7 @@ pipeline. Dependencies are SDL2, OpenGL, and libm.
 sudo apt install libsdl2-dev libgl1-mesa-dev
 
 make
-./build/bin/simplegl scenes/sample_room.xml
+./build/bin/simplegl scenes/sample_room.blks
 ```
 
 It compiles clean with `-Wall -Wextra` on gcc/clang, Linux. (It uses only
@@ -57,33 +57,33 @@ Normal rendering uses every light's `castShadows` setting and produces the
 full stencil-shadow result:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.xml
+./build/bin/simplegl scenes/sample_room.blks
 ```
 
 Render with the same materials and lighting but disable all shadows:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.xml -no-shadows
+./build/bin/simplegl scenes/sample_room.blks -no-shadows
 ```
 
 Render scene geometry as an unlit white wireframe:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.xml -wireframe
+./build/bin/simplegl scenes/sample_room.blks -wireframe
 ```
 
 The offscreen screenshot tool accepts the same flags:
 
 ```sh
 make screenshot
-./build/bin/screenshot scenes/sample_room.xml -cam Main -o shot.ppm
-./build/bin/screenshot scenes/sample_room.xml -cam Main -no-shadows -o shot-no-shadows.ppm
-./build/bin/screenshot scenes/sample_room.xml -cam Main -wireframe -o shot-wireframe.ppm
+./build/bin/screenshot scenes/sample_room.blks -cam Main -o shot.ppm
+./build/bin/screenshot scenes/sample_room.blks -cam Main -no-shadows -o shot-no-shadows.ppm
+./build/bin/screenshot scenes/sample_room.blks -cam Main -wireframe -o shot-wireframe.ppm
 ```
 
 ## From scene layout to cinematic overpaint
 
-[`scenes/eclipse_shrine.xml`](scenes/eclipse_shrine.xml) is a compact
+[`scenes/eclipse_shrine.blks`](scenes/eclipse_shrine.blks) is a compact
 science-fantasy set built entirely from SimpleGL primitives. A stepped stone
 dais leads to a brass eclipse ring and suspended red orb. Four twisted pylons,
 two entrance obelisks, and a broken rectangular gate make the scene readable
@@ -115,9 +115,9 @@ Reproduce the three source images with:
 
 ```sh
 make screenshot
-./build/bin/screenshot scenes/eclipse_shrine.xml -cam Overview -wireframe -o overview.ppm
-./build/bin/screenshot scenes/eclipse_shrine.xml -cam Approach -o approach.ppm
-./build/bin/screenshot scenes/eclipse_shrine.xml -cam Oblique -o oblique.ppm
+./build/bin/screenshot scenes/eclipse_shrine.blks -cam Overview -wireframe -o overview.ppm
+./build/bin/screenshot scenes/eclipse_shrine.blks -cam Approach -o approach.ppm
+./build/bin/screenshot scenes/eclipse_shrine.blks -cam Oblique -o oblique.ppm
 ```
 
 ## Why these choices

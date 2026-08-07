@@ -89,14 +89,14 @@ for the complete attribute classification and renderer data flow.
 ## Required CLI validation
 
 ```sh
-xmllint --noout scenes/scene.xml
-xmllint --xpath 'count(/scene/ambient | /scene/background)' scenes/scene.xml
+xmllint --noout scenes/scene.blks
+xmllint --xpath 'count(/scene/ambient | /scene/background)' scenes/scene.blks
 make
 make test
-./build/bin/simplegl scenes/scene.xml -list-cameras
+./build/bin/simplegl scenes/scene.blks -list-cameras
 ```
 
-Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.xml`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Do not render screenshots or perform visual inspection as part of validation.
+Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.blks`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Do not render screenshots or perform visual inspection as part of validation.
 The XPath count must print `0`; any other value means scene-wide settings were
 written as ignored child elements instead of root attributes.
 

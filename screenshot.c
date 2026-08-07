@@ -85,7 +85,7 @@ static void mkdir_p(const char *path){
 }
 
 int main(int argc, char **argv){
-	const char *scenePath = "scenes/sample_room.xml";
+	const char *scenePath = "scenes/sample_room.blks";
 	const char *outPath = NULL;
 	const char *camName = NULL;
 	int allCameras = 0;

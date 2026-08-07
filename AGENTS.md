@@ -5,7 +5,7 @@
 ```sh
 make              # Build the binary -> build/bin/simplegl
 make test         # Build and run unit tests
-make run          # Build and run with scenes/sample_room.xml
+make run          # Build and run with scenes/sample_room.blks
 make clean        # Remove build/ directory
 ```
 
@@ -14,8 +14,8 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 ## Run-time
 
 ```sh
-./build/bin/simplegl scenes/sample_room.xml             # use first camera
-./build/bin/simplegl scenes/sample_room.xml -cam Cam2   # select camera by name
+./build/bin/simplegl scenes/sample_room.blks             # use first camera
+./build/bin/simplegl scenes/sample_room.blks -cam Cam2   # select camera by name
 ```
 
 ## Project files
@@ -32,9 +32,9 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 | `tests.c` | Unit tests for mesh winding, edge sealing, volume, shadow volumes |
 | `renderer.c` | Original monolithic single-file version (not in main build) |
 | `screenshot.c` | Offscreen headless renderer, outputs PPM |
-| `skills/populate-simplegl-scenes/` | XML scene population workflow and format reference |
-| `scenes/` | Runnable and diagnostic scene XML files |
-| `prefabs/` | Reusable object XML files (`chair.xml`, `sofa.xml`, etc.) |
+| `skills/populate-simplegl-scenes/` | Scene population workflow and format reference |
+| `scenes/` | Runnable and diagnostic scene files (`*.blks`) |
+| `prefabs/` | Reusable object files (`chair.blk`, `sofa.blk`, etc.) |
 
 ## Code conventions
 
@@ -48,7 +48,7 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 ## Scene file dispatch
 
 Use `skills/populate-simplegl-scenes/SKILL.md` for any task that creates,
-populates, edits, or validates scene or prefab XML. Follow its CLI validation
+populates, edits, or validates scene or prefab files. Follow its CLI validation
 requirements.
 
 Scene loading is in `scene.c`. Three dispatch tables:

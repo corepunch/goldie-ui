@@ -169,7 +169,7 @@ interior lighting remains correct:
       material="plaster" renderable="0" castShadow="1"/>
 ```
 
-Follow the enclosed-room pattern in `scenes/sample_room.xml`: combine a low ambient base with at least one motivated, shadow-casting key light. A room must contain light sources that shape the space, not merely enough ambient illumination to avoid black pixels.
+Follow the enclosed-room pattern in `scenes/sample_room.blks`: combine a low ambient base with at least one motivated, shadow-casting key light. A room must contain light sources that shape the space, not merely enough ambient illumination to avoid black pixels.
 
 - Put a reusable practical point light inside the same prefab as its fixture geometry. Place it inside the bulb or flame, below the ceiling and on the emitting side of any opaque shade.
 - Mark the visible emitter `unlit="1" castShadow="0"`: unlit keeps its authored bright color, while disabling shadow casting prevents it from occluding its own point light. Keep the shade and fixture body shadow-casting.
@@ -188,7 +188,7 @@ Aim cameras at useful targets, not arbitrary Euler directions. Keep the near pla
 Every `<camera>` must carry a `comment` attribute describing its purpose. The `-list-cameras` flag reads these comments so an automated agent can select the right view without parsing the full XML:
 
 ```sh
-./build/bin/simplegl scenes/scene.xml -list-cameras
+./build/bin/simplegl scenes/scene.blks -list-cameras
 ```
 
 Example output:

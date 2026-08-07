@@ -190,7 +190,7 @@ int main(void){
 	fprintf(stderr,"\n=== Prefab Tests ===\n");
 
 	{
-		char path[128]; snprintf(path,sizeof(path),"/tmp/simplegl-unknown-%ld.xml",(long)getpid());
+		char path[128]; snprintf(path,sizeof(path),"/tmp/simplegl-unknown-%ld.blks",(long)getpid());
 		FILE *fixture=fopen(path,"w");
 		CHECK(fixture!=NULL,"could not create unknown-element fixture");
 		if(fixture){
@@ -218,7 +218,7 @@ int main(void){
 
 	{
 		Scene s={0};
-		CHECK(load_scene("scenes/test_prefab_tint.xml",&s),"prefab tint fixture failed to load");
+		CHECK(load_scene("scenes/test_prefab_tint.blks",&s),"prefab tint fixture failed to load");
 		CHECK(s.nobjs==15,"prefab tint fixture: got %d objects, expected 15",s.nobjs);
 		if(s.nobjs==15){
 			vec3 red=v3(0.70f,0.10f,0.08f),blue=v3(0.08f,0.20f,0.70f),paper=v3(0.76f,0.68f,0.50f);
@@ -243,7 +243,7 @@ int main(void){
 
 	{
 		Scene s={0};
-		CHECK(load_scene("scenes/test_prefab_light.xml",&s),"prefab light fixture failed to load");
+		CHECK(load_scene("scenes/test_prefab_light.blks",&s),"prefab light fixture failed to load");
 		CHECK(s.nobjs==6,"prefab light fixture: got %d objects, expected 6",s.nobjs);
 		CHECK(s.nlights==2,"prefab light fixture: got %d lights, expected 2",s.nlights);
 		if(s.nobjs==6 && s.nlights==2){
@@ -272,7 +272,7 @@ int main(void){
 
 	{
 		Scene s={0};
-		CHECK(load_scene("scenes/test_wall_negative.xml",&s),"wall negative fixture failed to load");
+		CHECK(load_scene("scenes/test_wall_negative.blks",&s),"wall negative fixture failed to load");
 		CHECK(s.nobjs==4,"wall negative fixture: got %d wall boxes, expected 4",s.nobjs);
 		CHECK(!scene_point_covered(&s,v3(1,1.5f,-1.5f)),
 		      "prefab negative box did not cut the rotated wall");

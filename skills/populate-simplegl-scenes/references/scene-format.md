@@ -343,7 +343,7 @@ axes. Parent or prefab rotation is supported when the cutter and wall remain
 aligned. Oblique cutters are ignored.
 
 ```xml
-<!-- window.xml: origin is the opening center; local +Z faces the room -->
+<!-- window.blk: origin is the opening center; local +Z faces the room -->
 <prefab>
   <bool-negative-box size="2.0 1.7 0.30"/>
   <box pos="-0.94 0 0.04" size="0.12 1.70 0.16" material="wood"/>
@@ -475,7 +475,7 @@ Duplicates the mesh `count` times, applying a per-step translation and rotation 
 
 ## Prefabs
 
-Prefabs are reusable object definitions stored in `prefabs/name.xml`. Each prefab file begins with an XML comment describing its default orientation (which way it "faces" at `rot="0 0 0"`). Prefabs are loaded lazily (on first reference) and cached for reuse.
+Prefabs are reusable object definitions stored in `prefabs/name.blk`. Each prefab file begins with an XML comment describing its default orientation (which way it "faces" at `rot="0 0 0"`). Prefabs are loaded lazily (on first reference) and cached for reuse.
 
 Prefabs may contain point lights. Each instance creates its own transformed
 light, allowing one fixture definition to keep its cord, shade, bulb, and light
@@ -492,7 +492,7 @@ inheritance are not currently implemented; define those on child shapes.
 
 | Attribute | Type   | Default | Description |
 |-----------|--------|---------|-------------|
-| `source`  | string | (required) | Prefab file name, loads from `prefabs/<source>.xml` |
+| `source`  | string | (required) | Prefab file name, loads from `prefabs/<source>.blk` |
 | `name`    | string | (none)     | Instance name for `attach` references — only needed when something attaches to this instance |
 
 Prefab `scale` applies to its complete local transform, including named attach
@@ -502,7 +502,7 @@ color. Tinting does not replace material shininess. This lets one book prefab
 produce different cover colors while its page block remains paper-colored:
 
 ```xml
-<!-- prefabs/book.xml -->
+<!-- prefabs/book.blk -->
 <prefab>
   <box size="0.44 0.03 0.32" material="book_cover" tint="1"/>
   <box pos="0 0.06 0" size="0.39 0.06 0.28" material="paper"/>
@@ -531,7 +531,7 @@ Example: place 4 chairs around a dining table (table spans X=±0.8, Z=-1.0 to -2
 
 Prefabs can declare named reference points using `<attach>` elements. These enable placing objects on surfaces without manual Y calculation.
 
-**Defining attach points** — in the prefab file (`prefabs/dining_table.xml`):
+**Defining attach points** — in the prefab file (`prefabs/dining_table.blk`):
 
 ```xml
 <prefab>
@@ -573,7 +573,7 @@ flat on that surface without any manual rotation calculation:
 Without `attach`, or for elements that need the old world-space behavior, omit
 the attribute and place the element directly.
 
-Prefab file `prefabs/chair.xml`:
+Prefab file `prefabs/chair.blk`:
 
 ```xml
 <!-- chair: backrest at z=-0.2, front faces +Z. rotY(+90)->+X, rotY(-90)->-X -->

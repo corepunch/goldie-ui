@@ -36,10 +36,10 @@ test-zpass: zpass tests-zpass
 	./$(BINDIR)/tests-zpass
 
 run-zpass: zpass
-	./$(BINDIR)/simplegl-zpass scenes/sample_room.xml
+	./$(BINDIR)/simplegl-zpass scenes/sample_room.blks
 
 run: simplegl
-	./$(BINDIR)/simplegl scenes/sample_room.xml
+	./$(BINDIR)/simplegl scenes/sample_room.blks
 
 test: simplegl tests
 	./$(BINDIR)/tests
@@ -48,10 +48,10 @@ tests: tests.c math.c mesh.c shadow.c scene.c simplegl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -o $(BINDIR)/$@ tests.c math.c mesh.c shadow.c scene.c $(LIBS)
 
 render-scene: screenshot
-	./$(BINDIR)/screenshot scenes/books/wondertown/workshop.xml -all
+	./$(BINDIR)/screenshot scenes/books/wondertown/workshop.blks -all
 
 render-shrine: screenshot
-	./$(BINDIR)/screenshot scenes/eclipse_shrine.xml -all
+	./$(BINDIR)/screenshot scenes/eclipse_shrine.blks -all
 
 clean:
 	rm -rf build

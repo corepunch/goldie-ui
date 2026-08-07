@@ -463,7 +463,7 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 	for(int i=0;i<s->nprefabs;i++)
 		if(!strcmp(s->prefabs[i].ref,name)) return (XmlNode*)s->prefabs[i].root;
 	char path[256];
-	snprintf(path,sizeof(path),"prefabs/%s.xml",name);
+	snprintf(path,sizeof(path),"prefabs/%s.blk",name);
 	char *buf=read_file(path);
 	if(!buf) return NULL;
 	XmlNode *root=xml_parse(buf);

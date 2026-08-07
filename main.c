@@ -22,7 +22,7 @@ int main(int argc,char**argv){
 		else if(!strcmp(argv[i],"-show-stencil")){ renderFlags|=DBG_SHOW_STENCIL; }
 		else if(!scenePath) scenePath=argv[i];
 	}
-	if(!scenePath) scenePath="scenes/sample_room.xml";
+	if(!scenePath) scenePath="scenes/sample_room.blks";
 
 	Scene scene;
 	if(!load_scene(scenePath,&scene)) return 1;
