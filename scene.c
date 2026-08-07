@@ -903,6 +903,8 @@ int load_scene(const char *path, Scene *s){
 	memset(s,0,sizeof(*s));
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
 	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
+	s->selectedObj=-1;
+	s->editMode=EDIT_W_MOVE;
 
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
@@ -1022,6 +1024,26 @@ int scene_sanity_check(Scene *s){
 	free(bounds);
 	if(!errors) fprintf(stderr,"sanity: ok (%d objects)\n",s->nobjs);
 	return !errors;
+}
+
+void scene_get_obj_bounds(Scene *s, int idx, vec3 *outMin, vec3 *outMax){
+	if(idx<0 || idx>=s->nobjs){ *outMin=v3(0,0,0); *outMax=v3(0,0,0); return; }
+	Bounds b=scene_obj_bounds(&s->objs[idx]);
+	*outMin=b.min; *outMax=b.max;
+}
+
+int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut){
+	int hit=-1; float bestT=1e30f;
+	for(int i=0;i<s->nobjs;i++){
+		if(!s->objs[i].renderable) continue;
+		Bounds b=scene_obj_bounds(&s->objs[i]);
+		float t;
+		if(ray_intersect_aabb(rayOrigin, rayDir, b.min, b.max, &t)){
+			if(t<bestT){ bestT=t; hit=i; }
+		}
+	}
+	if(tOut) *tOut=bestT;
+	return hit;
 }
 
 /* -------------------------------------- build_wall_boxes (below parse_nodes) */

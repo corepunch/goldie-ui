@@ -72,6 +72,109 @@ static void draw_shadow_volume(ShadowVolume *sv){
     glEnd();
 }
 
+static void draw_line(vec3 a, vec3 b, vec3 color){
+	glColor3f(color.x,color.y,color.z);
+	glVertex3f(a.x,a.y,a.z);
+	glVertex3f(b.x,b.y,b.z);
+}
+
+static void draw_axis_arrow(vec3 center, vec3 axis, float len, vec3 color){
+	float hLen=len*0.15f, hWid=len*0.08f;
+	vec3 tip=vadd(center, vscale(axis,len));
+	vec3 base=vadd(center, vscale(axis,len-hLen));
+	vec3 u,v;
+	if(fabsf(axis.x)<0.9f){
+		u=vnorm(vcross(axis,v3(1,0,0)));
+	} else {
+		u=vnorm(vcross(axis,v3(0,1,0)));
+	}
+	v=vnorm(vcross(axis,u));
+	vec3 uOff=vscale(u,hWid), vOff=vscale(v,hWid);
+	vec3 dv=vadd(uOff,vOff);
+	draw_line(center, tip, color);
+	draw_line(tip, vadd(base,uOff), color);
+	draw_line(tip, vadd(base,dv), color);
+	draw_line(tip, vadd(base,vOff), color);
+	draw_line(tip, vsub(base,uOff), color);
+	draw_line(tip, vsub(base,dv), color);
+	draw_line(tip, vsub(base,vOff), color);
+}
+
+static void draw_circle(vec3 center, vec3 normal, float r, vec3 color, int segs){
+	vec3 u,v;
+	if(fabsf(normal.x)<0.9f) u=vnorm(vcross(normal,v3(1,0,0)));
+	else u=vnorm(vcross(normal,v3(0,1,0)));
+	v=vnorm(vcross(normal,u));
+	vec3 prev=vadd(center,vscale(u,r));
+	for(int i=1;i<=segs;i++){
+		float a=2.0f*M_PIf*(float)i/(float)segs;
+		vec3 next=vadd(center,vadd(vscale(u,r*cosf(a)),vscale(v,r*sinf(a))));
+		draw_line(prev,next,color);
+		prev=next;
+	}
+}
+
+static void draw_wire_box(vec3 center, vec3 half, vec3 color){
+	vec3 p[8]={
+		vadd(center,v3(-half.x,-half.y,-half.z)),
+		vadd(center,v3( half.x,-half.y,-half.z)),
+		vadd(center,v3( half.x, half.y,-half.z)),
+		vadd(center,v3(-half.x, half.y,-half.z)),
+		vadd(center,v3(-half.x,-half.y, half.z)),
+		vadd(center,v3( half.x,-half.y, half.z)),
+		vadd(center,v3( half.x, half.y, half.z)),
+		vadd(center,v3(-half.x, half.y, half.z)),
+	};
+	int edges[12][2]={
+		{0,1},{1,2},{2,3},{3,0},
+		{4,5},{5,6},{6,7},{7,4},
+		{0,4},{1,5},{2,6},{3,7}
+	};
+	for(int i=0;i<12;i++) draw_line(p[edges[i][0]],p[edges[i][1]],color);
+}
+
+static void draw_editor_gizmos(Scene *s){
+	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
+	if(!s->objs[s->selectedObj].renderable) return;
+
+	vec3 bmin,bmax;
+	scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
+	vec3 center=vscale(vadd(bmin,bmax),0.5f);
+	vec3 half=vscale(vsub(bmax,bmin),0.5f);
+	float gizmoSize=vlen(half)*0.7f;
+	if(gizmoSize<0.3f) gizmoSize=0.3f;
+
+	vec3 white=v3(1,1,1), red=v3(1,0.2f,0.2f), green=v3(0.2f,1,0.2f), blue=v3(0.2f,0.2f,1);
+	vec3 sx=v3(1,0,0), sy=v3(0,1,0), sz=v3(0,0,1);
+
+	draw_wire_box(center,half,white);
+
+	if(s->editMode==EDIT_W_MOVE){
+		draw_axis_arrow(center,sx,gizmoSize,red);
+		draw_axis_arrow(center,sy,gizmoSize,green);
+		draw_axis_arrow(center,sz,gizmoSize,blue);
+		draw_line(vsub(center,vscale(sx,gizmoSize*0.2f)),vadd(center,vscale(sx,gizmoSize)),vscale(red,0.5f));
+		draw_line(vsub(center,vscale(sy,gizmoSize*0.2f)),vadd(center,vscale(sy,gizmoSize)),vscale(green,0.5f));
+		draw_line(vsub(center,vscale(sz,gizmoSize*0.2f)),vadd(center,vscale(sz,gizmoSize)),vscale(blue,0.5f));
+	} else if(s->editMode==EDIT_E_ROTATE){
+		draw_circle(center,sy,gizmoSize,green,48);
+		draw_circle(center,sz,gizmoSize,blue,48);
+		draw_circle(center,sx,gizmoSize,red,48);
+	} else if(s->editMode==EDIT_R_SCALE){
+		float h=gizmoSize*0.12f;
+		draw_line(center,vadd(center,vscale(sx,gizmoSize)),red);
+		draw_line(center,vadd(center,vscale(sy,gizmoSize)),green);
+		draw_line(center,vadd(center,vscale(sz,gizmoSize)),blue);
+		draw_line(vsub(center,vscale(sx,gizmoSize*0.15f)),vadd(center,vscale(sx,gizmoSize*0.15f)),vscale(red,0.35f));
+		draw_line(vsub(center,vscale(sy,gizmoSize*0.15f)),vadd(center,vscale(sy,gizmoSize*0.15f)),vscale(green,0.35f));
+		draw_line(vsub(center,vscale(sz,gizmoSize*0.15f)),vadd(center,vscale(sz,gizmoSize*0.15f)),vscale(blue,0.35f));
+		draw_wire_box(vadd(center,vscale(sx,gizmoSize)),v3(h,h,h),red);
+		draw_wire_box(vadd(center,vscale(sy,gizmoSize)),v3(h,h,h),green);
+		draw_wire_box(vadd(center,vscale(sz,gizmoSize)),v3(h,h,h),blue);
+		draw_wire_box(center,v3(h,h,h),white);
+	}
+}
+
 void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int flags){
     glEnable(GL_FRAMEBUFFER_SRGB);
     glViewport(0,0,w,h);
@@ -201,4 +304,10 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int 
         glDisable(GL_STENCIL_TEST);
         glDepthMask(GL_TRUE);
     }
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glBegin(GL_LINES);
+    draw_editor_gizmos(s);
+    glEnd();
 }
