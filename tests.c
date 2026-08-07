@@ -61,6 +61,13 @@ static float mesh_min_y(Mesh *m){
 	return lo;
 }
 
+static int point_inside_arch(float x,float y,float w,float h){
+	float hw=w*0.5f,hh=h*0.5f,spring=hh-hw;
+	if(x<=-hw+1e-4f || x>=hw-1e-4f || y<=-hh+1e-4f) return 0;
+	if(y<=spring) return 1;
+	return x*x+(y-spring)*(y-spring)<hw*hw-1e-4f;
+}
+
 static int color_eq(vec3 a,vec3 b){
 	return fabsf(a.x-b.x)<0.001f && fabsf(a.y-b.y)<0.001f && fabsf(a.z-b.z)<0.001f;
 }
@@ -205,14 +212,33 @@ int main(void){
         mesh_free(&m);
     }
 
-    {
-        Mesh m = gen_arch(1.6f, 1.9f, 0.12f, 0.12f, 16, 0.0f);
-        float vol = mesh_signed_volume(&m);
-        CHECK(vol > 0, "arch tube signed volume positive (%.4f)", vol);
-        mesh_build_edges(&m);
-        test_edges_sealed("arch tube sealed", m, 1);
-        mesh_free(&m);
-    }
+	{
+		Mesh m=gen_arch(1.6f,1.9f,0.12f,0.12f,16,0.0f);
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"arch tube signed volume positive (%.4f)",vol);
+		mesh_build_edges(&m);
+		test_edges_sealed("arch tube sealed",m,1);
+		mesh_free(&m);
+	}
+
+	{
+		float w=1.6f,h=1.9f,d=0.12f;
+		Mesh m=gen_box_hole_arch(w,h,d,16);
+		float vol=mesh_signed_volume(&m);
+		CHECK(vol>0,"box arch hole signed volume positive (%.4f)",vol);
+		int crossing=0;
+		for(int i=0;i<m.ntris;i++){
+			Tri t=m.tris[i];
+			vec3 a=m.verts[t.a].pos,b=m.verts[t.b].pos,c=m.verts[t.c].pos;
+			if(fabsf(fabsf(a.z)-d*0.5f)>1e-4f || fabsf(a.z-b.z)>1e-4f || fabsf(a.z-c.z)>1e-4f) continue;
+			float x=(a.x+b.x+c.x)/3.0f,y=(a.y+b.y+c.y)/3.0f;
+			if(point_inside_arch(x,y,w,h)) crossing++;
+		}
+		CHECK(crossing==0,"box arch hole has %d cap triangles crossing the opening",crossing);
+		mesh_build_edges(&m);
+		test_edges_sealed("box arch hole sealed",m,1);
+		mesh_free(&m);
+	}
 
     {
         Mesh m = gen_cylinder_like(4, 0.5f, 0.0f, 1.0f, 0);

@@ -85,6 +85,8 @@ static void add_quad_n4(Mesh *m, vec3 a,vec3 na, vec3 b,vec3 nb, vec3 c,vec3 nc,
     mesh_add_tri(m,ia,ic,ib); mesh_add_tri(m,ia,id,ic);
 }
 
+static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float depth,int caps,int flip,int smooth);
+
 static void mesh_append(Mesh *dst, Mesh src){
 	int base=dst->nverts;
 	for(int i=0;i<src.nverts;i++) mesh_add_vert(dst,src.verts[i].pos,src.verts[i].nrm);
@@ -98,17 +100,11 @@ static void mesh_append_xform(Mesh *dst, Mesh src, mat4 M, mat4 R){
 }
 
 Mesh gen_box(float sx,float sy,float sz){
-    Mesh m={0};
-    float x=sx*0.5f,y=sy*0.5f,z=sz*0.5f;
-    vec3 p[8]={ v3(-x,-y,-z),v3(x,-y,-z),v3(x,y,-z),v3(-x,y,-z),
-                v3(-x,-y, z),v3(x,-y, z),v3(x,y, z),v3(-x,y, z) };
-    add_quad(&m,p[0],p[1],p[2],p[3], v3(0,0,-1));
-    add_quad(&m,p[5],p[4],p[7],p[6], v3(0,0, 1));
-    add_quad(&m,p[4],p[0],p[3],p[7], v3(-1,0,0));
-    add_quad(&m,p[1],p[5],p[6],p[2], v3( 1,0,0));
-    add_quad(&m,p[4],p[5],p[1],p[0], v3(0,-1,0));
-    add_quad(&m,p[3],p[2],p[6],p[7], v3(0, 1,0));
-    return m;
+	Mesh m={0};
+	float x=sx*0.5f,y=sy*0.5f;
+	vec3 p[4]={v3(-x,-y,0),v3(x,-y,0),v3(x,y,0),v3(-x,y,0)};
+	extrude_polygon(&m,p,NULL,4,sz,1,0,0);
+	return m;
 }
 
 Mesh gen_box_inset(float sx,float sy,float sz,float insetX,float insetY){
@@ -161,7 +157,19 @@ Mesh gen_cylinder_like(int sides,float rBot,float rTop,float height,int smooth){
     }
     return m;
 }
-Mesh gen_cylinder(float r,float h,int sides){ return gen_cylinder_like(sides<=0?24:sides,r,r,h,1); }
+Mesh gen_cylinder(float r,float h,int sides){
+	Mesh m={0};
+	if(sides<3) sides=24;
+	vec3 *p=malloc(sizeof(vec3)*(size_t)sides);
+	for(int i=0;i<sides;i++){
+		float a=(float)i/(float)sides*2.0f*M_PIf;
+		p[i]=v3(cosf(a)*r,sinf(a)*r,0);
+	}
+	extrude_polygon(&m,p,NULL,sides,h,1,0,1);
+	mesh_transform(&m,mat4_rot_x(-90.0f),mat4_rot_x(-90.0f));
+	free(p);
+	return m;
+}
 Mesh gen_cylinder_tube(float r,float h,float wall,int sides){
 	Mesh m={0};
 	if(sides<3) sides=24;
@@ -512,28 +520,59 @@ Mesh gen_box_hole_cylinder(float w, float h, float depth, float cx, float cy, fl
 }
 
 /* Extrude a 2D polygon profile (CCW from front) along Z by depth.
- * caps=1: also emit front (+Z) and back (-Z) cap faces (fan from pts[0]).
+ * caps=1: also emit triangulated front (+Z) and back (-Z) cap faces.
  * side_normals[i]: outward normal for edge pts[i]→pts[(i+1)%n]; NULL = auto-computed.
  * flip=1: reverse all winding and normals (use for inward/tunnel surfaces). */
-static void extrude_polygon(Mesh *m, vec3 *pts, vec3 *side_normals, int n, float depth, int caps, int flip){
+static float profile_cross(vec3 a,vec3 b,vec3 c){
+	return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+}
+
+static int profile_point_in_tri(vec3 p,vec3 a,vec3 b,vec3 c){
+	float ab=profile_cross(a,b,p),bc=profile_cross(b,c,p),ca=profile_cross(c,a,p);
+	return ab>=-1e-6f && bc>=-1e-6f && ca>=-1e-6f;
+}
+
+static void extrude_cap(Mesh *m,vec3 *pts,int n,float z,vec3 normal,int reverse){
+	int *idx=malloc(sizeof(int)*(size_t)n),nv=n;
+	for(int i=0;i<n;i++) idx[i]=i;
+	while(nv>2){
+		int found=0;
+		for(int i=0;i<nv;i++){
+			int ia=idx[(i+nv-1)%nv],ib=idx[i],ic=idx[(i+1)%nv],inside=0;
+			if(profile_cross(pts[ia],pts[ib],pts[ic])<=1e-6f) continue;
+			for(int j=0;j<nv;j++){
+				int ip=idx[j];
+				if(ip!=ia && ip!=ib && ip!=ic && profile_point_in_tri(pts[ip],pts[ia],pts[ib],pts[ic])){
+					inside=1;
+					break;
+				}
+			}
+			if(inside) continue;
+			int a=mesh_add_vert(m,v3(pts[ia].x,pts[ia].y,z),normal);
+			int b=mesh_add_vert(m,v3(pts[ib].x,pts[ib].y,z),normal);
+			int c=mesh_add_vert(m,v3(pts[ic].x,pts[ic].y,z),normal);
+			if(reverse) mesh_add_tri(m,a,c,b);
+			else mesh_add_tri(m,a,b,c);
+			memmove(&idx[i],&idx[i+1],sizeof(int)*(size_t)(nv-i-1));
+			nv--;
+			found=1;
+			break;
+		}
+		if(!found) break;
+	}
+	free(idx);
+}
+
+static void extrude_polygon(Mesh *m,vec3 *pts,vec3 *side_normals,int n,float depth,int caps,int flip,int smooth){
 	float hd=depth*0.5f;
 
 	if(caps){
 		vec3 fN = flip ? v3(0,0,-1) : v3(0,0,1);
 		vec3 bN = flip ? v3(0,0, 1) : v3(0,0,-1);
-		int i0F=mesh_add_vert(m, v3(pts[0].x,pts[0].y, hd), fN);
-		int i0B=mesh_add_vert(m, v3(pts[0].x,pts[0].y,-hd), bN);
-		for(int i=1;i+1<n;i++){
-			int iaF=mesh_add_vert(m, v3(pts[i  ].x,pts[i  ].y, hd), fN);
-			int ibF=mesh_add_vert(m, v3(pts[i+1].x,pts[i+1].y, hd), fN);
-			int iaB=mesh_add_vert(m, v3(pts[i  ].x,pts[i  ].y,-hd), bN);
-			int ibB=mesh_add_vert(m, v3(pts[i+1].x,pts[i+1].y,-hd), bN);
-			if(!flip){ mesh_add_tri(m,i0F,iaF,ibF); mesh_add_tri(m,i0B,ibB,iaB); }
-			else     { mesh_add_tri(m,i0F,ibF,iaF); mesh_add_tri(m,i0B,iaB,ibB); }
-		}
+		extrude_cap(m,pts,n, hd,fN,flip);
+		extrude_cap(m,pts,n,-hd,bN,!flip);
 	}
 
-	/* Side walls: one quad per edge */
 	for(int i=0;i<n;i++){
 		int j=(i+1)%n;
 		vec3 p0=pts[i], p1=pts[j];
@@ -547,111 +586,50 @@ static void extrude_polygon(Mesh *m, vec3 *pts, vec3 *side_normals, int n, float
 		}
 		vec3 f0=v3(p0.x,p0.y, hd), f1=v3(p1.x,p1.y, hd);
 		vec3 b0=v3(p0.x,p0.y,-hd), b1=v3(p1.x,p1.y,-hd);
-		if(!flip) add_quad(m, b0,b1,f1,f0, sn);
-		else      add_quad(m, f0,f1,b1,b0, sn);
+		vec3 n0=sn,n1=sn;
+		if(smooth && !side_normals){
+			vec3 pp=pts[(i+n-1)%n],pn=pts[(j+1)%n];
+			n0=vnorm(vadd(vnorm(v3(p0.y-pp.y,pp.x-p0.x,0)),vnorm(v3(p1.y-p0.y,p0.x-p1.x,0))));
+			n1=vnorm(vadd(vnorm(v3(p1.y-p0.y,p0.x-p1.x,0)),vnorm(v3(pn.y-p1.y,p1.x-pn.x,0))));
+			if(flip){ n0=vscale(n0,-1.0f); n1=vscale(n1,-1.0f); }
+		}
+		int ib0=mesh_add_vert(m,b0,n0),ib1=mesh_add_vert(m,b1,n1);
+		int if1=mesh_add_vert(m,f1,n1),if0=mesh_add_vert(m,f0,n0);
+		if(!flip){ mesh_add_tri(m,ib0,ib1,if1); mesh_add_tri(m,ib0,if1,if0); }
+		else { mesh_add_tri(m,ib0,if1,ib1); mesh_add_tri(m,ib0,if0,if1); }
 	}
 }
 
-/* Mirror a polygon profile around x=0: appends the X-flipped points in reverse order.
- * Input: left-side pts[0..n-1] where pts[0] is on the axis (x=0) and pts[n-1] may or may not be.
- * Output: full CCW polygon with 2*n-1 points (shared axis point not duplicated).
- * Caller must free the result. */
-static vec3* mirror_profile_x(vec3 *pts, int n, int *out_n){
-	int full = 2*n - 1;
-	vec3 *r = malloc(sizeof(vec3)*(size_t)full);
-	for(int i=0;i<n;i++) r[i]=pts[i];
-	for(int i=1;i<n;i++) r[n-1+i]=v3(-pts[n-1-i].x, pts[n-1-i].y, 0);
-	*out_n=full;
+static vec3* mirror_profile_x(vec3 *pts,int n){
+	vec3 *r=malloc(sizeof(vec3)*(size_t)n);
+	for(int i=0;i<n;i++) r[i]=v3(-pts[n-1-i].x,pts[n-1-i].y,0);
 	return r;
 }
 
-/* Box with a roman-arch through-hole: hole axis is Z (through the full depth).
- * Arch radius = w/2 (semicircle sits on rectangular stem.
- *
- * The arch is symmetric, so we build the left half and mirror to avoid any crossed diagonals:
- *
- * Lunette (solid wall region, with caps):
- *   Left half: TL(-hw,hh) → leftSpring(-hw,springY) → arc[0..half](apex at x=0,y=hh)
- *   mirror_profile_x produces the full CCW polygon. Extruded with caps.
- *
- * Tunnel (arch opening, walls only — no caps to avoid filling the hole):
- *   Full explicit polygon: arc[0..sides] + BotRight + BotLeft. No mirror needed.
- *   Extruded with flip=1 (inward normals). */
+/* Wall lunette above a roman-arch opening, extruded along Z.
+ * The opening spans the full profile width and height, so the mirrored lunette is the complete solid. */
 Mesh gen_box_hole_arch(float w, float h, float depth, int sides){
 	Mesh m={0};
 	if(sides<8) sides=16;
 	if(sides%2) sides++; /* ensure even so half is exact */
 	int half=sides/2;
-	float hw=w*0.5f, hh=h*0.5f, hd=depth*0.5f;
+	float hw=w*0.5f, hh=h*0.5f;
 	float archR=hw;
 	float springY=hh-archR;
 
-	/* ---- Lunette: left-half profile, then mirror ----
-	 * Points (left side, going CCW on front face):
-	 *   [0] TL         (-hw,  hh)      edge→leftSpring: left outer wall
-	 *   [1] leftSpring (-hw,  springY) edge→arc[0]:     coincident, skip
-	 *   [1..1+half] arc[0..half]       arc left-spring → apex (0, hh)
-	 * mirror_profile_x(pts, n, out_n): mirrors around x=0, last point (apex) is on axis.
-	 * Result: TL, leftSpring, arc[0..half-1], apex, arc[half-1..0]_mirrored, rightSpring, TR
-	 */
-	int nLeft = 1 + (half+1); /* TL + arc[0..half] */
-	vec3 *leftPts  = malloc(sizeof(vec3)*(size_t)nLeft);
-	vec3 *leftSide = malloc(sizeof(vec3)*(size_t)nLeft);
-	leftPts[0] = v3(-hw, hh, 0); leftSide[0] = v3(-1, 0, 0); /* TL→leftSpring: left wall */
+	int nLeft=half+2;
+	vec3 *leftPts=malloc(sizeof(vec3)*(size_t)nLeft);
+	leftPts[0]=v3(-hw,hh,0);
 	for(int i=0;i<=half;i++){
 		float a = M_PIf - (float)i/(float)sides*M_PIf;
 		float ca=cosf(a), sa=sinf(a);
-		leftPts[1+i]  = v3(ca*archR, springY+sa*archR, 0);
-		leftSide[1+i] = v3(-ca, -sa, 0); /* inward arc normal = outward lunette boundary */
+		leftPts[1+i]=v3(ca*archR,springY+sa*archR,0);
 	}
-	/* leftPts[1]    = leftSpring (-hw, springY) — edge from TL covers left wall */
-	/* leftPts[half+1] = apex (0, hh)            — on mirror axis */
-
-	int nFull;
-	vec3 *fullPts = mirror_profile_x(leftPts, nLeft, &nFull);
-
-	/* Build side normals for full polygon.
-	 * Full polygon: [TL, arc[0..half], arc[half-1..0]_mirrored, TR]
-	 * Left half normals + mirrored right half normals (X-flip the side normals). */
-	vec3 *fullSide = malloc(sizeof(vec3)*(size_t)nFull);
-	for(int i=0;i<nLeft;i++) fullSide[i]=leftSide[i];
-	/* Right half: mirror of left half in reverse, X-flipped */
-	for(int i=1;i<nLeft;i++){
-		vec3 sn = leftSide[nLeft-1-i];
-		fullSide[nLeft-1+i] = v3(-sn.x, sn.y, sn.z);
-	}
-	/* Top edge of the full polygon: last point TR(+hw,hh) closes back to TL(-hw,hh).
-	 * That closing edge's normal should be (0,1,0) — top outer wall. */
-	fullSide[nFull-1] = v3(0, 1, 0);
-
-	extrude_polygon(&m, fullPts, fullSide, nFull, depth, 1/*caps*/, 0/*flip*/);
-	free(leftPts); free(leftSide); free(fullPts); free(fullSide);
-
-	/* ---- Tunnel: full explicit polygon, walls only ----
-	 * arc[0..sides] left→right, then BotRight, BotLeft. Closes BotLeft→arc[0].
-	 * Normals point outward from the opening (into the wall = inward to tunnel). */
-	int nArc=sides+1, nTun=nArc+2;
-	vec3 *tun    =malloc(sizeof(vec3)*(size_t)nTun);
-	vec3 *tunSide=malloc(sizeof(vec3)*(size_t)nTun);
-	for(int i=0;i<=sides;i++){
-		float a=M_PIf-(float)i/(float)sides*M_PIf;
-		float ca=cosf(a), sa=sinf(a);
-		tun[i]    =v3(ca*archR, springY+sa*archR, 0);
-		tunSide[i]=v3(ca, sa, 0);
-	}
-	tunSide[sides]   = v3(-1, 0, 0); /* arc[sides]→BotRight: right stem */
-	tun[nArc+0]      = v3( hw, -hh, 0);
-	tunSide[nArc+0]  = v3( 0,  1, 0); /* BotRight→BotLeft: floor */
-	tun[nArc+1]      = v3(-hw, -hh, 0);
-	tunSide[nArc+1]  = v3( 1,  0, 0); /* BotLeft→arc[0]: left stem */
-	extrude_polygon(&m, tun, tunSide, nTun, depth, 0/*no caps*/, 1/*flip=inward*/);
-	free(tun); free(tunSide);
-
-	/* ---- Outer box side faces ---- */
-	add_quad(&m, v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3(-hw, hh, hd), v3(-hw, hh,-hd), v3(-1,0,0));
-	add_quad(&m, v3( hw,-hh, hd), v3( hw,-hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3( 1,0,0));
-	add_quad(&m, v3(-hw, hh,-hd), v3( hw, hh,-hd), v3( hw, hh, hd), v3(-hw, hh, hd), v3(0, 1,0));
-	add_quad(&m, v3( hw,-hh,-hd), v3(-hw,-hh,-hd), v3(-hw,-hh, hd), v3( hw,-hh, hd), v3(0,-1,0));
+	vec3 *rightPts=mirror_profile_x(leftPts,nLeft);
+	extrude_polygon(&m,leftPts,NULL,nLeft,depth,1,0,0);
+	extrude_polygon(&m,rightPts,NULL,nLeft,depth,1,0,0);
+	free(leftPts);
+	free(rightPts);
 
 	return m;
 }
