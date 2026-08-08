@@ -1,7 +1,4 @@
-#define GL_SILENCE_DEPRECATION
-#define GL_GLEXT_PROTOTYPES 1
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
+#include <orion/user/gl_compat.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>

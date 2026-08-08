@@ -1,0 +1,223 @@
+#include "scener.h"
+#include <orion/user/draw.h>
+
+result_t scener_toolbar_proc(window_t *win, uint32_t msg,
+                             uint32_t wparam, void *lparam) {
+  (void)lparam;
+  switch (msg) {
+    case evCreate:
+      send_message(win, tbSetItems, (uint32_t)TB_MAIN_COUNT, (void *)TB_MAIN);
+      scener_sync_main_toolbar();
+      return true;
+    case tbButtonClick:
+      handle_menu_command((uint16_t)wparam);
+      scener_sync_main_toolbar();
+      return true;
+    case evDestroy:
+      if (g_app && g_app->main_toolbar_win == win) g_app->main_toolbar_win = NULL;
+      return false;
+    default:
+      return false;
+  }
+}
+
+window_t *create_main_toolbar_window(void) {
+  if (!g_app) return NULL;
+  if (g_app->chrome_win) return app_chrome_toolbar(g_app->chrome_win);
+  int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
+  window_t *win = create_window(
+      "Toolbar",
+      WINDOW_TOOLBAR | WINDOW_NOTITLE | WINDOW_ALWAYSONTOP |
+      WINDOW_NORESIZE | WINDOW_NOTRAYBUTTON | WINDOW_NODRAG,
+      MAKERECT(0, MENUBAR_HEIGHT, sw, TOOLBAR_BAND_HEIGHT),
+      NULL, scener_toolbar_proc, g_app->hinstance, NULL);
+  if (!win) return NULL;
+  show_window(win, true);
+  g_app->main_toolbar_win = win;
+  scener_sync_main_toolbar();
+  return win;
+}
+
+void scener_sync_main_toolbar(void) {
+  if (!g_app || !g_app->main_toolbar_win) return;
+  window_t *toolbar = g_app->main_toolbar_win;
+  int active = g_app->current_tool;
+  send_message(toolbar, tbSetActiveButton, (uint32_t)active, NULL);
+}
+
+result_t scener_menubar_proc(window_t *win, uint32_t msg,
+                             uint32_t wparam, void *lparam) {
+  if (msg == evCommand) {
+    uint16_t notif = HIWORD(wparam);
+    if (notif == kMenuBarNotificationItemClick ||
+        notif == kAcceleratorNotification      ||
+        notif == btnClicked) {
+      handle_menu_command(LOWORD(wparam));
+      return true;
+    }
+  }
+  return win_menubar(win, msg, wparam, lparam);
+}
+
+static scene_doc_t *current_doc(void) {
+  if (!g_app) return NULL;
+  scene_doc_t *doc = g_app->active_doc;
+  if (!doc) doc = g_app->docs;
+  return doc;
+}
+
+void handle_menu_command(uint16_t id) {
+  if (!g_app) return;
+  scene_doc_t *doc = current_doc();
+
+  switch (id) {
+    case ID_FILE_NEW:
+      create_document(NULL);
+      break;
+
+    case ID_FILE_OPEN: {
+      char path[512] = {0};
+      openfilename_t ofn = {0};
+      ofn.lStructSize = sizeof(ofn);
+      ofn.hwndOwner = g_app->menubar_win;
+      ofn.lpstrFile = path;
+      ofn.nMaxFile = sizeof(path);
+      ofn.lpstrFilter = "Scene files\0*.blks\0All files\0*.*\0";
+      ofn.Flags = OFN_FILEMUSTEXIST;
+      if (get_open_filename(&ofn))
+        scener_open_file_path(path);
+      break;
+    }
+
+    case ID_FILE_SAVE:
+      if (doc) {
+        if (!doc->filename[0]) goto do_save_as;
+        scene_save_all(&doc->scene);
+        doc->modified = false;
+      }
+      break;
+
+    do_save_as:
+    case ID_FILE_SAVEAS:
+      if (doc) {
+        char path[512] = {0};
+        openfilename_t ofn = {0};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = g_app->menubar_win;
+        ofn.lpstrFile = path;
+        ofn.nMaxFile = sizeof(path);
+        ofn.lpstrFilter = "Scene files\0*.blks\0All files\0*.*\0";
+        ofn.Flags = OFN_OVERWRITEPROMPT;
+        if (get_save_filename(&ofn)) {
+          strncpy(doc->filename, path, sizeof(doc->filename)-1);
+          doc->filename[sizeof(doc->filename)-1] = '\0';
+          scene_save_all(&doc->scene);
+          doc->modified = false;
+          doc_update_title(doc);
+        }
+      }
+      break;
+
+    case ID_FILE_CLOSE:
+      if (doc) close_document(doc);
+      break;
+
+    case ID_FILE_QUIT:
+      ui_request_quit();
+      break;
+
+    case ID_TOOL_SELECT:
+    case ID_TOOL_MOVE:
+    case ID_TOOL_ROTATE:
+    case ID_TOOL_SCALE:
+      if (doc) {
+        int mode = id == ID_TOOL_SELECT ? EDIT_Q_SELECT
+                 : id == ID_TOOL_MOVE   ? EDIT_W_MOVE
+                 : id == ID_TOOL_ROTATE ? EDIT_E_ROTATE
+                 :                        EDIT_R_SCALE;
+        doc->scene.editMode = mode;
+        g_app->current_tool = id;
+        scener_sync_main_toolbar();
+      }
+      break;
+
+    case ID_VIEW_SHOW_GRID:
+      g_app->debug_flags ^= DBG_NO_SHADOWS;
+      break;
+
+    case ID_VIEW_SHOW_SHADOWS:
+      g_app->debug_flags ^= DBG_NO_SHADOWS;
+      break;
+
+    case ID_VIEW_SHOW_WIREFRAME:
+      g_app->debug_flags ^= DBG_WIRE_SHADOWVOL;
+      break;
+
+    case ID_CREATE_BOX:
+    case ID_CREATE_SPHERE:
+    case ID_CREATE_CYLINDER:
+    case ID_CREATE_CONE:
+    case ID_CREATE_TORUS:
+    case ID_CREATE_PRISM:
+    case ID_CREATE_CAPSULE:
+    case ID_CREATE_ARCH:
+      if (doc) {
+        Mesh m = {0};
+        switch (id) {
+          case ID_CREATE_BOX:      m = gen_box(1,1,1); break;
+          case ID_CREATE_SPHERE:   m = gen_sphere(0.5f,16,16); break;
+          case ID_CREATE_CYLINDER: m = gen_cylinder(0.5f,1,24); break;
+          case ID_CREATE_CONE:     m = gen_cone(0.5f,0,1,24); break;
+          case ID_CREATE_TORUS:    m = gen_torus(0.4f,0.15f,24,12); break;
+          case ID_CREATE_PRISM:    m = gen_prism(0.5f,1,6); break;
+          case ID_CREATE_CAPSULE:  m = gen_capsule(0.3f,0.6f,12,12); break;
+          case ID_CREATE_ARCH:     m = gen_arch(1,1,0.3f,0.15f,12,0); break;
+        }
+        mat4 I = mat4_identity();
+        scene_add_obj(&doc->scene, m, I, I, v3(0.7f,0.7f,0.7f), 32, 1, 1, 0);
+        scene_build_all_shadow_volumes(&doc->scene);
+        doc->modified = true;
+        if (doc->viewport_win) invalidate_window(doc->viewport_win);
+      }
+      break;
+
+    case ID_CREATE_POINT_LIGHT: {
+      if (doc) {
+        Light lt = {0};
+        lt.pos = doc->scene.camPos;
+        lt.color = v3(1,1,1);
+        lt.intensity = 1.0f;
+        lt.radius = 10.0f;
+        lt.castsShadow = 1;
+        DA_PUSH(doc->scene.lights, doc->scene.nlights, doc->scene.clights, lt);
+        scene_build_all_shadow_volumes(&doc->scene);
+        doc->modified = true;
+        if (doc->viewport_win) invalidate_window(doc->viewport_win);
+      }
+      break;
+    }
+
+    case ID_CREATE_CAMERA:
+      if (doc) {
+        Camera cam = {0};
+        snprintf(cam.name, sizeof(cam.name), "Cam%d", doc->scene.ncameras + 1);
+        cam.pos = doc->scene.camPos;
+        cam.look = doc->scene.camLook;
+        cam.fov = doc->scene.camFov > 0 ? doc->scene.camFov : 60;
+        DA_PUSH(doc->scene.cameras, doc->scene.ncameras, doc->scene.ccameras, cam);
+        doc->modified = true;
+      }
+      break;
+
+    case ID_WINDOW_COMMAND_PANEL:
+      if (g_app->command_panel_win) {
+        show_window(g_app->command_panel_win, true);
+      } else {
+        g_app->command_panel_win = create_command_panel_window();
+      }
+      break;
+
+    default:
+      break;
+  }
+}

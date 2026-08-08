@@ -1,5 +1,4 @@
-#define GL_SILENCE_DEPRECATION
-#include <OpenGL/gl.h>
+#include <orion/user/gl_compat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

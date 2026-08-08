@@ -1,11 +1,9 @@
-#define GL_SILENCE_DEPRECATION
-#include <OpenGL/gl.h>
+#include <orion/user/gl_compat.h>
 #include <math.h>
 #include "simplegl.h"
 
 typedef struct {
-	vec3 pos;
-	vec3 color;
+	float x,y,z,r,g,b;
 } GizmoVert;
 
 typedef struct {
@@ -14,8 +12,8 @@ typedef struct {
 } GizmoLines;
 
 static void gl_add(GizmoLines *gl, vec3 a, vec3 b, vec3 color){
-	DA_PUSH(gl->v, gl->count, gl->cap, ((GizmoVert){a, color}));
-	DA_PUSH(gl->v, gl->count, gl->cap, ((GizmoVert){b, color}));
+	DA_PUSH(gl->v, gl->count, gl->cap, ((GizmoVert){a.x,a.y,a.z,color.x,color.y,color.z}));
+	DA_PUSH(gl->v, gl->count, gl->cap, ((GizmoVert){b.x,b.y,b.z,color.x,color.y,color.z}));
 }
 
 static vec3 handle_color(vec3 color,int hovered){
@@ -114,6 +112,12 @@ static int axis_visible(int lock,int handle){
 	return 0;
 }
 
+static GLuint s_gizmo_vao, s_gizmo_vbo;
+extern GLuint s_line_prog;
+extern GLint  s_line_proj_loc, s_line_view_loc;
+static void ensure_gizmo_buf(void) { if (!s_gizmo_vao) { glGenVertexArrays(1, &s_gizmo_vao); glGenBuffers(1, &s_gizmo_vbo); } }
+extern void ensure_line_prog(void);
+
 void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
 	vec3 center,bmin,bmax; float radius; mat4 matrix;
 	if(!gizmo_geometry(s,camPos,camLook,camFov,&center,&radius,&matrix,&bmin,&bmax)) return;
@@ -124,7 +128,7 @@ void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
 	vec3 xy=handle_color(v3(0.92f,0.82f,0.08f),s->hoveredHandle==GIZMO_PLANE_XY);
 	vec3 xz=handle_color(v3(0.82f,0.18f,0.72f),s->hoveredHandle==GIZMO_PLANE_XZ);
 	vec3 yz=handle_color(v3(0.10f,0.75f,0.78f),s->hoveredHandle==GIZMO_PLANE_YZ);
-	glDisable(GL_DEPTH_TEST); glDisable(GL_LIGHTING); glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST); glDisable(GL_CULL_FACE);
 	glDisable(GL_BLEND); glLineWidth(1.0f);
 	GizmoLines gl={0};
 	gl_bounds_corners(&gl,matrix,bmin,bmax);
@@ -161,12 +165,25 @@ void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
 		}
 		if(!s->axisLock) gl_box(&gl,center,half*1.15f,handle_color(v3(0.88f,0.88f,0.88f),s->hoveredHandle==GIZMO_CENTER));
 	}
-	glBegin(GL_LINES);
-	for(int i=0;i<gl.count;i++){
-		glColor3fv(&gl.v[i].color.x);
-		glVertex3fv(&gl.v[i].pos.x);
+	if(gl.count>0){
+		ensure_gizmo_buf();
+		ensure_line_prog();
+		if(s_line_prog){
+			glUseProgram(s_line_prog);
+			glBindVertexArray(s_gizmo_vao);
+			glBindBuffer(GL_ARRAY_BUFFER, s_gizmo_vbo);
+			glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(gl.count*sizeof(GizmoVert)), gl.v, GL_DYNAMIC_DRAW);
+			glEnableVertexAttribArray(0);
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GizmoVert), (void*)0);
+			glEnableVertexAttribArray(1);
+			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GizmoVert), (void*)(3*sizeof(float)));
+			glDrawArrays(GL_LINES, 0, gl.count);
+			glDisableVertexAttribArray(0);
+			glDisableVertexAttribArray(1);
+			glBindVertexArray(0);
+			glUseProgram(0);
+		}
 	}
-	glEnd();
 	free(gl.v);
 	glLineWidth(1.0f);
 }

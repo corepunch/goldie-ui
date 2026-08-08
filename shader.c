@@ -1,7 +1,4 @@
-#define GL_SILENCE_DEPRECATION
-#define GL_GLEXT_PROTOTYPES 1
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
+#include <orion/user/gl_compat.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,12 +12,13 @@ static GLint ulocViewProj, ulocViewPos, ulocLightPos, ulocLightColor, ulocLightR
 static GLint ulocColor, ulocShininess, ulocTex;
 
 static const char *vs_src =
-"attribute vec3 aPos;\n"
-"attribute vec3 aNrm;\n"
+"#version 150\n"
+"in vec3 aPos;\n"
+"in vec3 aNrm;\n"
 "uniform mat4 uViewProj;\n"
-"varying vec3 vWorldPos;\n"
-"varying vec3 vWorldNrm;\n"
-"varying vec2 vWorldUV;\n"
+"out vec3 vWorldPos;\n"
+"out vec3 vWorldNrm;\n"
+"out vec2 vWorldUV;\n"
 "void main(){\n"
 "    vWorldPos=aPos;\n"
 "    vWorldNrm=aNrm;\n"
@@ -32,6 +30,7 @@ static const char *vs_src =
 "}\n";
 
 static const char *fs_src =
+"#version 150\n"
 "#define PI 3.14159\n"
 "#define SHININESS_SCALE 18.0\n"
 "#define BASE_REFLECTANCE 0.04\n"
@@ -44,9 +43,10 @@ static const char *fs_src =
 "#define NOISE_PARAM vec2(0.06711056,0.00583715)\n"
 "#define NOISE_SEED vec3(17.0,59.0,113.0)\n"
 "#define NOISE_DIV 255.0\n"
-"varying vec3 vWorldPos;\n"
-"varying vec3 vWorldNrm;\n"
-"varying vec2 vWorldUV;\n"
+"in vec3 vWorldPos;\n"
+"in vec3 vWorldNrm;\n"
+"in vec2 vWorldUV;\n"
+"out vec4 fragColor;\n"
 "uniform vec3 uViewPos;\n"
 "uniform vec4 uLightPos;\n"
 "uniform vec3 uLightColor;\n"
@@ -72,7 +72,7 @@ static const char *fs_src =
 "    float G2=NdotV/(NdotV*(1.0-k)+k);\n"
 "    float G=G1*G2;\n"
 "    float F=BASE_REFLECTANCE+(1.0-BASE_REFLECTANCE)*pow(1.0-max(dot(V,H),0.0),FRESNEL_EXP);\n"
-"    vec3 texColor=texture2D(uTex,vWorldUV).rgb;\n"
+"    vec3 texColor=texture(uTex,vWorldUV).rgb;\n"
 "    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,MIN_SPECULAR))*uLightColor;\n"
 "    vec3 diff=uColor*texColor*(1.0-F)*NdotL*uLightColor;\n"
 "    float att=1.0;\n"
@@ -84,7 +84,7 @@ static const char *fs_src =
 "    float seed=dot(uLightPos.xyz,NOISE_SEED);\n"
 "    float noise=fract(NOISE_SCALE*fract(dot(gl_FragCoord.xy+seed,NOISE_PARAM)))-0.5;\n"
 "    vec3 encoded=clamp(lit + noise/NOISE_DIV,0.0,1.0);\n"
-"    gl_FragColor=vec4(encoded,1.0);\n"
+"    fragColor=vec4(encoded,1.0);\n"
 "}\n";
 
 static GLuint compile_shader(GLenum type, const char *src){
@@ -192,7 +192,11 @@ void shader_set_texture(unsigned int tex){
 	glUniform1i(ulocTex, 0);
 }
 
+static GLuint s_mesh_vao;
+
 void shader_draw_mesh(Mesh *m){
+	if(!s_mesh_vao) glGenVertexArrays(1, &s_mesh_vao);
+	glBindVertexArray(s_mesh_vao);
 	glEnableVertexAttribArray(vlocPos);
 	glEnableVertexAttribArray(vlocNrm);
 	glVertexAttribPointer(vlocPos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), &m->verts[0].pos.x);
@@ -200,4 +204,5 @@ void shader_draw_mesh(Mesh *m){
 	glDrawElements(GL_TRIANGLES, m->ntris * 3, GL_UNSIGNED_INT, m->tris);
 	glDisableVertexAttribArray(vlocPos);
 	glDisableVertexAttribArray(vlocNrm);
+	glBindVertexArray(0);
 }

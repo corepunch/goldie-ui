@@ -1,272 +1,105 @@
-#include <SDL2/SDL.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "simplegl.h"
-#include "shader.h"
+#include "scener.h"
+#include <orion/gem.h>
 
-#define MOUSE_SENSITIVITY 0.25f
-#define MOVE_SPEED 3.25f
-#define SPRINT_SPEED 7.8f
+app_state_t *g_app = NULL;
 
-static int camera_index(Scene *scene,const char *name){
-	if(!name) return 0;
-	for(int i=0;i<scene->ncameras;i++) if(!strcmp(scene->cameras[i].name,name)) return i;
-	return 0;
+static const accel_t kAccelEntries[] = {
+  { FCONTROL|FVIRTKEY, AX_KEY_Z, ID_EDIT_UNDO },
+  { FCONTROL|FVIRTKEY, AX_KEY_Y, ID_EDIT_REDO },
+  { FCONTROL|FVIRTKEY, AX_KEY_N, ID_FILE_NEW  },
+  { FCONTROL|FVIRTKEY, AX_KEY_O, ID_FILE_OPEN },
+  { FCONTROL|FVIRTKEY, AX_KEY_S, ID_FILE_SAVE },
+  { FCONTROL|FVIRTKEY, AX_KEY_W, ID_FILE_CLOSE},
+  { FCONTROL|FVIRTKEY, AX_KEY_D, ID_EDIT_DUPLICATE },
+  { FVIRTKEY,          AX_KEY_DEL, ID_EDIT_DELETE },
+  { FVIRTKEY,          AX_KEY_Q, ID_TOOL_SELECT },
+  { FVIRTKEY,          AX_KEY_W, ID_TOOL_MOVE },
+  { FVIRTKEY,          AX_KEY_E, ID_TOOL_ROTATE },
+  { FVIRTKEY,          AX_KEY_R, ID_TOOL_SCALE },
+  { FVIRTKEY,          AX_KEY_F, ID_VIEW_ZOOM_FIT },
+};
+#define kAccelCount (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0]))
+
+static void create_app_windows(hinstance_t hinstance) {
+#ifdef BUILD_AS_GEM
+  g_app->menubar_win = set_app_menu(scener_menubar_proc, kMenus, kNumMenus,
+                                    handle_menu_command, hinstance);
+  create_main_toolbar_window();
+#else
+  g_app->chrome_win = create_app_chrome("SimpleSketch3D Chrome",
+                                        scener_menubar_proc,
+                                        kMenus, kNumMenus,
+                                        scener_toolbar_proc,
+                                        hinstance);
+  g_app->menubar_win      = app_chrome_menubar(g_app->chrome_win);
+  g_app->main_toolbar_win = app_chrome_toolbar(g_app->chrome_win);
+  scener_sync_main_toolbar();
+#endif
+
+  g_app->command_panel_win = create_command_panel_window();
 }
 
-static void snap_camera(Scene *scene,int index,vec3 *pos,float *yaw,float *pitch){
-	Camera *camera=&scene->cameras[index];
-	vec3 fwd=vnorm(vsub(camera->look,camera->pos));
-	scene_select_camera(scene,camera->name);
-	*pos=camera->pos;
-	*yaw=atan2f(fwd.x,-fwd.z)*180.0f/M_PIf;
-	*pitch=asinf(fwd.y)*180.0f/M_PIf;
+static const char *scener_file_types[] = { ".blks", NULL };
+
+#ifndef BUILD_AS_GEM
+static bool scener_open_file_handler(const char *path) {
+  return scener_open_file_path(path);
+}
+#endif
+
+bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
+  g_app = calloc(1, sizeof(app_state_t));
+  if (!g_app) return false;
+
+  g_app->hinstance    = hinstance;
+  g_app->current_tool = ID_TOOL_SELECT;
+  g_app->debug_flags  = 0;
+
+#ifndef BUILD_AS_GEM
+  ui_register_open_file_handler(scener_open_file_handler);
+#endif
+
+  srand((unsigned int)time(NULL));
+  register_commctl_classes();
+
+  create_app_windows(hinstance);
+
+  g_app->accel = load_accelerators(kAccelEntries, kAccelCount);
+  if (g_app->menubar_win)
+    send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
+
+  int opened = 0;
+  for (int i = 1; i < argc; i++) {
+    if (argv[i] && argv[i][0] && scener_open_file_path(argv[i]))
+      opened++;
+  }
+  if (opened == 0)
+    create_document(NULL);
+
+  return true;
 }
 
-static void set_camera_title(SDL_Window *win,Scene *scene,int index){
-	char title[128];
-	snprintf(title,sizeof(title),"simplegl - camera %d/%d: %s",index+1,scene->ncameras,scene->cameras[index].name);
-	SDL_SetWindowTitle(win,title);
+void gem_shutdown(void) {
+  if (!g_app) return;
+
+  free_accelerators(g_app->accel);
+  g_app->accel = NULL;
+
+  if (g_app->chrome_win && is_window(g_app->chrome_win))
+    destroy_window(g_app->chrome_win);
+  g_app->chrome_win = g_app->menubar_win = g_app->main_toolbar_win = NULL;
+
+  while (g_app->docs)
+    close_document(g_app->docs);
+
+  scene_free_textures(&g_app->docs->scene);
+  shader_deinit();
+
+  free(g_app);
+  g_app = NULL;
 }
 
-static void frame_scene(Scene *scene,vec3 *pos,float *yaw,float *pitch){
-	vec3 bmin,bmax; scene_get_bounds(scene,&bmin,&bmax);
-	vec3 center=vscale(vadd(bmin,bmax),0.5f);
-	float radius=vlen(vscale(vsub(bmax,bmin),0.5f));
-	if(radius<0.5f) radius=0.5f;
-	*pos=vadd(center,v3(radius*1.2f,radius*0.7f,radius*2.4f));
-	vec3 fwd=vnorm(vsub(center,*pos));
-	*yaw=atan2f(fwd.x,-fwd.z)*180.0f/M_PIf;
-	*pitch=asinf(fwd.y)*180.0f/M_PIf;
-}
+GEM_DEFINE("SimpleSketch3D", "1.0", gem_init, gem_shutdown, scener_file_types)
 
-int main(int argc,char**argv){
-	const char *scenePath = NULL;
-	const char *camName = NULL;
-	int listCameras = 0;
-	int runSanity = 0;
-	int renderFlags = 0;
-	for(int i=1;i<argc;i++){
-		if(!strcmp(argv[i],"-cam") && i+1<argc){ camName=argv[++i]; }
-		else if(!strcmp(argv[i],"-list-cameras")){ listCameras = 1; }
-		else if(!strcmp(argv[i],"-test")){ runSanity = 1; }
-		else if(!strcmp(argv[i],"-no-shadows")){ renderFlags|=DBG_NO_SHADOWS; }
-		else if(!strcmp(argv[i],"-show-stencil")){ renderFlags|=DBG_SHOW_STENCIL; }
-		else if(!scenePath) scenePath=argv[i];
-	}
-	if(!scenePath) scenePath="scenes/sample_room.blks";
-
-	Scene scene;
-	if(!load_scene(scenePath,&scene)) return 1;
-
-	if(listCameras){
-		for(int i=0;i<scene.ncameras;i++){
-			Camera *c = &scene.cameras[i];
-			fprintf(stderr,"%-16s %s%s%s\n", c->name,
-			        c->comment[0] ? "\"" : "", c->comment,
-			        c->comment[0] ? "\"" : "");
-		}
-		scene_free(&scene);
-		return 0;
-	}
-	if(runSanity){
-		int ok=scene_sanity_check(&scene);
-		scene_free(&scene);
-		return ok ? 0 : 1;
-	}
-
-	int currentCamera=camera_index(&scene,camName);
-	scene_select_camera(&scene,scene.cameras[currentCamera].name);
-	scene_build_all_shadow_volumes(&scene);
-	fprintf(stderr,"loaded %d objects, %d lights, %d materials, %d cameras\n",
-	        scene.nobjs, scene.nlights, scene.nmats, scene.ncameras);
-
-    if(SDL_Init(SDL_INIT_VIDEO)!=0){ fprintf(stderr,"SDL_Init: %s\n",SDL_GetError()); return 1; }
-    SDL_StopTextInput();
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE,8);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,8);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,8);
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE,8);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,8);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
-    SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,1);
-
-    int W=1024,H=768;
-    SDL_Window *win=SDL_CreateWindow("simplegl",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,
-        W,H, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
-    if(!win){ fprintf(stderr,"CreateWindow: %s\n",SDL_GetError()); return 1; }
-    SDL_GLContext ctx=SDL_GL_CreateContext(win);
-    if(!ctx){ fprintf(stderr,"GL_CreateContext: %s\n",SDL_GetError()); return 1; }
-    set_camera_title(win,&scene,currentCamera);
-    shader_init();
-    SDL_GL_SetSwapInterval(1);
-    scene_rebuild_camera_gizmos(&scene,(float)W/(float)H);
-    scene_init_textures(&scene);
-
-    float yaw,pitch;
-    vec3 pos;
-    snap_camera(&scene,currentCamera,&pos,&yaw,&pitch);
-	vec3 modePos[32]; float modeYaw[32],modePitch[32];
-
-    int running=1;
-    int rightMouseDown=0;
-	int tabDown=0;
-    int debugFlags=renderFlags;
-    scene.selectedObj=-1;
-            scene.editMode=EDIT_W_MOVE;
-    scene.hoveredHandle=GIZMO_NONE;
-    scene.draggingHandle=GIZMO_NONE;
-    scene.axisLock=0;
-    int leftMouseDown=0;
-    int mouseX=W/2,mouseY=H/2;
-    Uint32 lastTicks=SDL_GetTicks();
-    while(running){
-        Uint32 now=SDL_GetTicks(); float dt=(now-lastTicks)/1000.0f; lastTicks=now;
-        float yawR=yaw*M_PIf/180.0f, pitchR=pitch*M_PIf/180.0f;
-        vec3 look = v3(sinf(yawR)*cosf(pitchR), sinf(pitchR), -cosf(yawR)*cosf(pitchR));
-        vec3 right = vnorm(vcross(look, v3(0,1,0)));
-
-        SDL_Event ev;
-        while(SDL_PollEvent(&ev)){
-            if(ev.type==SDL_QUIT) running=0;
-            else if(ev.type==SDL_KEYDOWN){
-				if(ev.key.keysym.sym==SDLK_ESCAPE && !ev.key.repeat){
-					if(scene.axisLock){ scene.axisLock=0; fprintf(stderr,"axis lock: off\n"); }
-					else {
-					int depth=scene.editDepth;
-					if(scene_exit_prefab(&scene)){
-						pos=modePos[depth-1]; yaw=modeYaw[depth-1]; pitch=modePitch[depth-1];
-						set_camera_title(win,&scene,currentCamera);
-						fprintf(stderr,"prefab edit: back to level %d\n",scene.editDepth);
-					} else running=0;
-					}
-				}
-				else if(ev.key.keysym.sym==SDLK_s && (ev.key.keysym.mod&KMOD_GUI) && !ev.key.repeat){
-					fprintf(stderr,"save scene and prefabs: %s\n",scene_save_all(&scene)?"ok":"failed");
-				}
-				else if(ev.key.keysym.sym==SDLK_TAB && !tabDown){
-					tabDown=1;
-					if(ev.key.keysym.mod&KMOD_SHIFT) currentCamera=(currentCamera+scene.ncameras-1)%scene.ncameras;
-					else currentCamera=(currentCamera+1)%scene.ncameras;
-					snap_camera(&scene,currentCamera,&pos,&yaw,&pitch);
-					set_camera_title(win,&scene,currentCamera);
-					fprintf(stderr,"camera %d/%d: %s\n",currentCamera+1,scene.ncameras,scene.cameras[currentCamera].name);
-				}
-                else if(ev.key.keysym.sym==SDLK_1){ debugFlags^=DBG_NO_SHADOWS; fprintf(stderr,"shadows: %s\n",(debugFlags&DBG_NO_SHADOWS)?"off":"on"); }
-                else if(ev.key.keysym.sym==SDLK_2){ debugFlags^=DBG_WIRE_SHADOWVOL; fprintf(stderr,"shadow volume wire: %s\n",(debugFlags&DBG_WIRE_SHADOWVOL)?"on":"off"); }
-                else if(ev.key.keysym.sym==SDLK_3){ debugFlags^=DBG_SHOW_STENCIL; fprintf(stderr,"stencil overlay: %s\n",(debugFlags&DBG_SHOW_STENCIL)?"on":"off"); }
-                else if(ev.key.keysym.sym==SDLK_4){ debugFlags^=DBG_HIDE_LIGHTS; fprintf(stderr,"cam/lamp dummies: %s\n",(debugFlags&DBG_HIDE_LIGHTS)?"hidden":"visible"); }
-                else if(ev.key.keysym.sym==SDLK_5){ debugFlags^=DBG_HIDE_CHARS; fprintf(stderr,"character dummies: %s\n",(debugFlags&DBG_HIDE_CHARS)?"hidden":"visible"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_q){ scene.editMode=EDIT_Q_SELECT; scene.axisLock=0; fprintf(stderr,"edit mode: select\n"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_w){ scene.editMode=EDIT_W_MOVE; scene.axisLock=0; fprintf(stderr,"edit mode: move\n"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_e){ scene.editMode=EDIT_E_ROTATE; scene.axisLock=0; fprintf(stderr,"edit mode: rotate\n"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_r){ scene.editMode=EDIT_R_SCALE; scene.axisLock=0; fprintf(stderr,"edit mode: scale\n"); }
-				else if(scene.editMode!=EDIT_Q_SELECT && !ev.key.repeat){
-					int lock=0;
-					if(ev.key.keysym.sym==SDLK_x) lock=GIZMO_AXIS_X;
-					else if(ev.key.keysym.sym==SDLK_y) lock=GIZMO_AXIS_Y;
-					else if(ev.key.keysym.sym==SDLK_z) lock=GIZMO_AXIS_Z;
-					if(lock){
-						if(ev.key.keysym.mod&KMOD_SHIFT) lock=7-lock;
-						scene.axisLock=(scene.axisLock==lock?0:lock);
-						fprintf(stderr,"axis lock: %s\n",scene.axisLock?"on":"off");
-					}
-				}
-            }
-			else if(ev.type==SDL_KEYUP && ev.key.keysym.sym==SDLK_TAB) tabDown=0;
-            else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){
-                rightMouseDown=1;
-            } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_RIGHT){
-                rightMouseDown=0;
-            } else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_LEFT){
-                leftMouseDown=1;
-                float fovRad=scene.camFov*M_PIf/180.0f;
-                float hh=tanf(fovRad*0.5f);
-                float hw=hh*(float)W/(float)H;
-                float ndcX=(2.0f*mouseX)/W-1.0f;
-                float ndcY=1.0f-(2.0f*mouseY)/H;
-                vec3 cameraUp=vnorm(vcross(right,look));
-                vec3 rayDir=vnorm(vadd(vadd(vscale(right,ndcX*hw),vscale(cameraUp,ndcY*hh)),look));
-                /* Start gizmo drag if hovering a handle */
-                if(scene.hoveredHandle!=GIZMO_NONE && ev.button.clicks<2){
-					gizmo_begin_drag(&scene,scene.hoveredHandle,mouseX,mouseY);
-                } else {
-                    scene.draggingHandle=GIZMO_NONE;
-                    scene.selectedObj=scene_pick_object(&scene,pos,rayDir,NULL);
-                    fprintf(stderr,"selected object %d\n",scene.selectedObj);
-					if(ev.button.clicks>=2 && scene.selectedObj>=0){
-						int depth=scene.editDepth;
-						modePos[depth]=pos; modeYaw[depth]=yaw; modePitch[depth]=pitch;
-						if(scene_enter_selected_prefab(&scene)){
-							currentCamera=0;
-							frame_scene(&scene,&pos,&yaw,&pitch);
-							SDL_SetWindowTitle(win,"simplegl - prefab editing");
-							fprintf(stderr,"prefab edit: level %d\n",scene.editDepth);
-						}
-					}
-                }
-            } else if(ev.type==SDL_MOUSEBUTTONUP && ev.button.button==SDL_BUTTON_LEFT){
-                leftMouseDown=0;
-                scene.draggingHandle=GIZMO_NONE;
-            } else if(ev.type==SDL_MOUSEMOTION){
-                mouseX=ev.motion.x; mouseY=ev.motion.y;
-                if(rightMouseDown){
-                    yaw   += ev.motion.xrel * MOUSE_SENSITIVITY;
-                    pitch -= ev.motion.yrel * MOUSE_SENSITIVITY;
-                    if(pitch>89) pitch=89;
-                    if(pitch<-89) pitch=-89;
-                } else if(leftMouseDown && scene.draggingHandle!=GIZMO_NONE){
-                    vec3 cameraUp=vnorm(vcross(right,look));
-                    gizmo_apply_drag(&scene, mouseX, mouseY, W, H,
-                                     pos, right, cameraUp, look, scene.camFov);
-                }
-            } else if(ev.type==SDL_WINDOWEVENT && ev.window.event==SDL_WINDOWEVENT_RESIZED){
-                W=ev.window.data1; H=ev.window.data2;
-                scene_rebuild_camera_gizmos(&scene,(float)W/(float)H);
-            }
-        }
-        const Uint8 *ks=SDL_GetKeyboardState(NULL);
-        float speed = (ks[SDL_SCANCODE_LSHIFT]||ks[SDL_SCANCODE_RSHIFT]) ? SPRINT_SPEED : MOVE_SPEED;
-        vec3 move={0,0,0};
-        if(rightMouseDown){
-            if(ks[SDL_SCANCODE_W]) move=vadd(move, look);
-            if(ks[SDL_SCANCODE_S]) move=vsub(move, look);
-            if(ks[SDL_SCANCODE_D]) move=vadd(move, right);
-            if(ks[SDL_SCANCODE_A]) move=vsub(move, right);
-            if(ks[SDL_SCANCODE_E]) move=vadd(move, v3(0,1,0));
-            if(ks[SDL_SCANCODE_Q]) move=vsub(move, v3(0,1,0));
-        }
-        if(vlen(move)>1e-6f) pos = vadd(pos, vscale(vnorm(move), speed*dt));
-
-        /* Per-frame gizmo hover detection (only when not dragging) */
-        if(scene.draggingHandle==GIZMO_NONE){
-            float fovRad=scene.camFov*M_PIf/180.0f;
-            float hh=tanf(fovRad*0.5f);
-            float hw=hh*(float)W/(float)H;
-            float ndcX=(2.0f*mouseX)/(float)W-1.0f;
-            float ndcY=1.0f-(2.0f*mouseY)/(float)H;
-            vec3 cameraUp=vnorm(vcross(right,look));
-            vec3 rayDir=vnorm(vadd(vadd(vscale(right,ndcX*hw),vscale(cameraUp,ndcY*hh)),look));
-            scene.hoveredHandle=gizmo_pick_handle(&scene,pos,rayDir,look,scene.camFov);
-        }
-
-        mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
-        mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));
-        render_frame(&scene,W,H,proj,view,pos,look,debugFlags);
-
-        SDL_GL_SwapWindow(win);
-    }
-
-    scene_free_textures(&scene);
-    shader_deinit();
-    SDL_GL_DeleteContext(ctx);
-    SDL_DestroyWindow(win);
-    SDL_Quit();
-    scene_free(&scene);
-    return 0;
-}
+GEM_STANDALONE_MAIN("SimpleSketch3D", UI_INIT_DESKTOP, 1280, 800,
+                    g_app->menubar_win, g_app->accel)
