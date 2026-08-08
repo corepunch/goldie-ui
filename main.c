@@ -236,12 +236,12 @@ int main(int argc,char**argv){
             float ndcY=1.0f-(2.0f*mouseY)/(float)H;
             vec3 cameraUp=vnorm(vcross(right,look));
             vec3 rayDir=vnorm(vadd(vadd(vscale(right,ndcX*hw),vscale(cameraUp,ndcY*hh)),look));
-            scene.hoveredHandle=gizmo_pick_handle(&scene,pos,rayDir);
+            scene.hoveredHandle=gizmo_pick_handle(&scene,pos,rayDir,look,scene.camFov);
         }
 
         mat4 proj = mat4_perspective(scene.camFov, (float)W/(float)H, 0.1f, 100.0f);
         mat4 view = mat4_lookat(pos, vadd(pos,look), v3(0,1,0));
-        render_frame(&scene, W,H, proj, view, pos, debugFlags);
+        render_frame(&scene,W,H,proj,view,pos,look,debugFlags);
 
         SDL_GL_SwapWindow(win);
     }

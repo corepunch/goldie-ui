@@ -187,7 +187,8 @@ int scene_save_all(Scene *s);
 int scene_is_prefab_mode(Scene *s);
 void scene_get_bounds(Scene *s,vec3 *outMin,vec3 *outMax);
 /* Gizmo interaction helpers */
-int gizmo_pick_handle(Scene *s, vec3 rayOrigin, vec3 rayDir);
+int gizmo_pick_handle(Scene *s,vec3 rayOrigin,vec3 rayDir,vec3 camLook,float camFov);
+void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov);
 void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY);
 void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
 	vec3 camPos, vec3 camRight, vec3 camUp, vec3 camLook, float camFov);
@@ -203,6 +204,6 @@ void scene_rebuild_node_shadow_volumes(Scene *s,void *editNode);
 #define DBG_HIDE_LIGHTS     (1 << 3)
 #define DBG_HIDE_CHARS      (1 << 4)
 
-void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,vec3 camPos,int debugFlags);
+void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,vec3 camPos,vec3 camLook,int debugFlags);
 
 #endif

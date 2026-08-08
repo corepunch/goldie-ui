@@ -131,6 +131,26 @@ int main(void){
 		PASS("selection bounds remain in object space");
 		scene_free(&s);
 	}
+	{
+		Scene s={0}; int node;
+		s.activeEditNode=&node; s.activeEditMatrix=mat4_identity();
+		scene_add_obj(&s,gen_box(1,1,1),mat4_identity(),mat4_identity(),v3(1,1,1),8,0,1,0);
+		s.selectedObj=0; s.editMode=EDIT_W_MOVE;
+		vec3 look=v3(0,0,-1);
+		float tangent=tanf(60.0f*M_PIf/360.0f);
+		vec3 nearCam=v3(0,0,5),farCam=v3(0,0,20);
+		vec3 nearRay=vnorm(vsub(v3(5.0f*tangent*0.125f,0,0),nearCam));
+		vec3 farRay=vnorm(vsub(v3(20.0f*tangent*0.125f,0,0),farCam));
+		int nearHit=gizmo_pick_handle(&s,nearCam,nearRay,look,60.0f);
+		int farHit=gizmo_pick_handle(&s,farCam,farRay,look,60.0f);
+		CHECK(nearHit==GIZMO_AXIS_X,
+		      "near fixed-size gizmo endpoint was not pickable");
+		CHECK(farHit==GIZMO_AXIS_X,
+		      "far fixed-size gizmo endpoint changed screen position");
+		if(nearHit==GIZMO_AXIS_X && farHit==GIZMO_AXIS_X)
+			PASS("gizmo screen size and picking stay fixed across camera distance");
+		scene_free(&s);
+	}
 
     {
         Mesh m = gen_box(2.0f, 1.0f, 3.0f);

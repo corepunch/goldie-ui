@@ -159,7 +159,7 @@ int main(int argc, char **argv){
 		vec3 fwd = vnorm(vsub(scene.camLook, scene.camPos));
 		mat4 view = mat4_lookat(scene.camPos, vadd(scene.camPos, fwd), v3(0,1,0));
 
-		render_frame(&scene, W, H, proj, view, scene.camPos, debugMode);
+		render_frame(&scene,W,H,proj,view,scene.camPos,fwd,debugMode);
 		glFinish();
 
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
