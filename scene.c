@@ -1134,6 +1134,28 @@ static void scene_rebuild_view(Scene *s){
 		if(!strcmp(root->kids[i]->tag,scene_tags[j].tag)){ scene_tags[j].parse(s,root->kids[i]); break; }
 	s->activeEditNode=NULL;
 	parse_nodes(s,root,I,I);
+	if(s->editDepth && s->nlights==0){
+		vec3 bmin={1e30f,1e30f,1e30f},bmax={-1e30f,-1e30f,-1e30f};
+		for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable){
+			for(int v=0;v<s->objs[i].mesh.nverts;v++){
+				vec3 p=s->objs[i].mesh.verts[v].pos;
+				if(p.x<bmin.x)bmin.x=p.x; if(p.y<bmin.y)bmin.y=p.y; if(p.z<bmin.z)bmin.z=p.z;
+				if(p.x>bmax.x)bmax.x=p.x; if(p.y>bmax.y)bmax.y=p.y; if(p.z>bmax.z)bmax.z=p.z;
+			}
+		}
+		if(bmin.x<=bmax.x){
+			vec3 c=vscale(vadd(bmin,bmax),0.5f); float sz=vlen(vsub(bmax,bmin))*2.0f;
+			Light key={v3(0,0,0),v3(1.0f,0.92f,0.85f),{0},2.5f,sz,1,0};
+			key.pos=vadd(c,v3(sz*0.6f,sz*0.5f,sz*0.8f));
+			DA_PUSH(s->lights,s->nlights,s->clights,key);
+			Light fill={v3(0,0,0),v3(0.75f,0.82f,0.95f),{0},1.2f,sz*0.8f,1,0};
+			fill.pos=vadd(c,v3(-sz*0.5f,sz*0.3f,-sz*0.4f));
+			DA_PUSH(s->lights,s->nlights,s->clights,fill);
+			Light rim={v3(0,0,0),v3(1.0f,1.0f,1.0f),{0},1.0f,sz*1.2f,1,0};
+			rim.pos=vadd(c,v3(0,sz*0.7f,-sz*0.6f));
+			DA_PUSH(s->lights,s->nlights,s->clights,rim);
+		}
+	}
 	if(!s->ncameras){
 		Camera def={0}; strncpy(def.name,"Camera1",31);
 		def.pos=s->camPos; def.look=s->camLook; def.fov=s->camFov;
