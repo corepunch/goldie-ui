@@ -87,18 +87,13 @@ static void draw_bounds(mat4 matrix,vec3 bmin,vec3 bmax){
 	glEnd();
 }
 
-static void plane_points(vec3 center,vec3 u,vec3 v,float radius,vec3 p[4]){
-	float lo=radius*0.18f,hi=radius*0.38f;
-	p[0]=vadd(center,vadd(vscale(u,lo),vscale(v,lo)));
-	p[1]=vadd(center,vadd(vscale(u,hi),vscale(v,lo)));
-	p[2]=vadd(center,vadd(vscale(u,hi),vscale(v,hi)));
-	p[3]=vadd(center,vadd(vscale(u,lo),vscale(v,hi)));
-}
-
 static void draw_plane(vec3 center,vec3 u,vec3 v,float radius,vec3 color){
-	vec3 p[4]; plane_points(center,u,v,radius,p);
+	float hi=radius*0.38f;
+	vec3 far=vadd(center,vadd(vscale(u,hi),vscale(v,hi)));
+	vec3 a=vadd(center,vscale(v,hi));
+	vec3 b=vadd(center,vscale(u,hi));
 	glBegin(GL_LINES);
-	for(int i=0;i<4;i++) line(p[i],p[(i+1)%4],color);
+	line(a,far,color); line(b,far,color);
 	glEnd();
 }
 
@@ -153,14 +148,26 @@ static float ray_sphere(vec3 ro,vec3 rd,vec3 center,float radius){
 }
 
 static float ray_plane_quad(vec3 ro,vec3 rd,vec3 center,vec3 u,vec3 v,float radius){
-	vec3 normal=vcross(u,v);
-	float denom=vdot(rd,normal);
-	if(fabsf(denom)<1e-6f) return -1.0f;
-	float t=vdot(vsub(center,ro),normal)/denom;
-	if(t<0.0f) return -1.0f;
-	vec3 d=vsub(vadd(ro,vscale(rd,t)),center);
-	float a=vdot(d,u),b=vdot(d,v),lo=radius*0.14f,hi=radius*0.42f;
-	return a>=lo && a<=hi && b>=lo && b<=hi?t:-1.0f;
+	float hi=radius*0.42f;
+	vec3 far=vadd(center,vadd(vscale(u,hi),vscale(v,hi)));
+	vec3 a=vadd(center,vscale(v,hi));
+	vec3 b=vadd(center,vscale(u,hi));
+	vec3 segs[2][2]={{a,far},{b,far}};
+	float bestT=1e30f;
+	for(int i=0;i<2;i++){
+		vec3 ab=vsub(segs[i][1],segs[i][0]);
+		vec3 ao=vsub(ro,segs[i][0]);
+		vec3 cross=vcross(rd,ab);
+		float denom=vdot(cross,cross);
+		float t=vdot(vcross(ao,ab),cross)/denom;
+		if(t<0.0f || t>bestT) continue;
+		float along=vdot(vadd(ro,vscale(rd,t)),ab)-vdot(segs[i][0],ab);
+		if(along<0.0f || along>vdot(ab,ab)) continue;
+		vec3 hit=vadd(ro,vscale(rd,t));
+		vec3 proj=vadd(segs[i][0],vscale(ab,along/vdot(ab,ab)));
+		if(vlen(vsub(hit,proj))<=radius*0.105f) bestT=t;
+	}
+	return bestT<1e30f?bestT:-1.0f;
 }
 
 static void take_hit(float t,int handle,float *bestT,int *bestHandle){
