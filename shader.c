@@ -24,7 +24,10 @@ static const char *vs_src =
 "void main(){\n"
 "    vWorldPos=aPos;\n"
 "    vWorldNrm=aNrm;\n"
-"    vWorldUV=aPos.xz*0.5;\n"
+"    vec3 n=abs(aNrm);\n"
+"    if(n.y>n.x&&n.y>n.z) vWorldUV=aPos.xz*0.5;\n"
+"    else if(n.x>n.y&&n.x>n.z) vWorldUV=aPos.yz*0.5;\n"
+"    else vWorldUV=aPos.xy*0.5;\n"
 "    gl_Position=uViewProj*vec4(aPos,1.0);\n"
 "}\n";
 
