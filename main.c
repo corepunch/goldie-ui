@@ -117,9 +117,10 @@ int main(int argc,char**argv){
 	int tabDown=0;
     int debugFlags=renderFlags;
     scene.selectedObj=-1;
-    scene.editMode=EDIT_W_MOVE;
+            scene.editMode=EDIT_W_MOVE;
     scene.hoveredHandle=GIZMO_NONE;
     scene.draggingHandle=GIZMO_NONE;
+    scene.axisLock=0;
     int leftMouseDown=0;
     int mouseX=W/2,mouseY=H/2;
     Uint32 lastTicks=SDL_GetTicks();
@@ -134,12 +135,15 @@ int main(int argc,char**argv){
             if(ev.type==SDL_QUIT) running=0;
             else if(ev.type==SDL_KEYDOWN){
 				if(ev.key.keysym.sym==SDLK_ESCAPE && !ev.key.repeat){
+					if(scene.axisLock){ scene.axisLock=0; fprintf(stderr,"axis lock: off\n"); }
+					else {
 					int depth=scene.editDepth;
 					if(scene_exit_prefab(&scene)){
 						pos=modePos[depth-1]; yaw=modeYaw[depth-1]; pitch=modePitch[depth-1];
 						set_camera_title(win,&scene,currentCamera);
 						fprintf(stderr,"prefab edit: back to level %d\n",scene.editDepth);
 					} else running=0;
+					}
 				}
 				else if(ev.key.keysym.sym==SDLK_s && (ev.key.keysym.mod&KMOD_GUI) && !ev.key.repeat){
 					fprintf(stderr,"save scene and prefabs: %s\n",scene_save_all(&scene)?"ok":"failed");
@@ -157,10 +161,21 @@ int main(int argc,char**argv){
                 else if(ev.key.keysym.sym==SDLK_3){ debugFlags^=DBG_SHOW_STENCIL; fprintf(stderr,"stencil overlay: %s\n",(debugFlags&DBG_SHOW_STENCIL)?"on":"off"); }
                 else if(ev.key.keysym.sym==SDLK_4){ debugFlags^=DBG_HIDE_LIGHTS; fprintf(stderr,"cam/lamp dummies: %s\n",(debugFlags&DBG_HIDE_LIGHTS)?"hidden":"visible"); }
                 else if(ev.key.keysym.sym==SDLK_5){ debugFlags^=DBG_HIDE_CHARS; fprintf(stderr,"character dummies: %s\n",(debugFlags&DBG_HIDE_CHARS)?"hidden":"visible"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_q){ scene.editMode=EDIT_Q_SELECT; fprintf(stderr,"edit mode: select\n"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_w){ scene.editMode=EDIT_W_MOVE; fprintf(stderr,"edit mode: move\n"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_e){ scene.editMode=EDIT_E_ROTATE; fprintf(stderr,"edit mode: rotate\n"); }
-                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_r){ scene.editMode=EDIT_R_SCALE; fprintf(stderr,"edit mode: scale\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_q){ scene.editMode=EDIT_Q_SELECT; scene.axisLock=0; fprintf(stderr,"edit mode: select\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_w){ scene.editMode=EDIT_W_MOVE; scene.axisLock=0; fprintf(stderr,"edit mode: move\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_e){ scene.editMode=EDIT_E_ROTATE; scene.axisLock=0; fprintf(stderr,"edit mode: rotate\n"); }
+                else if(!rightMouseDown && ev.key.keysym.sym==SDLK_r){ scene.editMode=EDIT_R_SCALE; scene.axisLock=0; fprintf(stderr,"edit mode: scale\n"); }
+				else if(scene.editMode!=EDIT_Q_SELECT && !ev.key.repeat){
+					int lock=0;
+					if(ev.key.keysym.sym==SDLK_x) lock=GIZMO_AXIS_X;
+					else if(ev.key.keysym.sym==SDLK_y) lock=GIZMO_AXIS_Y;
+					else if(ev.key.keysym.sym==SDLK_z) lock=GIZMO_AXIS_Z;
+					if(lock){
+						if(ev.key.keysym.mod&KMOD_SHIFT) lock=7-lock;
+						scene.axisLock=(scene.axisLock==lock?0:lock);
+						fprintf(stderr,"axis lock: %s\n",scene.axisLock?"on":"off");
+					}
+				}
             }
 			else if(ev.type==SDL_KEYUP && ev.key.keysym.sym==SDLK_TAB) tabDown=0;
             else if(ev.type==SDL_MOUSEBUTTONDOWN && ev.button.button==SDL_BUTTON_RIGHT){

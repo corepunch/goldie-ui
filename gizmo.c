@@ -65,6 +65,11 @@ static void gl_axis_arrow(GizmoLines *gl,vec3 center,vec3 axis,float radius,vec3
 	gl_cone(gl,vadd(center,vscale(axis,radius)),axis,radius*0.26f,radius*0.085f,color);
 }
 
+static void gl_axis_line(GizmoLines *gl,vec3 center,vec3 axis,float radius,vec3 color){
+	vec3 ext=vscale(axis,radius*100.0f);
+	gl_add(gl,vsub(center,ext),vadd(center,ext),color);
+}
+
 static void gl_plane(GizmoLines *gl,vec3 center,vec3 u,vec3 v,float radius,vec3 color){
 	float hi=radius*0.38f;
 	vec3 far=vadd(center,vadd(vscale(u,hi),vscale(v,hi)));
@@ -96,6 +101,19 @@ static void gl_bounds_corners(GizmoLines *gl,mat4 matrix,vec3 bmin,vec3 bmax){
 	}
 }
 
+static int axis_visible(int lock,int handle){
+	if(!lock) return 1;
+	switch(lock){
+		case GIZMO_AXIS_X: return handle==GIZMO_AXIS_X;
+		case GIZMO_AXIS_Y: return handle==GIZMO_AXIS_Y;
+		case GIZMO_AXIS_Z: return handle==GIZMO_AXIS_Z;
+		case GIZMO_PLANE_XY: return handle==GIZMO_AXIS_X||handle==GIZMO_AXIS_Y||handle==GIZMO_PLANE_XY;
+		case GIZMO_PLANE_XZ: return handle==GIZMO_AXIS_X||handle==GIZMO_AXIS_Z||handle==GIZMO_PLANE_XZ;
+		case GIZMO_PLANE_YZ: return handle==GIZMO_AXIS_Y||handle==GIZMO_AXIS_Z||handle==GIZMO_PLANE_YZ;
+	}
+	return 0;
+}
+
 void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
 	vec3 center,bmin,bmax; float radius; mat4 matrix;
 	if(!gizmo_geometry(s,camPos,camLook,camFov,&center,&radius,&matrix,&bmin,&bmax)) return;
@@ -111,19 +129,37 @@ void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
 	GizmoLines gl={0};
 	gl_bounds_corners(&gl,matrix,bmin,bmax);
 	if(s->editMode==EDIT_W_MOVE){
-		gl_axis_arrow(&gl,center,x,radius,red); gl_axis_arrow(&gl,center,y,radius,green); gl_axis_arrow(&gl,center,z,radius,blue);
-		gl_plane(&gl,center,x,y,radius,xy); gl_plane(&gl,center,x,z,radius,xz); gl_plane(&gl,center,y,z,radius,yz);
+		if(axis_visible(s->axisLock,GIZMO_AXIS_X)){
+			if(s->axisLock) gl_axis_line(&gl,center,x,radius,red); else gl_axis_arrow(&gl,center,x,radius,red);
+		}
+		if(axis_visible(s->axisLock,GIZMO_AXIS_Y)){
+			if(s->axisLock) gl_axis_line(&gl,center,y,radius,green); else gl_axis_arrow(&gl,center,y,radius,green);
+		}
+		if(axis_visible(s->axisLock,GIZMO_AXIS_Z)){
+			if(s->axisLock) gl_axis_line(&gl,center,z,radius,blue); else gl_axis_arrow(&gl,center,z,radius,blue);
+		}
+		if(axis_visible(s->axisLock,GIZMO_PLANE_XY)) gl_plane(&gl,center,x,y,radius,xy);
+		if(axis_visible(s->axisLock,GIZMO_PLANE_XZ)) gl_plane(&gl,center,x,z,radius,xz);
+		if(axis_visible(s->axisLock,GIZMO_PLANE_YZ)) gl_plane(&gl,center,y,z,radius,yz);
 	} else if(s->editMode==EDIT_E_ROTATE){
-		gl_circle(&gl,center,x,radius,red); gl_circle(&gl,center,y,radius,green); gl_circle(&gl,center,z,radius,blue);
+		if(axis_visible(s->axisLock,GIZMO_AXIS_X)) gl_circle(&gl,center,x,radius,red);
+		if(axis_visible(s->axisLock,GIZMO_AXIS_Y)) gl_circle(&gl,center,y,radius,green);
+		if(axis_visible(s->axisLock,GIZMO_AXIS_Z)) gl_circle(&gl,center,z,radius,blue);
 	} else if(s->editMode==EDIT_R_SCALE){
 		float half=radius*0.065f;
-		gl_add(&gl,center,vadd(center,vscale(x,radius)),red);
-		gl_add(&gl,center,vadd(center,vscale(y,radius)),green);
-		gl_add(&gl,center,vadd(center,vscale(z,radius)),blue);
-		gl_box(&gl,vadd(center,vscale(x,radius)),half,red);
-		gl_box(&gl,vadd(center,vscale(y,radius)),half,green);
-		gl_box(&gl,vadd(center,vscale(z,radius)),half,blue);
-		gl_box(&gl,center,half*1.15f,handle_color(v3(0.88f,0.88f,0.88f),s->hoveredHandle==GIZMO_CENTER));
+		if(axis_visible(s->axisLock,GIZMO_AXIS_X)){
+			if(s->axisLock) gl_axis_line(&gl,center,x,radius,red);
+			else { gl_add(&gl,center,vadd(center,vscale(x,radius)),red); gl_box(&gl,vadd(center,vscale(x,radius)),half,red); }
+		}
+		if(axis_visible(s->axisLock,GIZMO_AXIS_Y)){
+			if(s->axisLock) gl_axis_line(&gl,center,y,radius,green);
+			else { gl_add(&gl,center,vadd(center,vscale(y,radius)),green); gl_box(&gl,vadd(center,vscale(y,radius)),half,green); }
+		}
+		if(axis_visible(s->axisLock,GIZMO_AXIS_Z)){
+			if(s->axisLock) gl_axis_line(&gl,center,z,radius,blue);
+			else { gl_add(&gl,center,vadd(center,vscale(z,radius)),blue); gl_box(&gl,vadd(center,vscale(z,radius)),half,blue); }
+		}
+		if(!s->axisLock) gl_box(&gl,center,half*1.15f,handle_color(v3(0.88f,0.88f,0.88f),s->hoveredHandle==GIZMO_CENTER));
 	}
 	glBegin(GL_LINES);
 	for(int i=0;i<gl.count;i++){
@@ -191,9 +227,10 @@ int gizmo_pick_handle(Scene *s,vec3 ro,vec3 rd,vec3 camLook,float camFov){
 	float bestT=1e30f,threshold=radius*0.105f;
 	int best=GIZMO_NONE;
 	if(s->editMode==EDIT_W_MOVE || s->editMode==EDIT_R_SCALE){
+		float axLen=s->axisLock?radius*100.0f:radius;
 		for(int i=0;i<3;i++){
-			take_hit(ray_axis(ro,rd,center,axis[i],radius,threshold),id[i],&bestT,&best);
-			take_hit(ray_sphere(ro,rd,vadd(center,vscale(axis[i],radius)),radius*0.12f),id[i],&bestT,&best);
+			take_hit(ray_axis(ro,rd,center,axis[i],axLen,threshold),id[i],&bestT,&best);
+			if(!s->axisLock) take_hit(ray_sphere(ro,rd,vadd(center,vscale(axis[i],radius)),radius*0.12f),id[i],&bestT,&best);
 		}
 		if(s->editMode==EDIT_W_MOVE){
 			take_hit(ray_plane_quad(ro,rd,center,axis[0],axis[1],radius),GIZMO_PLANE_XY,&bestT,&best);
@@ -210,5 +247,6 @@ int gizmo_pick_handle(Scene *s,vec3 ro,vec3 rd,vec3 camLook,float camFov){
 			}
 		}
 	}
+	if(s->axisLock && !axis_visible(s->axisLock,best)) best=GIZMO_NONE;
 	return best;
 }

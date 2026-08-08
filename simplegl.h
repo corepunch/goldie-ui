@@ -162,6 +162,7 @@ typedef struct {
 	int editMode;
 	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */
 	int draggingHandle;  /* GIZMO_* — active drag handle, GIZMO_NONE when idle */
+	int axisLock;        /* 0=all, or GIZMO_AXIS_X/Y/Z or GIZMO_PLANE_XY/XZ/YZ (keyboard axis lock) */
 	int dragStartMouseX, dragStartMouseY;
 	vec3 dragStartCenter; /* object centre at drag-start */
 	vec3 dragPrevAnchor; /* anchor point from previous frame (rotate/scale delta) */
