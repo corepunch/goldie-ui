@@ -712,6 +712,5 @@ int main(int argc, char **argv) {
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; emitted++; } free(name); }
   OUT("#endif /* %s */\n", guard);
   fclose(f); xmlFreeDoc(doc);
-  if (!emitted) { fprintf(stderr, "orionc_alt: no forms emitted from %s\n", input); return 1; }
   return 0;
 }
