@@ -34,8 +34,10 @@ mat4 mat4_rot_x(float deg);
 mat4 mat4_rot_y(float deg);
 mat4 mat4_rot_z(float deg);
 mat4 mat4_rot_xyz(vec3 rdeg);
+mat4 mat4_affine_inverse(mat4 m);
 vec3 mat4_xform_point(mat4 m,vec3 p);
 vec3 mat4_xform_dir(mat4 m,vec3 p);
+vec3 mat4_xform_normal(mat4 m,vec3 p);
 mat4 mat4_perspective(float fovy_deg,float aspect,float znear,float zfar);
 mat4 mat4_lookat(vec3 eye,vec3 center,vec3 up);
 int ray_intersect_aabb(vec3 origin,vec3 dir,vec3 bbMin,vec3 bbMax,float *tOut);
@@ -102,9 +104,9 @@ Mesh gen_box_hole_arch(float w,float h,float depth,int sides);
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
 typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
 typedef struct { vec3 pos,color,dir; float intensity,radius; int castsShadow,isDirectional; } Light;
-typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit,sanityIgnore,sanityFloor,sanityCheck; void *editNode; } SceneObj;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
+typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit,sanityIgnore,sanityFloor,sanityCheck; void *editNode; mat4 editMatrix; ShadowVolume *shadowParts; int nshadowParts; } SceneObj;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
 typedef struct { char ref[32]; char path[256]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
 typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } InstanceDef;
@@ -154,6 +156,7 @@ typedef struct {
 	char activeCamera[32];
 	char scenePath[512];
 	void *sceneRoot, *editRoot, *selectedNode, *activeEditNode;
+	mat4 activeEditMatrix;
 	void *editStack[32]; int editDepth;
 	int selectedObj;
 	int editMode;
@@ -163,6 +166,9 @@ typedef struct {
 	vec3 dragStartCenter; /* object centre at drag-start */
 	vec3 dragPrevAnchor; /* anchor point from previous frame (rotate/scale delta) */
 	vec3 dragStartPos,dragStartRot,dragStartScale;
+	mat4 dragStartEditMatrix,dragParentMatrix;
+	Vertex *dragStartVerts; int *dragObjIndices,*dragVertOffsets;
+	int ndragStartObjs,ndragStartVerts;
 } Scene;
 
 int load_scene(const char *path,Scene *s);
@@ -174,6 +180,7 @@ vec3 light_to_source(Light *light,vec3 point);
 void scene_rebuild_camera_gizmos(Scene *s,float aspect);
 int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut);
 void scene_get_obj_bounds(Scene *s,int idx,vec3 *outMin,vec3 *outMax);
+void scene_get_obj_oriented_bounds(Scene *s,int idx,mat4 *matrix,vec3 *outMin,vec3 *outMax);
 int scene_enter_selected_prefab(Scene *s);
 int scene_exit_prefab(Scene *s);
 int scene_save_all(Scene *s);
@@ -187,6 +194,7 @@ void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);
+void scene_rebuild_node_shadow_volumes(Scene *s,void *editNode);
 
 #define DBG_NONE            0
 #define DBG_NO_SHADOWS      (1 << 0)

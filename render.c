@@ -133,6 +133,18 @@ static void draw_wire_box(vec3 center, vec3 half, vec3 color){
 	for(int i=0;i<12;i++) draw_line(p[edges[i][0]],p[edges[i][1]],color);
 }
 
+static void draw_wire_oriented_box(mat4 matrix,vec3 bmin,vec3 bmax,vec3 color){
+	vec3 p[8]={
+		v3(bmin.x,bmin.y,bmin.z),v3(bmax.x,bmin.y,bmin.z),
+		v3(bmax.x,bmax.y,bmin.z),v3(bmin.x,bmax.y,bmin.z),
+		v3(bmin.x,bmin.y,bmax.z),v3(bmax.x,bmin.y,bmax.z),
+		v3(bmax.x,bmax.y,bmax.z),v3(bmin.x,bmax.y,bmax.z)
+	};
+	int edges[12][2]={{0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},{0,4},{1,5},{2,6},{3,7}};
+	for(int i=0;i<8;i++) p[i]=mat4_xform_point(matrix,p[i]);
+	for(int i=0;i<12;i++) draw_line(p[edges[i][0]],p[edges[i][1]],color);
+}
+
 static vec3 pick_color(vec3 base, int isHovered){
 	if(isHovered) return v3(1,1,0);
 	return base;
@@ -159,11 +171,13 @@ static void draw_editor_gizmos(Scene *s){
 	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
 	if(!s->objs[s->selectedObj].renderable) return;
 
-	vec3 bmin,bmax;
-	scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
-	vec3 center=vscale(vadd(bmin,bmax),0.5f);
+	mat4 matrix; vec3 bmin,bmax;
+	scene_get_obj_oriented_bounds(s,s->selectedObj,&matrix,&bmin,&bmax);
+	vec3 center=mat4_xform_point(matrix,vscale(vadd(bmin,bmax),0.5f));
 	vec3 half=vscale(vsub(bmax,bmin),0.5f);
-	float gizmoSize=vlen(half)*0.7f;
+	vec3 worldHalf=v3(vlen(mat4_xform_dir(matrix,v3(half.x,0,0))),
+		vlen(mat4_xform_dir(matrix,v3(0,half.y,0))),vlen(mat4_xform_dir(matrix,v3(0,0,half.z))));
+	float gizmoSize=vlen(worldHalf)*0.7f;
 	if(gizmoSize<0.3f) gizmoSize=0.3f;
 
 	int hov=s->hoveredHandle;
@@ -177,7 +191,7 @@ static void draw_editor_gizmos(Scene *s){
 	vec3 sx=v3(1,0,0), sy=v3(0,1,0), sz=v3(0,0,1);
 	float qs=gizmoSize*0.12f;
 
-	draw_wire_box(center,half,white);
+	draw_wire_oriented_box(matrix,bmin,bmax,white);
 
 	if(s->editMode==EDIT_W_MOVE){
 		draw_axis_arrow(center,sx,gizmoSize,red);
@@ -332,20 +346,6 @@ void render_frame(Scene *s, int w,int h, mat4 proj, mat4 view, vec3 camPos, int 
         glMatrixMode(GL_PROJECTION); glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
         glDisable(GL_STENCIL_TEST);
-        glDepthMask(GL_TRUE);
-    }
-
-    /* Bounding box: depth-tested so it sits on the mesh surface correctly */
-    if(s->selectedObj>=0 && s->selectedObj<s->nobjs && s->objs[s->selectedObj].renderable){
-        vec3 bmin,bmax;
-        scene_get_obj_bounds(s,s->selectedObj,&bmin,&bmax);
-        vec3 bc=vscale(vadd(bmin,bmax),0.5f);
-        vec3 bh=vscale(vsub(bmax,bmin),0.5f);
-        glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_FALSE);
-        glDisable(GL_LIGHTING);
-        glBegin(GL_LINES);
-        draw_wire_box(bc,bh,v3(1,1,1));
-        glEnd();
         glDepthMask(GL_TRUE);
     }
 

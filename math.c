@@ -67,6 +67,20 @@ mat4 mat4_rot_z(float deg){
 mat4 mat4_rot_xyz(vec3 rdeg){
     return mat4_mul(mat4_rot_z(rdeg.z), mat4_mul(mat4_rot_y(rdeg.y), mat4_rot_x(rdeg.x)));
 }
+mat4 mat4_affine_inverse(mat4 m){
+	float a=m.m[0],b=m.m[4],c=m.m[8],d=m.m[1],e=m.m[5],f=m.m[9],g=m.m[2],h=m.m[6],i=m.m[10];
+	float det=a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g);
+	if(fabsf(det)<1e-10f) return mat4_identity();
+	float q=1.0f/det;
+	mat4 r=mat4_identity();
+	r.m[0]=(e*i-f*h)*q; r.m[4]=(c*h-b*i)*q; r.m[8]=(b*f-c*e)*q;
+	r.m[1]=(f*g-d*i)*q; r.m[5]=(a*i-c*g)*q; r.m[9]=(c*d-a*f)*q;
+	r.m[2]=(d*h-e*g)*q; r.m[6]=(b*g-a*h)*q; r.m[10]=(a*e-b*d)*q;
+	vec3 t=v3(m.m[12],m.m[13],m.m[14]);
+	vec3 it=vscale(mat4_xform_dir(r,t),-1.0f);
+	r.m[12]=it.x; r.m[13]=it.y; r.m[14]=it.z;
+	return r;
+}
 vec3 mat4_xform_point(mat4 m, vec3 p){
     return v3( m.m[0]*p.x+m.m[4]*p.y+m.m[8]*p.z+m.m[12],
                m.m[1]*p.x+m.m[5]*p.y+m.m[9]*p.z+m.m[13],
@@ -76,6 +90,12 @@ vec3 mat4_xform_dir(mat4 m, vec3 p){
     return v3( m.m[0]*p.x+m.m[4]*p.y+m.m[8]*p.z,
                m.m[1]*p.x+m.m[5]*p.y+m.m[9]*p.z,
                m.m[2]*p.x+m.m[6]*p.y+m.m[10]*p.z);
+}
+vec3 mat4_xform_normal(mat4 m,vec3 p){
+	mat4 inv=mat4_affine_inverse(m);
+	return vnorm(v3(inv.m[0]*p.x+inv.m[1]*p.y+inv.m[2]*p.z,
+		inv.m[4]*p.x+inv.m[5]*p.y+inv.m[6]*p.z,
+		inv.m[8]*p.x+inv.m[9]*p.y+inv.m[10]*p.z));
 }
 mat4 mat4_perspective(float fovy_deg,float aspect,float zn,float zf){
     float f=1.0f/tanf(fovy_deg*M_PIf/360.0f);

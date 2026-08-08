@@ -115,6 +115,22 @@ int main(void){
 		      "ray missed the forward AABB");
 		PASS("ray picking rejects objects behind the camera");
 	}
+	{
+		Scene s={0}; int node;
+		mat4 matrix=mat4_mul(mat4_translate(v3(3,2,-4)),mat4_rot_xyz(v3(0,37,0)));
+		s.activeEditNode=&node; s.activeEditMatrix=matrix;
+		scene_add_obj(&s,gen_box(2,1,4),matrix,mat4_rot_xyz(v3(0,37,0)),v3(1,1,1),8,0,1,0);
+		mat4 actual; vec3 bmin,bmax;
+		scene_get_obj_oriented_bounds(&s,0,&actual,&bmin,&bmax);
+		CHECK(fabsf(bmin.x+1)<0.001f && fabsf(bmax.x-1)<0.001f &&
+		      fabsf(bmin.y+0.5f)<0.001f && fabsf(bmax.y-0.5f)<0.001f &&
+		      fabsf(bmin.z+2)<0.001f && fabsf(bmax.z-2)<0.001f,
+		      "oriented bounds expanded into world-axis bounds");
+		CHECK(vlen(vsub(mat4_xform_point(actual,v3(0,0,0)),v3(3,2,-4)))<0.001f,
+		      "oriented bounds lost the object's matrix");
+		PASS("selection bounds remain in object space");
+		scene_free(&s);
+	}
 
     {
         Mesh m = gen_box(2.0f, 1.0f, 3.0f);
@@ -638,6 +654,26 @@ int main(void){
 	}
 
 	fprintf(stderr,"\n=== Shadow Volume Tests ===\n");
+	{
+		Scene s={0}; int nodeA,nodeB;
+		Light light={0}; light.dir=vnorm(v3(1,-1,0)); light.castsShadow=1; light.isDirectional=1;
+		DA_PUSH(s.lights,s.nlights,s.clights,light);
+		s.svols=calloc(1,sizeof(ShadowVolume));
+		s.activeEditNode=&nodeA; s.activeEditMatrix=mat4_identity();
+		scene_add_obj(&s,gen_box(1,1,1),mat4_identity(),mat4_identity(),v3(1,1,1),8,1,1,0);
+		s.activeEditNode=&nodeB; s.activeEditMatrix=mat4_translate(v3(3,0,0));
+		scene_add_obj(&s,gen_box(1,1,1),s.activeEditMatrix,mat4_identity(),v3(1,1,1),8,1,1,0);
+		scene_build_all_shadow_volumes(&s);
+		ShadowVertex *unchanged=s.objs[1].shadowParts[0].verts;
+		int unchangedCount=s.objs[1].shadowParts[0].nverts;
+		mesh_transform(&s.objs[0].mesh,mat4_translate(v3(0,1,0)),mat4_identity());
+		mesh_compute_face_normals(&s.objs[0].mesh); mesh_build_edges(&s.objs[0].mesh);
+		scene_rebuild_node_shadow_volumes(&s,&nodeA);
+		CHECK(s.objs[1].shadowParts[0].verts==unchanged && s.objs[1].shadowParts[0].nverts==unchangedCount,
+		      "partial shadow update rebuilt an unrelated object");
+		PASS("shadow updates are limited to the edited target subtree");
+		scene_free(&s);
+	}
 
 	{
 		Light sun={.dir=vnorm(v3(0.75f,-0.55f,0.35f)),.isDirectional=1};

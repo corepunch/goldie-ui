@@ -48,21 +48,51 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, vec3 lightDir, int isDir, Shado
 	free(facing);
 }
 
-void scene_build_all_shadow_volumes(Scene *s){
-	for(int li=0; li<s->nlights; li++){
-		free(s->svols[li].verts);
-		ShadowVolume combined={0};
-		if(s->lights[li].castsShadow){
-			for(int oi=0; oi<s->nobjs; oi++){
-				SceneObj *o=&s->objs[oi];
-				if(!o->castsShadow) continue;
-				ShadowVolume part;
-				build_shadow_volume(&o->mesh, s->lights[li].pos, s->lights[li].dir, s->lights[li].isDirectional, &part);
-				for(int k=0;k<part.nverts;k++) DA_PUSH(combined.verts,combined.nverts,combined.cverts,part.verts[k]);
-				free(part.verts);
-			}
-		}
-		fprintf(stderr,"  light %d shadow volume: %d verts = %d tris\n", li, combined.nverts, combined.nverts/3);
-		s->svols[li]=combined;
+static void scene_combine_shadow_parts(Scene *s,int li){
+	free(s->svols[li].verts);
+	ShadowVolume combined={0};
+	for(int oi=0;oi<s->nobjs;oi++){
+		SceneObj *o=&s->objs[oi];
+		if(li>=o->nshadowParts) continue;
+		ShadowVolume *part=&o->shadowParts[li];
+		for(int k=0;k<part->nverts;k++) DA_PUSH(combined.verts,combined.nverts,combined.cverts,part->verts[k]);
 	}
+	s->svols[li]=combined;
+}
+
+static void scene_resize_shadow_parts(SceneObj *o,int nlights){
+	for(int i=0;i<o->nshadowParts;i++) free(o->shadowParts[i].verts);
+	free(o->shadowParts);
+	o->shadowParts=calloc((size_t)nlights,sizeof(ShadowVolume));
+	o->nshadowParts=nlights;
+}
+
+static void scene_build_object_shadow_part(Scene *s,SceneObj *o,int li){
+	free(o->shadowParts[li].verts);
+	memset(&o->shadowParts[li],0,sizeof(ShadowVolume));
+	if(!o->castsShadow || !s->lights[li].castsShadow) return;
+	build_shadow_volume(&o->mesh,s->lights[li].pos,s->lights[li].dir,
+		s->lights[li].isDirectional,&o->shadowParts[li]);
+}
+
+void scene_build_all_shadow_volumes(Scene *s){
+	for(int oi=0;oi<s->nobjs;oi++){
+		SceneObj *o=&s->objs[oi];
+		scene_resize_shadow_parts(o,s->nlights);
+		for(int li=0;li<s->nlights;li++) scene_build_object_shadow_part(s,o,li);
+	}
+	for(int li=0;li<s->nlights;li++){
+		scene_combine_shadow_parts(s,li);
+		fprintf(stderr,"  light %d shadow volume: %d verts = %d tris\n",li,s->svols[li].nverts,s->svols[li].nverts/3);
+	}
+}
+
+void scene_rebuild_node_shadow_volumes(Scene *s,void *editNode){
+	for(int oi=0;oi<s->nobjs;oi++){
+		SceneObj *o=&s->objs[oi];
+		if(o->editNode!=editNode) continue;
+		if(o->nshadowParts!=s->nlights) scene_resize_shadow_parts(o,s->nlights);
+		for(int li=0;li<s->nlights;li++) scene_build_object_shadow_part(s,o,li);
+	}
+	for(int li=0;li<s->nlights;li++) scene_combine_shadow_parts(s,li);
 }
