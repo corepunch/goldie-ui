@@ -190,6 +190,8 @@ void handle_menu_command(uint16_t id) {
         lt.radius = 10.0f;
         lt.castsShadow = 1;
         DA_PUSH(doc->scene.lights, doc->scene.nlights, doc->scene.clights, lt);
+        free(doc->scene.svols);
+        doc->scene.svols = calloc((size_t)doc->scene.nlights, sizeof(ShadowVolume));
         scene_build_all_shadow_volumes(&doc->scene);
         doc->modified = true;
         if (doc->viewport_win) invalidate_window(doc->viewport_win);

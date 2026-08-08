@@ -60,6 +60,7 @@ scene_doc_t *create_document(const char *path) {
     sun.isDirectional = 1;
     sun.castsShadow = 1;
     DA_PUSH(doc->scene.lights, doc->scene.nlights, doc->scene.clights, sun);
+    doc->scene.svols = calloc((size_t)doc->scene.nlights, sizeof(ShadowVolume));
 
     Mesh floor = gen_box(10, 0.1f, 10);
     scene_add_obj(&doc->scene, floor, mat4_identity(), mat4_identity(),
