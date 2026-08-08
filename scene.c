@@ -930,8 +930,9 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 				mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl)))));
 		}
 		if(ownsEditNode) s->activeEditMatrix=M;
-		Material *mat = find_material(s, xml_attr(n,"material",NULL));
-		s->activeTexIndex = materials_index_for_name(mat ? mat->id : NULL);
+		const char *matName = xml_attr(n,"material",NULL);
+		Material *mat = find_material(s, matName);
+		s->activeTexIndex = materials_index_for_name(mat ? mat->id : matName);
 		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
 		if(s->prefabTintActive && xml_attr_i(n,"tint",0)) color=s->prefabTint;
 		float shin = mat? mat->shininess : xml_attr_f(n,"shininess",8.0f);
@@ -1055,7 +1056,7 @@ static void warn_unknown_children(XmlNode *parent, const char *path, int root, i
 		XmlNode *n=parent->kids[i];
 		int supported=0;
 		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") ||
-			prefab ? (!strcmp(n->tag,"attach") || !strcmp(n->tag,"shape")) : has_scene_parser(n->tag);
+			(prefab ? (!strcmp(n->tag,"attach") || !strcmp(n->tag,"shape")) : has_scene_parser(n->tag));
 		else if(!strcmp(parent->tag,"group"))
 			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") || !strcmp(n->tag,"shape");
 		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
@@ -1114,11 +1115,12 @@ static void scene_clear_view(Scene *s){
 
 static void scene_rebuild_view(Scene *s){
 	XmlNode *root=(XmlNode*)s->editRoot;
+	XmlNode *sceneRoot=(XmlNode*)s->sceneRoot;
 	void *selected=s->selectedNode;
 	scene_clear_view(s);
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
 	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
-	if(s->editDepth){ s->ambient=v3(0.72f,0.72f,0.72f); s->bg=v3(0.18f,0.20f,0.24f); }
+	if(s->editDepth){ s->ambient=v3(0.48f,0.50f,0.56f); s->bg=v3(0.14f,0.16f,0.20f); }
 	else {
 		s->ambient=xml_attr_v3(root,"ambient",s->ambient);
 		const char *bg=xml_attr(root,"background",NULL);
@@ -1130,7 +1132,10 @@ static void scene_rebuild_view(Scene *s){
 	mat4 I=mat4_identity();
 	collect_shapes_from_tree(s,root);
 	collect_negative_boxes(s,root,I);
-	if(!s->editDepth) for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
+	if(s->editDepth){
+		for(int i=0;i<sceneRoot->nkids;i++) if(!strcmp(sceneRoot->kids[i]->tag,"material"))
+			parse_material_tag(s,sceneRoot->kids[i]);
+	} else for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
 		if(!strcmp(root->kids[i]->tag,scene_tags[j].tag)){ scene_tags[j].parse(s,root->kids[i]); break; }
 	s->activeEditNode=NULL;
 	parse_nodes(s,root,I,I);
@@ -1144,15 +1149,13 @@ static void scene_rebuild_view(Scene *s){
 			}
 		}
 		if(bmin.x<=bmax.x){
-			vec3 c=vscale(vadd(bmin,bmax),0.5f); float sz=vlen(vsub(bmax,bmin))*2.0f;
-			Light key={v3(0,0,0),v3(1.0f,0.92f,0.85f),{0},2.5f,sz,1,0};
-			key.pos=vadd(c,v3(sz*0.6f,sz*0.5f,sz*0.8f));
+			vec3 c=vscale(vadd(bmin,bmax),0.5f); float sz=vlen(vsub(bmax,bmin));
+			if(sz<1.0f) sz=1.0f;
+			Light key={v3(0,0,0),v3(1.0f,0.88f,0.76f),{0},2.8f,sz*2.5f,1,0};
+			key.pos=vadd(c,v3(sz*0.9f,sz*0.8f,sz*1.1f));
 			DA_PUSH(s->lights,s->nlights,s->clights,key);
-			Light fill={v3(0,0,0),v3(0.75f,0.82f,0.95f),{0},1.2f,sz*0.8f,1,0};
-			fill.pos=vadd(c,v3(-sz*0.5f,sz*0.3f,-sz*0.4f));
-			DA_PUSH(s->lights,s->nlights,s->clights,fill);
-			Light rim={v3(0,0,0),v3(1.0f,1.0f,1.0f),{0},1.0f,sz*1.2f,1,0};
-			rim.pos=vadd(c,v3(0,sz*0.7f,-sz*0.6f));
+			Light rim={v3(0,0,0),v3(0.68f,0.80f,1.0f),{0},1.6f,sz*2.8f,0,0};
+			rim.pos=vadd(c,v3(-sz*0.7f,sz*0.9f,-sz*1.0f));
 			DA_PUSH(s->lights,s->nlights,s->clights,rim);
 		}
 	}

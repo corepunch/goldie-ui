@@ -199,9 +199,11 @@ int materials_index_for_name(const char *name){
 	if(!name) return -1;
 	for(int i=0;i<NUM_MATERIALS;i++) if(!strcmp(MAT_NAMES[i],name)) return i;
 	if(!strcmp(name,"stone")) return 2;
-	if(!strcmp(name,"bronze")||!strcmp(name,"iron")) return 4;
+	if(!strcmp(name,"bronze")||!strcmp(name,"iron")||!strcmp(name,"brass")||!strcmp(name,"copper")) return 4;
 	if(!strcmp(name,"glass")) return 5;
 	if(!strcmp(name,"wall")) return 3;
+	if(!strcmp(name,"dark_wood")||!strcmp(name,"sawdust")||!strcmp(name,"floor")) return 0;
+	if(!strcmp(name,"ceiling")||!strcmp(name,"paper")) return 5;
 	return -1;
 }
 

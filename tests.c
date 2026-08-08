@@ -403,9 +403,29 @@ int main(void){
 			s.selectedObj=0; s.selectedNode=s.objs[0].editNode;
 			CHECK(scene_enter_selected_prefab(&s) && scene_is_prefab_mode(&s),
 			      "double-click prefab isolation could not enter the prefab definition");
+			CHECK(s.nlights==2,"prefab studio preview has %d direct lights, expected key and rim",s.nlights);
+			CHECK(color_eq(s.ambient,v3(0.48f,0.50f,0.56f)),
+			      "prefab studio preview did not use ambient fill");
 			CHECK(scene_exit_prefab(&s) && !scene_is_prefab_mode(&s) && s.nobjs==15,
 			      "prefab isolation could not return to the scene");
 			PASS("selective prefab tint preserves pages and supports scale");
+		}
+		scene_free(&s);
+	}
+
+	{
+		Scene s={0};
+		CHECK(load_scene("scenes/test_prefab_material.blks",&s),"prefab material fixture failed to load");
+		s.selectedObj=0; s.selectedNode=s.objs[0].editNode;
+		int entered=scene_enter_selected_prefab(&s);
+		CHECK(entered,"material fixture prefab isolation could not be entered");
+		if(entered){
+			vec3 darkWood=v3(0.16f,0.065f,0.025f);
+			int found=0;
+			for(int i=0;i<s.nobjs;i++) if(color_eq(s.objs[i].color,darkWood)){ found=1; break; }
+			CHECK(s.nmats==3,"prefab isolation retained %d scene materials, expected 3",s.nmats);
+			CHECK(found,"prefab isolation lost the containing scene's dark_wood material");
+			if(s.nmats==3 && found) PASS("prefab isolation preserves containing-scene materials");
 		}
 		scene_free(&s);
 	}

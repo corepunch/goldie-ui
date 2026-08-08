@@ -84,11 +84,22 @@ static void mkdir_p(const char *path){
 	mkdir(tmp, 0755);
 }
 
+static void frame_scene(Scene *scene){
+	vec3 bmin,bmax; scene_get_bounds(scene,&bmin,&bmax);
+	vec3 center=vscale(vadd(bmin,bmax),0.5f);
+	float radius=vlen(vscale(vsub(bmax,bmin),0.5f));
+	if(radius<0.5f) radius=0.5f;
+	scene->camPos=vadd(center,v3(radius*1.2f,radius*0.7f,radius*2.4f));
+	scene->camLook=center;
+	scene->camFov=60.0f;
+}
+
 int main(int argc, char **argv){
 	const char *scenePath = "scenes/sample_room.blks";
 	const char *outPath = NULL;
 	const char *camName = NULL;
 	int allCameras = 0;
+	int editObject = -1;
 	int W = 1024, H = 768;
 	int debugMode = DBG_HIDE_LIGHTS;
 
@@ -96,6 +107,7 @@ int main(int argc, char **argv){
 		if(!strcmp(argv[i], "-o") && i+1 < argc) outPath = argv[++i];
 		else if(!strcmp(argv[i], "-cam") && i+1 < argc) camName = argv[++i];
 		else if(!strcmp(argv[i], "-all")) allCameras = 1;
+		else if(!strcmp(argv[i], "-edit-object") && i+1 < argc) editObject = atoi(argv[++i]);
 		else if(!strcmp(argv[i], "-w") && i+1 < argc) W = atoi(argv[++i]);
 		else if(!strcmp(argv[i], "-h") && i+1 < argc) H = atoi(argv[++i]);
 		else if(!strcmp(argv[i], "-d") && i+1 < argc) debugMode = atoi(argv[++i]);
@@ -106,6 +118,21 @@ int main(int argc, char **argv){
 
 	Scene scene;
 	if(!load_scene(scenePath, &scene)) return 1;
+	if(editObject>=0){
+		if(editObject>=scene.nobjs){
+			fprintf(stderr,"edit object %d out of range 0..%d\n",editObject,scene.nobjs-1);
+			scene_free(&scene);
+			return 1;
+		}
+		scene.selectedObj=editObject;
+		scene.selectedNode=scene.objs[editObject].editNode;
+		if(!scene_enter_selected_prefab(&scene)){
+			fprintf(stderr,"object %d is not a prefab instance\n",editObject);
+			scene_free(&scene);
+			return 1;
+		}
+		frame_scene(&scene);
+	}
 	scene_build_all_shadow_volumes(&scene);
 	fprintf(stderr, "loaded %d objects, %d lights, %d materials, %d cameras\n",
 			scene.nobjs, scene.nlights, scene.nmats, scene.ncameras);
@@ -131,6 +158,7 @@ int main(int argc, char **argv){
 	SDL_GLContext ctx = SDL_GL_CreateContext(win);
 	if(!ctx){ fprintf(stderr, "GL_CreateContext: %s\n", SDL_GetError()); return 1; }
 	shader_init();
+	scene_init_textures(&scene);
 
 	unsigned char *pixels = malloc((size_t)(W * H * 3));
 	char outDir[256];
@@ -178,6 +206,7 @@ int main(int argc, char **argv){
 	}
 
 	free(pixels);
+	scene_free_textures(&scene);
 	shader_deinit();
 	SDL_GL_DeleteContext(ctx);
 	SDL_DestroyWindow(win);
