@@ -1,3 +1,6 @@
 [submodule "platform"]
 	path = platform
 	url = https://github.com/corepunch/platform.git
+[submodule "apps/scener"]
+	path = apps/scener
+	url = https://github.com/corepunch/simplesketch3d
