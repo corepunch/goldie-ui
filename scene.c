@@ -1382,7 +1382,7 @@ void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY){
 	scene_get_obj_oriented_bounds(s,s->selectedObj,&matrix,&bmin,&bmax);
 	s->dragStartEditMatrix=matrix;
 	s->dragParentMatrix=mat4_mul(matrix,mat4_affine_inverse(xml_node_transform(n)));
-	s->dragStartCenter=mat4_xform_point(matrix,vscale(vadd(bmin,bmax),0.5f));
+	s->dragStartCenter=mat4_xform_point(matrix,v3(0,0,0));
 	free(s->dragStartVerts); free(s->dragObjIndices); free(s->dragVertOffsets);
 	s->dragStartVerts=NULL; s->dragObjIndices=NULL; s->dragVertOffsets=NULL;
 	s->ndragStartObjs=s->ndragStartVerts=0;

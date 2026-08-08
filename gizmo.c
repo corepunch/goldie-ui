@@ -3,6 +3,21 @@
 #include <math.h>
 #include "simplegl.h"
 
+typedef struct {
+	vec3 pos;
+	vec3 color;
+} GizmoVert;
+
+typedef struct {
+	GizmoVert *v;
+	int count, cap;
+} GizmoLines;
+
+static void gl_add(GizmoLines *gl, vec3 a, vec3 b, vec3 color){
+	DA_PUSH(gl->v, gl->count, gl->cap, ((GizmoVert){a, color}));
+	DA_PUSH(gl->v, gl->count, gl->cap, ((GizmoVert){b, color}));
+}
+
 static vec3 handle_color(vec3 color,int hovered){
 	return hovered?v3(1.0f,0.92f,0.12f):color;
 }
@@ -11,16 +26,11 @@ static int gizmo_geometry(Scene *s,vec3 camPos,vec3 camLook,float camFov,
 	vec3 *center,float *radius,mat4 *matrix,vec3 *bmin,vec3 *bmax){
 	if(s->selectedObj<0 || s->selectedObj>=s->nobjs || !s->objs[s->selectedObj].renderable) return 0;
 	scene_get_obj_oriented_bounds(s,s->selectedObj,matrix,bmin,bmax);
-	*center=mat4_xform_point(*matrix,vscale(vadd(*bmin,*bmax),0.5f));
+	*center=mat4_xform_point(*matrix,v3(0,0,0));
 	float depth=vdot(vsub(*center,camPos),vnorm(camLook));
 	if(depth<=0.0f) return 0;
 	*radius=depth*tanf(camFov*M_PIf/360.0f)*0.125f;
 	return *radius>1e-6f;
-}
-
-static void line(vec3 a,vec3 b,vec3 color){
-	glColor3f(color.x,color.y,color.z);
-	glVertex3fv(&a.x); glVertex3fv(&b.x);
 }
 
 static void basis(vec3 normal,vec3 *u,vec3 *v){
@@ -28,73 +38,62 @@ static void basis(vec3 normal,vec3 *u,vec3 *v){
 	*v=vnorm(vcross(normal,*u));
 }
 
-static void draw_circle(vec3 center,vec3 normal,float radius,vec3 color){
+static void gl_circle(GizmoLines *gl,vec3 center,vec3 normal,float radius,vec3 color){
 	vec3 u,v; basis(normal,&u,&v);
 	vec3 prev=vadd(center,vscale(u,radius));
-	glBegin(GL_LINES);
 	for(int i=1;i<=64;i++){
 		float a=2.0f*M_PIf*(float)i/64.0f;
 		vec3 next=vadd(center,vadd(vscale(u,radius*cosf(a)),vscale(v,radius*sinf(a))));
-		line(prev,next,color); prev=next;
+		gl_add(gl,prev,next,color); prev=next;
 	}
-	glEnd();
 }
 
-static void draw_cone(vec3 tip,vec3 axis,float length,float width,vec3 color){
+static void gl_cone(GizmoLines *gl,vec3 tip,vec3 axis,float length,float width,vec3 color){
 	vec3 u,v; basis(axis,&u,&v);
 	vec3 base=vsub(tip,vscale(axis,length));
 	vec3 prev=vadd(base,vscale(u,width));
-	glBegin(GL_LINES);
 	for(int i=1;i<=8;i++){
 		float a=2.0f*M_PIf*(float)i/8.0f;
 		vec3 next=vadd(base,vadd(vscale(u,width*cosf(a)),vscale(v,width*sinf(a))));
-		line(prev,next,color); line(tip,prev,color); prev=next;
+		gl_add(gl,prev,next,color); gl_add(gl,tip,prev,color); prev=next;
 	}
-	glEnd();
 }
 
-static void draw_axis_arrow(vec3 center,vec3 axis,float radius,vec3 color){
+static void gl_axis_arrow(GizmoLines *gl,vec3 center,vec3 axis,float radius,vec3 color){
 	vec3 base=vadd(center,vscale(axis,radius*0.74f));
-	vec3 tip=vadd(center,vscale(axis,radius));
-	glBegin(GL_LINES); line(center,base,color); glEnd();
-	draw_cone(tip,axis,radius*0.26f,radius*0.085f,color);
+	gl_add(gl,center,base,color);
+	gl_cone(gl,vadd(center,vscale(axis,radius)),axis,radius*0.26f,radius*0.085f,color);
 }
 
-static void box_points(vec3 center,float half,vec3 p[8]){
-	p[0]=vadd(center,v3(-half,-half,-half)); p[1]=vadd(center,v3(half,-half,-half));
-	p[2]=vadd(center,v3(half,half,-half)); p[3]=vadd(center,v3(-half,half,-half));
-	p[4]=vadd(center,v3(-half,-half,half)); p[5]=vadd(center,v3(half,-half,half));
-	p[6]=vadd(center,v3(half,half,half)); p[7]=vadd(center,v3(-half,half,half));
-}
-
-static void draw_box(vec3 center,float half,vec3 color){
-	vec3 p[8]; box_points(center,half,p);
-	int e[12][2]={{0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},{0,4},{1,5},{2,6},{3,7}};
-	glBegin(GL_LINES);
-	for(int i=0;i<12;i++) line(p[e[i][0]],p[e[i][1]],color);
-	glEnd();
-}
-
-static void draw_bounds(mat4 matrix,vec3 bmin,vec3 bmax){
-	vec3 p[8]={v3(bmin.x,bmin.y,bmin.z),v3(bmax.x,bmin.y,bmin.z),
-		v3(bmax.x,bmax.y,bmin.z),v3(bmin.x,bmax.y,bmin.z),
-		v3(bmin.x,bmin.y,bmax.z),v3(bmax.x,bmin.y,bmax.z),
-		v3(bmax.x,bmax.y,bmax.z),v3(bmin.x,bmax.y,bmax.z)};
-	int e[12][2]={{0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},{0,4},{1,5},{2,6},{3,7}};
-	for(int i=0;i<8;i++) p[i]=mat4_xform_point(matrix,p[i]);
-	glBegin(GL_LINES);
-	for(int i=0;i<12;i++) line(p[e[i][0]],p[e[i][1]],v3(0.88f,0.88f,0.88f));
-	glEnd();
-}
-
-static void draw_plane(vec3 center,vec3 u,vec3 v,float radius,vec3 color){
+static void gl_plane(GizmoLines *gl,vec3 center,vec3 u,vec3 v,float radius,vec3 color){
 	float hi=radius*0.38f;
 	vec3 far=vadd(center,vadd(vscale(u,hi),vscale(v,hi)));
-	vec3 a=vadd(center,vscale(v,hi));
-	vec3 b=vadd(center,vscale(u,hi));
-	glBegin(GL_LINES);
-	line(a,far,color); line(b,far,color);
-	glEnd();
+	gl_add(gl,vadd(center,vscale(v,hi)),far,color);
+	gl_add(gl,vadd(center,vscale(u,hi)),far,color);
+}
+
+static void gl_box(GizmoLines *gl,vec3 center,float half,vec3 color){
+	vec3 p[8]={
+		vadd(center,v3(-half,-half,-half)),vadd(center,v3(half,-half,-half)),
+		vadd(center,v3(half,half,-half)),vadd(center,v3(-half,half,-half)),
+		vadd(center,v3(-half,-half,half)),vadd(center,v3(half,-half,half)),
+		vadd(center,v3(half,half,half)),vadd(center,v3(-half,half,half))};
+	int e[12][2]={{0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},{0,4},{1,5},{2,6},{3,7}};
+	for(int i=0;i<12;i++) gl_add(gl,p[e[i][0]],p[e[i][1]],color);
+}
+
+static void gl_bounds_corners(GizmoLines *gl,mat4 matrix,vec3 bmin,vec3 bmax){
+	vec3 s=v3(bmax.x-bmin.x,bmax.y-bmin.y,bmax.z-bmin.z);
+	float ex=s.x*0.1f,ey=s.y*0.1f,ez=s.z*0.1f;
+	vec3 color=v3(0.88f,0.88f,0.88f);
+	for(int ci=0;ci<8;ci++){
+		vec3 c=v3((ci&1)?bmax.x:bmin.x,(ci&2)?bmax.y:bmin.y,(ci&4)?bmax.z:bmin.z);
+		float sx=(ci&1)?-1.0f:1.0f,sy=(ci&2)?-1.0f:1.0f,sz=(ci&4)?-1.0f:1.0f;
+		vec3 wc=mat4_xform_point(matrix,c);
+		gl_add(gl,wc,mat4_xform_point(matrix,vadd(c,v3(ex*sx,0,0))),color);
+		gl_add(gl,wc,mat4_xform_point(matrix,vadd(c,v3(0,ey*sy,0))),color);
+		gl_add(gl,wc,mat4_xform_point(matrix,vadd(c,v3(0,0,ez*sz))),color);
+	}
 }
 
 void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
@@ -108,21 +107,31 @@ void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
 	vec3 xz=handle_color(v3(0.82f,0.18f,0.72f),s->hoveredHandle==GIZMO_PLANE_XZ);
 	vec3 yz=handle_color(v3(0.10f,0.75f,0.78f),s->hoveredHandle==GIZMO_PLANE_YZ);
 	glDisable(GL_DEPTH_TEST); glDisable(GL_LIGHTING); glDisable(GL_CULL_FACE);
-	glDisable(GL_BLEND); glLineWidth(1.0f); draw_bounds(matrix,bmin,bmax);
+	glDisable(GL_BLEND); glLineWidth(1.0f);
+	GizmoLines gl={0};
+	gl_bounds_corners(&gl,matrix,bmin,bmax);
 	if(s->editMode==EDIT_W_MOVE){
-		draw_axis_arrow(center,x,radius,red); draw_axis_arrow(center,y,radius,green); draw_axis_arrow(center,z,radius,blue);
-		draw_plane(center,x,y,radius,xy); draw_plane(center,x,z,radius,xz); draw_plane(center,y,z,radius,yz);
+		gl_axis_arrow(&gl,center,x,radius,red); gl_axis_arrow(&gl,center,y,radius,green); gl_axis_arrow(&gl,center,z,radius,blue);
+		gl_plane(&gl,center,x,y,radius,xy); gl_plane(&gl,center,x,z,radius,xz); gl_plane(&gl,center,y,z,radius,yz);
 	} else if(s->editMode==EDIT_E_ROTATE){
-		draw_circle(center,x,radius,red); draw_circle(center,y,radius,green); draw_circle(center,z,radius,blue);
+		gl_circle(&gl,center,x,radius,red); gl_circle(&gl,center,y,radius,green); gl_circle(&gl,center,z,radius,blue);
 	} else if(s->editMode==EDIT_R_SCALE){
 		float half=radius*0.065f;
-		glBegin(GL_LINES);
-		line(center,vadd(center,vscale(x,radius)),red); line(center,vadd(center,vscale(y,radius)),green); line(center,vadd(center,vscale(z,radius)),blue);
-		glEnd();
-		draw_box(vadd(center,vscale(x,radius)),half,red); draw_box(vadd(center,vscale(y,radius)),half,green);
-		draw_box(vadd(center,vscale(z,radius)),half,blue);
-		draw_box(center,half*1.15f,handle_color(v3(0.88f,0.88f,0.88f),s->hoveredHandle==GIZMO_CENTER));
+		gl_add(&gl,center,vadd(center,vscale(x,radius)),red);
+		gl_add(&gl,center,vadd(center,vscale(y,radius)),green);
+		gl_add(&gl,center,vadd(center,vscale(z,radius)),blue);
+		gl_box(&gl,vadd(center,vscale(x,radius)),half,red);
+		gl_box(&gl,vadd(center,vscale(y,radius)),half,green);
+		gl_box(&gl,vadd(center,vscale(z,radius)),half,blue);
+		gl_box(&gl,center,half*1.15f,handle_color(v3(0.88f,0.88f,0.88f),s->hoveredHandle==GIZMO_CENTER));
 	}
+	glBegin(GL_LINES);
+	for(int i=0;i<gl.count;i++){
+		glColor3fv(&gl.v[i].color.x);
+		glVertex3fv(&gl.v[i].pos.x);
+	}
+	glEnd();
+	free(gl.v);
 	glLineWidth(1.0f);
 }
 
