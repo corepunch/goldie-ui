@@ -146,6 +146,7 @@ void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,vec3 camPos,vec3 camL
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
             for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit){
                 shader_set_material(s->objs[i].color, s->objs[i].shininess);
+                shader_set_texture(s->objs[i].texIndex>=0?s->materialTextures[s->objs[i].texIndex]:s->whiteTexture);
                 shader_draw_mesh(&s->objs[i].mesh);
             }
             glDisable(GL_BLEND);
@@ -156,6 +157,7 @@ void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,vec3 camPos,vec3 camL
             glEnable(GL_BLEND); glBlendFunc(GL_ONE,GL_ONE);
             for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable && !s->objs[i].unlit){
                 shader_set_material(s->objs[i].color, s->objs[i].shininess);
+                shader_set_texture(s->objs[i].texIndex>=0?s->materialTextures[s->objs[i].texIndex]:s->whiteTexture);
                 shader_draw_mesh(&s->objs[i].mesh);
             }
             glDisable(GL_BLEND);

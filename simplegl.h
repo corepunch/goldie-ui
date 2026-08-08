@@ -106,7 +106,7 @@ typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Ca
 typedef struct { vec3 pos,color,dir; float intensity,radius; int castsShadow,isDirectional; } Light;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;
-typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit,sanityIgnore,sanityFloor,sanityCheck; void *editNode; mat4 editMatrix; ShadowVolume *shadowParts; int nshadowParts; } SceneObj;
+typedef struct { Mesh mesh; vec3 color; float shininess; int castsShadow,renderable,unlit,sanityIgnore,sanityFloor,sanityCheck; void *editNode; mat4 editMatrix; ShadowVolume *shadowParts; int nshadowParts; int texIndex; } SceneObj;
 typedef struct { char name[32]; vec3 pos; } AttachPoint;
 typedef struct { char ref[32]; char path[256]; void *root; AttachPoint *attaches; int nattaches, cattaches; } PrefabDef;
 typedef struct { char name[32]; char ref[32]; mat4 transform, rotMatrix; } InstanceDef;
@@ -157,6 +157,9 @@ typedef struct {
 	char scenePath[512];
 	void *sceneRoot, *editRoot, *selectedNode, *activeEditNode;
 	mat4 activeEditMatrix;
+	int activeTexIndex;
+	unsigned int materialTextures[8];
+	unsigned int whiteTexture;
 	void *editStack[32]; int editDepth;
 	int selectedObj;
 	int editMode;
@@ -187,6 +190,8 @@ int scene_exit_prefab(Scene *s);
 int scene_save_all(Scene *s);
 int scene_is_prefab_mode(Scene *s);
 void scene_get_bounds(Scene *s,vec3 *outMin,vec3 *outMax);
+void scene_init_textures(Scene *s);
+void scene_free_textures(Scene *s);
 /* Gizmo interaction helpers */
 int gizmo_pick_handle(Scene *s,vec3 rayOrigin,vec3 rayDir,vec3 camLook,float camFov);
 void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov);

@@ -106,6 +106,7 @@ int main(int argc,char**argv){
     shader_init();
     SDL_GL_SetSwapInterval(1);
     scene_rebuild_camera_gizmos(&scene,(float)W/(float)H);
+    scene_init_textures(&scene);
 
     float yaw,pitch;
     vec3 pos;
@@ -261,6 +262,7 @@ int main(int argc,char**argv){
         SDL_GL_SwapWindow(win);
     }
 
+    scene_free_textures(&scene);
     shader_deinit();
     SDL_GL_DeleteContext(ctx);
     SDL_DestroyWindow(win);

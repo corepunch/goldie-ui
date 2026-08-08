@@ -12,7 +12,7 @@
 static GLuint prog;
 static GLuint vlocPos, vlocNrm;
 static GLint ulocViewProj, ulocViewPos, ulocLightPos, ulocLightColor, ulocLightRadius;
-static GLint ulocColor, ulocShininess;
+static GLint ulocColor, ulocShininess, ulocTex;
 
 static const char *vs_src =
 "attribute vec3 aPos;\n"
@@ -20,9 +20,11 @@ static const char *vs_src =
 "uniform mat4 uViewProj;\n"
 "varying vec3 vWorldPos;\n"
 "varying vec3 vWorldNrm;\n"
+"varying vec2 vWorldUV;\n"
 "void main(){\n"
 "    vWorldPos=aPos;\n"
 "    vWorldNrm=aNrm;\n"
+"    vWorldUV=aPos.xz*0.5;\n"
 "    gl_Position=uViewProj*vec4(aPos,1.0);\n"
 "}\n";
 
@@ -41,12 +43,14 @@ static const char *fs_src =
 "#define NOISE_DIV 255.0\n"
 "varying vec3 vWorldPos;\n"
 "varying vec3 vWorldNrm;\n"
+"varying vec2 vWorldUV;\n"
 "uniform vec3 uViewPos;\n"
 "uniform vec4 uLightPos;\n"
 "uniform vec3 uLightColor;\n"
 "uniform float uLightRadius;\n"
 "uniform vec3 uColor;\n"
 "uniform float uShininess;\n"
+"uniform sampler2D uTex;\n"
 "void main(){\n"
 "    vec3 N=normalize(vWorldNrm);\n"
 "    vec3 V=normalize(uViewPos-vWorldPos);\n"
@@ -65,8 +69,9 @@ static const char *fs_src =
 "    float G2=NdotV/(NdotV*(1.0-k)+k);\n"
 "    float G=G1*G2;\n"
 "    float F=BASE_REFLECTANCE+(1.0-BASE_REFLECTANCE)*pow(1.0-max(dot(V,H),0.0),FRESNEL_EXP);\n"
+"    vec3 texColor=texture2D(uTex,vWorldUV).rgb;\n"
 "    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,MIN_SPECULAR))*uLightColor;\n"
-"    vec3 diff=uColor*(1.0-F)*NdotL*uLightColor;\n"
+"    vec3 diff=uColor*texColor*(1.0-F)*NdotL*uLightColor;\n"
 "    float att=1.0;\n"
 "    if(uLightRadius>0.0 && uLightPos.w>0.0){\n"
 "        float dist=length(uLightPos.xyz-vWorldPos);\n"
@@ -136,6 +141,7 @@ void shader_init(void){
 	ulocLightRadius = glGetUniformLocation(prog, "uLightRadius");
 	ulocColor       = glGetUniformLocation(prog, "uColor");
 	ulocShininess   = glGetUniformLocation(prog, "uShininess");
+	ulocTex         = glGetUniformLocation(prog, "uTex");
 
 	fprintf(stderr, "PBR shader initialized\n");
 }
@@ -175,6 +181,12 @@ void shader_set_material(vec3 color, float shininess){
 	color=srgb_to_linear(color);
 	glUniform3f(ulocColor, color.x, color.y, color.z);
 	glUniform1f(ulocShininess, shininess);
+}
+
+void shader_set_texture(unsigned int tex){
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glUniform1i(ulocTex, 0);
 }
 
 void shader_draw_mesh(Mesh *m){

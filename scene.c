@@ -1,8 +1,11 @@
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "simplegl.h"
+#include "materials.h"
 
 /* -------------------------------------------------------------- Tiny XML */
 
@@ -193,6 +196,7 @@ void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, 
 	o.renderable=renderable; o.unlit=unlit; o.sanityIgnore=s->sanityIgnoreActive;
 	o.sanityFloor=s->sanityFloorActive; o.sanityCheck=s->sanityCheckActive;
 	o.editNode=s->activeEditNode; o.editMatrix=s->activeEditMatrix;
+	o.texIndex=s->activeTexIndex;
 	DA_PUSH(s->objs,s->nobjs,s->cobjs,o);
 }
 
@@ -927,6 +931,7 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		}
 		if(ownsEditNode) s->activeEditMatrix=M;
 		Material *mat = find_material(s, xml_attr(n,"material",NULL));
+		s->activeTexIndex = materials_index_for_name(mat ? mat->id : NULL);
 		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
 		if(s->prefabTintActive && xml_attr_i(n,"tint",0)) color=s->prefabTint;
 		float shin = mat? mat->shininess : xml_attr_f(n,"shininess",8.0f);
@@ -1152,6 +1157,7 @@ static void scene_rebuild_view(Scene *s){
 int load_scene(const char *path, Scene *s){
 	memset(s,0,sizeof(*s));
 	s->selectedObj=-1; s->editMode=EDIT_W_MOVE;
+	s->activeTexIndex=-1;
 	strncpy(s->scenePath,path,sizeof(s->scenePath)-1);
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
@@ -1561,4 +1567,14 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 		scene_add_obj(s,mesh,M,wallR,color,shin,castsShadow,renderable,unlit);
 	}
 	free(bp);
+}
+
+void scene_init_textures(Scene *s){
+	materials_init(s->materialTextures);
+	s->whiteTexture=materials_create_white_texture();
+}
+
+void scene_free_textures(Scene *s){
+	materials_free(s->materialTextures);
+	glDeleteTextures(1,&s->whiteTexture);
 }
