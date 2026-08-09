@@ -435,6 +435,34 @@ void test_drag_drop_no_handler(void) {
   PASS();
 }
 
+static uint32_t normalized_key_down, normalized_key_up;
+static result_t key_sink_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  (void)win; (void)lparam;
+  if (msg == evKeyDown) normalized_key_down = wparam;
+  if (msg == evKeyUp) normalized_key_up = wparam;
+  return true;
+}
+
+void test_letter_keys_are_normalized(void) {
+  TEST("dispatch_message: lowercase platform letters use AX_KEY uppercase codes");
+  test_env_init();
+  normalized_key_down = normalized_key_up = 0;
+  window_t *win = test_env_create_window("key-sink", 0, 0, 100, 100, key_sink_proc, NULL);
+  ASSERT_NOT_NULL(win);
+  set_focus(win);
+
+  ui_event_t evt = { .message = kEventKeyDown, .keyCode = 'w' };
+  dispatch_message(&evt);
+  evt.message = kEventKeyUp;
+  dispatch_message(&evt);
+
+  ASSERT_EQUAL(normalized_key_down, AX_KEY_W);
+  ASSERT_EQUAL(normalized_key_up, AX_KEY_W);
+  destroy_window(win);
+  test_env_shutdown();
+  PASS();
+}
+
 // =============================================================================
 // main
 // =============================================================================
@@ -465,6 +493,7 @@ int main(int argc, char *argv[]) {
   test_drag_drop_null_lParam();
   test_drag_drop_empty_path();
   test_drag_drop_no_handler();
+  test_letter_keys_are_normalized();
 
   TEST_END();
 }

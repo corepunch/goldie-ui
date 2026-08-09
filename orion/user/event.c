@@ -61,6 +61,10 @@ static bool g_wakeup_pending = false;
 // Current modifier state (updated on key and modifier-only events)
 static uint32_t g_mod_state = 0;
 
+static uint32_t normalize_key_code(uint32_t key) {
+  return key >= 'a' && key <= 'z' ? key - ('a' - 'A') : key;
+}
+
 uint32_t ui_get_mod_state(void) {
   return g_mod_state;
 }
@@ -352,7 +356,7 @@ void dispatch_message(ui_event_t *msg) {
     case kEventKeyDown: {
       // Track modifier state from the key event's wParam high-word bits.
       g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
-      uint32_t key = (uint32_t)msg->keyCode;
+      uint32_t key = normalize_key_code((uint32_t)msg->keyCode);
       // Send text input for printable characters (ASCII 32–126).
       // The char bytes are stored inline in the lParam field by the platform.
       char text_ch = *(char*)&msg->lParam;
@@ -391,7 +395,8 @@ void dispatch_message(ui_event_t *msg) {
 
     case kEventKeyUp:
       g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
-      send_message(g_ui_runtime.focused, evKeyUp, (uint32_t)msg->keyCode, NULL);
+      send_message(g_ui_runtime.focused, evKeyUp,
+                   normalize_key_code((uint32_t)msg->keyCode), NULL);
       break;
 
     case kEventModifiersChanged:
@@ -432,8 +437,10 @@ void dispatch_message(ui_event_t *msg) {
         int16_t lx = (int16_t)LOCAL_X(px, py, win);
         int16_t ly = (int16_t)LOCAL_Y(px, py, win);
         if (win == g_ui_runtime.captured || ly >= 0) {
-          send_message(win, evMouseMove, MAKEDWORD(lx, ly),
-                       (void*)(intptr_t)MAKEDWORD(rdx, rdy));
+          void *motion = (void*)(intptr_t)MAKEDWORD(rdx, rdy);
+          if (win == g_ui_runtime.captured ||
+              !handle_mouse(evMouseMove, win, lx, ly, motion))
+            send_message(win, evMouseMove, MAKEDWORD(lx, ly), motion);
         }
       }
       if (g_ui_runtime.tracked && !CONTAINS(SCALE_POINT(px), SCALE_POINT(py),
