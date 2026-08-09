@@ -60,6 +60,7 @@ static bool g_wakeup_pending = false;
 
 // Current modifier state (updated on key and modifier-only events)
 static uint32_t g_mod_state = 0;
+static bool g_key_state[256];
 
 static uint32_t normalize_key_code(uint32_t key) {
   return key >= 'a' && key <= 'z' ? key - ('a' - 'A') : key;
@@ -67,6 +68,35 @@ static uint32_t normalize_key_code(uint32_t key) {
 
 uint32_t ui_get_mod_state(void) {
   return g_mod_state;
+}
+
+bool ui_is_key_down(uint32_t key) {
+  key = normalize_key_code(key);
+  return key < ARRAY_LEN(g_key_state) && g_key_state[key];
+}
+
+static void update_key_state(ui_event_t *msg) {
+  uint32_t key;
+  switch (msg->message) {
+    case kEventKeyDown:
+    case kEventKeyUp:
+      key = normalize_key_code((uint32_t)msg->keyCode);
+      if (key < ARRAY_LEN(g_key_state)) g_key_state[key] = msg->message == kEventKeyDown;
+      g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
+      break;
+    case kEventModifiersChanged:
+      g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
+      break;
+    case kEventKillFocus:
+      memset(g_key_state, 0, sizeof(g_key_state));
+      g_mod_state = 0;
+      return;
+    default:
+      return;
+  }
+  g_key_state[AX_KEY_SHIFT] = (g_mod_state & AX_MOD_SHIFT) != 0;
+  g_key_state[AX_KEY_CTRL]  = (g_mod_state & AX_MOD_CTRL)  != 0;
+  g_key_state[AX_KEY_ALT]   = (g_mod_state & AX_MOD_ALT)   != 0;
 }
 
 // Drag/resize state (shared with user/window.c for destroy_window cleanup)
@@ -295,6 +325,8 @@ void dispatch_message(ui_event_t *msg) {
     return;
   }
 
+  update_key_state(msg);
+
   window_t *win;
   int px, py; // platform logical coordinates
 
@@ -354,8 +386,6 @@ void dispatch_message(ui_event_t *msg) {
     }
 
     case kEventKeyDown: {
-      // Track modifier state from the key event's wParam high-word bits.
-      g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
       uint32_t key = normalize_key_code((uint32_t)msg->keyCode);
       // Send text input for printable characters (ASCII 32–126).
       // The char bytes are stored inline in the lParam field by the platform.
@@ -394,13 +424,11 @@ void dispatch_message(ui_event_t *msg) {
     }
 
     case kEventKeyUp:
-      g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
       send_message(g_ui_runtime.focused, evKeyUp,
                    normalize_key_code((uint32_t)msg->keyCode), NULL);
       break;
 
     case kEventModifiersChanged:
-      g_mod_state = (uint32_t)msg->wParam & 0xFFFF0000u;
       break;
 
     case kEventJoyAxisMotion:
@@ -816,6 +844,8 @@ int get_message(ui_event_t *evt) {
     s_draining_queue = false;
     return 0;
   }
+
+  update_key_state(evt);
 
   return 1;
 }

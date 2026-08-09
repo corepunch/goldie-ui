@@ -753,10 +753,12 @@ bool capture_framebuffer_rgba(int w, int h, uint8_t *out_rgba) {
     return false;
 
   GLint prev_fbo = 0;
+  GLint prev_read = 0;
   GLint prev_view[4] = {0};
   GLint prev_scissor[4] = {0};
 
   glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+  glGetIntegerv(GL_READ_BUFFER, &prev_read);
   glGetIntegerv(GL_VIEWPORT, prev_view);
   glGetIntegerv(GL_SCISSOR_BOX, prev_scissor);
 
@@ -768,10 +770,11 @@ bool capture_framebuffer_rgba(int w, int h, uint8_t *out_rgba) {
   if (!tmp) {
     glViewport(prev_view[0], prev_view[1], prev_view[2], prev_view[3]);
     glScissor(prev_scissor[0], prev_scissor[1], prev_scissor[2], prev_scissor[3]);
+    glReadBuffer((GLenum)prev_read);
     glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prev_fbo);
     return false;
   }
-  glReadBuffer(GL_BACK);
+  glReadBuffer(prev_fbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
   glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, tmp);
   for (int y = 0; y < h; y++) {
     memcpy(out_rgba + (size_t)y * row_sz,
@@ -782,6 +785,7 @@ bool capture_framebuffer_rgba(int w, int h, uint8_t *out_rgba) {
 
   glViewport(prev_view[0], prev_view[1], prev_view[2], prev_view[3]);
   glScissor(prev_scissor[0], prev_scissor[1], prev_scissor[2], prev_scissor[3]);
+  glReadBuffer((GLenum)prev_read);
   glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prev_fbo);
   return true;
 }

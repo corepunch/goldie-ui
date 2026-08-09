@@ -9,6 +9,7 @@ typedef struct bitmap_strip_s bitmap_strip_t;
 
 #define UI_INIT_DESKTOP 0x01000000u
 #define UI_INIT_TRAY 0x02000000u
+#define UI_INIT_HIDDEN  0x04000000u
 
 #ifndef UI_WINDOW_SCALE
 #define UI_WINDOW_SCALE 1
@@ -68,6 +69,9 @@ const char *ui_get_exe_dir(void);
 
 // Modifier state accessor — returns current AX_MOD_* flags
 uint32_t ui_get_mod_state(void);
+
+// Keyboard state accessor — true while the AX_KEY_* key is held.
+bool ui_is_key_down(uint32_t key);
 
 // Sprite stuff
 int get_sprite_prog(void);

@@ -2,6 +2,8 @@
 
 This directory contains the test suite for Orion. The tests are inspired by the testing approach used for Windows 1.0, focusing on core functionality: window management, event handling, and common controls.
 
+Framework and core tests live here. App-specific tests live beside their app in `apps/<app>/tests/`.
+
 ## Test Organization
 
 ### Test Files
@@ -178,13 +180,15 @@ Tests produce colored output:
 
 ## Adding New Tests
 
-To add a new test file:
+To add a new core test file:
 
 1. Create `tests/yourtest.c`
 2. Include `test_framework.h` and `../ui.h`
 3. Write test functions
 4. Create `main()` function with `TEST_START()` and `TEST_END()`
 5. Run `make test` - the Makefile will automatically pick it up
+
+For an app-specific test, create `apps/<app>/tests/yourtest.c`; the Makefile automatically includes that app's sources and include paths.
 
 Example:
 

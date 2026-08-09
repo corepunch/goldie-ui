@@ -1,4 +1,4 @@
-// tests/gitclient_backend_test.c — headless unit tests for the git client
+// apps/gitclient/tests/gitclient_backend_test.c — headless unit tests for the git client
 // backend (apps/gitclient/git_backend.c).
 //
 // Creates a real git repository in a temporary directory, makes commits and

@@ -463,6 +463,31 @@ void test_letter_keys_are_normalized(void) {
   PASS();
 }
 
+void test_keyboard_state_tracks_press_release_and_focus_loss(void) {
+  TEST("keyboard state: tracks normalized keys and clears on focus loss");
+  test_env_init();
+
+  ui_event_t evt = { .message = kEventKeyDown, .wParam = 'w' | AX_MOD_SHIFT };
+  dispatch_message(&evt);
+  ASSERT_TRUE(ui_is_key_down(AX_KEY_W));
+  ASSERT_TRUE(ui_is_key_down(AX_KEY_SHIFT));
+
+  evt = (ui_event_t){ .message = kEventKeyUp, .keyCode = 'w' };
+  dispatch_message(&evt);
+  ASSERT_FALSE(ui_is_key_down(AX_KEY_W));
+
+  evt = (ui_event_t){ .message = kEventKeyDown, .keyCode = AX_KEY_A };
+  dispatch_message(&evt);
+  ASSERT_TRUE(ui_is_key_down(AX_KEY_A));
+  evt = (ui_event_t){ .message = kEventKillFocus };
+  dispatch_message(&evt);
+  ASSERT_FALSE(ui_is_key_down(AX_KEY_A));
+  ASSERT_FALSE(ui_is_key_down(AX_KEY_SHIFT));
+
+  test_env_shutdown();
+  PASS();
+}
+
 // =============================================================================
 // main
 // =============================================================================
@@ -494,6 +519,7 @@ int main(int argc, char *argv[]) {
   test_drag_drop_empty_path();
   test_drag_drop_no_handler();
   test_letter_keys_are_normalized();
+  test_keyboard_state_tracks_press_release_and_focus_loss();
 
   TEST_END();
 }

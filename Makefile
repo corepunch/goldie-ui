@@ -117,7 +117,7 @@ appdir = $(APPS)/$(or $(PHONY_APPS_SRC_$(1)),$(1))
 # Unity-built apps need their real sources as prerequisites: without them an
 # edited example leaves the binary newer than every listed prereq and make
 # silently runs the stale executable.
-app_srcs = $(shell find $(call appdir,$(1)) -name '*.c' -o -name '*.h')
+app_srcs = $(shell find $(call appdir,$(1)) \( -name '*.c' -o -name '*.h' \) ! -path '*/tests/*')
 $(foreach n,$(EXAMPLES) $(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(n)$(EXE_EXT): $(call app_srcs,$(n))))
 $(foreach n,$(filter-out shell,$(EXAMPLES)) $(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(n).gem: $(call app_srcs,$(n))))
 
@@ -125,13 +125,13 @@ GENERATED_HEADERS = $(patsubst $(APPS)/%.orion,$(GENERATED_DIR)/$(APPS)/%.h,$(wi
 
 .SECONDEXPANSION:
 
-TEST_SRCS = $(shell find $(TEST_DIR) -name '*.c' ! -name test_env.c \
-    ! -path '$(TEST_DIR)/*/support/*' ! -path '$(TEST_DIR)/*/tests/*' | sort)
+TEST_SRCS = $(sort $(filter-out $(TEST_DIR)/test_env.c,$(wildcard $(TEST_DIR)/*.c)) \
+    $(wildcard $(APPS)/*/tests/*.c))
 TEST_BINS = $(patsubst %,$(BIN_DIR)/test_%$(EXE_EXT),$(basename $(notdir $(TEST_SRCS))))
 
 # Shell fragment emitting the unity translation unit for example dir $(1):
 # every .c outside $(COMPS), main.c last.  ('#' is backslash-escaped for make.)
-unity_tu = find $(1) -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' | sort | sed 's/.*/\#include "&"/'; echo '\#include "$(1)/main.c"'
+unity_tu = find $(1) -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' ! -path '*/tests/*' | sort | sed 's/.*/\#include "&"/'; echo '\#include "$(1)/main.c"'
 app_inc  = -I. -I$(call appdir,$*) -I$(call appdir,$*)/$(COMPS) -DSHAREDIR='"../share/$(notdir $(call appdir,$*))"'
 app_libs = $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(COMPONENT_PLUGIN_BINS) $(LIBS)
 
@@ -265,10 +265,10 @@ test: $(TEST_BINS)
 
 $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $(GENERATED_HEADERS) $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) | $(BIN_DIR)
 	@echo "TEST    $@"
-	@src=$$(find $(TEST_DIR) -name '$*.c' ! -path '$(TEST_DIR)/*/tests/*' | head -n 1); \
+	@src='$(firstword $(filter %/$*.c,$(TEST_SRCS)))'; \
 	app_dir=; app=; stem='$*'; \
 	case $$src in \
-	  $(TEST_DIR)/*/*.c) app_dir=$${src#$(TEST_DIR)/}; app_dir=$${app_dir%%/*}; app=$$app_dir ;; \
+	  $(APPS)/*/tests/*.c) app_dir=$${src#$(APPS)/}; app_dir=$${app_dir%%/*}; app=$$app_dir ;; \
 	esac; \
 	if [ -z "$$app" ]; then \
 	  for cand in "$${stem%_test}" "$${stem%%_*}"; do \
@@ -279,10 +279,10 @@ $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $
 	  printf '#include "%s"\n' "$$src"; \
 	  printf '#include "$(TEST_DIR)/test_env.c"\n'; \
 	  if [ -n "$$app_dir" ] && [ -d "$(APPS)/$$app_dir" ]; then \
-	    find "$(APPS)/$$app_dir" -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' | sort | sed 's/.*/#include "&"/'; \
+	    find "$(APPS)/$$app_dir" -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' ! -path '*/tests/*' | sort | sed 's/.*/#include "&"/'; \
 	  fi; \
-	  if [ -n "$$app_dir" ] && [ -d "$(TEST_DIR)/$$app_dir/support" ]; then \
-	    find "$(TEST_DIR)/$$app_dir/support" -name '*.c' | sort | sed 's/.*/#include "&"/'; \
+	  if [ -n "$$app_dir" ] && [ -d "$(APPS)/$$app_dir/tests/support" ]; then \
+	    find "$(APPS)/$$app_dir/tests/support" -name '*.c' | sort | sed 's/.*/#include "&"/'; \
 	  fi; \
 	} | $(CC) $(CFLAGS) -I. -Itests -I$(APPS)/$$app -I$(APPS)/$$app/$(COMPS) -x c -o $@ - -x none \
 	    $(LDFLAGS_TEST) $(app_libs)

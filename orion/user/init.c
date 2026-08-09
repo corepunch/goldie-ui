@@ -254,7 +254,15 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
 
   axInit();
 
-  if (!axCreateWindow(title, width * UI_WINDOW_SCALE, height * UI_WINDOW_SCALE, 0)) {
+  uint32_t pixel_w = (uint32_t)(width * UI_WINDOW_SCALE);
+  uint32_t pixel_h = (uint32_t)(height * UI_WINDOW_SCALE);
+  if (flags & UI_INIT_HIDDEN) {
+    if (!axCreateSurface(pixel_w, pixel_h)) {
+      printf("Surface could not be created!\n");
+      axShutdown();
+      return false;
+    }
+  } else if (!axCreateWindow(title, pixel_w, pixel_h, 0)) {
     printf("Window could not be created!\n");
     axShutdown();
     return false;
@@ -276,7 +284,8 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   printf("GL_VERSION  : %s\n", glGetString(GL_VERSION));
   printf("GLSL_VERSION: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-  axSetSwapInterval(1);
+  if (!(flags & UI_INIT_HIDDEN))
+    axSetSwapInterval(1);
 
   if (!ui_init_prog()) {
     axShutdown();

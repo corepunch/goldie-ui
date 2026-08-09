@@ -1,4 +1,4 @@
-// tests/gitclient_test_helpers.h — portable file-system and git helpers
+// apps/gitclient/tests/gitclient_test_helpers.h — portable file-system and git helpers
 // shared by gitclient_backend_test.c and gitclient_ui_test.c.
 //
 // All helpers use only standard C (file I/O) and the platform's native shell

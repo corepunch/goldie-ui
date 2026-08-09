@@ -1,4 +1,4 @@
-// tests/imageeditor_ui_test.c — headless integration tests for the image editor.
+// apps/imageeditor/tests/imageeditor_ui_test.c — headless integration tests for the image editor.
 //
 // Drives the image editor application layer (documents, palette windows,
 // menu command routing) without a display or OpenGL context.  Paint events
