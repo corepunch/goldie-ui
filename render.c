@@ -288,6 +288,7 @@ static void draw_stencil_debug_quad(mat4 proj, mat4 view) {
 
 void render_frame(Scene *s, int w, int h, mat4 proj, mat4 view,
                   vec3 camPos, vec3 camLook, int flags) {
+    if (!scene_is_prefab_mode(s)) scene_rebuild_camera_gizmos(s, h > 0 ? (float)w / (float)h : 1.0f);
     glDisable(GL_BLEND); glDisable(GL_DEPTH_TEST); glDisable(GL_STENCIL_TEST); glDisable(GL_CULL_FACE);
     glDisable(GL_POLYGON_OFFSET_FILL); glDisable(GL_POLYGON_OFFSET_LINE);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); glDepthMask(GL_TRUE); glStencilMask(0xFF);

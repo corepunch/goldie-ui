@@ -19,8 +19,30 @@ static void test_tool_commands_share_document_state(void) {
   PASS();
 }
 
+static void test_prefab_files_open_as_documents(void) {
+  TEST("scener documents: prefab files load as editable document roots");
+  Scene prefab = {0};
+  ASSERT_TRUE(load_scene("apps/scener/prefabs/items/book.blk", &prefab));
+  ASSERT_TRUE(scene_is_prefab_mode(&prefab));
+  ASSERT_EQUAL(prefab.editDepth, 0);
+  ASSERT_TRUE(prefab.nobjs > 0);
+  ASSERT_EQUAL(prefab.nlights, 2);
+  scene_free(&prefab);
+
+  Scene scene = {0};
+  ASSERT_TRUE(load_scene("apps/scener/scenes/test_prefab_tint.blks", &scene));
+  scene.selectedObj = 0;
+  scene.selectedNode = scene.objs[0].editNode;
+  char path[512] = {0};
+  ASSERT_TRUE(scene_selected_prefab_path(&scene, path, sizeof(path)));
+  ASSERT_TRUE(strstr(path, "prefabs/items/book.blk") != NULL);
+  scene_free(&scene);
+  PASS();
+}
+
 int main(void) {
   TEST_START("scener input and command state");
   test_tool_commands_share_document_state();
+  test_prefab_files_open_as_documents();
   TEST_END();
 }

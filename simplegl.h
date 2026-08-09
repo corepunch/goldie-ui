@@ -157,6 +157,7 @@ typedef struct {
 	char activeCamera[32];
 	char scenePath[512];
 	char assetRoot[512];
+	int prefabDocument;
 	void *sceneRoot, *editRoot, *selectedNode, *activeEditNode;
 	mat4 activeEditMatrix;
 	int activeTexIndex;
@@ -189,6 +190,7 @@ void scene_get_obj_bounds(Scene *s,int idx,vec3 *outMin,vec3 *outMax);
 void scene_get_obj_oriented_bounds(Scene *s,int idx,mat4 *matrix,vec3 *outMin,vec3 *outMax);
 int scene_enter_selected_prefab(Scene *s);
 int scene_exit_prefab(Scene *s);
+int scene_selected_prefab_path(Scene *s,char *path,size_t pathSize);
 int scene_save_all(Scene *s);
 int scene_is_prefab_mode(Scene *s);
 void scene_get_bounds(Scene *s,vec3 *outMin,vec3 *outMax);

@@ -1,5 +1,20 @@
 #include "scener.h"
 
+#define PREFAB_FRAME_MIN_RADIUS 0.5f
+#define PREFAB_FRAME_OFFSET_X   1.2f
+#define PREFAB_FRAME_OFFSET_Y   0.7f
+#define PREFAB_FRAME_OFFSET_Z   2.4f
+
+static void doc_frame_prefab(Scene *scene) {
+	vec3 bmin,bmax; scene_get_bounds(scene,&bmin,&bmax);
+	vec3 center=vscale(vadd(bmin,bmax),0.5f);
+	float radius=vlen(vscale(vsub(bmax,bmin),0.5f));
+	if(radius<PREFAB_FRAME_MIN_RADIUS) radius=PREFAB_FRAME_MIN_RADIUS;
+	scene->camPos=vadd(center,v3(radius*PREFAB_FRAME_OFFSET_X,radius*PREFAB_FRAME_OFFSET_Y,radius*PREFAB_FRAME_OFFSET_Z));
+	scene->camLook=center;
+	if(scene->ncameras){ scene->cameras[0].pos=scene->camPos; scene->cameras[0].look=scene->camLook; }
+}
+
 static irect16_t document_workspace_rect(void) {
 	int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
 	int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
@@ -75,6 +90,7 @@ scene_doc_t *create_document_ex(const char *path, bool show_windows) {
       free(doc);
       return NULL;
     }
+    if (doc->scene.prefabDocument) doc_frame_prefab(&doc->scene);
     strncpy(doc->filename, path, sizeof(doc->filename)-1);
     doc->filename[sizeof(doc->filename)-1] = '\0';
   } else {

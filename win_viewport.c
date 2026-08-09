@@ -317,6 +317,22 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				}
 			}
 			return true;
+		case evLeftButtonDoubleClick:
+			if(vp&&doc){
+				irect16_t cr=get_client_rect(win);
+				if(cr.w>0&&cr.h>0){
+					vec3 ray=vp_mouse_ray(vp,&doc->scene,(int16_t)LOWORD(wparam),(int16_t)HIWORD(wparam),cr.w,cr.h);
+					doc->scene.selectedObj=scene_pick_object(&doc->scene,doc->scene.camPos,ray,NULL);
+					char path[512];
+					if(doc->scene.selectedObj>=0&&scene_selected_prefab_path(&doc->scene,path,sizeof(path))){
+						vp->left_down=0; doc->scene.draggingHandle=GIZMO_NONE;
+						set_capture(NULL);
+						create_document(path);
+					}
+					invalidate_window(win);
+				}
+			}
+			return true;
 		case evLeftButtonUp:
 			if (vp) vp->left_down = 0;
 			if (doc) doc->scene.draggingHandle = GIZMO_NONE;

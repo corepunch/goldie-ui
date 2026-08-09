@@ -1152,11 +1152,12 @@ static void scene_clear_view(Scene *s){
 static void scene_rebuild_view(Scene *s){
 	XmlNode *root=(XmlNode*)s->editRoot;
 	XmlNode *sceneRoot=(XmlNode*)s->sceneRoot;
+	int prefabMode=s->prefabDocument||s->editDepth;
 	void *selected=s->selectedNode;
 	scene_clear_view(s);
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
 	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
-	if(s->editDepth){ s->ambient=v3(0.48f,0.50f,0.56f); s->bg=v3(0.14f,0.16f,0.20f); }
+	if(prefabMode){ s->ambient=v3(0.48f,0.50f,0.56f); s->bg=v3(0.14f,0.16f,0.20f); }
 	else {
 		s->ambient=xml_attr_v3(root,"ambient",s->ambient);
 		const char *bg=xml_attr(root,"background",NULL);
@@ -1171,11 +1172,11 @@ static void scene_rebuild_view(Scene *s){
 	if(s->editDepth){
 		for(int i=0;i<sceneRoot->nkids;i++) if(!strcmp(sceneRoot->kids[i]->tag,"material"))
 			parse_material_tag(s,sceneRoot->kids[i]);
-	} else for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
+	} else if(!s->prefabDocument) for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
 		if(!strcmp(root->kids[i]->tag,scene_tags[j].tag)){ scene_tags[j].parse(s,root->kids[i]); break; }
 	s->activeEditNode=NULL;
 	parse_nodes(s,root,I,I);
-	if(s->editDepth && s->nlights==0){
+	if(prefabMode && s->nlights==0){
 		vec3 bmin={1e30f,1e30f,1e30f},bmax={-1e30f,-1e30f,-1e30f};
 		for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable){
 			for(int v=0;v<s->objs[i].mesh.nverts;v++){
@@ -1201,7 +1202,7 @@ static void scene_rebuild_view(Scene *s){
 		DA_PUSH(s->cameras,s->ncameras,s->ccameras,def);
 	}
 	s->svols=calloc((size_t)s->nlights,sizeof(ShadowVolume));
-	if(!s->editDepth){
+	if(!prefabMode){
 		for(int li=0;li<s->nlights;li++) if(!s->lights[li].isDirectional)
 			add_lamp_dummy(s,s->lights[li].pos,0.15f,v3(1.0f,0.7f,0.2f),1,NULL);
 		for(int ci=0;ci<s->ncameras;ci++){
@@ -1220,17 +1221,21 @@ int load_scene(const char *path, Scene *s){
 	s->selectedObj=-1; s->editMode=EDIT_W_MOVE;
 	s->activeTexIndex=-1;
 	strncpy(s->scenePath,path,sizeof(s->scenePath)-1);
-	const char *scenes=strstr(path,"/scenes/");
-	if(!scenes) scenes=strstr(path,"\\scenes\\");
-	if(scenes){
-		size_t n=(size_t)(scenes-path);
+	const char *content=strstr(path,"/scenes/");
+	if(!content) content=strstr(path,"\\scenes\\");
+	if(!content) content=strstr(path,"/prefabs/");
+	if(!content) content=strstr(path,"\\prefabs\\");
+	if(content){
+		size_t n=(size_t)(content-path);
 		if(n>=sizeof(s->assetRoot)) n=sizeof(s->assetRoot)-1;
 		memcpy(s->assetRoot,path,n); s->assetRoot[n]=0;
-	} else if(!strncmp(path,"scenes/",7)||!strncmp(path,"scenes\\",7)) strcpy(s->assetRoot,".");
+	} else if(!strncmp(path,"scenes/",7)||!strncmp(path,"scenes\\",7)||
+		!strncmp(path,"prefabs/",8)||!strncmp(path,"prefabs\\",8)) strcpy(s->assetRoot,".");
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
 	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }
-	warn_unknown_elements(root,path,0);
+	s->prefabDocument=!strcmp(root->tag,"prefab");
+	warn_unknown_elements(root,path,s->prefabDocument);
 	s->sceneRoot=root; s->editRoot=root;
 	scene_rebuild_view(s);
 	fprintf(stderr,"overlay: %d lines\n",s->noverlayLines);
@@ -1387,7 +1392,19 @@ int scene_exit_prefab(Scene *s){
 	return 1;
 }
 
-int scene_is_prefab_mode(Scene *s){ return s->editDepth>0; }
+int scene_selected_prefab_path(Scene *s,char *path,size_t pathSize){
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n||strcmp(n->tag,"prefab")||!path||!pathSize) return 0;
+	const char *source=xml_attr(n,"source",NULL);
+	if(!source||!load_prefab(s,source)) return 0;
+	for(int i=0;i<s->nprefabs;i++) if(!strcmp(s->prefabs[i].ref,source)){
+		snprintf(path,pathSize,"%s",s->prefabs[i].path);
+		return 1;
+	}
+	return 0;
+}
+
+int scene_is_prefab_mode(Scene *s){ return s->prefabDocument||s->editDepth>0; }
 
 static void xml_write_escaped(FILE *f,const char *s){
 	for(;*s;s++){
