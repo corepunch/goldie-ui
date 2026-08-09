@@ -44,7 +44,7 @@ static const char *vp_present_vs =
 static const char *vp_present_fs =
 	"#version 150 core\n"
 	"in vec2 tex; in vec4 col; out vec4 outColor; uniform sampler2D tex0; uniform vec4 tint; uniform float alpha;\n"
-	"void main(){ vec4 s=texture(tex0,vec2(tex.x,1.0-tex.y))*col*tint; vec3 lo=12.92*s.rgb; vec3 hi=1.055*pow(s.rgb,vec3(1.0/2.4))-0.055; outColor=vec4(mix(lo,hi,step(vec3(0.0031308),s.rgb)),s.a*alpha); }\n";
+	"void main(){ vec4 s=texture(tex0,vec2(tex.x,1.0-tex.y))*col*tint; outColor=vec4(s.rgb,s.a*alpha); }\n";
 
 static GLuint vp_compile_shader(GLenum type, const char *source) {
 	GLuint shader=glCreateShader(type); glShaderSource(shader,1,&source,NULL); glCompileShader(shader);
@@ -205,7 +205,7 @@ static bool render_texture_resize(render_texture_t *target, int width, int heigh
 	glGenTextures(1, &target->color);
 	glGenRenderbuffers(1, &target->depth);
 	glBindTexture(GL_TEXTURE_2D, target->color);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -274,8 +274,10 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			bool ready = render_texture_resize(&vp->target, cr.w, cr.h);
 			if (ready) vp_render(vp, doc);
 			vp_restore_gl(&state);
-			if (ready && vp->present_program)
+			if (ready && vp->present_program) {
+				glEnable(GL_FRAMEBUFFER_SRGB);
 				draw_rect_program((int)vp->target.color,0,0,cr.w,cr.h,vp->present_program,0);
+			}
 			else fill_rect(get_sys_color(brWorkspaceBg), cr);
 			return true;
 		}

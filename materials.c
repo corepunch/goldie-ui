@@ -222,7 +222,7 @@ static void upload_texture(const MatFn fn,uint32_t seed,unsigned int tex){
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB8,TEX_SIZE,TEX_SIZE,0,GL_RGB,GL_UNSIGNED_BYTE,pixels);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8,TEX_SIZE,TEX_SIZE,0,GL_RGB,GL_UNSIGNED_BYTE,pixels);
 	free(pixels);
 }
 
