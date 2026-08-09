@@ -335,8 +335,10 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			vp->last_mouse_x = mx;
 			vp->last_mouse_y = my;
 			if (vp->orbiting && doc) {
-				vp->cam_yaw += dx * 0.08f;
-				vp->cam_pitch -= dy * 0.08f;
+				irect16_t cr = get_client_rect(win);
+				float scale = cr.h > 0 ? 600.0f / (float)cr.h : 1.0f;
+				vp->cam_yaw += dx * 0.16f * scale;
+				vp->cam_pitch -= dy * 0.16f * scale;
 				if (vp->cam_pitch > 89) vp->cam_pitch = 89;
 				if (vp->cam_pitch < -89) vp->cam_pitch = -89;
 				invalidate_window(win);
