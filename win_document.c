@@ -1,5 +1,19 @@
 #include "scener.h"
 
+static irect16_t document_workspace_rect(void) {
+	int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
+	int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
+	int margin = 6;
+	int left = margin;
+	int top = MENUBAR_HEIGHT + TOOLBAR_BAND_HEIGHT + margin;
+	int right = g_app && g_app->command_panel_win
+		? g_app->command_panel_win->frame.x - margin : sw - margin;
+	int bottom = sh - margin;
+	if (right <= left) right = left + 1;
+	if (bottom <= top) bottom = top + 1;
+	return (irect16_t){ left, top, right - left, bottom - top };
+}
+
 static void doc_win_resize_children(scene_doc_t *doc) {
   if (!doc || !doc->win) return;
   irect16_t cr = get_client_rect(doc->win);
@@ -44,6 +58,7 @@ scene_doc_t *create_document(const char *path) {
   doc->scene.ambient = v3(0.15f, 0.15f, 0.15f);
   doc->scene.bg = v3(0.25f, 0.3f, 0.35f);
   doc->scene.editMode = EDIT_Q_SELECT;
+  doc->scene.selectedObj = -1;
 
   if (path && path[0]) {
     if (!load_scene(path, &doc->scene)) {
@@ -68,17 +83,22 @@ scene_doc_t *create_document(const char *path) {
   }
 
   scene_build_all_shadow_volumes(&doc->scene);
+  scene_init_textures(&doc->scene);
 
-  int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
-  int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
-  int ww = sw * 2 / 3;
-  int wh = sh * 2 / 3;
+  irect16_t workspace = document_workspace_rect();
+  set_default_window_position(workspace.x, workspace.y);
 
   window_t *dwin = create_window(
       path ? path : "Untitled",
       WINDOW_STATUSBAR,
-      MAKERECT(CW_USEDEFAULT, CW_USEDEFAULT, ww, wh),
+      MAKERECT(CW_USEDEFAULT, CW_USEDEFAULT, workspace.w, workspace.h),
       NULL, doc_win_proc, g_app->hinstance, NULL);
+  if (!dwin) {
+    scene_free_textures(&doc->scene);
+    scene_free(&doc->scene);
+    free(doc);
+    return NULL;
+  }
   dwin->userdata = doc;
   doc->win = dwin;
 
@@ -107,8 +127,9 @@ void close_document(scene_doc_t *doc) {
     }
   }
 
-  scene_free(&doc->scene);
   if (doc->win) destroy_window(doc->win);
+  scene_free_textures(&doc->scene);
+  scene_free(&doc->scene);
   free(doc);
 }
 

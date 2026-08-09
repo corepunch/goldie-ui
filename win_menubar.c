@@ -175,20 +175,27 @@ void handle_menu_command(uint16_t id) {
         }
         mat4 I = mat4_identity();
         scene_add_obj(&doc->scene, m, I, I, v3(0.7f,0.7f,0.7f), 32, 1, 1, 0);
+        doc->scene.selectedObj = doc->scene.nobjs - 1;
         scene_build_all_shadow_volumes(&doc->scene);
         doc->modified = true;
         if (doc->viewport_win) invalidate_window(doc->viewport_win);
       }
       break;
 
-    case ID_CREATE_POINT_LIGHT: {
+    case ID_CREATE_POINT_LIGHT:
+    case ID_CREATE_DIRECTIONAL_LIGHT: {
       if (doc) {
         Light lt = {0};
-        lt.pos = doc->scene.camPos;
         lt.color = v3(1,1,1);
         lt.intensity = 1.0f;
-        lt.radius = 10.0f;
         lt.castsShadow = 1;
+        if (id == ID_CREATE_DIRECTIONAL_LIGHT) {
+          lt.dir = vnorm(vsub(doc->scene.camLook, doc->scene.camPos));
+          lt.isDirectional = 1;
+        } else {
+          lt.pos = doc->scene.camPos;
+          lt.radius = 10.0f;
+        }
         DA_PUSH(doc->scene.lights, doc->scene.nlights, doc->scene.clights, lt);
         free(doc->scene.svols);
         doc->scene.svols = calloc((size_t)doc->scene.nlights, sizeof(ShadowVolume));

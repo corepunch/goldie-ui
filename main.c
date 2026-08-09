@@ -61,6 +61,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   srand((unsigned int)time(NULL));
   register_commctl_classes();
+  shader_init();
 
   create_app_windows(hinstance);
 
@@ -85,6 +86,10 @@ void gem_shutdown(void) {
   free_accelerators(g_app->accel);
   g_app->accel = NULL;
 
+  if (g_app->command_panel_win && is_window(g_app->command_panel_win))
+    destroy_window(g_app->command_panel_win);
+  g_app->command_panel_win = NULL;
+
   if (g_app->chrome_win && is_window(g_app->chrome_win))
     destroy_window(g_app->chrome_win);
   g_app->chrome_win = g_app->menubar_win = g_app->main_toolbar_win = NULL;
@@ -92,7 +97,6 @@ void gem_shutdown(void) {
   while (g_app->docs)
     close_document(g_app->docs);
 
-  scene_free_textures(&g_app->docs->scene);
   shader_deinit();
 
   free(g_app);

@@ -6,7 +6,7 @@
 
 #define SRGB_TO_LINEAR_GAMMA 2.2f
 
-static GLuint prog;
+static GLuint prog, s_mesh_vao, s_mesh_vbo, s_mesh_ebo;
 static GLuint vlocPos, vlocNrm;
 static GLint ulocViewProj, ulocViewPos, ulocLightPos, ulocLightColor, ulocLightRadius;
 static GLint ulocColor, ulocShininess, ulocTex;
@@ -151,7 +151,11 @@ void shader_init(void){
 
 void shader_deinit(void){
 	if(prog) glDeleteProgram(prog);
+	if(s_mesh_vao) glDeleteVertexArrays(1,&s_mesh_vao);
+	if(s_mesh_vbo) glDeleteBuffers(1,&s_mesh_vbo);
+	if(s_mesh_ebo) glDeleteBuffers(1,&s_mesh_ebo);
 	prog = 0;
+	s_mesh_vao=s_mesh_vbo=s_mesh_ebo=0;
 }
 
 void shader_bind(void){
@@ -192,17 +196,24 @@ void shader_set_texture(unsigned int tex){
 	glUniform1i(ulocTex, 0);
 }
 
-static GLuint s_mesh_vao;
-
 void shader_draw_mesh(Mesh *m){
-	if(!s_mesh_vao) glGenVertexArrays(1, &s_mesh_vao);
+	if(!s_mesh_vao){
+		glGenVertexArrays(1,&s_mesh_vao);
+		glGenBuffers(1,&s_mesh_vbo);
+		glGenBuffers(1,&s_mesh_ebo);
+	}
 	glBindVertexArray(s_mesh_vao);
+	glBindBuffer(GL_ARRAY_BUFFER,s_mesh_vbo);
+	glBufferData(GL_ARRAY_BUFFER,(GLsizeiptr)(m->nverts*sizeof(Vertex)),m->verts,GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,s_mesh_ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,(GLsizeiptr)(m->ntris*sizeof(Tri)),m->tris,GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(vlocPos);
 	glEnableVertexAttribArray(vlocNrm);
-	glVertexAttribPointer(vlocPos, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), &m->verts[0].pos.x);
-	glVertexAttribPointer(vlocNrm, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), &m->verts[0].nrm.x);
-	glDrawElements(GL_TRIANGLES, m->ntris * 3, GL_UNSIGNED_INT, m->tris);
+	glVertexAttribPointer(vlocPos,3,GL_FLOAT,GL_FALSE,sizeof(Vertex),(void*)0);
+	glVertexAttribPointer(vlocNrm,3,GL_FLOAT,GL_FALSE,sizeof(Vertex),(void*)(3*sizeof(float)));
+	glDrawElements(GL_TRIANGLES,m->ntris*3,GL_UNSIGNED_INT,(void*)0);
 	glDisableVertexAttribArray(vlocPos);
 	glDisableVertexAttribArray(vlocNrm);
 	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER,0);
 }
