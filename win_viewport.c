@@ -15,6 +15,13 @@ typedef struct {
 typedef struct {
 	GLint fbo, viewport[4], scissor[4], program, vao, array_buffer;
 	GLint active_texture, texture, depth_func;
+	GLdouble depth_range[2];
+	GLint blend_src_rgb, blend_dst_rgb, blend_src_alpha, blend_dst_alpha, blend_eq_rgb, blend_eq_alpha;
+	GLint stencil_func, stencil_ref, stencil_value_mask, stencil_write_mask;
+	GLint stencil_fail, stencil_depth_fail, stencil_depth_pass;
+	GLint stencil_back_func, stencil_back_ref, stencil_back_value_mask, stencil_back_write_mask;
+	GLint stencil_back_fail, stencil_back_depth_fail, stencil_back_depth_pass;
+	GLint cull_face_mode, front_face, polygon_mode[2];
 	GLboolean blend, depth_test, stencil_test, cull_face, scissor_test, framebuffer_srgb;
 	GLboolean depth_mask, color_mask[4];
 } viewport_gl_state_t;
@@ -112,6 +119,30 @@ static void vp_save_gl(viewport_gl_state_t *state) {
 	glGetIntegerv(GL_ACTIVE_TEXTURE, &state->active_texture);
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &state->texture);
 	glGetIntegerv(GL_DEPTH_FUNC, &state->depth_func);
+	glGetIntegerv(GL_BLEND_SRC_RGB, &state->blend_src_rgb);
+	glGetIntegerv(GL_BLEND_DST_RGB, &state->blend_dst_rgb);
+	glGetIntegerv(GL_BLEND_SRC_ALPHA, &state->blend_src_alpha);
+	glGetIntegerv(GL_BLEND_DST_ALPHA, &state->blend_dst_alpha);
+	glGetIntegerv(GL_BLEND_EQUATION_RGB, &state->blend_eq_rgb);
+	glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &state->blend_eq_alpha);
+	glGetIntegerv(GL_STENCIL_FUNC, &state->stencil_func);
+	glGetIntegerv(GL_STENCIL_REF, &state->stencil_ref);
+	glGetIntegerv(GL_STENCIL_VALUE_MASK, &state->stencil_value_mask);
+	glGetIntegerv(GL_STENCIL_WRITEMASK, &state->stencil_write_mask);
+	glGetIntegerv(GL_STENCIL_FAIL, &state->stencil_fail);
+	glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, &state->stencil_depth_fail);
+	glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, &state->stencil_depth_pass);
+	glGetIntegerv(GL_STENCIL_BACK_FUNC, &state->stencil_back_func);
+	glGetIntegerv(GL_STENCIL_BACK_REF, &state->stencil_back_ref);
+	glGetIntegerv(GL_STENCIL_BACK_VALUE_MASK, &state->stencil_back_value_mask);
+	glGetIntegerv(GL_STENCIL_BACK_WRITEMASK, &state->stencil_back_write_mask);
+	glGetIntegerv(GL_STENCIL_BACK_FAIL, &state->stencil_back_fail);
+	glGetIntegerv(GL_STENCIL_BACK_PASS_DEPTH_FAIL, &state->stencil_back_depth_fail);
+	glGetIntegerv(GL_STENCIL_BACK_PASS_DEPTH_PASS, &state->stencil_back_depth_pass);
+	glGetIntegerv(GL_CULL_FACE_MODE, &state->cull_face_mode);
+	glGetIntegerv(GL_FRONT_FACE, &state->front_face);
+	glGetIntegerv(GL_POLYGON_MODE, state->polygon_mode);
+	glGetDoublev(GL_DEPTH_RANGE, state->depth_range);
 	state->blend = glIsEnabled(GL_BLEND);
 	state->depth_test = glIsEnabled(GL_DEPTH_TEST);
 	state->stencil_test = glIsEnabled(GL_STENCIL_TEST);
@@ -132,8 +163,25 @@ static void vp_restore_gl(const viewport_gl_state_t *state) {
 	glActiveTexture((GLenum)state->active_texture);
 	glBindTexture(GL_TEXTURE_2D, (GLuint)state->texture);
 	glDepthFunc((GLenum)state->depth_func);
+	glDepthRange(state->depth_range[0], state->depth_range[1]);
 	glDepthMask(state->depth_mask);
 	glColorMask(state->color_mask[0], state->color_mask[1], state->color_mask[2], state->color_mask[3]);
+	glBlendFuncSeparate((GLenum)state->blend_src_rgb, (GLenum)state->blend_dst_rgb,
+		(GLenum)state->blend_src_alpha, (GLenum)state->blend_dst_alpha);
+	glBlendEquationSeparate((GLenum)state->blend_eq_rgb, (GLenum)state->blend_eq_alpha);
+	glStencilFuncSeparate(GL_FRONT, (GLenum)state->stencil_func, state->stencil_ref, (GLuint)state->stencil_value_mask);
+	glStencilMaskSeparate(GL_FRONT, (GLuint)state->stencil_write_mask);
+	glStencilOpSeparate(GL_FRONT, (GLenum)state->stencil_fail, (GLenum)state->stencil_depth_fail,
+		(GLenum)state->stencil_depth_pass);
+	glStencilFuncSeparate(GL_BACK, (GLenum)state->stencil_back_func, state->stencil_back_ref,
+		(GLuint)state->stencil_back_value_mask);
+	glStencilMaskSeparate(GL_BACK, (GLuint)state->stencil_back_write_mask);
+	glStencilOpSeparate(GL_BACK, (GLenum)state->stencil_back_fail, (GLenum)state->stencil_back_depth_fail,
+		(GLenum)state->stencil_back_depth_pass);
+	glCullFace((GLenum)state->cull_face_mode);
+	glFrontFace((GLenum)state->front_face);
+	glPolygonMode(GL_FRONT, (GLenum)state->polygon_mode[0]);
+	glPolygonMode(GL_BACK, (GLenum)state->polygon_mode[1]);
 	gl_flag(GL_BLEND, state->blend);
 	gl_flag(GL_DEPTH_TEST, state->depth_test);
 	gl_flag(GL_STENCIL_TEST, state->stencil_test);
@@ -168,7 +216,9 @@ static bool render_texture_resize(render_texture_t *target, int width, int heigh
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->color, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, target->depth);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
+		fprintf(stderr, "scener viewport: framebuffer incomplete (0x%04x, %dx%d)\n", status, width, height);
 		render_texture_free(target);
 		return false;
 	}
