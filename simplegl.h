@@ -155,6 +155,7 @@ typedef struct {
 	CharDef *charDefs; int ncharDefs, ccharDefs;
 	char activeCamera[32];
 	char scenePath[512];
+	char assetRoot[512];
 	void *sceneRoot, *editRoot, *selectedNode, *activeEditNode;
 	mat4 activeEditMatrix;
 	int activeTexIndex;

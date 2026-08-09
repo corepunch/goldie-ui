@@ -123,12 +123,12 @@ static MVec3 matMarble(float u,float v,uint32_t seed){
 }
 
 static MVec3 matBrick(float u,float v,uint32_t seed){
-	const float rows=6.0f,cols=10.0f,mortar=0.10f;
+	const float rows=10.0f,cols=5.0f,mortar=0.08f;
 	float row=floorf(v*rows);
 	float rowOffset=fmodf(row,2.0f)*0.5f;
 	float bx=u*cols+rowOffset, col=floorf(bx);
 	float fx=bx-col, fy=v*rows-row;
-	float edge=fminf(fminf(fx,1.0f-fx)/mortar,fminf(fy,1.0f-fy)/(mortar*rows/cols*2.2f));
+	float edge=fminf(fminf(fx,1.0f-fx)/mortar,fminf(fy,1.0f-fy)/(mortar*rows/cols));
 	float isMortar=1.0f-msmooth(mclamp(edge,0,1));
 	uint32_t id=hash2i((int)col,(int)row,seed+5);
 	float shade=0.7f+0.3f*hash01((int)col,(int)row,seed+9);
@@ -218,12 +218,11 @@ static void upload_texture(const MatFn fn,uint32_t seed,unsigned int tex){
 		}
 	}
 	glBindTexture(GL_TEXTURE_2D,tex);
-	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,TEX_SIZE,TEX_SIZE,0,GL_RGB,GL_UNSIGNED_BYTE,pixels);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB8,TEX_SIZE,TEX_SIZE,0,GL_RGB,GL_UNSIGNED_BYTE,pixels);
 	free(pixels);
 }
 
@@ -236,7 +235,7 @@ unsigned int materials_create_white_texture(void){
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,1,1,0,GL_RGB,GL_UNSIGNED_BYTE,white);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB8,1,1,0,GL_RGB,GL_UNSIGNED_BYTE,white);
 	return tex;
 }
 

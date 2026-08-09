@@ -71,6 +71,7 @@ window_t *create_command_panel_window(void);
 window_t *create_viewport_window(window_t *parent, scene_doc_t *doc);
 
 scene_doc_t *create_document(const char *path);
+scene_doc_t *create_document_ex(const char *path, bool show_windows);
 void close_document(scene_doc_t *doc);
 bool scener_open_file_path(const char *path);
 void doc_update_title(scene_doc_t *doc);

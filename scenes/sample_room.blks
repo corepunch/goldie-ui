@@ -10,7 +10,7 @@
   <material id="fabric" color="0.55 0.15 0.18" shininess="4"/>
 
   <box pos="0 -0.05 -3" size="8 0.1 6" material="floor" castShadow="0"/>
-  <box pos="0 2.85 -3" size="8 0.1 6" material="wall"/>
+  <box pos="0 2.85 -3" size="8 0.1 6" material="plaster"/>
 
   <wall pos="0 0 -6" length="8" height="2.8" thickness="0.2" material="wall">
     <opening type="door" x="4" width="1.0" height="2.1"/>

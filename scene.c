@@ -1,4 +1,5 @@
 #include <orion/user/gl_compat.h>
+#include <orion/ui.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -740,8 +741,9 @@ static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 static XmlNode* load_prefab(Scene *s, const char *name){
 	for(int i=0;i<s->nprefabs;i++)
 		if(!strcmp(s->prefabs[i].ref,name)) return (XmlNode*)s->prefabs[i].root;
-	char path[256];
-	snprintf(path,sizeof(path),"prefabs/%s.blk",name);
+	char path[1024];
+	snprintf(path,sizeof(path),"%s%sprefabs/%s.blk",s->assetRoot,
+		s->assetRoot[0]?"/":"",name);
 	char *buf=read_file(path);
 	if(!buf) return NULL;
 	XmlNode *root=xml_parse(buf);
@@ -1080,8 +1082,43 @@ static void warn_unknown_elements(XmlNode *root, const char *path, int prefab){
 
 /* --------------------------------------------------------------- IO & load */
 
+static int path_has_prefix(const char *path, const char *prefix) {
+	if (!path || !prefix) return 0;
+	return strncmp(path, prefix, strlen(prefix)) == 0;
+}
+
+static bool path_file_exists(const char *path) {
+	FILE *f = fopen(path, "rb");
+	if (!f) return false;
+	fclose(f);
+	return true;
+}
+
 static char* read_file(const char*path){
-	FILE *f=fopen(path,"rb"); if(!f){ fprintf(stderr,"cannot open %s\n",path); return NULL; }
+	char candidate[4096];
+	const char *tries[3] = { path, NULL, NULL };
+	const char *exe = ui_get_exe_dir();
+	if (path && path[0] && exe && exe[0]) {
+		char root[4096];
+		if (snprintf(root, sizeof(root), "%s/../../", exe) > 0) {
+			if (path_has_prefix(path, "apps/scener/")) {
+				if (snprintf(candidate, sizeof(candidate), "%s%s", root, path) > 0 && path_file_exists(candidate))
+					tries[1] = candidate;
+			} else if (path_has_prefix(path, "scenes/") || path_has_prefix(path, "prefabs/")) {
+				if (snprintf(candidate, sizeof(candidate), "%sapps/scener/%s", root, path) > 0 && path_file_exists(candidate))
+					tries[1] = candidate;
+			}
+		}
+	}
+	FILE *f = NULL;
+	for (int i = 0; i < 3 && !f; i++) {
+		if (!tries[i] || !tries[i][0]) continue;
+		f = fopen(tries[i], "rb");
+	}
+	if (!f) {
+		fprintf(stderr,"cannot open %s\n",path);
+		return NULL;
+	}
 	fseek(f,0,SEEK_END); long n=ftell(f); fseek(f,0,SEEK_SET);
 	char *buf=malloc((size_t)n+1);
 	size_t rd=fread(buf,1,(size_t)n,f); buf[rd]=0; fclose(f);
@@ -1183,6 +1220,13 @@ int load_scene(const char *path, Scene *s){
 	s->selectedObj=-1; s->editMode=EDIT_W_MOVE;
 	s->activeTexIndex=-1;
 	strncpy(s->scenePath,path,sizeof(s->scenePath)-1);
+	const char *scenes=strstr(path,"/scenes/");
+	if(!scenes) scenes=strstr(path,"\\scenes\\");
+	if(scenes){
+		size_t n=(size_t)(scenes-path);
+		if(n>=sizeof(s->assetRoot)) n=sizeof(s->assetRoot)-1;
+		memcpy(s->assetRoot,path,n); s->assetRoot[n]=0;
+	} else if(!strncmp(path,"scenes/",7)||!strncmp(path,"scenes\\",7)) strcpy(s->assetRoot,".");
 	char *buf=read_file(path); if(!buf) return 0;
 	XmlNode *root=xml_parse(buf); free(buf);
 	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }

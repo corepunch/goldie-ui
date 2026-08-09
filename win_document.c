@@ -57,7 +57,7 @@ result_t doc_win_proc(window_t *win, uint32_t msg,
   }
 }
 
-scene_doc_t *create_document(const char *path) {
+scene_doc_t *create_document_ex(const char *path, bool show_windows) {
   scene_doc_t *doc = calloc(1, sizeof(scene_doc_t));
   if (!doc) return NULL;
 
@@ -95,32 +95,37 @@ scene_doc_t *create_document(const char *path) {
   scene_build_all_shadow_volumes(&doc->scene);
   scene_init_textures(&doc->scene);
 
-  irect16_t workspace = document_workspace_rect();
-  set_default_window_position(workspace.x, workspace.y);
+  if (show_windows) {
+    irect16_t workspace = document_workspace_rect();
+    set_default_window_position(workspace.x, workspace.y);
 
-  window_t *dwin = create_window(
-      path ? path : "Untitled",
-      WINDOW_STATUSBAR,
-      MAKERECT(CW_USEDEFAULT, CW_USEDEFAULT, workspace.w, workspace.h),
-      NULL, doc_win_proc, g_app->hinstance, NULL);
-  if (!dwin) {
-    scene_free_textures(&doc->scene);
-    scene_free(&doc->scene);
-    free(doc);
-    return NULL;
+    window_t *dwin = create_window(
+        path ? path : "Untitled",
+        WINDOW_STATUSBAR,
+        MAKERECT(CW_USEDEFAULT, CW_USEDEFAULT, workspace.w, workspace.h),
+        NULL, doc_win_proc, g_app->hinstance, NULL);
+    if (!dwin) {
+      scene_free_textures(&doc->scene);
+      scene_free(&doc->scene);
+      free(doc);
+      return NULL;
+    }
+    dwin->userdata = doc;
+    doc->win = dwin;
+    doc->viewport_win = create_viewport_window(dwin, doc);
+    show_window(dwin, true);
   }
-  dwin->userdata = doc;
-  doc->win = dwin;
 
-  doc->viewport_win = create_viewport_window(dwin, doc);
-
-  show_window(dwin, true);
   doc->next = g_app->docs;
   g_app->docs = doc;
   g_app->active_doc = doc;
 
   doc_update_title(doc);
   return doc;
+}
+
+scene_doc_t *create_document(const char *path) {
+  return create_document_ex(path, true);
 }
 
 void close_document(scene_doc_t *doc) {
@@ -145,7 +150,7 @@ void close_document(scene_doc_t *doc) {
 
 bool scener_open_file_path(const char *path) {
   if (!g_app || !path || !path[0]) return false;
-  scene_doc_t *doc = create_document(path);
+  scene_doc_t *doc = create_document_ex(path, true);
   return doc != NULL;
 }
 

@@ -21,9 +21,41 @@ typedef struct {
 
 typedef struct {
 	render_texture_t target;
+	uint32_t present_program;
 	float cam_yaw, cam_pitch;
 	int last_mouse_x, last_mouse_y, orbiting, left_down;
+	uint32_t navigation_timer;
+	longTime_t last_move_time;
 } viewport_state_t;
+
+static const char *vp_present_vs =
+	"#version 150 core\n"
+	"in vec2 position; in vec2 texcoord; in vec4 color;\n"
+	"out vec2 tex; out vec4 col;\n"
+	"uniform mat4 projection; uniform vec2 offset,scale,uv_offset,uv_scale;\n"
+	"void main(){ col=color; tex=texcoord*uv_scale+uv_offset; gl_Position=projection*vec4(position*scale+offset,0,1); }\n";
+static const char *vp_present_fs =
+	"#version 150 core\n"
+	"in vec2 tex; in vec4 col; out vec4 outColor; uniform sampler2D tex0; uniform vec4 tint; uniform float alpha;\n"
+	"void main(){ vec4 s=texture(tex0,vec2(tex.x,1.0-tex.y))*col*tint; vec3 lo=12.92*s.rgb; vec3 hi=1.055*pow(s.rgb,vec3(1.0/2.4))-0.055; outColor=vec4(mix(lo,hi,step(vec3(0.0031308),s.rgb)),s.a*alpha); }\n";
+
+static GLuint vp_compile_shader(GLenum type, const char *source) {
+	GLuint shader=glCreateShader(type); glShaderSource(shader,1,&source,NULL); glCompileShader(shader);
+	GLint ok=0; glGetShaderiv(shader,GL_COMPILE_STATUS,&ok);
+	if(!ok){ char log[1024]; glGetShaderInfoLog(shader,sizeof(log),NULL,log); fprintf(stderr,"viewport shader: %s\n",log); glDeleteShader(shader); return 0; }
+	return shader;
+}
+
+static GLuint vp_create_present_program(void) {
+	GLuint vs=vp_compile_shader(GL_VERTEX_SHADER,vp_present_vs), fs=vp_compile_shader(GL_FRAGMENT_SHADER,vp_present_fs);
+	if(!vs||!fs){ if(vs) glDeleteShader(vs); if(fs) glDeleteShader(fs); return 0; }
+	GLuint program=glCreateProgram(); glAttachShader(program,vs); glAttachShader(program,fs);
+	glBindAttribLocation(program,0,"position"); glBindAttribLocation(program,1,"texcoord"); glBindAttribLocation(program,2,"color");
+	glLinkProgram(program); glDeleteShader(vs); glDeleteShader(fs);
+	GLint ok=0; glGetProgramiv(program,GL_LINK_STATUS,&ok);
+	if(!ok){ char log[1024]; glGetProgramInfoLog(program,sizeof(log),NULL,log); fprintf(stderr,"viewport program: %s\n",log); glDeleteProgram(program); return 0; }
+	return program;
+}
 
 static vec3 vp_camera_dir(const viewport_state_t *vp) {
 	float yaw = vp->cam_yaw * M_PIf / 180.0f, pitch = vp->cam_pitch * M_PIf / 180.0f;
@@ -40,9 +72,30 @@ static vec3 vp_mouse_ray(const viewport_state_t *vp, const Scene *scene, int x, 
 static void vp_stop_navigation(window_t *win, viewport_state_t *vp, bool restore_focus) {
 	if (!vp) return;
 	vp->orbiting = 0;
+	if (vp->navigation_timer) axCancelTimer(vp->navigation_timer);
+	vp->navigation_timer = 0;
 	if (g_app) g_app->viewport_navigating = false;
 	set_capture(NULL);
 	if (restore_focus && win->parent) set_focus(win->parent);
+}
+
+static bool vp_move_camera(viewport_state_t *vp, scene_doc_t *doc) {
+	longTime_t now = axGetMilliseconds();
+	float dt = (float)(now - vp->last_move_time) / 1000.0f;
+	vp->last_move_time = now;
+	if (dt <= 0 || dt > 0.1f) dt = 0.016f;
+	vec3 look = vp_camera_dir(vp), right = vnorm(vcross(look, v3(0, 1, 0))), move = v3(0, 0, 0);
+	if (ui_is_key_down(AX_KEY_W)) move = vadd(move, look);
+	if (ui_is_key_down(AX_KEY_S)) move = vsub(move, look);
+	if (ui_is_key_down(AX_KEY_D)) move = vadd(move, right);
+	if (ui_is_key_down(AX_KEY_A)) move = vsub(move, right);
+	if (ui_is_key_down(AX_KEY_E)) move = vadd(move, v3(0, 1, 0));
+	if (ui_is_key_down(AX_KEY_Q)) move = vsub(move, v3(0, 1, 0));
+	if (vlen(move) <= 1e-6f) return false;
+	float speed = ui_is_key_down(AX_KEY_SHIFT) ? 7.8f : 3.25f;
+	doc->scene.camPos = vadd(doc->scene.camPos, vscale(vnorm(move), speed * dt));
+	doc->scene.camLook = vadd(doc->scene.camPos, look);
+	return true;
 }
 
 static void gl_flag(GLenum flag, GLboolean enabled) {
@@ -158,6 +211,7 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			if (!vp) return false;
 			win->userdata = vp;
 			win->userdata2 = lparam;
+			vp->present_program = vp_create_present_program();
 			doc = (scene_doc_t *)lparam;
 			if (doc) vp_init_camera(vp, &doc->scene);
 			return true;
@@ -170,8 +224,8 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			bool ready = render_texture_resize(&vp->target, cr.w, cr.h);
 			if (ready) vp_render(vp, doc);
 			vp_restore_gl(&state);
-			if (ready) draw_sprite_region((int)vp->target.color, R(0, 0, cr.w, cr.h),
-				UV_RECT(0, 1, 1, 0), 0xffffffff, DRAW_SPRITE_NO_ALPHA);
+			if (ready && vp->present_program)
+				draw_rect_program((int)vp->target.color,0,0,cr.w,cr.h,vp->present_program,0);
 			else fill_rect(get_sys_color(brWorkspaceBg), cr);
 			return true;
 		}
@@ -213,6 +267,8 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				g_app->viewport_navigating = true;
 				set_focus(win);
 				set_capture(win);
+				vp->last_move_time = axGetMilliseconds();
+				if (!vp->navigation_timer) vp->navigation_timer = axSetTimer(win, 16, NULL, true);
 			}
 			return true;
 		case evRightButtonUp:
@@ -250,31 +306,20 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			}
 			return true;
 		}
-		case evKeyDown: {
-			if (!doc) return false;
-			if (!vp->orbiting) return false;
-			float speed = 0.25f;
-			vec3 look = vp_camera_dir(vp);
-			vec3 right = vnorm(vcross(look, v3(0, 1, 0)));
-			switch ((int)wparam) {
-				case AX_KEY_W: doc->scene.camPos = vadd(doc->scene.camPos, vscale(look, speed)); break;
-				case AX_KEY_S: doc->scene.camPos = vadd(doc->scene.camPos, vscale(look, -speed)); break;
-				case AX_KEY_D: doc->scene.camPos = vadd(doc->scene.camPos, vscale(right, speed)); break;
-				case AX_KEY_A: doc->scene.camPos = vadd(doc->scene.camPos, vscale(right, -speed)); break;
-				case AX_KEY_E: doc->scene.camPos.y += speed; break;
-				case AX_KEY_Q: doc->scene.camPos.y -= speed; break;
-				default: return false;
-			}
-			doc->scene.camLook = vadd(doc->scene.camPos, look);
-			VP_LOG("move key=%u cam=(%.3f,%.3f,%.3f)\n", wparam,
-				doc->scene.camPos.x, doc->scene.camPos.y, doc->scene.camPos.z);
-			invalidate_window(win);
+		case evKeyDown:
+		case evKeyUp:
+			if (!vp || !vp->orbiting) return false;
+			return wparam == AX_KEY_W || wparam == AX_KEY_S || wparam == AX_KEY_A ||
+				wparam == AX_KEY_D || wparam == AX_KEY_E || wparam == AX_KEY_Q || wparam == AX_KEY_SHIFT;
+		case evTimer:
+			if (!vp || !doc || wparam != vp->navigation_timer) return false;
+			if (vp_move_camera(vp, doc)) invalidate_window(win);
 			return true;
-		}
 		case evDestroy:
 			if (vp) {
 				if (vp->orbiting) vp_stop_navigation(win, vp, false);
 				render_texture_free(&vp->target);
+				if(vp->present_program) glDeleteProgram(vp->present_program);
 				free(vp);
 				win->userdata = NULL;
 			}

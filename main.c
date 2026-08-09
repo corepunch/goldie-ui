@@ -1,7 +1,21 @@
 #include "scener.h"
 #include <orion/gem.h>
+#include <orion/ui.h>
+#include <orion/user/gl_compat.h>
+#include <orion/user/image.h>
+
+typedef struct {
+	bool screenshot_mode;
+	bool debug_flags_set;
+	char scene_path[512];
+	char output_path[1024];
+	char camera_name[32];
+	int width, height;
+	int debug_flags;
+} scener_cli_t;
 
 app_state_t *g_app = NULL;
+static scener_cli_t g_cli;
 
 static const accel_t kAccelEntries[] = {
   { FCONTROL|FVIRTKEY, AX_KEY_Z, ID_EDIT_UNDO },
@@ -36,6 +50,68 @@ accel_table_t *scener_active_accelerators(void) {
   return g_app->viewport_navigating ? g_app->navigation_accel : g_app->accel;
 }
 
+static void cli_init(void) {
+	memset(&g_cli, 0, sizeof(g_cli));
+	g_cli.width = 1280;
+	g_cli.height = 800;
+}
+
+static void cli_parse_size(const char *s) {
+	int w = 0, h = 0;
+	if (!s) return;
+	if (sscanf(s, "%dx%d", &w, &h) != 2 && sscanf(s, "%d %d", &w, &h) != 2) return;
+	if (w > 0) g_cli.width = w;
+	if (h > 0) g_cli.height = h;
+}
+
+static void cli_parse(int argc, char *argv[]) {
+	cli_init();
+	for (int i = 1; i < argc; i++) {
+		const char *arg = argv[i];
+		if (!arg || !arg[0]) continue;
+		if (!strcmp(arg, "--screenshot") || !strcmp(arg, "-o") || !strcmp(arg, "--output")) {
+			if (i + 1 < argc) {
+				g_cli.screenshot_mode = true;
+				snprintf(g_cli.output_path, sizeof(g_cli.output_path), "%s", argv[++i]);
+			}
+			continue;
+		}
+		if (!strcmp(arg, "--cam") || !strcmp(arg, "-cam")) {
+			if (i + 1 < argc) snprintf(g_cli.camera_name, sizeof(g_cli.camera_name), "%s", argv[++i]);
+			continue;
+		}
+		if (!strcmp(arg, "--size")) {
+			if (i + 1 < argc) cli_parse_size(argv[++i]);
+			continue;
+		}
+		if (!strcmp(arg, "-d")) {
+			if (i + 1 < argc) {
+				g_cli.debug_flags = atoi(argv[++i]);
+				g_cli.debug_flags_set = true;
+			}
+			continue;
+		}
+		if (!strcmp(arg, "-no-shadows")) {
+			g_cli.debug_flags |= DBG_NO_SHADOWS;
+			g_cli.debug_flags_set = true;
+			g_cli.screenshot_mode = true;
+			continue;
+		}
+		if (!strcmp(arg, "-wireframe")) {
+			g_cli.debug_flags |= DBG_WIRE_SHADOWVOL;
+			g_cli.debug_flags_set = true;
+			g_cli.screenshot_mode = true;
+			continue;
+		}
+		if (arg[0] == '-') continue;
+		if (!g_cli.scene_path[0]) snprintf(g_cli.scene_path, sizeof(g_cli.scene_path), "%s", arg);
+	}
+	if (g_cli.screenshot_mode && !g_cli.debug_flags_set)
+		g_cli.debug_flags = DBG_NO_SHADOWS | DBG_HIDE_CHARS | DBG_HIDE_LIGHTS;
+	if (g_cli.screenshot_mode && !g_cli.output_path[0])
+		snprintf(g_cli.output_path, sizeof(g_cli.output_path), "%s", "screenshot.png");
+}
+
 static void create_app_windows(hinstance_t hinstance) {
 #ifdef BUILD_AS_GEM
   g_app->menubar_win = set_app_menu(scener_menubar_proc, kMenus, kNumMenus,
@@ -63,12 +139,42 @@ static bool scener_open_file_handler(const char *path) {
 }
 #endif
 
+static bool scener_write_screenshot(scene_doc_t *doc, const char *path) {
+	if (!doc || !path || !path[0]) return false;
+	int width = g_cli.width, height = g_cli.height;
+
+	Scene *scene = &doc->scene;
+	scene->camFov = scene->camFov > 0 ? scene->camFov : 60;
+	if (g_cli.camera_name[0]) scene_select_camera(scene, g_cli.camera_name);
+
+	vec3 dir = vsub(scene->camLook, scene->camPos);
+	if (vlen(dir) < 0.0001f) dir = v3(0, 0, -1);
+	dir = vnorm(dir);
+	mat4 proj = mat4_perspective(scene->camFov, (float)width / (float)height, 0.1f, 1000.0f);
+	mat4 view = mat4_lookat(scene->camPos, scene->camLook, v3(0, 1, 0));
+
+	ui_begin_frame();
+	glViewport(0, 0, width, height);
+	glScissor(0, 0, width, height);
+	glEnable(GL_SCISSOR_TEST);
+	render_frame(scene, width, height, proj, view, scene->camPos, dir, g_cli.debug_flags);
+
+	size_t bytes = (size_t)width * (size_t)height * 4;
+	uint8_t *pixels = malloc(bytes);
+	if (!pixels) return false;
+	bool ok = capture_framebuffer_rgba(width, height, pixels) && save_image_png(path, pixels, width, height);
+	free(pixels);
+	return ok;
+}
+
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
+  cli_parse(argc, argv);
+
   g_app = calloc(1, sizeof(app_state_t));
   if (!g_app) return false;
 
-  g_app->hinstance    = hinstance;
-  g_app->debug_flags  = 0;
+  g_app->hinstance   = hinstance;
+  g_app->debug_flags  = g_cli.debug_flags;
 
 #ifndef BUILD_AS_GEM
   ui_register_open_file_handler(scener_open_file_handler);
@@ -78,20 +184,25 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   register_commctl_classes();
   shader_init();
 
-  create_app_windows(hinstance);
+  if (!g_cli.screenshot_mode)
+    create_app_windows(hinstance);
 
   g_app->accel = load_accelerators(kAccelEntries, kAccelCount);
   g_app->navigation_accel = load_accelerators(kNavigationAccelEntries, kNavigationAccelCount);
   if (g_app->menubar_win)
     send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
 
-  int opened = 0;
-  for (int i = 1; i < argc; i++) {
-    if (argv[i] && argv[i][0] && scener_open_file_path(argv[i]))
-      opened++;
+  scene_doc_t *doc = create_document_ex(g_cli.scene_path[0] ? g_cli.scene_path : NULL,
+                                        !g_cli.screenshot_mode);
+  if (!doc) return false;
+
+  if (g_cli.camera_name[0])
+    scene_select_camera(&doc->scene, g_cli.camera_name);
+
+  if (g_cli.screenshot_mode) {
+    if (!scener_write_screenshot(doc, g_cli.output_path)) return false;
+    ui_request_quit();
   }
-  if (opened == 0)
-    create_document(NULL);
 
   return true;
 }
@@ -123,5 +234,27 @@ void gem_shutdown(void) {
 
 GEM_DEFINE("SimpleSketch3D", "1.0", gem_init, gem_shutdown, scener_file_types)
 
-GEM_STANDALONE_MAIN("SimpleSketch3D", UI_INIT_DESKTOP, 1280, 800,
-                    g_app->menubar_win, scener_active_accelerators())
+#ifndef BUILD_AS_GEM
+int main(int argc, char *argv[]) {
+  cli_parse(argc, argv);
+  int flags = g_cli.screenshot_mode ? UI_INIT_HIDDEN : UI_INIT_DESKTOP;
+  if (!ui_init_graphics(flags, "SimpleSketch3D", g_cli.width, g_cli.height)) return 1;
+  if (!gem_init(argc, argv, 0)) {
+    ui_shutdown_graphics();
+    return 1;
+  }
+  if (!g_cli.screenshot_mode) {
+    while (ui_is_running()) {
+      ui_event_t e;
+      while (get_message(&e)) {
+        if (!translate_accelerator(g_app ? g_app->menubar_win : NULL, &e, scener_active_accelerators()))
+          dispatch_message(&e);
+      }
+      repost_messages();
+    }
+  }
+  gem_shutdown();
+  ui_shutdown_graphics();
+  return 0;
+}
+#endif

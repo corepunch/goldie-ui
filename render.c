@@ -8,30 +8,42 @@
 #define MAX_BATCH_VERTS 65536
 
 typedef struct { float x, y, z, r, g, b; } LineVert;
-typedef struct { float x, y, z; } PosVert;
-typedef struct { float x, y, z, w; } ShadowVertGL;
 
 static GLuint s_line_vao, s_line_vbo;
 static GLuint s_tri_vao, s_tri_vbo;
 static GLuint s_shadow_vao, s_shadow_vbo;
 static GLuint s_quad_vao, s_quad_vbo;
+static GLuint s_shadow_prog;
+static GLint s_shadow_proj_loc, s_shadow_view_loc, s_shadow_color_loc;
 GLuint s_line_prog;
-GLint  s_line_proj_loc, s_line_view_loc;
+GLint s_line_viewproj_loc;
 
 static const char *s_line_vs =
     "#version 150\n"
-    "in vec3 aPos;\n"
+    "in vec4 aPos;\n"
     "in vec3 aColor;\n"
-    "uniform mat4 uProj;\n"
-    "uniform mat4 uView;\n"
+    "uniform mat4 uViewProj;\n"
     "out vec3 vColor;\n"
-    "void main(){ vColor=aColor; gl_Position=uProj*uView*vec4(aPos,1); }\n";
+    "void main(){ vColor=aColor; gl_Position=uViewProj*aPos; }\n";
 
 static const char *s_line_fs =
     "#version 150\n"
     "in vec3 vColor;\n"
     "out vec4 frag;\n"
     "void main(){ frag=vec4(vColor,1); }\n";
+
+static const char *s_shadow_vs =
+    "#version 150\n"
+    "in vec4 aPos;\n"
+    "uniform mat4 uProj;\n"
+    "uniform mat4 uView;\n"
+    "void main(){ gl_Position=uProj*uView*aPos; }\n";
+
+static const char *s_shadow_fs =
+    "#version 150\n"
+    "uniform vec4 uColor;\n"
+    "out vec4 frag;\n"
+    "void main(){ frag=uColor; }\n";
 
 static GLuint compile_line_shader(GLenum type, const char *src) {
     GLuint s = glCreateShader(type);
@@ -47,6 +59,20 @@ static GLuint link_program(GLuint vs, GLuint fs) {
     GLuint p = glCreateProgram();
     glAttachShader(p, vs);
     glAttachShader(p, fs);
+    glBindAttribLocation(p, 0, "aPos");
+    glBindAttribLocation(p, 1, "aColor");
+    glLinkProgram(p);
+    GLint ok;
+    glGetProgramiv(p, GL_LINK_STATUS, &ok);
+    if (!ok) { glDeleteProgram(p); return 0; }
+    return p;
+}
+
+static GLuint link_shadow_program(GLuint vs, GLuint fs) {
+    GLuint p = glCreateProgram();
+    glAttachShader(p, vs);
+    glAttachShader(p, fs);
+    glBindAttribLocation(p, 0, "aPos");
     glLinkProgram(p);
     GLint ok;
     glGetProgramiv(p, GL_LINK_STATUS, &ok);
@@ -60,10 +86,21 @@ void ensure_line_prog(void) {
     GLuint fs = compile_line_shader(GL_FRAGMENT_SHADER, s_line_fs);
     if (vs && fs) {
         s_line_prog = link_program(vs, fs);
-        s_line_proj_loc = glGetUniformLocation(s_line_prog, "uProj");
-        s_line_view_loc = glGetUniformLocation(s_line_prog, "uView");
-        glBindAttribLocation(s_line_prog, 0, "aPos");
-        glBindAttribLocation(s_line_prog, 1, "aColor");
+        s_line_viewproj_loc = glGetUniformLocation(s_line_prog, "uViewProj");
+    }
+    if (vs) glDeleteShader(vs);
+    if (fs) glDeleteShader(fs);
+}
+
+static void ensure_shadow_prog(void) {
+    if (s_shadow_prog) return;
+    GLuint vs = compile_line_shader(GL_VERTEX_SHADER, s_shadow_vs);
+    GLuint fs = compile_line_shader(GL_FRAGMENT_SHADER, s_shadow_fs);
+    if (vs && fs) {
+        s_shadow_prog = link_shadow_program(vs, fs);
+        s_shadow_proj_loc = glGetUniformLocation(s_shadow_prog, "uProj");
+        s_shadow_view_loc = glGetUniformLocation(s_shadow_prog, "uView");
+        s_shadow_color_loc = glGetUniformLocation(s_shadow_prog, "uColor");
     }
     if (vs) glDeleteShader(vs);
     if (fs) glDeleteShader(fs);
@@ -77,15 +114,28 @@ static void ensure_buffers(void) {
     glGenBuffers(1, &s_tri_vbo);
     glGenVertexArrays(1, &s_shadow_vao);
     glGenBuffers(1, &s_shadow_vbo);
+    glBindVertexArray(s_shadow_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, s_shadow_vbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(ShadowVertex), (void *)0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glGenVertexArrays(1, &s_quad_vao);
     glGenBuffers(1, &s_quad_vbo);
 }
 
 #ifndef USE_ZPASS
 static int extension_present(const char *name) {
-    const char *base = (const char *)glGetString(GL_EXTENSIONS), *ext = base;
     size_t n = strlen(name);
-    if (!ext || !n || strchr(name, ' ')) return 0;
+    if (!n || strchr(name, ' ')) return 0;
+    GLint count = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+    for (GLint i = 0; i < count; i++) {
+        const char *ext = (const char *)glGetStringi(GL_EXTENSIONS, (GLuint)i);
+        if (ext && !strcmp(ext, name)) return 1;
+    }
+    const char *base = (const char *)glGetString(GL_EXTENSIONS), *ext = base;
+    if (!ext) return 0;
     while ((ext = strstr(ext, name))) {
         if ((ext == base || ext[-1] == ' ') &&
             (ext[n] == ' ' || ext[n] == '\0')) return 1;
@@ -97,9 +147,15 @@ static int extension_present(const char *name) {
 static int shadows_supported(void) {
     static int checked, supported;
     if (!checked) {
-        supported = extension_present("GL_ARB_depth_clamp") ||
+        GLint major = 0, minor = 0;
+        glGetIntegerv(GL_MAJOR_VERSION, &major);
+        glGetIntegerv(GL_MINOR_VERSION, &minor);
+        supported = major > 3 || (major == 3 && minor >= 2) ||
+                    extension_present("GL_ARB_depth_clamp") ||
                     extension_present("GL_NV_depth_clamp") ||
                     extension_present("GL_EXT_depth_clamp");
+        fprintf(stderr, "stencil shadows: %s (depth clamp %savailable)\n",
+                supported ? "supported" : "not supported", supported ? "" : "un");
         checked = 1;
     }
     return supported;
@@ -160,25 +216,17 @@ static void draw_mesh_flat_vbo(Mesh *m, vec3 color) {
 
 static void draw_shadow_volume_vbo(ShadowVolume *sv) {
     ensure_buffers();
-    ensure_line_prog();
-    if (!s_line_prog || sv->nverts <= 0) return;
+    ensure_shadow_prog();
+    if (!s_shadow_prog || sv->nverts <= 0) return;
 
-    LineVert *verts = malloc((size_t)sv->nverts * sizeof(LineVert));
-    for (int i = 0; i < sv->nverts; i++) {
-        verts[i] = (LineVert){ sv->verts[i].x, sv->verts[i].y, sv->verts[i].z, 0, 0, 0 };
-    }
-
-    glUseProgram(s_line_prog);
+    glUseProgram(s_shadow_prog);
     glBindVertexArray(s_shadow_vao);
     glBindBuffer(GL_ARRAY_BUFFER, s_shadow_vbo);
-    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sv->nverts * sizeof(LineVert)), verts, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(LineVert), (void *)0);
+    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(sv->nverts * sizeof(ShadowVertex)), sv->verts, GL_DYNAMIC_DRAW);
     glDrawArrays(GL_TRIANGLES, 0, sv->nverts);
-    glDisableVertexAttribArray(0);
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glUseProgram(0);
-    free(verts);
 }
 
 static void draw_lines_vbo(OverlayLine *lines, int n, int hide_chars, int hide_lights,
@@ -240,6 +288,11 @@ static void draw_stencil_debug_quad(mat4 proj, mat4 view) {
 
 void render_frame(Scene *s, int w, int h, mat4 proj, mat4 view,
                   vec3 camPos, vec3 camLook, int flags) {
+    glDisable(GL_BLEND); glDisable(GL_DEPTH_TEST); glDisable(GL_STENCIL_TEST); glDisable(GL_CULL_FACE);
+    glDisable(GL_POLYGON_OFFSET_FILL); glDisable(GL_POLYGON_OFFSET_LINE);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); glDepthMask(GL_TRUE); glStencilMask(0xFF);
+    glFrontFace(GL_CCW); glCullFace(GL_BACK); glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDepthRange(0.0, 1.0);
     glEnable(GL_FRAMEBUFFER_SRGB);
     glViewport(0, 0, w, h);
     vec3 bg = render_srgb_to_linear(s->bg);
@@ -249,13 +302,20 @@ void render_frame(Scene *s, int w, int h, mat4 proj, mat4 view,
 
     ensure_buffers();
     ensure_line_prog();
+    ensure_shadow_prog();
 
     mat4 viewProj = mat4_mul(proj, view);
 
     if (s_line_prog) {
         glUseProgram(s_line_prog);
-        glUniformMatrix4fv(s_line_proj_loc, 1, GL_FALSE, proj.m);
-        glUniformMatrix4fv(s_line_view_loc, 1, GL_FALSE, view.m);
+        glUniformMatrix4fv(s_line_viewproj_loc, 1, GL_FALSE, viewProj.m);
+        glUseProgram(0);
+    }
+    if (s_shadow_prog) {
+        glUseProgram(s_shadow_prog);
+        glUniformMatrix4fv(s_shadow_proj_loc, 1, GL_FALSE, proj.m);
+        glUniformMatrix4fv(s_shadow_view_loc, 1, GL_FALSE, view.m);
+        glUniform4f(s_shadow_color_loc, 1.0f, 0.0f, 0.0f, 1.0f);
         glUseProgram(0);
     }
 
@@ -291,6 +351,7 @@ void render_frame(Scene *s, int w, int h, mat4 proj, mat4 view,
             glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
             glDepthMask(GL_FALSE);
             glEnable(GL_STENCIL_TEST);
+            glStencilMask(0xFF);
             glStencilFunc(GL_ALWAYS, 0, 0xFF);
             glDisable(GL_CULL_FACE);
             begin_shadow_pass();

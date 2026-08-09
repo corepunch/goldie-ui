@@ -148,10 +148,10 @@ make screenshot
 
 ## Why these choices
 
-- **Fixed-function GL, immediate mode (`glBegin`/`glEnd`).** No shaders to
-  write or ship. `GL_LIGHTING` gives ambient/diffuse/specular for free, and
-  the stencil-buffer ops we need for shadows are core GL 2.0. This keeps the
-  entire renderer + shadow algorithm in one readable file.
+- **Core-profile GL with explicit vertex buffers.** Meshes, overlays, gizmos,
+  and homogeneous stencil-shadow volumes use dedicated VAOs/VBOs and GLSL
+  programs, so the renderer does not depend on compatibility-only immediate
+  mode calls.
 - **Own tiny XML parser**, not tinyxml/libxml. Pulling in libxml2 means
   linking a large C library (and its dependency chain) for a schema that's
   really just `<tag attr="val">`. tinyxml2 is closer to reasonable, but it's
