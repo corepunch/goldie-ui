@@ -41,8 +41,16 @@ window_t *create_main_toolbar_window(void) {
 void scener_sync_main_toolbar(void) {
   if (!g_app || !g_app->main_toolbar_win) return;
   window_t *toolbar = g_app->main_toolbar_win;
-  int active = g_app->current_tool;
+  int active = scener_active_tool();
   send_message(toolbar, tbSetActiveButton, (uint32_t)active, NULL);
+}
+
+void scener_sync_tool_ui(void) {
+  if (!g_app) return;
+  scener_sync_main_toolbar();
+  if (g_app->command_panel_win) invalidate_window(g_app->command_panel_win);
+  for (scene_doc_t *doc = g_app->docs; doc; doc = doc->next)
+    if (doc->viewport_win) invalidate_window(doc->viewport_win);
 }
 
 result_t scener_menubar_proc(window_t *win, uint32_t msg,
@@ -64,6 +72,15 @@ static scene_doc_t *current_doc(void) {
   scene_doc_t *doc = g_app->active_doc;
   if (!doc) doc = g_app->docs;
   return doc;
+}
+
+uint16_t scener_active_tool(void) {
+  scene_doc_t *doc = current_doc();
+  if (!doc) return ID_TOOL_SELECT;
+  return doc->scene.editMode == EDIT_W_MOVE   ? ID_TOOL_MOVE
+       : doc->scene.editMode == EDIT_E_ROTATE ? ID_TOOL_ROTATE
+       : doc->scene.editMode == EDIT_R_SCALE  ? ID_TOOL_SCALE
+       :                                        ID_TOOL_SELECT;
 }
 
 void handle_menu_command(uint16_t id) {
@@ -136,8 +153,7 @@ void handle_menu_command(uint16_t id) {
                  : id == ID_TOOL_ROTATE ? EDIT_E_ROTATE
                  :                        EDIT_R_SCALE;
         doc->scene.editMode = mode;
-        g_app->current_tool = id;
-        scener_sync_main_toolbar();
+        scener_sync_tool_ui();
       }
       break;
 

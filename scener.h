@@ -49,15 +49,19 @@ typedef struct {
   window_t       *main_toolbar_win;
   window_t       *command_panel_win;
   hinstance_t     hinstance;
-  int             current_tool;
   accel_table_t  *accel;
+  accel_table_t  *navigation_accel;
+  bool            viewport_navigating;
   int             debug_flags;
 } app_state_t;
 
 extern app_state_t *g_app;
 
 void scener_sync_main_toolbar(void);
+void scener_sync_tool_ui(void);
+uint16_t scener_active_tool(void);
 void handle_menu_command(uint16_t id);
+accel_table_t *scener_active_accelerators(void);
 
 result_t scener_toolbar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t scener_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

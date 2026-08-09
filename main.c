@@ -20,6 +20,22 @@ static const accel_t kAccelEntries[] = {
 };
 #define kAccelCount (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0]))
 
+static const accel_t kNavigationAccelEntries[] = {
+  { FCONTROL|FVIRTKEY, AX_KEY_Z, ID_EDIT_UNDO },
+  { FCONTROL|FVIRTKEY, AX_KEY_Y, ID_EDIT_REDO },
+  { FCONTROL|FVIRTKEY, AX_KEY_N, ID_FILE_NEW  },
+  { FCONTROL|FVIRTKEY, AX_KEY_O, ID_FILE_OPEN },
+  { FCONTROL|FVIRTKEY, AX_KEY_S, ID_FILE_SAVE },
+  { FCONTROL|FVIRTKEY, AX_KEY_W, ID_FILE_CLOSE},
+  { FCONTROL|FVIRTKEY, AX_KEY_D, ID_EDIT_DUPLICATE },
+};
+#define kNavigationAccelCount (int)(sizeof(kNavigationAccelEntries)/sizeof(kNavigationAccelEntries[0]))
+
+accel_table_t *scener_active_accelerators(void) {
+  if (!g_app) return NULL;
+  return g_app->viewport_navigating ? g_app->navigation_accel : g_app->accel;
+}
+
 static void create_app_windows(hinstance_t hinstance) {
 #ifdef BUILD_AS_GEM
   g_app->menubar_win = set_app_menu(scener_menubar_proc, kMenus, kNumMenus,
@@ -52,7 +68,6 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (!g_app) return false;
 
   g_app->hinstance    = hinstance;
-  g_app->current_tool = ID_TOOL_SELECT;
   g_app->debug_flags  = 0;
 
 #ifndef BUILD_AS_GEM
@@ -66,6 +81,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   create_app_windows(hinstance);
 
   g_app->accel = load_accelerators(kAccelEntries, kAccelCount);
+  g_app->navigation_accel = load_accelerators(kNavigationAccelEntries, kNavigationAccelCount);
   if (g_app->menubar_win)
     send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
 
@@ -84,7 +100,9 @@ void gem_shutdown(void) {
   if (!g_app) return;
 
   free_accelerators(g_app->accel);
+  free_accelerators(g_app->navigation_accel);
   g_app->accel = NULL;
+  g_app->navigation_accel = NULL;
 
   if (g_app->command_panel_win && is_window(g_app->command_panel_win))
     destroy_window(g_app->command_panel_win);
@@ -106,4 +124,4 @@ void gem_shutdown(void) {
 GEM_DEFINE("SimpleSketch3D", "1.0", gem_init, gem_shutdown, scener_file_types)
 
 GEM_STANDALONE_MAIN("SimpleSketch3D", UI_INIT_DESKTOP, 1280, 800,
-                    g_app->menubar_win, g_app->accel)
+                    g_app->menubar_win, scener_active_accelerators())

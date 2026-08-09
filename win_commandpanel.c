@@ -142,7 +142,7 @@ static void cp_draw_header(const char *label, int *y, int width) {
 }
 
 static void cp_draw_item(cp_state_t *st, const cp_item_t *item, irect16_t rect) {
-	bool active = g_app && item->id >= ID_TOOL_SELECT && item->id <= ID_TOOL_SCALE && g_app->current_tool == item->id;
+	bool active = item->id >= ID_TOOL_SELECT && item->id <= ID_TOOL_SCALE && scener_active_tool() == item->id;
 	draw_button(rect, 0, 0, active);
 	int text_x = rect.x + 7;
 	if (item->icon >= 0 && st->icons) {

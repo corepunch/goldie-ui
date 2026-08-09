@@ -30,12 +30,22 @@ result_t doc_win_proc(window_t *win, uint32_t msg,
       return true;
 
     case evSetFocus:
-      if (g_app && doc) g_app->active_doc = doc;
+      if (g_app && doc) { g_app->active_doc = doc; scener_sync_tool_ui(); }
       return true;
 
     case evResize:
       doc_win_resize_children(doc);
       return false;
+
+    case evKeyDown:
+      if (ui_get_mod_state() & (AX_MOD_SHIFT | AX_MOD_CTRL | AX_MOD_ALT | AX_MOD_CMD)) return false;
+      switch ((int)wparam) {
+        case AX_KEY_Q: handle_menu_command(ID_TOOL_SELECT); return true;
+        case AX_KEY_W: handle_menu_command(ID_TOOL_MOVE);   return true;
+        case AX_KEY_E: handle_menu_command(ID_TOOL_ROTATE); return true;
+        case AX_KEY_R: handle_menu_command(ID_TOOL_SCALE);  return true;
+        default: return false;
+      }
 
     case evDestroy:
       if (g_app && g_app->active_doc == doc)

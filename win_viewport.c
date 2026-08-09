@@ -2,6 +2,11 @@
 #include <orion/user/draw.h>
 #include <orion/user/gl_compat.h>
 
+#ifndef SCENER_DEBUG
+#define SCENER_DEBUG 0
+#endif
+#define VP_LOG(...) do { if (SCENER_DEBUG) fprintf(stderr, "scener viewport: " __VA_ARGS__); } while (0)
+
 typedef struct {
 	uint32_t fbo, color, depth;
 	int width, height;
@@ -17,8 +22,28 @@ typedef struct {
 typedef struct {
 	render_texture_t target;
 	float cam_yaw, cam_pitch;
-	int last_mouse_x, last_mouse_y, orbiting;
+	int last_mouse_x, last_mouse_y, orbiting, left_down;
 } viewport_state_t;
+
+static vec3 vp_camera_dir(const viewport_state_t *vp) {
+	float yaw = vp->cam_yaw * M_PIf / 180.0f, pitch = vp->cam_pitch * M_PIf / 180.0f;
+	return v3(cosf(pitch) * sinf(yaw), sinf(pitch), -cosf(pitch) * cosf(yaw));
+}
+
+static vec3 vp_mouse_ray(const viewport_state_t *vp, const Scene *scene, int x, int y, int w, int h) {
+	vec3 fwd = vp_camera_dir(vp), right = vnorm(vcross(fwd, v3(0, 1, 0))), up = vnorm(vcross(right, fwd));
+	float tan_h = tanf((scene->camFov > 0 ? scene->camFov : 60) * M_PIf / 360.0f);
+	float nx = (float)x / w * 2.0f - 1.0f, ny = 1.0f - (float)y / h * 2.0f;
+	return vnorm(vadd(vadd(fwd, vscale(right, nx * tan_h * (float)w / h)), vscale(up, ny * tan_h)));
+}
+
+static void vp_stop_navigation(window_t *win, viewport_state_t *vp, bool restore_focus) {
+	if (!vp) return;
+	vp->orbiting = 0;
+	if (g_app) g_app->viewport_navigating = false;
+	set_capture(NULL);
+	if (restore_focus && win->parent) set_focus(win->parent);
+}
 
 static void gl_flag(GLenum flag, GLboolean enabled) {
 	if (enabled) glEnable(flag); else glDisable(flag);
@@ -102,9 +127,7 @@ static bool render_texture_resize(render_texture_t *target, int width, int heigh
 static void vp_render(viewport_state_t *vp, scene_doc_t *doc) {
 	render_texture_t *target = &vp->target;
 	Scene *scene = &doc->scene;
-	float yaw = vp->cam_yaw * M_PIf / 180.0f;
-	float pitch = vp->cam_pitch * M_PIf / 180.0f;
-	vec3 dir = v3(cosf(pitch) * sinf(yaw), sinf(pitch), cosf(pitch) * cosf(yaw));
+	vec3 dir = vp_camera_dir(vp);
 	scene->camLook = vadd(scene->camPos, dir);
 	mat4 proj = mat4_perspective(scene->camFov > 0 ? scene->camFov : 60,
 		(float)target->width / target->height, 0.1f, 1000.0f);
@@ -115,14 +138,14 @@ static void vp_render(viewport_state_t *vp, scene_doc_t *doc) {
 	glEnable(GL_SCISSOR_TEST);
 	glDisable(GL_STENCIL_TEST);
 	render_frame(scene, target->width, target->height, proj, view,
-		scene->camPos, scene->camLook, g_app->debug_flags);
+		scene->camPos, dir, g_app->debug_flags);
 }
 
 static void vp_init_camera(viewport_state_t *vp, const Scene *scene) {
 	vec3 dir = vsub(scene->camLook, scene->camPos);
 	if (vlen(dir) < 0.001f) dir = v3(0, 0, -1);
 	dir = vnorm(dir);
-	vp->cam_yaw = atan2f(dir.x, dir.z) * 180.0f / M_PIf;
+	vp->cam_yaw = atan2f(dir.x, -dir.z) * 180.0f / M_PIf;
 	vp->cam_pitch = asinf(dir.y) * 180.0f / M_PIf;
 }
 
@@ -158,50 +181,80 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				vp->last_mouse_y = (int16_t)HIWORD(wparam);
 				if (doc) {
 					irect16_t cr = get_client_rect(win);
-					float nx = (float)vp->last_mouse_x / cr.w * 2.0f - 1.0f;
-					float ny = 1.0f - (float)vp->last_mouse_y / cr.h * 2.0f;
-					float fov = doc->scene.camFov > 0 ? doc->scene.camFov : 60;
-					float tan_h = tanf(fov * M_PIf / 360.0f);
-					mat4 view = mat4_lookat(doc->scene.camPos, doc->scene.camLook, v3(0, 1, 0));
-					vec3 right = v3(view.m[0], view.m[4], view.m[8]);
-					vec3 up = v3(view.m[1], view.m[5], view.m[9]);
-					vec3 fwd = vnorm(vsub(doc->scene.camLook, doc->scene.camPos));
-					vec3 ray = vnorm(vadd(vadd(fwd, vscale(right, nx * tan_h * (float)cr.w / cr.h)), vscale(up, ny * tan_h)));
-					doc->scene.selectedObj = scene_pick_object(&doc->scene, doc->scene.camPos, ray, NULL);
+					if (cr.w <= 0 || cr.h <= 0) return true;
+					vec3 ray = vp_mouse_ray(vp, &doc->scene, vp->last_mouse_x, vp->last_mouse_y, cr.w, cr.h);
+					vp->left_down = 1;
+					if (doc->scene.hoveredHandle != GIZMO_NONE)
+						gizmo_begin_drag(&doc->scene, doc->scene.hoveredHandle, vp->last_mouse_x, vp->last_mouse_y);
+					else {
+						doc->scene.draggingHandle = GIZMO_NONE;
+						float distance = 0;
+						doc->scene.selectedObj = scene_pick_object(&doc->scene, doc->scene.camPos, ray, &distance);
+						VP_LOG("pick mouse=(%d,%d) size=(%d,%d) cam=(%.3f,%.3f,%.3f) ray=(%.3f,%.3f,%.3f) hit=%d distance=%.3f objects=%d\n",
+							vp->last_mouse_x, vp->last_mouse_y, cr.w, cr.h,
+							doc->scene.camPos.x, doc->scene.camPos.y, doc->scene.camPos.z,
+							ray.x, ray.y, ray.z, doc->scene.selectedObj, distance, doc->scene.nobjs);
+					}
+					set_capture(win);
 					invalidate_window(win);
 				}
 			}
+			return true;
+		case evLeftButtonUp:
+			if (vp) vp->left_down = 0;
+			if (doc) doc->scene.draggingHandle = GIZMO_NONE;
+			set_capture(NULL);
 			return true;
 		case evRightButtonDown:
 			if (vp) {
 				vp->orbiting = 1;
 				vp->last_mouse_x = (int16_t)LOWORD(wparam);
 				vp->last_mouse_y = (int16_t)HIWORD(wparam);
+				g_app->viewport_navigating = true;
+				set_focus(win);
 				set_capture(win);
 			}
 			return true;
 		case evRightButtonUp:
-			if (vp) { vp->orbiting = 0; set_capture(NULL); }
+			vp_stop_navigation(win, vp, true);
 			return true;
+		case evKillFocus:
+			if (vp && vp->orbiting) vp_stop_navigation(win, vp, false);
+			return false;
 		case evMouseMove: {
 			if (!vp) return false;
 			int mx = (int16_t)LOWORD(wparam), my = (int16_t)HIWORD(wparam);
-			int dx = mx - vp->last_mouse_x, dy = my - vp->last_mouse_y;
+			int dx = lparam ? (int16_t)LOWORD((uintptr_t)lparam) : mx - vp->last_mouse_x;
+			int dy = lparam ? (int16_t)HIWORD((uintptr_t)lparam) : my - vp->last_mouse_y;
 			vp->last_mouse_x = mx;
 			vp->last_mouse_y = my;
 			if (vp->orbiting && doc) {
-				vp->cam_yaw += dx * 0.25f;
-				vp->cam_pitch -= dy * 0.25f;
+				vp->cam_yaw += dx * 0.08f;
+				vp->cam_pitch -= dy * 0.08f;
 				if (vp->cam_pitch > 89) vp->cam_pitch = 89;
 				if (vp->cam_pitch < -89) vp->cam_pitch = -89;
+				invalidate_window(win);
+			} else if (doc) {
+				irect16_t cr = get_client_rect(win);
+				if (cr.w <= 0 || cr.h <= 0) return true;
+				vec3 fwd = vp_camera_dir(vp), right = vnorm(vcross(fwd, v3(0, 1, 0))), up = vnorm(vcross(right, fwd));
+				vec3 ray = vp_mouse_ray(vp, &doc->scene, mx, my, cr.w, cr.h);
+				if (vp->left_down && doc->scene.draggingHandle != GIZMO_NONE)
+					gizmo_apply_drag(&doc->scene, mx, my, cr.w, cr.h, doc->scene.camPos, right, up, fwd, doc->scene.camFov);
+				else {
+					int hovered = gizmo_pick_handle(&doc->scene, doc->scene.camPos, ray, fwd, doc->scene.camFov);
+					if (hovered == doc->scene.hoveredHandle) return true;
+					doc->scene.hoveredHandle = hovered;
+				}
 				invalidate_window(win);
 			}
 			return true;
 		}
 		case evKeyDown: {
 			if (!doc) return false;
+			if (!vp->orbiting) return false;
 			float speed = 0.25f;
-			vec3 look = vnorm(vsub(doc->scene.camLook, doc->scene.camPos));
+			vec3 look = vp_camera_dir(vp);
 			vec3 right = vnorm(vcross(look, v3(0, 1, 0)));
 			switch ((int)wparam) {
 				case AX_KEY_W: doc->scene.camPos = vadd(doc->scene.camPos, vscale(look, speed)); break;
@@ -212,11 +265,15 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				case AX_KEY_Q: doc->scene.camPos.y -= speed; break;
 				default: return false;
 			}
+			doc->scene.camLook = vadd(doc->scene.camPos, look);
+			VP_LOG("move key=%u cam=(%.3f,%.3f,%.3f)\n", wparam,
+				doc->scene.camPos.x, doc->scene.camPos.y, doc->scene.camPos.z);
 			invalidate_window(win);
 			return true;
 		}
 		case evDestroy:
 			if (vp) {
+				if (vp->orbiting) vp_stop_navigation(win, vp, false);
 				render_texture_free(&vp->target);
 				free(vp);
 				win->userdata = NULL;
