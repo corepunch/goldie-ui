@@ -7,7 +7,6 @@
 #define DEFAULT_FOV   60.0f
 #define PERSP_NEAR    0.1f
 #define PERSP_FAR     1000.0f
-#define DIR_EPSILON   0.0001f
 
 typedef struct {
 	bool screenshot_mode;

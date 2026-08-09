@@ -95,16 +95,6 @@ static uint32_t cp_load_icons(void) {
 	return texture;
 }
 
-static void cp_draw_icon(uint32_t texture, int index, irect16_t rect) {
-	if (!texture || index < 0) return;
-	int col = index % GMAX_ICON_COLS, row = index / GMAX_ICON_COLS;
-	float u0 = (float)(col * GMAX_ICON_SIZE) / GMAX_ICON_SHEET_W;
-	float v0 = (float)(row * GMAX_ICON_SIZE) / GMAX_ICON_SHEET_H;
-	float u1 = (float)((col + 1) * GMAX_ICON_SIZE) / GMAX_ICON_SHEET_W;
-	float v1 = (float)((row + 1) * GMAX_ICON_SIZE) / GMAX_ICON_SHEET_H;
-	draw_sprite_region((int)texture, rect, UV_RECT(u0, v0, u1, v1), 0xffffffff, 0);
-}
-
 static void cp_layout_tabs(window_t *win, cp_state_t *st) {
 	irect16_t cr = get_client_rect(win);
 	int tab_w = cr.w / COUNT_OF(kTabs);
