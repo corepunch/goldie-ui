@@ -153,6 +153,21 @@ static bool scener_write_screenshot(scene_doc_t *doc, const char *path) {
 	mat4 proj = mat4_perspective(scene->camFov, (float)width / (float)height, 0.1f, 1000.0f);
 	mat4 view = mat4_lookat(scene->camPos, scene->camLook, v3(0, 1, 0));
 
+	GLuint fbo = 0, color = 0, depth = 0;
+	glGenFramebuffers(1, &fbo);
+	glGenTextures(1, &color);
+	glGenRenderbuffers(1, &depth);
+	glBindTexture(GL_TEXTURE_2D, color);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindRenderbuffer(GL_RENDERBUFFER, depth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
 	ui_begin_frame();
 	glViewport(0, 0, width, height);
 	glScissor(0, 0, width, height);
@@ -161,9 +176,13 @@ static bool scener_write_screenshot(scene_doc_t *doc, const char *path) {
 
 	size_t bytes = (size_t)width * (size_t)height * 4;
 	uint8_t *pixels = malloc(bytes);
-	if (!pixels) return false;
-	bool ok = capture_framebuffer_rgba(width, height, pixels) && save_image_png(path, pixels, width, height);
+	bool ok = pixels && capture_framebuffer_rgba(width, height, pixels) && save_image_png(path, pixels, width, height);
 	free(pixels);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDeleteFramebuffers(1, &fbo);
+	glDeleteTextures(1, &color);
+	glDeleteRenderbuffers(1, &depth);
 	return ok;
 }
 
