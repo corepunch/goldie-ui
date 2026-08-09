@@ -1,12 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <alloca.h>
 #include "simplegl.h"
 
 void build_shadow_volume(Mesh *m, vec3 lightPos, vec3 lightDir, int isDir, ShadowVolume *sv){
 	memset(sv,0,sizeof(*sv));
 	int nt=m->ntris;
-	char *facing=malloc((size_t)nt);
+	char *facing=alloca((size_t)nt);
 	Light light={.pos=lightPos,.dir=lightDir,.isDirectional=isDir};
 	for(int i=0;i<nt;i++){
 		vec3 p=m->verts[m->tris[i].a].pos;
@@ -45,19 +46,30 @@ void build_shadow_volume(Mesh *m, vec3 lightPos, vec3 lightDir, int isDir, Shado
 
 	#undef PUSHP
 	#undef PUSHD
-	free(facing);
 }
 
 static void scene_combine_shadow_parts(Scene *s,int li){
-	free(s->svols[li].verts);
-	ShadowVolume combined={0};
+	int total=0;
+	for(int oi=0;oi<s->nobjs;oi++){
+		SceneObj *o=&s->objs[oi];
+		if(li<o->nshadowParts) total+=o->shadowParts[li].nverts;
+	}
+	if(total==0){ free(s->svols[li].verts); memset(&s->svols[li],0,sizeof(ShadowVolume)); return; }
+	if(s->svols[li].cverts < total){
+		free(s->svols[li].verts);
+		s->svols[li].verts=malloc((size_t)total*sizeof(ShadowVertex));
+		s->svols[li].cverts=total;
+	}
+	s->svols[li].nverts=0;
 	for(int oi=0;oi<s->nobjs;oi++){
 		SceneObj *o=&s->objs[oi];
 		if(li>=o->nshadowParts) continue;
 		ShadowVolume *part=&o->shadowParts[li];
-		for(int k=0;k<part->nverts;k++) DA_PUSH(combined.verts,combined.nverts,combined.cverts,part->verts[k]);
+		if(part->nverts>0){
+			memcpy(s->svols[li].verts+s->svols[li].nverts,part->verts,(size_t)part->nverts*sizeof(ShadowVertex));
+			s->svols[li].nverts+=part->nverts;
+		}
 	}
-	s->svols[li]=combined;
 }
 
 static void scene_resize_shadow_parts(SceneObj *o,int nlights){

@@ -17,7 +17,7 @@ void mesh_transform(Mesh *m, mat4 posM, mat4 rotM){
     }
 }
 void mesh_compute_face_normals(Mesh *m){
-    free(m->triN); m->triN = malloc(sizeof(vec3)*(size_t)m->ntris);
+    if(!m->triN) m->triN = malloc(sizeof(vec3)*(size_t)m->ntris);
     for(int i=0;i<m->ntris;i++){
         Tri t=m->tris[i];
         vec3 a=m->verts[t.a].pos, b=m->verts[t.b].pos, c=m->verts[t.c].pos;
@@ -43,22 +43,28 @@ void mesh_build_edges(Mesh *m){
             for(int k=0;k<m->nedges;k++){
                 Edge *ed=&m->edges[k];
                 if(ed->t1<0){
-                    vec3 ep0=ed->p0, ep1=ed->p1;
-                    int ew0 = (vlen(vsub(ep0,m->verts[v1].pos))<1e-4f);
-                    int ew1 = (vlen(vsub(ep1,m->verts[v0].pos))<1e-4f);
-                    (void)w0; (void)w1;
+                    int ew0 = (weld[ed->v0]==w1);
+                    int ew1 = (weld[ed->v1]==w0);
                     if(ew0 && ew1){ found=k; break; }
                 }
             }
             if(found>=0){ m->edges[found].t1=i; }
             else{
-                Edge ne={ m->verts[v0].pos, m->verts[v1].pos, i, -1 };
+                Edge ne={ m->verts[v0].pos, m->verts[v1].pos, i, -1, v0, v1 };
                 DA_PUSH(m->edges,m->nedges,m->cedges,ne);
             }
         }
     }
     free(weld);
 }
+void mesh_update_edge_positions(Mesh *m){
+    for(int i=0;i<m->nedges;i++){
+        Edge *e=&m->edges[i];
+        e->p0=m->verts[e->v0].pos;
+        e->p1=m->verts[e->v1].pos;
+    }
+}
+
 float mesh_signed_volume(Mesh *m){
     float vol = 0.0f;
     for(int i=0;i<m->ntris;i++){
@@ -70,7 +76,7 @@ float mesh_signed_volume(Mesh *m){
 }
 void mesh_flip_winding(Mesh *m){
     for(int i=0;i<m->ntris;i++){ int t=m->tris[i].b; m->tris[i].b=m->tris[i].c; m->tris[i].c=t; }
-    for(int i=0;i<m->nedges;i++){ vec3 p=m->edges[i].p0; m->edges[i].p0=m->edges[i].p1; m->edges[i].p1=p; }
+    for(int i=0;i<m->nedges;i++){ vec3 p=m->edges[i].p0; m->edges[i].p0=m->edges[i].p1; m->edges[i].p1=p; int v=m->edges[i].v0; m->edges[i].v0=m->edges[i].v1; m->edges[i].v1=v; }
 }
 
 /* ------------------------------------------------------- primitive gens */

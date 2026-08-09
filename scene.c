@@ -1495,7 +1495,7 @@ static void scene_apply_drag_transform(Scene *s,XmlNode *n){
 		}
 		o->editMatrix=matrix;
 		mesh_compute_face_normals(&o->mesh);
-		if(o->castsShadow) mesh_build_edges(&o->mesh);
+		if(o->castsShadow) mesh_update_edge_positions(&o->mesh);
 	}
 	scene_rebuild_node_shadow_volumes(s,s->selectedNode);
 }

@@ -44,7 +44,7 @@ int ray_intersect_aabb(vec3 origin,vec3 dir,vec3 bbMin,vec3 bbMax,float *tOut);
 
 typedef struct { vec3 pos,nrm; } Vertex;
 typedef struct { int a,b,c; } Tri;
-typedef struct { vec3 p0,p1; int t0,t1; } Edge;
+typedef struct { vec3 p0,p1; int t0,t1; int v0,v1; } Edge;
 
 typedef struct {
 	Vertex *verts; int nverts,cverts;
@@ -75,6 +75,7 @@ void mesh_add_tri(Mesh *m,int a,int b,int c);
 void mesh_transform(Mesh *m,mat4 posM,mat4 rotM);
 void mesh_compute_face_normals(Mesh *m);
 void mesh_build_edges(Mesh *m);
+void mesh_update_edge_positions(Mesh *m);
 float mesh_signed_volume(Mesh *m);
 void mesh_flip_winding(Mesh *m);
 void mesh_apply_taper(Mesh *m,float amount,float curvature,char axis);
