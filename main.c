@@ -4,6 +4,11 @@
 #include <orion/user/gl_compat.h>
 #include <orion/user/image.h>
 
+#define DEFAULT_FOV   60.0f
+#define PERSP_NEAR    0.1f
+#define PERSP_FAR     1000.0f
+#define DIR_EPSILON   0.0001f
+
 typedef struct {
 	bool screenshot_mode;
 	bool debug_flags_set;
@@ -144,13 +149,13 @@ static bool scener_write_screenshot(scene_doc_t *doc, const char *path) {
 	int width = g_cli.width, height = g_cli.height;
 
 	Scene *scene = &doc->scene;
-	scene->camFov = scene->camFov > 0 ? scene->camFov : 60;
+	scene->camFov = scene->camFov > 0 ? scene->camFov : DEFAULT_FOV;
 	if (g_cli.camera_name[0]) scene_select_camera(scene, g_cli.camera_name);
 
 	vec3 dir = vsub(scene->camLook, scene->camPos);
-	if (vlen(dir) < 0.0001f) dir = v3(0, 0, -1);
+	if (vlen(dir) < DIR_EPSILON) dir = v3(0, 0, -1);
 	dir = vnorm(dir);
-	mat4 proj = mat4_perspective(scene->camFov, (float)width / (float)height, 0.1f, 1000.0f);
+	mat4 proj = mat4_perspective(scene->camFov, (float)width / (float)height, PERSP_NEAR, PERSP_FAR);
 	mat4 view = mat4_lookat(scene->camPos, scene->camLook, v3(0, 1, 0));
 
 	GLuint fbo = 0, color = 0, depth = 0;

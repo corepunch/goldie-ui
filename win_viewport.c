@@ -7,6 +7,19 @@
 #endif
 #define VP_LOG(...) do { if (SCENER_DEBUG) fprintf(stderr, "scener viewport: " __VA_ARGS__); } while (0)
 
+#define ORBIT_SENSITIVITY      0.16f
+#define ORBIT_REF_HEIGHT       600.0f
+#define ORBIT_MAX_PITCH        89.0f
+#define MOVE_SPEED_NORMAL      3.25f
+#define MOVE_SPEED_FAST        7.8f
+#define MOVE_DT_CAP            0.1f
+#define MOVE_DT_FALLBACK       0.016f
+#define DIR_EPSILON            0.001f
+#define TIMER_INTERVAL_MS      16
+#define DEFAULT_FOV            60.0f
+#define PERSP_NEAR             0.1f
+#define PERSP_FAR              1000.0f
+
 typedef struct {
 	uint32_t fbo, color, depth;
 	int width, height;
@@ -71,7 +84,7 @@ static vec3 vp_camera_dir(const viewport_state_t *vp) {
 
 static vec3 vp_mouse_ray(const viewport_state_t *vp, const Scene *scene, int x, int y, int w, int h) {
 	vec3 fwd = vp_camera_dir(vp), right = vnorm(vcross(fwd, v3(0, 1, 0))), up = vnorm(vcross(right, fwd));
-	float tan_h = tanf((scene->camFov > 0 ? scene->camFov : 60) * M_PIf / 360.0f);
+	float tan_h = tanf((scene->camFov > 0 ? scene->camFov : DEFAULT_FOV) * M_PIf / 360.0f);
 	float nx = (float)x / w * 2.0f - 1.0f, ny = 1.0f - (float)y / h * 2.0f;
 	return vnorm(vadd(vadd(fwd, vscale(right, nx * tan_h * (float)w / h)), vscale(up, ny * tan_h)));
 }
@@ -90,7 +103,7 @@ static bool vp_move_camera(viewport_state_t *vp, scene_doc_t *doc) {
 	longTime_t now = axGetMilliseconds();
 	float dt = (float)(now - vp->last_move_time) / 1000.0f;
 	vp->last_move_time = now;
-	if (dt <= 0 || dt > 0.1f) dt = 0.016f;
+	if (dt <= 0 || dt > MOVE_DT_CAP) dt = MOVE_DT_FALLBACK;
 	vec3 look = vp_camera_dir(vp), right = vnorm(vcross(look, v3(0, 1, 0))), move = v3(0, 0, 0);
 	if (ui_is_key_down(AX_KEY_W)) move = vadd(move, look);
 	if (ui_is_key_down(AX_KEY_S)) move = vsub(move, look);
@@ -99,7 +112,7 @@ static bool vp_move_camera(viewport_state_t *vp, scene_doc_t *doc) {
 	if (ui_is_key_down(AX_KEY_E)) move = vadd(move, v3(0, 1, 0));
 	if (ui_is_key_down(AX_KEY_Q)) move = vsub(move, v3(0, 1, 0));
 	if (vlen(move) <= 1e-6f) return false;
-	float speed = ui_is_key_down(AX_KEY_SHIFT) ? 7.8f : 3.25f;
+	float speed = ui_is_key_down(AX_KEY_SHIFT) ? MOVE_SPEED_FAST : MOVE_SPEED_NORMAL;
 	doc->scene.camPos = vadd(doc->scene.camPos, vscale(vnorm(move), speed * dt));
 	doc->scene.camLook = vadd(doc->scene.camPos, look);
 	return true;
@@ -232,8 +245,8 @@ static void vp_render(viewport_state_t *vp, scene_doc_t *doc) {
 	Scene *scene = &doc->scene;
 	vec3 dir = vp_camera_dir(vp);
 	scene->camLook = vadd(scene->camPos, dir);
-	mat4 proj = mat4_perspective(scene->camFov > 0 ? scene->camFov : 60,
-		(float)target->width / target->height, 0.1f, 1000.0f);
+	mat4 proj = mat4_perspective(scene->camFov > 0 ? scene->camFov : DEFAULT_FOV,
+		(float)target->width / target->height, PERSP_NEAR, PERSP_FAR);
 	mat4 view = mat4_lookat(scene->camPos, scene->camLook, v3(0, 1, 0));
 	glBindFramebuffer(GL_FRAMEBUFFER, target->fbo);
 	glViewport(0, 0, target->width, target->height);
@@ -246,7 +259,7 @@ static void vp_render(viewport_state_t *vp, scene_doc_t *doc) {
 
 static void vp_init_camera(viewport_state_t *vp, const Scene *scene) {
 	vec3 dir = vsub(scene->camLook, scene->camPos);
-	if (vlen(dir) < 0.001f) dir = v3(0, 0, -1);
+	if (vlen(dir) < DIR_EPSILON) dir = v3(0, 0, -1);
 	dir = vnorm(dir);
 	vp->cam_yaw = atan2f(dir.x, -dir.z) * 180.0f / M_PIf;
 	vp->cam_pitch = asinf(dir.y) * 180.0f / M_PIf;
@@ -318,7 +331,7 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				set_focus(win);
 				set_capture(win);
 				vp->last_move_time = axGetMilliseconds();
-				if (!vp->navigation_timer) vp->navigation_timer = axSetTimer(win, 16, NULL, true);
+				if (!vp->navigation_timer) vp->navigation_timer = axSetTimer(win, TIMER_INTERVAL_MS, NULL, true);
 			}
 			return true;
 		case evRightButtonUp:
@@ -336,11 +349,11 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			vp->last_mouse_y = my;
 			if (vp->orbiting && doc) {
 				irect16_t cr = get_client_rect(win);
-				float scale = cr.h > 0 ? 600.0f / (float)cr.h : 1.0f;
-				vp->cam_yaw += dx * 0.16f * scale;
-				vp->cam_pitch -= dy * 0.16f * scale;
-				if (vp->cam_pitch > 89) vp->cam_pitch = 89;
-				if (vp->cam_pitch < -89) vp->cam_pitch = -89;
+				float scale = cr.h > 0 ? ORBIT_REF_HEIGHT / (float)cr.h : 1.0f;
+				vp->cam_yaw += dx * ORBIT_SENSITIVITY * scale;
+				vp->cam_pitch -= dy * ORBIT_SENSITIVITY * scale;
+				if (vp->cam_pitch > ORBIT_MAX_PITCH) vp->cam_pitch = ORBIT_MAX_PITCH;
+				if (vp->cam_pitch < -ORBIT_MAX_PITCH) vp->cam_pitch = -ORBIT_MAX_PITCH;
 				invalidate_window(win);
 			} else if (doc) {
 				irect16_t cr = get_client_rect(win);

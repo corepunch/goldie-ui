@@ -38,12 +38,13 @@ Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wal
 
 ## Code conventions
 
-- **No comments** unless absolutely necessary.
+- **No comments** unless absolutely necessary. When a design choice is non-obvious (e.g. why a timer is created on demand, why a specific constant value was chosen, why a particular algorithm was used), document it with a short inline comment. Do not comment the *what* — comment the *why*.
 - Compact K&R brace style, tabs for indentation.
 - `DA_PUSH` macro (from `simplegl.h`) for all dynamic arrays.
 - `vec3` and `mat4` are value types, passed and returned by value.
 - All scene parsing uses dispatch tables: static arrays of `{ tag, parser_function }` to avoid `if/else` chains.
 - Forward declarations are used sparingly, only when call order requires them.
+- **No magic numbers.** Extract all numeric constants to `#define` at the top of the file. Use descriptive names (e.g. `ORBIT_BASE_SENSITIVITY`, `EXTRUDE_DISTANCE`, `WELD_THRESHOLD`). The only exceptions are `0`, `1`, `-1`, and `2` in trivial contexts (loop bounds, signs, identity values).
 
 ## Scene file dispatch
 
