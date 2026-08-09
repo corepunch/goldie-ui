@@ -5,10 +5,10 @@
 #include "gmax_icons.h"
 
 enum {
-	CP_WIDTH = 280,
+	CP_WIDTH = 180,
 	CP_TAB_HEIGHT = 28,
 	CP_HEADER_HEIGHT = 24,
-	CP_BUTTON_HEIGHT = 28,
+	CP_BUTTON_HEIGHT = 20,
 };
 
 typedef struct { const char *label; uint16_t id; int icon; } cp_item_t;
@@ -142,14 +142,10 @@ static void cp_draw_header(const char *label, int *y, int width) {
 }
 
 static void cp_draw_item(cp_state_t *st, const cp_item_t *item, irect16_t rect) {
+	(void)st;
 	bool active = item->id >= ID_TOOL_SELECT && item->id <= ID_TOOL_SCALE && scener_active_tool() == item->id;
 	draw_button(rect, 0, 0, active);
-	int text_x = rect.x + 7;
-	if (item->icon >= 0 && st->icons) {
-		cp_draw_icon(st->icons, item->icon, R(rect.x + 3, rect.y + 2, GMAX_ICON_SIZE, GMAX_ICON_SIZE));
-		text_x += GMAX_ICON_SIZE;
-	}
-	draw_text_small(item->label, text_x, rect.y + (rect.h - CHAR_HEIGHT) / 2, get_sys_color(brTextNormal));
+	draw_text(FONT_ICON, item->label, rect.x + 7, rect.y + (rect.h - text_char_height(FONT_ICON)) / 2, get_sys_color(brTextNormal));
 }
 
 static void cp_draw_content(cp_state_t *st, int width) {

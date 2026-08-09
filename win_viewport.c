@@ -363,7 +363,7 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				if (vp->left_down && doc->scene.draggingHandle != GIZMO_NONE)
 					gizmo_apply_drag(&doc->scene, mx, my, cr.w, cr.h, doc->scene.camPos, right, up, fwd, doc->scene.camFov);
 				else {
-					int hovered = gizmo_pick_handle(&doc->scene, doc->scene.camPos, ray, fwd, doc->scene.camFov);
+					int hovered = gizmo_pick_handle(&doc->scene, doc->scene.camPos, ray, fwd, doc->scene.camFov, cr.w, cr.h);
 					if (hovered == doc->scene.hoveredHandle) return true;
 					doc->scene.hoveredHandle = hovered;
 				}

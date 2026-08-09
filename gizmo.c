@@ -20,14 +20,16 @@ static vec3 handle_color(vec3 color,int hovered){
 	return hovered?v3(1.0f,0.92f,0.12f):color;
 }
 
-static int gizmo_geometry(Scene *s,vec3 camPos,vec3 camLook,float camFov,
+static int gizmo_geometry(Scene *s,vec3 camPos,vec3 camLook,float camFov,int vpW,int vpH,
 	vec3 *center,float *radius,mat4 *matrix,vec3 *bmin,vec3 *bmax){
 	if(s->selectedObj<0 || s->selectedObj>=s->nobjs || !s->objs[s->selectedObj].renderable) return 0;
 	scene_get_obj_oriented_bounds(s,s->selectedObj,matrix,bmin,bmax);
 	*center=mat4_xform_point(*matrix,v3(0,0,0));
 	float depth=vdot(vsub(*center,camPos),vnorm(camLook));
 	if(depth<=0.0f) return 0;
-	*radius=depth*tanf(camFov*M_PIf/360.0f)*0.125f;
+	float minDim=(float)(vpW<vpH?vpW:vpH);
+	if(minDim<1.0f) minDim=1.0f;
+	*radius=depth*tanf(camFov*M_PIf/360.0f)*100.0f/minDim;
 	return *radius>1e-6f;
 }
 
@@ -118,9 +120,9 @@ extern GLint  s_line_proj_loc, s_line_view_loc;
 static void ensure_gizmo_buf(void) { if (!s_gizmo_vao) { glGenVertexArrays(1, &s_gizmo_vao); glGenBuffers(1, &s_gizmo_vbo); } }
 extern void ensure_line_prog(void);
 
-void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov){
+void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov,int vpW,int vpH){
 	vec3 center,bmin,bmax; float radius; mat4 matrix;
-	if(!gizmo_geometry(s,camPos,camLook,camFov,&center,&radius,&matrix,&bmin,&bmax)) return;
+	if(!gizmo_geometry(s,camPos,camLook,camFov,vpW,vpH,&center,&radius,&matrix,&bmin,&bmax)) return;
 	vec3 x=v3(1,0,0),y=v3(0,1,0),z=v3(0,0,1);
 	vec3 red=handle_color(v3(0.92f,0.12f,0.08f),s->hoveredHandle==GIZMO_AXIS_X);
 	vec3 green=handle_color(v3(0.12f,0.82f,0.10f),s->hoveredHandle==GIZMO_AXIS_Y);
@@ -236,9 +238,9 @@ static void take_hit(float t,int handle,float *bestT,int *bestHandle){
 	if(t>=0.0f && t<*bestT){ *bestT=t; *bestHandle=handle; }
 }
 
-int gizmo_pick_handle(Scene *s,vec3 ro,vec3 rd,vec3 camLook,float camFov){
+int gizmo_pick_handle(Scene *s,vec3 ro,vec3 rd,vec3 camLook,float camFov,int vpW,int vpH){
 	vec3 center,bmin,bmax; float radius; mat4 matrix;
-	if(!gizmo_geometry(s,ro,camLook,camFov,&center,&radius,&matrix,&bmin,&bmax)) return GIZMO_NONE;
+	if(!gizmo_geometry(s,ro,camLook,camFov,vpW,vpH,&center,&radius,&matrix,&bmin,&bmax)) return GIZMO_NONE;
 	vec3 axis[3]={v3(1,0,0),v3(0,1,0),v3(0,0,1)};
 	int id[3]={GIZMO_AXIS_X,GIZMO_AXIS_Y,GIZMO_AXIS_Z};
 	float bestT=1e30f,threshold=radius*0.105f;
