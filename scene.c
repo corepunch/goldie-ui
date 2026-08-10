@@ -1654,6 +1654,7 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 	free(bp);
 }
 
+#ifdef SCENER_USE_TEXTURES
 void scene_init_textures(Scene *s){
 	materials_init(s->materialTextures);
 	s->whiteTexture=materials_create_white_texture();
@@ -1663,3 +1664,7 @@ void scene_free_textures(Scene *s){
 	materials_free(s->materialTextures);
 	glDeleteTextures(1,&s->whiteTexture);
 }
+#else
+void scene_init_textures(Scene *s){ (void)s; }
+void scene_free_textures(Scene *s){ (void)s; }
+#endif

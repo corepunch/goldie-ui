@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include "simplegl.h"
 #include "materials.h"
 
 typedef struct { float r,g,b; } MVec3;
@@ -204,6 +205,7 @@ int materials_index_for_name(const char *name){
 	return -1;
 }
 
+#ifdef SCENER_USE_TEXTURES
 static void upload_texture(const MatFn fn,uint32_t seed,unsigned int tex){
 	unsigned char *pixels=malloc((size_t)TEX_SIZE*TEX_SIZE*3);
 	for(int y=0;y<TEX_SIZE;y++){
@@ -225,8 +227,10 @@ static void upload_texture(const MatFn fn,uint32_t seed,unsigned int tex){
 	glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8,TEX_SIZE,TEX_SIZE,0,GL_RGB,GL_UNSIGNED_BYTE,pixels);
 	free(pixels);
 }
+#endif
 
 unsigned int materials_create_white_texture(void){
+#ifdef SCENER_USE_TEXTURES
 	unsigned char white[4]={255,255,255,255};
 	unsigned int tex;
 	glGenTextures(1,&tex);
@@ -237,13 +241,24 @@ unsigned int materials_create_white_texture(void){
 	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB8,1,1,0,GL_RGB,GL_UNSIGNED_BYTE,white);
 	return tex;
+#else
+	return 0;
+#endif
 }
 
 void materials_init(unsigned int *textures){
+#ifdef SCENER_USE_TEXTURES
 	glGenTextures(NUM_MATERIALS,textures);
 	for(int i=0;i<NUM_MATERIALS;i++) upload_texture(MAT_FNS[i],MAT_SEEDS[i],textures[i]);
+#else
+	(void)textures;
+#endif
 }
 
 void materials_free(unsigned int *textures){
+#ifdef SCENER_USE_TEXTURES
 	glDeleteTextures(NUM_MATERIALS,textures);
+#else
+	(void)textures;
+#endif
 }

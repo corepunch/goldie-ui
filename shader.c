@@ -9,7 +9,10 @@
 static GLuint prog, s_mesh_vao, s_mesh_vbo, s_mesh_ebo;
 static GLuint vlocPos, vlocNrm;
 static GLint ulocViewProj, ulocViewPos, ulocLightPos, ulocLightColor, ulocLightRadius;
-static GLint ulocColor, ulocShininess, ulocTex;
+static GLint ulocColor, ulocShininess;
+#ifdef SCENER_USE_TEXTURES
+static GLint ulocTex;
+#endif
 
 static const char *vs_src =
 "#version 150\n"
@@ -53,7 +56,9 @@ static const char *fs_src =
 "uniform float uLightRadius;\n"
 "uniform vec3 uColor;\n"
 "uniform float uShininess;\n"
+"#ifdef SCENER_USE_TEXTURES\n"
 "uniform sampler2D uTex;\n"
+"#endif\n"
 "void main(){\n"
 "    vec3 N=normalize(vWorldNrm);\n"
 "    vec3 V=normalize(uViewPos-vWorldPos);\n"
@@ -73,6 +78,9 @@ static const char *fs_src =
 "    float G=G1*G2;\n"
 "    float F=BASE_REFLECTANCE+(1.0-BASE_REFLECTANCE)*pow(1.0-max(dot(V,H),0.0),FRESNEL_EXP);\n"
 "    vec3 texColor=texture(uTex,vWorldUV).rgb;\n"
+"#else\n"
+"    vec3 texColor=vec3(1.0);\n"
+"#endif\n"
 "    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,MIN_SPECULAR))*uLightColor;\n"
 "    vec3 diff=uColor*texColor*(1.0-F)*NdotL*uLightColor;\n"
 "    float att=1.0;\n"
@@ -144,7 +152,9 @@ void shader_init(void){
 	ulocLightRadius = glGetUniformLocation(prog, "uLightRadius");
 	ulocColor       = glGetUniformLocation(prog, "uColor");
 	ulocShininess   = glGetUniformLocation(prog, "uShininess");
+#ifdef SCENER_USE_TEXTURES
 	ulocTex         = glGetUniformLocation(prog, "uTex");
+#endif
 
 	fprintf(stderr, "PBR shader initialized\n");
 }
@@ -190,11 +200,13 @@ void shader_set_material(vec3 color, float shininess){
 	glUniform1f(ulocShininess, shininess);
 }
 
+#ifdef SCENER_USE_TEXTURES
 void shader_set_texture(unsigned int tex){
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex);
 	glUniform1i(ulocTex, 0);
 }
+#endif
 
 void shader_draw_mesh(Mesh *m){
 	if(!s_mesh_vao){

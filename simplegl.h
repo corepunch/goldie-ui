@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Define SCENER_USE_TEXTURES to enable procedural texture generation and
+   shader texture sampling.  Disabled by default — no textures are used. */
+/* #define SCENER_USE_TEXTURES */
+
 #define M_PIf 3.14159265358979323846f
 
 #define DA_PUSH(arr,count,cap,item) do{ \
