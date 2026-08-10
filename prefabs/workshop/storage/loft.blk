@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- loft: footprint 1.30x7.80, baseline y=0, inner railing is at local +X. -->
 <prefab>
-  <box pos="0 0.09 0" size="1.30 0.18 7.80" material="dark_wood"/>
-  <box pos="-0.42 -0.18 -2.70" size="0.18 0.54 0.22" material="wood"><array count="4" translation="0 0 1.80"/></box>
-  <box pos="0.56 0.62 -2.95" size="0.10 1.24 0.10" material="wood"><array count="5" translation="0 0 1.48"/></box>
-  <box pos="0.56 1.20 0" size="0.12 0.12 7.50" material="wood"/>
-  <box pos="0.56 0.72 0" size="0.08 0.08 7.50" material="dark_wood"/>
-  <prefab source="items/wooden_crate" pos="-0.20 0.18 -2.40" rot="0 8 0" scale="0.74 0.74 0.74" color="0.34 0.17 0.06"/>
-  <prefab source="items/wooden_crate" pos="0.04 0.18 -1.66" rot="0 -10 0" scale="0.62 0.62 0.62" color="0.26 0.13 0.05"/>
-  <prefab source="items/wooden_crate" pos="-0.14 0.18 -0.66" rot="0 5 0" scale="0.92 0.92 0.92" color="0.30 0.15 0.06"/>
-  <prefab source="items/wooden_crate" pos="-0.12 0.62 -0.67" rot="0 -7 0" scale="0.72 0.72 0.72" color="0.38 0.19 0.07"/>
-  <prefab source="items/tool_jar" pos="-0.14 0.97 -0.65" scale="0.78 0.78 0.78" color="0.42 0.23 0.08"/>
-  <prefab source="toys/toy_boat" pos="-0.12 0.18 0.05" rot="0 14 0" scale="0.84 0.84 0.84" color="0.08 0.30 0.46"/>
-  <prefab source="toys/toy_train" pos="-0.16 0.18 1.25" rot="0 -8 0" scale="0.78 0.78 0.78" color="0.54 0.09 0.06"/>
-  <prefab source="items/book" pos="-0.16 0.18 2.35" rot="0 6 0" scale="0.78 0.78 0.78" color="0.36 0.16 0.40"/>
+  <box pos="0 9 0" size="130 18 780" material="dark_wood"/>
+  <box pos="-42 -18 -270" size="18 54 22" material="wood"><array count="4" translation="0 0 180"/></box>
+  <box pos="56 62 -295" size="10 124 10" material="wood"><array count="5" translation="0 0 148"/></box>
+  <box pos="56 120 0" size="12 12 750" material="wood"/>
+  <box pos="56 72 0" size="8 8 750" material="dark_wood"/>
+  <prefab source="items/wooden_crate" pos="-20 18 -240" rot="0 8 0" scale="0.74 0.74 0.74" color="0.34 0.17 0.06"/>
+  <prefab source="items/wooden_crate" pos="4 18 -166" rot="0 -10 0" scale="0.62 0.62 0.62" color="0.26 0.13 0.05"/>
+  <prefab source="items/wooden_crate" pos="-14 18 -66" rot="0 5 0" scale="0.92 0.92 0.92" color="0.30 0.15 0.06"/>
+  <prefab source="items/wooden_crate" pos="-12 62 -67" rot="0 -7 0" scale="0.72 0.72 0.72" color="0.38 0.19 0.07"/>
+  <prefab source="items/tool_jar" pos="-14 97 -65" scale="0.78 0.78 0.78" color="0.42 0.23 0.08"/>
+  <prefab source="toys/toy_boat" pos="-12 18 5" rot="0 14 0" scale="0.84 0.84 0.84" color="0.08 0.30 0.46"/>
+  <prefab source="toys/toy_train" pos="-16 18 125" rot="0 -8 0" scale="0.78 0.78 0.78" color="0.54 0.09 0.06"/>
+  <prefab source="items/book" pos="-16 18 235" rot="0 6 0" scale="0.78 0.78 0.78" color="0.36 0.16 0.40"/>
 </prefab>

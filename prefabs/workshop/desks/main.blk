@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- main desk: dressed workbench, footprint 2.0x0.9, baseline y=0, front faces +Z. -->
 <prefab>
-  <attach name="top_surface" pos="0 0.94 0"/>
-  <attach name="under_center" pos="0 0.12 0"/>
+  <attach name="top_surface" pos="0 94 0"/>
+  <attach name="under_center" pos="0 12 0"/>
   <prefab source="furniture/workbench"/>
-  <prefab source="items/repair_book" pos="0.18 0.94 -0.12" rot="0 -8 0" scale="0.72 0.72 0.72" color="0.10 0.24 0.16"/>
-  <prefab source="toys/toy_train" pos="-0.60 0.94 0.20" rot="0 -12 0" scale="0.68 0.68 0.68" color="0.54 0.09 0.06"/>
-  <prefab source="toys/toy_boat" pos="-0.62 0.94 -0.22" rot="0 9 0" scale="0.62 0.62 0.62" color="0.08 0.30 0.46"/>
-  <prefab source="items/tool_jar" pos="-0.15 0.94 0.26" rot="0 -7 0" scale="0.58 0.58 0.58" color="0.42 0.23 0.08"/>
-  <prefab source="items/tool_caddy" pos="0.42 0.94 0.20" rot="0 6 0" scale="0.48 0.48 0.48" color="0.28 0.13 0.05"/>
-  <prefab source="items/mug" pos="0.55 0.94 -0.20" scale="0.54 0.54 0.54" color="0.22 0.40 0.42"/>
-  <prefab source="items/paper_notes" pos="-0.18 0.94 -0.30" rot="0 -15 0" scale="0.58 0.58 0.58"/>
-  <prefab source="items/shavings" pos="0.18 0.94 0.01" rot="0 24 0" scale="0.46 0.46 0.46"/>
-  <prefab source="items/oil_can" pos="0.30 0 0.24" rot="0 -18 0" scale="0.24 0.24 0.24"/>
-  <sphere pos="0.30 0.055 0.292" radius="0.004" color="1.0 0.72 0.28" unlit="1" castShadow="0"/>
+  <prefab source="items/repair_book" pos="18 94 -12" rot="0 -8 0" scale="0.72 0.72 0.72" color="0.10 0.24 0.16"/>
+  <prefab source="toys/toy_train" pos="-60 94 20" rot="0 -12 0" scale="0.68 0.68 0.68" color="0.54 0.09 0.06"/>
+  <prefab source="toys/toy_boat" pos="-62 94 -22" rot="0 9 0" scale="0.62 0.62 0.62" color="0.08 0.30 0.46"/>
+  <prefab source="items/tool_jar" pos="-15 94 26" rot="0 -7 0" scale="0.58 0.58 0.58" color="0.42 0.23 0.08"/>
+  <prefab source="items/tool_caddy" pos="42 94 20" rot="0 6 0" scale="0.48 0.48 0.48" color="0.28 0.13 0.05"/>
+  <prefab source="items/mug" pos="55 94 -20" scale="0.54 0.54 0.54" color="0.22 0.40 0.42"/>
+  <prefab source="items/paper_notes" pos="-18 94 -30" rot="0 -15 0" scale="0.58 0.58 0.58"/>
+  <prefab source="items/shavings" pos="18 94 1" rot="0 24 0" scale="0.46 0.46 0.46"/>
+  <prefab source="items/oil_can" pos="30 0 24" rot="0 -18 0" scale="0.24 0.24 0.24"/>
+  <sphere pos="30 5.5 29.2" radius="0.4" color="1.0 0.72 0.28" unlit="1" castShadow="0"/>
 </prefab>

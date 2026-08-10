@@ -2,9 +2,9 @@
 <!-- sofa: footprint 2.2x0.9, baseline y=0, backrest at z=-0.4.
      Front direction is +Z (backrest = -Z); arms are at x=±1.025. -->
 <prefab>
-  <attach name="seat" pos="0 0.5 0"/>
-  <box pos="0 0.25 0"   size="1.9 0.5 0.9"  material="fabric"/>
-  <box pos="0 0.75 -0.4" size="1.9 0.5 0.15" material="fabric"/>
-  <box pos="-1.025 0.55 0" size="0.15 0.55 0.9" material="fabric"/>
-  <box pos=" 1.025 0.55 0" size="0.15 0.55 0.9" material="fabric"/>
+  <attach name="seat" pos="0 50 0"/>
+  <box pos="0 25 0"   size="190 50 90"  material="fabric"/>
+  <box pos="0 75 -40" size="190 50 15" material="fabric"/>
+  <box pos="-102.5 55 0" size="15 55 90" material="fabric"/>
+  <box pos="102.5 55 0" size="15 55 90" material="fabric"/>
 </prefab>

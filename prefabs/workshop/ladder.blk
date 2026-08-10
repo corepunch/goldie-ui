@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- ladder: footprint 1.00x0.24, baseline y=0, front faces +Z, initial stuck state. -->
 <prefab>
-  <box pos="-0.38 2.20 0" size="0.13 4.40 0.18" material="wood"/>
-  <box pos="0.38 2.20 0" size="0.13 4.40 0.18" material="wood"/>
-  <box pos="0 0.34 0.01" size="0.82 0.08 0.18" material="wood"><array count="10" translation="0 0.43 0"/></box>
-  <box pos="0 4.43 0" size="0.98 0.12 0.22" material="dark_wood"/>
-  <cylinder pos="-0.56 0.54 0.03" rot="90 0 0" radius="0.23" height="0.14" material="iron"/>
-  <torus pos="-0.56 0.54 0.13" rot="90 0 0" majorRadius="0.16" minorRadius="0.03" material="brass"/>
-  <cylinder pos="-0.56 0.54 0.27" rot="90 0 0" radius="0.04" height="0.30" material="iron"/>
-  <box pos="-0.56 0.34 0.42" size="0.055 0.40 0.055" material="iron"/>
-  <sphere pos="-0.56 0.12 0.42" radius="0.075" material="wood"/>
-  <torus pos="0.56 0.54 0.03" rot="90 0 0" majorRadius="0.20" minorRadius="0.04" material="iron"/>
-  <cylinder pos="0 4.53 0" rot="90 0 0" radius="0.13" height="0.24" material="iron"/>
+  <box pos="-38 220 0" size="13 440 18" material="wood"/>
+  <box pos="38 220 0" size="13 440 18" material="wood"/>
+  <box pos="0 34 1" size="82 8 18" material="wood"><array count="10" translation="0 43 0"/></box>
+  <box pos="0 443 0" size="98 12 22" material="dark_wood"/>
+  <cylinder pos="-56 54 3" rot="90 0 0" radius="23" height="14" material="iron"/>
+  <torus pos="-56 54 13" rot="90 0 0" majorRadius="16" minorRadius="3" material="brass"/>
+  <cylinder pos="-56 54 27" rot="90 0 0" radius="4" height="30" material="iron"/>
+  <box pos="-56 34 42" size="5.5 40 5.5" material="iron"/>
+  <sphere pos="-56 12 42" radius="7.5" material="wood"/>
+  <torus pos="56 54 3" rot="90 0 0" majorRadius="20" minorRadius="4" material="iron"/>
+  <cylinder pos="0 453 0" rot="90 0 0" radius="13" height="24" material="iron"/>
 </prefab>

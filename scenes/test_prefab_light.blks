@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scene>
-  <prefab source="fixtures/hanging_lamp" pos="1 4 -2"/>
-  <prefab source="fixtures/hanging_lamp" pos="-1 3 1" scale="0.5 0.5 0.5"/>
+  <prefab source="fixtures/hanging_lamp" pos="100 400 -200"/>
+  <prefab source="fixtures/hanging_lamp" pos="-100 300 100" scale="0.5 0.5 0.5"/>
 </scene>

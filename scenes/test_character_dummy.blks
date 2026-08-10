@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scene>
-  <camera name="ActionA" pos="0 1 4" look="0 0.5 0" fov="50"/>
-  <camera name="ActionB" pos="2 1 4" look="0 0.5 0" fov="50"/>
-  <chardef name="Pip" height="0.30" radius="0.03" top="1" neck="0.72" pelvis="0.34" feet="0"/>
-  <dummy type="character" ref="Pip" camera="ActionA" pos="-1 0 0" pose="reach" target="0 0.4 -1"/>
-  <dummy type="character" camera="ActionB" pos="1 0 0" height="0.50" pose="stand"/>
+  <camera name="ActionA" pos="0 100 400" look="0 50 0" fov="50"/>
+  <camera name="ActionB" pos="200 100 400" look="0 50 0" fov="50"/>
+  <chardef name="Pip" height="30" radius="3" top="1" neck="0.72" pelvis="0.34" feet="0"/>
+  <dummy type="character" ref="Pip" camera="ActionA" pos="-100 0 0" pose="reach" target="0 40 -100"/>
+  <dummy type="character" camera="ActionB" pos="100 0 0" height="50" pose="stand"/>
 </scene>

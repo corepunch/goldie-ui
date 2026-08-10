@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- window: outer size 2.20x2.35, origin at opening center, local +Z faces room. -->
 <prefab>
-  <bool-negative-arch width="2.20" height="2.35" depth="0.34"/>
-  <box pos="0 -1.14 0.15" size="2.34 0.14 0.32" material="dark_wood"/>
-  <arch pos="0 0 0.02" width="2.20" height="2.35" depth="0.09" tube="0.14" material="dark_wood"/>
-  <arch pos="0 0 0.06" width="1.90" height="2.05" depth="0.10" tube="0.10" material="wood"/>
-  <arch pos="0 0 -0.04" width="1.68" height="1.83" depth="0.03" material="moon_glass" castShadow="0"/>
-  <box pos="0 -0.69 0.08" size="1.68 0.07 0.06" material="dark_wood"/>
-  <box pos="0 0.105 0.08" size="0.07 1.59 0.06" material="dark_wood"/>
-  <box pos="-0.47 0.025 0.08" size="0.05 1.43 0.06" material="dark_wood"/>
-  <box pos="0.47 0.025 0.08" size="0.05 1.43 0.06" material="dark_wood"/>
-  <torus pos="0 0.43 0.10" rot="90 0 0" majorRadius="0.24" minorRadius="0.03" material="brass"/>
-  <box pos="0 0.43 0.10" size="0.45 0.028 0.028" material="brass"/>
-  <box pos="0 0.43 0.10" rot="0 0 45" size="0.028 0.45 0.028" material="brass"/>
-  <box pos="0 0.43 0.10" rot="0 0 -45" size="0.028 0.45 0.028" material="brass"/>
+  <bool-negative-arch width="220" height="235" depth="34"/>
+  <box pos="0 -114 15" size="234 14 32" material="dark_wood"/>
+  <arch pos="0 0 2" width="220" height="235" depth="9" tube="0.14" material="dark_wood"/>
+  <arch pos="0 0 6" width="190" height="205" depth="10" tube="0.10" material="wood"/>
+  <arch pos="0 0 -4" width="168" height="183" depth="3" material="moon_glass" castShadow="0"/>
+  <box pos="0 -69 8" size="168 7 6" material="dark_wood"/>
+  <box pos="0 10.5 8" size="7 159 6" material="dark_wood"/>
+  <box pos="-47 2.5 8" size="5 143 6" material="dark_wood"/>
+  <box pos="47 2.5 8" size="5 143 6" material="dark_wood"/>
+  <torus pos="0 43 10" rot="90 0 0" majorRadius="24" minorRadius="3" material="brass"/>
+  <box pos="0 43 10" size="45 2.8 2.8" material="brass"/>
+  <box pos="0 43 10" rot="0 0 45" size="2.8 45 2.8" material="brass"/>
+  <box pos="0 43 10" rot="0 0 -45" size="2.8 45 2.8" material="brass"/>
 </prefab>

@@ -40,6 +40,14 @@ static float xml_attr_f(XmlNode*n,const char*name,float def){
 static int xml_attr_i(XmlNode*n,const char*name,int def){
 	const char*s=xml_attr(n,name,NULL); return s? atoi(s): def;
 }
+static float xml_attr_f_cm(XmlNode*n,const char*name,float def){
+	const char*s=xml_attr(n,name,NULL); return s? (float)atof(s)*0.01f: def;
+}
+static vec3 xml_attr_v3_cm(XmlNode*n,const char*name,vec3 def){
+	const char*s=xml_attr(n,name,NULL); if(!s) return def;
+	vec3 v=def; sscanf(s,"%f %f %f",&v.x,&v.y,&v.z);
+	v.x*=0.01f; v.y*=0.01f; v.z*=0.01f; return v;
+}
 static void xml_set_attr(XmlNode *n,const char *name,const char *value){
 	for(int i=0;i<n->nattrs;i++) if(!strcmp(n->attrs[i].name,name)){
 		free(n->attrs[i].value); n->attrs[i].value=strdup(value); return;
@@ -53,10 +61,10 @@ static void xml_set_attr_v3(XmlNode *n,const char *name,vec3 v){
 	xml_set_attr(n,name,value);
 }
 static mat4 xml_node_transform(XmlNode *n){
-	vec3 pos=xml_attr_v3(n,"pos",v3(0,0,0));
+	vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
 	vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
 	vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
-	vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
+	vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
 	return mat4_mul(mat4_translate(pos),mat4_mul(mat4_translate(pvt),
 		mat4_mul(mat4_rot_xyz(rot),mat4_mul(mat4_translate(vscale(pvt,-1.0f)),mat4_scale(scl)))));
 }
@@ -486,7 +494,7 @@ typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 paren
 
 static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	vec3 sz=xml_attr_v3(n,"size",v3(1,1,1));
+	vec3 sz=xml_attr_v3_cm(n,"size",v3(1,1,1));
 	float insetX=0.0f, insetY=0.0f;
 	xml_attr_2f(n,"inset",0.0f,0.0f,&insetX,&insetY);
 	Mesh mesh=(insetX>0.0f || insetY>0.0f) ? gen_box_inset(sz.x,sz.y,sz.z,insetX,insetY)
@@ -497,15 +505,15 @@ static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 p
 
 static void parse_sphere(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float r=xml_attr_f(n,"radius",0.5f);
+	float r=xml_attr_f_cm(n,"radius",0.5f);
 	Mesh mesh=gen_sphere(r,xml_attr_i(n,"rings",16),xml_attr_i(n,"slices",24)); apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
 
 static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
-	float wall=xml_attr_f(n,"tube",0.0f);
+	float r=xml_attr_f_cm(n,"radius",0.5f), h=xml_attr_f_cm(n,"height",1.0f);
+	float wall=xml_attr_f_cm(n,"tube",0.0f);
 	Mesh mesh=wall>0.0f ? gen_cylinder_tube(r,h,wall,xml_attr_i(n,"sides",24))
 		: gen_cylinder(r,h,xml_attr_i(n,"sides",24));
 	apply_modifiers(&mesh,n);
@@ -514,14 +522,14 @@ static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, v
 
 static void parse_prism(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
+	float r=xml_attr_f_cm(n,"radius",0.5f), h=xml_attr_f_cm(n,"height",1.0f);
 	Mesh mesh=gen_prism(r,h,xml_attr_i(n,"sides",6)); apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
 
 static void parse_cone(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float rb=xml_attr_f(n,"radius",0.5f), rt=xml_attr_f(n,"radiusTop",0.0f), h=xml_attr_f(n,"height",1.0f);
+	float rb=xml_attr_f_cm(n,"radius",0.5f), rt=xml_attr_f_cm(n,"radiusTop",0.0f), h=xml_attr_f_cm(n,"height",1.0f);
 	int sides = xml_attr_i(n,"sides", !strcmp(n->tag,"pyramid")?4:24);
 	Mesh mesh=gen_cone(rb,rt,h,sides); apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
@@ -529,16 +537,16 @@ static void parse_cone(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 
 static void parse_torus(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float R_=xml_attr_f(n,"majorRadius",0.5f), r_=xml_attr_f(n,"minorRadius",0.15f);
+	float R_=xml_attr_f_cm(n,"majorRadius",0.5f), r_=xml_attr_f_cm(n,"minorRadius",0.15f);
 	Mesh mesh=gen_torus(R_,r_,xml_attr_i(n,"majorSegments",24),xml_attr_i(n,"minorSegments",12)); apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
 }
 
 static void parse_arch(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float w=xml_attr_f(n,"width",1.0f), h=xml_attr_f(n,"height",1.5f), d=xml_attr_f(n,"depth",0.2f);
-	float wall=xml_attr_f(n,"tube",xml_attr_f(n,"thickness",0.0f));
-	float archInset=xml_attr_f(n,"inset",0.0f);
+	float w=xml_attr_f_cm(n,"width",1.0f), h=xml_attr_f_cm(n,"height",1.5f), d=xml_attr_f_cm(n,"depth",0.2f);
+	float wall=xml_attr_f_cm(n,"tube",xml_attr_f_cm(n,"thickness",0.0f));
+	float archInset=xml_attr_f_cm(n,"inset",0.0f);
 	Mesh mesh=gen_arch(w,h,d,wall,xml_attr_i(n,"segments",16),archInset);
 	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
@@ -546,7 +554,7 @@ static void parse_arch(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 
 static void parse_capsule(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	float r=xml_attr_f(n,"radius",0.5f), h=xml_attr_f(n,"height",1.0f);
+	float r=xml_attr_f_cm(n,"radius",0.5f), h=xml_attr_f_cm(n,"height",1.0f);
 	Mesh mesh=gen_capsule(r,h,xml_attr_i(n,"rings",12),xml_attr_i(n,"slices",24));
 	apply_modifiers(&mesh,n);
 	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
@@ -677,18 +685,18 @@ static void add_negative_cylinder_openings(Scene *s, mat4 wallM, float L,float H
 
 static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)M;
-	float L=xml_attr_f(n,"length",4.0f), H=xml_attr_f(n,"height",2.7f), T=xml_attr_f(n,"thickness",0.2f);
+	float L=xml_attr_f_cm(n,"length",4.0f), H=xml_attr_f_cm(n,"height",2.7f), T=xml_attr_f_cm(n,"thickness",0.2f);
 	mat4 wallM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
 	Opening *op=NULL; int nop=0,cop=0;
 	for(int k=0;k<n->nkids;k++){
 		XmlNode *c=n->kids[k];
 		if(strcmp(c->tag,"opening")) continue;
 		Opening o; memset(&o,0,sizeof(o));
-		o.x = xml_attr_f(c,"x",0);
-		o.width = xml_attr_f(c,"width",1.0f);
+		o.x = xml_attr_f_cm(c,"x",0);
+		o.width = xml_attr_f_cm(c,"width",1.0f);
 		int isDoor = !strcmp(xml_attr(c,"type","door"),"door");
-		o.height = xml_attr_f(c,"height", isDoor?2.1f:1.2f);
-		o.sill = isDoor? 0.0f : xml_attr_f(c,"sill",0.9f);
+		o.height = xml_attr_f_cm(c,"height", isDoor?2.1f:1.2f);
+		o.sill = isDoor? 0.0f : xml_attr_f_cm(c,"sill",0.9f);
 		o.type = OPENING_RECT;
 		DA_PUSH(op,nop,cop,o);
 	}
@@ -703,8 +711,8 @@ static void parse_line(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
 	vec3 lcolor=xml_attr_v3(n,"color",v3(0.85f,0.15f,0.15f));
 	scene_add_overlay_line(s,
-		mat4_xform_point(M,xml_attr_v3(n,"start",v3(0,0,0))),
-		mat4_xform_point(M,xml_attr_v3(n,"end",v3(0,1,0))),
+		mat4_xform_point(M,xml_attr_v3_cm(n,"start",v3(0,0,0))),
+		mat4_xform_point(M,xml_attr_v3_cm(n,"end",v3(0,1,0))),
 		lcolor,0,xml_attr(n,"camera",NULL));
 }
 
@@ -715,12 +723,12 @@ static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 	if(!strcmp(type,"character")){
 		const char *ref=xml_attr(n,"ref",NULL);
 		CharDef inlineDef={0};
-		inlineDef.height=xml_attr_f(n,"height",0.5f);
-		inlineDef.radius=xml_attr_f(n,"radius",inlineDef.height*0.10f);
-		inlineDef.top=xml_attr_f(n,"top",1.0f);
-		inlineDef.neck=xml_attr_f(n,"neck",0.75f);
-		inlineDef.pelvis=xml_attr_f(n,"pelvis",0.25f);
-		inlineDef.feet=xml_attr_f(n,"feet",0.0f);
+		inlineDef.height=xml_attr_f_cm(n,"height",0.5f);
+		inlineDef.radius=xml_attr_f_cm(n,"radius",inlineDef.height*0.10f);
+		inlineDef.top=xml_attr_f_cm(n,"top",1.0f);
+		inlineDef.neck=xml_attr_f_cm(n,"neck",0.75f);
+		inlineDef.pelvis=xml_attr_f_cm(n,"pelvis",0.25f);
+		inlineDef.feet=xml_attr_f_cm(n,"feet",0.0f);
 		CharDef *cd=&inlineDef;
 		if(ref){
 			cd=NULL;
@@ -729,12 +737,12 @@ static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 		if(cd){
 			const char *targetText=xml_attr(n,"target",NULL);
 			add_character_dummy(s,M,cd,lcolor,xml_attr(n,"camera",NULL),xml_attr(n,"pose","stand"),
-				targetText!=NULL,xml_attr_v3(n,"target",v3(0,0,0)));
+				targetText!=NULL,xml_attr_v3_cm(n,"target",v3(0,0,0)));
 		}
 	} else if(!strcmp(type,"lamp")){
-		add_lamp_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_f(n,"radius",0.15f),lcolor,1,xml_attr(n,"camera",NULL));
+		add_lamp_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_f_cm(n,"radius",0.15f),lcolor,1,xml_attr(n,"camera",NULL));
 	} else if(!strcmp(type,"camera")){
-		add_camera_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_v3(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),1.0f,lcolor,2,xml_attr(n,"camera",NULL));
+		add_camera_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_v3_cm(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),1.0f,lcolor,2,xml_attr(n,"camera",NULL));
 	}
 }
 
@@ -756,7 +764,7 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 		if(!strcmp(root->kids[i]->tag,"attach")){
 			AttachPoint ap;
 			strncpy(ap.name,xml_attr(root->kids[i],"name",""),31);
-			ap.pos=xml_attr_v3(root->kids[i],"pos",v3(0,0,0));
+			ap.pos=xml_attr_v3_cm(root->kids[i],"pos",v3(0,0,0));
 			DA_PUSH(pd.attaches,pd.nattaches,pd.cattaches,ap);
 		}
 	}
@@ -768,29 +776,29 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 static void collect_negative_boxes(Scene *s, XmlNode *parent, mat4 parentM){
 	for(int i=0;i<parent->nkids;i++){
 		XmlNode *n=parent->kids[i];
-		vec3 pos=xml_attr_v3(n,"pos",v3(0,0,0));
+		vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
 		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
 		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
-		vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
+		vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
 		mat4 Tp=mat4_translate(pvt), Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
 		mat4 local=mat4_mul(mat4_translate(pos),
 			mat4_mul(Tp,mat4_mul(mat4_rot_xyz(rot),mat4_mul(Tn,mat4_scale(scl)))));
 		mat4 M=mat4_mul(parentM,local);
 		if(!strcmp(n->tag,"bool-negative-box")){
-			NegativeBox b={M,xml_attr_v3(n,"size",v3(1,1,1))};
+			NegativeBox b={M,xml_attr_v3_cm(n,"size",v3(1,1,1))};
 			DA_PUSH(s->negativeBoxes,s->nnegativeBoxes,s->cnegativeBoxes,b);
 		} else if(!strcmp(n->tag,"bool-negative-arch")){
 			NegativeArch a;
 			a.transform=M;
-			a.width=xml_attr_f(n,"width",1.0f);
-			a.height=xml_attr_f(n,"height",1.5f);
-			a.depth=xml_attr_f(n,"depth",xml_attr_f(n,"size_z",0.3f));
+			a.width=xml_attr_f_cm(n,"width",1.0f);
+			a.height=xml_attr_f_cm(n,"height",1.5f);
+			a.depth=xml_attr_f_cm(n,"depth",xml_attr_f_cm(n,"size_z",0.3f));
 			DA_PUSH(s->negativeArches,s->nnegativeArches,s->cnegativeArches,a);
 		} else if(!strcmp(n->tag,"bool-negative-cylinder")){
 			NegativeCylinder c;
 			c.transform=M;
-			c.radius=xml_attr_f(n,"radius",0.5f);
-			c.depth=xml_attr_f(n,"depth",xml_attr_f(n,"size_z",0.3f));
+			c.radius=xml_attr_f_cm(n,"radius",0.5f);
+			c.depth=xml_attr_f_cm(n,"depth",xml_attr_f_cm(n,"size_z",0.3f));
 			DA_PUSH(s->negativeCylinders,s->nnegativeCylinders,s->cnegativeCylinders,c);
 		} else if(!strcmp(n->tag,"group")){
 			collect_negative_boxes(s,n,M);
@@ -850,7 +858,7 @@ static void parse_light(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 	L.pos=mat4_xform_point(M,v3(0,0,0));
 	L.color=xml_attr_v3(n,"color",v3(1,1,1));
 	L.intensity=xml_attr_f(n,"intensity",1.0f);
-	L.radius=xml_attr_f(n,"radius",0.0f);
+	L.radius=xml_attr_f_cm(n,"radius",0.0f);
 	L.castsShadow=xml_attr_i(n,"castShadows",1);
 	DA_PUSH(s->lights,s->nlights,s->clights,L);
 }
@@ -890,7 +898,7 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		s->sanityFloorActive |= xml_attr_i(n,"sanityFloor",0);
 		s->sanityCheckActive |= xml_attr_i(n,"sanityCheck",0);
 		char *tag=n->tag;
-		vec3 pos=xml_attr_v3(n,"pos",v3(0,0,0));
+		vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
 		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
 		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
 		const char *attach=xml_attr(n,"attach",NULL);
@@ -919,7 +927,7 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 			}
 		}
 		mat4 R = mat4_mul(parentR, mat4_mul(attachRmat, mat4_rot_xyz(rot)));
-		vec3 pvt=xml_attr_v3(n,"pivotOffset",v3(0,0,0));
+		vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
 		mat4 M;
 		if(pvt.x!=0.0f||pvt.y!=0.0f||pvt.z!=0.0f){
 			mat4 Tp=mat4_translate(pvt);
@@ -962,8 +970,8 @@ typedef void (*scene_tag_parser_fn)(Scene *s, XmlNode *n);
 static void parse_camera_tag(Scene *s, XmlNode *n){
 	Camera cam={0}; strncpy(cam.name, xml_attr(n,"name","Camera1"), 31);
 	strncpy(cam.comment, xml_attr(n,"comment",""), 63);
-	cam.pos = xml_attr_v3(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
-	cam.look = xml_attr_v3(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
+	cam.pos = xml_attr_v3_cm(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
+	cam.look = xml_attr_v3_cm(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
 	cam.fov = xml_attr_f(n,"fov",60.0f);
 	DA_PUSH(s->cameras,s->ncameras,s->ccameras,cam);
 	if(s->ncameras==1){

@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scene ambient="0.075 0.055 0.045" background="midnight">
-  <camera name="WorkshopEstablishing" comment="Pip approaches the monumental desk in a low three-quarter workshop establishing view" pos="-1.35 0.32 -2.15" look="1.55 1.48 -9.10" fov="58"/>
-  <camera name="ClockHero" comment="Pip looks up from the commode toward the carved cuckoo clock in a low three-quarter hero view" pos="0.35 1.05 -6.20" look="-2.18 3.24 -10.78" fov="48"/>
-  <camera name="EmptyHookReveal" comment="Pip reaches toward the empty hook and frayed string above the stocked commode" pos="2.00 0.60 -7.60" look="-0.42 1.96 -10.74" fov="32"/>
-  <camera name="DoorExit" comment="Pip approaches the moonlit flap in the monumental main workshop door" pos="-0.20 0.62 -6.25" look="-4.65 1.70 -10.76" fov="49"/>
-  <camera name="OilCanDiscovery" comment="Pip crouches toward the thumb-scale copper oil can under the monumental desk" pos="2.08 0.11 -7.92" look="3.05 0.11 -9.12" fov="32"/>
-  <camera name="WorkbenchClimb" comment="Pip climbs a dynamic diagonal from carved leg to drawer pull and desktop" pos="0.95 0.36 -6.90" look="2.95 1.42 -9.45" fov="52"/>
-  <camera name="WorkbenchTopEstablishing" comment="Pip works among the repair book, toys, tools, and shavings on the desktop" pos="2.15 2.35 -6.95" look="2.65 1.24 -9.45" fov="44"/>
-  <camera name="LadderTraversal" comment="Pip works the rusty winch in a wide vertical composition through complete rungs to the loft" pos="-2.70 0.42 -3.00" look="-5.55 2.20 -5.15" fov="76"/>
-  <camera name="ToolRoute" comment="Pip climbs from crate to chair and books toward the dressed tool desk" pos="1.10 0.72 -1.10" look="4.85 1.52 -3.25" fov="56"/>
-  <camera name="LayoutPlan" comment="Non-production overhead reference tracing Pip through the open circulation route" pos="0 5.92 -5.50" look="0 0 -5.50" fov="104"/>
+  <camera name="WorkshopEstablishing" comment="Pip approaches the monumental desk in a low three-quarter workshop establishing view" pos="-135 32 -215" look="155 148 -910" fov="58"/>
+  <camera name="ClockHero" comment="Pip looks up from the commode toward the carved cuckoo clock in a low three-quarter hero view" pos="35 105 -620" look="-218 324 -1078" fov="48"/>
+  <camera name="EmptyHookReveal" comment="Pip reaches toward the empty hook and frayed string above the stocked commode" pos="200 60 -760" look="-42 196 -1074" fov="32"/>
+  <camera name="DoorExit" comment="Pip approaches the moonlit flap in the monumental main workshop door" pos="-20 62 -625" look="-465 170 -1076" fov="49"/>
+  <camera name="OilCanDiscovery" comment="Pip crouches toward the thumb-scale copper oil can under the monumental desk" pos="208 11 -792" look="305 11 -912" fov="32"/>
+  <camera name="WorkbenchClimb" comment="Pip climbs a dynamic diagonal from carved leg to drawer pull and desktop" pos="95 36 -690" look="295 142 -945" fov="52"/>
+  <camera name="WorkbenchTopEstablishing" comment="Pip works among the repair book, toys, tools, and shavings on the desktop" pos="215 235 -695" look="265 124 -945" fov="44"/>
+  <camera name="LadderTraversal" comment="Pip works the rusty winch in a wide vertical composition through complete rungs to the loft" pos="-270 42 -300" look="-555 220 -515" fov="76"/>
+  <camera name="ToolRoute" comment="Pip climbs from crate to chair and books toward the dressed tool desk" pos="110 72 -110" look="485 152 -325" fov="56"/>
+  <camera name="LayoutPlan" comment="Non-production overhead reference tracing Pip through the open circulation route" pos="0 592 -550" look="0 0 -550" fov="104"/>
 
-  <chardef name="Pip" height="0.30" radius="0.034" top="1" neck="0.72" pelvis="0.34" feet="0"/>
+  <chardef name="Pip" height="30" radius="3.4" top="1" neck="0.72" pelvis="0.34" feet="0"/>
 
   <material id="plaster" color="0.42 0.31 0.22" shininess="3"/>
   <material id="floor" color="0.23 0.13 0.07" shininess="10"/>
@@ -28,87 +28,87 @@
   <material id="ceiling" color="0.25 0.12 0.045" shininess="7"/>
 
   <sun dir="-0.52 -1.08 1" color="0.30 0.47 0.68" intensity="0.72" castShadows="1"/>
-  <light pos="-4.70 0.55 -10.58" color="0.26 0.48 0.72" intensity="2.0" radius="2.8" castShadows="0"/>
+  <light pos="-470 55 -1058" color="0.26 0.48 0.72" intensity="2.0" radius="280" castShadows="0"/>
 
-  <box pos="0 -0.09 -5.50" size="12 0.18 11" material="floor"/>
-  <box pos="0 6.10 -5.50" size="12 0.20 11" material="ceiling"/>
-  <wall pos="0 0 -11" length="12" height="6" thickness="0.24" material="plaster"/>
-  <wall pos="-6 0 -5.50" rot="0 90 0" length="11" height="6" thickness="0.24" material="plaster"/>
-  <wall pos="6 0 -5.50" rot="0 90 0" length="11" height="6" thickness="0.24" material="plaster"/>
-  <wall pos="0 0 0" length="12" height="6" thickness="0.24" material="plaster" renderable="0" castShadow="1"/>
+  <box pos="0 -9 -550" size="1200 18 1100" material="floor"/>
+  <box pos="0 610 -550" size="1200 20 1100" material="ceiling"/>
+  <wall pos="0 0 -1100" length="1200" height="600" thickness="24" material="plaster"/>
+  <wall pos="-600 0 -550" rot="0 90 0" length="1100" height="600" thickness="24" material="plaster"/>
+  <wall pos="600 0 -550" rot="0 90 0" length="1100" height="600" thickness="24" material="plaster"/>
+  <wall pos="0 0 0" length="1200" height="600" thickness="24" material="plaster" renderable="0" castShadow="1"/>
 
-  <box pos="0 5.80 -10.84" size="11.60 0.26 0.20" material="dark_wood"/>
-  <box pos="-5.72 2.90 -10.84" size="0.22 5.80 0.20" material="dark_wood"/>
-  <box pos="-3.55 2.90 -10.84" size="0.20 5.80 0.20" material="dark_wood"/>
-  <box pos="-1.30 2.90 -10.84" size="0.20 5.80 0.20" material="dark_wood"/>
-  <box pos="0.85 2.90 -10.84" size="0.20 5.80 0.20" material="dark_wood"/>
-  <box pos="4.05 2.90 -10.84" size="0.20 5.80 0.20" material="dark_wood"/>
-  <box pos="5.72 2.90 -10.84" size="0.22 5.80 0.20" material="dark_wood"/>
-  <box pos="-3.25 5.25 -10.73" rot="0 0 -45" size="0.14 1.10 0.16" material="wood"/>
-  <box pos="4.35 5.25 -10.73" rot="0 0 45" size="0.14 1.10 0.16" material="wood"/>
+  <box pos="0 580 -1084" size="1160 26 20" material="dark_wood"/>
+  <box pos="-572 290 -1084" size="22 580 20" material="dark_wood"/>
+  <box pos="-355 290 -1084" size="20 580 20" material="dark_wood"/>
+  <box pos="-130 290 -1084" size="20 580 20" material="dark_wood"/>
+  <box pos="85 290 -1084" size="20 580 20" material="dark_wood"/>
+  <box pos="405 290 -1084" size="20 580 20" material="dark_wood"/>
+  <box pos="572 290 -1084" size="22 580 20" material="dark_wood"/>
+  <box pos="-325 525 -1073" rot="0 0 -45" size="14 110 16" material="wood"/>
+  <box pos="435 525 -1073" rot="0 0 45" size="14 110 16" material="wood"/>
 
-  <box pos="0 5.72 -1.25" size="12 0.24 0.24" material="dark_wood"/>
-  <box pos="0 5.72 -4.25" size="12 0.24 0.24" material="dark_wood"/>
-  <box pos="0 5.72 -7.25" size="12 0.24 0.24" material="dark_wood"/>
-  <box pos="-4.30 5.86 -5.50" size="0.24 0.24 11" material="dark_wood"/>
-  <box pos="0 5.86 -5.50" size="0.24 0.24 11" material="dark_wood"/>
-  <box pos="4.30 5.86 -5.50" size="0.24 0.24 11" material="dark_wood"/>
+  <box pos="0 572 -125" size="1200 24 24" material="dark_wood"/>
+  <box pos="0 572 -425" size="1200 24 24" material="dark_wood"/>
+  <box pos="0 572 -725" size="1200 24 24" material="dark_wood"/>
+  <box pos="-430 586 -550" size="24 24 1100" material="dark_wood"/>
+  <box pos="0 586 -550" size="24 24 1100" material="dark_wood"/>
+  <box pos="430 586 -550" size="24 24 1100" material="dark_wood"/>
 
-  <prefab source="workshop/door" pos="-4.68 0 -11" sanityIgnore="1"/>
-  <prefab source="workshop/clock" pos="-2.30 3.55 -10.83"/>
-  <prefab source="workshop/hook" pos="-0.58 2.42 -10.78"/>
-  <prefab source="workshop/commode/stocked" name="clue_commode" pos="-0.58 0 -10.58"/>
-  <prefab source="workshop/window" pos="2.45 3.55 -11" sanityIgnore="1"/>
-  <prefab source="workshop/shelves/jars" pos="4.85 4.65 -10.76"/>
+  <prefab source="workshop/door" pos="-468 0 -1100" sanityIgnore="1"/>
+  <prefab source="workshop/clock" pos="-230 355 -1083"/>
+  <prefab source="workshop/hook" pos="-58 242 -1078"/>
+  <prefab source="workshop/commode/stocked" name="clue_commode" pos="-58 0 -1058"/>
+  <prefab source="workshop/window" pos="245 355 -1100" sanityIgnore="1"/>
+  <prefab source="workshop/shelves/jars" pos="485 465 -1076"/>
 
-  <prefab source="workshop/desks/main" pos="2.65 0 -9.45" scale="1.38 1.38 1.38"/>
-  <prefab source="furniture/stool" pos="2.70 0 -7.75" scale="1.12 1.12 1.12" rot="0 180 0"/>
-  <prefab source="workshop/lamp" pos="2.45 6.00 -8.85" scale="1.08 1.08 1.08"/>
-  <prefab source="items/broom" pos="4.42 0 -8.78" rot="0 0 -9" scale="0.72 0.72 0.72"/>
+  <prefab source="workshop/desks/main" pos="265 0 -945" scale="1.38 1.38 1.38"/>
+  <prefab source="furniture/stool" pos="270 0 -775" scale="1.12 1.12 1.12" rot="0 180 0"/>
+  <prefab source="workshop/lamp" pos="245 600 -885" scale="1.08 1.08 1.08"/>
+  <prefab source="items/broom" pos="442 0 -878" rot="0 0 -9" scale="0.72 0.72 0.72"/>
 
-  <prefab source="workshop/storage/loft" pos="-5.28 4.38 -5.55"/>
-  <prefab source="workshop/ladder" pos="-5.78 0 -5.15" rot="0 90 0"/>
-  <prefab source="workshop/lamp" pos="-4.95 6.00 -5.10" scale="0.82 0.82 0.82"/>
-  <prefab source="workshop/shelves/books" pos="-5.78 3.38 -8.65" rot="0 90 0"/>
-  <prefab source="workshop/storage/cubby" pos="-5.64 0 -8.65" rot="0 90 0"/>
+  <prefab source="workshop/storage/loft" pos="-528 438 -555"/>
+  <prefab source="workshop/ladder" pos="-578 0 -515" rot="0 90 0"/>
+  <prefab source="workshop/lamp" pos="-495 600 -510" scale="0.82 0.82 0.82"/>
+  <prefab source="workshop/shelves/books" pos="-578 338 -865" rot="0 90 0"/>
+  <prefab source="workshop/storage/cubby" pos="-564 0 -865" rot="0 90 0"/>
 
-  <prefab source="workshop/desks/tools" pos="5.08 0 -3.20" rot="0 -90 0" scale="1.20 1.20 1.20"/>
-  <prefab source="workshop/tool-rack" pos="5.80 2.38 -3.15" rot="0 -90 0"/>
-  <prefab source="workshop/shelves/jars" pos="5.80 3.65 -6.20" rot="0 -90 0"/>
-  <prefab source="workshop/shelves/books" pos="5.80 4.62 -6.20" rot="0 -90 0"/>
-  <prefab source="workshop/lamp" pos="5.18 6.00 -3.10" scale="0.92 0.92 0.92"/>
+  <prefab source="workshop/desks/tools" pos="508 0 -320" rot="0 -90 0" scale="1.20 1.20 1.20"/>
+  <prefab source="workshop/tool-rack" pos="580 238 -315" rot="0 -90 0"/>
+  <prefab source="workshop/shelves/jars" pos="580 365 -620" rot="0 -90 0"/>
+  <prefab source="workshop/shelves/books" pos="580 462 -620" rot="0 -90 0"/>
+  <prefab source="workshop/lamp" pos="518 600 -310" scale="0.92 0.92 0.92"/>
 
-  <prefab source="items/wooden_crate" pos="3.48 0 -2.56" rot="0 -8 0" scale="0.70 0.70 0.70" color="0.34 0.17 0.06"/>
-  <prefab source="furniture/chair" name="route_chair" pos="4.18 0 -3.08" rot="0 -90 0" scale="1.05 1.05 1.05"/>
+  <prefab source="items/wooden_crate" pos="348 0 -256" rot="0 -8 0" scale="0.70 0.70 0.70" color="0.34 0.17 0.06"/>
+  <prefab source="furniture/chair" name="route_chair" pos="418 0 -308" rot="0 -90 0" scale="1.05 1.05 1.05"/>
   <group attach="route_chair:seat">
-    <prefab source="items/book" pos="0 0 -0.06" rot="0 -5 0" scale="0.78 0.78 0.78" color="0.12 0.24 0.17"/>
-    <prefab source="items/book" pos="0 0.094 -0.06" rot="0 4 0" scale="0.78 0.78 0.78" color="0.46 0.12 0.08"/>
-    <prefab source="items/book" pos="0 0.188 -0.06" rot="0 -3 0" scale="0.78 0.78 0.78" color="0.10 0.25 0.46"/>
+    <prefab source="items/book" pos="0 0 -6" rot="0 -5 0" scale="0.78 0.78 0.78" color="0.12 0.24 0.17"/>
+    <prefab source="items/book" pos="0 9.4 -6" rot="0 4 0" scale="0.78 0.78 0.78" color="0.46 0.12 0.08"/>
+    <prefab source="items/book" pos="0 18.8 -6" rot="0 -3 0" scale="0.78 0.78 0.78" color="0.10 0.25 0.46"/>
   </group>
-  <prefab source="toys/nutcracker" pos="4.20 0.7944 -3.08" rot="0 -90 0" scale="0.64 0.64 0.64" color="0.54 0.09 0.06"/>
+  <prefab source="toys/nutcracker" pos="420 79.44 -308" rot="0 -90 0" scale="0.64 0.64 0.64" color="0.54 0.09 0.06"/>
 
-  <prefab source="furniture/sawhorse" pos="-2.72 0 -5.05" rot="0 -12 0" scale="0.96 0.96 0.96"/>
-  <prefab source="items/paper_notes" pos="-2.65 0.87 -5.00" rot="0 -13 0" scale="0.62 0.62 0.62"/>
-  <prefab source="items/wooden_crate" pos="-2.10 0 -2.55" rot="0 10 0" scale="0.78 0.78 0.78" color="0.27 0.13 0.05"/>
-  <prefab source="toys/toy_boat" pos="-2.05 0.38 -2.52" rot="0 -17 0" scale="0.68 0.68 0.68" color="0.08 0.30 0.46"/>
-  <prefab source="workshop/hanging-toy" pos="0.45 6.00 -3.20" rot="0 -12 0"/>
+  <prefab source="furniture/sawhorse" pos="-272 0 -505" rot="0 -12 0" scale="0.96 0.96 0.96"/>
+  <prefab source="items/paper_notes" pos="-265 87 -500" rot="0 -13 0" scale="0.62 0.62 0.62"/>
+  <prefab source="items/wooden_crate" pos="-210 0 -255" rot="0 10 0" scale="0.78 0.78 0.78" color="0.27 0.13 0.05"/>
+  <prefab source="toys/toy_boat" pos="-205 38 -252" rot="0 -17 0" scale="0.68 0.68 0.68" color="0.08 0.30 0.46"/>
+  <prefab source="workshop/hanging-toy" pos="45 600 -320" rot="0 -12 0"/>
 
-  <prefab source="workshop/sawdust" pos="-4.35 0 -9.55" rot="0 18 0"/>
-  <prefab source="workshop/sawdust" pos="-3.55 0 -6.70" rot="0 -27 0" scale="0.88 0.88 0.88"/>
-  <prefab source="workshop/sawdust" pos="-4.60 0 -3.20" rot="0 34 0"/>
-  <prefab source="workshop/sawdust" pos="0.35 0 -8.15" rot="0 -12 0" scale="0.92 0.92 0.92"/>
-  <prefab source="workshop/sawdust" pos="2.05 0 -5.55" rot="0 22 0"/>
-  <prefab source="workshop/sawdust" pos="4.55 0 -6.85" rot="0 -8 0" scale="0.86 0.86 0.86"/>
-  <prefab source="workshop/sawdust" pos="4.65 0 -1.25" rot="0 31 0"/>
+  <prefab source="workshop/sawdust" pos="-435 0 -955" rot="0 18 0"/>
+  <prefab source="workshop/sawdust" pos="-355 0 -670" rot="0 -27 0" scale="0.88 0.88 0.88"/>
+  <prefab source="workshop/sawdust" pos="-460 0 -320" rot="0 34 0"/>
+  <prefab source="workshop/sawdust" pos="35 0 -815" rot="0 -12 0" scale="0.92 0.92 0.92"/>
+  <prefab source="workshop/sawdust" pos="205 0 -555" rot="0 22 0"/>
+  <prefab source="workshop/sawdust" pos="455 0 -685" rot="0 -8 0" scale="0.86 0.86 0.86"/>
+  <prefab source="workshop/sawdust" pos="465 0 -125" rot="0 31 0"/>
 
-  <dummy type="character" ref="Pip" camera="WorkshopEstablishing" pos="-0.30 0 -6.30" rot="0 141 0" pose="walk" target="2.65 1.05 -9.45" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="ClockHero" pos="-0.12 1.25 -10.40" rot="0 -164 0" pose="look" target="-2.30 3.55 -10.83" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="EmptyHookReveal" pos="-0.12 1.25 -10.40" rot="0 180 0" pose="reach" target="-0.58 2.42 -10.78" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="DoorExit" pos="-4.42 0 -9.92" rot="0 -166 0" pose="walk" target="-4.68 0.32 -10.84" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="OilCanDiscovery" pos="2.58 0 -8.62" rot="0 153 0" pose="crouch" target="3.06 0.08 -9.12" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="WorkbenchClimb" pos="2.18 0.58 -8.77" rot="0 90 0" pose="climb" target="2.65 1.04 -8.74" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="WorkbenchTopEstablishing" pos="2.64 1.297 -9.18" rot="0 174 0" pose="work" target="2.90 1.34 -9.62" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="LadderTraversal" pos="-5.38 0 -4.47" rot="0 -157 0" pose="work" target="-5.51 0.54 -4.59" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="ToolRoute" pos="3.48 0.336 -2.56" rot="0 115 0" pose="climb" target="4.18 0.48 -3.08" color="0.16 0.72 0.95"/>
-  <dummy type="character" ref="Pip" camera="LayoutPlan" pos="0 0 -5.50" rot="0 122 0" pose="walk" target="4.85 0.80 -3.20" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="WorkshopEstablishing" pos="-30 0 -630" rot="0 141 0" pose="walk" target="265 105 -945" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="ClockHero" pos="-12 125 -1040" rot="0 -164 0" pose="look" target="-230 355 -1083" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="EmptyHookReveal" pos="-12 125 -1040" rot="0 180 0" pose="reach" target="-58 242 -1078" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="DoorExit" pos="-442 0 -992" rot="0 -166 0" pose="walk" target="-468 32 -1084" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="OilCanDiscovery" pos="258 0 -862" rot="0 153 0" pose="crouch" target="306 8 -912" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="WorkbenchClimb" pos="218 58 -877" rot="0 90 0" pose="climb" target="265 104 -874" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="WorkbenchTopEstablishing" pos="264 129.7 -918" rot="0 174 0" pose="work" target="290 134 -962" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="LadderTraversal" pos="-538 0 -447" rot="0 -157 0" pose="work" target="-551 54 -459" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="ToolRoute" pos="348 33.6 -256" rot="0 115 0" pose="climb" target="418 48 -308" color="0.16 0.72 0.95"/>
+  <dummy type="character" ref="Pip" camera="LayoutPlan" pos="0 0 -550" rot="0 122 0" pose="walk" target="485 80 -320" color="0.16 0.72 0.95"/>
 </scene>
