@@ -101,7 +101,7 @@ Density percentages refer to projected visible silhouette/tonal-mass area in the
 | Study accessible | Clock swings outward; narrow stair appears behind wall position | Clock hinge rotation and stair visibility variant | Helper may be staged near latch |
 | Endgame | Existing geometry retained | Warmer light/intensity variant | Companion staging may change |
 
-The current single scene represents the initial workshop state; later state variants should be separate scene files or explicit future state assets, not silently conflated.
+The shared scene keeps the initial workshop as its authored base state. Shot-specific state changes use explicit camera transforms: `ClockHero` opens the named clock around its hinge while every other camera restores the closed pose. Future variants should follow the same explicit camera-scoped pattern or use separate scene files when they require more than transforms.
 
 ## Lighting and palette
 

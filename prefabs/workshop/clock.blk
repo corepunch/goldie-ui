@@ -2,6 +2,8 @@
 <!-- clock: wall-mount origin at dial center, footprint 1.46x2.78, front faces +Z. -->
 <prefab>
   <attach name="hinge" pos="-70 0 0"/>
+  <cylinder pos="-67 32 -2" radius="6.5" height="24" sides="12" material="brass"/>
+  <cylinder pos="-67 -70 -2" radius="6.5" height="24" sides="12" material="brass"/>
   <arch pos="0 18 10" width="134" height="206" depth="24" segments="3" material="dark_wood"/>
   <arch pos="0 8 23.5" width="110" height="170" depth="8" tube="0.10" segments="3" material="wood"/>
   <box pos="0 -66 25" size="116 18 18" material="wood"/>

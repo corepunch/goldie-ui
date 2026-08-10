@@ -9,7 +9,7 @@
 | Copper oil can under bench | Small copper can in the front edge of a readable under-bench niche | `OilCanDiscovery` |
 | Sawdust and shavings | Perimeter clusters, curls and composite bench-surface dressing | `WorkshopEstablishing`, `WorkbenchClimb` |
 | Main exit and Pip-sized flap | Full plank door with casing, braces, hardware and brass-framed flap | `DoorExit` |
-| Cuckoo clock | Peaked faceted-arch case, cuckoo opening, dial ticks, near-midnight hands, pendulum and weights | `ClockHero`, `EmptyHookReveal` |
+| Cuckoo clock and hidden study stair | Peaked faceted-arch case, cuckoo opening, dial ticks, near-midnight hands, pendulum and weights; modeled wall opening and rising stair behind it | `ClockHero`, `EmptyHookReveal` |
 | Folding loft ladder and mechanism | Ladder, rungs, winch and crank in initial stuck configuration | `LadderTraversal` |
 | Pip's broom | Broom retained near the main bench route | `WorkshopEstablishing` |
 | Tool-bench climb geography | Crate/chair/book route leads into a composite dressed desk and tool wall | `ToolRoute` |
@@ -23,7 +23,7 @@
 | Hero furniture | Composite main/tool desks, stocked commode, door, architectural clock and ladder |
 | Functional storage | Stocked commode bays, stocked shelves, cubby, tool rack and populated loft |
 | Work and floor clusters | Composite desk contents, books, jars, boxes, toy parts, hanging toy and sawdust clusters |
-| Hardware and accents | Drawer pulls, vise, door straps/ring, ladder winch, detailed clock, hook and window rosette |
+| Hardware and accents | Drawer pulls, vise, door straps/ring, ladder winch, detailed clock with three cylindrical brass hinge barrels, hook and window rosette |
 
 ## Deliberate spacing audit
 
@@ -34,12 +34,12 @@
 - Workbench props live in composite prefabs, form clusters, and leave the climb landing and vise clear.
 - The open center floor preserves Pip's circulation.
 - Character blocking is camera-local, so alternate Pip poses never appear together as duplicates in a story shot.
+- The named clock uses an authored hinge pivot and opens only in `ClockHero`; camera selection rebuilds the base scene so `EmptyHookReveal` and all other shots retain the closed clock.
 
 ## Deferred state assets
 
 - Oil-can-removed variant and residual dust silhouette.
 - Oiled/raised ladder and operational mechanism.
-- Clock swung open with concealed stair.
 - Pet-flap movement variant.
 - Endgame lighting variant.
 

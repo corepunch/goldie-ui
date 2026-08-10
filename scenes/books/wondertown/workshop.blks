@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scene ambient="0.075 0.055 0.045" background="midnight">
   <camera name="WorkshopEstablishing" comment="Pip approaches the monumental desk in a low three-quarter workshop establishing view" pos="-135 32 -215" look="155 148 -910" fov="58"/>
-  <camera name="ClockHero" comment="Pip looks up from the commode toward the carved cuckoo clock in a low three-quarter hero view" pos="35 105 -620" look="-218 324 -1078" fov="48"/>
+  <camera name="ClockHero" comment="Pip looks up as the cuckoo clock swings open to reveal the hidden study stair" pos="35 105 -620" look="-218 324 -1078" fov="48">
+    <transform target="secret_clock" rot="0 -118 0"/>
+  </camera>
   <camera name="EmptyHookReveal" comment="Pip reaches toward the empty hook and frayed string above the stocked commode" pos="200 60 -760" look="-42 196 -1074" fov="32"/>
   <camera name="DoorExit" comment="Pip approaches the moonlit flap in the monumental main workshop door" pos="-20 62 -625" look="-465 170 -1076" fov="49"/>
   <camera name="OilCanDiscovery" comment="Pip crouches toward the thumb-scale copper oil can under the monumental desk" pos="208 11 -792" look="305 11 -912" fov="32"/>
@@ -54,12 +56,15 @@
   <box pos="0 586 -550" size="24 24 1100" material="dark_wood"/>
   <box pos="430 586 -550" size="24 24 1100" material="dark_wood"/>
 
+<<<<<<< HEAD
   <prefab source="workshop/door" pos="-468 0 -1100" sanityIgnore="1"/>
-  <prefab source="workshop/clock" pos="-230 355 -1083"/>
+  <prefab source="workshop/clock-passage" pos="-230 355 -1100" sanityIgnore="1"/>
+  <prefab source="workshop/clock" name="secret_clock" pos="-230 355 -1083" pivotOffset="-70 0 0"/>
   <prefab source="workshop/hook" pos="-58 242 -1078"/>
   <prefab source="workshop/commode/stocked" name="clue_commode" pos="-58 0 -1058"/>
   <prefab source="workshop/window" pos="245 355 -1100" sanityIgnore="1"/>
   <prefab source="workshop/shelves/jars" pos="485 465 -1076"/>
+
 
   <prefab source="workshop/desks/main" pos="265 0 -945" scale="1.38 1.38 1.38"/>
   <prefab source="furniture/stool" pos="270 0 -775" scale="1.12 1.12 1.12" rot="0 180 0"/>

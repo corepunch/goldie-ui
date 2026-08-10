@@ -117,6 +117,28 @@ Defines a viewpoint. Multiple cameras allowed; select via `-cam Name` on the com
 
 When no `<camera>` tag is present, a default "Camera1" is created with the defaults above.
 
+A camera may contain additive `<transform>` overrides for named shapes, groups,
+or prefab instances. The target keeps its authored transform in every other
+camera. Override translation is local to the target, rotation uses the target's
+authored `pivotOffset`, and scale multiplies the authored scale. Camera changes
+restore the scene from XML before applying the selected shot's overrides, so a
+pose cannot leak between shots.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `target` | string | (required) | `name` of the shape, group, or prefab to transform |
+| `pos` | vec3 | 0 0 0 | Additive local translation |
+| `rot` | vec3 | 0 0 0 | Additive local Euler rotation |
+| `scale` | vec3 | 1 1 1 | Multiplicative local scale |
+
+```xml
+<camera name="ClockReveal" pos="0 1 4" look="0 2 0" fov="48">
+  <transform target="secret_clock" rot="0 118 0"/>
+</camera>
+<prefab source="workshop/clock" name="secret_clock"
+        pos="0 2 0" pivotOffset="0.70 0 0"/>
+```
+
 ### `<material>`
 
 Named material referenced by shapes via the `material` attribute. Scene-defined materials override built-in presets of the same name.
