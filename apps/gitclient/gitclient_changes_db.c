@@ -39,7 +39,7 @@ static result_t changes_file_object_proc(const void *object, uint32_t msg,
     case 0: snprintf(buf, buf_sz, "%d", f->id);          return true;
     case 1: snprintf(buf, buf_sz, "%d", f->commit_id);   return true;
     case 2: snprintf(buf, buf_sz, "%s", f->path);         return true;
-    case 3: snprintf(buf, buf_sz, "%s", f->status);       return true;
+    case 3: snprintf(buf, buf_sz, "%s", gc_status_label(f->status[0])); return true;
     case 4: snprintf(buf, buf_sz, "%d", f->staged ? 1 : 0); return true;
   }
   return false;

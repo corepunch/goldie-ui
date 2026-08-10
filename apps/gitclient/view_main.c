@@ -10,7 +10,6 @@
 
 void gc_set_view_mode(bool history) {
   gc_state_t *gc = g_gc; if (!gc || !gc->main_win) return;
-  GC_TRACE("set_view_mode %s", history ? "HISTORY" : "CHANGES");
   gc->history_mode = history;
   if (gc->tabs_win) send_message(gc->tabs_win, tcSetSelection, history ? 1 : 0, NULL);
   gc->files_win = history ? gc->history_files_win : gc->changes_files_win;
@@ -19,12 +18,13 @@ void gc_set_view_mode(bool history) {
     gc->selected_commit = -1;
     gc->selected_file = -1;
     send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
-    gc->selected_file = -1;   // reset — always show full working-tree diff on tab switch
+    gc->selected_file = -1;
   } else if (history) {
     gc->selected_commit = gc->log_win ? (int)send_message(gc->log_win, RVM_GETSELECTION, 0, NULL) : -1;
     gc->selected_file = -1;
   }
-  GC_TRACE("set_view_mode done: diff_win=%p files_win=%p commit=%d file=%d",
+  GC_TRACE("set_view_mode %s: diff_win=%p files_win=%p commit=%d file=%d",
+           history ? "HISTORY" : "CHANGES",
            (void *)gc->diff_win, (void *)gc->files_win, gc->selected_commit, gc->selected_file);
   gc_diff_refresh();
   invalidate_window(gc->main_win);
@@ -103,8 +103,6 @@ void gc_refresh_all(void) {
 
   gc_diff_refresh();
   gc_update_status();
-  GC_TRACE("refresh_all end: diff_win=%p commit=%d file=%d",
-           (void *)gc->diff_win, gc->selected_commit, gc->selected_file);
 }
 
 void gc_update_status(void) {
@@ -128,8 +126,7 @@ void gc_update_status(void) {
   if (gc->repo) {
     set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_HINT,
                          st.initial ? "Create the first commit" : "Commit staged changes");
-    set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_NOW,
-                         st.head[0] && !st.detached ? "Commit to %s" : "Commit", st.head);
+    set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_NOW, "Commit");
   }
 }
 
@@ -245,12 +242,11 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           gc->selected_commit = -1;
           gc->selected_file   = -1;
         } else if (src == gc->log_win) {
-          GC_TRACE("SELCHANGE log row=%d prev_commit=%d", sel, gc->selected_commit);
           if (sel != gc->selected_commit) {
             gc->selected_commit = sel;
             gc->selected_file   = -1;
             int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
-            GC_TRACE("  log: active_tab=%d refresh_diff=%d", active_tab, active_tab == 1);
+            GC_TRACE("SELCHANGE log row=%d active_tab=%d", sel, active_tab);
             if (active_tab == 1) {
               gc->files_win = gc->history_files_win;
               gc->diff_win = gc->history_diff_win;
@@ -261,16 +257,13 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
           bool active = (src == gc->changes_files_win && active_tab == 0) ||
                         (src == gc->history_files_win && active_tab == 1);
-          GC_TRACE("SELCHANGE %s row=%d prev_file=%d active_tab=%d active=%d",
-                   src == gc->changes_files_win ? "changes_files" : "history_files",
-                   sel, gc->selected_file, active_tab, (int)active);
           if (active && sel != gc->selected_file) {
             if (src == gc->changes_files_win) gc->selected_commit = -1;
             gc->files_win = src;
             gc->diff_win = src == gc->changes_files_win ? gc->changes_diff_win : gc->history_diff_win;
             gc->selected_file = sel;
-            GC_TRACE("  -> gc_diff_refresh: diff_win=%p files_win=%p",
-                     (void *)gc->diff_win, (void *)gc->files_win);
+            GC_TRACE("SELCHANGE %s row=%d -> diff_refresh",
+                     src == gc->changes_files_win ? "changes_files" : "history_files", sel);
             gc_diff_refresh();
           }
         }
@@ -280,11 +273,11 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       if (code == RVN_ITEMCHECK) {
         if (!gc || (window_t *)lparam != gc->changes_files_win) return true;
         int row = (int)(int16_t)LOWORD(wparam);
-        GC_TRACE("ITEMCHECK changes_files row=%d", row);
         db_file_t *file = (db_file_t *)(intptr_t)send_message(
           gc->changes_files_win, tvGetRecord, (uint32_t)row, NULL);
         bool checked = ReportView_GetCheckState(gc->changes_files_win, row);
-        GC_TRACE("  file=%s staged=%d checked=%d", file ? file->path : "(null)", file ? (int)file->staged : -1, (int)checked);
+        GC_TRACE("ITEMCHECK changes_files row=%d file=%s staged=%d checked=%d",
+                 row, file ? file->path : "(null)", file ? (int)file->staged : -1, (int)checked);
         if (file) {
           bool ok = checked ? gc_stage_file(file->path) : gc_unstage_file(file->path);
           if (!ok) message_box(gc->main_win, "Operation failed.", "File", MB_OK);

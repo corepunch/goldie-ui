@@ -190,8 +190,8 @@
                                        check-field="staged"
                                        context-menu="files"
                                        flags="notitle,nofill,vscroll,flexspace">
-                                <Column field="status" title="St" width="20" />
                                 <Column field="path" title="File" width="0" />
+                                <Column field="status" title="Status" width="64" />
                             </TableView>
                             <label name="commit_hint" text="Commit staged changes" />
                             <textedit name="commit_summary" text="" />
@@ -235,8 +235,8 @@
                                 </TableView>
                                 <TableView name="history_files" source="db.files" master="log"
                                            flags="notitle,nofill,vscroll,flexspace">
-                                    <Column field="status" title="St" width="20" />
                                     <Column field="path" title="File" width="0" />
+                                    <Column field="status" title="Status" width="64" />
                                 </TableView>
                             </SplitView>
                             <DiffView name="history_diff" flags="notitle,nofill,vscroll,flexspace"/>

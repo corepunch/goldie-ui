@@ -46,6 +46,24 @@
 } while (0)
 
 // ============================================================
+// Status display
+// ============================================================
+
+static const char *gc_status_label(char c) {
+  switch (c) {
+    case 'M': return "Modified";
+    case 'A': return "Added";
+    case 'D': return "Deleted";
+    case 'R': return "Renamed";
+    case 'C': return "Copied";
+    case 'U': return "Conflicted";
+    case '?': return "Untracked";
+    case 'T': return "Type changed";
+    default:  return "";
+  }
+}
+
+// ============================================================
 // Layout constants
 // ============================================================
 
@@ -253,6 +271,13 @@ typedef struct {
   accel_table_t *accel;
   hinstance_t    hinstance;
   bool           history_mode;
+
+  int  last_diff_commit;
+  int  last_diff_file;
+  char last_diff_path[512];
+  bool last_diff_staged;
+  bool last_diff_untracked;
+  bool last_diff_unified;
 } gc_state_t;
 
 extern gc_state_t *g_gc;
