@@ -589,5 +589,6 @@ void ddx_push_combo(window_t *dlg, const ctrl_binding_t *b, const void *state) {
 void ddx_pull_combo(window_t *dlg, const ctrl_binding_t *b, void *state) {
   char *base = (char *)state;
   window_t *ctrl = get_window_item(dlg, b->ctrl_id);
-  // ...rest of code unchanged...
+  if (!ctrl) return;
+  *(int32_t *)(base + b->offset) = (int32_t)send_message(ctrl, cbGetCurrentSelection, 0, NULL);
 }

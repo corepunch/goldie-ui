@@ -729,8 +729,7 @@ int main(int argc, char **argv) {
       (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
   emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
   emit_menus(f, menus); emit_context_menus(f, contexts); emit_toolbars(f, toolbars); emit_database(f, database, pre);
-  int emitted = 0;
-  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; emitted++; } free(name); }
+  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; } free(name); }
   OUT("#endif /* %s */\n", guard);
   fclose(f); xmlFreeDoc(doc);
   return 0;
