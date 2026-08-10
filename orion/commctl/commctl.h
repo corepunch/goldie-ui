@@ -125,6 +125,7 @@ enum {
   tvRefresh = evUser + 260,
   tvSetFilter,
   tvGetSelectedRecord,
+  tvGetRecord,              // wparam = row index; returns bound record pointer
 };
 
 typedef struct {
@@ -135,6 +136,7 @@ typedef struct {
   const char **field_names;    // Column field names (NULL-terminated)
   const char **column_titles;  // Column display titles (NULL-terminated)
   const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
+  const char *check_field;     // Boolean state-image binding (NULL = no checkboxes)
   uint32_t master_id;          // Parent TableView control ID (0 = unbound)
   int master_filter_field;     // Child FK field used by dbFetch (integer FK only)
   const char *master_key;      // Parent field referenced by the FK (must be integer)

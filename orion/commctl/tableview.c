@@ -56,6 +56,7 @@ typedef struct {
   char **column_titles;
   int *column_widths;
   int column_count;
+  char *check_field;
   
   // DDX-style field extraction
   db_object_proc_t obj_proc;          // Object handler proc for this table
@@ -215,6 +216,11 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
       .userdata = (uint32_t)row_idx,
       .subitem_count = (uint32_t)((s->column_count > 1) ? (s->column_count - 1) : 0),
     };
+    if (s->check_field) {
+      char checked[16] = {0};
+      tv_get_field_text(s, record, s->check_field, checked, sizeof(checked));
+      item.state = RV_INDEXTOSTATEIMAGEMASK(atoi(checked) ? 2 : 1);
+    }
     
     for (int col = 1; col < s->column_count; col++) {
       item.subitems[col - 1] = cell_buf[col];
@@ -294,6 +300,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->master_id = params->master_id;
       s->master_filter_field = params->master_filter_field;
       s->master_key = params->master_key ? strdup(params->master_key) : NULL;
+      s->check_field = params->check_field ? strdup(params->check_field) : NULL;
       TV_LOG("create: id=%u table=%d db=%p columns=%d", (unsigned)win->id,
              s->table_id, (void *)s->db, count_strings(params->field_names));
       
@@ -310,6 +317,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
                  (unsigned)win->id, s->table_id, (void *)s->obj_proc,
                  (void *)s->bindings, s->binding_count);
           free(s->master_key);
+          free(s->check_field);
           free(s);
           win->userdata = NULL;
           return true;
@@ -320,6 +328,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->column_count = count_strings(params->field_names);
       if (s->column_count <= 0) {
         free(s->master_key);
+        free(s->check_field);
         free(s);
         win->userdata = NULL;
         return true;
@@ -336,6 +345,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free_string_array(s->column_titles);
         free(s->column_widths);
         free(s->master_key);
+        free(s->check_field);
         free(s->rows);
         free(s);
         win->userdata = NULL;
@@ -344,6 +354,9 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       
       // Setup as reportview
       send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+      if (s->check_field)
+        send_message(win, RVM_SETEXTENDEDSTYLE, RVS_EX_CHECKBOXES,
+                     (void *)(uintptr_t)RVS_EX_CHECKBOXES);
       
       // Initial refresh (only if db is set)
       if (s->db) {
@@ -359,6 +372,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free_string_array(s->column_titles);
         free(s->column_widths);
         free(s->master_key);
+        free(s->check_field);
         free(s->rows);
         free(s);
         win->userdata = NULL;
@@ -409,6 +423,10 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       return (s && row >= 0 && row < s->row_count)
         ? (result_t)(intptr_t)s->rows[row] : 0;
     }
+
+    case tvGetRecord:
+      return (s && (int)wparam >= 0 && (int)wparam < s->row_count)
+        ? (result_t)(intptr_t)s->rows[wparam] : 0;
 
     // evArrange and evResize now inherited from reportview
     // (reportview evResize automatically recalculates column widths)

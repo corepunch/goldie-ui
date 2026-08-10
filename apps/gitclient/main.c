@@ -33,6 +33,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_gc->selected_commit = -1;
   g_gc->selected_file   = -1;
   g_gc->unified_diff    = true;
+  gc_recent_load();
 
   // Register database class and create database.
   DB_CLASS(gitclient_db);
@@ -74,7 +75,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
       git_repo_close(cwd_repo);
       gc_open_repo(".");
     } else {
-      GC_LOG("startup directory is not a repository; waiting for Open Repository");
+      if (g_gc->recent_repo_count > 0) gc_open_repo(g_gc->recent_repos[0]);
+      else GC_LOG("startup directory is not a repository; waiting for Open Repository");
     }
   }
 

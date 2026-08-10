@@ -221,6 +221,38 @@ The generated form stores the immutable menu descriptor on the control. The
 control opens it at the pointer position; application code handles command IDs
 and does not populate the menu programmatically.
 
+### Data-bound TableView checkboxes
+
+`TableView` supports WinAPI-style list-view state images with a DBKit-style
+boolean binding. Declare `check-field` on the view; the field need not also be
+a visible column:
+
+```xml
+<TableView name="files" source="db.files" check-field="staged">
+    <Column field="status" title="St" width="24" />
+    <Column field="path" title="File" width="0" />
+</TableView>
+```
+
+The generated `tableview_params_t` binds each row's unchecked/checked state to
+the `staged` field. Clicking the state image or pressing Space emits
+`RVN_ITEMCHECK`; `LOWORD(wparam)` is the row and `lparam` is the source view.
+Use `tvGetRecord` to retrieve the bound record, apply the domain action, then
+refresh the view. This keeps the database/model authoritative instead of
+silently mutating a cache inside the control.
+
+The underlying ReportView follows the WinAPI state-image convention:
+
+```c
+send_message(view, RVM_SETEXTENDEDSTYLE, RVS_EX_CHECKBOXES,
+             (void *)(uintptr_t)RVS_EX_CHECKBOXES);
+ReportView_SetCheckState(view, row, true);
+bool checked = ReportView_GetCheckState(view, row);
+```
+
+State-image indices are one-based and stored under `RVIS_STATEIMAGEMASK`,
+matching `LVS_EX_CHECKBOXES`/`LVIS_STATEIMAGEMASK` semantics.
+
 ## Console
 
 ```c

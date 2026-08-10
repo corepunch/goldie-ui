@@ -77,6 +77,48 @@ static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wpa
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 
+static bool report_hit_checkbox(window_t *win, reportview_data_t *data,
+                                uint32_t wparam, int *index_out) {
+  if (!data || !(data->extended_style & RVS_EX_CHECKBOXES)) return false;
+  int row = report_hit_index(win, data, wparam);
+  if (!rv_valid_index(data, row)) return false;
+  int mx = (int16_t)LOWORD(wparam);
+  int first_x = -(int)win->hscroll.pos + WIN_PADDING;
+  if (mx < first_x || mx >= first_x + CHECKBOX_BOX_SIZE + CHECKBOX_GAP) return false;
+  if (index_out) *index_out = row;
+  return true;
+}
+
+static void report_draw_checkbox(irect16_t box, bool checked, uint32_t fg,
+                                 uint32_t bg) {
+  fill_rect(bg, box);
+  fill_rect(fg, R(box.x,             box.y,             box.w, 1));
+  fill_rect(fg, R(box.x,             box.y + box.h - 1, box.w, 1));
+  fill_rect(fg, R(box.x,             box.y,             1, box.h));
+  fill_rect(fg, R(box.x + box.w - 1, box.y,             1, box.h));
+  if (checked) draw_theme_icon_in_rect(THEME_ICON_CHECKMARK, box, fg);
+}
+
+static bool report_set_item_state(window_t *win, reportview_data_t *data,
+                                  int index, uint32_t state, uint32_t mask,
+                                  bool notify) {
+  if (!rv_valid_index(data, index)) return false;
+  uint32_t old = data->items[index].state;
+  data->items[index].state = (old & ~mask) | (state & mask);
+  if (old != data->items[index].state) {
+    rv_invalidate(win, data);
+    if (notify) rv_notify(win, data, index, RVN_ITEMCHECK);
+  }
+  return true;
+}
+
+static bool report_toggle_check(window_t *win, reportview_data_t *data, int index) {
+  if (!rv_valid_index(data, index) || !(data->extended_style & RVS_EX_CHECKBOXES)) return false;
+  bool checked = RV_STATEIMAGEINDEX(data->items[index].state) == 2;
+  return report_set_item_state(win, data, index,
+    RV_INDEXTOSTATEIMAGEMASK(checked ? 1 : 2), RVIS_STATEIMAGEMASK, true);
+}
+
 static int report_hit_column_edge(window_t *win, reportview_data_t *data,
                                   int eff_w, int mx, int my) {
 #if REPORTVIEW_RESIZE_FULL_HEIGHT
@@ -180,8 +222,17 @@ static void report_paint(window_t *win, reportview_data_t *data) {
         uint32_t idx = col - 1;
         src = (idx < it->subitem_count && it->subitems[idx]) ? it->subitems[idx] : "";
       }
-      draw_text_clipped(FONT_SMALL, src, &(irect16_t){draw_x, y, col_w, ENTRY_HEIGHT},
-                        fg, TEXT_PADDING_LEFT);
+      int text_x = draw_x + WIN_PADDING;
+      if (col == 0 && (data->extended_style & RVS_EX_CHECKBOXES)) {
+        irect16_t box = {text_x,
+                         y + MAX(0, (ENTRY_HEIGHT - CHECKBOX_BOX_SIZE) / 2),
+                         CHECKBOX_BOX_SIZE, CHECKBOX_BOX_SIZE};
+        uint32_t box_bg = row == data->selected ? get_sys_color(brTextNormal) : bg_col;
+        report_draw_checkbox(box, RV_STATEIMAGEINDEX(it->state) == 2, fg, box_bg);
+        text_x += CHECKBOX_BOX_SIZE + CHECKBOX_GAP;
+      }
+      irect16_t text_rect = {text_x, y, MAX(0, draw_x + col_w - text_x), ENTRY_HEIGHT};
+      draw_text_clipped(FONT_SMALL, src, &text_rect, fg, 0);
     }
 
     col_x += col_w;
@@ -307,7 +358,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         set_capture(win);
         return true;
       }
-      // Otherwise select row
+      // Otherwise select row; the state image toggles independently of row selection.
       int index = report_hit_index(win, data, wparam);
       if (rv_valid_index(data, index)) {
         uint32_t now = axGetMilliseconds();
@@ -323,6 +374,9 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
             rv_notify(win, data, index, RVN_SELCHANGE);
           rv_invalidate(win, data);
         }
+        int checked_index = -1;
+        if (report_hit_checkbox(win, data, wparam, &checked_index))
+          report_toggle_check(win, data, checked_index);
       }
       return true;
     }
@@ -415,6 +469,34 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       rv_invalidate(win, data);
       return true;
     }
+    case RVM_SETEXTENDEDSTYLE: {
+      uint32_t mask = wparam ? wparam : UINT32_MAX;
+      uint32_t style = (uint32_t)(uintptr_t)lparam;
+      uint32_t old = data->extended_style;
+      data->extended_style = (old & ~mask) | (style & mask);
+      if (!(old & RVS_EX_CHECKBOXES) && (data->extended_style & RVS_EX_CHECKBOXES)) {
+        for (uint32_t i = 0; i < data->count; i++)
+          data->items[i].state = RV_INDEXTOSTATEIMAGEMASK(1);
+      }
+      rv_invalidate(win, data);
+      return (result_t)old;
+    }
+    case RVM_GETEXTENDEDSTYLE:
+      return (result_t)data->extended_style;
+    case RVM_SETITEMSTATE: {
+      reportview_item_state_t *st = (reportview_item_state_t *)lparam;
+      if (!st) return false;
+      if ((int32_t)wparam == -1) {
+        for (uint32_t i = 0; i < data->count; i++)
+          report_set_item_state(win, data, (int)i, st->state, st->state_mask, false);
+        return true;
+      }
+      return report_set_item_state(win, data, (int)wparam,
+                                   st->state, st->state_mask, false);
+    }
+    case RVM_GETITEMSTATE:
+      return wparam < data->count
+        ? (result_t)(data->items[wparam].state & (uint32_t)(uintptr_t)lparam) : 0;
     case RVM_SETVIEWMODE:
       return wparam == RVM_VIEW_REPORT;
     case RVM_ADDCOLUMN: {
@@ -565,6 +647,9 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
           if (cur < 0) return false;
           rv_notify(win, data, cur, RVN_DBLCLK);
           return true;
+        case AX_KEY_SPACE:
+          if (cur < 0 || !(data->extended_style & RVS_EX_CHECKBOXES)) return false;
+          return report_toggle_check(win, data, cur);
         case AX_KEY_DEL:
           if (cur < 0) return false;
           rv_notify(win, data, cur, RVN_DELETE);

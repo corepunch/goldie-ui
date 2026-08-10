@@ -297,7 +297,8 @@ intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     switch (msg) {
       case evPaint:
         for (window_t *sub = win->children; sub; sub = sub->next) {
-          send_message(sub, evPaint, wparam, lparam);
+          if (window_has_state(sub, WINDOW_STATE_VISIBLE))
+            send_message(sub, evPaint, wparam, lparam);
         }
         break;
       case evWheel:

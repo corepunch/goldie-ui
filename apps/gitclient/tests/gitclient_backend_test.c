@@ -472,6 +472,40 @@ void test_gc_get_stash(void) {
     PASS();
 }
 
+void test_gc_status_z_handles_spaces_and_renames(void) {
+    TEST("git_get_status: -z parser preserves spaces and rename paths");
+    ASSERT_TRUE(gct_git(s_repo, "mv file1.txt \"renamed file.txt\""));
+    char path[512]; snprintf(path, sizeof(path), "%s/untracked space.txt", s_repo);
+    ASSERT_TRUE(gct_write_file(path, "new\n"));
+    git_repo_t *r = git_repo_open(s_repo); ASSERT_NOT_NULL(r);
+    git_file_status_t files[8] = {0}; int count = git_get_status(r, files, 8);
+    bool rename = false, untracked = false;
+    for (int i = 0; i < count; i++) {
+      if (files[i].status == 'R' && !strcmp(files[i].path, "renamed file.txt") &&
+          !strcmp(files[i].orig_path, "file1.txt")) rename = true;
+      if (files[i].untracked && !strcmp(files[i].path, "untracked space.txt")) untracked = true;
+    }
+    ASSERT_TRUE(rename); ASSERT_TRUE(untracked); git_repo_close(r);
+    ASSERT_TRUE(gct_git(s_repo, "reset --hard HEAD")); remove(path); PASS();
+}
+
+void test_gc_sync_status_without_upstream(void) {
+    TEST("git_get_sync_status: local branch without upstream is publishable");
+    git_repo_t *r = git_repo_open(s_repo); ASSERT_NOT_NULL(r);
+    git_sync_status_t st = {0}; ASSERT_TRUE(git_get_sync_status(r, &st));
+    ASSERT_FALSE(st.initial); ASSERT_FALSE(st.detached);
+    ASSERT_STR_EQUAL(st.head, detect_default_branch()); ASSERT_TRUE(st.upstream[0] == 0);
+    git_repo_close(r); PASS();
+}
+
+void test_gc_identity_roundtrip(void) {
+    TEST("git identity: repository-local name and email are detected");
+    git_repo_t *r = git_repo_open(s_repo); ASSERT_NOT_NULL(r);
+    char name[128], email[256]; ASSERT_TRUE(git_get_identity(r, name, sizeof(name), email, sizeof(email)));
+    ASSERT_STR_EQUAL(name, "CI"); ASSERT_STR_EQUAL(email, "ci@test");
+    git_repo_close(r); PASS();
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 int main(int argc, char *argv[]) {
@@ -505,6 +539,9 @@ int main(int argc, char *argv[]) {
     test_gc_run_sync_failure();
     test_gc_get_tags();
     test_gc_get_stash();
+    test_gc_status_z_handles_spaces_and_renames();
+    test_gc_sync_status_without_upstream();
+    test_gc_identity_roundtrip();
 
     teardown_test_repo();
 

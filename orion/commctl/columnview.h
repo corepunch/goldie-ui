@@ -39,7 +39,18 @@ enum {
   RVM_SETPRESERVEICONCOLORS, // wparam = 0 tint icons with row color; non-zero draw strip colors
   RVM_SETICONTEXTGAP,      // wparam = pixels between icon slot and item text in icon-list mode
   RVM_HITTEST,             // wparam = MAKEDWORD(client_x, client_y); returns item index or -1
+  RVM_SETEXTENDEDSTYLE,    // wparam = style mask (0 = all); lparam = new RVS_EX_* bits
+  RVM_GETEXTENDEDSTYLE,
+  RVM_SETITEMSTATE,        // wparam = item index (-1 = all); lparam = reportview_item_state_t*
+  RVM_GETITEMSTATE,        // wparam = item index; lparam = state mask
 };
+
+// WinAPI list-view compatible state-image model. State image indices are
+// one-based: 1 = unchecked, 2 = checked when RVS_EX_CHECKBOXES is enabled.
+#define RVS_EX_CHECKBOXES          0x00000004u
+#define RVIS_STATEIMAGEMASK        0x0000f000u
+#define RV_INDEXTOSTATEIMAGEMASK(i) ((uint32_t)(i) << 12)
+#define RV_STATEIMAGEINDEX(state)   (((uint32_t)(state) & RVIS_STATEIMAGEMASK) >> 12)
 
 enum {
   RVM_VIEW_ICON = 0,        // Small-icon list (icon-left, label-right, one row per item)
@@ -57,15 +68,33 @@ typedef struct {
   int icon;
   uint32_t color;
   uint32_t userdata;
+  uint32_t state;
   const char *subitems[REPORTVIEW_MAX_SUBITEMS];
   uint32_t subitem_count;
 } reportview_item_t;
+
+typedef struct {
+  uint32_t state;
+  uint32_t state_mask;
+} reportview_item_state_t;
+
+#define ReportView_SetCheckState(win, item, checked) do {                    \
+  reportview_item_state_t _state = {                                         \
+    RV_INDEXTOSTATEIMAGEMASK((checked) ? 2 : 1), RVIS_STATEIMAGEMASK         \
+  };                                                                          \
+  send_message((win), RVM_SETITEMSTATE, (uint32_t)(item), &_state);           \
+} while (0)
+#define ReportView_GetCheckState(win, item)                                  \
+  (RV_STATEIMAGEINDEX(send_message((win), RVM_GETITEMSTATE,                  \
+                                    (uint32_t)(item),                         \
+                                    (void *)(uintptr_t)RVIS_STATEIMAGEMASK)) == 2)
 
 // ReportView notifications
 enum {
   RVN_SELCHANGE = 200,
   RVN_DBLCLK,
   RVN_DELETE,
+  RVN_ITEMCHECK,
 };
 
 result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
