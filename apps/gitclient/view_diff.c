@@ -18,11 +18,11 @@ static void parse_hunks(gc_diff_state_t *st) {
 
 void gc_diff_refresh(void) {
   gc_state_t *gc = g_gc;
-  if (!gc || !gc->diff_win) return;
+  if (!gc || !gc->diff_win) { GC_TRACE("diff_refresh SKIP: gc=%p diff_win=%p", (void *)gc, gc ? (void *)gc->diff_win : NULL); return; }
 
   window_t *win = gc->diff_win;
   gc_diff_state_t *st = (gc_diff_state_t *)win->userdata;
-  if (!st) return;
+  if (!st) { GC_TRACE("diff_refresh SKIP: st=NULL"); return; }
 
   st->unified_mode = gc->unified_diff;
 
@@ -115,4 +115,7 @@ void gc_diff_refresh(void) {
   };
   set_scroll_info(win, SB_VERT, &si, false);
   invalidate_window(win);
+  GC_TRACE("diff_refresh: commit=%d path=%s staged=%d lines=%d hunks=%d unified=%d",
+           gc->selected_commit, path ? path : "(all)", (int)staged,
+           st->line_count, st->hunk_count, (int)st->unified_mode);
 }

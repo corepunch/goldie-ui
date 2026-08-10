@@ -35,6 +35,16 @@
 #define GC_LOG(...) ((void)0)
 #endif
 
+// Always-on interaction trace — fprintf to stderr.
+// All user-triggered actions (clicks, selections, diff refreshes, tab
+// switches) are logged unconditionally so the event pipeline is auditable
+// without a recompile.
+#define GC_TRACE(...) do {                                       \
+  fprintf(stderr, "[gc] " __VA_ARGS__);                          \
+  fputc('\n', stderr);                                           \
+  fflush(stderr);                                                \
+} while (0)
+
 // ============================================================
 // Layout constants
 // ============================================================
