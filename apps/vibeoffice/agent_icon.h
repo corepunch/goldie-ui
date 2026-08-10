@@ -39,6 +39,7 @@ typedef struct {
   uint32_t badge_bg, badge_fg;
   int badge_anchor;
   void *item_data;
+  window_t *notify_window;
   bool draggable, drag_pending, dragging;
   int drag_x, drag_y;
 
