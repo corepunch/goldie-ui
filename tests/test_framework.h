@@ -73,8 +73,13 @@ static int tests_failed = 0;
 #define ASSERT_NOT_EQUAL(a, b) \
     ASSERT((a) != (b), "Values should not be equal")
 
-#define ASSERT_STR_EQUAL(a, b) \
-    ASSERT(strcmp(a, b) == 0, "Strings not equal")
+#define ASSERT_STR_EQUAL(a, b) do { \
+    const char *_a = (a), *_b = (b); \
+    if (strcmp(_a, _b) != 0) { \
+        printf(COLOR_RED "FAIL" COLOR_RESET ": Strings not equal: '%s' vs '%s'\n", _a, _b); \
+        tests_failed++; return; \
+    } \
+} while(0)
 
 /* SKIP: gracefully skip a test (counts as a pass with a "SKIP" note).
  * Call after TEST() which has already incremented tests_run.
