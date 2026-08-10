@@ -14,15 +14,15 @@ void gc_set_view_mode(bool history) {
   window_t *changes = get_window_item(gc->main_win, ID_MAIN_WINDOW_CHANGES_PANEL);
   window_t *split = get_window_item(gc->main_win, ID_MAIN_WINDOW_LOG_FILES_SPLIT);
   gc->history_mode = history;
-  if (log) window_set_state(log, WINDOW_STATE_VISIBLE, history);
-  if (changes) window_set_state(changes, WINDOW_STATE_VISIBLE, !history);
+  if (log) window_set_state(log, WINDOW_STATE_VISIBLE, true);
+  if (changes) window_set_state(changes, WINDOW_STATE_VISIBLE, true);
   if (!history && gc->files_win) {
     gc->selected_commit = -1;
+    gc->selected_file = -1;
     send_message(gc->files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
-  } else if (history && gc->branches_win) {
-    tableview_handle_master_selection(get_root_window(gc->branches_win), gc->branches_win);
-  }
+  } else if (history) gc->selected_file = -1;
   if (split) send_message(split, evResize, 0, NULL);
+  gc_diff_refresh();
   invalidate_window(gc->main_win);
 }
 
@@ -87,7 +87,7 @@ void gc_refresh_all(void) {
     tableview_handle_master_selection(get_root_window(gc->branches_win),
                                       gc->branches_win);
   }
-  if (!gc->history_mode && gc->files_win) {
+  if (gc->files_win) {
     gc->selected_commit = -1;
     send_message(gc->files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
   }
@@ -233,6 +233,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           }
         } else if (src == gc->files_win) {
           if (sel != gc->selected_file) {
+            gc->selected_commit = -1;
             gc->selected_file = sel;
             gc_diff_refresh();
           }

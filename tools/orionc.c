@@ -479,14 +479,13 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
                    (char *)master->name, 0);
         free(master_name);
       }
-      // HACK: cstr() emits "" for NULL, so unbound tableviews get
-      // master_key = "" instead of NULL.  The runtime handles this via
-      // C truthy check (? : "id"), but generating NULL would be cleaner.
       char master_key_q[ORIONC_STRING_SIZE];
-      cstr(master_key_q, sizeof(master_key_q), foreign_field[0] ? foreign_field : NULL);
+      if (master && foreign_field[0]) cstr(master_key_q, sizeof(master_key_q), foreign_field);
+      else snprintf(master_key_q, sizeof(master_key_q), "NULL");
       char *check_field = attrs_first(c, "check-field", "check_field");
       char check_field_q[ORIONC_STRING_SIZE];
-      cstr(check_field_q, sizeof(check_field_q), check_field && *check_field ? check_field : NULL);
+      if (check_field && *check_field) cstr(check_field_q, sizeof(check_field_q), check_field);
+      else snprintf(check_field_q, sizeof(check_field_q), "NULL");
       // LIMITATION: master_filter_field / filter_value are int-based,
       // so only integer FK values work.  String FKs (UUID, hash) would
       // be converted to 0 by the runtime's strtol() call.
