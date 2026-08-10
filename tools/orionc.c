@@ -55,13 +55,13 @@ static const enum_token_t kOrient[] = {
   {"vertical", WINDOW_STACK_VERTICAL}, {"horizontal", WINDOW_STACK_HORIZONTAL},
 };
 static const enum_token_t kColors[] = {
-  {"transparent", brTransparent}, {"window-bg", brWindowBg},
+  {"transparent", brTransparent}, {"control-bg", brControlBg},
   {"window-dark-bg", brWindowDarkBg}, {"workspace-bg", brWorkspaceBg},
   {"active-titlebar", brActiveTitlebar}, {"active-titlebar-text", brActiveTitlebarText},
   {"inactive-titlebar", brInactiveTitlebar}, {"inactive-titlebar-text", brInactiveTitlebarText},
   {"statusbar-bg", brStatusbarBg}, {"light-edge", brLightEdge},
   {"dark-edge", brDarkEdge}, {"flare", brFlare}, {"focus-ring", brFocusRing},
-  {"button-bg", brButtonBg}, {"button-inner", brButtonInner},
+  {"button-inner", brButtonInner},
   {"button-hover", brButtonHover}, {"text-normal", brTextNormal},
   {"text-disabled", brTextDisabled}, {"text-error", brTextError},
   {"text-success", brTextSuccess}, {"border-focus", brBorderFocus},

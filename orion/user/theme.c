@@ -8,7 +8,7 @@
 
 uint32_t g_sys_colors[brCount] = {
   [brTransparent]          = 0x00000000,   // fully transparent
-  [brWindowBg]             = 0xff3c3c3c,   // main panel / window background
+  [brControlBg]            = 0xff3c3c3c,   // dialog, panel, and control face
   [brWindowDarkBg]         = 0xff2c2c2c,   // dark secondary panel background
   [brWorkspaceBg]          = 0xff1e1e1e,   // darker than status bar — canvas workspace
   [brActiveTitlebar]       = 0xffa05a1e,   // focused window: blue caption bar (dark theme)
@@ -20,7 +20,6 @@ uint32_t g_sys_colors[brCount] = {
   [brDarkEdge]             = 0xff1a1a1a,   // bottom-right edge for bevel
   [brFlare]                = 0xffcfcfcf,   // corner flare for beveled elements
   [brFocusRing]            = 0xff5EC4F3,   // keyboard-focus ring
-  [brButtonBg]             = 0xff404040,   // button background (unpressed)
   [brButtonInner]          = 0xff505050,   // inner fill of button
   [brButtonHover]          = 0xff5a5a5a,   // slightly brighter for hover state
   [brTextNormal]           = 0xffc0c0c0,   // standard text color

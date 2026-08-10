@@ -412,7 +412,7 @@ intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
   // Draw disabled overlay
   if (window_has_state(win, WINDOW_STATE_DISABLED) &&
       msg == evPaint && win != g_ui_runtime.modal_overlay_parent) {
-    uint32_t col = (get_sys_color(brWindowBg) & 0x00FFFFFF) | 0x80000000;
+    uint32_t col = (get_sys_color(brControlBg) & 0x00FFFFFF) | 0x80000000;
     int root_t = titlebar_height(root);
     irect16_t wf = win_frame_in_screen(win, root, root_t);
     set_viewport((irect16_t){ 0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight)});

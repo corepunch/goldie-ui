@@ -285,9 +285,9 @@ void scrollbar_draw_statusbar_merged_hscroll(window_t *win, irect16_t row, int s
   if (bw >= 2 * SCROLLBAR_WIDTH) {
     irect16_t left_arr  = {sx, row.y, SCROLLBAR_WIDTH, row.h};
     irect16_t right_arr = {sx + bw - SCROLLBAR_WIDTH, row.y, SCROLLBAR_WIDTH, row.h};
-    fill_rect(get_sys_color(brWindowBg), left_arr);
+    fill_rect(get_sys_color(brControlBg), left_arr);
     draw_theme_icon_in_rect_scrollbar(THEME_ICON_SCROLL_LEFT, left_arr, get_sys_color(brTextNormal));
-    fill_rect(get_sys_color(brWindowBg), right_arr);
+    fill_rect(get_sys_color(brControlBg), right_arr);
     draw_theme_icon_in_rect_scrollbar(THEME_ICON_SCROLL_RIGHT, right_arr, get_sys_color(brTextNormal));
     int eff_track = bw - 2 * SCROLLBAR_WIDTH;
     if (eff_track > 0) {
@@ -335,9 +335,9 @@ void draw_builtin_scrollbars(window_t *win) {
     if (bw >= 2 * SCROLLBAR_WIDTH) {
       irect16_t left_arr  = rect_split_left(hbar, SCROLLBAR_WIDTH);
       irect16_t right_arr = rect_split_right(hbar, SCROLLBAR_WIDTH);
-      fill_rect(get_sys_color(brWindowBg), left_arr);
+      fill_rect(get_sys_color(brControlBg), left_arr);
       draw_theme_icon_in_rect_scrollbar(THEME_ICON_SCROLL_LEFT, left_arr, get_sys_color(brTextNormal));
-      fill_rect(get_sys_color(brWindowBg), right_arr);
+      fill_rect(get_sys_color(brControlBg), right_arr);
       draw_theme_icon_in_rect_scrollbar(THEME_ICON_SCROLL_RIGHT, right_arr, get_sys_color(brTextNormal));
       int eff_track = bw - 2 * SCROLLBAR_WIDTH;
       if (eff_track > 0) {
@@ -362,9 +362,9 @@ void draw_builtin_scrollbars(window_t *win) {
     if (bh >= 2 * SCROLLBAR_WIDTH) {
       irect16_t top_arr = rect_split_top(vbar, SCROLLBAR_WIDTH);
       irect16_t bot_arr = rect_split_bottom(vbar, SCROLLBAR_WIDTH);
-      fill_rect(get_sys_color(brWindowBg), top_arr);
+      fill_rect(get_sys_color(brControlBg), top_arr);
       draw_theme_icon_in_rect_scrollbar(THEME_ICON_SCROLL_UP, top_arr, get_sys_color(brTextNormal));
-      fill_rect(get_sys_color(brWindowBg), bot_arr);
+      fill_rect(get_sys_color(brControlBg), bot_arr);
       draw_theme_icon_in_rect_scrollbar(THEME_ICON_SCROLL_DOWN, bot_arr, get_sys_color(brTextNormal));
       int eff_track = bh - 2 * SCROLLBAR_WIDTH;
       if (eff_track > 0) {

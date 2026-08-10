@@ -141,7 +141,7 @@ static void paint_layers(window_t *win, layers_win_state_t *st) {
   int client_h = cr.h;
 
   // Background of the list area.
-  fill_rect(get_sys_color(brWindowBg), R(0, 0, w, client_h));
+  fill_rect(get_sys_color(brControlBg), R(0, 0, w, client_h));
 
   if (doc && doc->layer.count > 0) {
     int nvis = visible_rows(win);
@@ -156,7 +156,7 @@ static void paint_layers(window_t *win, layers_win_state_t *st) {
       if (li == doc->layer.active)
         bg = COL_ROW_ACTIVE;
       else
-        bg = get_sys_color(brWindowBg);
+        bg = get_sys_color(brControlBg);
       fill_rect(bg, R(0, ry, w, LAYERS_ROW_H));
 
       // Eye icon: visibility toggle.

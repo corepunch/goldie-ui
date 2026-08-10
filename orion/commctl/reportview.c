@@ -212,7 +212,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
     set_clip_rect(NULL, (irect16_t){scr_x + clip_x, scr_y + header_h, clip_w, body_h_local});
     for (int row = first_row; row < last_row; row++) {
       reportview_item_t *it = &data->items[row];
-      uint32_t fg = (row == data->selected) ? get_sys_color(brWindowBg)
+      uint32_t fg = (row == data->selected) ? get_sys_color(brControlBg)
                   : it->color ? it->color : get_sys_color(brTextNormal);
       int y = header_h + row * ENTRY_HEIGHT - scroll_y;
       const char *src = "";

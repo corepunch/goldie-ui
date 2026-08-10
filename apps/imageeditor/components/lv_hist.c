@@ -94,7 +94,7 @@ static void lv_build_graph_texture(lv_hist_state_t *st, int w, int h) {
   uint32_t *pix = malloc(count * sizeof(uint32_t));
   if (!pix) return;
 
-  uint32_t bg = get_sys_color(brWindowBg);
+  uint32_t bg = get_sys_color(brControlBg);
   for (size_t i = 0; i < count; i++)
     pix[i] = bg;
 

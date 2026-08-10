@@ -352,7 +352,7 @@ void toolbar_draw_non_client(window_t *win) {
   irect16_t rect = rect_inset(tb_rect, TOOLBAR_BEVEL_WIDTH);
 
   draw_bevel(rect);
-  fill_rect(get_sys_color(brWindowBg), rect);
+  fill_rect(get_sys_color(brControlBg), rect);
 
   set_viewport(tb_rect);
   if (tb && tb->items && tb->item_rects) {

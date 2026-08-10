@@ -412,7 +412,7 @@ typedef enum {
 // Access via get_sys_color(brXxx); change via set_sys_colors().
 typedef enum {
   brTransparent          = 0,   // fully transparent / no fill
-  brWindowBg             = 1,   // general panel / dialog background
+  brControlBg            = 1,   // dialog, panel, and control-face background
   brWindowDarkBg         = 2,   // dark secondary panel background
   brWorkspaceBg          = 3,   // document / canvas workspace area
   brActiveTitlebar       = 4,   // focused window title bar background
@@ -424,19 +424,18 @@ typedef enum {
   brDarkEdge             = 10,  // shadow edge of beveled elements
   brFlare                = 11,  // corner flare of beveled elements
   brFocusRing            = 12,  // keyboard focus highlight ring
-  brButtonBg             = 13,  // button background (unpressed)
-  brButtonInner          = 14,  // inner fill of button
-  brButtonHover          = 15,  // button hover state
-  brTextNormal           = 16,  // standard text
-  brTextDisabled         = 17,  // disabled / inactive text
-  brTextError            = 18,  // error message text
-  brTextSuccess          = 19,  // success message text
-  brBorderFocus          = 20,  // focused item dark outline
-  brBorderActive         = 21,  // active item border
-  brFolderText           = 22,  // folder entry text in file lists
-  brColumnViewBg         = 23,  // report/icon column view background
-  brModalOverlay         = 24,  // modal owner dimming overlay (ARGB with alpha)
-  brCount                = 25
+  brButtonInner          = 13,  // inner fill of button
+  brButtonHover          = 14,  // button hover state
+  brTextNormal           = 15,  // standard text
+  brTextDisabled         = 16,  // disabled / inactive text
+  brTextError            = 17,  // error message text
+  brTextSuccess          = 18,  // success message text
+  brBorderFocus          = 19,  // focused item dark outline
+  brBorderActive         = 20,  // active item border
+  brFolderText           = 21,  // folder entry text in file lists
+  brColumnViewBg         = 22,  // report/icon column view background
+  brModalOverlay         = 23,  // modal owner dimming overlay (ARGB with alpha)
+  brCount                = 24
 } sys_color_idx_t;
 
 // Runtime-accessible theme table (defined in user/theme.c).

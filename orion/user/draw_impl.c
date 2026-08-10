@@ -121,7 +121,7 @@ void draw_button(irect16_t r, int dx, int dy, bool pressed) {
     fill_rect(get_sys_color(brDarkEdge), r);
     fill_rect(get_sys_color(brLightEdge), R(r.x, r.y, r.w-1, r.h-1));
     fill_rect(get_sys_color(brDarkEdge), R(r.x+1, r.y+1, r.w-2, r.h-2));
-    fill_rect(get_sys_color(brWindowBg), R(r.x+1, r.y+1, r.w-3, r.h-3));
+    fill_rect(get_sys_color(brControlBg), R(r.x+1, r.y+1, r.w-3, r.h-3));
     fill_rect(get_sys_color(brFlare), R(r.x, r.y, 1, 1));
   }
 }
@@ -139,7 +139,7 @@ void draw_panel(window_t const *win) {
     fill_rect(get_sys_color(brLightEdge), R(r.x+r.w-sb+1, r.y+r.h, sb, 1));
   }
   if (!(win->flags&WINDOW_NOFILL)) {
-    fill_rect(get_sys_color(brWindowBg), r);
+    fill_rect(get_sys_color(brControlBg), r);
   }
 }
 

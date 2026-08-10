@@ -97,7 +97,7 @@ result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
       if (!s) return true;
       {
       irect16_t cr = get_client_rect(win);
-      fill_rect(get_sys_color(brWindowBg), cr);
+      fill_rect(get_sys_color(brControlBg), cr);
       fill_rect(get_sys_color(brDarkEdge),
                 R(SLIDER_TRACK_PAD, SLIDER_BAR_Y + SLIDER_BAR_H / 2 - 1,
                   sl_track_w(win), 2));

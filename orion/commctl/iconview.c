@@ -60,7 +60,7 @@ static void icon_paint(window_t *win, reportview_data_t *data) {
                            MAX(0, cr.w - x - ICON_OFFSET - gap - WIN_PADDING),
                            item_h};
 
-    uint32_t icon_col = (int)i == data->selected ? get_sys_color(brWindowBg)
+    uint32_t icon_col = (int)i == data->selected ? get_sys_color(brControlBg)
                                                  : data->items[i].color;
     if ((int)i == data->selected)
       fill_rect(get_sys_color(brTextNormal), R(x - 2, y, item_w, item_h));
