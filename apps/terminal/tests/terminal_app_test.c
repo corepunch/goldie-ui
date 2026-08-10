@@ -7,7 +7,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <io.h>
+#define pipe(fds) _pipe(fds, 65536, 0)
+#else
 #include <unistd.h>
+#endif
 
 // Forward declarations from terminal source files
 extern const vgat_cmd_t g_cmds[];
