@@ -102,7 +102,11 @@ Mesh gen_box_hole_cylinder(float w,float h,float depth,float r,int sides);
 Mesh gen_box_hole_arch(float w,float h,float depth,int sides);
 
 typedef struct { char id[32]; vec3 color; float shininess; } Material;
-typedef struct { char name[32]; char comment[64]; vec3 pos,look; float fov; } Camera;
+typedef struct { char target[32]; vec3 pos,rot,scale; } CameraTransform;
+typedef struct {
+	char name[32],comment[64]; vec3 pos,look; float fov;
+	CameraTransform *transforms; int ntransforms,ctransforms;
+} Camera;
 typedef struct { vec3 pos,color,dir; float intensity,radius; int castsShadow,isDirectional; } Light;
 typedef struct { float x,y,z,w; } ShadowVertex;
 typedef struct { ShadowVertex *verts; int nverts,cverts; } ShadowVolume;

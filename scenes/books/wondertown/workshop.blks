@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scene ambient="0.075 0.055 0.045" background="midnight">
   <camera name="WorkshopEstablishing" comment="Pip approaches the monumental desk in a low three-quarter workshop establishing view" pos="-1.35 0.32 -2.15" look="1.55 1.48 -9.10" fov="58"/>
-  <camera name="ClockHero" comment="Pip looks up from the commode toward the carved cuckoo clock in a low three-quarter hero view" pos="0.35 1.05 -6.20" look="-2.18 3.24 -10.78" fov="48"/>
+  <camera name="ClockHero" comment="Pip looks up as the cuckoo clock swings open to reveal the hidden study stair" pos="0.35 1.05 -6.20" look="-2.18 3.24 -10.78" fov="48">
+    <transform target="secret_clock" rot="0 -118 0"/>
+  </camera>
   <camera name="EmptyHookReveal" comment="Pip reaches toward the empty hook and frayed string above the stocked commode" pos="2.00 0.60 -7.60" look="-0.42 1.96 -10.74" fov="32"/>
   <camera name="DoorExit" comment="Pip approaches the moonlit flap in the monumental main workshop door" pos="-0.20 0.62 -6.25" look="-4.65 1.70 -10.76" fov="49"/>
   <camera name="OilCanDiscovery" comment="Pip crouches toward the thumb-scale copper oil can under the monumental desk" pos="2.08 0.11 -7.92" look="3.05 0.11 -9.12" fov="32"/>
@@ -55,7 +57,8 @@
   <box pos="4.30 5.86 -5.50" size="0.24 0.24 11" material="dark_wood"/>
 
   <prefab source="workshop/door" pos="-4.68 0 -11" sanityIgnore="1"/>
-  <prefab source="workshop/clock" pos="-2.30 3.55 -10.83"/>
+  <prefab source="workshop/clock-passage" pos="-2.30 3.55 -11" sanityIgnore="1"/>
+  <prefab source="workshop/clock" name="secret_clock" pos="-2.30 3.55 -10.83" pivotOffset="-0.70 0 0"/>
   <prefab source="workshop/hook" pos="-0.58 2.42 -10.78"/>
   <prefab source="workshop/commode/stocked" name="clue_commode" pos="-0.58 0 -10.58"/>
   <prefab source="workshop/window" pos="2.45 3.55 -11" sanityIgnore="1"/>

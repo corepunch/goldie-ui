@@ -17,10 +17,10 @@ static int camera_index(Scene *scene,const char *name){
 }
 
 static void snap_camera(Scene *scene,int index,vec3 *pos,float *yaw,float *pitch){
-	Camera *camera=&scene->cameras[index];
-	vec3 fwd=vnorm(vsub(camera->look,camera->pos));
-	scene_select_camera(scene,camera->name);
-	*pos=camera->pos;
+	Camera camera=scene->cameras[index];
+	vec3 fwd=vnorm(vsub(camera.look,camera.pos));
+	scene_select_camera(scene,camera.name);
+	*pos=camera.pos;
 	*yaw=atan2f(fwd.x,-fwd.z)*180.0f/M_PIf;
 	*pitch=asinf(fwd.y)*180.0f/M_PIf;
 }

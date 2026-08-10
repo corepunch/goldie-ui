@@ -158,6 +158,7 @@ void scene_free(Scene *s){
 	}
 	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
 	for(int i=0;i<s->nshapes;i++) shape2d_free(&s->shapes[i]);
+	for(int i=0;i<s->ncameras;i++) free(s->cameras[i].transforms);
 	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
 	free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches);
 	free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs); free(s->shapes);
@@ -929,6 +930,21 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 			M=mat4_mul(parentM, mat4_mul(attachM, mat4_mul(mat4_translate(pos),
 				mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl)))));
 		}
+		const char *name=xml_attr(n,"name",NULL);
+		if(name) for(int c=0;c<s->ncameras;c++){
+			Camera *cam=&s->cameras[c];
+			if(strcmp(cam->name,s->activeCamera)) continue;
+			for(int t=0;t<cam->ntransforms;t++){
+				CameraTransform *x=&cam->transforms[t];
+				if(strcmp(x->target,name)) continue;
+				mat4 Tp=mat4_translate(pvt), Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
+				mat4 D=mat4_mul(mat4_translate(x->pos),mat4_mul(Tp,
+					mat4_mul(mat4_rot_xyz(x->rot),mat4_mul(Tn,mat4_scale(x->scale)))));
+				M=mat4_mul(M,D);
+				R=mat4_mul(R,mat4_rot_xyz(x->rot));
+			}
+			break;
+		}
 		if(ownsEditNode) s->activeEditMatrix=M;
 		const char *matName = xml_attr(n,"material",NULL);
 		Material *mat = find_material(s, matName);
@@ -964,6 +980,14 @@ static void parse_camera_tag(Scene *s, XmlNode *n){
 	cam.pos = xml_attr_v3(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
 	cam.look = xml_attr_v3(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
 	cam.fov = xml_attr_f(n,"fov",60.0f);
+	for(int i=0;i<n->nkids;i++) if(!strcmp(n->kids[i]->tag,"transform")){
+		CameraTransform x={0};
+		strncpy(x.target,xml_attr(n->kids[i],"target",""),31);
+		x.pos=xml_attr_v3(n->kids[i],"pos",v3(0,0,0));
+		x.rot=xml_attr_v3(n->kids[i],"rot",v3(0,0,0));
+		x.scale=xml_attr_v3(n->kids[i],"scale",v3(1,1,1));
+		if(x.target[0]) DA_PUSH(cam.transforms,cam.ntransforms,cam.ctransforms,x);
+	}
 	DA_PUSH(s->cameras,s->ncameras,s->ccameras,cam);
 	if(s->ncameras==1){
 		s->camPos=cam.pos; s->camLook=cam.look; s->camFov=cam.fov;
@@ -1059,6 +1083,7 @@ static void warn_unknown_children(XmlNode *parent, const char *path, int root, i
 			(prefab ? (!strcmp(n->tag,"attach") || !strcmp(n->tag,"shape")) : has_scene_parser(n->tag));
 		else if(!strcmp(parent->tag,"group"))
 			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") || !strcmp(n->tag,"shape");
+		else if(!strcmp(parent->tag,"camera")) supported=!strcmp(n->tag,"transform");
 		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
 		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
 		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
@@ -1097,6 +1122,7 @@ static void scene_clear_view(Scene *s){
 	}
 	for(int i=0;i<s->nlights;i++) if(s->svols) free(s->svols[i].verts);
 	for(int i=0;i<s->nshapes;i++) shape2d_free(&s->shapes[i]);
+	for(int i=0;i<s->ncameras;i++) free(s->cameras[i].transforms);
 	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
 	free(s->instances); free(s->negativeBoxes); free(s->negativeArches);
 	free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs); free(s->shapes);
@@ -1117,6 +1143,7 @@ static void scene_rebuild_view(Scene *s){
 	XmlNode *root=(XmlNode*)s->editRoot;
 	XmlNode *sceneRoot=(XmlNode*)s->sceneRoot;
 	void *selected=s->selectedNode;
+	char requestedCamera[32]; strncpy(requestedCamera,s->activeCamera,31); requestedCamera[31]=0;
 	scene_clear_view(s);
 	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
 	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
@@ -1137,6 +1164,11 @@ static void scene_rebuild_view(Scene *s){
 			parse_material_tag(s,sceneRoot->kids[i]);
 	} else for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
 		if(!strcmp(root->kids[i]->tag,scene_tags[j].tag)){ scene_tags[j].parse(s,root->kids[i]); break; }
+	if(requestedCamera[0]) for(int i=0;i<s->ncameras;i++) if(!strcmp(s->cameras[i].name,requestedCamera)){
+		s->camPos=s->cameras[i].pos; s->camLook=s->cameras[i].look; s->camFov=s->cameras[i].fov;
+		strncpy(s->activeCamera,requestedCamera,31); s->activeCamera[31]=0;
+		break;
+	}
 	s->activeEditNode=NULL;
 	parse_nodes(s,root,I,I);
 	if(s->editDepth && s->nlights==0){
@@ -1197,11 +1229,13 @@ int load_scene(const char *path, Scene *s){
 void scene_select_camera(Scene *s, const char *name){
 	for(int i=0;i<s->ncameras;i++){
 		if(!strcmp(s->cameras[i].name,name)){
-			s->camPos=s->cameras[i].pos;
-			s->camLook=s->cameras[i].look;
-			s->camFov=s->cameras[i].fov;
-			strncpy(s->activeCamera,s->cameras[i].name,31);
-			s->activeCamera[31]=0;
+			char selected[32]; strncpy(selected,s->cameras[i].name,31); selected[31]=0;
+			if(!strcmp(s->activeCamera,selected)){
+				s->camPos=s->cameras[i].pos; s->camLook=s->cameras[i].look; s->camFov=s->cameras[i].fov;
+				return;
+			}
+			strncpy(s->activeCamera,selected,31); s->activeCamera[31]=0;
+			scene_rebuild_view(s);
 			return;
 		}
 	}

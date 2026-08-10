@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scene>
   <camera name="ActionA" pos="0 1 4" look="0 0.5 0" fov="50"/>
-  <camera name="ActionB" pos="2 1 4" look="0 0.5 0" fov="50"/>
+  <camera name="ActionB" pos="2 1 4" look="0 0.5 0" fov="50">
+    <transform target="PoseBox" pos="2 0 0" rot="0 90 0"/>
+  </camera>
   <chardef name="Pip" height="0.30" radius="0.03" top="1" neck="0.72" pelvis="0.34" feet="0"/>
   <dummy type="character" ref="Pip" camera="ActionA" pos="-1 0 0" pose="reach" target="0 0.4 -1"/>
   <dummy type="character" camera="ActionB" pos="1 0 0" height="0.50" pose="stand"/>
+  <box name="PoseBox" size="2 1 1"/>
 </scene>

@@ -440,11 +440,21 @@ int main(void){
 		CHECK(fabsf(maxA-0.30f)<0.001f,"named character definition height is %.3f, expected 0.300",maxA);
 		CHECK(fabsf(maxB-0.50f)<0.001f,"inline character height is %.3f, expected 0.500",maxB);
 		CHECK(!strcmp(s.activeCamera,"ActionA"),"first camera was not activated after load");
+		vec3 bmin,bmax; scene_get_obj_bounds(&s,0,&bmin,&bmax);
+		CHECK(fabsf((bmin.x+bmax.x)*0.5f)<0.001f && fabsf((bmax.x-bmin.x)-2.0f)<0.001f,
+		      "default camera did not retain the authored object transform");
 		scene_select_camera(&s,"ActionB");
 		CHECK(!strcmp(s.activeCamera,"ActionB"),"camera selection did not update overlay scope");
+		scene_get_obj_bounds(&s,0,&bmin,&bmax);
+		CHECK(fabsf((bmin.x+bmax.x)*0.5f-2.0f)<0.001f && fabsf((bmax.z-bmin.z)-2.0f)<0.001f,
+		      "camera transform did not translate and rotate its named target");
+		scene_select_camera(&s,"ActionA");
+		scene_get_obj_bounds(&s,0,&bmin,&bmax);
+		CHECK(fabsf((bmin.x+bmax.x)*0.5f)<0.001f && fabsf((bmax.x-bmin.x)-2.0f)<0.001f,
+		      "camera transform leaked into another shot");
 		if(countA>0 && countB>0 && fabsf(maxA-0.30f)<0.001f &&
-		   fabsf(maxB-0.50f)<0.001f && !strcmp(s.activeCamera,"ActionB"))
-			PASS("character dummies support named proportions, inline height, poses, and camera scope");
+		   fabsf(maxB-0.50f)<0.001f && !strcmp(s.activeCamera,"ActionA"))
+			PASS("camera-scoped characters and object transforms remain isolated by shot");
 		scene_free(&s);
 	}
 
