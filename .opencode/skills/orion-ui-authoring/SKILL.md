@@ -1,6 +1,6 @@
 ---
 name: orion-ui-authoring
-description: "**UI AUTHORING SKILL** — Create, review, or debug Orion UI definitions and control behavior. Expert in .orion XML, WPF-style auto-layout, Apple HIG (1987/1995), control usage, scrolling, popup capture, and input routing. USE FOR: designing dialogs; converting imperative UI to declarative .orion; fixing layout, scrolling, scrollbar, dropdown, or popup-dismissal issues; reviewing .orion files for HIG compliance; explaining layout behavior. DO NOT USE FOR: unrelated framework internals or non-UI C implementation. INVOKES: Orion UI Designer agent for complex design work; file operations on .orion files; documentation references."
+description: "**UI AUTHORING SKILL** — Create, review, or debug Orion UI definitions and control behavior. Expert in .orion XML, WPF-style auto-layout, Apple HIG (1987/1995), control usage, scrolling, popup capture, and input routing. USE FOR: designing dialogs; converting imperative UI to declarative .orion; fixing layout, scrolling, scrollbar, dropdown, or popup-dismissal issues; reviewing .orion files for HIG compliance; explaining layout behavior. DO NOT USE FOR: unrelated framework internals or non-UI C implementation."
 ---
 
 # Orion UI Authoring
@@ -77,7 +77,7 @@ Orion's layout is directly modeled on **WPF (Windows Presentation Foundation)**:
 ### Scrollable controls and captured popups
 
 Before changing scrolling, scrollbars, mouse hit-testing, or popup capture, read
-`docs/architecture.md#window-and-input-event-routing`.
+`ARCHITECTURE.md#window-and-input-event-routing`.
 
 - Mouse coordinates delivered to a window procedure are in content space and already include that window's scroll offset. Do not add the offset again for row hit-testing.
 - A top-level scrollable popup's paint projection already applies its own scroll offset. Draw rows at content coordinates (`row * row_height`); do not also subtract `vscroll.pos`, or the content scrolls twice.
@@ -237,23 +237,12 @@ When the user asks for UI authoring help:
    - Explanation of layout choices
    - Any assumptions made
 
-## Complex designs
-
-For complex UI designs or when the user needs extensive guidance, invoke the **Orion UI Designer** agent:
-
-```
-@orion-ui-designer Design a settings dialog with general/advanced tabs, each with multiple label+input pairs
-```
-
-The agent has full knowledge of Apple HIG, all Orion capabilities, and will provide polished, complete designs.
-
 ## Documentation references
 
-- `.github/copilot-instructions.md` - Complete framework reference
-- `.opencode/agents/orion-ui-designer.md` - Full UI design agent
-- `docs/controls.md` - Control reference
-- `docs/dialogs.md` - Dialog patterns
-- `examples/*/**.orion` - Real-world examples
+- `AGENTS.md` — complete Orion .orion authoring reference (grid, stack, flex, HIG, controls, common patterns)
+- `docs/controls.md` — Control reference
+- `docs/dialogs.md` — Dialog patterns
+- `examples/*/**.orion` — Real-world examples
 
 ## Quick fixes
 
