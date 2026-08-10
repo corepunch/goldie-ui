@@ -75,9 +75,9 @@ static void gl_axis_line(GizmoLines *gl,vec3 center,vec3 axis,float radius,vec3 
 
 static void gl_plane(GizmoLines *gl,vec3 center,vec3 u,vec3 v,float radiusU,float radiusV,vec3 color){
 	float hiU=radiusU*0.38f,hiV=radiusV*0.38f;
-	vec3 far=vadd(center,vadd(vscale(u,hiU),vscale(v,hiV)));
-	gl_add(gl,vadd(center,vscale(v,hiV)),far,color);
-	gl_add(gl,vadd(center,vscale(u,hiU)),far,color);
+	vec3 corner=vadd(center,vadd(vscale(u,hiU),vscale(v,hiV)));
+	gl_add(gl,vadd(center,vscale(v,hiV)),corner,color);
+	gl_add(gl,vadd(center,vscale(u,hiU)),corner,color);
 }
 
 static void gl_box(GizmoLines *gl,vec3 center,float half,vec3 color){
@@ -231,10 +231,10 @@ static float ray_sphere(vec3 ro,vec3 rd,vec3 center,float radius){
 
 static float ray_plane_quad(vec3 ro,vec3 rd,vec3 center,vec3 u,vec3 v,float radiusU,float radiusV){
 	float hiU=radiusU*0.42f,hiV=radiusV*0.42f;
-	vec3 far=vadd(center,vadd(vscale(u,hiU),vscale(v,hiV)));
+	vec3 corner=vadd(center,vadd(vscale(u,hiU),vscale(v,hiV)));
 	vec3 a=vadd(center,vscale(v,hiV));
 	vec3 b=vadd(center,vscale(u,hiU));
-	vec3 segs[2][2]={{a,far},{b,far}};
+	vec3 segs[2][2]={{a,corner},{b,corner}};
 	float bestT=1e30f;
 	for(int i=0;i<2;i++){
 		vec3 ab=vsub(segs[i][1],segs[i][0]);

@@ -78,7 +78,7 @@ static MVec3 matWood(float u,float v,uint32_t seed){
 	MVec3 light=mv3(0.55f,0.37f,0.20f), dark=mv3(0.22f,0.13f,0.06f);
 	float warp=warpedFbm(u*0.6f,v*0.15f,4,4,seed+900,1.2f);
 	float wx=u+(warp-0.5f)*0.35f;
-	float rings=sinf((wx*40.0f)*(float)M_PI);
+	float rings=sinf((wx*40.0f)*M_PIf);
 	rings=powf((rings+1.0f)*0.5f,3.0f);
 	float mottle=fbm(u,v,3,0.55f,6,seed+300);
 	float f1,f2; uint32_t id; worley(u,v,3,seed+40,&f1,&f2,&id);
@@ -114,7 +114,7 @@ static MVec3 matConcrete(float u,float v,uint32_t seed){
 static MVec3 matMarble(float u,float v,uint32_t seed){
 	MVec3 stoneA=mv3(0.90f,0.89f,0.87f),stoneB=mv3(0.55f,0.56f,0.60f),vein=mv3(0.20f,0.22f,0.28f);
 	float w=warpedFbm(u,v,4,2,seed,2.2f);
-	float band=sinf((u*3.0f+w*4.0f)*(float)M_PI);
+	float band=sinf((u*3.0f+w*4.0f)*M_PIf);
 	band=(band+1.0f)*0.5f;
 	MVec3 col=mmix(stoneA,stoneB,fbm(u,v,2,0.5f,3,seed+60)*0.35f);
 	float veinLine=powf(1.0f-fabsf(band-0.5f)*2.0f,12.0f);
@@ -170,8 +170,8 @@ static MVec3 matPlaster(float u,float v,uint32_t seed){
 static MVec3 matFabric(float u,float v,uint32_t seed){
 	const float threadFreq=56.0f;
 	float jitter=fbm(u,v,2,0.5f,12,seed+44)-0.5f;
-	float warp=sinf((u+jitter*0.01f)*threadFreq*(float)M_PI);
-	float weft=sinf((v+jitter*0.01f)*threadFreq*(float)M_PI);
+	float warp=sinf((u+jitter*0.01f)*threadFreq*M_PIf);
+	float weft=sinf((v+jitter*0.01f)*threadFreq*M_PIf);
 	float weave=(warp*weft>0.0f)?0.85f:0.58f;
 	float threadNoise=fbm(u,v,2,0.5f,20,seed+3);
 	MVec3 dye=mv3(0.55f,0.10f,0.14f);
