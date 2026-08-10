@@ -208,15 +208,26 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
 
       fill_rect(CLR_CTX_BG, cr);
 
-      if (!st || !st->lines || st->line_count <= 0)
-        return true;
-
       int cw = vga_char_width();
       int ch = vga_char_height();
       int vis_cols = cr.w / cw;
       int vis_rows = cr.h / ch;
       if (vis_cols <= 0 || vis_rows <= 0)
         return true;
+
+      if (!st || !st->lines || st->line_count <= 0) {
+        if (st) {
+          const char *text = "No local changes";
+          if (!vga_text_ensure_grid(&st->grid, vis_cols, vis_rows))
+            return true;
+          vga_text_clear_grid(&st->grid, 7, 0);
+          int col = MAX(0, (vis_cols - (int)strlen(text)) / 2);
+          int row = vis_rows / 2;
+          vga_text_write_ansi_line(text, &st->grid, row, col, vis_cols, kAnsi16[8], kAnsi16[0]);
+          goto paint_grid;
+        }
+        return true;
+      }
 
       if (!vga_text_ensure_grid(&st->grid, vis_cols, vis_rows))
         return true;
@@ -249,6 +260,7 @@ result_t gc_diff_proc(window_t *win, uint32_t msg,
                                  0, vis_cols, kAnsi16[7], kAnsi16[0]);
       }
 
+paint_grid:
       if (R_UpdateTextureRGBA(st->grid.cells_tex, 0, 0,
                               st->grid.cells_w, st->grid.cells_h,
                               st->grid.cells)) {

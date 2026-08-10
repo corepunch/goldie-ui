@@ -27,7 +27,7 @@ static void draw_tab(irect16_t r) {
 
 static void draw_tab_item(window_t *page, int x, bool selected) {
   int w = tab_width(page), y = selected ? 0 : 2;
-  int h = TAB_CONTROL_HEIGHT - y;
+  int h = TAB_CONTROL_HEIGHT - y - 2;
   draw_tab(R(x, y, w, h));
   if (selected) fill_rect(get_sys_color(brControlBg), R(x + 2, TAB_CONTROL_HEIGHT - 2, w - 4, 2));
   int tx = x + (w - strwidth(page->title)) / 2;
@@ -80,8 +80,7 @@ static void tab_paint(window_t *win) {
     x += tab_width(c) + 1;
   }
 
-  // The page edge covers inactive tabs; the selected tab covers the page edge.
-  irect16_t page = {0, TAB_CONTROL_HEIGHT - 1, cr.w, MAX(1, cr.h - TAB_CONTROL_HEIGHT + 1)};
+  irect16_t page = rect_trim_top(cr, TAB_CONTROL_HEIGHT - 1);
   draw_bevel(page);
   if (selected) draw_tab_item(selected, selected_x, true);
   if (selected) send_message(selected, evPaint, 0, NULL);

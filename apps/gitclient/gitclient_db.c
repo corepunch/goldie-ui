@@ -131,9 +131,27 @@ static result_t field_text_from_meta(const void *object,
                                 msg, wparam, lparam);                            \
   }
 
+static result_t file_object_proc(const void *object, uint32_t msg,
+                                 uint32_t wparam, void *lparam) {
+  if (msg != dbObjGetFieldText || !object || !lparam)
+    return false;
+  const db_file_t *f = (const db_file_t *)object;
+  int field_index = (int)LOWORD(wparam) - GC_COL_FILE_ID;
+  size_t buf_sz = (size_t)HIWORD(wparam);
+  char *buf = (char *)lparam;
+  if (field_index < 0 || field_index >= 5 || buf_sz == 0) return false;
+  switch (field_index) {
+    case 0: snprintf(buf, buf_sz, "%d", f->id);            return true;
+    case 1: snprintf(buf, buf_sz, "%d", f->commit_id);     return true;
+    case 2: snprintf(buf, buf_sz, "%s", f->path);           return true;
+    case 3: snprintf(buf, buf_sz, "%s", gc_status_label(f->status[0])); return true;
+    case 4: snprintf(buf, buf_sz, "%d", f->staged ? 1 : 0);  return true;
+  }
+  return false;
+}
+
 GC_OBJECT_PROC(branch_object_proc, branches_fields, GC_COL_BRANCH_ID)
 GC_OBJECT_PROC(commit_object_proc, commits_fields, GC_COL_COMMIT_ID)
-GC_OBJECT_PROC(file_object_proc, files_fields, GC_COL_FILE_ID)
 GC_OBJECT_PROC(diff_object_proc, diff_fields, GC_COL_DIFF_ID)
 GC_OBJECT_PROC(tag_object_proc, tags_fields, GC_COL_TAG_ID)
 GC_OBJECT_PROC(stash_object_proc, stash_fields, GC_COL_STASH_ID)

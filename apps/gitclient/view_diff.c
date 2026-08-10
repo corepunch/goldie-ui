@@ -53,6 +53,22 @@ void gc_diff_refresh(void) {
     }
   }
 
+  if (gc->last_diff_commit    == gc->selected_commit &&
+      gc->last_diff_file      == gc->selected_file    &&
+      gc->last_diff_staged    == staged               &&
+      gc->last_diff_untracked == untracked            &&
+      gc->last_diff_unified   == st->unified_mode     &&
+      strcmp(gc->last_diff_path, path ? path : "") == 0)
+    return;
+
+  gc->last_diff_commit    = gc->selected_commit;
+  gc->last_diff_file      = gc->selected_file;
+  gc->last_diff_staged    = staged;
+  gc->last_diff_untracked = untracked;
+  gc->last_diff_unified   = st->unified_mode;
+  if (path) strncpy(gc->last_diff_path, path, sizeof(gc->last_diff_path) - 1);
+  else gc->last_diff_path[0] = '\0';
+
   GC_TRACE("diff_refresh: commit=%d file=%d path=%s staged=%d untracked=%d unified=%d",
            gc->selected_commit, gc->selected_file,
            path ? path : (gc->selected_commit >= 0 ? "(full-commit)" : "(full-tree)"),

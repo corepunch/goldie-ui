@@ -94,6 +94,7 @@ responsibility — no view or control should compensate for it.
 - Include guards: `#ifndef __MODULE_NAME_H__`
 - Prefer `stdint.h` types (`uint32_t`, `uint16_t`) when size matters
 - Prefer `ipoint16_t` / `irect16_t` over bare `int x, int y` pairs — matches WinAPI `POINT` / `RECT` convention
+- **Prefer high-level rect/point utilities** over manual `x,y,w,h` arithmetic. Use `rect_split_*`, `rect_trim_*`, `rect_inset`, `rect_offset`, `rect_center`, `rect_contains_point` (all in `orion/user/rect.h`) to express layout and hit-test intent declaratively. Reserve bare field access for cases where no existing utility covers the operation.
 - Minimal comments — only where logic is genuinely non-obvious
 
 ## Vertical space
