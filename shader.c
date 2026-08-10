@@ -56,9 +56,9 @@ static const char *fs_src =
 "uniform float uLightRadius;\n"
 "uniform vec3 uColor;\n"
 "uniform float uShininess;\n"
-"#ifdef SCENER_USE_TEXTURES\n"
+#ifdef SCENER_USE_TEXTURES
 "uniform sampler2D uTex;\n"
-"#endif\n"
+#endif
 "void main(){\n"
 "    vec3 N=normalize(vWorldNrm);\n"
 "    vec3 V=normalize(uViewPos-vWorldPos);\n"
@@ -77,10 +77,11 @@ static const char *fs_src =
 "    float G2=NdotV/(NdotV*(1.0-k)+k);\n"
 "    float G=G1*G2;\n"
 "    float F=BASE_REFLECTANCE+(1.0-BASE_REFLECTANCE)*pow(1.0-max(dot(V,H),0.0),FRESNEL_EXP);\n"
+#ifdef SCENER_USE_TEXTURES
 "    vec3 texColor=texture(uTex,vWorldUV).rgb;\n"
-"#else\n"
+#else
 "    vec3 texColor=vec3(1.0);\n"
-"#endif\n"
+#endif
 "    vec3 spec=(D*G*F)/(max(4.0*NdotL*NdotV,MIN_SPECULAR))*uLightColor;\n"
 "    vec3 diff=uColor*texColor*(1.0-F)*NdotL*uLightColor;\n"
 "    float att=1.0;\n"
