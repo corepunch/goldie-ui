@@ -299,8 +299,8 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->filter_value = params->filter_value;
       s->master_id = params->master_id;
       s->master_filter_field = params->master_filter_field;
-      s->master_key = params->master_key ? strdup(params->master_key) : NULL;
-      s->check_field = params->check_field ? strdup(params->check_field) : NULL;
+      s->master_key = params->master_key && params->master_key[0] ? strdup(params->master_key) : NULL;
+      s->check_field = params->check_field && params->check_field[0] ? strdup(params->check_field) : NULL;
       TV_LOG("create: id=%u table=%d db=%p columns=%d", (unsigned)win->id,
              s->table_id, (void *)s->db, count_strings(params->field_names));
       
@@ -450,10 +450,6 @@ static void tv_refresh_dependents(window_t *win, window_t *master) {
     tableview_state_t *s = (tableview_state_t *)child->userdata;
     if (child->proc == win_tableview && s && s->master_id == master->id) {
       char value[64] = {0};
-      // NB: s->master_key may be "" (empty string from generated code for
-      // unbound tableviews).  The truthy check below correctly falls back
-      // to "id" because "" is truthy in C, but this is an implicit contract
-      // that depends on generated code behaviour.
       if (tv_selected_field(master, s->master_key ? s->master_key : "id",
                             value, sizeof(value))) {
         // LIMITATION: strtol assumes the master key is an integer.

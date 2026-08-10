@@ -16,32 +16,6 @@ static void parse_hunks(gc_diff_state_t *st) {
   st->current_hunk = st->hunk_count > 0 ? 0 : -1;
 }
 
-static char *skip_ansi(char *p) {
-  while (p && *p == '\x1b' && p[1] == '[') {
-    p += 2; while (*p && !((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z'))) p++;
-    if (*p) p++;
-  }
-  return p;
-}
-
-static void prepend_diff_summary(gc_diff_state_t *st) {
-  int add = 0, del = 0; bool binary = false;
-  for (char *p = st->diff_buf; p && *p;) {
-    char *visible = skip_ansi(p);
-    if (visible[0] == '+' && visible[1] != '+') add++;
-    if (visible[0] == '-' && visible[1] != '-') del++;
-    if (strstr(visible, "Binary files") || strstr(visible, "GIT binary patch")) binary = true;
-    char *nl = strchr(p, '\n'); if (!nl) break; p = nl + 1;
-  }
-  size_t used = strlen(st->diff_buf); bool truncated = used > sizeof(st->diff_buf) - 1024;
-  char summary[128]; int n = snprintf(summary, sizeof(summary),
-    "Diff summary: +%d -%d%s%s\n", add, del, binary ? "  [binary]" : "",
-    truncated ? "  [display truncated]" : "");
-  if (n <= 0) return; size_t shift = (size_t)n;
-  if (used + shift >= sizeof(st->diff_buf)) used = sizeof(st->diff_buf) - shift - 1;
-  memmove(st->diff_buf + shift, st->diff_buf, used + 1); memcpy(st->diff_buf, summary, shift);
-}
-
 void gc_diff_refresh(void) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->diff_win) return;
@@ -112,8 +86,6 @@ void gc_diff_refresh(void) {
     invalidate_window(win);
     return;
   }
-
-  prepend_diff_summary(st);
 
   int count = 0;
   for (char *p = st->diff_buf; *p; p++)

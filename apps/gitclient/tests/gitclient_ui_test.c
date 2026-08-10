@@ -480,6 +480,9 @@ void test_generated_context_menus_attach_to_expected_controls(void) {
     ASSERT_EQUAL(files->context_menu_count, 8);
     ASSERT_TRUE(main_window_files_tableview_params.check_field != NULL);
     ASSERT_TRUE(strcmp(main_window_files_tableview_params.check_field, "staged") == 0);
+    ASSERT_TRUE(main_window_branches_tableview_params.check_field == NULL);
+    ASSERT_TRUE(main_window_tags_tableview_params.check_field == NULL);
+    ASSERT_TRUE(main_window_stash_list_tableview_params.check_field == NULL);
     PASS();
 }
 
