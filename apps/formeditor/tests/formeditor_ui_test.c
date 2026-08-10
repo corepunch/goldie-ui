@@ -70,10 +70,10 @@ static char *attr_dup(xmlNodePtr node, const char *name) {
   return copy;
 }
 
-static window_t *descendant_by_proc(window_t *parent, winproc_t proc) {
+static window_t *descendant_by_class(window_t *parent, const char *class_name) {
   for (window_t *child = parent ? parent->children : NULL; child; child = child->next) {
-    if (child->proc == proc) return child;
-    window_t *found = descendant_by_proc(child, proc);
+    if (window_is_class(child, class_name)) return child;
+    window_t *found = descendant_by_class(child, class_name);
     if (found) return found;
   }
   return NULL;
@@ -144,6 +144,21 @@ void test_window_first_document_state(void) {
   ASSERT_EQUAL(g_app->form_count, 1);
   ASSERT_TRUE(g_app->active_form == g_app->forms[0]);
   ASSERT_NOT_NULL(g_app->active_form->children);
+  teardown();
+  PASS();
+}
+
+void test_document_title_update_is_stable(void) {
+  TEST("document title: path trimming and modified suffix are stable");
+  setup();
+  window_t *doc = g_app->active_form;
+  snprintf(doc->title, sizeof(doc->title), "/tmp/Sample Form");
+  fe_doc_state(doc)->modified = true;
+  form_doc_update_title(doc); form_doc_update_title(doc);
+  ASSERT_STR_EQUAL(doc->title, "Sample Form *");
+  fe_doc_state(doc)->modified = false;
+  form_doc_update_title(doc);
+  ASSERT_STR_EQUAL(doc->title, "Sample Form");
   teardown();
   PASS();
 }
@@ -230,7 +245,7 @@ void test_database_field_drop_updates_xml_column(void) {
       "<Column field=\"title\" title=\"Title\" width=\"80\"/>"
       "<Column field=\"id\" title=\"ID\" width=\"40\"/>"
       "</TableView></form>");
-  window_t *table = descendant_by_proc(doc, win_tableview);
+  window_t *table = descendant_by_class(doc, "TableView");
   ASSERT_NOT_NULL(table);
   ASSERT_EQUAL((int)send_message(table, RVM_GETCOLUMNCOUNT, 0, NULL), 2);
   ASSERT_NOT_NULL(fe_project_table_node_for_window(doc, table));
@@ -271,7 +286,7 @@ void test_database_field_drop_rejects_other_database(void) {
       "<form name=\"main\"><TableView source=\"db.posts\" flags=\"flexspace\">"
       "<Column field=\"title\" title=\"Title\" width=\"80\"/>"
       "</TableView></form>");
-  window_t *table = descendant_by_proc(doc, win_tableview);
+  window_t *table = descendant_by_class(doc, "TableView");
   fe_database_field_ref_t field = {0};
   snprintf(field.database, sizeof(field.database), "other");
   snprintf(field.table, sizeof(field.table), "authors");
@@ -303,7 +318,7 @@ void test_socialfeed_project_loads_runtime_and_database(void) {
   ASSERT_TRUE(doc->children->frame.w > 0);
   ASSERT_TRUE(doc->children->frame.h > 0);
 
-  window_t *table = descendant_by_proc(doc, win_tableview);
+  window_t *table = descendant_by_class(doc, "TableView");
   ASSERT_NOT_NULL(table);
   ASSERT_TRUE((table->flags & WINDOW_FLEXSPACE) != 0);
   ASSERT_TRUE((table->flags & WINDOW_VSCROLL) != 0);
@@ -342,6 +357,7 @@ void test_socialfeed_project_loads_runtime_and_database(void) {
 int main(void) {
   TEST_START("Form Editor Window-First Recovery");
   test_window_first_document_state();
+  test_document_title_update_is_stable();
   test_component_drop_persists_without_sidecar();
   test_objects_browser_lists_forms_and_databases();
   test_database_browser_cascades();

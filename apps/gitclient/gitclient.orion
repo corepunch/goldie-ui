@@ -174,44 +174,13 @@
               flags="toolbar,statusbar"
               toolbar="main">
             <requires library="gitclient_components" />
-            <SplitView name="main_split" flags="flexspace">
-                <SplitView name="left_split" orientation="vertical"
-                           flags="flexspace" width="180">
-                    <TableView name="branches"
-                               source="db.branches"
-                               context-menu="branches"
-                               flags="notitle,nofill,vscroll">
-                        <Column field="name" title="" width="0" />
-                    </TableView>
-                    <TableView name="tags"
-                               source="db.tags"
-                               context-menu="tags"
-                               flags="notitle,nofill,vscroll">
-                        <Column field="name" title="Tag" width="0" />
-                        <Column field="date" title="Date" width="80" />
-                    </TableView>
-                    <TableView name="stash_list"
-                               source="db.stash"
-                               context-menu="stash"
-                               flags="notitle,nofill,vscroll">
-                        <Column field="message" title="Stash" width="0" />
-                        <Column field="branch" title="Branch" width="80" />
-                    </TableView>
-                </SplitView>
-                <SplitView name="content_split" flags="flexspace">
-                    <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
-                        <TableView name="log"
-                                   source="db.commits"
-                                   flags="notitle,nofill,vscroll,flexspace">
-                            <Column field="subject" title="Subject" width="0" />
-                            <Column field="author" title="Author" width="110" />
-                            <Column field="date" title="Date" width="90" />
-                            <Column field="hash" title="Hash" width="50" />
-                        </TableView>
-
+            <TabView name="views" flags="notitle,nofill,flexspace">
+                <StackView name="changes_page" text="Changes" flags="notitle,nofill,flexspace">
+                    <SplitView name="changes_split" flags="flexspace">
                         <StackView name="changes_panel" spacing="4" padding="4">
-                            <TableView name="files"
+                            <TableView name="changes_files"
                                        source="db.files"
+                                       master="none"
                                        check-field="staged"
                                        context-menu="files"
                                        flags="notitle,nofill,vscroll,flexspace">
@@ -227,12 +196,48 @@
                                 <button name="commit_now" text="Commit" flags="default" />
                             </StackView>
                         </StackView>
+                        <DiffView name="changes_diff" flags="notitle,nofill,vscroll,flexspace"/>
                     </SplitView>
+                </StackView>
 
-                    <DiffView name="diff"
-                              flags="notitle,nofill,vscroll,flexspace"/>
-                </SplitView>
-            </SplitView>
+                <StackView name="history_page" text="History" flags="notitle,nofill,flexspace">
+                    <SplitView name="history_main_split" flags="flexspace">
+                        <SplitView name="left_split" orientation="vertical" flags="flexspace" width="180">
+                            <TableView name="branches" source="db.branches" context-menu="branches"
+                                       flags="notitle,nofill,vscroll">
+                                <Column field="name" title="" width="0" />
+                            </TableView>
+                            <TableView name="tags" source="db.tags" context-menu="tags"
+                                       flags="notitle,nofill,vscroll">
+                                <Column field="name" title="Tag" width="0" />
+                                <Column field="date" title="Date" width="80" />
+                            </TableView>
+                            <TableView name="stash_list" source="db.stash" context-menu="stash"
+                                       flags="notitle,nofill,vscroll">
+                                <Column field="message" title="Stash" width="0" />
+                                <Column field="branch" title="Branch" width="80" />
+                            </TableView>
+                        </SplitView>
+                        <SplitView name="history_content_split" flags="flexspace">
+                            <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
+                                <TableView name="log" source="db.commits"
+                                           flags="notitle,nofill,vscroll,flexspace">
+                                    <Column field="subject" title="Subject" width="0" />
+                                    <Column field="author" title="Author" width="110" />
+                                    <Column field="date" title="Date" width="90" />
+                                    <Column field="hash" title="Hash" width="50" />
+                                </TableView>
+                                <TableView name="history_files" source="db.files" master="log"
+                                           flags="notitle,nofill,vscroll,flexspace">
+                                    <Column field="status" title="St" width="20" />
+                                    <Column field="path" title="File" width="0" />
+                                </TableView>
+                            </SplitView>
+                            <DiffView name="history_diff" flags="notitle,nofill,vscroll,flexspace"/>
+                        </SplitView>
+                    </SplitView>
+                </StackView>
+            </TabView>
         </form>
 
         <form name="commit_dialog"

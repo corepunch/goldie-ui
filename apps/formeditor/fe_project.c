@@ -9,7 +9,11 @@
 void form_doc_update_title(window_t *doc) {
   form_doc_state_t *st = fe_doc_state(doc);
   if (!doc || !st) return;
-  const char *name = doc->title[0] ? doc->title : "Untitled";
+  char current[sizeof(doc->title)];
+  snprintf(current, sizeof(current), "%s", doc->title[0] ? doc->title : "Untitled");
+  size_t len = strlen(current);
+  if (len >= 2 && strcmp(current + len - 2, " *") == 0) current[len - 2] = '\0';
+  const char *name = current;
   const char *slash = strrchr(name, '/');
   if (slash) name = slash + 1;
   snprintf(doc->title, sizeof(doc->title), "%s%s",

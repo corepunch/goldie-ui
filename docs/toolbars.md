@@ -122,6 +122,18 @@ The `WINDOW_TOOLBAR` flag tells the framework to render the window as a
 non-client band.  The band height is computed automatically from button size +
 padding + bevels (`TOOLBAR_BAND_HEIGHT` = 28px at default 22px buttons).
 
+For a WinAPI-style large toolbar with captions below icons, enable the label
+style after setting the items:
+
+```c
+send_message(win, tbSetStyle, TOOLBAR_STYLE_SHOW_LABELS, NULL);
+```
+
+The existing `toolbar_item_t.text` supplies each caption. In this mode button
+widths expand to fit their captions and the non-client toolbar band grows by
+one small-font text row; client layout and input routing use the new height
+automatically.
+
 ## Loading items
 
 Send `tbSetItems` in `evCreate`.  The framework copies the array internally —

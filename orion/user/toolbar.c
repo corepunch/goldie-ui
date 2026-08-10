@@ -19,6 +19,11 @@ int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
   return -1;
 }
 
+static int toolbar_state_item_height(const toolbar_state_t *tb) {
+  int bsz = (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+  return bsz + ((tb && (tb->style & TOOLBAR_STYLE_SHOW_LABELS)) ? text_char_height(FONT_ICON) + 2 : 0);
+}
+
 static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
   if (!tb || !tb->items) return;
 
@@ -26,6 +31,7 @@ static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
   tb->item_rects = tb->item_count > 0 ? malloc((size_t)tb->item_count * sizeof(irect16_t)) : NULL;
 
   int bsz = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+  int item_h = toolbar_state_item_height(tb);
   int x = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
   int base_y = TOOLBAR_BEVEL_WIDTH + TOOLBAR_PADDING;
   int field_y = base_y + 2;
@@ -35,18 +41,23 @@ static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
     toolbar_item_t *item = &tb->items[i];
     int w = 0;
     int y = base_y;
-    int h = bsz;
+    int h = item_h;
 
     switch (item->type) {
       case TOOLBAR_ITEM_BUTTON:
         w = item->w > 0 ? item->w : bsz;
+        if (!item->w && (tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text)
+          w = MAX(w, text_strwidth(FONT_ICON, item->text) + 8);
         break;
       case TOOLBAR_ITEM_DROPDOWN:
-        w = (item->w > 0 ? item->w : bsz) + DROPDOWN_ARROW_W;
+        w = item->w > 0 ? item->w : bsz;
+        if (!item->w && (tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text)
+          w = MAX(w, text_strwidth(FONT_ICON, item->text) + 8);
+        w += DROPDOWN_ARROW_W;
         break;
       case TOOLBAR_ITEM_LABEL:
         w = item->w > 0 ? item->w
-                        : (strwidth(item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
+                        : (text_strwidth(FONT_ICON, item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
         break;
       case TOOLBAR_ITEM_COMBOBOX:
         w = item->w > 0 ? item->w : (bsz * TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT);
@@ -125,7 +136,15 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       irect16_t local = {0, 0, r.w, r.h};
       draw_button(local, 1, 1, show_pressed);
       int icon = item->icon >= 0 ? item->icon : sysicon_missing;
-      draw_toolbar_icon_in_rect(tb, icon, local, show_pressed ? 1 : 0);
+      irect16_t icon_rect = local;
+      if (tb->style & TOOLBAR_STYLE_SHOW_LABELS)
+        icon_rect.h = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+      draw_toolbar_icon_in_rect(tb, icon, icon_rect, show_pressed ? 1 : 0);
+      if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
+        int tx = (local.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
+        int ty = local.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
+        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brTextNormal));
+      }
       break;
     }
     case TOOLBAR_ITEM_DROPDOWN: {
@@ -134,7 +153,15 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       irect16_t arr_part = {r.w - aw, 0, aw, r.h};
       draw_button(btn_part, 1, 1, show_pressed);
       int icon = item->icon >= 0 ? item->icon : sysicon_missing;
-      draw_toolbar_icon_in_rect(tb, icon, btn_part, show_pressed ? 1 : 0);
+      irect16_t icon_rect = btn_part;
+      if (tb->style & TOOLBAR_STYLE_SHOW_LABELS)
+        icon_rect.h = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
+      draw_toolbar_icon_in_rect(tb, icon, icon_rect, show_pressed ? 1 : 0);
+      if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
+        int tx = (btn_part.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
+        int ty = btn_part.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
+        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brTextNormal));
+      }
       bool arrow_pressed = is_pressed && tb->pressed_in_arrow;
       draw_button(arr_part, 1, 1, arrow_pressed);
 
@@ -154,8 +181,8 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       break;
     }
     case TOOLBAR_ITEM_LABEL: {
-      int ty = (r.h - CHAR_HEIGHT) / 2;
-      draw_text_small(item->text ? item->text : "", 2, ty, get_sys_color(brTextNormal));
+      int ty = (r.h - text_char_height(FONT_ICON)) / 2;
+      draw_text(FONT_ICON, item->text ? item->text : "", 2, ty, get_sys_color(brTextNormal));
       break;
     }
     case TOOLBAR_ITEM_SPACER:
@@ -310,11 +337,15 @@ int toolbar_effective_bsz(window_t const *win) {
   return (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
 }
 
+int toolbar_effective_item_height(window_t const *win) {
+  return toolbar_state_item_height(window_toolbar_state((window_t *)win));
+}
+
 void toolbar_draw_non_client(window_t *win) {
   if (!win || !(win->flags & WINDOW_TOOLBAR)) return;
 
   toolbar_state_t *tb = toolbar_ensure_state(win);
-  int bsz = toolbar_effective_bsz(win);
+  int bsz = toolbar_effective_item_height(win);
   int title_h = (win->flags & WINDOW_NOTITLE) ? 0 : TITLEBAR_HEIGHT;
   int total_h = bsz + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
   irect16_t tb_rect = {win->frame.x, win->frame.y + title_h, win->frame.w, total_h};
@@ -460,6 +491,18 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
       if (new_btn_size != 0 && new_btn_size < 8) new_btn_size = 8;
       if (old_btn_size != new_btn_size) {
         tb->btn_size = new_btn_size;
+        post_message(win, evRefreshStencil, 0, NULL);
+        invalidate_window(get_root_window(win));
+      }
+      return true;
+    }
+
+    case tbSetStyle: {
+      toolbar_state_t *tb = toolbar_ensure_state(win);
+      if (!tb) return true;
+      if (tb->style != wparam) {
+        tb->style = wparam;
+        compute_toolbar_item_rects(win, tb);
         post_message(win, evRefreshStencil, 0, NULL);
         invalidate_window(get_root_window(win));
       }

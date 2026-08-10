@@ -210,13 +210,17 @@ typedef struct {
   window_t    *branches_win;
   window_t    *tags_win;
   window_t    *stash_win;
+  window_t    *tabs_win;
   window_t    *log_win;
   window_t    *files_win;
   window_t    *diff_win;
+  window_t    *changes_files_win;
+  window_t    *changes_diff_win;
+  window_t    *history_files_win;
+  window_t    *history_diff_win;
 
   accel_table_t *accel;
   hinstance_t    hinstance;
-  uint32_t       refresh_timer;
   bool           history_mode;
 } gc_state_t;
 

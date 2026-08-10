@@ -58,6 +58,7 @@ message set.
 | Label | `win_label` | `commctl.h` |
 | List | `win_list` | `commctl.h` |
 | Column view | `win_reportview` | `columnview.h` |
+| Tab view | `win_tabview` | `commctl.h` |
 | Menu bar | `win_menubar` | `menubar.h` |
 | Console | `win_console` | `commctl.h` |
 

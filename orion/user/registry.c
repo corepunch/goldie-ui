@@ -68,6 +68,11 @@ const fe_component_desc_t *find_window_class_desc_by_proc(winproc_t proc) {
   return NULL;
 }
 
+bool window_is_class(const window_t *win, const char *class_name) {
+  const fe_component_desc_t *desc = win ? find_window_class_desc_by_proc(win->proc) : NULL;
+  return desc && reg_streq(desc->class_name, class_name);
+}
+
 winproc_t find_window_class_proc(const char *class_name) {
   if (!class_name || !*class_name)
     return NULL;

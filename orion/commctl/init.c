@@ -21,6 +21,7 @@ extern result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void 
 extern result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_splitter(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_splitview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+extern result_t win_tabview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_column_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 extern result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
@@ -132,6 +133,9 @@ static const fe_component_desc_t k_commctl_classes[] = {
   CLASS_DESC("SplitView", "IDC_SPV", 0,
              200, 200, 0, 0, WINDOW_LAYOUT_CONTAINER,
              FE_COMPONENT_PLACEABLE, win_splitview),
+  CLASS_DESC("TabView", "IDC_TAB", IC_PANEL,
+             200, 200, 0, 0, WINDOW_LAYOUT_CONTAINER | WINDOW_FLEXSPACE,
+             FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX, win_tabview),
   CLASS_DESC("ColumnBrowser", "IDC_CBR", 0,
              160, 200, 0, 200, 0,
              0, win_column_browser),

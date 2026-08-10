@@ -253,6 +253,31 @@ bool checked = ReportView_GetCheckState(view, row);
 State-image indices are one-based and stored under `RVIS_STATEIMAGEMASK`,
 matching `LVS_EX_CHECKBOXES`/`LVIS_STATEIMAGEMASK` semantics.
 
+For forms with multiple views of a related table, set `master` explicitly so
+the generator does not infer the wrong master from another page. Use a control
+name to bind it, or `none` for an unfiltered working-set view:
+
+```xml
+<TableView name="changes" source="db.files" master="none" />
+<TableView name="commit_files" source="db.files" master="commits" />
+```
+
+## TabView
+
+`TabView` is a Win32-style tab container. Its direct children are pages, each
+child's `text` is its tab caption, and only the selected page is visible:
+
+```xml
+<TabView name="views" flags="flexspace">
+    <StackView name="changes" text="Changes">...</StackView>
+    <StackView name="history" text="History">...</StackView>
+</TabView>
+```
+
+Use `tcGetSelection` and `tcSetSelection` to query or change the zero-based
+page index. User selection sends `evCommand` with `tcnSelChange` and the
+`TabView` in `lparam`.
+
 ## Console
 
 ```c

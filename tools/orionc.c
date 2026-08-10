@@ -429,6 +429,18 @@ static xmlNodePtr find_tableview_for_table(xmlNodePtr parent, const char *table)
   return NULL;
 }
 
+static xmlNodePtr find_tableview_by_name(xmlNodePtr parent, const char *name) {
+  EACH_ELEMENT(c, parent) {
+    if (elem(c, "tableview")) {
+      char *found = attr(c, "name"); bool match = eq(found, name); free(found);
+      if (match) return c;
+    }
+    xmlNodePtr nested = find_tableview_by_name(c, name);
+    if (nested) return nested;
+  }
+  return NULL;
+}
+
 static bool table_relation(xmlNodePtr db, const char *table, int *field_index,
                            char *foreign_table, size_t table_cap,
                            char *foreign_field, size_t field_cap) {
@@ -469,9 +481,14 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
       OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("-1 };\n");
       int relation_field = 0; char foreign_table[128] = {0}, foreign_field[128] = {0};
       xmlNodePtr master = NULL;
+      char *master_name_attr = attr(c, "master");
       if (table_relation(database, table, &relation_field, foreign_table,
-                         sizeof(foreign_table), foreign_field, sizeof(foreign_field)))
-        master = find_tableview_for_table(form_node, foreign_table);
+                         sizeof(foreign_table), foreign_field, sizeof(foreign_field))) {
+        if (master_name_attr && *master_name_attr && !eq(master_name_attr, "none"))
+          master = find_tableview_by_name(form_node, master_name_attr);
+        else if (!master_name_attr || !*master_name_attr)
+          master = find_tableview_for_table(form_node, foreign_table);
+      }
       char master_id[256] = "0";
       if (master) {
         char *master_name = attr(master, "name");
@@ -493,6 +510,7 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
           param, table_id, param, param, param, check_field_q, master_id,
           relation_field, master_key_q);
       free(check_field);
+      free(master_name_attr);
       free(name); free(source);
     }
     emit_tableviews(f, c, form_node, database, form);

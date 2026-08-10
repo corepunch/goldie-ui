@@ -15,6 +15,7 @@
 #include "icons.h"
 #include "sysicons.h"
 #include "theme.h"
+#include "toolbar.h"
 
 // External references
 extern window_t *get_root_window(window_t *window);
@@ -72,9 +73,7 @@ int titlebar_height(window_t const *win) {
   if (win->flags & WINDOW_TOOLBAR) {
     // Toolbar children are always laid out in a single row (no wrapping).
     // The band height = bevel (top) + padding + bsz + padding + bevel (bottom).
-    toolbar_state_t *tb = window_toolbar_state((window_t *)win);
-    int bsz = (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
-    t += bsz + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
+    t += toolbar_effective_item_height(win) + 2 * (TOOLBAR_PADDING + TOOLBAR_BEVEL_WIDTH);
   }
   return t;
 }
