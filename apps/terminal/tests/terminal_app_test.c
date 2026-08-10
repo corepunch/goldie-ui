@@ -10,13 +10,11 @@
 #ifdef _WIN32
 #include <io.h>
 #include <windows.h>
-#define pipe(fds) _pipe(fds, 65536, 0)
-#define usleep(us) Sleep((us) / 1000)
-#define read _read
-#define write _write
-#define close _close
+static int pipe(int fds[2]) { return _pipe(fds, 65536, 0); }
+static void portable_usleep(unsigned int us) { Sleep(us / 1000); }
 #else
 #include <unistd.h>
+static void portable_usleep(unsigned int us) { usleep(us); }
 #endif
 
 // Forward declarations from terminal source files
@@ -173,7 +171,7 @@ void test_pty_watch_wakes_on_readability(void) {
   for (int i = 0; i < 200 && !received; i++) {
     if (axPeekMessage(&evt) && evt.target == &target &&
         evt.message == evTerminalPtyReady && evt.wParam == 77) received = true;
-    if (!received) usleep(1000);
+    if (!received) portable_usleep(1000);
   }
 
   char byte;
