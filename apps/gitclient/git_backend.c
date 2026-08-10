@@ -137,7 +137,6 @@ static int gc_popen_read(const char *cmd, char *buf, int buf_sz) {
   buf[total] = '\0';
 
   int rc = pclose(fp);
-  fprintf(stderr, "[git] popen_read: total=%d rc=%d\n", total, rc);
 #ifdef _WIN32
   return rc;
 #else
@@ -469,20 +468,15 @@ bool git_get_diff(git_repo_t *repo, const char *path,
                   bool staged, char *buf, int buf_sz) {
   if (!repo || !buf || buf_sz <= 0) return false;
 
-  // Route through gc_build_cmd so stderr is redirected portably.
   if (staged) {
     const char *args[] = { "git", "diff", "--color=always", "--cached", "--",
                            path ? path : "", NULL };
-    fprintf(stderr, "[git] get_diff staged=%d path=%s\n", (int)staged, path ? path : "(null)");
     git_run_sync(repo, args, buf, buf_sz);
   } else if (path && path[0]) {
-    const char *args[] = { "git", "diff", "--color=always", "HEAD", "--", path, NULL };
-    fprintf(stderr, "[git] get_diff HEAD -- %s\n", path);
+    const char *args[] = { "git", "diff", "--color=always", "--", path, NULL };
     git_run_sync(repo, args, buf, buf_sz);
-    fprintf(stderr, "[git] get_diff result len=%zu ok=%d\n", strlen(buf), (int)(buf[0] != '\0'));
   } else {
-    const char *args[] = { "git", "diff", "--color=always", "HEAD", NULL };
-    fprintf(stderr, "[git] get_diff HEAD (full)\n");
+    const char *args[] = { "git", "diff", "--color=always", NULL };
     git_run_sync(repo, args, buf, buf_sz);
   }
   return true;
