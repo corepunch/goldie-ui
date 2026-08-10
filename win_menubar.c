@@ -210,9 +210,11 @@ void handle_menu_command(uint16_t id) {
         mat4 I = mat4_identity();
         scene_add_obj(&doc->scene, m, I, I, v3(0.7f,0.7f,0.7f), 32, 1, 1, 0);
         doc->scene.selectedObj = doc->scene.nobjs - 1;
+        doc->scene.selectedNode = doc->scene.objs[doc->scene.selectedObj].editNode;
         scene_build_all_shadow_volumes(&doc->scene);
         doc->modified = true;
         if (doc->viewport_win) invalidate_window(doc->viewport_win);
+        property_browser_refresh();
       }
       break;
 

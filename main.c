@@ -144,6 +144,7 @@ static void create_app_windows(hinstance_t hinstance) {
 #endif
 
   g_app->command_panel_win = create_command_panel_window();
+  g_app->property_browser_win = create_property_browser_window();
 }
 
 static const char *scener_file_types[] = { ".blks", NULL };
@@ -252,6 +253,10 @@ void gem_shutdown(void) {
   if (g_app->command_panel_win && is_window(g_app->command_panel_win))
     destroy_window(g_app->command_panel_win);
   g_app->command_panel_win = NULL;
+
+  if (g_app->property_browser_win && is_window(g_app->property_browser_win))
+    destroy_window(g_app->property_browser_win);
+  g_app->property_browser_win = NULL;
 
   if (g_app->chrome_win && is_window(g_app->chrome_win))
     destroy_window(g_app->chrome_win);

@@ -7,6 +7,8 @@
 
 #include "build/generated/apps/scener/scener.h"
 
+#define SC_TRACE(...) do { fprintf(stderr,"[scener] " __VA_ARGS__); fputc('\n',stderr); fflush(stderr); } while(0)
+
 enum {
   ID_TOOL_SELECT = 3100,
   ID_TOOL_MOVE,
@@ -51,6 +53,7 @@ typedef struct {
   window_t       *menubar_win;
   window_t       *main_toolbar_win;
   window_t       *command_panel_win;
+  window_t       *property_browser_win;
   hinstance_t     hinstance;
   accel_table_t  *accel;
   accel_table_t  *navigation_accel;
@@ -71,6 +74,9 @@ result_t scener_menubar_proc(window_t *win, uint32_t msg, uint32_t wparam, void 
 window_t *create_main_toolbar_window(void);
 
 window_t *create_command_panel_window(void);
+window_t *create_property_browser_window(void);
+void property_browser_refresh(void);
+result_t win_property_browser(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 window_t *create_viewport_window(window_t *parent, scene_doc_t *doc);
 
 scene_doc_t *create_document(const char *path);

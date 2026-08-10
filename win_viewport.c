@@ -307,6 +307,8 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 						doc->scene.draggingHandle = GIZMO_NONE;
 						float distance = 0;
 						doc->scene.selectedObj = scene_pick_object(&doc->scene, doc->scene.camPos, ray, &distance);
+						SC_TRACE("select win=%p mouse=(%d,%d) object=%d node=%p",(void*)win,vp->last_mouse_x,vp->last_mouse_y,doc->scene.selectedObj,doc->scene.selectedNode);
+						property_browser_refresh();
 						VP_LOG("pick mouse=(%d,%d) size=(%d,%d) cam=(%.3f,%.3f,%.3f) ray=(%.3f,%.3f,%.3f) hit=%d distance=%.3f objects=%d\n",
 							vp->last_mouse_x, vp->last_mouse_y, cr.w, cr.h,
 							doc->scene.camPos.x, doc->scene.camPos.y, doc->scene.camPos.z,
@@ -323,6 +325,7 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				if(cr.w>0&&cr.h>0){
 					vec3 ray=vp_mouse_ray(vp,&doc->scene,(int16_t)LOWORD(wparam),(int16_t)HIWORD(wparam),cr.w,cr.h);
 					doc->scene.selectedObj=scene_pick_object(&doc->scene,doc->scene.camPos,ray,NULL);
+					property_browser_refresh();
 					char path[512];
 					if(doc->scene.selectedObj>=0&&scene_selected_prefab_path(&doc->scene,path,sizeof(path))){
 						vp->left_down=0; doc->scene.draggingHandle=GIZMO_NONE;
@@ -376,9 +379,10 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 				if (cr.w <= 0 || cr.h <= 0) return true;
 				vec3 fwd = vp_camera_dir(vp), right = vnorm(vcross(fwd, v3(0, 1, 0))), up = vnorm(vcross(right, fwd));
 				vec3 ray = vp_mouse_ray(vp, &doc->scene, mx, my, cr.w, cr.h);
-				if (vp->left_down && doc->scene.draggingHandle != GIZMO_NONE)
+				if (vp->left_down && doc->scene.draggingHandle != GIZMO_NONE) {
 					gizmo_apply_drag(&doc->scene, mx, my, cr.w, cr.h, doc->scene.camPos, right, up, fwd, doc->scene.camFov);
-				else {
+					property_browser_refresh();
+				} else {
 					int hovered = gizmo_pick_handle(&doc->scene, doc->scene.camPos, ray, fwd, doc->scene.camFov, cr.w, cr.h);
 					if (hovered == doc->scene.hoveredHandle) return true;
 					doc->scene.hoveredHandle = hovered;

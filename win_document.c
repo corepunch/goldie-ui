@@ -21,8 +21,8 @@ static irect16_t document_workspace_rect(void) {
 	int margin = 6;
 	int left = margin;
 	int top = MENUBAR_HEIGHT + TOOLBAR_BAND_HEIGHT + margin;
-	int right = g_app && g_app->command_panel_win
-		? g_app->command_panel_win->frame.x - margin : sw - margin;
+	window_t *side_win=g_app?(g_app->property_browser_win?g_app->property_browser_win:g_app->command_panel_win):NULL;
+	int right=side_win?side_win->frame.x-margin:sw-margin;
 	int bottom = sh - margin;
 	if (right <= left) right = left + 1;
 	if (bottom <= top) bottom = top + 1;
@@ -45,7 +45,7 @@ result_t doc_win_proc(window_t *win, uint32_t msg,
       return true;
 
     case evSetFocus:
-      if (g_app && doc) { g_app->active_doc = doc; scener_sync_tool_ui(); }
+      if (g_app && doc) { g_app->active_doc = doc; scener_sync_tool_ui(); property_browser_refresh(); }
       return true;
 
     case evResize:
@@ -135,6 +135,7 @@ scene_doc_t *create_document_ex(const char *path, bool show_windows) {
   doc->next = g_app->docs;
   g_app->docs = doc;
   g_app->active_doc = doc;
+  property_browser_refresh();
 
   doc_update_title(doc);
   return doc;
@@ -149,6 +150,7 @@ void close_document(scene_doc_t *doc) {
 
   if (g_app->active_doc == doc)
     g_app->active_doc = NULL;
+  property_browser_refresh();
 
   if (g_app->docs == doc) {
     g_app->docs = doc->next;

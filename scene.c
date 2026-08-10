@@ -30,6 +30,26 @@ static const char* xml_attr(XmlNode*n,const char*name,const char*def){
 	for(int i=0;i<n->nattrs;i++) if(!strcmp(n->attrs[i].name,name)) return n->attrs[i].value;
 	return def;
 }
+const char *scene_node_tag(const void *node){
+	const XmlNode *n=(const XmlNode*)node;
+	return n?n->tag:NULL;
+}
+const char *scene_node_attr(const void *node,const char *name){
+	XmlNode *n=(XmlNode*)node;
+	return n&&name?xml_attr(n,name,NULL):NULL;
+}
+int scene_node_attr_count(const void *node){
+	const XmlNode *n=(const XmlNode*)node;
+	return n?n->nattrs:0;
+}
+const char *scene_node_attr_name(const void *node,int index){
+	const XmlNode *n=(const XmlNode*)node;
+	return n&&index>=0&&index<n->nattrs?n->attrs[index].name:NULL;
+}
+const char *scene_node_attr_value(const void *node,int index){
+	const XmlNode *n=(const XmlNode*)node;
+	return n&&index>=0&&index<n->nattrs?n->attrs[index].value:NULL;
+}
 static vec3 xml_attr_v3(XmlNode*n,const char*name,vec3 def){
 	const char*s=xml_attr(n,name,NULL); if(!s) return def;
 	vec3 v=def; sscanf(s,"%f %f %f",&v.x,&v.y,&v.z); return v;
