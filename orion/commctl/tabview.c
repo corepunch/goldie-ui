@@ -15,20 +15,24 @@ static int tab_count(window_t *win) {
   return n;
 }
 
-static window_t *tab_page(window_t *win, int index) {
-  window_t *c = win ? win->children : NULL;
-  for (int i = 0; c && i < index; i++) c = c->next;
-  return c;
-}
-
 static int tab_width(window_t *page) { return MAX(48, strwidth(page ? page->title : "") + 18); }
 
 static void draw_tab(irect16_t r) {
-  fill_rect(get_sys_color(brButtonBg), r);
+  fill_rect(get_sys_color(brControlBg), r);
   fill_rect(get_sys_color(brLightEdge), R(r.x, r.y, r.w - 1, 1));
   fill_rect(get_sys_color(brLightEdge), R(r.x, r.y, 1, r.h));
   fill_rect(get_sys_color(brDarkEdge), R(r.x + r.w - 1, r.y + 1, 1, r.h - 1));
   fill_rect(get_sys_color(brFlare), R(r.x, r.y, 1, 1));
+}
+
+static void draw_tab_item(window_t *page, int x, bool selected) {
+  int w = tab_width(page), y = selected ? 0 : 2;
+  int h = TAB_CONTROL_HEIGHT - y;
+  draw_tab(R(x, y, w, h));
+  if (selected) fill_rect(get_sys_color(brControlBg), R(x + 2, TAB_CONTROL_HEIGHT - 2, w - 4, 2));
+  int tx = x + (w - strwidth(page->title)) / 2;
+  int ty = y + (h - CHAR_HEIGHT) / 2;
+  draw_text_small(page->title, tx, ty, get_sys_color(brTextNormal));
 }
 
 static void tab_arrange(window_t *win) {
@@ -64,24 +68,22 @@ static bool tab_select(window_t *win, int index, bool notify) {
 static void tab_paint(window_t *win) {
   tabview_state_t *st = (tabview_state_t *)win->userdata;
   irect16_t cr = get_client_rect(win);
-  fill_rect(get_sys_color(brWindowBg), cr);
+  fill_rect(get_sys_color(brControlBg), cr);
   if (!st) return;
 
-  irect16_t page = {0, TAB_CONTROL_HEIGHT - 1, cr.w, MAX(1, cr.h - TAB_CONTROL_HEIGHT + 1)};
-  draw_bevel(page);
+  int selected_x = 2;
+  window_t *selected = NULL;
   int x = 2, i = 0;
   for (window_t *c = win->children; c; c = c->next, i++) {
-    bool selected = i == st->selected;
-    int w = tab_width(c), y = selected ? 0 : 2;
-    int h = TAB_CONTROL_HEIGHT - y;
-    draw_tab(R(x, y, w, h));
-    if (selected) fill_rect(get_sys_color(brButtonBg), R(x + 2, TAB_CONTROL_HEIGHT - 2, w - 4, 2));
-    int tx = x + (w - strwidth(c->title)) / 2;
-    int ty = y + (h - CHAR_HEIGHT) / 2;
-    draw_text_small(c->title, tx, ty, get_sys_color(brTextNormal));
-    x += w + 1;
+    if (i == st->selected) { selected = c; selected_x = x; }
+    else draw_tab_item(c, x, false);
+    x += tab_width(c) + 1;
   }
-  window_t *selected = tab_page(win, st->selected);
+
+  // The page edge covers inactive tabs; the selected tab covers the page edge.
+  irect16_t page = {0, TAB_CONTROL_HEIGHT - 1, cr.w, MAX(1, cr.h - TAB_CONTROL_HEIGHT + 1)};
+  draw_bevel(page);
+  if (selected) draw_tab_item(selected, selected_x, true);
   if (selected) send_message(selected, evPaint, 0, NULL);
 }
 

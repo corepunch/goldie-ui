@@ -353,7 +353,7 @@ static result_t win_inspector(window_t *win, uint32_t msg, uint32_t wparam, void
   switch (msg) {
     case evCreate: window_layout_sync(win); return true;
     case evPaint:
-      fill_rect(get_sys_color(brWindowBg), R(0, 0, win->frame.w, win->frame.h));
+      fill_rect(get_sys_color(brControlBg), R(0, 0, win->frame.w, win->frame.h));
       return false;
     case evResize: window_layout_sync(win); return true;
     case evClose:

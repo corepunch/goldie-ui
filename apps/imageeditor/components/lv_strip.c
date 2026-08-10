@@ -92,7 +92,7 @@ static void lv_draw_strip_window(window_t *win, lv_strip_state_t *st) {
 
   lv_get_handle_visuals(st, pos, col, &count);
 
-  fill_rect(get_sys_color(brWindowBg), cr);
+  fill_rect(get_sys_color(brControlBg), cr);
   draw_gradient_rect(R(track_l, bar_y, track_w, bar_h),
                      lvstrip_rgba(0x00, 0x00, 0x00, 0xFF),
                      lvstrip_rgba(0xFF, 0xFF, 0xFF, 0xFF));

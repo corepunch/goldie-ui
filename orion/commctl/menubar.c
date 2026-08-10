@@ -209,7 +209,7 @@ static result_t popup_proc(window_t *win, uint32_t msg,
 
     case evPaint: {
       // Background
-      fill_rect(get_sys_color(brWindowBg), R(0, 0, win->frame.w, win->frame.h));
+      fill_rect(get_sys_color(brControlBg), R(0, 0, win->frame.w, win->frame.h));
       // Border
       fill_rect(get_sys_color(brDarkEdge), R(0,               0,               win->frame.w, 1));
       fill_rect(get_sys_color(brDarkEdge), R(0,               win->frame.h - 1, win->frame.w, 1));
@@ -229,8 +229,8 @@ static result_t popup_proc(window_t *win, uint32_t msg,
             fill_rect(get_sys_color(brFocusRing), R(1, y, win->frame.w - 2, MENU_ITEM_H));
           }
           bool hov = (i == pd->hovered);
-          uint32_t label_col  = hov ? get_sys_color(brWindowBg)  : get_sys_color(brTextNormal);
-          uint32_t hotkey_col = hov ? get_sys_color(brWindowBg)  : get_sys_color(brTextDisabled);
+          uint32_t label_col  = hov ? get_sys_color(brControlBg) : get_sys_color(brTextNormal);
+          uint32_t hotkey_col = hov ? get_sys_color(brControlBg) : get_sys_color(brTextDisabled);
           draw_item_label(it->label, &(irect16_t){MENU_SIDE_PAD, y, win->frame.w - MENU_SIDE_PAD * 2, MENU_ITEM_H}, label_col);
           if (menu_item_has_submenu(it)) {
             draw_text_small_clipped(">",
@@ -509,7 +509,7 @@ result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
         }
         draw_text_small_clipped(data->menus[i].label,
                         &(irect16_t){data->menu_x[i], 0, label_w, win->frame.h},
-                        active ? get_sys_color(brWindowBg) : get_sys_color(brTextNormal), 0);
+                        active ? get_sys_color(brControlBg) : get_sys_color(brTextNormal), 0);
       }
       return true;
     }
