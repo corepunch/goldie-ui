@@ -239,6 +239,7 @@ static void *append_row(void **rows, int *count, int *capacity,
                         size_t row_size, int *next_id, int initial) {
   ensure_capacity(rows, capacity, *count, row_size, initial);
   char *row = (char *)(*rows) + ((size_t)(*count) * row_size);
+  memset(row, 0, row_size);
   (*count)++;
   *(int *)row = (*next_id)++;
   return row;
