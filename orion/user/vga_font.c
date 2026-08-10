@@ -53,11 +53,17 @@ static stbtt_fontinfo g_font;
 static float          g_scale    = 0;
 static int            g_baseline = 0;
 // Fallback font chain — tried in order when primary font misses a glyph.
+// Each entry is registered eagerly but loaded (file read + stbtt_InitFont)
+// lazily on first glyph lookup so large fonts like Arial Unicode don't block
+// startup.
 #define VGA_FONT_MAX_FALLBACKS 8
 typedef struct {
+  char           path[512];
+  int            font_index;
   stbtt_fontinfo info;
   uint8_t       *data;
   float          scale;
+  bool           loaded;
 } fallback_font_t;
 static fallback_font_t g_fallbacks[VGA_FONT_MAX_FALLBACKS];
 static int             g_fallback_count = 0;
@@ -175,24 +181,30 @@ static uint8_t *load_ttf(const char *path, int *out_size) {
 
 bool vga_font_add_fallback(const char *path, int font_index) {
   if (!path || g_fallback_count >= VGA_FONT_MAX_FALLBACKS) return false;
-  int sz = 0;
-  uint8_t *data = load_ttf(path, &sz);
-  if (!data) return false;
-  int offset = stbtt_GetFontOffsetForIndex(data, font_index);
-  if (offset < 0) { free(data); return false; }
-  stbtt_fontinfo fb;
-  if (!stbtt_InitFont(&fb, data, offset)) { free(data); return false; }
-  int idx = g_fallback_count;
-  g_fallbacks[idx].data = data;
-  g_fallbacks[idx].info = fb;
-  // Default scale maps the fallback font's ascent-descent to cell height
-  int fb_ascent, fb_descent, fb_linegap;
-  stbtt_GetFontVMetrics(&fb, &fb_ascent, &fb_descent, &fb_linegap);
-  float fb_ad = (float)(fb_ascent - fb_descent + fb_linegap);
-  if (fb_ad < 1.0f) fb_ad = 1.0f;
-  g_fallbacks[idx].scale = (float)g_cell_h / fb_ad;
+  fallback_font_t *fb = &g_fallbacks[g_fallback_count];
+  strncpy(fb->path, path, sizeof(fb->path) - 1);
+  fb->font_index = font_index;
+  fb->loaded = false;
   g_fallback_count++;
   return true;
+}
+
+static bool fallback_ensure_loaded(fallback_font_t *fb) {
+  if (fb->loaded) return true;
+  int sz = 0;
+  uint8_t *data = load_ttf(fb->path, &sz);
+  if (!data) { fb->loaded = true; fb->data = NULL; return false; }
+  int offset = stbtt_GetFontOffsetForIndex(data, fb->font_index);
+  if (offset < 0 || !stbtt_InitFont(&fb->info, data, offset)) { free(data); fb->loaded = true; fb->data = NULL; return false; }
+  fb->data = data;
+  int fb_ascent, fb_descent, fb_linegap;
+  stbtt_GetFontVMetrics(&fb->info, &fb_ascent, &fb_descent, &fb_linegap);
+  float fb_ad = (float)(fb_ascent - fb_descent + fb_linegap);
+  if (fb_ad < 1.0f) fb_ad = 1.0f;
+  fb->scale = (float)g_cell_h / fb_ad;
+  fb->loaded = true;
+  VGA_FONT_LOG("vga_font: loaded fallback %s", fb->path);
+  return fb->data != NULL;
 }
 
 // ============================================================
@@ -307,8 +319,9 @@ static void vga_font_rasterize_glyph(uint16_t glyph) {
     return;
   }
 
-  // Try fallback fonts — scale to fit cell and center
+  // Try fallback fonts — loaded lazily on first glyph lookup
   for (int i = 0; i < g_fallback_count; i++) {
+    if (!fallback_ensure_loaded(&g_fallbacks[i]) || !g_fallbacks[i].data) continue;
     if (stbtt_FindGlyphIndex(&g_fallbacks[i].info, glyph) != 0) {
       rasterize_from_fallback(&g_fallbacks[i].info, g_fallbacks[i].scale,
                                glyph, cell_x, cell_y, cell_x1, cell_y1);
@@ -429,7 +442,7 @@ void vga_font_shutdown(void) {
   }
   for (int i = 0; i < g_fallback_count; i++) {
     free(g_fallbacks[i].data);
-    g_fallbacks[i].data = NULL;
+    g_fallbacks[i] = (fallback_font_t){0};
   }
   g_fallback_count = 0;
 }
