@@ -101,20 +101,21 @@ void gc_update_status(void) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->main_win) return;
 
-    char status[384] = "No repository";
-    if (gc->repo) {
-      git_sync_status_t st = {0}; git_get_sync_status(gc->repo, &st);
-      const char *kind = st.initial ? "first commit" : st.detached ? "detached" :
-                         st.gone ? "upstream gone" : !st.upstream[0] ? "not published" : NULL;
-      snprintf(status, sizeof(status), "Branch: %s%s  ^%d  v%d%s%s%s%s",
-               st.head, st.dirty ? " *" : "", st.ahead, st.behind,
-               st.upstream[0] ? "  " : "", st.upstream[0] ? st.upstream : "",
-               kind ? "  (" : "", kind ? kind : "");
-      if (kind) strncat(status, ")", sizeof(status) - strlen(status) - 1);
-    }
+  git_sync_status_t st = {0};
+  if (gc->repo) git_get_sync_status(gc->repo, &st);
+
+  char status[384] = "No repository";
+  if (gc->repo) {
+    const char *kind = st.initial ? "first commit" : st.detached ? "detached" :
+                       st.gone ? "upstream gone" : !st.upstream[0] ? "not published" : NULL;
+    snprintf(status, sizeof(status), "Branch: %s%s  ^%d  v%d%s%s%s%s",
+             st.head, st.dirty ? " *" : "", st.ahead, st.behind,
+             st.upstream[0] ? "  " : "", st.upstream[0] ? st.upstream : "",
+             kind ? "  (" : "", kind ? kind : "");
+    if (kind) strncat(status, ")", sizeof(status) - strlen(status) - 1);
+  }
   send_message(gc->main_win, evStatusBar, 0, (void *)status);
   if (gc->repo) {
-    git_sync_status_t st = {0}; git_get_sync_status(gc->repo, &st);
     set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_HINT,
                          st.initial ? "Create the first commit" : "Commit staged changes");
     set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_NOW,
@@ -172,7 +173,6 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       return false;
 
     case evActivate:
-      if (gc && gc->repo && wparam != WA_INACTIVE) gc_refresh_all();
       return false;
 
     case evPaint:

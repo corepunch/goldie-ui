@@ -403,9 +403,11 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         }
       }
 
-      // Commits (one log per branch)
+      // Commits — only load the current branch's log eagerly.
+      // Other branches lazy-load when the user selects them.
       {
         for (int b = 0; b < branch_count; b++) {
+          if (!raw_branches[b].is_current) continue;
           git_commit_t raw[500];
           int count = git_get_log_ref(repo, raw_branches[b].name, raw, 500);
           for (int i = 0; i < count; i++) {
@@ -418,6 +420,7 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
             strncpy(rec->date,    raw[i].date,    sizeof(rec->date) - 1);
             strncpy(rec->subject, raw[i].subject, sizeof(rec->subject) - 1);
           }
+          break;
         }
       }
 
@@ -620,10 +623,33 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         return fetch_all(ctx->branches, ctx->branch_count, sizeof(db_branche_t));
       }
       if (table_id == ID_DB_COMMITS) {
-        if (filter_field == ID_DB_COMMITS_BRANCH_ID)
+        if (filter_field == ID_DB_COMMITS_BRANCH_ID) {
+          bool loaded = false;
+          for (int i = 0; i < ctx->commit_count; i++) {
+            if (ctx->commits[i].branch_id == filter_value) { loaded = true; break; }
+          }
+          if (!loaded && ctx->repo) {
+            db_branche_t *br = (db_branche_t *)find_by_id(ctx->branches,
+                               ctx->branch_count, sizeof(db_branche_t), filter_value);
+            if (br && br->name[0]) {
+              git_commit_t raw[500];
+              int count = git_get_log_ref(ctx->repo, br->name, raw, 500);
+              for (int i = 0; i < count; i++) {
+                db_commit_t *rec = append_row((void **)&ctx->commits, &ctx->commit_count,
+                                              &ctx->commit_capacity, sizeof(db_commit_t),
+                                              &ctx->next_commit_id, 256);
+                rec->branch_id = filter_value;
+                strncpy(rec->hash,    raw[i].hash,    sizeof(rec->hash) - 1);
+                strncpy(rec->author,  raw[i].author,  sizeof(rec->author) - 1);
+                strncpy(rec->date,    raw[i].date,    sizeof(rec->date) - 1);
+                strncpy(rec->subject, raw[i].subject, sizeof(rec->subject) - 1);
+              }
+            }
+          }
           return fetch_filtered_int(ctx->commits, ctx->commit_count,
                                     sizeof(db_commit_t),
                                     offsetof(db_commit_t, branch_id), filter_value);
+        }
         return fetch_all(ctx->commits, ctx->commit_count, sizeof(db_commit_t));
       }
       if (table_id == ID_DB_FILES) {
