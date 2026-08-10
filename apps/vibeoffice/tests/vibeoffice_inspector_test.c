@@ -118,7 +118,7 @@ static void test_icon_click_and_double_click_window_behavior(void) {
   ASSERT(window_order(manager) > window_order(other), "existing inspector was not raised");
 
   send_message(manager, evClose, 0, NULL);
-  ASSERT_FALSE(window_has_state(manager, WINDOW_STATE_VISIBLE));
+  ASSERT(!window_has_state(manager, WINDOW_STATE_VISIBLE), "window still visible after evClose"); // DEBUG: A
   send_message(g_icons[0].win, evLeftButtonDoubleClick, MAKEDWORD(10, 10), NULL);
   ASSERT_EQUAL(g_icons[0].inspector.win, manager);
   ASSERT_TRUE(window_has_state(manager, WINDOW_STATE_VISIBLE));
@@ -126,7 +126,7 @@ static void test_icon_click_and_double_click_window_behavior(void) {
   send_message(g_icons[1].win, evLeftButtonDown, MAKEDWORD(10, 10), NULL);
   send_message(g_icons[1].win, evLeftButtonUp, MAKEDWORD(10, 10), NULL);
   ASSERT_TRUE(send_message(g_icons[1].win, icGetSelected, 0, NULL));
-  ASSERT_FALSE(send_message(g_icons[0].win, icGetSelected, 0, NULL));
+  ASSERT(!send_message(g_icons[0].win, icGetSelected, 0, NULL), "icon 0 still selected after clicking icon 1"); // DEBUG: B
   ASSERT_NULL(g_icons[1].inspector.win);
   send_message(g_icons[1].win, evLeftButtonDoubleClick, MAKEDWORD(10, 10), NULL);
   ASSERT_NOT_NULL(g_icons[1].inspector.win);
