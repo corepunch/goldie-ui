@@ -3,57 +3,47 @@
 #include "gitclient.h"
 
 typedef struct {
-  char  cur_name[256];
-  bool  result;
+  char cur_name[256];
+  char new_name[256];
+  bool result;
 } branch_rename_state_t;
+
+static const ctrl_binding_t rename_bindings[] = {
+  DDX_TEXT(ID_BRANCH_RENAME_DIALOG_NAME, branch_rename_state_t, new_name),
+};
 
 static result_t rename_branch_proc(window_t *win, uint32_t msg,
                                     uint32_t wparam, void *lparam) {
   branch_rename_state_t *st = (branch_rename_state_t *)win->userdata;
 
-  switch (msg) {
-    case evCreate:
-      win->userdata = lparam;
-      st = (branch_rename_state_t *)lparam;
-      if (st && st->cur_name[0])
-        set_window_item_text(win, ID_BRANCH_RENAME_DIALOG_NAME, "%s", st->cur_name);
-      return true;
-
-    case evCommand:
-      if (HIWORD(wparam) == btnClicked) {
-        window_t *src = (window_t *)lparam;
-        if (!src) return false;
-        if (src->id == ID_BRANCH_RENAME_DIALOG_CANCEL) {
-          end_dialog(win, 0);
-          return true;
-        }
-        if (src->id == ID_BRANCH_RENAME_DIALOG_OK) {
-          char new_name[256] = {0};
-          send_message(get_window_item(win, ID_BRANCH_RENAME_DIALOG_NAME),
-                       edGetText, sizeof(new_name), new_name);
-          if (!new_name[0]) {
-            message_box(win, "Please enter a branch name.", "Rename Branch", MB_OK);
-            return true;
-          }
-          if (!gc_rename_branch(st->cur_name, new_name)) {
-            message_box(win, "Branch rename failed.", "Rename Branch", MB_OK);
-            return true;
-          }
-          st = (branch_rename_state_t *)win->userdata;
-          if (st) st->result = true;
-          end_dialog(win, 1);
-          return true;
-        }
-      }
-      return false;
-
-    default:
-      return false;
+  if (msg == evCreate) {
+    win->userdata = lparam; st = (branch_rename_state_t *)lparam;
+    strncpy(st->new_name, st->cur_name, sizeof(st->new_name) - 1);
+    dialog_push(win, st, rename_bindings, ARRAY_LEN(rename_bindings));
+    return true;
   }
+  if (msg != evCommand || HIWORD(wparam) != btnClicked) return false;
+  uint16_t id = LOWORD(wparam);
+  if (id == ID_BRANCH_RENAME_DIALOG_CANCEL) { end_dialog(win, 0); return true; }
+  if (id == ID_BRANCH_RENAME_DIALOG_OK) {
+    dialog_pull(win, st, rename_bindings, ARRAY_LEN(rename_bindings));
+    if (!st->new_name[0]) {
+      message_box(win, "Please enter a branch name.", "Rename Branch", MB_OK);
+      return true;
+    }
+    if (!gc_rename_branch(st->cur_name, st->new_name)) {
+      message_box(win, "Branch rename failed.", "Rename Branch", MB_OK);
+      return true;
+    }
+    st->result = true;
+    end_dialog(win, 1);
+    return true;
+  }
+  return false;
 }
 
 bool gc_show_rename_branch_dialog(window_t *parent, const char *cur_name) {
-  branch_rename_state_t st = { .result = false };
+  branch_rename_state_t st = {0};
   strncpy(st.cur_name, cur_name ? cur_name : "HEAD", sizeof(st.cur_name) - 1);
   show_dialog_from_form(&gc_branch_rename_dialog_form, "Rename Branch", parent,
                          rename_branch_proc, &st);

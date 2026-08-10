@@ -527,17 +527,23 @@ static void emit_comboboxes(FILE *f, xmlNodePtr parent, const char *form) {
       if (source && display && value) {
         char param[256], table[128], table_id[128];
         char display_q[ORIONC_STRING_SIZE], value_q[ORIONC_STRING_SIZE];
-        
+        char filter_field_q[ORIONC_STRING_SIZE], filter_value_q[ORIONC_STRING_SIZE];
+        char *filter_field = attr(c, "filter_field");
+        char *filter_value_attr = attr(c, "filter_value");
+
         snprintf(param, sizeof(param), "%s_%s_combobox_params", form, nz(name, "unnamed"));
         table_name_from_source(table, sizeof(table), source);
         ident(table_id, sizeof(table_id), table, true);
         cstr(display_q, sizeof(display_q), display);
         cstr(value_q, sizeof(value_q), value);
-        
-        OUT("static const combobox_params_t %s = { NULL, TABLE_%s, %s, %s };\n\n",
-            param, table_id, display_q, value_q);
+        cstr(filter_field_q, sizeof(filter_field_q), filter_field);
+        cstr(filter_value_q, sizeof(filter_value_q), filter_value_attr);
+
+        OUT("static const combobox_params_t %s = { NULL, TABLE_%s, %s, %s, %s, %s };\n\n",
+            param, table_id, display_q, value_q, filter_field_q, filter_value_q);
+        free(filter_field); free(filter_value_attr);
       }
-      
+
       free(name); free(source); free(display); free(value);
     }
     emit_comboboxes(f, c, form);

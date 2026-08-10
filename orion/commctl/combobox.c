@@ -133,9 +133,15 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
                                   display_buf, sizeof(display_buf));
     
     if (success && display_buf[0] != '\0') {
+      if (params->filter_field && params->filter_value) {
+        char filter_buf[64] = {0};
+        if (!db_object_get_field_text(bindings, binding_count, obj_proc,
+                                      record, params->filter_field,
+                                      filter_buf, sizeof(filter_buf)) ||
+            strcmp(filter_buf, params->filter_value) != 0)
+          continue;
+      }
       send_message(win, cbAddString, 0, display_buf);
-      
-      // Store value_field (e.g., ID) for foreign key binding
       char value_buf[64];
       if (db_object_get_field_text(bindings, binding_count, obj_proc,
                                     record, params->value_field,

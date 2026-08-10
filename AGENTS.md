@@ -54,3 +54,99 @@ their scroll offsets, regardless of how many layout containers they are nested
 inside. Missing `+ vscroll.pos` causes click-to-select after scrolling to hit
 the wrong row (off by `vscroll.pos / ENTRY_HEIGHT`). This is a system-level
 responsibility — no view or control should compensate for it.
+
+# Dialog Data Exchange (DDX)
+
+Always use DDX for dialog field binding. The framework provides `ctrl_binding_t`,
+`DDX_TEXT`, `DDX_CHECK`, `DDX_COMBO`, `dialog_push`, and `dialog_pull` in
+`orion/user/user.h`. Never write manual `send_message(w, edGetText, ...)` /
+`send_message(w, btnGetCheck, ...)` sequences in dialog procs when DDX covers it.
+
+**Canonical pattern:**
+
+```c
+typedef struct {
+  char name[256];
+  bool flag;
+} my_state_t;
+
+static const ctrl_binding_t my_bindings[] = {
+  DDX_TEXT (ID_MY_DIALOG_NAME, my_state_t, name),
+  DDX_CHECK(ID_MY_DIALOG_FLAG, my_state_t, flag),
+};
+
+static result_t my_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  my_state_t *st = (my_state_t *)win->userdata;
+  if (msg == evCreate) {
+    win->userdata = lparam; st = (my_state_t *)lparam;
+    /* populate combos, fill defaults into st, then: */
+    dialog_push(win, st, my_bindings, ARRAY_LEN(my_bindings));
+    return true;
+  }
+  if (msg != evCommand || HIWORD(wparam) != btnClicked) return false;
+  uint16_t id = LOWORD(wparam);
+  if (id == ID_MY_DIALOG_CANCEL) { end_dialog(win, 0); return true; }
+  if (id == ID_MY_DIALOG_OK) {
+    dialog_pull(win, st, my_bindings, ARRAY_LEN(my_bindings));
+    /* validate st, act, end_dialog */
+    return true;
+  }
+  return false;
+}
+```
+
+**When DDX does NOT apply** — skip it and keep plain send_message when:
+- The dialog has no persistent state struct (e.g. conflict dialog with only list + action buttons).
+- A control drives live UI reactions on every keystroke (`edUpdate` populating another field, live search filtering). Those reactions must stay as explicit `evCommand` handlers.
+- A combo drives selection-change side effects (`cbSelectionChange` populating other fields). The selection-change handler stays; DDX still applies to the text fields that get populated.
+
+**`DDX_COMBO` vs `DDX_TEXT` for comboboxes** — `DDX_COMBO` binds an `int` index field. If you need the selected string (e.g. to pass to a git command), bind with `DDX_TEXT` instead — comboboxes hold their current text in `window->title` and respond to `edGetText`.
+
+# Database adapters for combobox population
+
+Always use the database adapter mechanism to populate comboboxes rather than
+manual `send_message(w, cbAddString, ...)` sequences in dialog procs. Define
+`source`/`display`/`value` on the `<combobox>` element in the `.orion` file;
+orionc generates a `combobox_params_t` structure that the combobox control uses
+to auto-populate from the database at creation time and on `evSetDatabase`.
+
+**`.orion` attributes:**
+
+| Attribute | Description |
+|---|---|
+| `source` | Database path (e.g. `db.branches`) |
+| `display` | Field name shown in the dropdown |
+| `value` | Field name for the actual value (e.g. `name` for strings, `id` for FKs) |
+| `filter_field` | Optional: field name to filter on (e.g. `is_remote`) |
+| `filter_value` | Optional: value to match as a string (e.g. `"0"` or `"1"`) |
+
+**Example — push/pull dialog comboboxes:**
+
+```xml
+<combobox name="remote" flags="flexspace"
+          source="db.remotes" display="name" value="name" />
+<combobox name="branch" flags="flexspace"
+          source="db.branches" display="name" value="name"
+          filter_field="is_remote" filter_value="0" />
+```
+
+**When database adapters do NOT apply** — skip them and keep manual `cbAddString`/`cbClear` when:
+- The combobox drives live UI reactions on every keystroke (`edUpdate` live search filtering) that re-fills the list.
+- The combobox items come from a non-database source (e.g. `git_get_remotes` output used in a static list).
+
+**Default selection after auto-population** — set the state struct's field to the
+desired default string *before* `dialog_push`. For the first item, use `dbFetch`
+to get the first record's value. Example after auto-population:
+
+```c
+if (!st->remote[0] && g_gc && g_gc->db) {
+  result_node_t *remotes = (result_node_t *)send_db_message(
+    g_gc->db, dbFetch, MAKEDWORD(ID_DB_REMOTES, 0), (void *)0);
+  if (remotes) {
+    db_remote_t *r = *(db_remote_t **)remotes->data;
+    if (r) strncpy(st->remote, r->name, sizeof(st->remote) - 1);
+    free_result_list(remotes);
+  }
+}
+dialog_push(win, st, bindings, ARRAY_LEN(bindings));
+```

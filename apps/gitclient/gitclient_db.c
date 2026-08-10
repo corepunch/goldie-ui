@@ -53,6 +53,12 @@ static const db_field_schema_t stash_schema_fields[] = {
   { "branch", DB_TYPE_STRING, 256, false, NULL, NULL },
 };
 
+static const db_field_schema_t remotes_schema_fields[] = {
+  { "id", DB_TYPE_INT, 0, true, NULL, NULL },
+  { "name", DB_TYPE_STRING, 256, false, NULL, NULL },
+  { "url", DB_TYPE_STRING, 512, false, NULL, NULL },
+};
+
 static const db_field_schema_t tags_schema_fields[] = {
   { "id", DB_TYPE_INT, 0, true, NULL, NULL },
   { "name", DB_TYPE_STRING, 256, false, NULL, NULL },
@@ -67,6 +73,7 @@ static db_table_schema_t gc_database_tables[] = {
   { TABLE_DIFF,     "diff",     NULL, diff_schema_fields,     2, NULL, 0 },
   { TABLE_TAGS,     "tags",     NULL, tags_schema_fields,     4, NULL, 0 },
   { TABLE_STASH,    "stash",    NULL, stash_schema_fields,    4, NULL, 0 },
+  { TABLE_REMOTES,  "remotes",  NULL, remotes_schema_fields,  3, NULL, 0 },
 };
 
 static db_schema_def_t gitclient_database_schema = {
@@ -104,6 +111,9 @@ enum {
   GC_COL_STASH_REF,
   GC_COL_STASH_MESSAGE,
   GC_COL_STASH_BRANCH,
+  GC_COL_REMOTE_ID,
+  GC_COL_REMOTE_NAME,
+  GC_COL_REMOTE_URL,
 };
 
 static result_t field_text_from_meta(const void *object,
@@ -155,6 +165,7 @@ GC_OBJECT_PROC(file_object_proc, files_fields, GC_COL_FILE_ID)
 GC_OBJECT_PROC(diff_object_proc, diff_fields, GC_COL_DIFF_ID)
 GC_OBJECT_PROC(tag_object_proc, tags_fields, GC_COL_TAG_ID)
 GC_OBJECT_PROC(stash_object_proc, stash_fields, GC_COL_STASH_ID)
+GC_OBJECT_PROC(remote_object_proc, remotes_fields, GC_COL_REMOTE_ID)
 
 static const db_field_msg_binding_t branch_field_bindings[] = {
   { "id", GC_COL_BRANCH_ID }, { "name", GC_COL_BRANCH_NAME },
@@ -183,6 +194,10 @@ static const db_field_msg_binding_t tag_field_bindings[] = {
 static const db_field_msg_binding_t stash_field_bindings[] = {
   { "id", GC_COL_STASH_ID }, { "ref", GC_COL_STASH_REF },
   { "message", GC_COL_STASH_MESSAGE }, { "branch", GC_COL_STASH_BRANCH },
+};
+static const db_field_msg_binding_t remote_field_bindings[] = {
+  { "id", GC_COL_REMOTE_ID }, { "name", GC_COL_REMOTE_NAME },
+  { "url", GC_COL_REMOTE_URL },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -221,6 +236,11 @@ typedef struct {
   int stash_count;
   int stash_capacity;
   int next_stash_id;
+
+  db_remote_t *remotes;
+  int remote_count;
+  int remote_capacity;
+  int next_remote_id;
 } gc_db_context_t;
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -331,6 +351,7 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       ctx->next_file_id   = 1;
       ctx->next_diff_id   = 1;
       ctx->next_tag_id    = 1;
+      ctx->next_remote_id = 1;
       ctx->next_stash_id  = 1;
       db->userdata = ctx;
       return 1;
@@ -343,6 +364,7 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       free(ctx->files);
       free(ctx->diff);
       free(ctx->tags);
+      free(ctx->remotes);
       free(ctx->stash);
       free(ctx);
       db->userdata = NULL;
@@ -361,6 +383,7 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
       clear_table((void **)&ctx->diff,     &ctx->diff_count,    &ctx->diff_capacity,    &ctx->next_diff_id);
       clear_table((void **)&ctx->tags,     &ctx->tag_count,     &ctx->tag_capacity,     &ctx->next_tag_id);
       clear_table((void **)&ctx->stash,    &ctx->stash_count,   &ctx->stash_capacity,   &ctx->next_stash_id);
+      clear_table((void **)&ctx->remotes,  &ctx->remote_count,  &ctx->remote_capacity,  &ctx->next_remote_id);
 
       // Branches
       int branch_count = 0;
@@ -442,6 +465,21 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         }
       }
 
+      // Remotes
+      {
+        char raw[16][256];
+        int count = git_get_remotes(repo, raw, 16);
+        for (int i = 0; i < count; i++) {
+          db_remote_t *rec = append_row((void **)&ctx->remotes, &ctx->remote_count,
+                                        &ctx->remote_capacity, sizeof(db_remote_t),
+                                        &ctx->next_remote_id, 8);
+          strncpy(rec->name, raw[i], sizeof(rec->name) - 1);
+          char url[512] = {0};
+          if (git_get_remote_url(repo, raw[i], url, sizeof(url)))
+            strncpy(rec->url, url, sizeof(rec->url) - 1);
+        }
+      }
+
       return 1;
     }
 
@@ -504,6 +542,14 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         rec->id = ctx->next_stash_id - 1;
         return (lresult_t)rec;
       }
+      if (table_id == ID_DB_REMOTES) {
+        db_remote_t *rec = append_row((void **)&ctx->remotes, &ctx->remote_count,
+                                      &ctx->remote_capacity, sizeof(db_remote_t),
+                                      &ctx->next_remote_id, 8);
+        memcpy(rec, data, sizeof(db_remote_t));
+        rec->id = ctx->next_remote_id - 1;
+        return (lresult_t)rec;
+      }
       return (lresult_t)NULL;
     }
 
@@ -544,6 +590,11 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         if (table_id == ID_DB_STASH) {
           clear_table((void **)&ctx->stash, &ctx->stash_count,
                       &ctx->stash_capacity, &ctx->next_stash_id);
+          return 1;
+        }
+        if (table_id == ID_DB_REMOTES) {
+          clear_table((void **)&ctx->remotes, &ctx->remote_count,
+                      &ctx->remote_capacity, &ctx->next_remote_id);
           return 1;
         }
       }
@@ -623,6 +674,8 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         return fetch_all(ctx->tags, ctx->tag_count, sizeof(db_tag_t));
       if (table_id == ID_DB_STASH)
         return fetch_all(ctx->stash, ctx->stash_count, sizeof(db_stash_t));
+      if (table_id == ID_DB_REMOTES)
+        return fetch_all(ctx->remotes, ctx->remote_count, sizeof(db_remote_t));
       return (lresult_t)NULL;
     }
 
@@ -668,6 +721,12 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
                                         sizeof(db_stash_t), (int)value);
         return (lresult_t)NULL;
       }
+      if (table_id == ID_DB_REMOTES) {
+        if (search_field == 0 || search_field == ID_DB_REMOTES_ID)
+          return (lresult_t)find_by_id(ctx->remotes, ctx->remote_count,
+                                        sizeof(db_remote_t), (int)value);
+        return (lresult_t)NULL;
+      }
       return (lresult_t)NULL;
     }
 
@@ -682,6 +741,7 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case ID_DB_DIFF:     return (lresult_t)diff_object_proc;
         case ID_DB_TAGS:     return (lresult_t)tag_object_proc;
         case ID_DB_STASH:    return (lresult_t)stash_object_proc;
+        case ID_DB_REMOTES:  return (lresult_t)remote_object_proc;
         default:             return (lresult_t)NULL;
       }
 
@@ -706,6 +766,9 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case ID_DB_STASH:
           if (count_out) *count_out = ARRAY_LEN(stash_field_bindings);
           return (lresult_t)stash_field_bindings;
+        case ID_DB_REMOTES:
+          if (count_out) *count_out = ARRAY_LEN(remote_field_bindings);
+          return (lresult_t)remote_field_bindings;
         default:
           if (count_out) *count_out = 0;
           return (lresult_t)NULL;
@@ -739,6 +802,9 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         case ID_DB_STASH:
           if (count_out) *count_out = ARRAY_LEN(stash_fields);
           return (lresult_t)stash_fields;
+        case ID_DB_REMOTES:
+          if (count_out) *count_out = ARRAY_LEN(remotes_fields);
+          return (lresult_t)remotes_fields;
         default:
           if (count_out) *count_out = 0;
           return (lresult_t)NULL;

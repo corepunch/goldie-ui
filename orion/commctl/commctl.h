@@ -70,10 +70,12 @@ result_t win_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 // When source/display/value attributes are present in .orion forms,
 // orionc generates a combobox_params_t structure and passes it via lparam.
 typedef struct {
-  database_t *db;            // Database instance (NULL = populate manually)
-  int table_id;              // TABLE_* enum value for source table
-  const char *display_field; // Field name to show in dropdown (e.g. "name")
-  const char *value_field;   // Field name for actual value (e.g. "id")
+  database_t *db;             // Database instance (NULL = populate manually)
+  int         table_id;       // TABLE_* enum value for source table
+  const char *display_field;  // Field name to show in dropdown (e.g. "name")
+  const char *value_field;    // Field name for actual value (e.g. "id")
+  const char *filter_field;   // Optional: field name to filter on (e.g. "is_remote")
+  const char *filter_value;   // Optional: value to match as string (e.g. "1" or "0")
 } combobox_params_t;
 
 // Combobox internal state (shared with list control for dropdown)

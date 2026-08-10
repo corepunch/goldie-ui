@@ -117,6 +117,7 @@ typedef struct git_repo_s git_repo_t;
 #define ID_DB_DIFF      TABLE_DIFF
 #define ID_DB_TAGS      TABLE_TAGS
 #define ID_DB_STASH     TABLE_STASH
+#define ID_DB_REMOTES   TABLE_REMOTES
 
 // Field IDs for branch table
 #define ID_DB_BRANCHES_ID        0
@@ -155,6 +156,11 @@ typedef struct git_repo_s git_repo_t;
 #define ID_DB_STASH_REF          1
 #define ID_DB_STASH_MESSAGE      2
 #define ID_DB_STASH_BRANCH       3
+
+// Field IDs for remotes table
+#define ID_DB_REMOTES_ID         0
+#define ID_DB_REMOTES_NAME       1
+#define ID_DB_REMOTES_URL        2
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Prefix aliases: orionc generates gitclient_* but code uses gc_*

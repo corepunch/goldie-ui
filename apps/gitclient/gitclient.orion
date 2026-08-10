@@ -160,6 +160,12 @@
                 <field name="message" type="string" length="512"/>
                 <field name="branch" type="string" length="256"/>
             </table>
+
+            <table name="remotes">
+                <field name="id" type="integer" key="YES"/>
+                <field name="name" type="string" length="256"/>
+                <field name="url" type="string" length="512"/>
+            </table>
         </database>
     </databases>
 
@@ -268,7 +274,7 @@
             </stack>
             <stack orientation="horizontal" spacing="6">
                 <label text="From:" />
-                <combobox name="from" flags="flexspace" />
+                <combobox name="from" flags="flexspace" source="db.branches" display="name" value="name" filter_field="is_remote" filter_value="0" />
             </stack>
             <checkbox name="checkout" text="Checkout after creation" />
             <stack orientation="horizontal" spacing="6">
@@ -408,11 +414,11 @@
               padding="8">
             <stack orientation="horizontal" spacing="6">
                 <label text="Remote:" />
-                <combobox name="remote" flags="flexspace" />
+                <combobox name="remote" flags="flexspace" source="db.remotes" display="name" value="name" />
             </stack>
             <stack orientation="horizontal" spacing="6">
                 <label text="Branch:" />
-                <combobox name="branch" flags="flexspace" />
+                <combobox name="branch" flags="flexspace" source="db.branches" display="name" value="name" filter_field="is_remote" filter_value="0" />
             </stack>
             <checkbox name="prune" text="Prune deleted remote branches" />
             <checkbox name="force" text="Force" />

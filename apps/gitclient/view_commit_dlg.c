@@ -3,9 +3,16 @@
 #include "gitclient.h"
 
 typedef struct {
-  bool  amend_requested;
-  bool  result;
+  char msg_text[2048];
+  bool amend;
+  bool amend_requested;
+  bool result;
 } commit_dlg_state_t;
+
+static const ctrl_binding_t commit_bindings[] = {
+  DDX_TEXT (ID_COMMIT_DIALOG_MSG,   commit_dlg_state_t, msg_text),
+  DDX_CHECK(ID_COMMIT_DIALOG_AMEND, commit_dlg_state_t, amend),
+};
 
 static result_t commit_dlg_proc(window_t *win, uint32_t msg,
                                  uint32_t wparam, void *lparam) {
@@ -13,48 +20,36 @@ static result_t commit_dlg_proc(window_t *win, uint32_t msg,
 
   switch (msg) {
     case evCreate:
-      win->userdata = lparam;
-      st = (commit_dlg_state_t *)lparam;
-      if (st && st->amend_requested) {
-        send_message(get_window_item(win, ID_COMMIT_DIALOG_AMEND),
-                     btnSetCheck, 1, NULL);
+      win->userdata = lparam; st = (commit_dlg_state_t *)lparam;
+      if (st->amend_requested) {
+        st->amend = true;
         gc_state_t *gc = g_gc;
         if (gc && gc->repo) {
-          char prev_msg[1024] = {0};
           const char *args[] = { "git", "log", "-1", "--format=%B", NULL };
-          git_run_sync(gc->repo, args, prev_msg, sizeof(prev_msg));
-          char *nl = strrchr(prev_msg, '\n');
-          if (nl && *(nl+1) == '\0') *nl = '\0';
-          send_message(get_window_item(win, ID_COMMIT_DIALOG_MSG),
-                       edSetText, 0, prev_msg);
+          git_run_sync(gc->repo, args, st->msg_text, sizeof(st->msg_text));
+          char *nl = strrchr(st->msg_text, '\n');
+          if (nl && *(nl + 1) == '\0') *nl = '\0';
         }
       }
+      dialog_push(win, st, commit_bindings, ARRAY_LEN(commit_bindings));
       return true;
 
     case evCommand:
       if (HIWORD(wparam) == btnClicked) {
         window_t *src = (window_t *)lparam;
         if (!src) return false;
-        if (src->id == ID_COMMIT_DIALOG_CANCEL) {
-          end_dialog(win, 0);
-          return true;
-        }
+        if (src->id == ID_COMMIT_DIALOG_CANCEL) { end_dialog(win, 0); return true; }
         if (src->id == ID_COMMIT_DIALOG_OK) {
-          char msg_text[2048] = {0};
-          send_message(get_window_item(win, ID_COMMIT_DIALOG_MSG),
-                       edGetText, sizeof(msg_text), msg_text);
-          if (!msg_text[0]) {
-            message_box(win, "Please enter a commit message.",
-                        "Commit", MB_OK);
+          dialog_pull(win, st, commit_bindings, ARRAY_LEN(commit_bindings));
+          if (!st->msg_text[0]) {
+            message_box(win, "Please enter a commit message.", "Commit", MB_OK);
             return true;
           }
-          bool amend = send_message(get_window_item(win, ID_COMMIT_DIALOG_AMEND),
-                                    btnGetCheck, 0, NULL) != 0;
-          if (!gc_commit(msg_text, amend)) {
+          if (!gc_commit(st->msg_text, st->amend)) {
             message_box(win, "Commit failed.", "Commit", MB_OK);
             return true;
           }
-          if (st) st->result = true;
+          st->result = true;
           end_dialog(win, 1);
           return true;
         }
@@ -67,7 +62,7 @@ static result_t commit_dlg_proc(window_t *win, uint32_t msg,
 }
 
 bool gc_show_commit_dialog(window_t *parent, bool amend) {
-  commit_dlg_state_t st = { .amend_requested = amend, .result = false };
+  commit_dlg_state_t st = { .amend_requested = amend };
   show_dialog_from_form(&gc_commit_dialog_form, "Commit", parent,
                          commit_dlg_proc, &st);
   if (st.result)
