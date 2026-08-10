@@ -172,6 +172,20 @@ typedef struct git_repo_s git_repo_t;
 #define ID_DB_REMOTES_NAME       1
 #define ID_DB_REMOTES_URL        2
 
+// Column IDs — sequential across tables for the unified field binding index.
+enum {
+  GC_COL_BRANCH_ID, GC_COL_BRANCH_NAME, GC_COL_BRANCH_HASH,
+  GC_COL_BRANCH_IS_CURRENT, GC_COL_BRANCH_IS_REMOTE,
+  GC_COL_COMMIT_ID, GC_COL_COMMIT_BRANCH_ID, GC_COL_COMMIT_HASH,
+  GC_COL_COMMIT_AUTHOR, GC_COL_COMMIT_DATE, GC_COL_COMMIT_SUBJECT,
+  GC_COL_FILE_ID, GC_COL_FILE_COMMIT_ID, GC_COL_FILE_PATH,
+  GC_COL_FILE_STATUS, GC_COL_FILE_STAGED,
+  GC_COL_DIFF_ID, GC_COL_DIFF_CONTENT,
+  GC_COL_TAG_ID, GC_COL_TAG_NAME, GC_COL_TAG_HASH, GC_COL_TAG_DATE,
+  GC_COL_STASH_ID, GC_COL_STASH_REF, GC_COL_STASH_MESSAGE, GC_COL_STASH_BRANCH,
+  GC_COL_REMOTE_ID, GC_COL_REMOTE_NAME, GC_COL_REMOTE_URL,
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Prefix aliases: orionc generates gitclient_* but code uses gc_*
 // ═══════════════════════════════════════════════════════════════════════════
@@ -210,7 +224,8 @@ typedef struct {
 typedef struct {
   git_repo_t  *repo;
   char         repo_path[512];
-  database_t  *db;
+  database_t  *changes_db;
+  database_t  *history_db;
 
   int          selected_commit;
   int          selected_file;
@@ -247,6 +262,7 @@ extern gc_state_t *g_gc;
 // ============================================================
 
 lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t changes_database_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 // ============================================================
 // Controller (controller.c)

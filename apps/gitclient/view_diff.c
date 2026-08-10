@@ -32,7 +32,7 @@ void gc_diff_refresh(void) {
   st->scroll_y   = 0;
   st->hunk_path[0] = '\0';
 
-  if (!gc->repo || !gc->db) {
+  if (!gc->repo || !gc->history_db) {
     GC_TRACE("diff_refresh SKIP: no repo/db");
     invalidate_window(win);
     return;

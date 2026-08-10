@@ -25,11 +25,11 @@ static const accel_t kAccelEntries[] = {
 
 static bool gc_get_selected_branch(char *buf, int buf_sz, bool *is_current) {
   gc_state_t *gc = g_gc;
-  if (!gc || !gc->branches_win || !gc->db) return false;
+  if (!gc || !gc->branches_win || !gc->history_db) return false;
   int sel = (int)send_message(gc->branches_win, RVM_GETSELECTION, 0, NULL);
   if (sel < 0) return false;
   result_node_t *rows = (result_node_t *)send_db_message(
-    gc->db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
+    gc->history_db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
   int row = 0;
   bool found = false;
   for (result_node_t *n = rows; n; n = n->next, row++) {
@@ -225,7 +225,7 @@ void gc_handle_command(uint16_t id) {
         break;
       }
       result_node_t *rows = (result_node_t *)send_db_message(
-        gc->db, dbFetch, MAKEDWORD(ID_DB_TAGS, 0), (void *)(intptr_t)0);
+        gc->history_db, dbFetch, MAKEDWORD(ID_DB_TAGS, 0), (void *)(intptr_t)0);
       int row = 0;
       const char *tag_name = NULL;
       for (result_node_t *n = rows; n; n = n->next, row++) {
