@@ -48,11 +48,15 @@ void gc_diff_refresh(void) {
     if (f) {
       path = f->path;
       staged = f->staged;
-      // Untracked files (status '?') have no HEAD ancestor — diff against /dev/null.
       if (!staged && f->status[0] == '?' && gc->selected_commit < 0)
         untracked = true;
     }
   }
+
+  GC_TRACE("diff_refresh: commit=%d file=%d path=%s staged=%d untracked=%d unified=%d",
+           gc->selected_commit, gc->selected_file,
+           path ? path : (gc->selected_commit >= 0 ? "(full-commit)" : "(full-tree)"),
+           (int)staged, (int)untracked, (int)st->unified_mode);
 
   if (gc->selected_commit >= 0) {
     db_commit_t *c = (db_commit_t *)(intptr_t)send_message(
@@ -126,7 +130,5 @@ void gc_diff_refresh(void) {
   };
   set_scroll_info(win, SB_VERT, &si, false);
   invalidate_window(win);
-  GC_TRACE("diff_refresh: commit=%d path=%s staged=%d lines=%d hunks=%d unified=%d",
-           gc->selected_commit, path ? path : "(all)", (int)staged,
-           st->line_count, st->hunk_count, (int)st->unified_mode);
+  GC_TRACE("diff_refresh result: lines=%d hunks=%d", st->line_count, st->hunk_count);
 }
