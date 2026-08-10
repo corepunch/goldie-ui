@@ -28,9 +28,9 @@ static result_t ppf_dlg_proc(window_t *win, uint32_t msg,
         gc_state_t *gc = g_gc;
         if (gc && gc->repo) {
           git_current_branch(gc->repo, st->branch, sizeof(st->branch));
-          if (!st->remote[0] && gc->db) {
+          if (!st->remote[0] && gc->history_db) {
             result_node_t *remotes = (result_node_t *)send_db_message(
-              gc->db, dbFetch, MAKEDWORD(ID_DB_REMOTES, 0), (void *)0);
+              gc->history_db, dbFetch, MAKEDWORD(ID_DB_REMOTES, 0), (void *)0);
             if (remotes) {
               db_remote_t *r = *(db_remote_t **)remotes->data;
               if (r) strncpy(st->remote, r->name, sizeof(st->remote) - 1);

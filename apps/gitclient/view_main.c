@@ -69,7 +69,8 @@ void gc_refresh_all(void) {
   gc->selected_commit = -1;
   gc->selected_file   = -1;
 
-  send_db_message(gc->db, dbLoad, 0, gc->repo);
+  send_db_message(gc->changes_db, dbLoad, 0, gc->repo);
+  send_db_message(gc->history_db, dbLoad, 0, gc->repo);
 
   if (gc->branches_win)
     send_message(gc->branches_win, tvRefresh, 0, NULL);
@@ -81,7 +82,7 @@ void gc_refresh_all(void) {
   // populates commits (filtered by branch_id) and files (lazy-loaded per commit).
   if (gc->branches_win) {
     result_node_t *rows = (result_node_t *)send_db_message(
-      gc->db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
+      gc->history_db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
     int row = 0;
     for (result_node_t *n = rows; n; n = n->next, row++) {
       db_branche_t *branch = *(db_branche_t **)n->data;
@@ -335,7 +336,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
             gc->repo && idx >= 0) {
           GC_TRACE("  DBLCLK changes_files: toggling staged");
           result_node_t *files = (result_node_t *)send_db_message(
-            gc->db, dbFetch, MAKEDWORD(ID_DB_FILES, 0), (void *)(intptr_t)0);
+            gc->changes_db, dbFetch, MAKEDWORD(ID_DB_FILES, 0), (void *)(intptr_t)0);
           result_node_t *node = files;
           for (int i = 0; i < idx && node; i++) node = node->next;
           if (node) {

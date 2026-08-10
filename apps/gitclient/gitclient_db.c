@@ -2,6 +2,10 @@
 //
 // Unlike socialfeed, there is NO persistence. The database is a read-only cache
 // of git state, cleared and repopulated on each gc_refresh_all().
+//
+// Two database procs share this file:
+//   gitclient_db          — History tab: branches, commits, history files, tags, stash, remotes
+//   changes_database_proc — Changes tab: working-tree files from git status only
 
 #include "gitclient.h"
 #include <platform/platform.h>
@@ -82,38 +86,6 @@ static db_schema_def_t gitclient_database_schema = {
   .source_path = NULL,
   .tables = gc_database_tables,
   .table_count = TABLE_COUNT,
-};
-
-enum {
-  GC_COL_BRANCH_ID,
-  GC_COL_BRANCH_NAME,
-  GC_COL_BRANCH_HASH,
-  GC_COL_BRANCH_IS_CURRENT,
-  GC_COL_BRANCH_IS_REMOTE,
-  GC_COL_COMMIT_ID,
-  GC_COL_COMMIT_BRANCH_ID,
-  GC_COL_COMMIT_HASH,
-  GC_COL_COMMIT_AUTHOR,
-  GC_COL_COMMIT_DATE,
-  GC_COL_COMMIT_SUBJECT,
-  GC_COL_FILE_ID,
-  GC_COL_FILE_COMMIT_ID,
-  GC_COL_FILE_PATH,
-  GC_COL_FILE_STATUS,
-  GC_COL_FILE_STAGED,
-  GC_COL_DIFF_ID,
-  GC_COL_DIFF_CONTENT,
-  GC_COL_TAG_ID,
-  GC_COL_TAG_NAME,
-  GC_COL_TAG_HASH,
-  GC_COL_TAG_DATE,
-  GC_COL_STASH_ID,
-  GC_COL_STASH_REF,
-  GC_COL_STASH_MESSAGE,
-  GC_COL_STASH_BRANCH,
-  GC_COL_REMOTE_ID,
-  GC_COL_REMOTE_NAME,
-  GC_COL_REMOTE_URL,
 };
 
 static result_t field_text_from_meta(const void *object,
@@ -424,21 +396,8 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         }
       }
 
-      // Working-tree files (commit_id == 0 means working tree)
-      {
-        git_file_status_t raw[256];
-        int count = git_get_status(repo, raw, 256);
-        for (int i = 0; i < count; i++) {
-          db_file_t *rec = append_row((void **)&ctx->files, &ctx->file_count,
-                                      &ctx->file_capacity, sizeof(db_file_t),
-                                      &ctx->next_file_id, 64);
-          rec->commit_id = 0;
-          strncpy(rec->path, raw[i].path, sizeof(rec->path) - 1);
-          rec->status[0] = raw[i].status;
-          rec->status[1] = '\0';
-          rec->staged = raw[i].staged;
-        }
-      }
+      // Working-tree files are handled by the separate changes_db;
+      // this database only serves the History tab (commit_id > 0).
 
       // Tags
       {
@@ -653,7 +612,8 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         return fetch_all(ctx->commits, ctx->commit_count, sizeof(db_commit_t));
       }
       if (table_id == ID_DB_FILES) {
-        if (filter_field == ID_DB_FILES_COMMIT_ID && filter_value != 0) {
+        if (filter_field == ID_DB_FILES_COMMIT_ID) {
+          // History DB only has commit-associated files (commit_id > 0).
           // Lazy-load: if no files cached for this commit yet, fetch from git.
           bool cached = false;
           for (int i = 0; i < ctx->file_count; i++) {

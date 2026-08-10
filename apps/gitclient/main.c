@@ -35,14 +35,18 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_gc->unified_diff    = true;
   gc_recent_load();
 
-  // Register database class and create database.
+  // Register database classes and create databases.
+  // history_db  — branches, commits, history files, tags, stash, remotes (default for form).
+  // changes_db  — working-tree files from git status (wired manually to Changes tab).
   DB_CLASS(gitclient_db);
-  g_gc->db = create_database("gitclient", "gitclient_db", NULL);
-  if (!g_gc->db) return false;
-  register_database("db", g_gc->db);
-  ui_set_database(g_gc->db);
-  GC_LOG("database ready: db=%p global=%p",
-         (void *)g_gc->db, (void *)ui_get_database());
+  DB_CLASS(changes_database_proc);
+  g_gc->history_db = create_database("gitclient_history", "gitclient_db", NULL);
+  g_gc->changes_db = create_database("gitclient_changes", "changes_database_proc", NULL);
+  if (!g_gc->history_db || !g_gc->changes_db) return false;
+  register_database("db", g_gc->history_db);
+  ui_set_database(g_gc->history_db);
+  GC_LOG("databases ready: history=%p changes=%p",
+         (void *)g_gc->history_db, (void *)g_gc->changes_db);
 
   // Register commctl classes (tableview, stack, grid, etc.).
   register_commctl_classes();
@@ -66,6 +70,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (!g_gc->main_win) return false;
   show_window(g_gc->main_win, true);
 
+  // Wire the Changes tab tableview to the changes_db instead of the global history_db.
+  if (g_gc->changes_files_win)
+    send_message(g_gc->changes_files_win, evSetDatabase, 0, g_gc->changes_db);
+
   // Open an explicit repository, or use the launch directory when it is one.
   if (argc > 1 && argv[1] && argv[1][0]) {
     gc_open_repo(argv[1]);
@@ -86,11 +94,15 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 void gem_shutdown(void) {
   fe_unload_component_plugins();
   if (g_gc) {
-    if (g_gc->db) {
-      if (ui_get_database() == g_gc->db)
+    if (g_gc->history_db) {
+      if (ui_get_database() == g_gc->history_db)
         ui_set_database(NULL);
-      destroy_database(g_gc->db);
-      g_gc->db = NULL;
+      destroy_database(g_gc->history_db);
+      g_gc->history_db = NULL;
+    }
+    if (g_gc->changes_db) {
+      destroy_database(g_gc->changes_db);
+      g_gc->changes_db = NULL;
     }
     if (g_gc->accel)
       free_accelerators(g_gc->accel);
