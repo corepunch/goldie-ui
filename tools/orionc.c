@@ -484,12 +484,16 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
       // C truthy check (? : "id"), but generating NULL would be cleaner.
       char master_key_q[ORIONC_STRING_SIZE];
       cstr(master_key_q, sizeof(master_key_q), foreign_field[0] ? foreign_field : NULL);
+      char *check_field = attrs_first(c, "check-field", "check_field");
+      char check_field_q[ORIONC_STRING_SIZE];
+      cstr(check_field_q, sizeof(check_field_q), check_field && *check_field ? check_field : NULL);
       // LIMITATION: master_filter_field / filter_value are int-based,
       // so only integer FK values work.  String FKs (UUID, hash) would
       // be converted to 0 by the runtime's strtol() call.
-      OUT("static const tableview_params_t %s = { .db = NULL, .table_id = TABLE_%s, .filter_field = 0, .filter_value = 0, .field_names = %s_fields, .column_titles = %s_titles, .column_widths = %s_widths, .master_id = %s, .master_filter_field = %d, .master_key = %s };\n\n",
-          param, table_id, param, param, param, master_id, relation_field,
-          master_key_q);
+      OUT("static const tableview_params_t %s = { .db = NULL, .table_id = TABLE_%s, .filter_field = 0, .filter_value = 0, .field_names = %s_fields, .column_titles = %s_titles, .column_widths = %s_widths, .check_field = %s, .master_id = %s, .master_filter_field = %d, .master_key = %s };\n\n",
+          param, table_id, param, param, param, check_field_q, master_id,
+          relation_field, master_key_q);
+      free(check_field);
       free(name); free(source);
     }
     emit_tableviews(f, c, form_node, database, form);

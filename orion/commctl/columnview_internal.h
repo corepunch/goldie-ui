@@ -47,6 +47,7 @@ typedef struct {
   bool redraw_dirty;
   bool column_titles_visible;
   bool preserve_icon_colors;
+  uint32_t extended_style;
   bitmap_strip_t *icon_strip;
   // Column resize state (mouse-driven, like splitter)
   int  resize_col;       // column being resized (-1 = none)

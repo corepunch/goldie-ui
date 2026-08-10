@@ -477,7 +477,9 @@ void test_generated_context_menus_attach_to_expected_controls(void) {
     ASSERT_EQUAL(branches->context_menu_count, 4);
     ASSERT_EQUAL(tags->context_menu_count, 1);
     ASSERT_EQUAL(stash->context_menu_count, 2);
-    ASSERT_EQUAL(files->context_menu_count, 4);
+    ASSERT_EQUAL(files->context_menu_count, 8);
+    ASSERT_TRUE(main_window_files_tableview_params.check_field != NULL);
+    ASSERT_TRUE(strcmp(main_window_files_tableview_params.check_field, "staged") == 0);
     PASS();
 }
 
@@ -491,7 +493,10 @@ void test_generated_context_menus_reuse_shared_commands(void) {
     ASSERT_EQUAL(CONTEXT_MENU_STASH_ITEMS[1].id, ID_STASH_DROP);
     ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[0].id, ID_FILES_STAGE);
     ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[1].id, ID_FILES_UNSTAGE);
-    ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[3].id, ID_FILES_DISCARD);
+    ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[3].id, ID_FILES_STAGE_ALL);
+    ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[4].id, ID_FILES_UNSTAGE_ALL);
+    ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[6].id, ID_FILES_REVEAL);
+    ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[7].id, ID_FILES_DISCARD);
     PASS();
 }
 

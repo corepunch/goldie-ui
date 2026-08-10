@@ -8,6 +8,8 @@
     <menus var="kGCMenus" count="kGCMenuCount">
         <menu name="file" label="File">
             <item name="open_repo" label="Open Repository..." />
+            <item name="repositories" label="Repositories..." />
+            <item name="new_repo" label="Create Repository..." />
             <item name="clone" label="Clone..." />
             <Separator />
             <item name="quit" label="Exit" />
@@ -16,7 +18,13 @@
         <menu name="repo" label="Repo">
             <item name="refresh" label="Refresh" />
             <item name="search" label="Search..." />
+            <item name="identity" label="Git Identity..." />
             <item name="terminal" label="Open Terminal Here" />
+        </menu>
+
+        <menu name="view" label="View">
+            <item name="changes" label="Changes" />
+            <item name="history" label="History" />
         </menu>
 
         <menu name="branch" label="Branch">
@@ -33,6 +41,7 @@
         <menu name="commit" label="Commit">
             <item name="commit" label="Commit..." />
             <item name="amend" label="Amend Last Commit" />
+            <item name="undo" label="Undo Last Commit" />
             <Separator />
             <item name="stash" label="Stash Changes" />
             <item name="stash_pop" label="Pop Stash" />
@@ -41,6 +50,8 @@
         </menu>
 
         <menu name="remote" label="Remote">
+            <item name="sync" label="Sync Current Branch" />
+            <separator />
             <item name="fetch" label="Fetch" />
             <item name="pull" label="Pull..." />
             <item name="push" label="Push..." />
@@ -78,21 +89,29 @@
             <item name="stage" label="Stage" />
             <item name="unstage" label="Unstage" />
             <separator />
+            <item name="stage_all" label="Stage All" />
+            <item name="unstage_all" label="Unstage All" />
+            <separator />
+            <item name="reveal" label="Reveal in File Manager" />
             <item name="discard" label="Discard" />
         </contextMenu>
     </contextMenus>
 
     <toolbars>
         <toolbar name="main">
+            <Button name="sync" menu="remote.sync" icon="sysicon_arrow_switch" text="Sync" tooltip="Publish, pull, or push the current branch" />
             <Button name="fetch" menu="remote.fetch" icon="sysicon_arrow_down" text="Fetch" tooltip="Fetch from remote" />
-            <Button name="pull" menu="remote.pull" icon="sysicon_arrow_down" text="Pull" tooltip="Pull from remote" />
-            <Button name="push" menu="remote.push" icon="sysicon_arrow_up" text="Push" tooltip="Push to remote" />
             <spacer />
             <Button name="commit" menu="commit.commit" icon="sysicon_add" text="Commit" tooltip="Commit staged changes" />
+            <Button name="undo" menu="commit.undo" icon="sysicon_undo" text="Undo" tooltip="Undo last commit and keep changes staged" />
+            <Button name="stage_all" menu="files.stage_all" icon="sysicon_checkbox" text="Stage All" tooltip="Stage all changes" />
+            <Button name="unstage_all" menu="files.unstage_all" icon="sysicon_checkbox_off" text="Unstage All" tooltip="Unstage all changes" />
             <Button name="branch" menu="branch.new" icon="sysicon_star" text="Branch" tooltip="Create new branch" />
             <spacer />
             <Button name="refresh" menu="repo.refresh" icon="sysicon_arrow_refresh" text="Refresh" tooltip="Refresh repository" />
-            <Button name="open" menu="file.open_repo" icon="sysicon_folder" text="Open" tooltip="Open repository" />
+            <Button name="repos" menu="file.repositories" icon="sysicon_folder_search" text="Repos" tooltip="Switch or discover repositories" />
+            <Button name="changes" menu="view.changes" icon="sysicon_checkbox" text="Changes" tooltip="Show working tree changes" />
+            <Button name="history" menu="view.history" icon="sysicon_clock" text="History" tooltip="Show commit history" />
         </toolbar>
     </toolbars>
 
@@ -190,13 +209,24 @@
                             <Column field="hash" title="Hash" width="50" />
                         </TableView>
 
-                        <TableView name="files"
-                                   source="db.files"
-                                   context-menu="files"
-                                   flags="notitle,nofill,vscroll,flexspace">
-                            <Column field="status" title="St" width="20" />
-                            <Column field="path" title="File" width="0" />
-                        </TableView>
+                        <StackView name="changes_panel" spacing="4" padding="4">
+                            <TableView name="files"
+                                       source="db.files"
+                                       check-field="staged"
+                                       context-menu="files"
+                                       flags="notitle,nofill,vscroll,flexspace">
+                                <Column field="status" title="St" width="20" />
+                                <Column field="path" title="File" width="0" />
+                            </TableView>
+                            <label name="commit_hint" text="Commit staged changes" />
+                            <textedit name="commit_summary" text="" />
+                            <textedit name="commit_description" text="" />
+                            <StackView name="commit_actions" orientation="horizontal" spacing="4">
+                                <button name="stash_inline" text="Stash" />
+                                <space />
+                                <button name="commit_now" text="Commit" flags="default" />
+                            </StackView>
+                        </StackView>
                     </SplitView>
 
                     <DiffView name="diff"
@@ -386,6 +416,61 @@
                 <button name="ok" text="OK" flags="default" />
                 <button name="cancel" text="Cancel" />
             </stack>
+        </form>
+
+        <form name="repositories_dialog" title="Repositories" width="500" auto_layout="1" spacing="6" padding="8">
+            <label text="Known repositories:" />
+            <combobox name="repo_list" flags="flexspace" />
+            <StackView orientation="horizontal" spacing="4">
+                <button name="add" text="Add..." />
+                <button name="scan" text="Scan Folder..." />
+                <button name="remove" text="Remove" />
+            </StackView>
+            <StackView orientation="horizontal" spacing="4">
+                <space />
+                <button name="open" text="Open" flags="default" />
+                <button name="close" text="Close" />
+            </StackView>
+        </form>
+
+        <form name="create_repo_dialog" title="Create Repository" width="500" auto_layout="1" spacing="6" padding="8">
+            <label text="Repository folder:" />
+            <StackView orientation="horizontal" spacing="4">
+                <textedit name="path" flags="flexspace" />
+                <button name="browse" text="Choose..." />
+            </StackView>
+            <label name="status" text="The folder will be created and initialized with branch main." />
+            <StackView orientation="horizontal" spacing="4">
+                <space />
+                <button name="ok" text="Create" flags="default" />
+                <button name="cancel" text="Cancel" />
+            </StackView>
+        </form>
+
+        <form name="identity_dialog" title="Git Identity" width="460" auto_layout="1" spacing="6" padding="8">
+            <label text="Name:" />
+            <textedit name="name" />
+            <label text="Email:" />
+            <textedit name="email" />
+            <checkbox name="global" text="Use for all repositories" />
+            <label name="status" text="Stored in this repository unless global is selected." />
+            <StackView orientation="horizontal" spacing="4">
+                <space />
+                <button name="ok" text="Save" flags="default" />
+                <button name="cancel" text="Cancel" />
+            </StackView>
+        </form>
+
+        <form name="switch_branch_dialog" title="Switch Branch" width="440" auto_layout="1" spacing="6" padding="8">
+            <label text="Find a branch:" />
+            <textedit name="query" />
+            <combobox name="branches" flags="flexspace" />
+            <StackView orientation="horizontal" spacing="4">
+                <button name="new_branch" text="New Branch..." />
+                <space />
+                <button name="ok" text="Switch" flags="default" />
+                <button name="cancel" text="Cancel" />
+            </StackView>
         </form>
     </forms>
 </orion>

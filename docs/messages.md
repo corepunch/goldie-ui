@@ -55,6 +55,7 @@ Sent to the **root window** via `evCommand`:
 | `cbSelectionChange` | Combobox | Selected item changed |
 | `RVN_SELCHANGE` | ColumnView | Single-click selection change |
 | `RVN_DBLCLK` | ColumnView | Double-click on item |
+| `RVN_ITEMCHECK` | ReportView / TableView | Row checkbox state changed |
 | `kMenuBarNotificationItemClick` | MenuBar | Menu item selected |
 
 Decoding in the parent window procedure:

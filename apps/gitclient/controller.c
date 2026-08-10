@@ -17,8 +17,65 @@ bool gc_stage_file(const char *path) {
 bool gc_unstage_file(const char *path) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->repo || !path) return false;
-  const char *args[] = { "git", "restore", "--staged", path, NULL };
   char buf[512] = {0};
+  const char *check[] = { "git", "rev-parse", "--verify", "HEAD", NULL };
+  if (git_run_sync(gc->repo, check, buf, sizeof(buf))) {
+    const char *args[] = { "git", "restore", "--staged", "--", path, NULL };
+    return git_run_sync(gc->repo, args, buf, sizeof(buf));
+  }
+  const char *args[] = { "git", "rm", "--cached", "--", path, NULL };
+  return git_run_sync(gc->repo, args, buf, sizeof(buf));
+}
+
+bool gc_stage_all(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return false;
+  char buf[1024] = {0};
+  const char *args[] = { "git", "add", "-A", NULL };
+  return git_run_sync(gc->repo, args, buf, sizeof(buf));
+}
+
+bool gc_unstage_all(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return false;
+  char buf[1024] = {0}, head[64] = {0};
+  const char *check[] = { "git", "rev-parse", "--verify", "HEAD", NULL };
+  if (git_run_sync(gc->repo, check, head, sizeof(head))) {
+    const char *args[] = { "git", "reset", "HEAD", "--", ".", NULL };
+    return git_run_sync(gc->repo, args, buf, sizeof(buf));
+  }
+  const char *args[] = { "git", "rm", "--cached", "-r", "--", ".", NULL };
+  return git_run_sync(gc->repo, args, buf, sizeof(buf));
+}
+
+bool gc_sync(void) {
+  gc_state_t *gc = g_gc; git_sync_status_t st;
+  if (!gc || !gc->repo || !git_get_sync_status(gc->repo, &st) || st.detached || st.initial) return false;
+  char remote_buf[8][256];
+  if (!st.remote[0] && git_get_remotes(gc->repo, remote_buf, 8) > 0)
+    strncpy(st.remote, remote_buf[0], sizeof(st.remote) - 1);
+  if (!st.remote[0]) return false;
+  char buf[4096] = {0};
+  if (!st.upstream[0] || st.gone) {
+    const char *args[] = { "git", "push", "-u", st.remote, st.head, NULL };
+    return git_run_sync(gc->repo, args, buf, sizeof(buf));
+  }
+  if (st.behind > 0 && st.ahead > 0) return false;
+  if (st.behind > 0) {
+    const char *args[] = { "git", "pull", "--ff-only", NULL };
+    if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) return false;
+  }
+  if (st.ahead > 0) {
+    const char *args[] = { "git", "push", NULL };
+    if (!git_run_sync(gc->repo, args, buf, sizeof(buf))) return false;
+  }
+  return true;
+}
+
+bool gc_undo_commit(void) {
+  gc_state_t *gc = g_gc;
+  if (!gc || !gc->repo) return false;
+  char buf[2048] = {0}; const char *args[] = { "git", "reset", "--soft", "HEAD~1", NULL };
   return git_run_sync(gc->repo, args, buf, sizeof(buf));
 }
 
@@ -153,12 +210,20 @@ bool gc_discard_file(const char *path) {
   gc_state_t *gc = g_gc;
   if (!gc || !gc->repo || !path) return false;
   char buf[1024] = {0};
-  // Try checkout first (tracked files), then clean (untracked)
-  const char *args_co[] = { "git", "checkout", "--", path, NULL };
-  if (git_run_sync(gc->repo, args_co, buf, sizeof(buf)))
-    return true;
-  const char *args_cl[] = { "git", "clean", "-f", path, NULL };
-  return git_run_sync(gc->repo, args_cl, buf, sizeof(buf));
+  git_file_status_t files[256]; int n = git_get_status(gc->repo, files, 256);
+  git_file_status_t *file = NULL;
+  for (int i = 0; i < n; i++) if (!strcmp(files[i].path, path)) { file = &files[i]; break; }
+  if (!file) return false;
+  if (file->untracked) {
+    const char *args[] = { "git", "clean", "-f", "--", path, NULL };
+    return git_run_sync(gc->repo, args, buf, sizeof(buf));
+  }
+  if (file->index_status == 'A') {
+    const char *args[] = { "git", "rm", "-f", "--", path, NULL };
+    return git_run_sync(gc->repo, args, buf, sizeof(buf));
+  }
+  const char *args[] = { "git", "restore", "--source=HEAD", "--staged", "--worktree", "--", path, NULL };
+  return git_run_sync(gc->repo, args, buf, sizeof(buf));
 }
 
 bool gc_discard_all(void) {
@@ -185,6 +250,10 @@ bool gc_clone_repo(const char *url, const char *path) {
     return false;
   }
   return true;
+}
+
+bool gc_init_repo(const char *path) {
+  return git_repo_init_path(path);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

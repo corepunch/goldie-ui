@@ -194,6 +194,32 @@ void test_multiple_messages_tracked(void) {
     PASS();
 }
 
+void test_hidden_children_are_not_painted(void) {
+    TEST("Paint recursion skips hidden child windows");
+
+    test_env_init();
+    reset_test_counters();
+    window_t *parent = test_env_create_window("Parent", 0, 0, 100, 100,
+                                               parent_notify_proc, NULL);
+    window_t *child = create_window("Child", WINDOW_NOTITLE,
+                                    MAKERECT(0, 0, 50, 50), parent,
+                                    test_window_proc, 0, NULL);
+    ASSERT_NOT_NULL(parent);
+    ASSERT_NOT_NULL(child);
+
+    window_set_state(child, WINDOW_STATE_VISIBLE, false);
+    send_message(parent, evPaint, 0, NULL);
+    ASSERT_EQUAL(test_wm_paint_called, 0);
+
+    window_set_state(child, WINDOW_STATE_VISIBLE, true);
+    send_message(parent, evPaint, 0, NULL);
+    ASSERT_EQUAL(test_wm_paint_called, 1);
+
+    destroy_window(parent);
+    test_env_shutdown();
+    PASS();
+}
+
 // Test event tracking enable/disable
 void test_tracking_toggle(void) {
     TEST("Event tracking enable/disable");
@@ -495,6 +521,7 @@ int main(int argc, char *argv[]) {
     test_window_creation_tracked();
     test_send_message_tracked();
     test_multiple_messages_tracked();
+    test_hidden_children_are_not_painted();
     test_tracking_toggle();
     test_event_details();
     test_parent_child_messages();

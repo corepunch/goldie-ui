@@ -144,6 +144,26 @@ static int gc_popen_read(const char *cmd, char *buf, int buf_sz) {
 #endif
 }
 
+static int gc_popen_read_bytes(const char *cmd, char *buf, int buf_sz, int *size_out) {
+  if (!cmd || !buf || buf_sz <= 0) return -1;
+  FILE *fp = popen(cmd, "r");
+  if (!fp) { buf[0] = 0; return -1; }
+  int total = 0;
+  while (total < buf_sz - 1) {
+    size_t n = fread(buf + total, 1, (size_t)(buf_sz - 1 - total), fp);
+    total += (int)n;
+    if (n == 0) break;
+  }
+  buf[total] = 0;
+  int rc = pclose(fp);
+  if (size_out) *size_out = total;
+#ifdef _WIN32
+  return rc;
+#else
+  return WIFEXITED(rc) ? WEXITSTATUS(rc) : -1;
+#endif
+}
+
 #ifdef _WIN32
 // Some MinGW/MSYS environments execute popen() through sh instead of cmd.exe.
 // If a first run returns literal pretty-format placeholders, collapse %% -> %
@@ -209,6 +229,15 @@ bool git_repo_valid(git_repo_t *repo) {
 
 const char *git_repo_path(git_repo_t *repo) {
   return repo ? repo->path : "";
+}
+
+bool git_repo_init_path(const char *path) {
+  if (!path || !path[0] || !axMkDir(path)) return false;
+  git_repo_t repo = {0}; strncpy(repo.path, path, sizeof(repo.path) - 1);
+  char buf[2048] = {0}; const char *args[] = { "git", "init", "-b", "main", NULL };
+  if (git_run_sync(&repo, args, buf, sizeof(buf))) return true;
+  const char *fallback[] = { "git", "init", NULL };
+  return git_run_sync(&repo, fallback, buf, sizeof(buf));
 }
 
 // ============================================================
@@ -328,51 +357,107 @@ int git_get_log(git_repo_t *repo, git_commit_t *out, int max) {
 int git_get_status(git_repo_t *repo, git_file_status_t *out, int max) {
   if (!repo || !out || max <= 0) return 0;
 
-  char buf[32 * 1024];
-  const char *args[] = { "git", "status", "--porcelain", "-u", NULL };
-  git_run_sync(repo, args, buf, sizeof(buf));
+  char buf[128 * 1024], cmd[GC_CMD_BUF_SIZE]; int size = 0;
+  const char *args[] = { "git", "status", "--porcelain=v1", "-z", "-uall", NULL };
+  gc_build_cmd(repo->path, args, cmd, sizeof(cmd));
+  if (gc_popen_read_bytes(cmd, buf, sizeof(buf), &size) != 0) return 0;
 
-  int count = 0;
-  char *line = buf;
-  while (*line && count < max) {
-    char *nl = strchr(line, '\n');
-    if (!nl) break;
-    *nl = '\0';
-
-    if (strlen(line) < 4) { line = nl + 1; continue; }
-
-    git_file_status_t *f = &out[count];
-    char xy_x = line[0];
-    char xy_y = line[1];
-    // XY format: index=X, worktree=Y
-    if (xy_x != ' ' && xy_x != '?') {
-      f->status = xy_x;
-      f->staged = true;
-      strncpy(f->path, line + 3, sizeof(f->path) - 1);
-      f->path[sizeof(f->path) - 1] = '\0';
-      count++;
+  int count = 0, pos = 0;
+  while (pos + 3 < size && count < max) {
+    char x = buf[pos], y = buf[pos + 1];
+    char *path = buf + pos + 3;
+    size_t remain = (size_t)(size - pos - 3);
+    size_t path_n = strnlen(path, remain);
+    if (path_n >= remain) break;
+    pos += 3 + (int)path_n + 1;
+    git_file_status_t *f = &out[count++]; memset(f, 0, sizeof(*f));
+    f->index_status = x; f->worktree_status = y;
+    f->untracked = x == '?' && y == '?';
+    f->conflicted = x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D');
+    f->staged = !f->untracked && !f->conflicted && x != ' ' && x != '!';
+    f->status = f->conflicted ? 'U' : f->untracked ? '?' : f->staged ? x : y;
+    strncpy(f->path, path, sizeof(f->path) - 1);
+    if ((x == 'R' || x == 'C') && pos < size) {
+      char *orig = buf + pos; size_t orig_n = strnlen(orig, (size_t)(size - pos));
+      if (orig_n >= (size_t)(size - pos)) break;
+      strncpy(f->orig_path, orig, sizeof(f->orig_path) - 1);
+      pos += (int)orig_n + 1;
     }
-    if (xy_y != ' ' && xy_y != '?' && count < max) {
-      if (xy_x == ' ' || xy_x == '?') {
-        f = &out[count];
-        f->status = xy_y;
-        f->staged = false;
-        strncpy(f->path, line + 3, sizeof(f->path) - 1);
-        f->path[sizeof(f->path) - 1] = '\0';
-        count++;
-      }
-    } else if (xy_x == '?' && xy_y == '?') {
-      f->status = '?';
-      f->staged = false;
-      strncpy(f->path, line + 3, sizeof(f->path) - 1);
-      f->path[sizeof(f->path) - 1] = '\0';
-      count++;
-    }
-
-    line = nl + 1;
   }
   GC_LOG("git_get_status: %d files", count);
   return count;
+}
+
+static void gc_trim_line(char *s) {
+  if (!s) return;
+  char *e = s + strlen(s); while (e > s && (e[-1] == '\n' || e[-1] == '\r')) *--e = 0;
+}
+
+bool git_get_sync_status(git_repo_t *repo, git_sync_status_t *out) {
+  if (!repo || !out) return false;
+  memset(out, 0, sizeof(*out)); char buf[1024] = {0};
+  const char *head[] = { "git", "symbolic-ref", "--short", "-q", "HEAD", NULL };
+  if (git_run_sync(repo, head, buf, sizeof(buf))) { gc_trim_line(buf); strncpy(out->head, buf, sizeof(out->head) - 1); }
+  else { out->detached = true; strncpy(out->head, "HEAD", sizeof(out->head) - 1); }
+  const char *verify[] = { "git", "rev-parse", "--verify", "HEAD", NULL };
+  out->initial = !git_run_sync(repo, verify, buf, sizeof(buf));
+  const char *dirty[] = { "git", "status", "--porcelain", NULL };
+  out->dirty = git_run_sync(repo, dirty, buf, sizeof(buf)) && buf[0];
+  if (out->detached || out->initial) return true;
+
+  const char *up[] = { "git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", NULL };
+  if (git_run_sync(repo, up, buf, sizeof(buf))) {
+    gc_trim_line(buf); strncpy(out->upstream, buf, sizeof(out->upstream) - 1);
+    char *slash = strchr(out->upstream, '/');
+    if (slash) snprintf(out->remote, sizeof(out->remote), "%.*s", (int)(slash - out->upstream), out->upstream);
+  } else {
+    char key[320], merge[512] = {0};
+    snprintf(key, sizeof(key), "branch.%s.remote", out->head);
+    const char *ra[] = { "git", "config", "--get", key, NULL };
+    if (git_run_sync(repo, ra, buf, sizeof(buf))) { gc_trim_line(buf); strncpy(out->remote, buf, sizeof(out->remote) - 1); }
+    snprintf(key, sizeof(key), "branch.%s.merge", out->head);
+    const char *ma[] = { "git", "config", "--get", key, NULL };
+    if (out->remote[0] && git_run_sync(repo, ma, merge, sizeof(merge))) {
+      gc_trim_line(merge); const char *name = strrchr(merge, '/'); name = name ? name + 1 : merge;
+      snprintf(out->upstream, sizeof(out->upstream), "%s/%s", out->remote, name); out->gone = true;
+    }
+  }
+  if (!out->upstream[0]) return true;
+  char range[600];
+  if (out->gone) {
+    snprintf(range, sizeof(range), "--remotes=%s", out->remote);
+    const char *aa[] = { "git", "rev-list", "--count", "HEAD", "--not", range, NULL };
+    if (git_run_sync(repo, aa, buf, sizeof(buf))) out->ahead = atoi(buf);
+    return true;
+  }
+  snprintf(range, sizeof(range), "%s..HEAD", out->upstream);
+  const char *aa[] = { "git", "rev-list", "--count", range, NULL };
+  if (git_run_sync(repo, aa, buf, sizeof(buf))) out->ahead = atoi(buf);
+  snprintf(range, sizeof(range), "HEAD..%s", out->upstream);
+  const char *bb[] = { "git", "rev-list", "--count", range, NULL };
+  if (git_run_sync(repo, bb, buf, sizeof(buf))) out->behind = atoi(buf);
+  return true;
+}
+
+bool git_get_identity(git_repo_t *repo, char *name, int name_sz,
+                      char *email, int email_sz) {
+  if (!repo || !name || name_sz <= 0 || !email || email_sz <= 0) return false;
+  name[0] = email[0] = 0; char buf[512] = {0};
+  const char *na[] = { "git", "config", "--get", "user.name", NULL };
+  if (git_run_sync(repo, na, buf, sizeof(buf))) { gc_trim_line(buf); strncpy(name, buf, (size_t)name_sz - 1); }
+  const char *ea[] = { "git", "config", "--get", "user.email", NULL };
+  if (git_run_sync(repo, ea, buf, sizeof(buf))) { gc_trim_line(buf); strncpy(email, buf, (size_t)email_sz - 1); }
+  return name[0] && email[0];
+}
+
+bool git_set_identity(git_repo_t *repo, const char *name, const char *email,
+                      bool global) {
+  if (!repo || !name || !name[0] || !email || !email[0]) return false;
+  char buf[1024] = {0};
+  const char *na[] = { "git", "config", global ? "--global" : "--local", "user.name", name, NULL };
+  if (!git_run_sync(repo, na, buf, sizeof(buf))) return false;
+  const char *ea[] = { "git", "config", global ? "--global" : "--local", "user.email", email, NULL };
+  return git_run_sync(repo, ea, buf, sizeof(buf));
 }
 
 // ============================================================
@@ -625,7 +710,7 @@ static GIT_THREAD_RET git_async_worker(void *arg) {
 bool git_run_async(git_repo_t *repo, git_op_t op,
                    const char *args[],
                    window_t *notify_win) {
-  if (!repo || !args || !notify_win) return false;
+  if (!args || !notify_win) return false;
 
   git_async_args_t *a =
       (git_async_args_t *)calloc(1, sizeof(git_async_args_t));
@@ -633,7 +718,7 @@ bool git_run_async(git_repo_t *repo, git_op_t op,
 
   a->op = op;
   a->notify_win = notify_win;
-  gc_build_cmd(repo->path, args, a->cmd, sizeof(a->cmd));
+  gc_build_cmd(repo ? repo->path : ".", args, a->cmd, sizeof(a->cmd));
 
   GC_LOG("git_run_async: %s", a->cmd);
 

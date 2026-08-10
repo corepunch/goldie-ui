@@ -89,6 +89,16 @@ static void splitview_arrange(splitview_state_t *st, window_t *win) {
 
   window_t *left = NULL, *right = NULL, *splitter = NULL;
   splitview_get_panes(win, &left, &right, &splitter);
+  bool left_visible = left && window_has_state(left, WINDOW_STATE_VISIBLE);
+  bool right_visible = right && window_has_state(right, WINDOW_STATE_VISIBLE);
+  if (left_visible != right_visible) {
+    window_t *only = left_visible ? left : right;
+    only->frame = cr;
+    if (splitter) window_set_state(splitter, WINDOW_STATE_VISIBLE, false);
+    layout_arrange_t la = {only->frame}; send_message(only, evArrange, 0, &la);
+    return;
+  }
+  if (splitter) window_set_state(splitter, WINDOW_STATE_VISIBLE, true);
   if (left)     left->frame = r_left;
   if (splitter) splitter->frame = r_split;
   if (right)    right->frame = r_right;
