@@ -158,6 +158,9 @@ void test_cursor_blink_routes_only_its_timer(void) {
 
 void test_pty_watch_wakes_on_readability(void) {
   TEST("PTY watcher posts readiness only after bytes arrive");
+#ifdef _WIN32
+  SKIP("PTY watcher not implemented on Windows");
+#endif
   int fds[2] = {-1, -1};
   ASSERT_EQUAL(pipe(fds), 0);
   window_t target = {0};
