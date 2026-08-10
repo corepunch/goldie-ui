@@ -35,6 +35,8 @@ static const accel_t kAccelEntries[] = {
   { FVIRTKEY,          AX_KEY_E, ID_TOOL_ROTATE },
   { FVIRTKEY,          AX_KEY_R, ID_TOOL_SCALE },
   { FVIRTKEY,          AX_KEY_F, ID_VIEW_ZOOM_FIT },
+  { FVIRTKEY,          AX_KEY_TAB, ID_VIEW_NEXT_CAMERA },
+  { FSHIFT|FVIRTKEY,   AX_KEY_TAB, ID_VIEW_PREV_CAMERA },
 };
 #define kAccelCount (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0]))
 

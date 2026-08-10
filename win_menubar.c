@@ -169,6 +169,24 @@ void handle_menu_command(uint16_t id) {
       g_app->debug_flags ^= DBG_WIRE_SHADOWVOL;
       break;
 
+    case ID_VIEW_NEXT_CAMERA:
+    case ID_VIEW_PREV_CAMERA:
+      if (doc && doc->scene.ncameras > 0) {
+        int idx = -1;
+        for (int i = 0; i < doc->scene.ncameras; i++) {
+          if (!strcmp(doc->scene.cameras[i].name, doc->scene.activeCamera)) {
+            idx = i; break;
+          }
+        }
+        if (idx < 0) idx = 0;
+        else if (id == ID_VIEW_NEXT_CAMERA) idx = (idx + 1) % doc->scene.ncameras;
+        else idx = (idx + doc->scene.ncameras - 1) % doc->scene.ncameras;
+        scene_select_camera(&doc->scene, doc->scene.cameras[idx].name);
+        if (doc->viewport_win) invalidate_window(doc->viewport_win);
+        fprintf(stderr, "camera %d/%d: %s\n", idx + 1, doc->scene.ncameras, doc->scene.cameras[idx].name);
+      }
+      break;
+
     case ID_CREATE_BOX:
     case ID_CREATE_SPHERE:
     case ID_CREATE_CYLINDER:
