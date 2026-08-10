@@ -60,7 +60,7 @@ static void desktop_icon_select(window_t *win, bool selected, bool notify) {
   bool changed = (win->value != 0) != selected;
   if (selected && win->parent) {
     for (window_t *it = win->parent->children; it; it = it->next) {
-      if (it != win && it->proc == win_icon && it->value) {
+      if (it != win && it->proc == win->proc && it->value) {
         it->value = false;
         invalidate_window(it);
       }
