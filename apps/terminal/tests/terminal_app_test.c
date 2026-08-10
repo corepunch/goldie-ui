@@ -9,7 +9,12 @@
 #include <stdlib.h>
 #ifdef _WIN32
 #include <io.h>
+#include <windows.h>
 #define pipe(fds) _pipe(fds, 65536, 0)
+#define usleep(us) Sleep((us) / 1000)
+#define read _read
+#define write _write
+#define close _close
 #else
 #include <unistd.h>
 #endif
