@@ -135,7 +135,7 @@ static void cp_draw_item(cp_state_t *st, const cp_item_t *item, irect16_t rect) 
 	(void)st;
 	bool active = item->id >= ID_TOOL_SELECT && item->id <= ID_TOOL_SCALE && scener_active_tool() == item->id;
 	draw_button(rect, 0, 0, active);
-	draw_text(FONT_ICON, item->label, rect.x + 7, rect.y + (rect.h - text_char_height(FONT_ICON)) / 2, get_sys_color(brTextNormal));
+	draw_text(FONT_SMALL, item->label, rect.x + 7, rect.y + (rect.h - text_char_height(FONT_SMALL)) / 2, get_sys_color(brTextNormal));
 }
 
 static void cp_draw_content(cp_state_t *st, int width) {
