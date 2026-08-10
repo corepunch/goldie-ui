@@ -113,6 +113,7 @@ static int resize_anchor[2];
 // Each child receives coords in its own client coordinate system (WinAPI style).
 static int handle_mouse(int msg, window_t *win, int x, int y, void *lparam) {
   for (window_t *c = win->children; c; c = c->next) {
+    if (!window_has_state(c, WINDOW_STATE_VISIBLE)) continue;
     if (!CONTAINS(x, y, c->frame.x, c->frame.y, c->frame.w, c->frame.h))
       continue;
     // Hit-test in viewport space, then deliver in the child's content space.

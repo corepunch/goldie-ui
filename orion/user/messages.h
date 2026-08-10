@@ -113,6 +113,7 @@ enum {
   slSetPos,         // wparam = handle index (0..3), lparam=(void*)(intptr_t)pos
   slGetPos,         // wparam = handle index (0..3), lparam=int* out(optional)
   tbSetButtonSize,    // wparam=square button size in pixels (0 resets to TB_SPACING)
+  tbSetStyle,         // wparam=TOOLBAR_STYLE_* flags
   tbLoadStrip,        // wparam=icon tile size in px (square); lparam=const char* path to PNG
   tbSetItems,         // wparam=count; lparam=toolbar_item_t* — set toolbar item list (owner-drawn)
   // Fired via evCommand when the user clicks the dropdown arrow of a TOOLBAR_ITEM_DROPDOWN button.
@@ -352,6 +353,7 @@ typedef struct {
 #define TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT  3  // default combobox width = button_size * this multiplier
 #define TOOLBAR_BUTTON_FLAG_ACTIVE   (1u << 0)
 #define TOOLBAR_BUTTON_FLAG_PRESSED  (1u << 1)
+#define TOOLBAR_STYLE_SHOW_LABELS    (1u << 0) // WinAPI-style text below button icons
 #define DROPDOWN_ARROW_W             12          // pixel width of the dropdown arrow zone in TOOLBAR_ITEM_DROPDOWN
 
 // Toolbar item types used with tbSetItems.
@@ -375,6 +377,14 @@ typedef struct {
   const char         *text;   // label text, or combobox/textedit initial text
   const char         *tooltip; // tooltip text shown on hover; NULL = none
 } toolbar_item_t;
+
+// Tab control messages and notifications (WinAPI TCM_*/TCN_* analogues).
+enum {
+  tcGetSelection = evUser + 340,
+  tcSetSelection,
+  tcnSelChange,
+};
+#define TAB_CONTROL_HEIGHT 22
 
 // Analogous to WinAPI CW_USEDEFAULT: pass as x or y to create_window() /
 // create_window_from_form() to let the framework auto-position the window.

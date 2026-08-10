@@ -678,6 +678,26 @@ void test_titlebar_height_single_row(void) {
     PASS();
 }
 
+void test_toolbar_labels_increase_button_and_band_size(void) {
+    TEST("tbSetStyle: labels expand buttons and toolbar height");
+    test_env_init();
+    irect16_t frame = {0, 0, 240, 100};
+    window_t *win = create_window("W", WINDOW_TOOLBAR | WINDOW_NORESIZE,
+                                  &frame, NULL, noop_proc, 0, NULL);
+    toolbar_item_t item = {TOOLBAR_ITEM_BUTTON, 1, 0, 0, 0, "A long label", NULL};
+    send_message(win, tbSetItems, 1, &item);
+    int plain_h = titlebar_height(win), plain_w = require_toolbar_state(win)->item_rects[0].w;
+    send_message(win, tbSetStyle, TOOLBAR_STYLE_SHOW_LABELS, NULL);
+    toolbar_state_t *tb = require_toolbar_state(win);
+    ASSERT_EQUAL(tb->style, TOOLBAR_STYLE_SHOW_LABELS);
+    ASSERT_TRUE(titlebar_height(win) > plain_h);
+    ASSERT_EQUAL(tb->item_rects[0].w, MAX(plain_w, text_strwidth(FONT_ICON, item.text) + 8));
+    ASSERT_EQUAL(tb->item_rects[0].h, TB_SPACING + text_char_height(FONT_ICON) + 2);
+    destroy_window(win);
+    test_env_shutdown();
+    PASS();
+}
+
 // ---- main -------------------------------------------------------------------
 
 void test_toolbar_button_click_cancelled_if_released_outside(void) {
@@ -849,6 +869,7 @@ int main(int argc, char *argv[]) {
     test_toolbar_destroy_clears_children();
     test_toolbar_move_shifts_children();
     test_titlebar_height_single_row();
+    test_toolbar_labels_increase_button_and_band_size();
     test_toolbar_button_click_cancelled_if_released_outside();
     test_toolbar_item_button_frame_clamped();
     test_nodrag_toolbar_stays_fixed();

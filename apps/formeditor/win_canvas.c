@@ -102,8 +102,8 @@ bool canvas_drop_component_to_target(window_t *doc, int type, window_t *target,
 static bool canvas_table_column_at(window_t *doc, int sx, int sy,
                                    window_t **table_out, int *column_out) {
   window_t *hit = canvas_hit_screen_rec(doc, sx, sy);
-  while (hit && hit != doc && hit->proc != win_tableview) hit = hit->parent;
-  if (!hit || hit == doc || hit->proc != win_tableview) return false;
+  while (hit && hit != doc && !window_is_class(hit, "TableView")) hit = hit->parent;
+  if (!hit || hit == doc || !window_is_class(hit, "TableView")) return false;
   int count = (int)send_message(hit, RVM_GETCOLUMNCOUNT, 0, NULL);
   irect16_t cr = get_client_rect(hit);
   int x = sx - window_screen_x(hit) + (int)hit->hscroll.pos, left = 0;

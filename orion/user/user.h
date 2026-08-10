@@ -113,6 +113,7 @@ typedef struct toolbar_state_s {
   bitmap_strip_t  strip;
   uint32_t        strip_tex;    // GL texture owned here; freed on toolbar destroy
   int             btn_size;     // 0 = TB_SPACING default; >0 = custom square size in px
+  uint32_t        style;        // TOOLBAR_STYLE_* flags
 } toolbar_state_t;
 
 // Window definition structure (for declarative window creation)
@@ -516,6 +517,7 @@ bool register_window_class(const fe_component_desc_t *desc);
 int get_num_window_classes(void);
 const fe_component_desc_t *get_window_class_at_index(int index);
 const fe_component_desc_t *find_window_class_desc_by_proc(winproc_t proc);
+bool window_is_class(const window_t *win, const char *class_name);
 winproc_t find_window_class_proc(const char *class_name);
 const fe_component_desc_t *find_window_class_desc(const char *class_name);
 void register_builtin_window_classes(void);

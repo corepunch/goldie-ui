@@ -263,6 +263,7 @@ intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
     case tbSetStrip:
     case tbSetActiveButton:
     case tbSetButtonSize:
+    case tbSetStyle:
     case tbLoadStrip:
       (void)toolbar_handle_message(win, msg, wparam, lparam);
       break;
@@ -360,6 +361,7 @@ intptr_t send_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
           x += (uint16_t)win->hscroll.pos;
           y += (uint16_t)win->vscroll.pos;
           for (window_t *item = win->children; item; item = item->next) {
+            if (!window_has_state(item, WINDOW_STATE_VISIBLE)) continue;
             irect16_t r = item->frame;
             if (CONTAINS(x, y, r.x, r.y, r.w, r.h)) {
               *(window_t **)lparam = item;

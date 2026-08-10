@@ -10,18 +10,18 @@
 
 void gc_set_view_mode(bool history) {
   gc_state_t *gc = g_gc; if (!gc || !gc->main_win) return;
-  window_t *log = get_window_item(gc->main_win, ID_MAIN_WINDOW_LOG);
-  window_t *changes = get_window_item(gc->main_win, ID_MAIN_WINDOW_CHANGES_PANEL);
-  window_t *split = get_window_item(gc->main_win, ID_MAIN_WINDOW_LOG_FILES_SPLIT);
   gc->history_mode = history;
-  if (log) window_set_state(log, WINDOW_STATE_VISIBLE, true);
-  if (changes) window_set_state(changes, WINDOW_STATE_VISIBLE, true);
-  if (!history && gc->files_win) {
+  if (gc->tabs_win) send_message(gc->tabs_win, tcSetSelection, history ? 1 : 0, NULL);
+  gc->files_win = history ? gc->history_files_win : gc->changes_files_win;
+  gc->diff_win  = history ? gc->history_diff_win  : gc->changes_diff_win;
+  if (!history && gc->changes_files_win) {
     gc->selected_commit = -1;
     gc->selected_file = -1;
-    send_message(gc->files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
-  } else if (history) gc->selected_file = -1;
-  if (split) send_message(split, evResize, 0, NULL);
+    send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
+  } else if (history) {
+    gc->selected_commit = gc->log_win ? (int)send_message(gc->log_win, RVM_GETSELECTION, 0, NULL) : -1;
+    gc->selected_file = -1;
+  }
   gc_diff_refresh();
   invalidate_window(gc->main_win);
 }
@@ -87,9 +87,9 @@ void gc_refresh_all(void) {
     tableview_handle_master_selection(get_root_window(gc->branches_win),
                                       gc->branches_win);
   }
-  if (gc->files_win) {
-    gc->selected_commit = -1;
-    send_message(gc->files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
+  if (gc->changes_files_win) {
+    send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
+    if (!gc->history_mode) gc->selected_commit = -1;
   }
 
   gc_diff_refresh();
@@ -140,15 +140,18 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       gc->branches_win = get_window_item(win, ID_MAIN_WINDOW_BRANCHES);
       gc->tags_win = get_window_item(win, ID_MAIN_WINDOW_TAGS);
       gc->stash_win = get_window_item(win, ID_MAIN_WINDOW_STASH_LIST);
+      gc->tabs_win = get_window_item(win, ID_MAIN_WINDOW_VIEWS);
       gc->log_win = get_window_item(win, ID_MAIN_WINDOW_LOG);
-      gc->files_win = get_window_item(win, ID_MAIN_WINDOW_FILES);
-      gc->diff_win = get_window_item(win, ID_MAIN_WINDOW_DIFF);
+      gc->changes_files_win = get_window_item(win, ID_MAIN_WINDOW_CHANGES_FILES);
+      gc->changes_diff_win = get_window_item(win, ID_MAIN_WINDOW_CHANGES_DIFF);
+      gc->history_files_win = get_window_item(win, ID_MAIN_WINDOW_HISTORY_FILES);
+      gc->history_diff_win = get_window_item(win, ID_MAIN_WINDOW_HISTORY_DIFF);
       GC_LOG("form outlets: branches=%p log=%p files=%p diff=%p",
              (void *)gc->branches_win, (void *)gc->log_win,
-             (void *)gc->files_win, (void *)gc->diff_win);
+             (void *)gc->changes_files_win, (void *)gc->changes_diff_win);
 
       send_message(win, evStatusBar, 0, "No repository");
-      gc->refresh_timer = axSetTimer(win, 15000, NULL, true);
+      send_message(win, tbSetStyle, TOOLBAR_STYLE_SHOW_LABELS, NULL);
       gc_set_view_mode(false);
 
       // Load VGA font (TTF → character sheet generated at runtime).
@@ -162,7 +165,6 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
     }
 
     case evDestroy:
-      if (gc && gc->refresh_timer) { axCancelTimer(gc->refresh_timer); gc->refresh_timer = 0; }
       vga_font_shutdown();
       git_repo_close(gc->repo);
       gc->repo = NULL;
@@ -172,15 +174,16 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       if (gc && gc->repo && wparam != WA_INACTIVE) gc_refresh_all();
       return false;
 
-    case evTimer:
-      if (gc && gc->repo && wparam == gc->refresh_timer) { gc_refresh_all(); return true; }
-      return false;
-
     case evPaint:
       return false;
 
     case evCommand: {
       uint16_t code = (uint16_t)HIWORD(wparam);
+
+      if (code == tcnSelChange && (window_t *)lparam == gc->tabs_win) {
+        gc_set_view_mode(send_message(gc->tabs_win, tcGetSelection, 0, NULL) == 1);
+        return true;
+      }
 
       if (code == kMenuBarNotificationItemClick) {
         gc_handle_command(LOWORD(wparam));
@@ -229,11 +232,19 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           if (sel != gc->selected_commit) {
             gc->selected_commit = sel;
             gc->selected_file   = -1;
-            gc_diff_refresh();
+            if (gc->history_mode) {
+              gc->files_win = gc->history_files_win;
+              gc->diff_win = gc->history_diff_win;
+              gc_diff_refresh();
+            }
           }
-        } else if (src == gc->files_win) {
-          if (sel != gc->selected_file) {
-            gc->selected_commit = -1;
+        } else if (src == gc->changes_files_win || src == gc->history_files_win) {
+          bool active = (src == gc->changes_files_win && !gc->history_mode) ||
+                        (src == gc->history_files_win && gc->history_mode);
+          if (active && sel != gc->selected_file) {
+            if (src == gc->changes_files_win) gc->selected_commit = -1;
+            gc->files_win = src;
+            gc->diff_win = src == gc->changes_files_win ? gc->changes_diff_win : gc->history_diff_win;
             gc->selected_file = sel;
             gc_diff_refresh();
           }
@@ -242,11 +253,11 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       }
 
       if (code == RVN_ITEMCHECK) {
-        if (!gc || (window_t *)lparam != gc->files_win) return true;
+        if (!gc || (window_t *)lparam != gc->changes_files_win) return true;
         int row = (int)(int16_t)LOWORD(wparam);
         db_file_t *file = (db_file_t *)(intptr_t)send_message(
-          gc->files_win, tvGetRecord, (uint32_t)row, NULL);
-        bool checked = ReportView_GetCheckState(gc->files_win, row);
+          gc->changes_files_win, tvGetRecord, (uint32_t)row, NULL);
+        bool checked = ReportView_GetCheckState(gc->changes_files_win, row);
         if (file) {
           bool ok = checked ? gc_stage_file(file->path) : gc_unstage_file(file->path);
           if (!ok) message_box(gc->main_win, "Operation failed.", "File", MB_OK);
@@ -291,7 +302,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           return true;
         }
 
-        if (src == gc->files_win && gc->selected_commit < 0 &&
+        if (src == gc->changes_files_win && gc->selected_commit < 0 &&
             gc->repo && idx >= 0) {
           result_node_t *files = (result_node_t *)send_db_message(
             gc->db, dbFetch, MAKEDWORD(ID_DB_FILES, 0), (void *)(intptr_t)0);

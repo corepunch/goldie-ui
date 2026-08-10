@@ -99,6 +99,7 @@ result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
 result_t win_scrollbar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_slider(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 result_t win_gradient(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+result_t win_tabview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Column browser (NSBrowser-style multi-column hierarchical navigation).
 // Data source callback pattern for populating columns dynamically.

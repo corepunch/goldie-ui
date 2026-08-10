@@ -9,6 +9,7 @@
 toolbar_state_t *toolbar_ensure_state(window_t *win);
 toolbar_state_t *toolbar_get_state(window_t *win);
 int toolbar_effective_bsz(window_t const *win);
+int toolbar_effective_item_height(window_t const *win);
 
 void toolbar_draw_non_client(window_t *win);
 
