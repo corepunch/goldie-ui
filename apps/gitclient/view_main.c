@@ -18,6 +18,7 @@ void gc_set_view_mode(bool history) {
     gc->selected_commit = -1;
     gc->selected_file = -1;
     send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
+    gc->selected_file = -1;   // reset — always show full working-tree diff on tab switch
   } else if (history) {
     gc->selected_commit = gc->log_win ? (int)send_message(gc->log_win, RVM_GETSELECTION, 0, NULL) : -1;
     gc->selected_file = -1;
