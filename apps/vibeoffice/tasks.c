@@ -42,7 +42,11 @@ static bool task_path(char *path, size_t size, int desk_id, const char *suffix) 
 }
 
 static bool task_dir_ensure(void) {
+#ifdef _WIN32
+  return mkdir(VIBE_TASK_DIR) == 0 || errno == EEXIST;
+#else
   return mkdir(VIBE_TASK_DIR, 0755) == 0 || errno == EEXIST;
+#endif
 }
 
 static void json_write_string(FILE *file, const char *text) {
