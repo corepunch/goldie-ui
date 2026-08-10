@@ -89,7 +89,8 @@ void gc_refresh_all(void) {
   }
   if (gc->changes_files_win) {
     send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
-    if (!gc->history_mode) gc->selected_commit = -1;
+    int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
+    if (active_tab == 0) gc->selected_commit = -1;
   }
 
   gc_diff_refresh();
@@ -232,15 +233,17 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
           if (sel != gc->selected_commit) {
             gc->selected_commit = sel;
             gc->selected_file   = -1;
-            if (gc->history_mode) {
+            int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
+            if (active_tab == 1) {
               gc->files_win = gc->history_files_win;
               gc->diff_win = gc->history_diff_win;
               gc_diff_refresh();
             }
           }
         } else if (src == gc->changes_files_win || src == gc->history_files_win) {
-          bool active = (src == gc->changes_files_win && !gc->history_mode) ||
-                        (src == gc->history_files_win && gc->history_mode);
+          int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
+          bool active = (src == gc->changes_files_win && active_tab == 0) ||
+                        (src == gc->history_files_win && active_tab == 1);
           if (active && sel != gc->selected_file) {
             if (src == gc->changes_files_win) gc->selected_commit = -1;
             gc->files_win = src;
