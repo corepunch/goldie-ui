@@ -468,16 +468,15 @@ bool git_get_diff(git_repo_t *repo, const char *path,
                   bool staged, char *buf, int buf_sz) {
   if (!repo || !buf || buf_sz <= 0) return false;
 
-  // Route through gc_build_cmd so stderr is redirected portably.
   if (staged) {
     const char *args[] = { "git", "diff", "--color=always", "--cached", "--",
                            path ? path : "", NULL };
     git_run_sync(repo, args, buf, buf_sz);
   } else if (path && path[0]) {
-    const char *args[] = { "git", "diff", "--color=always", "HEAD", "--", path, NULL };
+    const char *args[] = { "git", "diff", "--color=always", "--", path, NULL };
     git_run_sync(repo, args, buf, buf_sz);
   } else {
-    const char *args[] = { "git", "diff", "--color=always", "HEAD", NULL };
+    const char *args[] = { "git", "diff", "--color=always", NULL };
     git_run_sync(repo, args, buf, buf_sz);
   }
   return true;

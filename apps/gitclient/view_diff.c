@@ -18,11 +18,11 @@ static void parse_hunks(gc_diff_state_t *st) {
 
 void gc_diff_refresh(void) {
   gc_state_t *gc = g_gc;
-  if (!gc || !gc->diff_win) return;
+  if (!gc || !gc->diff_win) { GC_TRACE("diff_refresh SKIP: gc=%p diff_win=%p", (void *)gc, gc ? (void *)gc->diff_win : NULL); return; }
 
   window_t *win = gc->diff_win;
   gc_diff_state_t *st = (gc_diff_state_t *)win->userdata;
-  if (!st) return;
+  if (!st) { GC_TRACE("diff_refresh SKIP: st=NULL"); return; }
 
   st->unified_mode = gc->unified_diff;
 
@@ -33,12 +33,14 @@ void gc_diff_refresh(void) {
   st->hunk_path[0] = '\0';
 
   if (!gc->repo || !gc->db) {
+    GC_TRACE("diff_refresh SKIP: no repo/db");
     invalidate_window(win);
     return;
   }
 
   const char *path = NULL;
   bool staged = false;
+  bool untracked = false;
 
   if (gc->selected_file >= 0) {
     db_file_t *f = (db_file_t *)(intptr_t)send_message(
@@ -46,8 +48,15 @@ void gc_diff_refresh(void) {
     if (f) {
       path = f->path;
       staged = f->staged;
+      if (!staged && f->status[0] == '?' && gc->selected_commit < 0)
+        untracked = true;
     }
   }
+
+  GC_TRACE("diff_refresh: commit=%d file=%d path=%s staged=%d untracked=%d unified=%d",
+           gc->selected_commit, gc->selected_file,
+           path ? path : (gc->selected_commit >= 0 ? "(full-commit)" : "(full-tree)"),
+           (int)staged, (int)untracked, (int)st->unified_mode);
 
   if (gc->selected_commit >= 0) {
     db_commit_t *c = (db_commit_t *)(intptr_t)send_message(
@@ -70,7 +79,11 @@ void gc_diff_refresh(void) {
   } else {
     if (path && path[0])
       strncpy(st->hunk_path, path, sizeof(st->hunk_path) - 1);
-    if (st->unified_mode) {
+    if (untracked) {
+      const char *args[] = { "git", "diff", "--no-index", "--color=always",
+                             "/dev/null", path, NULL };
+      git_run_sync(gc->repo, args, st->diff_buf, sizeof(st->diff_buf));
+    } else if (st->unified_mode) {
       git_get_diff(gc->repo, path, staged, st->diff_buf, sizeof(st->diff_buf));
     } else {
       // Word-level diff for split/enhanced mode
@@ -83,6 +96,8 @@ void gc_diff_refresh(void) {
   }
 
   if (!st->diff_buf[0]) {
+    GC_TRACE("diff_refresh EMPTY: commit=%d path=%s staged=%d untracked=%d",
+             gc->selected_commit, path ? path : "(none)", (int)staged, (int)untracked);
     invalidate_window(win);
     return;
   }
@@ -115,4 +130,5 @@ void gc_diff_refresh(void) {
   };
   set_scroll_info(win, SB_VERT, &si, false);
   invalidate_window(win);
+  GC_TRACE("diff_refresh result: lines=%d hunks=%d", st->line_count, st->hunk_count);
 }

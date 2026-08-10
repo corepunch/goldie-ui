@@ -8,11 +8,39 @@ nav_order: 3
 
 Orion mirrors the layered design of classic Windows:
 
-| Application | Examples | your code |
+| Layer | Role | Your code |
 |---|---|---|
-| commctl | Common Controls | buttons, lists, menubar |
-| user | Window Management | create/destroy, draw, text |
-| kernel / platform | Rendering + native backends | OpenGL, input queue, OS integration |
+| Application | Sample apps and user code | `samples/`, `examples/` |
+| commctl | Common Controls (COMCTL32.DLL) | `commctl/` — buttons, lists, menubar |
+| user | Window Management (USER.DLL) | `user/` — create/destroy, draw, text |
+| kernel / platform | Rendering + native backends (KERNEL.DLL) | `kernel/` — OpenGL, input queue, OS integration |
+| ui.h | Master framework header | Include in every app; pulls in all subsystems |
+
+### File layout
+
+```
+ui.h              ← master framework header (include this in every app)
+user/             ← window management, message queue, drawing, text, accelerators
+  user.h            window_t, irect16_t, public API
+  messages.h        message constants, window flags, colours
+  window.c          create_window, destroy_window, move_window, find_window
+  message.c         send_message, post_message, get_root_window
+  event.c           platform event translation, mouse/key/wheel routing
+  scrollbar.c       built-in window scrollbar input and position updates
+  draw.h / draw_impl.c   fill_rect, draw_rect, draw_icon8/16, viewports
+  text.h / text.c   draw_text_small, strwidth, bitmap font atlas
+kernel/           ← SDL event loop, init, renderer
+  kernel.h          ui_init_graphics, get_message, dispatch_message, UI_WINDOW_SCALE
+  renderer.c        sprite/quad rendering via VAO/VBO, orthographic projection
+  joystick.c        gamepad / joystick input
+commctl/          ← reusable controls
+  commctl.h         button, checkbox, combobox, textedit, label, list, tabview, console
+  columnview.h      reportview (column view) control
+  menubar.h         menu bar control
+tests/            ← all test source files (*.c)
+  test_framework.h  header-only test framework
+  test_env.h        SDL-init helper for tests needing a display
+```
 
 ## `user/` – Window Management (USER.DLL)
 
