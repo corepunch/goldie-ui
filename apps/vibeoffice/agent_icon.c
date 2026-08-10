@@ -33,7 +33,9 @@ static void aim_select(window_t *win, bool selected, bool notify) {
 }
 
 static void aim_notify(window_t *win, uint16_t code) {
-  window_t *target = win->parent ? win->parent : get_root_window(win);
+  agent_icon_state_t *st = (agent_icon_state_t *)win->userdata2;
+  window_t *target = (st && st->notify_window && is_window(st->notify_window)) ? st->notify_window
+                     : (win->parent ? win->parent : get_root_window(win));
   send_message(target, evCommand, MAKEDWORD(win->id, code), win);
 }
 
@@ -218,6 +220,7 @@ result_t win_agent_icon(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
         st->image_w = params->image.width; st->image_h = params->image.height;
         st->item_data = params->item_data;
         st->draggable = params->draggable;
+        st->notify_window = params->notify_window;
       }
       return true;
     }

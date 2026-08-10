@@ -91,9 +91,9 @@ static void test_icon_click_and_double_click_window_behavior(void) {
   for (int i = 0; i < 2; i++) {
     icon_params_t params = { .item_data = &g_icons[i], .notify_window = g_controller };
     g_icons[i].win = create_window(g_icons[i].title,
-                                   WINDOW_NOTITLE | WINDOW_NORESIZE,
-                                   MAKERECT(20 + i * 140, 20, 128, 144), desktop,
-                                   win_icon, 0, &params);
+                                    WINDOW_NOTITLE | WINDOW_NORESIZE,
+                                    MAKERECT(20 + i * 140, 20, 128, 144), desktop,
+                                     win_agent_icon, 0, &params);
     ASSERT_NOT_NULL(g_icons[i].win);
   }
 
@@ -118,7 +118,7 @@ static void test_icon_click_and_double_click_window_behavior(void) {
   ASSERT(window_order(manager) > window_order(other), "existing inspector was not raised");
 
   send_message(manager, evClose, 0, NULL);
-  ASSERT(!window_has_state(manager, WINDOW_STATE_VISIBLE), "window still visible after evClose"); // DEBUG: A
+  ASSERT_FALSE(window_has_state(manager, WINDOW_STATE_VISIBLE));
   send_message(g_icons[0].win, evLeftButtonDoubleClick, MAKEDWORD(10, 10), NULL);
   ASSERT_EQUAL(g_icons[0].inspector.win, manager);
   ASSERT_TRUE(window_has_state(manager, WINDOW_STATE_VISIBLE));
@@ -126,7 +126,7 @@ static void test_icon_click_and_double_click_window_behavior(void) {
   send_message(g_icons[1].win, evLeftButtonDown, MAKEDWORD(10, 10), NULL);
   send_message(g_icons[1].win, evLeftButtonUp, MAKEDWORD(10, 10), NULL);
   ASSERT_TRUE(send_message(g_icons[1].win, icGetSelected, 0, NULL));
-  ASSERT(!send_message(g_icons[0].win, icGetSelected, 0, NULL), "icon 0 still selected after clicking icon 1"); // DEBUG: B
+  ASSERT_FALSE(send_message(g_icons[0].win, icGetSelected, 0, NULL));
   ASSERT_NULL(g_icons[1].inspector.win);
   send_message(g_icons[1].win, evLeftButtonDoubleClick, MAKEDWORD(10, 10), NULL);
   ASSERT_NOT_NULL(g_icons[1].inspector.win);
