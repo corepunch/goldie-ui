@@ -653,37 +653,39 @@ lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lpar
         return fetch_all(ctx->commits, ctx->commit_count, sizeof(db_commit_t));
       }
       if (table_id == ID_DB_FILES) {
-        if (filter_field == ID_DB_FILES_COMMIT_ID && filter_value != 0) {
-          // Lazy-load: if no files cached for this commit yet, fetch from git.
-          bool cached = false;
-          for (int i = 0; i < ctx->file_count; i++) {
-            if (ctx->files[i].commit_id == filter_value) { cached = true; break; }
-          }
-          if (!cached && ctx->repo) {
-            db_commit_t *c = (db_commit_t *)find_by_id(ctx->commits,
-                               ctx->commit_count, sizeof(db_commit_t), filter_value);
-            if (c && c->hash[0]) {
-              char buf[64 * 1024] = {0};
-              const char *args[] = {
-                "git", "show", "--name-only", "--pretty=format:", c->hash, NULL
-              };
-              if (git_run_sync(ctx->repo, args, buf, sizeof(buf))) {
-                char *line = buf;
-                while (*line) {
-                  char *nl = strchr(line, '\n');
-                  if (nl) *nl = '\0';
-                  if (line[0] && strcmp(line, c->hash) != 0) {
-                    db_file_t *rec = append_row((void **)&ctx->files, &ctx->file_count,
-                                                &ctx->file_capacity, sizeof(db_file_t),
-                                                &ctx->next_file_id, 64);
-                    rec->commit_id = filter_value;
-                    rec->status[0] = 'M';
-                    rec->status[1] = '\0';
-                    rec->staged    = false;
-                    strncpy(rec->path, line, sizeof(rec->path) - 1);
+        if (filter_field == ID_DB_FILES_COMMIT_ID) {
+          if (filter_value != 0) {
+            // Lazy-load: if no files cached for this commit yet, fetch from git.
+            bool cached = false;
+            for (int i = 0; i < ctx->file_count; i++) {
+              if (ctx->files[i].commit_id == filter_value) { cached = true; break; }
+            }
+            if (!cached && ctx->repo) {
+              db_commit_t *c = (db_commit_t *)find_by_id(ctx->commits,
+                                 ctx->commit_count, sizeof(db_commit_t), filter_value);
+              if (c && c->hash[0]) {
+                char buf[64 * 1024] = {0};
+                const char *args[] = {
+                  "git", "show", "--name-only", "--pretty=format:", c->hash, NULL
+                };
+                if (git_run_sync(ctx->repo, args, buf, sizeof(buf))) {
+                  char *line = buf;
+                  while (*line) {
+                    char *nl = strchr(line, '\n');
+                    if (nl) *nl = '\0';
+                    if (line[0] && strcmp(line, c->hash) != 0) {
+                      db_file_t *rec = append_row((void **)&ctx->files, &ctx->file_count,
+                                                  &ctx->file_capacity, sizeof(db_file_t),
+                                                  &ctx->next_file_id, 64);
+                      rec->commit_id = filter_value;
+                      rec->status[0] = 'M';
+                      rec->status[1] = '\0';
+                      rec->staged    = false;
+                      strncpy(rec->path, line, sizeof(rec->path) - 1);
+                    }
+                    if (!nl) break;
+                    line = nl + 1;
                   }
-                  if (!nl) break;
-                  line = nl + 1;
                 }
               }
             }
