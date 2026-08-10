@@ -33,12 +33,14 @@ void gc_diff_refresh(void) {
   st->hunk_path[0] = '\0';
 
   if (!gc->repo || !gc->db) {
+    GC_TRACE("diff_refresh SKIP: no repo/db");
     invalidate_window(win);
     return;
   }
 
   const char *path = NULL;
   bool staged = false;
+  bool untracked = false;
 
   if (gc->selected_file >= 0) {
     db_file_t *f = (db_file_t *)(intptr_t)send_message(
@@ -46,6 +48,9 @@ void gc_diff_refresh(void) {
     if (f) {
       path = f->path;
       staged = f->staged;
+      // Untracked files (status '?') have no HEAD ancestor — diff against /dev/null.
+      if (!staged && f->status[0] == '?' && gc->selected_commit < 0)
+        untracked = true;
     }
   }
 
@@ -70,7 +75,11 @@ void gc_diff_refresh(void) {
   } else {
     if (path && path[0])
       strncpy(st->hunk_path, path, sizeof(st->hunk_path) - 1);
-    if (st->unified_mode) {
+    if (untracked) {
+      const char *args[] = { "git", "diff", "--no-index", "--color=always",
+                             "/dev/null", path, NULL };
+      git_run_sync(gc->repo, args, st->diff_buf, sizeof(st->diff_buf));
+    } else if (st->unified_mode) {
       git_get_diff(gc->repo, path, staged, st->diff_buf, sizeof(st->diff_buf));
     } else {
       // Word-level diff for split/enhanced mode
@@ -83,6 +92,8 @@ void gc_diff_refresh(void) {
   }
 
   if (!st->diff_buf[0]) {
+    GC_TRACE("diff_refresh EMPTY: commit=%d path=%s staged=%d untracked=%d",
+             gc->selected_commit, path ? path : "(none)", (int)staged, (int)untracked);
     invalidate_window(win);
     return;
   }
