@@ -191,7 +191,7 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 		case evPaint: {
 			if (!st) return false;
 			irect16_t cr = get_client_rect(win);
-			fill_rect(get_sys_color(brWindowBg), cr);
+			fill_rect(get_sys_color(brControlBg), cr);
 			cp_draw_content(st, cr.w);
 			return false;
 		}
