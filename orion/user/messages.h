@@ -383,10 +383,12 @@ enum {
   tcGetSelection = evUser + 340,
   tcSetSelection,
   tcnSelChange,
+  tcSetStyle,       // wparam = TAB_STYLE_* flags
   tcSetImageStrip,   // lparam = bitmap_strip_t*; sets shared icon strip for all tabs
   tcSetTabIcon,      // wparam = tab_index; lparam = (void*)(intptr_t)icon_index in the strip; -1 = clear
 };
 #define TAB_CONTROL_HEIGHT 22
+#define TAB_STYLE_ICONS_ONLY (1u << 0) // show tab icons without page-title labels
 
 // Analogous to WinAPI CW_USEDEFAULT: pass as x or y to create_window() /
 // create_window_from_form() to let the framework auto-position the window.

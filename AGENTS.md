@@ -60,6 +60,16 @@ that fired the notification.
 **Convention:** app-level traces use the app's prefix (`[gc]`), framework-level
 traces use the module's short prefix (`[rv]` for reportview, `[tv]` for tableview).
 
+## Framework error logging
+
+All incorrect or rejected framework behavior must be logged unconditionally to
+`stderr`; never hide these diagnostics behind a debug macro. This includes
+invalid message parameters, out-of-range indices, unavailable state, failed
+resource allocation, and rejected state transitions. Include the framework
+module prefix, window id when available, and the relevant values so the caller
+can identify the bad request and its current state. Flush after diagnostics
+that precede an early return.
+
 # Window input architecture
 
 Before changing mouse hit-testing, scrolling, scrollbars, toolbars, or nested

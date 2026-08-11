@@ -90,6 +90,54 @@ message set.
 | Menu bar | `win_menubar` | `menubar.h` |
 | Console | `win_console` | `commctl.h` |
 
+### TabView command-panel pattern
+
+`win_tabview` owns the tab header and the visibility/arrangement of its direct
+child pages. Configure a tab view in this order:
+
+1. Create the `TabView`.
+2. Create all direct child pages. Their order is the tab order.
+3. Set optional style and image-strip state.
+4. Set each tab icon by index.
+5. Arrange the TabView once with the parent client rectangle during creation;
+   later parent resize notifications should repeat that arrangement.
+
+`tcSetTabIcon` validates its index against the current direct-child count. An
+icon assignment sent before page creation is rejected and logged, so setup
+messages must not be sent before the pages exist. `TAB_STYLE_ICONS_ONLY` is
+the reusable style for compact icon tabs; it changes tab width and drawing but
+does not change selection or child-page arrangement.
+
+Creating a TabView or page with a `1×1` placeholder frame is valid while the
+children are being constructed, but it must not be painted before the first
+real `evArrange`. Otherwise page-local layout sees a one-pixel client width,
+which collapses a two-column grid and makes only the first column appear.
+
+Page content is painted in the page window's own client coordinates. For a
+two-column command-panel grid, calculate one shared item rectangle for both
+painting and hit-testing; derive its width from `get_client_rect(page).w`,
+including the column gap and horizontal padding. Do not include the TabView's
+header height in page-local coordinates—the TabView has already arranged the
+page below its header.
+
+The command panel uses the existing layout hierarchy directly: each page is a
+vertical `StackView`, each section is a vertical `StackView` containing a
+`Label` and a `GridView`, and each grid owns its two default `Column` children
+containing real `Button` controls. This lets the framework measure, arrange,
+paint, hit-test, and route button notifications consistently; do not replace
+this with manual y-coordinate painting when adding command-panel sections.
+
+Command-panel content is supplied through a `cp_datasource_t`. Its tabs and
+sections reference arrays of command descriptors; each descriptor contains the
+display label, icon, command ID, action callback, and callback context. The
+current datasource adapts existing `handle_menu_command` IDs, while future
+panels can provide mode/class/function callbacks without changing the layout
+builder or notification routing.
+
+Rejected framework messages and invalid control state must always produce an
+unconditional `stderr` diagnostic with the module prefix, window id, and
+relevant values. TabView diagnostics use the `[tv]` prefix.
+
 ## Z-Order and `WINDOW_ALWAYSONTOP`
 
 Windows are stored in a linked list.  `find_window` returns the **last**

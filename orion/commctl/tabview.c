@@ -9,11 +9,13 @@
 #include <orion/user/messages.h>
 #include <orion/user/draw.h>
 #include "commctl.h"
+#include <stdio.h>
 
 extern void draw_bevel(irect16_t r);
 
 typedef struct {
   int selected;
+  uint32_t style;
   bitmap_strip_t strip;
   int *tab_icons;
   int tab_icon_count;
@@ -38,6 +40,8 @@ static int tab_icon_gap(tabview_state_t *st) {
 }
 
 static int tab_width(window_t *page, tabview_state_t *st, int idx) {
+  if (st && (st->style & TAB_STYLE_ICONS_ONLY))
+    return tab_has_icon(st, idx) ? st->strip.icon_w + 8 : TAB_CONTROL_HEIGHT;
   int w = MAX(48, strwidth(page ? page->title : "") + 18);
   if (tab_has_icon(st, idx)) w += st->strip.icon_w + tab_icon_gap(st);
   return w;
@@ -72,6 +76,10 @@ static void draw_tab_item(window_t *page, int x, bool selected, tabview_state_t 
   draw_tab(R(x, y, w, h));
   if (selected) fill_rect(get_sys_color(brControlBg), R(x + 2, th - 2, w - 4, 2));
   bool has_icon = tab_has_icon(st, idx);
+  if (st->style & TAB_STYLE_ICONS_ONLY) {
+    draw_tab_icon(st, idx, x + (w - st->strip.icon_w) / 2, y, h);
+    return;
+  }
   int sw = strwidth(page->title), iw = has_icon ? st->strip.icon_w + tab_icon_gap(st) : 0;
   int content_w = iw + sw;
   int cx = x + (w - content_w) / 2;
@@ -101,7 +109,19 @@ static void tab_arrange(window_t *win) {
 static bool tab_select(window_t *win, int index, bool notify) {
   tabview_state_t *st = (tabview_state_t *)win->userdata;
   int count = tab_count(win);
-  if (!st || index < 0 || index >= count || index == st->selected) return false;
+  if (!st) {
+    fprintf(stderr, "[tv] select rejected win=%u reason=no_state index=%d count=%d\n",
+            win ? (unsigned)win->id : 0, index, count);
+    fflush(stderr);
+    return false;
+  }
+  if (index < 0 || index >= count) {
+    fprintf(stderr, "[tv] select rejected win=%u index=%d count=%d selected=%d\n",
+            (unsigned)win->id, index, count, st->selected);
+    fflush(stderr);
+    return false;
+  }
+  if (index == st->selected) return false;
   st->selected = index;
   tab_arrange(win);
   post_message(win, evRefreshStencil, 0, NULL);
@@ -149,8 +169,9 @@ static bool tab_set_tab_icon(tabview_state_t *st, int count, int idx, int ico) {
   } else if (idx >= st->tab_icon_count) {
     int old = st->tab_icon_count;
     st->tab_icon_count = idx + 1;
-    st->tab_icons = realloc(st->tab_icons, (size_t)st->tab_icon_count * sizeof(int));
-    if (!st->tab_icons) return false;
+    int *icons = realloc(st->tab_icons, (size_t)st->tab_icon_count * sizeof(int));
+    if (!icons) return false;
+    st->tab_icons = icons;
     for (int j = old; j < st->tab_icon_count; j++) st->tab_icons[j] = -1;
   }
   st->tab_icons[idx] = ico;
@@ -162,7 +183,12 @@ result_t win_tabview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
   switch (msg) {
     case evCreate:
       st = allocate_window_data(win, sizeof(*st));
-      if (!st) return false;
+      if (!st) {
+        fprintf(stderr, "[tv] create failed win=%u reason=state_allocation\n",
+                win ? (unsigned)win->id : 0);
+        fflush(stderr);
+        return false;
+      }
       st->selected = 0;
       return true;
     case evMeasure: {
@@ -179,7 +205,12 @@ result_t win_tabview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
     case evResize: tab_arrange(win); return true;
     case evPaint: tab_paint(win); return true;
     case evLeftButtonDown: {
-      if (!st) return false;
+      if (!st) {
+        fprintf(stderr, "[tv] mousedown rejected win=%u reason=no_state\n",
+                win ? (unsigned)win->id : 0);
+        fflush(stderr);
+        return false;
+      }
       int mx = (int16_t)LOWORD(wparam), my = (int16_t)HIWORD(wparam);
       int th = tab_header_height(st);
       if (my < 0 || my >= th) return false;
@@ -192,22 +223,62 @@ result_t win_tabview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
       return true;
     }
     case evKeyDown:
-      if (!st) return false;
+      if (!st) {
+        fprintf(stderr, "[tv] keydown rejected win=%u reason=no_state key=%u\n",
+                win ? (unsigned)win->id : 0, (unsigned)wparam);
+        fflush(stderr);
+        return false;
+      }
       if (wparam == AX_KEY_LEFTARROW)  return tab_select(win, st->selected - 1, true);
       if (wparam == AX_KEY_RIGHTARROW) return tab_select(win, st->selected + 1, true);
       return false;
     case tcGetSelection: return st ? st->selected : -1;
     case tcSetSelection: return tab_select(win, (int)wparam, false) || (st && st->selected == (int)wparam);
+    case tcSetStyle: {
+      const uint32_t known = TAB_STYLE_ICONS_ONLY;
+      if (!st || (wparam & ~known)) {
+        fprintf(stderr, "[tv] set_style rejected win=%u style=0x%x reason=%s\n",
+                win ? (unsigned)win->id : 0, (unsigned)wparam,
+                st ? "unknown_flags" : "no_state");
+        fflush(stderr);
+        return false;
+      }
+      st->style = wparam;
+      tab_arrange(win); invalidate_window(win);
+      return true;
+    }
     case tcSetImageStrip: {
-      if (!st || !lparam) return false;
+      if (!st || !lparam) {
+        fprintf(stderr, "[tv] set_image_strip rejected win=%u reason=%s\n",
+                win ? (unsigned)win->id : 0, st ? "null_strip" : "no_state");
+        fflush(stderr);
+        return false;
+      }
       memcpy(&st->strip, lparam, sizeof(bitmap_strip_t));
       tab_arrange(win); invalidate_window(win);
       return true;
     }
     case tcSetTabIcon: {
-      if (!st) return false;
+      if (!st) {
+        fprintf(stderr, "[tv] set_tab_icon rejected win=%u reason=no_state index=%u\n",
+                win ? (unsigned)win->id : 0, (unsigned)wparam);
+        fflush(stderr);
+        return false;
+      }
       int idx = (int)wparam, ico = (int)(intptr_t)lparam;
-      if (!tab_set_tab_icon(st, tab_count(win), idx, ico)) return false;
+      int count = tab_count(win);
+      if (idx < 0 || idx >= count) {
+        fprintf(stderr, "[tv] set_tab_icon rejected win=%u index=%d count=%d icon=%d\n",
+                (unsigned)win->id, idx, count, ico);
+        fflush(stderr);
+        return false;
+      }
+      if (!tab_set_tab_icon(st, count, idx, ico)) {
+        fprintf(stderr, "[tv] set_tab_icon failed win=%u index=%d count=%d icon=%d reason=allocation\n",
+                (unsigned)win->id, idx, count, ico);
+        fflush(stderr);
+        return false;
+      }
       tab_arrange(win); invalidate_window(win);
       return true;
     }
