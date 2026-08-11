@@ -189,6 +189,17 @@ Every `evCreate` that allocates resources (strings, buffers, textures) must have
 - Framework features (timers, clipboard, drag-and-drop) belong in `kernel/` or `user/`, not in app code.
 - No raw OpenGL calls outside `kernel/renderer.c` / `kernel/renderer_impl.c`.
 
+## Extend, don't reinvent
+
+When an app needs control behaviour that existing Orion controls don't yet support,
+extend the framework control in `orion/commctl/` rather than implementing a
+custom version in app code.  The command-panel tab row was built with custom
+toolbar-button radio groups; when tabs needed icons, the right fix was to add
+`tcSetImageStrip` / `tcSetTabIcon` to `win_tabview` and switch the app to use
+it, not to keep the custom implementation.  Adding a message or option to a
+framework control is always preferable to duplicating the control's event
+routing, hit-testing, keyboard handling, and accessibility.
+
 # Repository layout
 
 ```

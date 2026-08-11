@@ -383,6 +383,8 @@ enum {
   tcGetSelection = evUser + 340,
   tcSetSelection,
   tcnSelChange,
+  tcSetImageStrip,   // lparam = bitmap_strip_t*; sets shared icon strip for all tabs
+  tcSetTabIcon,      // wparam = tab_index; lparam = (void*)(intptr_t)icon_index in the strip; -1 = clear
 };
 #define TAB_CONTROL_HEIGHT 22
 
