@@ -6,7 +6,6 @@
 
 enum {
 	CP_WIDTH = SIDE_PANEL_WIDTH,
-	CP_TAB_HEIGHT = 28,
 	CP_HEADER_HEIGHT = 24,
 	CP_BUTTON_HEIGHT = 20,
 };
@@ -14,11 +13,11 @@ enum {
 typedef struct { const char *label; uint16_t id; int icon; } cp_item_t;
 typedef struct { const char *label; const cp_item_t *items; int count; } cp_section_t;
 typedef struct { const char *label; uint16_t id; int icon; const cp_section_t *sections; int count; } cp_tab_t;
+typedef struct { const cp_tab_t *tab; } cp_page_state_t;
 typedef struct {
-	int active_tab;
 	uint32_t icons;
 	bitmap_strip_t strip;
-	window_t *tab_buttons[6];
+	window_t *tabview;
 } cp_state_t;
 
 #define COUNT_OF(a) ((int)(sizeof(a) / sizeof((a)[0])))
@@ -95,74 +94,20 @@ static uint32_t cp_load_icons(void) {
 	return texture;
 }
 
-static void cp_layout_tabs(window_t *win, cp_state_t *st) {
-	irect16_t cr = get_client_rect(win);
-	int tab_w = cr.w / COUNT_OF(kTabs);
-	for (int i = 0; i < COUNT_OF(kTabs); i++) if (st->tab_buttons[i]) {
-		window_t *button = st->tab_buttons[i];
-		button->frame.x = i * tab_w;
-		button->frame.y = 0;
-		button->frame.w = i == COUNT_OF(kTabs) - 1 ? cr.w - i * tab_w : tab_w;
-		button->frame.h = CP_TAB_HEIGHT;
-	}
-}
-
-static void cp_create_tabs(window_t *win, cp_state_t *st) {
-	st->strip = (bitmap_strip_t){
-		.tex = st->icons, .icon_w = GMAX_ICON_SIZE, .icon_h = GMAX_ICON_SIZE,
-		.cols = GMAX_ICON_COLS, .sheet_w = GMAX_ICON_SHEET_W, .sheet_h = GMAX_ICON_SHEET_H,
-	};
-	for (int i = 0; i < COUNT_OF(kTabs); i++) {
-		st->tab_buttons[i] = create_window(kTabs[i].label,
-			WINDOW_NOTITLE | WINDOW_NORESIZE | BUTTON_PUSHLIKE | BUTTON_AUTORADIO,
-			MAKERECT(0, 0, 1, CP_TAB_HEIGHT), win, win_toolbar_button, 0, NULL);
-		if (!st->tab_buttons[i]) continue;
-		st->tab_buttons[i]->id = kTabs[i].id;
-		if (st->icons) send_message(st->tab_buttons[i], btnSetImage, kTabs[i].icon, &st->strip);
-		show_window(st->tab_buttons[i], true);
-	}
-	cp_layout_tabs(win, st);
-	if (st->tab_buttons[0]) send_message(st->tab_buttons[0], btnSetCheck, btnStateChecked, NULL);
-}
-
 static void cp_draw_header(const char *label, int *y, int width) {
 	draw_text_small(label, 6, *y + 5, get_sys_color(brTextNormal));
 	fill_rect(get_sys_color(brDarkEdge), R(4, *y + CP_HEADER_HEIGHT - 2, width - 8, 1));
 	*y += CP_HEADER_HEIGHT;
 }
 
-static void cp_draw_item(cp_state_t *st, const cp_item_t *item, irect16_t rect) {
-	(void)st;
+static void cp_draw_item(const cp_item_t *item, irect16_t rect) {
 	bool active = item->id >= ID_TOOL_SELECT && item->id <= ID_TOOL_SCALE && scener_active_tool() == item->id;
 	draw_button(rect, 0, 0, active);
 	draw_text(FONT_SMALL, item->label, rect.x + 7, rect.y + (rect.h - text_char_height(FONT_SMALL)) / 2, get_sys_color(brTextNormal));
 }
 
-static void cp_draw_content(cp_state_t *st, int width) {
-	const cp_tab_t *tab = &kTabs[st->active_tab];
-	int y = CP_TAB_HEIGHT + 4;
-	cp_draw_header(tab->label, &y, width);
-	if (!tab->count) {
-		draw_text_small("No controls available", 8, y + 8, get_sys_color(brTextDisabled));
-		return;
-	}
-	int button_w = (width - 10) / 2;
-	for (int s = 0; s < tab->count; s++) {
-		const cp_section_t *section = &tab->sections[s];
-		y += 4;
-		cp_draw_header(section->label, &y, width);
-		for (int i = 0; i < section->count; i++) {
-			int col = i % 2;
-			irect16_t rect = { (int16_t)(4 + col * (button_w + 2)), (int16_t)y, (int16_t)button_w, CP_BUTTON_HEIGHT };
-			cp_draw_item(st, &section->items[i], rect);
-			if (col || i == section->count - 1) y += CP_BUTTON_HEIGHT + 2;
-		}
-	}
-}
-
-static const cp_item_t *cp_hit_item(cp_state_t *st, int mx, int my, int width) {
-	const cp_tab_t *tab = &kTabs[st->active_tab];
-	int y = CP_TAB_HEIGHT + 4 + CP_HEADER_HEIGHT;
+static const cp_item_t *cp_hit_item(const cp_tab_t *tab, int mx, int my, int width) {
+	int y = CP_HEADER_HEIGHT + 4;
 	int button_w = (width - 10) / 2;
 	for (int s = 0; s < tab->count; s++) {
 		const cp_section_t *section = &tab->sections[s];
@@ -177,50 +122,104 @@ static const cp_item_t *cp_hit_item(cp_state_t *st, int mx, int my, int width) {
 	return NULL;
 }
 
+static result_t win_cp_page(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+	(void)wparam;
+	cp_page_state_t *ps = (cp_page_state_t *)win->userdata;
+	switch (msg) {
+		case evCreate:
+			ps = allocate_window_data(win, sizeof(*ps));
+			if (!ps) return false;
+			ps->tab = (const cp_tab_t *)lparam;
+			return true;
+		case evPaint: {
+			if (!ps || !ps->tab) return false;
+			irect16_t cr = get_client_rect(win);
+			fill_rect(get_sys_color(brControlBg), cr);
+			const cp_tab_t *tab = ps->tab;
+			int y = 4;
+			cp_draw_header(tab->label, &y, cr.w);
+			if (!tab->count) {
+				draw_text_small("No controls available", 8, y + 8, get_sys_color(brTextDisabled));
+				return true;
+			}
+			int button_w = (cr.w - 10) / 2;
+			for (int s = 0; s < tab->count; s++) {
+				const cp_section_t *section = &tab->sections[s];
+				y += 4;
+				cp_draw_header(section->label, &y, cr.w);
+				for (int i = 0; i < section->count; i++) {
+					int col = i % 2;
+					irect16_t rect = { (int16_t)(4 + col * (button_w + 2)), (int16_t)y, (int16_t)button_w, CP_BUTTON_HEIGHT };
+					cp_draw_item(&section->items[i], rect);
+					if (col || i == section->count - 1) y += CP_BUTTON_HEIGHT + 2;
+				}
+			}
+			return true;
+		}
+		case evLeftButtonDown: {
+			if (!ps || !ps->tab) return false;
+			int mx = (int16_t)LOWORD(wparam), my = (int16_t)HIWORD(wparam);
+			irect16_t cr = get_client_rect(win);
+			const cp_item_t *item = cp_hit_item(ps->tab, mx, my, cr.w);
+			if (item) handle_menu_command(item->id);
+			return true;
+		}
+		default:
+			return false;
+	}
+}
+
 result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
 	(void)lparam;
 	cp_state_t *st = (cp_state_t *)win->userdata;
 	switch (msg) {
-		case evCreate:
+		case evCreate: {
 			st = calloc(1, sizeof(*st));
 			if (!st) return false;
 			win->userdata = st;
 			st->icons = cp_load_icons();
-			cp_create_tabs(win, st);
+			if (st->icons) st->strip = (bitmap_strip_t){
+				.tex = st->icons, .icon_w = GMAX_ICON_SIZE, .icon_h = GMAX_ICON_SIZE,
+				.cols = GMAX_ICON_COLS, .sheet_w = GMAX_ICON_SHEET_W, .sheet_h = GMAX_ICON_SHEET_H,
+			};
+			st->tabview = create_window("", WINDOW_NOTITLE | WINDOW_NORESIZE,
+				MAKERECT(0, 0, 1, 1), win, "TabView", 0, NULL);
+			if (!st->tabview) return false;
+			if (st->icons) {
+				send_message(st->tabview, tcSetImageStrip, 0, &st->strip);
+				for (int i = 0; i < COUNT_OF(kTabs); i++)
+					send_message(st->tabview, tcSetTabIcon, i, (void*)(intptr_t)kTabs[i].icon);
+			}
+			for (int i = 0; i < COUNT_OF(kTabs); i++) {
+				window_t *page = create_window(kTabs[i].label, WINDOW_NOTITLE,
+					MAKERECT(0, 0, 1, 1), st->tabview, win_cp_page, 0, (void *)&kTabs[i]);
+				if (page) show_window(page, true);
+			}
+			show_window(st->tabview, true);
 			return true;
+		}
 		case evPaint: {
 			if (!st) return false;
 			irect16_t cr = get_client_rect(win);
 			fill_rect(get_sys_color(brControlBg), cr);
-			cp_draw_content(st, cr.w);
-			return false;
+			for (window_t *c = win->children; c; c = c->next)
+				send_message(c, evPaint, 0, NULL);
+			return true;
 		}
-		case evLeftButtonDown: {
+		case evResize: {
 			if (!st) return false;
-			int mx = (int16_t)LOWORD(wparam), my = (int16_t)HIWORD(wparam);
 			irect16_t cr = get_client_rect(win);
-			const cp_item_t *item = cp_hit_item(st, mx, my, cr.w);
-			if (item) handle_menu_command(item->id);
-			return true;
-		}
-		case evResize:
-			if (st) cp_layout_tabs(win, st);
-			return true;
-		case tbButtonClick: {
-			uint16_t id = (uint16_t)wparam;
-			for (int i = 0; i < COUNT_OF(kTabs); i++) if (kTabs[i].id == id) {
-				st->active_tab = i;
-				invalidate_window(win);
-				return true;
+			for (window_t *c = win->children; c; c = c->next) {
+				layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
+				send_message(c, evArrange, 0, &a);
 			}
-			return false;
+			return true;
 		}
 		case evCommand: {
+			if (HIWORD(wparam) == tcnSelChange) return true;
 			uint16_t id = LOWORD(wparam);
 			for (int i = 0; i < COUNT_OF(kTabs); i++) if (kTabs[i].id == id) {
-				st->active_tab = i;
-				if (st->tab_buttons[i]) send_message(st->tab_buttons[i], btnSetCheck, btnStateChecked, NULL);
-				invalidate_window(win);
+				if (st && st->tabview) send_message(st->tabview, tcSetSelection, i, NULL);
 				return true;
 			}
 			return false;
