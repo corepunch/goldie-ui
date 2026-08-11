@@ -23,6 +23,7 @@
 
 #include <orion/user/user.h>
 #include <orion/user/messages.h>
+#include <orion/user/rect.h>
 #include "commctl.h"
 
 #define SPLITVIEW_MIN_PANE 32
@@ -60,31 +61,24 @@ static void splitview_get_panes(window_t *win, window_t **left, window_t **right
 
 static void splitview_arrange(splitview_state_t *st, window_t *win) {
   irect16_t cr = get_client_rect(win);
-  int total, split_px;
-  irect16_t r_left, r_split, r_right;
+  int total = (st->orientation == SPLIT_VERT) ? cr.w : cr.h;
+  int available = MAX(0, total - st->divider_w);
+  int split_px = (int)(available * st->split_ratio + 0.5);
+  if (available >= SPLITVIEW_MIN_PANE * 2)
+    split_px = MAX(SPLITVIEW_MIN_PANE, MIN(split_px, available - SPLITVIEW_MIN_PANE));
+  else split_px = MAX(0, MIN(split_px, available));
 
+  irect16_t r_left, r_split, r_right;
   if (st->orientation == SPLIT_VERT) {
-    total = cr.w;
-    int available = MAX(0, total - st->divider_w);
-    split_px = (int)(available * st->split_ratio + 0.5);
-    if (available >= SPLITVIEW_MIN_PANE * 2)
-      split_px = MAX(SPLITVIEW_MIN_PANE, MIN(split_px, available - SPLITVIEW_MIN_PANE));
-    else split_px = MAX(0, MIN(split_px, available));
-    r_left  = (irect16_t){cr.x, cr.y, split_px, cr.h};
-    r_split = (irect16_t){cr.x + split_px, cr.y, st->divider_w, cr.h};
-    r_right = (irect16_t){cr.x + split_px + st->divider_w, cr.y,
-                          total - split_px - st->divider_w, cr.h};
+    r_left  = rect_split_left(cr, split_px);
+    irect16_t rem = rect_trim_left(cr, split_px);
+    r_split = rect_split_left(rem, st->divider_w);
+    r_right = rect_trim_left(rem, st->divider_w);
   } else {
-    total = cr.h;
-    int available = MAX(0, total - st->divider_w);
-    split_px = (int)(available * st->split_ratio + 0.5);
-    if (available >= SPLITVIEW_MIN_PANE * 2)
-      split_px = MAX(SPLITVIEW_MIN_PANE, MIN(split_px, available - SPLITVIEW_MIN_PANE));
-    else split_px = MAX(0, MIN(split_px, available));
-    r_left  = (irect16_t){cr.x, cr.y, cr.w, split_px};
-    r_split = (irect16_t){cr.x, cr.y + split_px, cr.w, st->divider_w};
-    r_right = (irect16_t){cr.x, cr.y + split_px + st->divider_w,
-                          cr.w, total - split_px - st->divider_w};
+    r_left  = rect_split_top(cr, split_px);
+    irect16_t rem = rect_trim_top(cr, split_px);
+    r_split = rect_split_top(rem, st->divider_w);
+    r_right = rect_trim_top(rem, st->divider_w);
   }
 
   window_t *left = NULL, *right = NULL, *splitter = NULL;

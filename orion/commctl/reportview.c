@@ -178,7 +178,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   uint32_t sep_col = get_sys_color(brDarkEdge);
 #endif
 
-  fill_rect(bg_col, R(0, header_h, eff_w, body_h));
+  fill_rect(bg_col, rect_trim_top(cr, header_h));
 
   if (data->selected >= first_row && data->selected < last_row) {
     int y = header_h + data->selected * ENTRY_HEIGHT - scroll_y;

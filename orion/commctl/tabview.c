@@ -41,8 +41,9 @@ static void tab_arrange(window_t *win) {
   int count = tab_count(win);
   if (st->selected >= count) st->selected = MAX(0, count - 1);
   irect16_t cr = get_client_rect(win);
-  irect16_t page_rect = {cr.x + 2, cr.y + TAB_CONTROL_HEIGHT,
-                         MAX(0, cr.w - 4), MAX(0, cr.h - TAB_CONTROL_HEIGHT - 2)};
+  irect16_t page_rect = rect_trim_top(cr, TAB_CONTROL_HEIGHT);
+  page_rect.x += 2; page_rect.w = MAX(0, page_rect.w - 4);
+  page_rect.h = MAX(0, page_rect.h - 2);
   int i = 0;
   for (window_t *c = win->children; c; c = c->next, i++) {
     bool visible = i == st->selected;
