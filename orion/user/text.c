@@ -69,6 +69,23 @@ static struct {
 } text_state = {0};
 
 // ── Dynamic metric accessors ──────────────────────────────────────────────────
+// All space/line/height values are set during init_text_rendering from font
+// metrics, falling back to sensible defaults when an atlas is unavailable.
+// These helpers centralise the per-role lookup so consuming code doesn't need
+// inline if-chains over has_icon/has_small.
+
+static inline int font_space(ui_font_t font) {
+  if (font == FONT_ICON)   return text_state.icon_space  ? text_state.icon_space  : 3;
+  if (font == FONT_SMALL)  return text_state.small_space ? text_state.small_space : 3;
+  return text_state.big_space ? text_state.big_space : 3;
+}
+
+static inline int font_line(ui_font_t font) {
+  if (font == FONT_ICON)   return text_state.icon_line  ? text_state.icon_line  : 12;
+  if (font == FONT_SMALL)  return text_state.small_line ? text_state.small_line : 12;
+  return text_state.big_line ? text_state.big_line : 12;
+}
+
 // Legacy getters: return FONT_SYSTEM (big atlas) metrics.
 
 int get_char_height(void) { return text_state.big_height ? text_state.big_height : 8;  }
@@ -350,7 +367,7 @@ static inline int wrapped_line_advance(ui_font_t font) {
 static inline int wrap_char_advance(ui_font_t font, unsigned char c) {
   if (c == '\n') return 0;
   if (c == ' ') {
-    int sw = (font == FONT_SMALL && text_state.small_space) ? text_state.small_space : get_space_width();
+    int sw = font_space(font);
     return sw > 0 ? sw : 3;
   }
   if (text_state.big_height) {
@@ -412,15 +429,13 @@ static int emit_char_verts(text_vertex_t *buf, int cursor_x, int y,
 
 // ── strwidth / strnwidth ──────────────────────────────────────────────────────
 
+
+
 // Internal font-parameterised width measurement.
 static int strnwidth_impl(ui_font_t font, const char *text, int len) {
   if (!text || !*text) return 0;
   if (len > MAX_TEXT_LENGTH) len = MAX_TEXT_LENGTH;
-  int sw = text_state.big_space ? text_state.big_space : 3;
-  if (font == FONT_ICON && text_state.has_icon && text_state.icon_space)
-    sw = text_state.icon_space;
-  else if (font == FONT_SMALL && text_state.has_small && text_state.small_space)
-    sw = text_state.small_space;
+  int sw = font_space(font);
   int w = 0;
   for (int i = 0; i < len; i++) {
     unsigned char c = (unsigned char)text[i];
@@ -445,10 +460,8 @@ int strwidth(const char *text) {
 // ── New explicit-font metric API ──────────────────────────────────────────────
 
 int text_char_height(ui_font_t font) {
-  if (font == FONT_ICON)
-    return text_state.icon_height ? text_state.icon_height : 8;
-  if (font == FONT_SMALL)
-    return text_state.small_height ? text_state.small_height : 8;
+  if (font == FONT_ICON)   return text_state.icon_height  ? text_state.icon_height  : 8;
+  if (font == FONT_SMALL)  return text_state.small_height ? text_state.small_height : 8;
   return text_state.big_height ? text_state.big_height : 8;
 }
 
@@ -482,15 +495,8 @@ void draw_text(ui_font_t font, const char *text, int x, int y, uint32_t col) {
   static text_vertex_t buf_icon [MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
   int vc_big = 0, vc_small = 0, vc_icon = 0;
 
-  int sw = text_state.big_space ? text_state.big_space : 3;
-  int lh = text_state.big_line ? text_state.big_line : 12;
-  if (font == FONT_ICON && text_state.has_icon) {
-    sw = text_state.icon_space ? text_state.icon_space : sw;
-    lh = text_state.icon_line ? text_state.icon_line : lh;
-  } else if (font == FONT_SMALL && text_state.has_small) {
-    sw = text_state.small_space ? text_state.small_space : sw;
-    lh = text_state.small_line ? text_state.small_line : lh;
-  }
+  int sw = font_space(font);
+  int lh = font_line(font);
 
   int cursor_x = x;
   for (int i = 0; i < text_length; i++) {
@@ -560,8 +566,7 @@ text_wrap_result_t text_wrap_layout_font(ui_font_t font, const char *text,
   int w = viewport->w;
   int lh = wrapped_line_advance(font);
   int sw = text_strwidth(font, " ");
-  if (sw <= 0)
-    sw = (font == FONT_SMALL && text_state.small_space ? text_state.small_space : get_space_width());
+  if (sw <= 0) sw = font_space(font);
   if (sw <= 0) sw = 3;
 
   int cx = x;

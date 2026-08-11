@@ -78,6 +78,50 @@ case evCommand:
         on_text_changed(((window_t *)lparam)->title);
 ```
 
+## Form validation (button gating pattern)
+
+When a dialog button should be disabled until the user fills a field with valid
+input, gate the button on every `edUpdate`:
+
+```c
+// 1. Helper: check business rules (e.g. name must be non-empty and available)
+static bool branch_name_available(const char *name) {
+  if (!name || !name[0]) return false;
+  git_branch_t branches[256];
+  int n = git_get_branches(repo, branches, ARRAY_LEN(branches));
+  for (int i = 0; i < n; i++)
+    if (strcmp(branches[i].name, name) == 0) return false;
+  return true;
+}
+
+// 2. Helper: set button state from current field value
+static void update_ok_button(window_t *win, const char *name) {
+  window_t *ok = get_window_item(win, ID_DIALOG_OK);
+  if (!ok) return;
+  enable_window(ok, name && name[0] && branch_name_available(name));
+}
+
+// 3. In the window proc:
+case evCreate:
+  dialog_push(win, st, bindings, ARRAY_LEN(bindings));
+  update_ok_button(win, st->name);  // initial state
+  return true;
+
+case evCommand:
+  if (HIWORD(wparam) == edUpdate && LOWORD(wparam) == ID_DIALOG_NAME) {
+    dialog_pull(win, st, bindings, ARRAY_LEN(bindings));
+    update_ok_button(win, st->name);  // re-validate every keystroke
+    return true;
+  }
+```
+
+Key points:
+- `dialog_push` on `evCreate` populates controls; `dialog_pull` on `edUpdate` reads back.
+- `enable_window(control, bool)` enables/disables any window, not just buttons.
+- Validation must be cheap (in-memory lookup) because it runs on every keystroke.
+- The OK button's own `btnClicked` handler should still validate — the button might
+  be enabled via keyboard accelerator or keyboard-only interaction.
+
 ## Label
 
 ```c
@@ -269,8 +313,8 @@ child's `text` is its tab caption, and only the selected page is visible:
 
 ```xml
 <TabView name="views" flags="flexspace">
-    <StackView name="changes" text="Changes">...</StackView>
-    <StackView name="history" text="History">...</StackView>
+    <stack name="changes" text="Changes">...</stack>
+    <stack name="history" text="History">...</stack>
 </TabView>
 ```
 

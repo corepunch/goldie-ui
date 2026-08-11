@@ -181,9 +181,9 @@
               toolbar="main">
             <requires library="gitclient_components" />
             <TabView name="views" flags="notitle,nofill,flexspace">
-                <StackView name="changes_page" text="Changes" flags="notitle,nofill,flexspace">
+                <stack name="changes_page" text="Changes" flags="notitle,nofill,flexspace">
                     <SplitView name="changes_split" flags="flexspace">
-                        <StackView name="changes_panel" spacing="4" padding="4">
+                        <stack name="changes_panel" spacing="4" padding="4">
                             <TableView name="changes_files"
                                        source="db.files"
                                        master="none"
@@ -196,17 +196,17 @@
                             <label name="commit_hint" text="Commit staged changes" />
                             <textedit name="commit_summary" text="" />
                             <textedit name="commit_description" text="" />
-                            <StackView name="commit_actions" orientation="horizontal" spacing="4">
+                            <stack name="commit_actions" orientation="horizontal" spacing="4">
                                 <button name="stash_inline" text="Stash" />
                                 <space />
                                 <button name="commit_now" text="Commit" flags="default" />
-                            </StackView>
-                        </StackView>
+                            </stack>
+                        </stack>
                         <DiffView name="changes_diff" flags="notitle,nofill,vscroll,flexspace"/>
                     </SplitView>
-                </StackView>
+                </stack>
 
-                <StackView name="history_page" text="History" flags="notitle,nofill,flexspace">
+                <stack name="history_page" text="History" flags="notitle,nofill,flexspace">
                     <SplitView name="history_main_split" flags="flexspace">
                         <SplitView name="left_split" orientation="vertical" flags="flexspace" width="180">
                             <TableView name="branches" source="db.branches" context-menu="branches"
@@ -242,7 +242,7 @@
                             <DiffView name="history_diff" flags="notitle,nofill,vscroll,flexspace"/>
                         </SplitView>
                     </SplitView>
-                </StackView>
+                </stack>
             </TabView>
         </form>
 
@@ -432,30 +432,30 @@
         <form name="repositories_dialog" title="Repositories" width="500" auto_layout="1" spacing="6" padding="8">
             <label text="Known repositories:" />
             <combobox name="repo_list" flags="flexspace" />
-            <StackView orientation="horizontal" spacing="4">
+            <stack orientation="horizontal" spacing="4">
                 <button name="add" text="Add..." />
                 <button name="scan" text="Scan Folder..." />
                 <button name="remove" text="Remove" />
-            </StackView>
-            <StackView orientation="horizontal" spacing="4">
+            </stack>
+            <stack orientation="horizontal" spacing="4">
                 <space />
                 <button name="open" text="Open" flags="default" />
                 <button name="close" text="Close" />
-            </StackView>
+            </stack>
         </form>
 
         <form name="create_repo_dialog" title="Create Repository" width="500" auto_layout="1" spacing="6" padding="8">
             <label text="Repository folder:" />
-            <StackView orientation="horizontal" spacing="4">
+            <stack orientation="horizontal" spacing="4">
                 <textedit name="path" flags="flexspace" />
                 <button name="browse" text="Choose..." />
-            </StackView>
+            </stack>
             <label name="status" text="The folder will be created and initialized with branch main." />
-            <StackView orientation="horizontal" spacing="4">
+            <stack orientation="horizontal" spacing="4">
                 <space />
                 <button name="ok" text="Create" flags="default" />
                 <button name="cancel" text="Cancel" />
-            </StackView>
+            </stack>
         </form>
 
         <form name="identity_dialog" title="Git Identity" width="460" auto_layout="1" spacing="6" padding="8">
@@ -465,23 +465,23 @@
             <textedit name="email" />
             <checkbox name="global" text="Use for all repositories" />
             <label name="status" text="Stored in this repository unless global is selected." />
-            <StackView orientation="horizontal" spacing="4">
+            <stack orientation="horizontal" spacing="4">
                 <space />
                 <button name="ok" text="Save" flags="default" />
                 <button name="cancel" text="Cancel" />
-            </StackView>
+            </stack>
         </form>
 
         <form name="switch_branch_dialog" title="Switch Branch" width="440" auto_layout="1" spacing="6" padding="8">
             <label text="Find a branch:" />
             <textedit name="query" />
             <combobox name="branches" flags="flexspace" />
-            <StackView orientation="horizontal" spacing="4">
+            <stack orientation="horizontal" spacing="4">
                 <button name="new_branch" text="New Branch..." />
                 <space />
                 <button name="ok" text="Switch" flags="default" />
                 <button name="cancel" text="Cancel" />
-            </StackView>
+            </stack>
         </form>
     </forms>
 </orion>

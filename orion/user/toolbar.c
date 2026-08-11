@@ -134,7 +134,8 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
   switch (item->type) {
     case TOOLBAR_ITEM_BUTTON: {
       irect16_t local = {0, 0, r.w, r.h};
-      draw_button(local, 1, 1, show_pressed);
+      if (!(tb->style & TOOLBAR_STYLE_SHOW_LABELS))
+        draw_button(local, 1, 1, show_pressed);
       int icon = item->icon >= 0 ? item->icon : sysicon_missing;
       irect16_t icon_rect = local;
       if (tb->style & TOOLBAR_STYLE_SHOW_LABELS)
