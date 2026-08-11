@@ -85,6 +85,27 @@ static const cp_datasource_t kCommandPanelDataSource = {
 	.tabs = kTabs, .count = COUNT_OF(kTabs),
 };
 
+static void cp_dump_frames(const window_t *win, int depth) {
+	if (!win) return;
+	SC_TRACE("%*swin=%u title=\"%s\" frame=%d,%d %dx%d flags=0x%x visible=%d",
+		depth * 2, "", (unsigned)win->id, win->title,
+		win->frame.x, win->frame.y, win->frame.w, win->frame.h,
+		(unsigned)win->flags, window_has_state(win, WINDOW_STATE_VISIBLE));
+	for (const window_t *child = win->children; child; child = child->next)
+		cp_dump_frames(child, depth + 1);
+}
+
+static void cp_dump_measure(window_t *win, int avail_w, int avail_h, int depth) {
+	if (!win) return;
+	layout_measure_t m = {.avail_w = avail_w, .avail_h = avail_h};
+	send_message(win, evMeasure, 0, &m);
+	SC_TRACE("%*smeasure win=%u title=\"%s\" horiz=%d avail=%dx%d desired=%dx%d",
+		depth * 2, "", (unsigned)win->id, win->title,
+		!!(win->flags & WINDOW_STACK_HORIZONTAL), avail_w, avail_h, m.desired_w, m.desired_h);
+	for (window_t *child = win->children; child; child = child->next)
+		cp_dump_measure(child, m.desired_w, m.desired_h, depth + 1);
+}
+
 static uint32_t cp_load_icons(void) {
 	const char *found = NULL;
 	char bundled[1024];
@@ -113,21 +134,22 @@ static uint32_t cp_load_icons(void) {
 }
 
 static window_t *cp_create_page(window_t *tabview, const cp_tab_t *tab) {
-	layout_view_config_t stack_cfg = { .spacing = 4 };
 	window_t *page = create_window(tab->label, WINDOW_NOTITLE,
-		MAKERECT(0, 0, 1, 1), tabview, "StackView", 0, &stack_cfg);
+		MAKERECT(0, 0, 1, 1), tabview, "StackView", 0, NULL);
 	if (!page) return NULL;
+	page->layout.layout_spacing = 4;
 	for (int s = 0; s < tab->count; s++) {
 		const cp_section_t *section = &tab->sections[s];
 		window_t *section_win = create_window("", WINDOW_NOTITLE,
-			MAKERECT(0, 0, 1, 1), page, "StackView", 0, &stack_cfg);
+			MAKERECT(0, 0, 1, 1), page, "StackView", 0, NULL);
 		if (!section_win) continue;
+		section_win->layout.layout_spacing = 4;
 		create_window(section->label, WINDOW_NOTITLE,
 			MAKERECT(0, 0, 1, CONTROL_HEIGHT), section_win, "Label", 0, NULL);
-		layout_view_config_t grid_cfg = { .spacing = 4 };
 		window_t *grid = create_window("", WINDOW_NOTITLE,
-			MAKERECT(0, 0, 1, 1), section_win, "GridView", 0, &grid_cfg);
+			MAKERECT(0, 0, 1, 1), section_win, "GridView", 0, NULL);
 		if (!grid) continue;
+		grid->layout.layout_spacing = 4;
 		send_message(grid, evInitChildren, 0, NULL);
 		window_t *columns[2] = { grid->children, grid->children ? grid->children->next : NULL };
 		for (int i = 0; i < section->count; i++) {
@@ -135,16 +157,14 @@ static window_t *cp_create_page(window_t *tabview, const cp_tab_t *tab) {
 			if (!column) continue;
 			const cp_command_t *command = &section->commands[i];
 			window_t *button = create_window(command->label,
-				WINDOW_NOTITLE | WINDOW_FLEXSPACE, MAKERECT(0, 0, 1, CP_BUTTON_HEIGHT),
+				WINDOW_NOTITLE, MAKERECT(0, 0, 1, CP_BUTTON_HEIGHT),
 				column, "Button", 0, NULL);
 			if (button) button->id = command->id;
 		}
-		send_message(grid, evResize, 0, NULL);
 	}
 	if (!tab->count)
 		create_window("No controls available", WINDOW_NOTITLE,
 			MAKERECT(0, 0, 1, CONTROL_HEIGHT), page, "Label", 0, NULL);
-	send_message(page, evResize, 0, NULL);
 	return page;
 }
 
@@ -189,6 +209,8 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 			irect16_t cr = get_client_rect(win);
 			layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
 			send_message(st->tabview, evArrange, 0, &a);
+			cp_dump_frames(st->tabview, 0);
+			cp_dump_measure(st->tabview->children, cr.w - 4, cr.h - 30, 0);
 			show_window(st->tabview, true);
 			return true;
 		}
@@ -207,6 +229,7 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 				layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
 				send_message(c, evArrange, 0, &a);
 			}
+			cp_dump_frames(st->tabview, 0);
 			return true;
 		}
 		case evCommand: {
