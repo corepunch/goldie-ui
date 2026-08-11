@@ -21,8 +21,7 @@ static irect16_t document_workspace_rect(void) {
 	int margin = 6;
 	int left = margin;
 	int top = MENUBAR_HEIGHT + TOOLBAR_BAND_HEIGHT + margin;
-	window_t *side_win=g_app?(g_app->property_browser_win?g_app->property_browser_win:g_app->command_panel_win):NULL;
-	int right=side_win?side_win->frame.x-margin:sw-margin;
+	int right=sw-SIDE_PANEL_WIDTH-margin;
 	int bottom = sh - margin;
 	if (right <= left) right = left + 1;
 	if (bottom <= top) bottom = top + 1;

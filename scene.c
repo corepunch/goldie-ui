@@ -80,6 +80,9 @@ static void xml_set_attr_v3(XmlNode *n,const char *name,vec3 v){
 	snprintf(value,sizeof(value),"%.6g %.6g %.6g",v.x,v.y,v.z);
 	xml_set_attr(n,name,value);
 }
+static void xml_set_attr_v3_cm(XmlNode *n,const char *name,vec3 v){
+	xml_set_attr_v3(n,name,vscale(v,100.0f));
+}
 static mat4 xml_node_transform(XmlNode *n){
 	vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
 	vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
@@ -1528,7 +1531,7 @@ void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY){
 	if(!n) return;
 	s->draggingHandle=handle;
 	s->dragStartMouseX=mouseX; s->dragStartMouseY=mouseY;
-	s->dragStartPos=xml_attr_v3(n,"pos",v3(0,0,0));
+	s->dragStartPos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
 	s->dragStartRot=xml_attr_v3(n,"rot",v3(0,0,0));
 	s->dragStartScale=xml_attr_v3(n,"scale",v3(1,1,1));
 	mat4 matrix; vec3 bmin,bmax;
@@ -1595,12 +1598,12 @@ void gizmo_apply_drag(Scene *s,int mX,int mY,int W,int H,
 			vec3 pn=vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
 			if(!ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
 			vec3 delta=vscale(axis,vdot(vsub(b,a),axis));
-			xml_set_attr_v3(n,"pos",vadd(s->dragStartPos,mat4_xform_dir(mat4_affine_inverse(s->dragParentMatrix),delta)));
+			xml_set_attr_v3_cm(n,"pos",vadd(s->dragStartPos,mat4_xform_dir(mat4_affine_inverse(s->dragParentMatrix),delta)));
 		} else {
 			vec3 pn=h==GIZMO_PLANE_XY?sz:h==GIZMO_PLANE_XZ?sy:h==GIZMO_PLANE_YZ?sx:v3(0,0,0);
 			if(vlen(pn)<0.5f || !ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
 			vec3 delta=mat4_xform_dir(mat4_affine_inverse(s->dragParentMatrix),vsub(b,a));
-			xml_set_attr_v3(n,"pos",vadd(s->dragStartPos,delta));
+			xml_set_attr_v3_cm(n,"pos",vadd(s->dragStartPos,delta));
 		}
 	} else if(s->editMode==EDIT_E_ROTATE){
 		vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:h==GIZMO_AXIS_Z?sz:v3(0,0,0),a,b;

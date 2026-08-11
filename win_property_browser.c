@@ -1,7 +1,7 @@
 #include "scener.h"
 #include <orion/commctl/commctl.h>
 
-enum { PROP_BROWSER_WIDTH = 230, PROP_NAME_WIDTH = 104 };
+enum { PROP_NAME_WIDTH = 104 };
 typedef enum { PROP_TEXT, PROP_BOOL, PROP_X, PROP_Y, PROP_Z } prop_kind_t;
 typedef struct {
 	const char *label, *attr, *fallback, *default_value;
@@ -145,9 +145,10 @@ void property_browser_refresh(void){
 window_t *create_property_browser_window(void){
 	if(!g_app) return NULL;
 	int sw=ui_get_system_metrics(kSystemMetricScreenWidth),sh=ui_get_system_metrics(kSystemMetricScreenHeight);
-	int command_width=g_app->command_panel_win?g_app->command_panel_win->frame.w:0;
+	int total_h=sh-MENUBAR_HEIGHT-TOOLBAR_BAND_HEIGHT-40;
+	int cmd_h=(int)(total_h*0.60f);
 	window_t *win=create_window("Properties",WINDOW_ALWAYSONTOP|WINDOW_NOTRAYBUTTON|WINDOW_NORESIZE,
-		MAKERECT(sw-command_width-PROP_BROWSER_WIDTH,MENUBAR_HEIGHT+TOOLBAR_BAND_HEIGHT,PROP_BROWSER_WIDTH,sh-MENUBAR_HEIGHT-TOOLBAR_BAND_HEIGHT-40),
+		MAKERECT(sw-SIDE_PANEL_WIDTH,MENUBAR_HEIGHT+TOOLBAR_BAND_HEIGHT+cmd_h,SIDE_PANEL_WIDTH,total_h-cmd_h),
 		NULL,win_property_browser,g_app->hinstance,NULL);
 	if(win) show_window(win,true);
 	return win;

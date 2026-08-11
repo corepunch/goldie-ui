@@ -9,6 +9,8 @@
 
 #define SC_TRACE(...) do { fprintf(stderr,"[scener] " __VA_ARGS__); fputc('\n',stderr); fflush(stderr); } while(0)
 
+#define SIDE_PANEL_WIDTH 230
+
 enum {
   ID_TOOL_SELECT = 3100,
   ID_TOOL_MOVE,

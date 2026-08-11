@@ -5,7 +5,7 @@
 #include "gmax_icons.h"
 
 enum {
-	CP_WIDTH = 180,
+	CP_WIDTH = SIDE_PANEL_WIDTH,
 	CP_TAB_HEIGHT = 28,
 	CP_HEADER_HEIGHT = 24,
 	CP_BUTTON_HEIGHT = 20,
@@ -242,7 +242,7 @@ window_t *create_command_panel_window(void) {
 	if (!g_app) return NULL;
 	int sw = ui_get_system_metrics(kSystemMetricScreenWidth);
 	int sh = ui_get_system_metrics(kSystemMetricScreenHeight);
-	int win_h = sh - MENUBAR_HEIGHT - TOOLBAR_BAND_HEIGHT - 40;
+	int win_h = (int)((sh - MENUBAR_HEIGHT - TOOLBAR_BAND_HEIGHT - 40) * 0.60f);
 	window_t *win = create_window("Command Panel",
 		WINDOW_ALWAYSONTOP | WINDOW_NOTRAYBUTTON | WINDOW_NORESIZE,
 		MAKERECT(sw - CP_WIDTH, MENUBAR_HEIGHT + TOOLBAR_BAND_HEIGHT, CP_WIDTH, win_h),
