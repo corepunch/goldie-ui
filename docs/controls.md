@@ -313,8 +313,8 @@ child's `text` is its tab caption, and only the selected page is visible:
 
 ```xml
 <TabView name="views" flags="flexspace">
-    <stack name="changes" text="Changes">...</stack>
-    <stack name="history" text="History">...</stack>
+    <StackView name="changes" text="Changes">...</StackView>
+    <StackView name="history" text="History">...</StackView>
 </TabView>
 ```
 

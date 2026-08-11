@@ -606,14 +606,6 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
   EACH_ELEMENT(c, parent) if (is_control(parent, c)) {
     attrs_t a; rect_t sz = size_attr(c), pad = {0}, mar = {0}; char id[256], klass[128], classq[ORIONC_STRING_SIZE], textq[ORIONC_STRING_SIZE], nameq[ORIONC_STRING_SIZE], flags[256], spacing[16], font[16], color[16], lparam[256] = "NULL";
     read_control_attrs(c, &a); control_id(id, sizeof(id), form, a.v[A_NAME], (char *)c->name, ordinal++); ident(klass, sizeof(klass), (char *)c->name, false);
-    if (elem(c, "textbox"))
-      snprintf(klass, sizeof(klass), "TextEdit");
-    if (elem(c, "stack") || elem(c, "StackView"))
-      snprintf(klass, sizeof(klass), "StackView");
-    if (elem(c, "grid"))
-      snprintf(klass, sizeof(klass), "GridView");
-    if (elem(c, "flow"))
-      snprintf(klass, sizeof(klass), "FlowView");
     if (has_controls(c) && !elem(c, "column")) sz = (rect_t){0};
     rect_attr(c, "padding", &pad) || rect_attr(c, "layout_padding", &pad); rect_attr(c, "margin", &mar) || rect_attr(c, "layout_margin", &mar);
     // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)
