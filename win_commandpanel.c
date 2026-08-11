@@ -6,46 +6,60 @@
 
 enum {
 	CP_WIDTH = SIDE_PANEL_WIDTH,
-	CP_HEADER_HEIGHT = 24,
 	CP_BUTTON_HEIGHT = 20,
 };
 
-typedef struct { const char *label; uint16_t id; int icon; } cp_item_t;
-typedef struct { const char *label; const cp_item_t *items; int count; } cp_section_t;
+typedef void (*cp_action_fn)(void *context, uint16_t id);
+typedef struct {
+	const char *label;
+	uint16_t id;
+	int icon;
+	cp_action_fn action;
+	void *context;
+} cp_command_t;
+typedef struct { const char *label; const cp_command_t *commands; int count; } cp_section_t;
 typedef struct { const char *label; uint16_t id; int icon; const cp_section_t *sections; int count; } cp_tab_t;
-typedef struct { const cp_tab_t *tab; } cp_page_state_t;
+typedef struct { const cp_tab_t *tabs; int count; } cp_datasource_t;
 typedef struct {
 	uint32_t icons;
 	bitmap_strip_t strip;
 	window_t *tabview;
+	const cp_datasource_t *datasource;
 } cp_state_t;
 
 #define COUNT_OF(a) ((int)(sizeof(a) / sizeof((a)[0])))
 
-static const cp_item_t kControlItems[] = {
-	{ "Select", ID_TOOL_SELECT, GMAX_ICON_SELECT }, { "Move", ID_TOOL_MOVE, GMAX_ICON_MOVE },
-	{ "Rotate", ID_TOOL_ROTATE, GMAX_ICON_ROTATE }, { "Scale", ID_TOOL_SCALE, GMAX_ICON_SCALE },
+static void cp_menu_action(void *context, uint16_t id) {
+	(void)context;
+	handle_menu_command(id);
+}
+
+#define CP_MENU_COMMAND(label, id, icon) { label, id, icon, cp_menu_action, NULL }
+
+static const cp_command_t kControlItems[] = {
+	CP_MENU_COMMAND("Select", ID_TOOL_SELECT, GMAX_ICON_SELECT), CP_MENU_COMMAND("Move", ID_TOOL_MOVE, GMAX_ICON_MOVE),
+	CP_MENU_COMMAND("Rotate", ID_TOOL_ROTATE, GMAX_ICON_ROTATE), CP_MENU_COMMAND("Scale", ID_TOOL_SCALE, GMAX_ICON_SCALE),
 };
 
-static const cp_item_t kShapeItems[] = {
-	{ "Box", ID_CREATE_BOX, GMAX_ICON_BOX }, { "Sphere", ID_CREATE_SPHERE, GMAX_ICON_SPHERE },
-	{ "Cylinder", ID_CREATE_CYLINDER, GMAX_ICON_CYLINDER }, { "Cone", ID_CREATE_CONE, GMAX_ICON_CONE },
-	{ "Torus", ID_CREATE_TORUS, GMAX_ICON_TORUS }, { "Prism", ID_CREATE_PRISM, GMAX_ICON_PRISM },
-	{ "Capsule", ID_CREATE_CAPSULE, GMAX_ICON_CAPSULE }, { "Arch", ID_CREATE_ARCH, GMAX_ICON_ARCH },
+static const cp_command_t kShapeItems[] = {
+	CP_MENU_COMMAND("Box", ID_CREATE_BOX, GMAX_ICON_BOX), CP_MENU_COMMAND("Sphere", ID_CREATE_SPHERE, GMAX_ICON_SPHERE),
+	CP_MENU_COMMAND("Cylinder", ID_CREATE_CYLINDER, GMAX_ICON_CYLINDER), CP_MENU_COMMAND("Cone", ID_CREATE_CONE, GMAX_ICON_CONE),
+	CP_MENU_COMMAND("Torus", ID_CREATE_TORUS, GMAX_ICON_TORUS), CP_MENU_COMMAND("Prism", ID_CREATE_PRISM, GMAX_ICON_PRISM),
+	CP_MENU_COMMAND("Capsule", ID_CREATE_CAPSULE, GMAX_ICON_CAPSULE), CP_MENU_COMMAND("Arch", ID_CREATE_ARCH, GMAX_ICON_ARCH),
 };
 
-static const cp_item_t kSceneItems[] = {
-	{ "Point Light", ID_CREATE_POINT_LIGHT, GMAX_ICON_POINT_LIGHT },
-	{ "Directional", ID_CREATE_DIRECTIONAL_LIGHT, GMAX_ICON_DIR_LIGHT },
-	{ "Camera", ID_CREATE_CAMERA, GMAX_ICON_CAMERA },
+static const cp_command_t kSceneItems[] = {
+	CP_MENU_COMMAND("Point Light", ID_CREATE_POINT_LIGHT, GMAX_ICON_POINT_LIGHT),
+	CP_MENU_COMMAND("Directional", ID_CREATE_DIRECTIONAL_LIGHT, GMAX_ICON_DIR_LIGHT),
+	CP_MENU_COMMAND("Camera", ID_CREATE_CAMERA, GMAX_ICON_CAMERA),
 };
 
-static const cp_item_t kModifierItems[] = {
-	{ "Taper", ID_MODIFY_TAPER, GMAX_ICON_TAPER }, { "Twist", ID_MODIFY_TWIST, GMAX_ICON_TWIST },
-	{ "Bend", ID_MODIFY_BEND, GMAX_ICON_BEND }, { "Stretch", ID_MODIFY_STRETCH, GMAX_ICON_STRETCH },
-	{ "Skew", ID_MODIFY_SKEW, GMAX_ICON_SKEW }, { "Extrude", ID_MODIFY_EXTRUDE, GMAX_ICON_EXTRUDE },
-	{ "Mirror", ID_MODIFY_MIRROR, GMAX_ICON_MIRROR }, { "Noise", ID_MODIFY_NOISE, GMAX_ICON_NOISE },
-	{ "Shell", ID_MODIFY_SHELL, GMAX_ICON_SHELL }, { "Array", ID_MODIFY_ARRAY, GMAX_ICON_ARRAY },
+static const cp_command_t kModifierItems[] = {
+	CP_MENU_COMMAND("Taper", ID_MODIFY_TAPER, GMAX_ICON_TAPER), CP_MENU_COMMAND("Twist", ID_MODIFY_TWIST, GMAX_ICON_TWIST),
+	CP_MENU_COMMAND("Bend", ID_MODIFY_BEND, GMAX_ICON_BEND), CP_MENU_COMMAND("Stretch", ID_MODIFY_STRETCH, GMAX_ICON_STRETCH),
+	CP_MENU_COMMAND("Skew", ID_MODIFY_SKEW, GMAX_ICON_SKEW), CP_MENU_COMMAND("Extrude", ID_MODIFY_EXTRUDE, GMAX_ICON_EXTRUDE),
+	CP_MENU_COMMAND("Mirror", ID_MODIFY_MIRROR, GMAX_ICON_MIRROR), CP_MENU_COMMAND("Noise", ID_MODIFY_NOISE, GMAX_ICON_NOISE),
+	CP_MENU_COMMAND("Shell", ID_MODIFY_SHELL, GMAX_ICON_SHELL), CP_MENU_COMMAND("Array", ID_MODIFY_ARRAY, GMAX_ICON_ARRAY),
 };
 
 static const cp_section_t kCreateSections[] = {
@@ -65,6 +79,10 @@ static const cp_tab_t kTabs[] = {
 	{ "Motion", ID_CP_TAB_MOTION, GMAX_ICON_TAB_MOTION, NULL, 0 },
 	{ "Display", ID_CP_TAB_DISPLAY, GMAX_ICON_TAB_DISPLAY, NULL, 0 },
 	{ "Utilities", ID_CP_TAB_UTILITIES, GMAX_ICON_TAB_UTILITIES, NULL, 0 },
+};
+
+static const cp_datasource_t kCommandPanelDataSource = {
+	.tabs = kTabs, .count = COUNT_OF(kTabs),
 };
 
 static uint32_t cp_load_icons(void) {
@@ -94,79 +112,51 @@ static uint32_t cp_load_icons(void) {
 	return texture;
 }
 
-static void cp_draw_header(const char *label, int *y, int width) {
-	draw_text_small(label, 6, *y + 5, get_sys_color(brTextNormal));
-	fill_rect(get_sys_color(brDarkEdge), R(4, *y + CP_HEADER_HEIGHT - 2, width - 8, 1));
-	*y += CP_HEADER_HEIGHT;
-}
-
-static void cp_draw_item(const cp_item_t *item, irect16_t rect) {
-	bool active = item->id >= ID_TOOL_SELECT && item->id <= ID_TOOL_SCALE && scener_active_tool() == item->id;
-	draw_button(rect, 0, 0, active);
-	draw_text(FONT_SMALL, item->label, rect.x + 7, rect.y + (rect.h - text_char_height(FONT_SMALL)) / 2, get_sys_color(brTextNormal));
-}
-
-static const cp_item_t *cp_hit_item(const cp_tab_t *tab, int mx, int my, int width) {
-	int y = CP_HEADER_HEIGHT + 4;
-	int button_w = (width - 10) / 2;
+static window_t *cp_create_page(window_t *tabview, const cp_tab_t *tab) {
+	layout_view_config_t stack_cfg = { .spacing = 4 };
+	window_t *page = create_window(tab->label, WINDOW_NOTITLE,
+		MAKERECT(0, 0, 1, 1), tabview, "StackView", 0, &stack_cfg);
+	if (!page) return NULL;
 	for (int s = 0; s < tab->count; s++) {
 		const cp_section_t *section = &tab->sections[s];
-		y += 4 + CP_HEADER_HEIGHT;
+		window_t *section_win = create_window("", WINDOW_NOTITLE,
+			MAKERECT(0, 0, 1, 1), page, "StackView", 0, &stack_cfg);
+		if (!section_win) continue;
+		create_window(section->label, WINDOW_NOTITLE,
+			MAKERECT(0, 0, 1, CONTROL_HEIGHT), section_win, "Label", 0, NULL);
+		layout_view_config_t grid_cfg = { .spacing = 4 };
+		window_t *grid = create_window("", WINDOW_NOTITLE,
+			MAKERECT(0, 0, 1, 1), section_win, "GridView", 0, &grid_cfg);
+		if (!grid) continue;
+		send_message(grid, evInitChildren, 0, NULL);
+		window_t *columns[2] = { grid->children, grid->children ? grid->children->next : NULL };
 		for (int i = 0; i < section->count; i++) {
-			int col = i % 2, x = 4 + col * (button_w + 2);
-			if (mx >= x && mx < x + button_w && my >= y && my < y + CP_BUTTON_HEIGHT)
-				return &section->items[i];
-			if (col || i == section->count - 1) y += CP_BUTTON_HEIGHT + 2;
+			window_t *column = columns[i % 2];
+			if (!column) continue;
+			const cp_command_t *command = &section->commands[i];
+			window_t *button = create_window(command->label,
+				WINDOW_NOTITLE | WINDOW_FLEXSPACE, MAKERECT(0, 0, 1, CP_BUTTON_HEIGHT),
+				column, "Button", 0, NULL);
+			if (button) button->id = command->id;
 		}
+		send_message(grid, evResize, 0, NULL);
 	}
-	return NULL;
+	if (!tab->count)
+		create_window("No controls available", WINDOW_NOTITLE,
+			MAKERECT(0, 0, 1, CONTROL_HEIGHT), page, "Label", 0, NULL);
+	send_message(page, evResize, 0, NULL);
+	return page;
 }
 
-static result_t win_cp_page(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
-	(void)wparam;
-	cp_page_state_t *ps = (cp_page_state_t *)win->userdata;
-	switch (msg) {
-		case evCreate:
-			ps = allocate_window_data(win, sizeof(*ps));
-			if (!ps) return false;
-			ps->tab = (const cp_tab_t *)lparam;
-			return true;
-		case evPaint: {
-			if (!ps || !ps->tab) return false;
-			irect16_t cr = get_client_rect(win);
-			fill_rect(get_sys_color(brControlBg), cr);
-			const cp_tab_t *tab = ps->tab;
-			int y = 4;
-			cp_draw_header(tab->label, &y, cr.w);
-			if (!tab->count) {
-				draw_text_small("No controls available", 8, y + 8, get_sys_color(brTextDisabled));
-				return true;
+static const cp_command_t *cp_find_command(const cp_datasource_t *source, uint16_t id) {
+	if (!source) return NULL;
+	for (int t = 0; t < source->count; t++)
+		for (int s = 0; s < source->tabs[t].count; s++)
+			for (int i = 0; i < source->tabs[t].sections[s].count; i++) {
+				const cp_command_t *command = &source->tabs[t].sections[s].commands[i];
+				if (command->id == id) return command;
 			}
-			int button_w = (cr.w - 10) / 2;
-			for (int s = 0; s < tab->count; s++) {
-				const cp_section_t *section = &tab->sections[s];
-				y += 4;
-				cp_draw_header(section->label, &y, cr.w);
-				for (int i = 0; i < section->count; i++) {
-					int col = i % 2;
-					irect16_t rect = { (int16_t)(4 + col * (button_w + 2)), (int16_t)y, (int16_t)button_w, CP_BUTTON_HEIGHT };
-					cp_draw_item(&section->items[i], rect);
-					if (col || i == section->count - 1) y += CP_BUTTON_HEIGHT + 2;
-				}
-			}
-			return true;
-		}
-		case evLeftButtonDown: {
-			if (!ps || !ps->tab) return false;
-			int mx = (int16_t)LOWORD(wparam), my = (int16_t)HIWORD(wparam);
-			irect16_t cr = get_client_rect(win);
-			const cp_item_t *item = cp_hit_item(ps->tab, mx, my, cr.w);
-			if (item) handle_menu_command(item->id);
-			return true;
-		}
-		default:
-			return false;
-	}
+	return NULL;
 }
 
 result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
@@ -177,6 +167,7 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 			st = calloc(1, sizeof(*st));
 			if (!st) return false;
 			win->userdata = st;
+			st->datasource = &kCommandPanelDataSource;
 			st->icons = cp_load_icons();
 			if (st->icons) st->strip = (bitmap_strip_t){
 				.tex = st->icons, .icon_w = GMAX_ICON_SIZE, .icon_h = GMAX_ICON_SIZE,
@@ -185,16 +176,19 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 			st->tabview = create_window("", WINDOW_NOTITLE | WINDOW_NORESIZE,
 				MAKERECT(0, 0, 1, 1), win, "TabView", 0, NULL);
 			if (!st->tabview) return false;
-			if (st->icons) {
-				send_message(st->tabview, tcSetImageStrip, 0, &st->strip);
-				for (int i = 0; i < COUNT_OF(kTabs); i++)
-					send_message(st->tabview, tcSetTabIcon, i, (void*)(intptr_t)kTabs[i].icon);
-			}
-			for (int i = 0; i < COUNT_OF(kTabs); i++) {
-				window_t *page = create_window(kTabs[i].label, WINDOW_NOTITLE,
-					MAKERECT(0, 0, 1, 1), st->tabview, win_cp_page, 0, (void *)&kTabs[i]);
+			for (int i = 0; i < st->datasource->count; i++) {
+				window_t *page = cp_create_page(st->tabview, &st->datasource->tabs[i]);
 				if (page) show_window(page, true);
 			}
+			send_message(st->tabview, tcSetStyle, TAB_STYLE_ICONS_ONLY, NULL);
+			if (st->icons) {
+				send_message(st->tabview, tcSetImageStrip, 0, &st->strip);
+				for (int i = 0; i < st->datasource->count; i++)
+					send_message(st->tabview, tcSetTabIcon, i, (void*)(intptr_t)st->datasource->tabs[i].icon);
+			}
+			irect16_t cr = get_client_rect(win);
+			layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
+			send_message(st->tabview, evArrange, 0, &a);
 			show_window(st->tabview, true);
 			return true;
 		}
@@ -218,8 +212,13 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 		case evCommand: {
 			if (HIWORD(wparam) == tcnSelChange) return true;
 			uint16_t id = LOWORD(wparam);
-			for (int i = 0; i < COUNT_OF(kTabs); i++) if (kTabs[i].id == id) {
+			for (int i = 0; st && i < st->datasource->count; i++) if (st->datasource->tabs[i].id == id) {
 				if (st && st->tabview) send_message(st->tabview, tcSetSelection, i, NULL);
+				return true;
+			}
+			const cp_command_t *command = cp_find_command(st ? st->datasource : NULL, id);
+			if (command && command->action) {
+				command->action(command->context, command->id);
 				return true;
 			}
 			return false;
