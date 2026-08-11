@@ -74,6 +74,42 @@ static scene_doc_t *current_doc(void) {
   return doc;
 }
 
+static bool is_create_primitive(uint16_t id) {
+  return id >= ID_CREATE_BOX && id <= ID_CREATE_ARCH;
+}
+
+bool scener_create_primitive(scene_doc_t *doc, uint16_t id, vec3 ground_pos) {
+  if (!doc || !is_create_primitive(id)) return false;
+  Mesh m = {0};
+  float lift = 0.0f;
+  switch (id) {
+    case ID_CREATE_BOX:      m = gen_box(1, 1, 1); lift = 0.5f; break;
+    case ID_CREATE_SPHERE:   m = gen_sphere(0.5f, 16, 16); lift = 0.5f; break;
+    case ID_CREATE_CYLINDER: m = gen_cylinder(0.5f, 1, 24); lift = 0.5f; break;
+    case ID_CREATE_CONE:     m = gen_cone(0.5f, 0, 1, 24); lift = 0.5f; break;
+    case ID_CREATE_TORUS:    m = gen_torus(0.4f, 0.15f, 24, 12); lift = 0.15f; break;
+    case ID_CREATE_PRISM:    m = gen_prism(0.5f, 1, 6); lift = 0.5f; break;
+    case ID_CREATE_CAPSULE:  m = gen_capsule(0.3f, 0.6f, 12, 12); lift = 0.3f; break;
+    case ID_CREATE_ARCH:     m = gen_arch(1, 1, 0.3f, 0.15f, 12, 0); lift = 0.5f; break;
+    default: return false;
+  }
+  mat4 M = mat4_translate(vadd(ground_pos, v3(0, lift, 0)));
+  doc->scene.activeEditNode = NULL;
+  doc->scene.activeEditMatrix = M;
+  scene_add_obj(&doc->scene, m, M, mat4_identity(), v3(0.7f, 0.7f, 0.7f), 32, 1, 1, 0);
+  doc->scene.activeEditMatrix = mat4_identity();
+  doc->scene.selectedObj = doc->scene.nobjs - 1;
+  doc->scene.selectedNode = NULL;
+  scene_build_all_shadow_volumes(&doc->scene);
+  doc->modified = true;
+  doc_update_title(doc);
+  SC_TRACE("create id=%u object=%d ground=(%.3f,%.3f,%.3f)", id,
+    doc->scene.selectedObj, ground_pos.x, ground_pos.y, ground_pos.z);
+  property_browser_refresh();
+  if (doc->viewport_win) invalidate_window(doc->viewport_win);
+  return true;
+}
+
 uint16_t scener_active_tool(void) {
   scene_doc_t *doc = current_doc();
   if (!doc) return ID_TOOL_SELECT;
@@ -148,6 +184,7 @@ void handle_menu_command(uint16_t id) {
     case ID_TOOL_ROTATE:
     case ID_TOOL_SCALE:
       if (doc) {
+        doc->scene.createMode = 0;
         int mode = id == ID_TOOL_SELECT ? EDIT_Q_SELECT
                  : id == ID_TOOL_MOVE   ? EDIT_W_MOVE
                  : id == ID_TOOL_ROTATE ? EDIT_E_ROTATE
@@ -196,25 +233,10 @@ void handle_menu_command(uint16_t id) {
     case ID_CREATE_CAPSULE:
     case ID_CREATE_ARCH:
       if (doc) {
-        Mesh m = {0};
-        switch (id) {
-          case ID_CREATE_BOX:      m = gen_box(1,1,1); break;
-          case ID_CREATE_SPHERE:   m = gen_sphere(0.5f,16,16); break;
-          case ID_CREATE_CYLINDER: m = gen_cylinder(0.5f,1,24); break;
-          case ID_CREATE_CONE:     m = gen_cone(0.5f,0,1,24); break;
-          case ID_CREATE_TORUS:    m = gen_torus(0.4f,0.15f,24,12); break;
-          case ID_CREATE_PRISM:    m = gen_prism(0.5f,1,6); break;
-          case ID_CREATE_CAPSULE:  m = gen_capsule(0.3f,0.6f,12,12); break;
-          case ID_CREATE_ARCH:     m = gen_arch(1,1,0.3f,0.15f,12,0); break;
-        }
-        mat4 I = mat4_identity();
-        scene_add_obj(&doc->scene, m, I, I, v3(0.7f,0.7f,0.7f), 32, 1, 1, 0);
-        doc->scene.selectedObj = doc->scene.nobjs - 1;
-        doc->scene.selectedNode = doc->scene.objs[doc->scene.selectedObj].editNode;
-        scene_build_all_shadow_volumes(&doc->scene);
-        doc->modified = true;
-        if (doc->viewport_win) invalidate_window(doc->viewport_win);
-        property_browser_refresh();
+        doc->scene.createMode = id;
+        doc->scene.editMode = EDIT_Q_SELECT;
+        SC_TRACE("create-mode id=%u", id);
+        scener_sync_tool_ui();
       }
       break;
 

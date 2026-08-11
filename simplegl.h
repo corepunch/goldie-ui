@@ -174,6 +174,7 @@ typedef struct {
 	void *editStack[32]; int editDepth;
 	int selectedObj;
 	int editMode;
+	int createMode;    /* ID_CREATE_* while the viewport is placing primitives */
 	int hoveredHandle;   /* GIZMO_* — set each frame by gizmo_pick_handle */
 	int draggingHandle;  /* GIZMO_* — active drag handle, GIZMO_NONE when idle */
 	int axisLock;        /* 0=all, or GIZMO_AXIS_X/Y/Z or GIZMO_PLANE_XY/XZ/YZ (keyboard axis lock) */
@@ -215,6 +216,7 @@ void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov,int vpW,int vpH);
 void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY);
 void gizmo_apply_drag(Scene *s, int mX, int mY, int W, int H,
 	vec3 camPos, vec3 camRight, vec3 camUp, vec3 camLook, float camFov);
+
 
 void build_shadow_volume(Mesh *m,vec3 lightPos,vec3 lightDir,int isDir,ShadowVolume *sv);
 void scene_build_all_shadow_volumes(Scene *s);

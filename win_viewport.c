@@ -19,6 +19,8 @@
 #define DEFAULT_FOV            60.0f
 #define PERSP_NEAR             0.1f
 #define PERSP_FAR              1000.0f
+#define CREATE_GROUND_EPSILON  0.001f
+#define CREATE_FALLBACK_DEPTH  5.0f
 
 typedef struct {
 	uint32_t fbo, color, depth;
@@ -87,6 +89,14 @@ static vec3 vp_mouse_ray(const viewport_state_t *vp, const Scene *scene, int x, 
 	float tan_h = tanf((scene->camFov > 0 ? scene->camFov : DEFAULT_FOV) * M_PIf / 360.0f);
 	float nx = (float)x / w * 2.0f - 1.0f, ny = 1.0f - (float)y / h * 2.0f;
 	return vnorm(vadd(vadd(fwd, vscale(right, nx * tan_h * (float)w / h)), vscale(up, ny * tan_h)));
+}
+
+static vec3 vp_ground_point(const Scene *scene, vec3 ray) {
+	if (fabsf(ray.y) > CREATE_GROUND_EPSILON) {
+		float t = -scene->camPos.y / ray.y;
+		if (t > 0.0f) return vadd(scene->camPos, vscale(ray, t));
+	}
+	return vadd(scene->camPos, vscale(ray, CREATE_FALLBACK_DEPTH));
 }
 
 static void vp_stop_navigation(window_t *win, viewport_state_t *vp, bool restore_focus) {
@@ -301,7 +311,13 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 					if (cr.w <= 0 || cr.h <= 0) return true;
 					vec3 ray = vp_mouse_ray(vp, &doc->scene, vp->last_mouse_x, vp->last_mouse_y, cr.w, cr.h);
 					vp->left_down = 1;
-					if (doc->scene.hoveredHandle != GIZMO_NONE)
+					if (doc->scene.createMode) {
+						vec3 point = vp_ground_point(&doc->scene, ray);
+						scener_create_primitive(doc, (uint16_t)doc->scene.createMode, point);
+						vp->left_down = 0;
+						set_capture(NULL);
+						return true;
+					} else if (doc->scene.hoveredHandle != GIZMO_NONE)
 						gizmo_begin_drag(&doc->scene, doc->scene.hoveredHandle, vp->last_mouse_x, vp->last_mouse_y);
 					else {
 						doc->scene.draggingHandle = GIZMO_NONE;
@@ -343,6 +359,12 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			return true;
 		case evRightButtonDown:
 			if (vp) {
+				if (doc && doc->scene.createMode) {
+					doc->scene.createMode = 0;
+					SC_TRACE("create-mode cancel");
+					scener_sync_tool_ui();
+					return true;
+				}
 				vp->orbiting = 1;
 				vp->last_mouse_x = (int16_t)LOWORD(wparam);
 				vp->last_mouse_y = (int16_t)HIWORD(wparam);

@@ -69,6 +69,7 @@ void scener_sync_main_toolbar(void);
 void scener_sync_tool_ui(void);
 uint16_t scener_active_tool(void);
 void handle_menu_command(uint16_t id);
+bool scener_create_primitive(scene_doc_t *doc, uint16_t id, vec3 ground_pos);
 accel_table_t *scener_active_accelerators(void);
 
 result_t scener_toolbar_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

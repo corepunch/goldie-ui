@@ -1377,7 +1377,7 @@ void scene_get_obj_bounds(Scene *s, int idx, vec3 *outMin, vec3 *outMax){
 	if(idx<0 || idx>=s->nobjs){ *outMin=v3(0,0,0); *outMax=v3(0,0,0); return; }
 	void *node=s->objs[idx].editNode;
 	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
-	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==node){
+	for(int i=0;i<s->nobjs;i++) if((node && s->objs[i].editNode==node) || (!node && i==idx)){
 		Bounds p=scene_obj_bounds(&s->objs[i]);
 		if(p.min.x<b.min.x) b.min.x=p.min.x; if(p.max.x>b.max.x) b.max.x=p.max.x;
 		if(p.min.y<b.min.y) b.min.y=p.min.y; if(p.max.y>b.max.y) b.max.y=p.max.y;
@@ -1392,7 +1392,7 @@ void scene_get_obj_oriented_bounds(Scene *s,int idx,mat4 *matrix,vec3 *outMin,ve
 	*matrix=s->objs[idx].editMatrix;
 	mat4 inv=mat4_affine_inverse(*matrix);
 	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
-	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==node){
+	for(int i=0;i<s->nobjs;i++) if((node && s->objs[i].editNode==node) || (!node && i==idx)){
 		for(int j=0;j<s->objs[i].mesh.nverts;j++){
 			vec3 p=mat4_xform_point(inv,s->objs[i].mesh.verts[j].pos);
 			if(p.x<b.min.x) b.min.x=p.x; if(p.x>b.max.x) b.max.x=p.x;
@@ -1410,7 +1410,7 @@ int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut){
 		if(!s->objs[i].renderable) continue;
 		void *node=s->objs[i].editNode;
 		int seen=0;
-		for(int j=0;j<i;j++) if(s->objs[j].editNode==node){ seen=1; break; }
+		for(int j=0;j<i;j++) if(node && s->objs[j].editNode==node){ seen=1; break; }
 		if(seen) continue;
 		mat4 matrix; vec3 bmin,bmax;
 		scene_get_obj_oriented_bounds(s,i,&matrix,&bmin,&bmax);
