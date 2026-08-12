@@ -321,7 +321,9 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       if (data->resize_col >= 0) {
         int delta = mx - data->resize_start_x;
         int new_w = data->resize_start_w + delta;
-        if (new_w < 20) new_w = 20;
+        int min_w = data->columns[data->resize_col].min_width > 0
+                      ? (int)data->columns[data->resize_col].min_width : 20;
+        if (new_w < min_w) new_w = min_w;
         data->columns[data->resize_col].width_spec = (uint32_t)new_w;
         data->columns[data->resize_col].width = (uint32_t)new_w;
         report_sync_scroll(win, data);
@@ -515,6 +517,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
       data->columns[i].title[MAX_REPORTVIEW_TITLE - 1] = '\0';
       data->columns[i].width_spec = col->width;  // Store original spec
       data->columns[i].width = col->width;        // Initial effective width
+      data->columns[i].min_width = col->min_width;
       data->column_count++;
 
       // Keep effective widths in sync when columns are added after layout.

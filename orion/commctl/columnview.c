@@ -129,7 +129,9 @@ int rv_get_report_column_width(reportview_data_t *data, int col, int avail_w) {
     return avail_w;
   int flex_avail = avail_w - fixed_total;
   if (flex_avail < flex_count) flex_avail = flex_count; // Minimum 1px per flex column
-  return flex_avail / flex_count;
+  int share = flex_avail / flex_count;
+  int min_w = data->columns[col].min_width > 0 ? (int)data->columns[col].min_width : 0;
+  return share > min_w ? share : min_w;
 }
 
 int rv_report_total_width(reportview_data_t *data, int avail_w) {

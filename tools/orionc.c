@@ -479,6 +479,7 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
       OUT("static const char *%s_fields[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "field"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
       OUT("static const char *%s_titles[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "title"), q[ORIONC_STRING_SIZE]; cstr(q, sizeof(q), v); OUT("%s, ", q); free(v); } LINE("NULL };\n");
       OUT("static const int %s_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("-1 };\n");
+      OUT("static const int %s_min_widths[] = { ", param); EACH_ELEMENT(col, c) if (elem(col, "column")) { char *v = attr(col, "min-width"); OUT("%d, ", v ? atoi(v) : 0); free(v); } LINE("-1 };\n");
       int relation_field = 0; char foreign_table[128] = {0}, foreign_field[128] = {0};
       xmlNodePtr master = NULL;
       char *master_name_attr = attr(c, "master");
@@ -506,8 +507,8 @@ static void emit_tableviews(FILE *f, xmlNodePtr parent, xmlNodePtr form_node,
       // LIMITATION: master_filter_field / filter_value are int-based,
       // so only integer FK values work.  String FKs (UUID, hash) would
       // be converted to 0 by the runtime's strtol() call.
-      OUT("static const tableview_params_t %s = { .db = NULL, .table_id = TABLE_%s, .filter_field = 0, .filter_value = 0, .field_names = %s_fields, .column_titles = %s_titles, .column_widths = %s_widths, .check_field = %s, .master_id = %s, .master_filter_field = %d, .master_key = %s };\n\n",
-          param, table_id, param, param, param, check_field_q, master_id,
+      OUT("static const tableview_params_t %s = { .db = NULL, .table_id = TABLE_%s, .filter_field = 0, .filter_value = 0, .field_names = %s_fields, .column_titles = %s_titles, .column_widths = %s_widths, .column_min_widths = %s_min_widths, .check_field = %s, .master_id = %s, .master_filter_field = %d, .master_key = %s };\n\n",
+          param, table_id, param, param, param, param, check_field_q, master_id,
           relation_field, master_key_q);
       free(check_field);
       free(master_name_attr);

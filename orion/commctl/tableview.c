@@ -55,6 +55,7 @@ typedef struct {
   char **field_names;
   char **column_titles;
   int *column_widths;
+  int *column_min_widths;
   int column_count;
   char *check_field;
   
@@ -167,6 +168,7 @@ static void tv_refresh(window_t *win, tableview_state_t *s) {
       reportview_column_t col = {
         .title = s->column_titles[i] ? s->column_titles[i] : s->field_names[i],
         .width = (uint32_t)((s->column_widths && s->column_widths[i] > 0) ? s->column_widths[i] : 0),
+        .min_width = (uint32_t)((s->column_min_widths && s->column_min_widths[i] > 0) ? s->column_min_widths[i] : 0),
       };
       send_message(win, RVM_ADDCOLUMN, 0, &col);
     }
@@ -339,11 +341,13 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         ? copy_string_array(params->column_titles, s->column_count)
         : copy_string_array(params->field_names, s->column_count);  // Use field names as titles
       s->column_widths = copy_int_array(params->column_widths, s->column_count);
+      s->column_min_widths = copy_int_array(params->column_min_widths, s->column_count);
       
       if (!s->field_names || !s->column_titles) {
         free_string_array(s->field_names);
         free_string_array(s->column_titles);
         free(s->column_widths);
+        free(s->column_min_widths);
         free(s->master_key);
         free(s->check_field);
         free(s->rows);
@@ -371,6 +375,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
         free_string_array(s->field_names);
         free_string_array(s->column_titles);
         free(s->column_widths);
+        free(s->column_min_widths);
         free(s->master_key);
         free(s->check_field);
         free(s->rows);

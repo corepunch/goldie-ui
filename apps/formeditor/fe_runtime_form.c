@@ -12,6 +12,7 @@ typedef struct {
   const char *field_names[FE_MAX_TABLE_COLUMNS + 1];
   const char *titles[FE_MAX_TABLE_COLUMNS + 1];
   int widths[FE_MAX_TABLE_COLUMNS + 1];
+  int min_widths[FE_MAX_TABLE_COLUMNS + 1];
   combobox_params_t combo;
 } runtime_params_t;
 
@@ -378,6 +379,20 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
         width = (int)parsed;
       xmlFree(width_x);
     }
+    int min_width = 0;
+    xmlChar *min_width_x = xmlGetProp(c, BAD_CAST "min-width");
+    if (min_width_x) {
+      const char *s = (const char *)min_width_x;
+      while (*s && isspace((unsigned char)*s))
+        s++;
+      char *end = NULL;
+      long parsed = strtol(s, &end, 10);
+      while (end && *end && isspace((unsigned char)*end))
+        end++;
+      if (end && *end == '\0' && parsed >= 0 && parsed <= INT32_MAX)
+        min_width = (int)parsed;
+      xmlFree(min_width_x);
+    }
 
     if (!field)
       field = runtime_strdup(ctx, "id");
@@ -387,6 +402,7 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
     rp->field_names[col] = field;
     rp->titles[col] = title;
     rp->widths[col] = width;
+    rp->min_widths[col] = min_width;
     col++;
   }
 
@@ -394,6 +410,7 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
     rp->field_names[0] = runtime_strdup(ctx, "id");
     rp->titles[0] = runtime_strdup(ctx, "ID");
     rp->widths[0] = 80;
+    rp->min_widths[0] = 0;
     col = 1;
   }
 
@@ -402,6 +419,7 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
   rp->table.field_names = rp->field_names;
   rp->table.column_titles = rp->titles;
   rp->table.column_widths = rp->widths;
+  rp->table.column_min_widths = rp->min_widths;
   *out_lparam = &rp->table;
 }
 

@@ -31,6 +31,7 @@ typedef struct {
     char title[MAX_REPORTVIEW_TITLE];
     uint32_t width_spec;  // Original width specification: 0 = flex, >0 = fixed pixels
     uint32_t width;       // Current effective width (calculated for flex, same as spec for fixed)
+    uint32_t min_width;   // Per-column minimum width, 0 = default (20px)
   } columns[MAX_REPORTVIEW_COLUMNS];
 
   uint32_t count;

@@ -61,6 +61,7 @@ enum {
 typedef struct {
   const char *title;
   uint32_t width;
+  uint32_t min_width;  // 0 = use default (20px), >0 = per-column minimum
 } reportview_column_t;
 
 typedef struct {

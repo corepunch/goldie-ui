@@ -139,6 +139,7 @@ typedef struct {
   const char **field_names;    // Column field names (NULL-terminated)
   const char **column_titles;  // Column display titles (NULL-terminated)
   const int *column_widths;    // Column widths (0 = flex, NULL = all 0)
+  const int *column_min_widths; // Column minimum widths (0 = default 20px), NULL = all default
   const char *check_field;     // Boolean state-image binding (NULL = no checkboxes)
   uint32_t master_id;          // Parent TableView control ID (0 = unbound)
   int master_filter_field;     // Child FK field used by dbFetch (integer FK only)

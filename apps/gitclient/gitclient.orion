@@ -228,7 +228,7 @@
                             <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
                                 <TableView name="log" source="db.commits"
                                            flags="notitle,nofill,vscroll,flexspace">
-                                    <Column field="subject" title="Subject" width="0" />
+                                    <Column field="subject" title="Subject" width="0" min-width="120" />
                                     <Column field="author" title="Author" width="110" />
                                     <Column field="date" title="Date" width="90" />
                                     <Column field="hash" title="Hash" width="50" />
