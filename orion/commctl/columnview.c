@@ -112,6 +112,8 @@ int rv_report_header_height(const reportview_data_t *data) {
 int rv_get_report_column_width(reportview_data_t *data, int col, int avail_w) {
   if (!data || col < 0 || col >= (int)data->column_count)
     return 80;
+  if (data->cell_style == REPORTVIEW_CELL_TWO_LINE)
+    return col == 0 ? avail_w : 0;
   // If column has a fixed width spec (>0), return it
   if (data->columns[col].width_spec != 0)
     return (int)data->columns[col].width_spec;
@@ -137,6 +139,8 @@ int rv_get_report_column_width(reportview_data_t *data, int col, int avail_w) {
 int rv_report_total_width(reportview_data_t *data, int avail_w) {
   int total = 0;
   if (!data || data->column_count == 0)
+    return avail_w;
+  if (data->cell_style == REPORTVIEW_CELL_TWO_LINE)
     return avail_w;
   for (uint32_t i = 0; i < data->column_count; i++)
     total += rv_get_report_column_width(data, (int)i, avail_w);

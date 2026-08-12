@@ -144,6 +144,7 @@ typedef struct {
   uint32_t master_id;          // Parent TableView control ID (0 = unbound)
   int master_filter_field;     // Child FK field used by dbFetch (integer FK only)
   const char *master_key;      // Parent field referenced by the FK (must be integer)
+  reportview_cell_style_t cell_style; // REPORTVIEW_CELL_COLUMNS (default) or TWO_LINE
 } tableview_params_t;
 
 result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);

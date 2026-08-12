@@ -355,6 +355,10 @@ static void runtime_fill_table_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
 
   rp->table.table_id = source_table ? (int)source_table->table_id : -1;
   rp->table.filter_field = 0;
+  char *cell_style = runtime_xml_attr_dup(ctx, node, "cell-style");
+  if (cell_style && str_ieq(cell_style, "two-line"))
+    rp->table.cell_style = REPORTVIEW_CELL_TWO_LINE;
+  free(cell_style);
 
   int col = 0;
   for (xmlNodePtr c = node->children; c && col < FE_MAX_TABLE_COLUMNS; c = c->next) {

@@ -7,7 +7,7 @@
 #include <orion/user/theme.h>
 
 static int report_content_height(reportview_data_t *data) {
-  return rv_report_header_height(data) + (int)data->count * ENTRY_HEIGHT;
+  return rv_report_header_height(data) + (int)data->count * rv_entry_height(data);
 }
 
 static void report_sync_scroll(window_t *win, reportview_data_t *data) {
@@ -73,7 +73,7 @@ static int report_hit_index(window_t *win, reportview_data_t *data, uint32_t wpa
   int header_h = rv_report_header_height(data);
   if (my < header_h)
     return -1;
-  int row = (my - header_h) / ENTRY_HEIGHT;
+  int row = (my - header_h) / rv_entry_height(data);
   return rv_valid_index(data, row) ? row : RV_INVALID_SELECTION;
 }
 
@@ -150,8 +150,9 @@ static void report_scroll_to_item(window_t *win, reportview_data_t *data, int in
   int scroll_y = (int)win->vscroll.pos;
   int visible_h = get_client_rect(win).h;
   int header_h = rv_report_header_height(data);
-  int item_y_top = header_h + index * ENTRY_HEIGHT;
-  int item_y_bottom = item_y_top + ENTRY_HEIGHT;
+  int entry_h = rv_entry_height(data);
+  int item_y_top = header_h + index * entry_h;
+  int item_y_bottom = item_y_top + entry_h;
 
   if (item_y_top - scroll_y < header_h)
     win->vscroll.pos = (uint32_t)(item_y_top - header_h);
@@ -165,11 +166,12 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   int scroll_x = (int)win->hscroll.pos;
   int header_h = rv_report_header_height(data);
   int body_h = cr.h - header_h;
+  int entry_h = rv_entry_height(data);
   int scroll_y = (int)win->vscroll.pos;
   uint32_t bg_col = get_sys_color(brColumnViewBg);
 
-  int first_row = (body_h > 0) ? (scroll_y / ENTRY_HEIGHT) : 0;
-  int last_row = (body_h > 0) ? ((scroll_y + body_h + ENTRY_HEIGHT - 1) / ENTRY_HEIGHT) : 0;
+  int first_row = (body_h > 0) ? (scroll_y / entry_h) : 0;
+  int last_row = (body_h > 0) ? ((scroll_y + body_h + entry_h - 1) / entry_h) : 0;
   if (first_row < 0) first_row = 0;
   if (last_row > (int)data->count) last_row = (int)data->count;
 
@@ -181,17 +183,19 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   fill_rect(bg_col, rect_trim_top(cr, header_h));
 
   if (data->selected >= first_row && data->selected < last_row) {
-    int y = header_h + data->selected * ENTRY_HEIGHT - scroll_y;
+    int y = header_h + data->selected * entry_h - scroll_y;
     if (y < header_h) y = header_h;
-    fill_rect(get_sys_color(brTextNormal), R(0, y, eff_w, ENTRY_HEIGHT - 1));
+    fill_rect(get_sys_color(brTextNormal), R(0, y, eff_w, entry_h - 1));
   }
 
   int scr_x = window_screen_x(win);
   int scr_y = window_screen_y(win);
 
   int col_x = 0;
-  for (uint32_t col = 0; col < data->column_count; col++) {
-    int col_w = rv_get_report_column_width(data, (int)col, eff_w);
+  uint32_t draw_columns = data->cell_style == REPORTVIEW_CELL_TWO_LINE ? 1 : data->column_count;
+  for (uint32_t col = 0; col < draw_columns; col++) {
+    int col_w = data->cell_style == REPORTVIEW_CELL_TWO_LINE
+              ? eff_w : rv_get_report_column_width(data, (int)col, eff_w);
     int draw_x = col_x - scroll_x;
     int clip_x = MAX(0, draw_x);
     int clip_r = MIN(eff_w, draw_x + col_w);
@@ -214,7 +218,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
       reportview_item_t *it = &data->items[row];
       uint32_t fg = (row == data->selected) ? get_sys_color(brControlBg)
                   : it->color ? it->color : get_sys_color(brTextNormal);
-      int y = header_h + row * ENTRY_HEIGHT - scroll_y;
+      int y = header_h + row * entry_h - scroll_y;
       const char *src = "";
       if (col == 0) {
         src = it->text ? it->text : "";
@@ -225,14 +229,32 @@ static void report_paint(window_t *win, reportview_data_t *data) {
       int text_x = draw_x + WIN_PADDING;
       if (col == 0 && (data->extended_style & RVS_EX_CHECKBOXES)) {
         irect16_t box = {text_x,
-                         y + MAX(0, (ENTRY_HEIGHT - CHECKBOX_BOX_SIZE) / 2),
+                         y + MAX(0, (entry_h - CHECKBOX_BOX_SIZE) / 2),
                          CHECKBOX_BOX_SIZE, CHECKBOX_BOX_SIZE};
         uint32_t box_bg = row == data->selected ? get_sys_color(brTextNormal) : bg_col;
         report_draw_checkbox(box, RV_STATEIMAGEINDEX(it->state) == 2, fg, box_bg);
         text_x += CHECKBOX_BOX_SIZE + CHECKBOX_GAP;
       }
-      irect16_t text_rect = {text_x, y, MAX(0, draw_x + col_w - text_x), ENTRY_HEIGHT};
-      draw_text_clipped(FONT_SMALL, src, &text_rect, fg, 0);
+      int text_w = MAX(0, draw_x + col_w - text_x);
+      if (data->cell_style == REPORTVIEW_CELL_TWO_LINE) {
+        irect16_t title_rect = {text_x, y + 1, text_w, FONT_SIZE_SMALL};
+        irect16_t subtitle_rect = {text_x, y + FONT_SIZE_SMALL + 3,
+                                   text_w, FONT_SIZE_SMALL};
+        draw_text_clipped(FONT_SMALL, src, &title_rect, fg, 0);
+        char subtitle[512] = {0};
+        for (uint32_t sub = 0; sub < data->items[row].subitem_count; sub++) {
+          const char *part = data->items[row].subitems[sub];
+          if (!part || !part[0]) continue;
+          size_t used = strlen(subtitle);
+          snprintf(subtitle + used, sizeof(subtitle) - used, "%s%s",
+                   used ? " - " : "", part);
+        }
+        draw_text_clipped(FONT_ICON, subtitle, &subtitle_rect,
+                          get_sys_color(brTextDisabled), 0);
+      } else {
+        irect16_t text_rect = {text_x, y, text_w, entry_h};
+        draw_text_clipped(FONT_SMALL, src, &text_rect, fg, 0);
+      }
     }
 
     col_x += col_w;
@@ -241,7 +263,8 @@ static void report_paint(window_t *win, reportview_data_t *data) {
   set_clip_rect(NULL, (irect16_t){scr_x, scr_y, eff_w, cr.h});
   col_x = 0;
   for (uint32_t col = 0; col < data->column_count; col++) {
-    int col_w = rv_get_report_column_width(data, (int)col, eff_w);
+      int col_w = data->cell_style == REPORTVIEW_CELL_TWO_LINE
+                ? eff_w : rv_get_report_column_width(data, (int)col, eff_w);
     col_x += col_w;
     int sep_x = col_x - scroll_x;
 #if REPORTVIEW_RESIZE_FULL_HEIGHT
@@ -272,7 +295,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
   switch (msg) {
     case evCreate: {
       data = calloc(1, sizeof(reportview_data_t));
-      if (!data) return false;
+    if (!data) return false;
       win->userdata2 = data;
       win->flags |= WINDOW_HSCROLL;
       win->flags |= WINDOW_VSCROLL;
@@ -296,7 +319,7 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     case evMeasure: {
       layout_measure_t *m = (layout_measure_t *)lparam;
       if (!m) return true;
-      int min_h = rv_report_header_height(data) + ENTRY_HEIGHT;
+      int min_h = rv_report_header_height(data) + rv_entry_height(data);
       int min_w = 1;
       if (data && data->column_count > 0) {
         int cols_w = 0;
@@ -492,6 +515,17 @@ result_t win_reportview(window_t *win, uint32_t msg, uint32_t wparam, void *lpar
     }
     case RVM_GETEXTENDEDSTYLE:
       return (result_t)data->extended_style;
+    case RVM_SETCELLSTYLE:
+      if (wparam != REPORTVIEW_CELL_COLUMNS && wparam != REPORTVIEW_CELL_TWO_LINE)
+        return false;
+      data->cell_style = (reportview_cell_style_t)wparam;
+      if (data->cell_style == REPORTVIEW_CELL_TWO_LINE)
+        data->column_titles_visible = false;
+      report_sync_scroll(win, data);
+      rv_invalidate(win, data);
+      return true;
+    case RVM_GETCELLSTYLE:
+      return (result_t)data->cell_style;
     case RVM_SETITEMSTATE: {
       reportview_item_state_t *st = (reportview_item_state_t *)lparam;
       if (!st) return false;

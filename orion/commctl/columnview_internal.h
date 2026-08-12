@@ -20,6 +20,7 @@
 #define RV_LARGE_ICON_LABEL_GAP LARGE_ICON_LABEL_GAP
 #define RV_LARGE_ICON_BOT_PAD   LARGE_ICON_BOT_PAD
 #define ENTRY_HEIGHT  COLUMNVIEW_ENTRY_HEIGHT
+#define TWO_LINE_ENTRY_HEIGHT REPORTVIEW_TWO_LINE_ENTRY_HEIGHT
 #define HEADER_HEIGHT COLUMNVIEW_HEADER_HEIGHT
 
 typedef struct {
@@ -48,6 +49,7 @@ typedef struct {
   bool redraw_dirty;
   bool column_titles_visible;
   bool preserve_icon_colors;
+  reportview_cell_style_t cell_style;
   uint32_t extended_style;
   bitmap_strip_t *icon_strip;
   // Column resize state (mouse-driven, like splitter)
@@ -82,5 +84,10 @@ int rv_large_icon_ncol(const reportview_data_t *data, int eff_w, int cell_w);
 int rv_large_icon_x0(int eff_w, int ncol, int cell_w);
 void rv_draw_item_icon(bitmap_strip_t *strip, int icon_id,
                        irect16_t const *icon_rect, uint32_t col);
+
+static inline int rv_entry_height(const reportview_data_t *data) {
+  return data && data->cell_style == REPORTVIEW_CELL_TWO_LINE
+       ? TWO_LINE_ENTRY_HEIGHT : ENTRY_HEIGHT;
+}
 
 #endif

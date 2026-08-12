@@ -52,6 +52,7 @@ typedef struct {
   intptr_t filter_value;
   
   // Column metadata (copied from params)
+  reportview_cell_style_t cell_style;
   char **field_names;
   char **column_titles;
   int *column_widths;
@@ -303,6 +304,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       s->master_filter_field = params->master_filter_field;
       s->master_key = params->master_key && params->master_key[0] ? strdup(params->master_key) : NULL;
       s->check_field = params->check_field && params->check_field[0] ? strdup(params->check_field) : NULL;
+      s->cell_style = params->cell_style;
       TV_LOG("create: id=%u table=%d db=%p columns=%d", (unsigned)win->id,
              s->table_id, (void *)s->db, count_strings(params->field_names));
       
@@ -358,6 +360,7 @@ result_t win_tableview(window_t *win, uint32_t msg, uint32_t wparam, void *lpara
       
       // Setup as reportview
       send_message(win, RVM_SETVIEWMODE, RVM_VIEW_REPORT, NULL);
+      send_message(win, RVM_SETCELLSTYLE, s->cell_style, NULL);
       if (s->check_field)
         send_message(win, RVM_SETEXTENDEDSTYLE, RVS_EX_CHECKBOXES,
                      (void *)(uintptr_t)RVS_EX_CHECKBOXES);

@@ -8,6 +8,7 @@
 // FONT_SIZE       — chrome font (ChiKareGo2), from kernel/kernel.h.
 // FONT_SIZE_SMALL — content font (Geneva9/SmallFont), from kernel/kernel.h.
 #define COLUMNVIEW_ENTRY_HEIGHT  (FONT_SIZE_SMALL + 5)  // data rows use FONT_SMALL
+#define REPORTVIEW_TWO_LINE_ENTRY_HEIGHT (FONT_SIZE_SMALL * 2 + 5)
 #define COLUMNVIEW_HEADER_HEIGHT (FONT_SIZE + 6)        // header uses FONT_SYSTEM
 #define COLUMNVIEW_WIN_PADDING   4
 #define REPORTVIEW_MAX_SUBITEMS  8
@@ -43,6 +44,8 @@ enum {
   RVM_GETEXTENDEDSTYLE,
   RVM_SETITEMSTATE,        // wparam = item index (-1 = all); lparam = reportview_item_state_t*
   RVM_GETITEMSTATE,        // wparam = item index; lparam = state mask
+  RVM_SETCELLSTYLE,        // wparam = reportview_cell_style_t
+  RVM_GETCELLSTYLE,
 };
 
 // WinAPI list-view compatible state-image model. State image indices are
@@ -57,6 +60,13 @@ enum {
   RVM_VIEW_REPORT = 1,      // Multi-column report with sortable header
   RVM_VIEW_LARGE_ICON = 2,  // Large-thumbnail grid (icon-above, label-below) — WinAPI LVS_ICON
 };
+
+typedef enum {
+  REPORTVIEW_CELL_COLUMNS = 0, // One line per item, rendered as report columns.
+  REPORTVIEW_CELL_TWO_LINE = 1, // First column is title; second is subtitle.
+} reportview_cell_style_t;
+#define TABLEVIEW_CELL_COLUMNS  REPORTVIEW_CELL_COLUMNS
+#define TABLEVIEW_CELL_TWO_LINE REPORTVIEW_CELL_TWO_LINE
 
 typedef struct {
   const char *title;
