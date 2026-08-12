@@ -6,14 +6,14 @@ SimpleGL reads scenes from XML files. The root node is `<scene>`, which accepts 
 
 ```xml
 <scene ambient="0.10 0.10 0.13" background="0.04 0.05 0.07">
-  <camera name="Main" comment="Default forward view" pos="0 2 6" look="0 1 0" fov="60"/>
+  <camera name="Main" comment="Default forward view" pos="0 200 600" look="0 100 0" fov="60"/>
 
-  <light pos="0 4 0" color="1.0 0.95 0.85" intensity="1.3" castShadows="1"/>
+  <light pos="0 400 0" color="1.0 0.95 0.85" intensity="1.3" castShadows="1"/>
 
   <material id="red" color="0.8 0.2 0.2" shininess="20"/>
 
-  <box pos="0 0 0" size="2 2 2" material="red"/>
-  <sphere pos="3 1 0" radius="0.8" color="0.2 0.5 1.0"/>
+  <box pos="0 0 0" size="200 200 200" material="red"/>
+  <sphere pos="300 100 0" radius="80" color="0.2 0.5 1.0"/>
 </scene>
 ```
 
@@ -41,9 +41,23 @@ or mixes two different units. This is the same authoring model commonly used
 by linear-space engines: colors are entered as sRGB while shaders receive
 linear colors.
 
+Colors remain normalized RGB triples rather than `#RRGGBB` strings. The triple
+format is explicit for sRGB authoring, works naturally for lights and ambient
+values, and keeps the existing parser/schema simple. Hex input could be added
+later as optional syntax, but it should not replace the current representation.
+
 An `unlit="1"` object still follows the color pipeline: its authored sRGB color
 is converted to linear before drawing and encoded back to sRGB by the
 framebuffer. “Unlit” skips illumination; it does not mean “already linear.”
+
+All spatial values are authored in centimeters (cm). This includes positions,
+look-at targets, sizes, radii, dimensions, wall measurements, pivot offsets,
+attachment positions, array translations, shape vertices, and spatial geometry
+modifier amounts. Rotations remain degrees, scales remain unitless, normalized
+deformation amounts remain dimensionless, and colors remain normalized sRGB
+triples. The renderer converts centimeter spatial values to its
+internal scene units while loading. For example, `pos="0 150 400"` means
+`(0 cm, 150 cm, 400 cm)`, and a 30 cm character uses `height="30"`.
 
 ## Scene root attributes
 
@@ -111,8 +125,8 @@ Defines a viewpoint. Multiple cameras allowed; select via `-cam Name` on the com
 |-----------|--------|----------|-------------|
 | `name`    | string | Camera1  | Camera identifier |
 | `comment` | string | (empty)  | Human-readable description shown by `-list-cameras` |
-| `pos`     | vec3   | 0 1.6 5  | Eye position |
-| `look`    | vec3   | 0 1.2 0  | Look-at target |
+| `pos`     | vec3   | 0 160 500  | Eye position in cm |
+| `look`    | vec3   | 0 120 0  | Look-at target in cm |
 | `fov`     | float  | 60       | Vertical FOV in degrees |
 
 When no `<camera>` tag is present, a default "Camera1" is created with the defaults above.
@@ -132,11 +146,11 @@ pose cannot leak between shots.
 | `scale` | vec3 | 1 1 1 | Multiplicative local scale |
 
 ```xml
-<camera name="ClockReveal" pos="0 1 4" look="0 2 0" fov="48">
+<camera name="ClockReveal" pos="0 100 400" look="0 200 0" fov="48">
   <transform target="secret_clock" rot="0 118 0"/>
 </camera>
 <prefab source="workshop/clock" name="secret_clock"
-        pos="0 2 0" pivotOffset="0.70 0 0"/>
+        pos="0 200 0" pivotOffset="70 0 0"/>
 ```
 
 ### `<material>`
@@ -174,8 +188,8 @@ ref="...">`. Declare it as a top-level scene child.
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `name` | string | (required) | Definition name referenced by a character dummy |
-| `height` | float | 1.0 | Baseline-to-head height |
-| `radius` | float | 0.10 | Head and landmark radius basis |
+| `height` | float | 100 | Baseline-to-head height in cm |
+| `radius` | float | 10 | Head and landmark radius basis in cm |
 | `top` | float | 1.0 | Head-center height as a fraction of `height` |
 | `neck` | float | 0.75 | Shoulder/neck height fraction |
 | `pelvis` | float | 0.25 | Pelvis height fraction |
@@ -219,13 +233,13 @@ Example — a bottle profile for lathe (open, from bottom at y=0 to neck at y=3)
 
 ```xml
 <shape id="bottle" closed="0">
-  <v x="0.0" y="0.0"/>
-  <v x="0.4" y="0.0"/>
-  <v x="0.4" y="0.3"/>
-  <v x="0.25" y="1.6"/>
-  <v x="0.12" y="2.7"/>
-  <v x="0.08" y="3.0"/>
-  <v x="0.0" y="3.0"/>
+  <v x="0" y="0"/>
+  <v x="40" y="0"/>
+  <v x="40" y="30"/>
+  <v x="25" y="160"/>
+  <v x="12" y="270"/>
+  <v x="8" y="300"/>
+  <v x="0" y="300"/>
 </shape>
 ```
 
@@ -233,14 +247,14 @@ Example — a circle for loft cross-section (closed, radius 0.15, 8 segments):
 
 ```xml
 <shape id="circle_small" closed="1">
-  <v x="0.15" y="0.0"/>
-  <v x="0.106" y="0.106"/>
-  <v x="0.0" y="0.15"/>
-  <v x="-0.106" y="0.106"/>
-  <v x="-0.15" y="0.0"/>
-  <v x="-0.106" y="-0.106"/>
-  <v x="0.0" y="-0.15"/>
-  <v x="0.106" y="-0.106"/>
+  <v x="15" y="0"/>
+  <v x="10.6" y="10.6"/>
+  <v x="0" y="15"/>
+  <v x="-10.6" y="10.6"/>
+  <v x="-15" y="0"/>
+  <v x="-10.6" y="-10.6"/>
+  <v x="0" y="-15"/>
+  <v x="10.6" y="-10.6"/>
 </shape>
 ```
 
@@ -248,10 +262,10 @@ Example — a rectangular loft path in XZ (the shape's Y becomes world Z):
 
 ```xml
 <shape id="rect_path" closed="1">
-  <v x="-1.0" y="-0.5"/>
-  <v x="1.0" y="-0.5"/>
-  <v x="1.0" y="0.5"/>
-  <v x="-1.0" y="0.5"/>
+  <v x="-100" y="-50"/>
+  <v x="100" y="-50"/>
+  <v x="100" y="50"/>
+  <v x="-100" y="50"/>
 </shape>
 ```
 
@@ -261,10 +275,10 @@ Point light source with distance attenuation.
 
 | Attribute    | Type | Default | Description |
 |--------------|------|---------|-------------|
-| `pos`        | vec3 | 0 3 0   | Light position |
+| `pos`        | vec3 | 0 300 0   | Light position in cm |
 | `color`      | vec3 | 1 1 1   | Light colour authored as sRGB |
 | `intensity`  | float| 1.0     | Linear brightness multiplier; never sRGB-converted |
-| `radius`     | float| 0       | Attenuation radius (0 = no falloff). Light reaches 25% at this distance |
+| `radius`     | float| 0       | Attenuation radius in cm (0 = no falloff). Light reaches 25% at this distance |
 | `castShadows`| int  | 1       | Whether this light casts stencil shadows |
 
 When `radius` is 0 (default), the light has no distance attenuation — it illuminates at full intensity regardless of distance. When `radius` > 0, smooth quadratic attenuation is applied: the light is 25% of nominal strength at the given radius and reaches roughly 10% around `2.16 × radius`.
@@ -281,10 +295,10 @@ Keep reusable practical lights inside their fixture prefab:
 ```xml
 <!-- origin is the ceiling suspension point -->
 <prefab>
-  <cone pos="0 -0.53 0" radius="0.28" radiusTop="0.08" height="0.20" material="brass"/>
-  <sphere pos="0 -0.61 0" radius="0.07" color="1 0.96 0.82"
+  <cone pos="0 -53 0" radius="28" radiusTop="8" height="20" material="brass"/>
+  <sphere pos="0 -61 0" radius="7" color="1 0.96 0.82"
           unlit="1" castShadow="0"/>
-  <light pos="0 -0.64 0" color="1 0.70 0.36"
+  <light pos="0 -64 0" color="1 0.70 0.36"
          intensity="0.85" castShadows="1"/>
 </prefab>
 ```
@@ -352,7 +366,7 @@ Shifts the rotation center away from the object's origin. The object is translat
 
 ```xml
 <!-- box rotating 45° around its left edge (half-width = -0.15) -->
-<box pos="0 0.5 0" size="0.3 0.02 0.2" rot="0 0 45" pivotOffset="-0.15 0 0"/>
+<box pos="0 50 0" size="30 2 20" rot="0 0 45" pivotOffset="-15 0 0"/>
 ```
 
 The `pivotOffset` is in local space, applied before the object's own `rot`. Rotation-only matrices (for normals) are unaffected.
@@ -372,7 +386,7 @@ UV sphere centered at origin.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `radius`  | float | 0.5     | Sphere radius |
+| `radius`  | float | 50      | Sphere radius in cm |
 | `rings`   | int   | 16      | Latitude subdivisions |
 | `slices`  | int   | 24      | Longitude subdivisions |
 
@@ -382,9 +396,9 @@ Capped cylinder along the Y axis.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `radius`  | float | 0.5     | Radius |
-| `height`  | float | 1.0     | Height along Y |
-| `tube`    | float | 0       | Wall thickness for a hollow tube with open ends |
+| `radius`  | float | 50      | Radius in cm |
+| `height`  | float | 100     | Height along Y in cm |
+| `tube`    | float | 0       | Wall thickness in cm for a hollow tube with open ends |
 | `sides`   | int   | 24      | Number of radial segments |
 
 ### `<arch>`
@@ -393,11 +407,11 @@ Round-arched solid or frame extruded along Z. This is useful for Roman-arch or r
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `width`   | float | 1.0     | Full outer width |
-| `height`  | float | 1.5     | Full outer height |
-| `depth`   | float | 0.2     | Extrusion depth along Z |
-| `tube`    | float | 0       | Frame thickness. `0` yields a solid arch; a positive value yields a hollow arched frame |
-| `thickness` | float | 0     | Alias for `tube` |
+| `width`   | float | 100     | Full outer width in cm |
+| `height`  | float | 150     | Full outer height in cm |
+| `depth`   | float | 20      | Extrusion depth along Z in cm |
+| `tube`    | float | 0       | Frame thickness in cm. `0` yields a solid arch; a positive value yields a hollow arched frame |
+| `thickness` | float | 0     | Alias for `tube`, in cm |
 | `segments` | int   | 16      | Semicircle subdivisions |
 
 ### `<capsule>`
@@ -407,8 +421,8 @@ Useful for pill shapes, table legs, railings, handles.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `radius`  | float | 0.5     | Radius |
-| `height`  | float | 1.0     | Cylinder height (total = height + 2 × radius) |
+| `radius`  | float | 50      | Radius in cm |
+| `height`  | float | 100     | Cylinder height in cm (total = height + 2 × radius) |
 | `rings`   | int   | 12      | Subdivision rings for each hemisphere |
 | `slices`  | int   | 24      | Radial segments around the Y axis |
 
@@ -418,8 +432,8 @@ Regular N-sided prism along Y (flat-shaded).
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `radius`  | float | 0.5     | Radius of circumscribed circle |
-| `height`  | float | 1.0     | Height along Y |
+| `radius`  | float | 50      | Radius of circumscribed circle in cm |
+| `height`  | float | 100     | Height along Y in cm |
 | `sides`   | int   | 6       | Number of sides (default: hexagonal) |
 
 ### `<cone>` / `<pyramid>`
@@ -428,9 +442,9 @@ Truncated cone (frustum) along Y. `<pyramid>` is a `4`-sided default.
 
 | Attribute   | Type  | Default | Description |
 |-------------|-------|---------|-------------|
-| `radius`    | float | 0.5     | Base radius |
-| `radiusTop` | float | 0.0     | Top radius (0 = pointed) |
-| `height`    | float | 1.0     | Height along Y |
+| `radius`    | float | 50      | Base radius in cm |
+| `radiusTop` | float | 0       | Top radius in cm (0 = pointed) |
+| `height`    | float | 100     | Height along Y in cm |
 | `sides`     | int   | 24/4    | Radial segments (24 for cone, 4 for pyramid) |
 
 ### `<torus>`
@@ -441,8 +455,8 @@ sweeping a circular cross-section (2D circle in XY) along a circular path
 
 | Attribute       | Type  | Default | Description |
 |-----------------|-------|---------|-------------|
-| `majorRadius`   | float | 0.5     | Distance from center to tube center |
-| `minorRadius`   | float | 0.15    | Tube radius |
+| `majorRadius`   | float | 50      | Distance from center to tube center, in cm |
+| `minorRadius`   | float | 15      | Tube radius in cm |
 | `majorSegments` | int   | 24      | Segments around the ring |
 | `minorSegments` | int   | 12      | Segments around the tube |
 
@@ -468,14 +482,14 @@ vertex for the cap).
 
 ```xml
 <shape id="vase" closed="0">
-  <v x="0.0" y="0.0"/>
-  <v x="0.35" y="0.0"/>
-  <v x="0.35" y="0.1"/>
-  <v x="0.28" y="0.4"/>
-  <v x="0.15" y="1.6"/>
-  <v x="0.06" y="2.3"/>
-  <v x="0.06" y="2.5"/>
-  <v x="0.0" y="2.5"/>
+  <v x="0" y="0"/>
+  <v x="35" y="0"/>
+  <v x="35" y="10"/>
+  <v x="28" y="40"/>
+  <v x="15" y="160"/>
+  <v x="6" y="230"/>
+  <v x="6" y="250"/>
+  <v x="0" y="250"/>
 </shape>
 
 <lathe shape="vase" segments="32" pos="0 0 0" material="glass"/>
@@ -503,20 +517,20 @@ closed loop. When `closed="0"`, the first and last rings receive flat end caps.
 
 ```xml
 <shape id="path_L" closed="0">
-  <v x="0.0" y="0.0"/>
-  <v x="2.0" y="0.0"/>
-  <v x="2.0" y="1.0"/>
+  <v x="0" y="0"/>
+  <v x="200" y="0"/>
+  <v x="200" y="100"/>
 </shape>
 
 <shape id="circle_ring" closed="1">
-  <v x="0.08" y="0.0"/>
-  <v x="0.056" y="0.056"/>
-  <v x="0.0" y="0.08"/>
-  <v x="-0.056" y="0.056"/>
-  <v x="-0.08" y="0.0"/>
-  <v x="-0.056" y="-0.056"/>
-  <v x="0.0" y="-0.08"/>
-  <v x="0.056" y="-0.056"/>
+  <v x="8" y="0"/>
+  <v x="5.6" y="5.6"/>
+  <v x="0" y="8"/>
+  <v x="-5.6" y="5.6"/>
+  <v x="-8" y="0"/>
+  <v x="-5.6" y="-5.6"/>
+  <v x="0" y="-8"/>
+  <v x="5.6" y="-5.6"/>
 </shape>
 
 <loft pathShape="path_L" crossShape="circle_ring" closed="0" segments="16" material="metal"/>
@@ -528,9 +542,9 @@ A flat wall with rectangular openings (doors/windows). Uses "boolean via boxes" 
 
 | Attribute   | Type  | Default | Description |
 |-------------|-------|---------|-------------|
-| `length`    | float | 4.0     | Wall length along local X |
-| `height`    | float | 2.7     | Wall height along local Y |
-| `thickness` | float | 0.2     | Wall depth along local Z |
+| `length`    | float | 400     | Wall length along local X, in cm |
+| `height`    | float | 270     | Wall height along local Y, in cm |
+| `thickness` | float | 20      | Wall depth along local Z, in cm |
 
 Child `<opening>` elements:
 
@@ -538,9 +552,9 @@ Child `<opening>` elements:
 |-----------|--------|-------------|-------------|
 | `type`    | string | "door"      | "door" or "window" |
 | `x`       | float  | 0           | Position along wall length |
-| `width`   | float  | 1.0         | Opening width |
-| `height`  | float  | 2.1/1.2     | Opening height (door: 2.1, window: 1.2) |
-| `sill`    | float  | 0.0/0.9     | Height from floor (door: 0.0, window: 0.9) |
+| `width`   | float  | 100         | Opening width in cm |
+| `height`  | float  | 210/120     | Opening height in cm (door: 210, window: 120) |
+| `sill`    | float  | 0/90        | Height from floor in cm (door: 0, window: 90) |
 
 Walls also consume intersecting `<bool-negative-box>` nodes collected from the
 scene and instantiated prefabs before wall geometry is built. This makes a
@@ -561,9 +575,9 @@ aligned. Oblique cutters are ignored.
 ```xml
 <!-- window.blk: origin is the opening center; local +Z faces the room -->
 <prefab>
-  <bool-negative-box size="2.0 1.7 0.30"/>
-  <box pos="-0.94 0 0.04" size="0.12 1.70 0.16" material="wood"/>
-  <box pos="0.94 0 0.04" size="0.12 1.70 0.16" material="wood"/>
+  <bool-negative-box size="200 170 30"/>
+  <box pos="-94 0 4" size="12 170 16" material="wood"/>
+  <box pos="94 0 4" size="12 170 16" material="wood"/>
   <!-- top, bottom, pane, and mullions -->
 </prefab>
 ```
@@ -581,8 +595,8 @@ the same outer width, height, and segment count.
 
 ```xml
 <prefab>
-  <bool-negative-arch width="2.2" height="2.35" depth="0.34" segments="16"/>
-  <arch width="2.2" height="2.35" depth="0.10" tube="0.14" segments="16" material="wood"/>
+  <bool-negative-arch width="220" height="235" depth="34" segments="16"/>
+  <arch width="220" height="235" depth="10" tube="14" segments="16" material="wood"/>
 </prefab>
 ```
 
@@ -591,9 +605,9 @@ the same outer width, height, and segment count.
 A container that applies its transform to all children. Groups do not render geometry.
 
 ```xml
-<group pos="0 2 0" rot="0 45 0">
-  <box size="1 1 1"/>
-  <sphere pos="1 0 0" radius="0.3"/>
+<group pos="0 200 0" rot="0 45 0">
+  <box size="100 100 100"/>
+  <sphere pos="100 0 0" radius="30"/>
 </group>
 ```
 
@@ -646,7 +660,7 @@ Bends the chosen axis into a circular arc in the plane defined by the axis and i
 | `axis`    | char  | y       | Axis to bend (x, y, or z) |
 
 ```xml
-<cylinder radius="0.2" height="3">
+<cylinder radius="20" height="300">
   <bend angle="90" axis="y"/>
 </cylinder>
 ```
@@ -662,7 +676,7 @@ Non-linear stretch/squash along the chosen axis; pinch the middle, expand the en
 | `axis`     | char  | y       | Axis along which to stretch (x, y, or z) |
 
 ```xml
-<sphere radius="0.5">
+<sphere radius="50">
   <stretch amount="0.5" amplify="0.5" axis="y"/>
 </sphere>
 ```
@@ -693,14 +707,14 @@ Duplicates the mesh `count` times, applying a per-step translation and rotation 
 | `rotation`    | vec3  | 0 0 0   | Euler rotation per step in degrees |
 
 ```xml
-<!-- 8 books in a row, each 0.03 apart along X -->
-<box size="0.02 0.3 0.2" material="fabric">
-  <array count="8" translation="0.03 0 0"/>
+<!-- 8 books in a row, each 3 cm apart along X -->
+<box size="2 30 20" material="fabric">
+  <array count="8" translation="3 0 0"/>
 </box>
 
-<!-- Spiral staircase: 12 steps, each raised 0.2 in Y and rotated 15° around Y -->
-<box size="0.8 0.05 0.3" material="wood">
-  <array count="12" translation="0 0.2 0" rotation="0 15 0"/>
+<!-- Spiral staircase: 12 steps, each raised 20 cm in Y and rotated 15° around Y -->
+<box size="80 5 30" material="wood">
+  <array count="12" translation="0 20 0" rotation="0 15 0"/>
 </box>
 ```
 
@@ -711,12 +725,12 @@ Turns flat or open shapes into solids with depth.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `amount`  | float | 0.1     | Extrusion distance |
+| `amount`  | float | 10      | Extrusion distance in cm |
 | `axis`    | char  | y       | Extrusion axis (x, y, or z) |
 
 ```xml
-<box size="2 0.05 1">
-  <extrude amount="0.2" axis="y"/>
+<box size="200 5 100">
+  <extrude amount="20" axis="y"/>
 </box>
 ```
 
@@ -729,10 +743,10 @@ objects from one half.
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
 | `axis`    | char  | y       | Mirror plane normal axis (x=YZ plane, y=XZ plane, z=XY plane) |
-| `weld`    | float | 0.001   | Distance threshold for welding vertices on the mirror plane |
+| `weld`    | float | 0.1     | Distance threshold in cm for welding vertices on the mirror plane |
 
 ```xml
-<box size="1 2 0.5" pos="-0.5 0 0">
+<box size="100 200 50" pos="-50 0 0">
   <mirror axis="x" weld="0.001"/>
 </box>
 ```
@@ -749,8 +763,8 @@ foliage. Seeded for deterministic output.
 | `seed`     | int   | 1       | Random seed for reproducible noise |
 
 ```xml
-<sphere radius="0.5">
-  <noise strength="0.08" seed="42"/>
+<sphere radius="50">
+  <noise strength="8" seed="42"/>
 </sphere>
 ```
 
@@ -762,11 +776,11 @@ thickness to an open container.
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `amount`  | float | 0.05    | Thickness amount pushed along normals |
+| `amount`  | float | 5       | Thickness amount pushed along normals, in cm |
 
 ```xml
-<box size="2 0.02 1">
-  <shell amount="0.1"/>
+  <box size="200 2 100">
+  <shell amount="10"/>
 </box>
 ```
 
@@ -801,27 +815,27 @@ produce different cover colors while its page block remains paper-colored:
 ```xml
 <!-- prefabs/book.blk -->
 <prefab>
-  <box size="0.44 0.03 0.32" material="book_cover" tint="1"/>
-  <box pos="0 0.06 0" size="0.39 0.06 0.28" material="paper"/>
+  <box size="44 3 32" material="book_cover" tint="1"/>
+  <box pos="0 6 0" size="39 6 28" material="paper"/>
 </prefab>
 
 <!-- scene -->
 <prefab source="items/book" color="0.65 0.08 0.06"/>
-<prefab source="items/book" pos="0.5 0 0" color="0.06 0.20 0.62"/>
+<prefab source="items/book" pos="50 0 0" color="0.06 0.20 0.62"/>
 ```
 
-Example: place 4 chairs around a dining table (table spans X=±0.8, Z=-1.0 to -2.0):
+Example: place 4 chairs around a dining table (table spans X=±80 cm, Z=-100 to -200 cm):
 
 ```xml
-<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -1.5"/>
+<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -150"/>
 <!-- chair faces +Z by default; rotY(180) = faces -Z (into table) -->
-<prefab source="furniture/chair" pos="0 0 -0.75" rot="0 180 0"/>
+<prefab source="furniture/chair" pos="0 0 -75" rot="0 180 0"/>
 <!-- chair at back: default +Z is already toward table -->
-<prefab source="furniture/chair" pos="0 0 -2.25"/>
+<prefab source="furniture/chair" pos="0 0 -225"/>
 <!-- chair at left: rotY(90) maps +Z -> +X (toward table right) -->
-<prefab source="furniture/chair" pos="-1.05 0 -1.5" rot="0 90 0"/>
+<prefab source="furniture/chair" pos="-105 0 -150" rot="0 90 0"/>
 <!-- chair at right: rotY(-90) maps +Z -> -X (toward table left) -->
-<prefab source="furniture/chair" pos=" 1.05 0 -1.5" rot="0 -90 0"/>
+<prefab source="furniture/chair" pos=" 105 0 -150" rot="0 -90 0"/>
 ```
 
 ### Attach points
@@ -832,12 +846,12 @@ Prefabs can declare named reference points using `<attach>` elements. These enab
 
 ```xml
 <prefab>
-  <attach name="center" pos="0 0.78 0"/>
-  <attach name="edge_n" pos="0 0.78 -0.53"/>
-  <attach name="edge_s" pos="0 0.78 0.53"/>
-  <attach name="edge_e" pos="0.83 0.78 0"/>
-  <attach name="edge_w" pos="-0.83 0.78 0"/>
-  <box pos="0 0.75 0" size="1.6 0.06 1.0" material="wood"/>
+  <attach name="center" pos="0 78 0"/>
+  <attach name="edge_n" pos="0 78 -53"/>
+  <attach name="edge_s" pos="0 78 53"/>
+  <attach name="edge_e" pos="83 78 0"/>
+  <attach name="edge_w" pos="-83 78 0"/>
+  <box pos="0 75 0" size="160 6 100" material="wood"/>
   ...
 </prefab>
 ```
@@ -847,9 +861,9 @@ Attach point positions are in the prefab's local coordinate space.
 **Using attach points** — in any scene element via `attach="instanceName:slotName"`:
 
 ```xml
-<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -1.5"/>
+<prefab source="furniture/dining_table" name="dining_table" pos="0 0 -150"/>
 <!-- Sphere placed on the table's center without calculating y=0.78 -->
-<sphere attach="dining_table:center" radius="0.14" material="fabric"/>
+<sphere attach="dining_table:center" radius="14" material="fabric"/>
 ```
 
 When `attach` is present, the element's `pos`, `rot`, and `scale` are applied
@@ -859,11 +873,11 @@ This means objects placed with `attach` on a rotated surface remain correctly
 flat on that surface without any manual rotation calculation:
 
 ```xml
-<prefab source="furniture/workbench" name="main_bench" pos="-4.45 0 -4.5" rot="0 90 0"/>
+<prefab source="furniture/workbench" name="main_bench" pos="-445 0 -450" rot="0 90 0"/>
 
 <!-- Children automatically inherit the bench's rotated frame -->
 <group attach="main_bench:top_surface">
-  <prefab source="items/repair_book" pos="0.23 0 0"/> <!-- X spreads along bench length -->
+  <prefab source="items/repair_book" pos="23 0 0"/> <!-- X spreads along bench length -->
 </group>
 ```
 
@@ -875,13 +889,13 @@ Prefab file `prefabs/chair.blk`:
 ```xml
 <!-- chair: backrest at z=-0.2, front faces +Z. rotY(+90)->+X, rotY(-90)->-X -->
 <prefab>
-  <attach name="seat" pos="0 0.475 0"/>
-  <box pos="0 0.45 0" size="0.45 0.05 0.45" material="wood"/>
-  <box pos="0 0.75 -0.2" size="0.45 0.55 0.05" material="wood"/>
-  <prism pos="-0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
-  <prism pos=" 0.18 0.22 -0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
-  <prism pos="-0.18 0.22  0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
-  <prism pos=" 0.18 0.22  0.18" radius="0.025" height="0.45" sides="4" material="wood"/>
+  <attach name="seat" pos="0 47.5 0"/>
+  <box pos="0 45 0" size="45 5 45" material="wood"/>
+  <box pos="0 75 -20" size="45 55 5" material="wood"/>
+  <prism pos="-18 22 -18" radius="2.5" height="45" sides="4" material="wood"/>
+  <prism pos=" 18 22 -18" radius="2.5" height="45" sides="4" material="wood"/>
+  <prism pos="-18 22  18" radius="2.5" height="45" sides="4" material="wood"/>
+  <prism pos=" 18 22  18" radius="2.5" height="45" sides="4" material="wood"/>
 </prefab>
 ```
 
@@ -889,29 +903,29 @@ Prefab file `prefabs/chair.blk`:
 
 ```xml
 <scene ambient="0.1 0.1 0.12" background="0.05 0.05 0.07">
-  <camera name="Front" comment="Frontal view from outside the scene" pos="0 3 8" look="0 1.5 0" fov="55"/>
-  <camera name="Back"  comment="Rear view from behind" pos="0 3 -8" look="0 1.5 0" fov="55"/>
+  <camera name="Front" comment="Frontal view from outside the scene" pos="0 300 800" look="0 150 0" fov="55"/>
+  <camera name="Back"  comment="Rear view from behind" pos="0 300 -800" look="0 150 0" fov="55"/>
 
   <material id="brass" color="0.8 0.7 0.2" shininess="40"/>
   <material id="steel" color="0.6 0.6 0.65" shininess="80"/>
 
-  <light pos="2 4 2" color="1.0 0.9 0.8" intensity="1.2" castShadows="1"/>
-  <light pos="-3 2 0" color="0.8 0.8 1.0" intensity="0.6" castShadows="0"/>
+  <light pos="200 400 200" color="1.0 0.9 0.8" intensity="1.2" castShadows="1"/>
+  <light pos="-300 200 0" color="0.8 0.8 1.0" intensity="0.6" castShadows="0"/>
 
   <!-- twisted brass column -->
-  <box pos="-2 1.5 0" size="0.5 3 0.5" material="brass">
+  <box pos="-200 150 0" size="50 300 50" material="brass">
     <twist angle="45"/>
   </box>
 
   <!-- tapered steel pedestal -->
-  <cylinder pos="0 1 0" radius="0.6" height="2" material="steel">
+  <cylinder pos="0 100 0" radius="60" height="200" material="steel">
     <taper amount="0.4"/>
   </cylinder>
 
   <!-- group with nested transforms -->
-  <group pos="2 3 0" rot="0 30 0">
-    <sphere radius="0.5" color="0.9 0.3 0.3"/>
-    <box pos="0 -0.8 0" size="0.3 0.3 0.3" color="0.3 0.3 0.9"/>
+  <group pos="200 300 0" rot="0 30 0">
+    <sphere radius="50" color="0.9 0.3 0.3"/>
+    <box pos="0 -80 0" size="30 30 30" color="0.3 0.3 0.9"/>
   </group>
 </scene>
 ```
@@ -954,7 +968,7 @@ horizontal landmark circles at top, neck, pelvis, and feet:
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `height`  | float | 0.5     | Character height from baseline to head |
+| `height`  | float | 50      | Character height from baseline to head, in cm |
 | `ref`     | string | (none) | Optional top-level `<chardef>` name; when omitted, inline proportions are used |
 | `radius`  | float | 10% of height | Landmark-circle radius for an inline character definition |
 | `pose`    | string | stand | `stand`, `walk`, `look`, `reach`, `inspect`, `crouch`, `work`, or `climb` |
@@ -966,11 +980,11 @@ simple limb lines appropriate to `pose`. Use `rot` to orient the body and
 shots use the same proportions:
 
 ```xml
-<chardef name="Pip" height="0.30" radius="0.034"
+<chardef name="Pip" height="30" radius="3.4"
          top="1" neck="0.72" pelvis="0.34" feet="0"/>
 <dummy type="character" ref="Pip" camera="OilCanDiscovery"
-       pos="2.58 0 -8.62" rot="0 153 0" pose="crouch"
-       target="3.06 0.08 -9.12" color="0.16 0.72 0.95"/>
+       pos="258 0 -862" rot="0 153 0" pose="crouch"
+       target="306 8 -912" color="0.16 0.72 0.95"/>
 ```
 
 Camera binding is important in a one-scene/many-camera project. Without it,
@@ -982,10 +996,10 @@ wireframe sphere cage around the light:
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
-| `radius`  | float | 0.15    | Cage radius |
+| `radius`  | float | 15      | Cage radius in cm |
 
 **`type="camera"`** — a pyramid from camera position toward the view
-target, with a rectangular base at distance 1.0:
+ target, with a rectangular base at distance 100 cm:
 
 | Attribute | Type  | Default | Description |
 |-----------|-------|---------|-------------|
@@ -997,6 +1011,6 @@ camera in the scene — no manual XML needed. Place `<dummy type="character">`
 manually at each pose reference location:
 
 ```xml
-<dummy type="character" pos="-1.0 0 -5.5" height="0.50" color="0.85 0.15 0.15"/>
-<dummy type="character" attach="tool_bench:top_surface" pos="0.02 0 0.02" height="0.90"/>
+<dummy type="character" pos="-100 0 -550" height="50" color="0.85 0.15 0.15"/>
+<dummy type="character" attach="tool_bench:top_surface" pos="2 0 2" height="90"/>
 ```

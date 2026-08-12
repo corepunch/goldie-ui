@@ -258,7 +258,7 @@ static void parse_mod_skew(Mesh *m, XmlNode *n){
 }
 static void parse_mod_array(Mesh *m, XmlNode *n){
 	mesh_apply_array(m, xml_attr_i(n,"count",1),
-		xml_attr_v3(n,"translation",v3(0,0,0)),
+		xml_attr_v3_cm(n,"translation",v3(0,0,0)),
 		xml_attr_v3(n,"rotation",v3(0,0,0)));
 }
 static void parse_mod_extrude(Mesh *m, XmlNode *n){
@@ -860,7 +860,7 @@ static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec
 		if(!strcmp(n->kids[k]->tag,"array")){
 			XmlNode *arr=n->kids[k];
 			arrayCount=xml_attr_i(arr,"count",1);
-			arrayTrans=xml_attr_v3(arr,"translation",v3(0,0,0));
+			arrayTrans=xml_attr_v3_cm(arr,"translation",v3(0,0,0));
 			arrayRot=xml_attr_v3(arr,"rotation",v3(0,0,0));
 			break;
 		}
