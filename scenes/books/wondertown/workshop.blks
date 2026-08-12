@@ -56,7 +56,6 @@
   <box pos="0 586 -550" size="24 24 1100" material="dark_wood"/>
   <box pos="430 586 -550" size="24 24 1100" material="dark_wood"/>
 
-<<<<<<< HEAD
   <prefab source="workshop/door" pos="-468 0 -1100" sanityIgnore="1"/>
   <prefab source="workshop/clock-passage" pos="-230 355 -1100" sanityIgnore="1"/>
   <prefab source="workshop/clock" name="secret_clock" pos="-230 355 -1083" pivotOffset="-70 0 0"/>

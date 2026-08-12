@@ -67,6 +67,7 @@ extern app_state_t *g_app;
 
 void scener_sync_main_toolbar(void);
 void scener_sync_tool_ui(void);
+void scener_sync_viewport_camera(scene_doc_t *doc);
 uint16_t scener_active_tool(void);
 void handle_menu_command(uint16_t id);
 bool scener_create_primitive(scene_doc_t *doc, uint16_t id, vec3 ground_pos);

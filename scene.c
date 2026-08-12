@@ -1015,7 +1015,7 @@ static void parse_camera_tag(Scene *s, XmlNode *n){
 	for(int i=0;i<n->nkids;i++) if(!strcmp(n->kids[i]->tag,"transform")){
 		CameraTransform x={0};
 		strncpy(x.target,xml_attr(n->kids[i],"target",""),31);
-		x.pos=xml_attr_v3(n->kids[i],"pos",v3(0,0,0));
+		x.pos=xml_attr_v3_cm(n->kids[i],"pos",v3(0,0,0));
 		x.rot=xml_attr_v3(n->kids[i],"rot",v3(0,0,0));
 		x.scale=xml_attr_v3(n->kids[i],"scale",v3(1,1,1));
 		if(x.target[0]) DA_PUSH(cam.transforms,cam.ntransforms,cam.ctransforms,x);
@@ -1060,8 +1060,8 @@ static void parse_sun_tag(Scene *s, XmlNode *n){
 static void parse_chardef_tag(Scene *s, XmlNode *n){
 	CharDef cd={0};
 	strncpy(cd.name,xml_attr(n,"name",""),31);
-	cd.height=xml_attr_f(n,"height",1.0f);
-	cd.radius=xml_attr_f(n,"radius",0.10f);
+	cd.height=xml_attr_f_cm(n,"height",1.0f);
+	cd.radius=xml_attr_f_cm(n,"radius",0.10f);
 	cd.top=xml_attr_f(n,"top",1.0f);
 	cd.neck=xml_attr_f(n,"neck",0.75f);
 	cd.pelvis=xml_attr_f(n,"pelvis",0.25f);

@@ -5,7 +5,7 @@
   <cylinder pos="-67 32 -2" radius="6.5" height="24" sides="12" material="brass"/>
   <cylinder pos="-67 -70 -2" radius="6.5" height="24" sides="12" material="brass"/>
   <arch pos="0 18 10" width="134" height="206" depth="24" segments="3" material="dark_wood"/>
-  <arch pos="0 8 23.5" width="110" height="170" depth="8" tube="0.10" segments="3" material="wood"/>
+  <arch pos="0 8 23.5" width="110" height="170" depth="8" tube="10" segments="3" material="wood"/>
   <box pos="0 -66 25" size="116 18 18" material="wood"/>
   <box pos="-45 88 24" rot="0 0 -38" size="16 78 18" material="wood"/>
   <box pos="45 88 24" rot="0 0 38" size="16 78 18" material="wood"/>
@@ -16,7 +16,7 @@
   <sphere pos="66 66 22" radius="11" material="wood"/>
   <prism pos="-66 78 22" radius="7.5" height="22" sides="6" material="brass"/>
   <prism pos="66 78 22" radius="7.5" height="22" sides="6" material="brass"/>
-  <arch pos="0 67 27" width="42" height="52" depth="8" tube="0.06" segments="3" material="brass"/>
+  <arch pos="0 67 27" width="42" height="52" depth="8" tube="6" segments="3" material="brass"/>
   <arch pos="0 67 25.5" width="30" height="40" depth="5" segments="3" material="shadow"/>
   <sphere pos="0 67 34" radius="7.5" material="wood"/>
   <cone pos="10 67 39" rot="0 0 -90" radius="3.5" height="16" material="brass"/>

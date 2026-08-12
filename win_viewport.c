@@ -275,6 +275,22 @@ static void vp_init_camera(viewport_state_t *vp, const Scene *scene) {
 	vp->cam_pitch = asinf(dir.y) * 180.0f / M_PIf;
 }
 
+void scener_sync_viewport_camera(scene_doc_t *doc) {
+	if (!doc || !doc->viewport_win) return;
+	viewport_state_t *vp = (viewport_state_t *)doc->viewport_win->userdata;
+	if (!vp) return;
+	vp_init_camera(vp, &doc->scene);
+	SC_TRACE("camera-sync doc=%p camera=%s pos=(%.3f,%.3f,%.3f) look=(%.3f,%.3f,%.3f)",
+		(void *)doc, doc->scene.activeCamera,
+		doc->scene.camPos.x, doc->scene.camPos.y, doc->scene.camPos.z,
+		doc->scene.camLook.x, doc->scene.camLook.y, doc->scene.camLook.z);
+	set_focus(doc->viewport_win);
+	invalidate_window(doc->viewport_win);
+	/* The accelerator runs synchronously outside the viewport's input path.  Queue
+	 * the child paint explicitly so the camera render cannot wait for mouse input. */
+	post_message(doc->viewport_win, evPaint, 0, NULL);
+}
+
 result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
 	viewport_state_t *vp = (viewport_state_t *)win->userdata;
 	scene_doc_t *doc = (scene_doc_t *)win->userdata2;
