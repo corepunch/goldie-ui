@@ -37,6 +37,8 @@ typedef struct {
     int   invert, rgba, verbose;
     int   scan_width;           // if true, compute advance from bitmap width
     int   letter_spacing;       // pixels to add to advance
+    int   line_height;          // explicit runtime line height, or derived
+    int   space_width;          // explicit runtime space advance, or derived
 } Opts;
 
 /* ------------------------------------------------------------------ */
@@ -83,6 +85,8 @@ static void print_help(const char* prog)
         "  Metrics\n"
         "  -scan-width             Compute advance from actual bitmap width (proportional)\n"
         "  -letter-spacing=N       Add N pixels to advance (for letter spacing)\n"
+        "  -line-height=N          Runtime baseline-to-baseline height\n"
+        "  -space-width=N          Runtime space advance\n"
         "\n"
         "Embedded foNT chunk fields\n"
         "  Header  version, first_char, num_chars, cell_w/h, atlas_w/h,\n"
@@ -193,6 +197,8 @@ int main(int argc, char** argv)
         .verbose      = 0,
         .scan_width   = 0,
         .letter_spacing = 0,
+        .line_height  = -1,
+        .space_width  = -1,
     };
 
     int positional = 0;
@@ -210,6 +216,8 @@ int main(int argc, char** argv)
         else if (!strcmp(a,"-v"))            o.verbose = 1;
         else if (!strcmp(a,"-scan-width"))   o.scan_width = 1;
         else if (parse_int_arg(a, "-letter-spacing=", &o.letter_spacing)) {}
+        else if (parse_int_arg(a, "-line-height=", &o.line_height)) {}
+        else if (parse_int_arg(a, "-space-width=", &o.space_width)) {}
         else if (parse_float_arg(a, "-pixelsize=", &o.pixel_height)) {}
         else if (parse_int_arg(a, "-threshold=",   &o.threshold))    {}
         else if (parse_int_arg(a, "-cellw=",       &o.cell_w))       {}
@@ -257,6 +265,7 @@ int main(int argc, char** argv)
     int baseline = (int)(ascent * scale + 0.5f);
     int line_height = (int)(((float)(ascent - descent + linegap) * scale) + 0.5f);
     if (line_height < o.cell_h) line_height = o.cell_h;
+    if (o.line_height > 0) line_height = o.line_height;
 
     /* ---- extract font names ----------------------------------- */
     char* name_full    = get_font_name(&font, 4);  /* full name   */
@@ -363,6 +372,7 @@ int main(int argc, char** argv)
     int space_width = 3;
     if (' ' >= o.first_char && ' ' < o.first_char + o.num_chars)
         space_width = glyphs[' ' - o.first_char].advance;
+    if (o.space_width > 0) space_width = o.space_width;
 
     TinyPngFontInfo fi = {
         .name_full    = name_full,

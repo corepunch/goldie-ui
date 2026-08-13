@@ -42,86 +42,6 @@ static unsigned char *read_file_bytes(const char *path, size_t *out_size) {
   return buf;
 }
 
-static uint32_t rd_u32be(const unsigned char *p) {
-  return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
-         ((uint32_t)p[2] << 8) | (uint32_t)p[3];
-}
-
-static int extract_raw_font_chunk(const unsigned char *png, size_t png_size,
-                                  unsigned char **font_chunk,
-                                  uint32_t *font_chunk_len) {
-  if (!png || png_size < 8) return 0;
-
-  size_t pos = 8;
-  while (pos + 12 <= png_size) {
-    uint32_t clen = rd_u32be(png + pos);
-    const unsigned char *type = png + pos + 4;
-    const unsigned char *data = png + pos + 8;
-
-    if (pos + 12 + clen > png_size) return 0;
-
-    if (memcmp(type, "foNT", 4) == 0) {
-      unsigned char *copy = (unsigned char *)malloc(clen);
-      if (!copy) return 0;
-      memcpy(copy, data, clen);
-      *font_chunk = copy;
-      *font_chunk_len = clen;
-      return 1;
-    }
-
-    if (memcmp(type, "IEND", 4) == 0) break;
-    pos += 12 + clen;
-  }
-  return 0;
-}
-
-static int write_png_keep_font_chunk(const char *path,
-                                     const unsigned char *gray,
-                                     int w, int h,
-                                     const unsigned char *font_chunk,
-                                     uint32_t font_chunk_len) {
-  if (!path || !gray || w <= 0 || h <= 0 || !font_chunk) return 0;
-
-  size_t raw_size = (size_t)h * (size_t)(1 + w);
-  unsigned char *raw = (unsigned char *)malloc(raw_size);
-  if (!raw) return 0;
-
-  for (int y = 0; y < h; y++) {
-    raw[y * (size_t)(1 + w)] = 0;
-    memcpy(raw + y * (size_t)(1 + w) + 1, gray + y * (size_t)w, (size_t)w);
-  }
-
-  FILE *f = fopen(path, "wb");
-  if (!f) {
-    free(raw);
-    return 0;
-  }
-
-  static const unsigned char sig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
-  fwrite(sig, 1, 8, f);
-
-  {
-    unsigned char ihdr[13];
-    unsigned char *p = ihdr;
-    tpng__u32be(&p, (uint32_t)w);
-    tpng__u32be(&p, (uint32_t)h);
-    tpng__u8(&p, 8);
-    tpng__u8(&p, 0);
-    tpng__u8(&p, 0);
-    tpng__u8(&p, 0);
-    tpng__u8(&p, 0);
-    tpng__chunk(f, "IHDR", ihdr, 13);
-  }
-
-  tpng__chunk(f, "foNT", font_chunk, font_chunk_len);
-  tpng__idat(f, raw, raw_size);
-  tpng__chunk(f, "IEND", NULL, 0);
-
-  fclose(f);
-  free(raw);
-  return 1;
-}
-
 static void left_align_cell(unsigned char *gray, int img_w,
                             int cell_x, int cell_y,
                             int cell_w, int cell_h) {
@@ -257,22 +177,10 @@ int main(int argc, char **argv) {
   TinyPngGlyph *glyphs = NULL;
   int has_font_chunk = tiny_png_read_font_chunk(png, png_size, &fi, &glyphs);
 
-  unsigned char *font_chunk = NULL;
-  uint32_t font_chunk_len = 0;
-  if (has_font_chunk) {
-    if (!extract_raw_font_chunk(png, png_size, &font_chunk, &font_chunk_len)) {
-      fprintf(stderr, "Failed to extract raw foNT chunk: %s\n", input);
-      free(glyphs);
-      free(png);
-      return 1;
-    }
-  }
-
   int w = 0, h = 0;
   uint8_t *rgba = stbi_load(input, &w, &h, NULL, 4);
   if (!rgba) {
     fprintf(stderr, "Failed to decode image pixels: %s\n", input);
-    free(font_chunk);
     free(glyphs);
     free(png);
     return 1;
@@ -281,7 +189,6 @@ int main(int argc, char **argv) {
   if (w <= 0 || h <= 0 || (w % GRID_COLS) != 0 || (h % GRID_ROWS) != 0) {
     fprintf(stderr, "Expected a %dx%d grid image, got %dx%d\n", GRID_COLS, GRID_ROWS, w, h);
     stbi_image_free(rgba);
-    free(font_chunk);
     free(glyphs);
     free(png);
     return 1;
@@ -290,7 +197,6 @@ int main(int argc, char **argv) {
   unsigned char *gray = (unsigned char *)malloc((size_t)w * (size_t)h);
   if (!gray) {
     stbi_image_free(rgba);
-    free(font_chunk);
     free(glyphs);
     free(png);
     return 1;
@@ -310,15 +216,16 @@ int main(int argc, char **argv) {
   }
 
   if (has_font_chunk) {
-    if (!write_png_keep_font_chunk(output, gray, w, h, font_chunk, font_chunk_len)) {
+    if (fi.line_height <= 0) fi.line_height = fi.cell_h + 4;
+    if (fi.space_width <= 0) fi.space_width = 3;
+    if (!tiny_png_save_font(output, gray, w, h, 0, &fi)) {
       fprintf(stderr, "Failed to write PNG: %s\n", output);
       free(gray);
-      free(font_chunk);
       free(glyphs);
       free(png);
       return 1;
     }
-    printf("Left-aligned glyph bitmaps in %s and preserved foNT chunk.\n", output);
+    printf("Left-aligned glyph bitmaps in %s and updated foNT metadata.\n", output);
   } else {
     int num_chars = 0;
     TinyPngGlyph *manual = build_manual_glyphs_from_bitmap(gray, w, h, cell_w, cell_h, &num_chars);
@@ -354,7 +261,6 @@ int main(int argc, char **argv) {
   }
 
   free(gray);
-  if (font_chunk) free(font_chunk);
   if (glyphs) free(glyphs);
   free(png);
   return 0;

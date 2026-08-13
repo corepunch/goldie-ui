@@ -163,10 +163,12 @@ $(GENERATED_DIR)/$(APPS)/%.h: $(APPS)/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
 
 fonts: tools
 	@mkdir -p share/fonts
-	@$(BIN_DIR)/font_atlas share/fonts/ChiKareGo2.ttf share/fonts/Chicago-12.png -pixelsize=16 -em -sharp -cellw=10 -cellh=15 -v
+	@$(BIN_DIR)/font_atlas share/fonts/ChiKareGo2.ttf share/fonts/Chicago-12.png -pixelsize=16 -em -sharp -cellw=10 -cellh=15 -line-height=19 -space-width=5 -v
 	@$(BIN_DIR)/font_atlas share/fonts/FindersKeepers.ttf share/fonts/FindersKeepers.png -pixelsize=16 -em -sharp -cellw=8 -cellh=9 -v
-	@$(BIN_DIR)/font_atlas share/fonts/PixelOperator.ttf share/fonts/Geneva-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v -scan-width -letter-spacing=2
+	@$(BIN_DIR)/font_atlas share/fonts/PixelOperator.ttf share/fonts/Geneva-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -line-height=20 -space-width=2 -v -scan-width -letter-spacing=2
+	@$(BIN_DIR)/font_atlas share/fonts/geneva_9.ttf share/fonts/Geneva-9.png -pixelsize=16 -em -sharp -cellw=8 -cellh=10 -line-height=14 -space-width=3 -v
 	@$(BIN_DIR)/font_atlas share/fonts/PixelOperatorMono.ttf share/fonts/Mono-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v
+	@$(BIN_DIR)/font_leftalign share/fonts/SmallFont.png
 
 # ── Platform submodule ───────────────────────────────────────────────────
 platform: $(PLATFORM_LIB)
