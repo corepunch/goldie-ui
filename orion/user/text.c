@@ -260,8 +260,9 @@ void init_text_rendering(void) {
     if (icon_ok) {
       text_state.icon_height = text_state.icon.cell_h;
       text_state.icon_line   = text_state.icon.cell_h + 4;
-      text_state.icon_space  = text_state.icon_met.advance[' ']
-                               ? text_state.icon_met.advance[' '] : 3;
+      // Icon labels use compact UI spacing, not the font's nominal word
+      // space. Some icon-font atlases reserve a full cell for whitespace.
+      text_state.icon_space  = 3;
     } else {
       text_state.icon_height = text_state.small_height;
       text_state.icon_line   = text_state.small_line;
@@ -296,8 +297,9 @@ void init_text_rendering(void) {
       text_state.has_icon = true;
       text_state.icon_height = text_state.icon.cell_h;
       text_state.icon_line   = text_state.icon.cell_h + 4;
-      text_state.icon_space  = text_state.icon_met.advance[' ']
-                               ? text_state.icon_met.advance[' '] : 3;
+      // Icon labels use compact UI spacing, not the font's nominal word
+      // space. Some icon-font atlases reserve a full cell for whitespace.
+      text_state.icon_space  = 3;
     } else {
       text_state.has_icon = false;
     }
