@@ -330,12 +330,6 @@ int main(int argc, char **argv) {
     }
 
     TinyPngFontInfo out_fi = {0};
-    out_fi.name_full = "BitmapFont";
-    out_fi.name_family = "BitmapFont";
-    out_fi.name_style = "Regular";
-    out_fi.name_version = "generated";
-    out_fi.pixel_height = (float)cell_h;
-    out_fi.scale = 1.0f;
     out_fi.first_char = 0;
     out_fi.num_chars = num_chars;
     out_fi.cell_w = cell_w;
@@ -343,6 +337,8 @@ int main(int argc, char **argv) {
     out_fi.atlas_w = w;
     out_fi.atlas_h = h;
     out_fi.baseline = cell_h;
+    out_fi.line_height = cell_h + 4;
+    out_fi.space_width = cell_w > 3 ? 3 : cell_w;
     out_fi.flags = 1; // sharp
     out_fi.glyphs = manual;
 

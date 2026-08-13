@@ -86,10 +86,8 @@ static void print_help(const char* prog)
         "\n"
         "Embedded foNT chunk fields\n"
         "  Header  version, first_char, num_chars, cell_w/h, atlas_w/h,\n"
-        "          baseline, flags, pixel_height (f32), scale (f32)\n"
-        "  Names   full, family, style, version (u8-length-prefixed strings)\n"
-        "  Glyphs  per codepoint: x0, y0, w, h, advance, cell_col, cell_row\n"
-        "          (8 bytes each, fixed stride)\n"
+        "          baseline, line_height, space_width, flags\n"
+        "  Glyphs  per codepoint: x0, bitmap width, advance (3 bytes each)\n"
         "\n"
         "Examples\n"
         "  # Sharp pixel font at native size:\n"
@@ -257,6 +255,8 @@ int main(int argc, char** argv)
     int ascent, descent, linegap;
     stbtt_GetFontVMetrics(&font, &ascent, &descent, &linegap);
     int baseline = (int)(ascent * scale + 0.5f);
+    int line_height = (int)(((float)(ascent - descent + linegap) * scale) + 0.5f);
+    if (line_height < o.cell_h) line_height = o.cell_h;
 
     /* ---- extract font names ----------------------------------- */
     char* name_full    = get_font_name(&font, 4);  /* full name   */
@@ -270,8 +270,8 @@ int main(int argc, char** argv)
                name_family ? name_family : "?",
                name_style  ? name_style  : "?");
         printf("Version : %s\n", name_version ? name_version : "?");
-        printf("Scale   : %.5f  baseline=%d  em=%d  sharp=%d  threshold=%d\n",
-               scale, baseline, o.em_scale, o.sharp, o.threshold);
+        printf("Scale   : %.5f  baseline=%d line=%d space=? em=%d sharp=%d threshold=%d\n",
+               scale, baseline, line_height, o.em_scale, o.sharp, o.threshold);
         printf("Atlas   : %dx%d  cell=%dx%d  chars=%d..%d\n",
                o.atlas_w, o.atlas_h, o.cell_w, o.cell_h,
                o.first_char, o.first_char + o.num_chars - 1);
@@ -360,6 +360,9 @@ int main(int argc, char** argv)
     if (o.em_scale) flags |= 2;
     if (o.rgba)     flags |= 4;
     if (o.invert)   flags |= 8;
+    int space_width = 3;
+    if (' ' >= o.first_char && ' ' < o.first_char + o.num_chars)
+        space_width = glyphs[' ' - o.first_char].advance;
 
     TinyPngFontInfo fi = {
         .name_full    = name_full,
@@ -375,6 +378,8 @@ int main(int argc, char** argv)
         .atlas_w      = o.atlas_w,
         .atlas_h      = o.atlas_h,
         .baseline     = baseline,
+        .line_height  = line_height,
+        .space_width  = space_width,
         .flags        = flags,
         .glyphs       = glyphs,
     };

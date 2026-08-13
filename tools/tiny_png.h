@@ -13,9 +13,9 @@
   ─────────────────────────────────────────────────────────────────────
   All multi-byte integers are big-endian (PNG convention).
 
-  Header  (22 bytes, fixed):
+  Header v2 (24 bytes, fixed):
     u8[4]   magic          "foNT"
-    u16     version        1
+    u16     version        2
     u16     first_char     first codepoint in glyph table
     u16     num_chars      number of entries in glyph table
     u16     cell_w
@@ -23,21 +23,23 @@
     u16     atlas_w
     u16     atlas_h
     u16     baseline       pixels from cell top to text baseline
+    u16     line_height    baseline-to-baseline line height
+    u16     space_width    advance width of a space
     u16     flags          bit0=sharp  bit1=em_scale  bit2=rgba  bit3=invert
 
-  Floats  (8 bytes):
+  Floats (v1 only, 8 bytes):
     f32     pixel_height   as IEEE-754 big-endian
     f32     scale          stbtt scale factor, big-endian
 
-  Name table  (variable):
+  Name table  (v1 only, variable):
     u8      name_full_len    followed by name_full_len bytes (no NUL)
     u8      name_family_len  followed by bytes
     u8      name_style_len   followed by bytes
     u8      name_version_len followed by bytes
     (empty strings are encoded as a single 0x00 length byte)
 
-  Glyph table  (num_chars x 8 bytes, fixed stride):
-    per entry, in codepoint order starting at first_char:
+  Glyph table  (v1: num_chars x 8 bytes; v2: num_chars x 3 bytes):
+    v1 per entry, in codepoint order starting at first_char:
       i8    x0       bitmap-box left offset from pen (may be negative)
       i8    y0       bitmap-box top  offset from baseline (negative = above)
       u8    w        bitmap width  in pixels
@@ -46,6 +48,9 @@
       u8    cell_col column of this glyph's cell in the atlas grid
       u8    cell_row row    of this glyph's cell in the atlas grid
       u8    _pad     reserved, write 0
+    v2 per entry: i8 x0, u8 bitmap width, u8 advance
+  v2 omits converter-only names/floats and per-glyph atlas coordinates.
+  The reader remains compatible with v1 assets.
   ─────────────────────────────────────────────────────────────────────
 */
 
@@ -75,7 +80,7 @@ typedef struct {
 /*  Font metadata (passed alongside the pixel buffer)                  */
 /* ------------------------------------------------------------------ */
 typedef struct {
-    /* names — NULL or NUL-terminated C strings (ASCII) */
+    /* Legacy v1 fields; v2 does not serialize them. */
     const char* name_full;
     const char* name_family;
     const char* name_style;
@@ -88,6 +93,8 @@ typedef struct {
     int    cell_w, cell_h;
     int    atlas_w, atlas_h;
     int    baseline;
+    int    line_height;
+    int    space_width;
     int    flags;        /* bit0=sharp bit1=em_scale bit2=rgba bit3=invert */
 
     const TinyPngGlyph* glyphs;   /* num_chars entries                 */
@@ -127,22 +134,6 @@ static void tpng__u32be(unsigned char** p, uint32_t v)
 {
     *(*p)++ = (v >> 24) & 0xFF; *(*p)++ = (v >> 16) & 0xFF;
     *(*p)++ = (v >>  8) & 0xFF; *(*p)++ =  v        & 0xFF;
-}
-
-/* IEEE-754 f32 → big-endian bytes (no UB: memcpy through uint32_t) */
-static void tpng__f32be(unsigned char** p, float f)
-{
-    uint32_t bits; memcpy(&bits, &f, 4);
-    tpng__u32be(p, bits);
-}
-
-static void tpng__str8(unsigned char** p, const char* s)
-{
-    /* u8 length + bytes (no NUL terminator) */
-    size_t n = s ? strlen(s) : 0;
-    if (n > 255) n = 255;
-    tpng__u8(p, (uint8_t)n);
-    if (n) { memcpy(*p, s, n); *p += n; }
 }
 
 /* Write a complete PNG chunk to file */
@@ -211,24 +202,8 @@ static void tpng__idat(FILE* f, const unsigned char* raw, size_t raw_size)
 static unsigned char* tpng__build_font_chunk(const TinyPngFontInfo* fi,
                                               uint32_t* out_len)
 {
-    const char* nfull    = fi->name_full    ? fi->name_full    : "";
-    const char* nfamily  = fi->name_family  ? fi->name_family  : "";
-    const char* nstyle   = fi->name_style   ? fi->name_style   : "";
-    const char* nversion = fi->name_version ? fi->name_version : "";
-
-    size_t nfl = strlen(nfull),   nfal = strlen(nfamily);
-    size_t nsl = strlen(nstyle),  nvl  = strlen(nversion);
-    if (nfl  > 255) nfl  = 255;
-    if (nfal > 255) nfal = 255;
-    if (nsl  > 255) nsl  = 255;
-    if (nvl  > 255) nvl  = 255;
-
-    /* header=4+2+2+2+2+2+2+2+2+2 = 22, floats=8,
-       names=4 length bytes + actual chars,
-       glyphs=num_chars*8                                              */
-    size_t name_bytes = 4 + nfl + nfal + nsl + nvl;
-    size_t glyph_bytes = (size_t)fi->num_chars * 8;
-    size_t total = 22 + 8 + name_bytes + glyph_bytes;
+    size_t glyph_bytes = (size_t)fi->num_chars * 3;
+    size_t total = 24 + glyph_bytes;
 
     unsigned char* buf = (unsigned char*)malloc(total);
     if (!buf) return NULL;
@@ -238,7 +213,7 @@ static unsigned char* tpng__build_font_chunk(const TinyPngFontInfo* fi,
     memcpy(p, "foNT", 4); p += 4;
 
     /* header fields */
-    tpng__u16be(&p, 1);                         /* version       */
+    tpng__u16be(&p, 2);                         /* version       */
     tpng__u16be(&p, (uint16_t)fi->first_char);
     tpng__u16be(&p, (uint16_t)fi->num_chars);
     tpng__u16be(&p, (uint16_t)fi->cell_w);
@@ -246,29 +221,16 @@ static unsigned char* tpng__build_font_chunk(const TinyPngFontInfo* fi,
     tpng__u16be(&p, (uint16_t)fi->atlas_w);
     tpng__u16be(&p, (uint16_t)fi->atlas_h);
     tpng__u16be(&p, (uint16_t)fi->baseline);
+    tpng__u16be(&p, (uint16_t)fi->line_height);
+    tpng__u16be(&p, (uint16_t)fi->space_width);
     tpng__u16be(&p, (uint16_t)fi->flags);
-
-    /* floats */
-    tpng__f32be(&p, fi->pixel_height);
-    tpng__f32be(&p, fi->scale);
-
-    /* name table */
-    tpng__str8(&p, fi->name_full);
-    tpng__str8(&p, fi->name_family);
-    tpng__str8(&p, fi->name_style);
-    tpng__str8(&p, fi->name_version);
 
     /* glyph table */
     for (int i = 0; i < fi->num_chars; i++) {
         const TinyPngGlyph* g = &fi->glyphs[i];
         tpng__u8(&p, (uint8_t)g->x0);
-        tpng__u8(&p, (uint8_t)g->y0);
         tpng__u8(&p, g->w);
-        tpng__u8(&p, g->h);
         tpng__u8(&p, g->advance);
-        tpng__u8(&p, g->cell_col);
-        tpng__u8(&p, g->cell_row);
-        tpng__u8(&p, 0);    /* _pad */
     }
 
     *out_len = (uint32_t)(p - buf);
@@ -389,7 +351,7 @@ static TPNG_MAYBE_UNUSED int tiny_png_read_font_chunk(
         const unsigned char* type = png_bytes + pos + 4;
         const unsigned char* data = png_bytes + pos + 8;
 
-        if (memcmp(type, "foNT", 4) == 0 && clen >= 30) {
+        if (memcmp(type, "foNT", 4) == 0 && clen >= 24) {
             const unsigned char* p = data;
 
             /* magic */
@@ -397,7 +359,7 @@ static TPNG_MAYBE_UNUSED int tiny_png_read_font_chunk(
             p += 4;
 
             uint16_t version    = tpng__rd_u16be(p); p += 2;
-            if (version != 1) return 0;
+            if (version != 1 && version != 2) return 0;
 
             fi->first_char   = tpng__rd_u16be(p); p += 2;
             fi->num_chars    = tpng__rd_u16be(p); p += 2;
@@ -406,23 +368,18 @@ static TPNG_MAYBE_UNUSED int tiny_png_read_font_chunk(
             fi->atlas_w      = tpng__rd_u16be(p); p += 2;
             fi->atlas_h      = tpng__rd_u16be(p); p += 2;
             fi->baseline     = tpng__rd_u16be(p); p += 2;
-            fi->flags        = tpng__rd_u16be(p); p += 2;
-
-            fi->pixel_height = tpng__rd_f32be(p); p += 4;
-            fi->scale        = tpng__rd_f32be(p); p += 4;
-
-            /* name table — pointers into the PNG buffer (not malloc'd) */
-            /* caller must not free these; they alias png_bytes          */
-            fi->name_full    = NULL;
-            fi->name_family  = NULL;
-            fi->name_style   = NULL;
-            fi->name_version = NULL;
-            /* (for simplicity the reader skips the name strings here;  */
-            /*  extend as needed by reading u8 length + advancing)      */
-            for (int n = 0; n < 4; n++) {
-                uint8_t slen = *p++;
-                /* skip for now — lengths available if caller wants them */
-                p += slen;
+            if (version == 2) {
+                fi->line_height = tpng__rd_u16be(p); p += 2;
+                fi->space_width = tpng__rd_u16be(p); p += 2;
+                fi->flags       = tpng__rd_u16be(p); p += 2;
+            } else {
+                fi->flags        = tpng__rd_u16be(p); p += 2;
+                fi->pixel_height = tpng__rd_f32be(p); p += 4;
+                fi->scale        = tpng__rd_f32be(p); p += 4;
+                fi->line_height  = fi->cell_h + 4;
+                fi->space_width  = 0; /* derive from the legacy glyph table */
+                fi->name_full = fi->name_family = fi->name_style = fi->name_version = NULL;
+                for (int n = 0; n < 4; n++) { uint8_t slen = *p++; p += slen; }
             }
 
             /* glyph table */
@@ -431,14 +388,15 @@ static TPNG_MAYBE_UNUSED int tiny_png_read_font_chunk(
             if (!g) return 0;
             for (int i = 0; i < nc; i++) {
                 g[i].x0       = (int8_t)p[0];
-                g[i].y0       = (int8_t)p[1];
-                g[i].w        = p[2];
-                g[i].h        = p[3];
-                g[i].advance  = p[4];
-                g[i].cell_col = p[5];
-                g[i].cell_row = p[6];
-                /* p[7] = pad */
-                p += 8;
+                if (version == 2) {
+                    g[i].w = p[1]; g[i].advance = p[2];
+                    g[i].y0 = 0; g[i].h = 0; g[i].cell_col = 0; g[i].cell_row = 0;
+                    p += 3;
+                } else {
+                    g[i].y0 = (int8_t)p[1]; g[i].w = p[2]; g[i].h = p[3];
+                    g[i].advance = p[4]; g[i].cell_col = p[5]; g[i].cell_row = p[6];
+                    p += 8;
+                }
             }
             *glyphs_out = g;
             fi->glyphs  = g;
