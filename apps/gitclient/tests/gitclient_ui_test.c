@@ -508,6 +508,38 @@ void test_generated_context_menus_reuse_shared_commands(void) {
     PASS();
 }
 
+// 11. Toolbar buttons converge on the same command IDs as menus/context menus ──
+
+void test_toolbar_buttons_reference_menu_command_ids(void) {
+    TEST("gitclient Orion: toolbar buttons reuse menu/context command IDs");
+    // Every toolbar button must dispatch the same command ID its menu or
+    // context-menu counterpart uses — no *_SYNC_SYNC suffixed clones.
+    ASSERT_EQUAL(TB_MAIN_COUNT, 13);
+    ASSERT_EQUAL(TB_MAIN[0].ident,  ID_REMOTE_SYNC);
+    ASSERT_EQUAL(TB_MAIN[1].ident,  ID_REMOTE_FETCH);
+    ASSERT_EQUAL(TB_MAIN[3].ident,  ID_COMMIT_COMMIT);
+    ASSERT_EQUAL(TB_MAIN[4].ident,  ID_COMMIT_UNDO);
+    ASSERT_EQUAL(TB_MAIN[5].ident,  ID_FILES_STAGE_ALL);
+    ASSERT_EQUAL(TB_MAIN[6].ident,  ID_FILES_UNSTAGE_ALL);
+    ASSERT_EQUAL(TB_MAIN[7].ident,  ID_BRANCH_NEW);
+    ASSERT_EQUAL(TB_MAIN[9].ident,  ID_REPO_REFRESH);
+    ASSERT_EQUAL(TB_MAIN[10].ident, ID_FILE_REPOSITORIES);
+    ASSERT_EQUAL(TB_MAIN[11].ident, ID_VIEW_CHANGES);
+    ASSERT_EQUAL(TB_MAIN[12].ident, ID_VIEW_HISTORY);
+
+    // Each button ident must be unique and must not collide with any other
+    // toolbar button (the old bug produced distinct suffixed IDs per button).
+    for (int i = 0; i < TB_MAIN_COUNT; i++) {
+        if (TB_MAIN[i].type != TOOLBAR_ITEM_BUTTON) continue;
+        ASSERT_TRUE(TB_MAIN[i].ident != 0);
+        for (int j = i + 1; j < TB_MAIN_COUNT; j++) {
+            if (TB_MAIN[j].type != TOOLBAR_ITEM_BUTTON) continue;
+            ASSERT_TRUE(TB_MAIN[i].ident != TB_MAIN[j].ident);
+        }
+    }
+    PASS();
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -529,6 +561,7 @@ int main(void) {
     test_working_tree_files_have_zero_commit_id();
     test_generated_context_menus_attach_to_expected_controls();
     test_generated_context_menus_reuse_shared_commands();
+    test_toolbar_buttons_reference_menu_command_ids();
 
     gct_remove_dir(s_repo);
 

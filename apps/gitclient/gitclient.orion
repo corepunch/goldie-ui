@@ -99,19 +99,19 @@
 
     <toolbars>
         <toolbar name="main">
-            <Button name="sync" menu="remote.sync" icon="sysicon_arrow_switch" text="Sync" tooltip="Publish, pull, or push the current branch" />
-            <Button name="fetch" menu="remote.fetch" icon="sysicon_arrow_down" text="Fetch" tooltip="Fetch from remote" />
+            <Button name="sync" command="remote.sync" icon="sysicon_arrow_switch" text="Sync" tooltip="Publish, pull, or push the current branch" />
+            <Button name="fetch" command="remote.fetch" icon="sysicon_arrow_down" text="Fetch" tooltip="Fetch from remote" />
             <spacer />
-            <Button name="commit" menu="commit.commit" icon="sysicon_add" text="Commit" tooltip="Commit staged changes" />
-            <Button name="undo" menu="commit.undo" icon="sysicon_undo" text="Undo" tooltip="Undo last commit and keep changes staged" />
-            <Button name="stage_all" menu="files.stage_all" icon="sysicon_checkbox" text="Stage All" tooltip="Stage all changes" />
-            <Button name="unstage_all" menu="files.unstage_all" icon="sysicon_checkbox_off" text="Unstage All" tooltip="Unstage all changes" />
-            <Button name="branch" menu="branch.new" icon="sysicon_star" text="Branch" tooltip="Create new branch" />
+            <Button name="commit" command="commit.commit" icon="sysicon_add" text="Commit" tooltip="Commit staged changes" />
+            <Button name="undo" command="commit.undo" icon="sysicon_undo" text="Undo" tooltip="Undo last commit and keep changes staged" />
+            <Button name="stage_all" command="files.stage_all" icon="sysicon_checkbox" text="Stage All" tooltip="Stage all changes" />
+            <Button name="unstage_all" command="files.unstage_all" icon="sysicon_checkbox_off" text="Unstage All" tooltip="Unstage all changes" />
+            <Button name="branch" command="branch.new" icon="sysicon_star" text="Branch" tooltip="Create new branch" />
             <spacer />
-            <Button name="refresh" menu="repo.refresh" icon="sysicon_arrow_refresh" text="Refresh" tooltip="Refresh repository" />
-            <Button name="repos" menu="file.repositories" icon="sysicon_folder_search" text="Repos" tooltip="Switch or discover repositories" />
-            <Button name="changes" menu="view.changes" icon="sysicon_checkbox" text="Changes" tooltip="Show working tree changes" />
-            <Button name="history" menu="view.history" icon="sysicon_clock" text="History" tooltip="Show commit history" />
+            <Button name="refresh" command="repo.refresh" icon="sysicon_arrow_refresh" text="Refresh" tooltip="Refresh repository" />
+            <Button name="repos" command="file.repositories" icon="sysicon_folder_search" text="Repos" tooltip="Switch or discover repositories" />
+            <Button name="changes" command="view.changes" icon="sysicon_checkbox" text="Changes" tooltip="Show working tree changes" />
+            <Button name="history" command="view.history" icon="sysicon_clock" text="History" tooltip="Show commit history" />
         </toolbar>
     </toolbars>
 

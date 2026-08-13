@@ -223,25 +223,25 @@ static const char *toolbar_type(xmlNodePtr n) {
   return NULL;
 }
 
+static void command_ref(char *out, size_t cap, const char *command,
+                        const char *scope, const char *name, const char *label) {
+  if (command && *command) { char id[ORIONC_MAX_IDENT]; ident(id, sizeof(id), command, true); snprintf(out, cap, "ID_%s", id); }
+  else scoped(out, cap, scope, name, label);
+}
+
 static void collect_command_ids(ids_t *ids, xmlNodePtr menus, xmlNodePtr toolbars) {
   EACH_ELEMENT(m, menus) if (elem(m, "menu")) { char *name = attr(m, "name"), scope[128]; ident(scope, sizeof(scope), name, true); collect_menu_ids(ids, m, scope); free(name); }
   EACH_ELEMENT(tb, toolbars) if (elem(tb, "toolbar")) {
     char *tbid = attr(tb, "name"), tb_scope[128]; ident(tb_scope, sizeof(tb_scope), tbid, true);
     EACH_ELEMENT(it, tb) if (toolbar_type(it) && !elem(it, "separator") && !elem(it, "spacer")) {
-      char *menu = attr(it, "menu"), *name = attr(it, "name"), *text = attr(it, "text"), id[256], scope[128];
-      ident(scope, sizeof(scope), nz(menu, tb_scope), true);
-      scoped(id, sizeof(id), scope, name, text);
+      char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *text = attr(it, "text"), id[256], scope[128];
+      if (command && *command) command_ref(id, sizeof(id), command, NULL, NULL, NULL);
+      else { ident(scope, sizeof(scope), nz(menu, tb_scope), true); scoped(id, sizeof(id), scope, name, text); }
       add_id(ids, id);
-      free(menu); free(name); free(text);
+      free(command); free(menu); free(name); free(text);
     }
     free(tbid);
   }
-}
-
-static void command_ref(char *out, size_t cap, const char *command,
-                        const char *scope, const char *name, const char *label) {
-  if (command && *command) { char id[ORIONC_MAX_IDENT]; ident(id, sizeof(id), command, true); snprintf(out, cap, "ID_%s", id); }
-  else scoped(out, cap, scope, name, label);
 }
 
 static void collect_context_ids(ids_t *ids, xmlNodePtr contexts) {
@@ -347,13 +347,16 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     char *tbid = attr(tb, "name"), scope[128]; ident(scope, sizeof(scope), tbid, true);
     OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
     EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
-      char *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
+      char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
       char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE], menu_scope[128];
-      if (!elem(it, "separator") && !elem(it, "spacer")) { ident(menu_scope, sizeof(menu_scope), nz(menu, scope), true); scoped(id, sizeof(id), menu_scope, name, text); }
+      if (!elem(it, "separator") && !elem(it, "spacer")) {
+        if (command && *command) command_ref(id, sizeof(id), command, NULL, NULL, NULL);
+        else { ident(menu_scope, sizeof(menu_scope), nz(menu, scope), true); scoped(id, sizeof(id), menu_scope, name, text); }
+      }
       if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
       if (tooltip && *tooltip) cstr(tipq, sizeof(tipq), tooltip); else snprintf(tipq, sizeof(tipq), "NULL");
       OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq, tipq);
-      free(menu); free(name); free(icon); free(w); free(flags); free(text); free(tooltip);
+      free(command); free(menu); free(name); free(icon); free(w); free(flags); free(text); free(tooltip);
     }
     OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
     free(tbid);
