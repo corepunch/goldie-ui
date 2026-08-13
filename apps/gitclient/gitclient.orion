@@ -273,7 +273,7 @@
             </StackView>
             <StackView orientation="horizontal" spacing="6">
                 <Label text="From:" />
-                <ComboBox name="from" flags="flexspace" source="db.branches" display="name" value="name" filter_field="is_remote" filter_value="0" />
+                <ComboBox name="from" flags="flexspace" control-size="regular" source="db.branches" display="name" value="name" filter_field="is_remote" filter_value="0" />
             </StackView>
             <CheckBox name="checkout" text="Checkout after creation" />
             <StackView orientation="horizontal" spacing="6">

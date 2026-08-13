@@ -162,7 +162,7 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
   
   switch (msg) {
     case evCreate: {
-      win_button(win, msg, wparam, lparam);
+      control_apply_predefined_height(win, "combobox");
       win->frame.w = MAX(win->frame.w, strwidth(win->title)+16);
       
       // Allocate state
@@ -198,10 +198,12 @@ result_t win_combobox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
       if (m) {
         int text_w = strwidth(win->title) + 16 + 16; /* text + padding + arrow */
         m->desired_w = MAX(win->frame.w > 0 ? win->frame.w : 60, text_w);
-        m->desired_h = MAX(win->frame.h > 0 ? win->frame.h : BUTTON_HEIGHT, BUTTON_HEIGHT);
+        m->desired_h = control_predefined_height(win->flags);
       }
       return true;
     }
+    case evArrange:
+      return control_arrange_predefined_height(win, (layout_arrange_t *)lparam);
     case evDestroy:
       if (state) {
         free(state->texts);

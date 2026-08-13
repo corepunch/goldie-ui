@@ -13,6 +13,12 @@ typedef struct database_s database_t;
 // Register all common controls with the window system.
 void register_commctl_classes(void);
 
+// Intrinsic sizing shared by button-like controls.  Height is framework-owned;
+// callers choose a CONTROL_SIZE_* style instead of supplying pixel heights.
+int  control_predefined_height(flags_t flags);
+void control_apply_predefined_height(window_t *win, const char *module);
+bool control_arrange_predefined_height(window_t *win, const layout_arrange_t *arrange);
+
 // Built-in commctl class list APIs used by FormEditor/apps to register
 // classes from this library.
 int get_num_classes(void);

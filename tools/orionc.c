@@ -569,6 +569,19 @@ static const kv_t kWindowFlags[] = {
   {"notitlebar", "WINDOW_NOTITLE"}, {"default", "0"},
 };
 
+static const char *control_size_flag(xmlNodePtr n) {
+  char *raw = attrs_first(n, "control-size", "control_size");
+  if (!raw || !*raw || eq(raw, "regular")) { free(raw); return ""; }
+  const char *flag = eq(raw, "mini") ? " | CONTROL_SIZE_MINI" :
+                     eq(raw, "small") ? " | CONTROL_SIZE_SMALL" :
+                     eq(raw, "large") ? " | CONTROL_SIZE_LARGE" : NULL;
+  if (!flag)
+    fprintf(stderr, "orionc: invalid control-size '%s' on <%s>; using regular\n",
+            raw, n && n->name ? (const char *)n->name : "control");
+  free(raw);
+  return flag ? flag : "";
+}
+
 static void resolve_flags(char *out, size_t cap, const char *raw) {
   if (!raw || !*raw) { snprintf(out, cap, "0"); return; }
   char buf[256]; snprintf(buf, sizeof(buf), "%s", raw);
@@ -616,7 +629,7 @@ static void emit_controls_ex(FILE *f, xmlNodePtr parent, const char *form, const
     // Auto-add WINDOW_FLEXSPACE for space and multiedit elements (WPF-style)
     char resolved[256]; resolve_flags(resolved, sizeof(resolved), nz(a.v[A_FLAGS], "0"));
     const char *auto_flex = (elem(c, "space") || elem(c, "multiedit")) ? " | WINDOW_FLEXSPACE" : "";
-    snprintf(flags, sizeof(flags), "(%s)%s%s", resolved, enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL ? " | WINDOW_STACK_HORIZONTAL" : "", auto_flex);
+    snprintf(flags, sizeof(flags), "(%s)%s%s%s", resolved, enum_parse_token(a.v[A_ORIENT], kOrient, ARRAY_LEN(kOrient), WINDOW_STACK_VERTICAL) & WINDOW_STACK_HORIZONTAL ? " | WINDOW_STACK_HORIZONTAL" : "", auto_flex, control_size_flag(c));
     snprintf(spacing, sizeof(spacing), "%u", byte_attr(a.v[A_SPACING], ORIONC_DEFAULT_SPACING));
     snprintf(font, sizeof(font), "%s", eq(a.v[A_FONT], "system") ? "FONT_SYSTEM" : eq(a.v[A_FONT], "icon") ? "FONT_ICON" : "FONT_SMALL");
     snprintf(color, sizeof(color), "%u", (unsigned)enum_parse_token(a.v[A_COLOR], kColors, ARRAY_LEN(kColors), brTextNormal));

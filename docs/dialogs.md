@@ -119,6 +119,23 @@ row driven by `space` / `WINDOW_FLEXSPACE` rather than hard-coded coordinates.
 | `"combobox"` | Combo-box / dropdown (`win_combobox`) |
 | `"stack"` / `"grid"` / `"column"` | Auto-layout containers |
 
+### Intrinsic control sizes
+
+Buttons, single-line text edits, and combo boxes own their height.
+Do not set `height` for these controls. They use the regular platform height by
+default; choose a variant only when the visual hierarchy calls for it:
+
+```xml
+<Button text="Compact" control-size="mini" />
+<ComboBox name="choice" control-size="small" />
+<TextEdit name="name" />
+<Button text="Prominent" control-size="large" />
+```
+
+Accepted values are `mini`, `small`, `regular`, and `large`. Imperative C
+callers use the corresponding `CONTROL_SIZE_*` window flag. A supplied pixel
+height is ignored and reported to `stderr` with the `[ctl]` prefix.
+
 ### Structs
 
 ```c

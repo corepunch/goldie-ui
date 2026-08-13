@@ -35,6 +35,11 @@ static result_t test_reportview_proc(window_t *win, uint32_t msg, uint32_t wpara
   }
 }
 
+static result_t test_panel_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
+  (void)win; (void)wparam; (void)lparam;
+  return msg == evCreate || msg == evPaint || msg == evDestroy;
+}
+
 // Test that buttons aren't cut off when grid has scrollable content
 void test_dialog_grid_buttons_not_cutoff(void) {
   TEST("dialog: buttons stack not cut off when grid has scrollable reportview");
@@ -54,7 +59,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   window_t *dialog = create_window("Test Dialog",
     WINDOW_DIALOG | WINDOW_NOTRAYBUTTON,
     MAKERECT(0, 0, 560, 360),
-    NULL, win_button, 0, NULL);  // Use dummy proc for now
+    NULL, test_panel_proc, 0, NULL);
   ASSERT_NOT_NULL(dialog);
   
   dialog->flags |= WINDOW_AUTO_LAYOUT;
@@ -80,7 +85,7 @@ void test_dialog_grid_buttons_not_cutoff(void) {
   window_t *preview = create_window("Preview",
     WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, 0, 200, 200),
-    col1, win_button, 0, NULL);
+    col1, test_panel_proc, 0, NULL);
   ASSERT_NOT_NULL(preview);
   preview->layout.layout_fixed_w = 200;
   preview->layout.layout_fixed_h = 200;

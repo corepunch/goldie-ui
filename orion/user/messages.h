@@ -269,8 +269,8 @@ typedef struct {
 #define WINDOW_NODRAG       (1 << 23)  // fixed chrome/panel: never initiate a window drag
 #define WINDOW_STACK_VERTICAL   0
 
-// Runtime window state bits stored in window_t.flags.
-// Keep style bits in the low 24-bit range; reserve upper bits for transient state.
+// Runtime window state bits stored in window_t.flags. Bits 29-30 hold the
+// CONTROL_SIZE_* style; the remaining upper bits are transient state.
 #define WINDOW_STATE_HOVERED   (1u << 24)
 #define WINDOW_STATE_EDITING   (1u << 25)
 #define WINDOW_STATE_PRESSED   (1u << 26)
@@ -339,9 +339,22 @@ typedef struct {
 #define TOOLBAR_HEIGHT    22
 #define STATUSBAR_HEIGHT  (FONT_SIZE + 5)
 #define BUTTON_HEIGHT     19
+#define CONTROL_HEIGHT_MINI     13
+#define CONTROL_HEIGHT_SMALL    16
+#define CONTROL_HEIGHT_REGULAR  BUTTON_HEIGHT
+#define CONTROL_HEIGHT_LARGE    24
 #define WINDOW_PADDING 4
 #define LINE_PADDING 5
 #define CONTROL_HEIGHT 14
+
+// macOS-style intrinsic sizes for button-like controls.  These are styles,
+// not dimensions: Button, TextEdit, and ComboBox own their height.
+// Regular is zero so existing callers receive the platform default.
+#define CONTROL_SIZE_REGULAR  (0u << 29)
+#define CONTROL_SIZE_SMALL    (1u << 29)
+#define CONTROL_SIZE_MINI     (2u << 29)
+#define CONTROL_SIZE_LARGE    (3u << 29)
+#define CONTROL_SIZE_MASK     (3u << 29)
 
 #define TB_SPACING              TOOLBAR_HEIGHT  // equals TOOLBAR_HEIGHT so toolbar buttons are square
 #define TOOLBAR_PADDING         2               // pixels of margin between toolbar border and button area (all sides)

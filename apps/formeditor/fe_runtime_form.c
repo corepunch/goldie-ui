@@ -228,6 +228,13 @@ static bool str_ieq(const char *a, const char *b) {
 
 static flags_t runtime_flag_from_name(const char *name) {
   if (!name || !*name) return 0;
+  if (strncasecmp(name, "CONTROL_SIZE_", 13) == 0) {
+    name += 13;
+    if (str_ieq(name, "small")) return CONTROL_SIZE_SMALL;
+    if (str_ieq(name, "mini")) return CONTROL_SIZE_MINI;
+    if (str_ieq(name, "large")) return CONTROL_SIZE_LARGE;
+    if (str_ieq(name, "regular")) return CONTROL_SIZE_REGULAR;
+  }
   if (strncasecmp(name, "WINDOW_", 7) == 0) name += 7;
   else if (strncasecmp(name, "BUTTON_", 7) == 0) name += 7;
   if (str_ieq(name, "autolayout")) return WINDOW_AUTO_LAYOUT;
@@ -256,6 +263,9 @@ static flags_t runtime_flag_from_name(const char *name) {
   if (str_ieq(name, "default")) return BUTTON_DEFAULT;
   if (str_ieq(name, "autoradio")) return BUTTON_AUTORADIO;
   if (str_ieq(name, "pushlike")) return BUTTON_PUSHLIKE;
+  if (str_ieq(name, "control_small")) return CONTROL_SIZE_SMALL;
+  if (str_ieq(name, "control_mini")) return CONTROL_SIZE_MINI;
+  if (str_ieq(name, "control_large")) return CONTROL_SIZE_LARGE;
   return 0;
 }
 
@@ -519,6 +529,16 @@ static void runtime_fill_def(runtime_build_ctx_t *ctx, xmlNodePtr node,
   out->size.w = (int16_t)runtime_xml_attr_int(node, "width", 0);
   out->size.h = (int16_t)runtime_xml_attr_int(node, "height", 0);
   out->flags = runtime_parse_flags(flags_expr);
+  char *control_size = runtime_xml_attr_dup(ctx, node, "control-size");
+  if (!control_size) control_size = runtime_xml_attr_dup(ctx, node, "control_size");
+  if (control_size && str_ieq(control_size, "mini")) out->flags |= CONTROL_SIZE_MINI;
+  else if (control_size && str_ieq(control_size, "small")) out->flags |= CONTROL_SIZE_SMALL;
+  else if (control_size && str_ieq(control_size, "large")) out->flags |= CONTROL_SIZE_LARGE;
+  else if (control_size && !str_ieq(control_size, "regular")) {
+    fprintf(stderr, "[form] invalid control-size='%s' class=%s; using regular\n",
+            control_size, (const char *)node->name);
+    fflush(stderr);
+  }
   out->text = text ? text : "";
   out->name = name ? name : "";
   out->layout_spacing = (uint8_t)runtime_xml_attr_int(node, "spacing", 4);
