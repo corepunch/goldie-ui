@@ -1,0 +1,331 @@
+# Gitclient redesign and action-test plan
+
+## Goal
+
+Turn `apps/gitclient` into a dependable, GitKraken-inspired repository
+workspace while keeping Orion's declarative `.orion` forms and database-driven
+views. Every visible action should have one stable command ID and one command
+execution path, regardless of whether it is invoked from a menu, toolbar,
+context menu, keyboard shortcut, or test.
+
+The target is inspired by GitKraken's information hierarchy and workflow, not a
+pixel copy:
+
+- repository and current-branch context are always visible;
+- the commit graph/history is the primary navigation surface;
+- changes and the selected diff are available without losing history context;
+- common Git operations are grouped by intent and show their current state;
+- destructive and network operations remain explicit and confirmation-backed.
+
+## Proposed main-window layout
+
+```text
+┌ Git Client ────────────────────────────────────────────────────────────────┐
+│ [Open repo ▾] [current branch ▾] [Fetch] [Pull] [Push] [Refresh] [Search]  │
+│ [Changes] [History] [Commit] [Branch ▾] [Stash ▾] [More ▾]                  │
+├───────────────────────────────────────────────────────────────────────────┤
+│ repo/path › branch                         ahead 0  behind 0  dirty ●       │
+├───────────────┬───────────────────────────────────┬────────────────────────┤
+│ REPOSITORY    │ GRAPH / HISTORY                   │ DETAILS                │
+│               │                                   │                        │
+│ Local         │ ●──●──●──●  commit subject        │ Selected commit         │
+│  branches     │ │     └──●  author · date         │ metadata                │
+│  remotes      │ ●──●        commit subject        │                        │
+│               │                                   │ Files in commit        │
+│ Tags          │ [graph + commit list]             │ [file list]             │
+│ Stashes       │                                   │                        │
+├───────────────┴───────────────────────────────────┴────────────────────────┤
+│ CHANGES / COMMIT                                                            │
+│ [Unstaged] [Staged] [All]     [file list with stage checkboxes]             │
+│ commit summary [.........................................................]  │
+│ description    [.........................................................]  │
+│ [Stage all] [Unstage all] [Stash]                          [Commit]         │
+├───────────────────────────────────────────────────────────────────────────┤
+│ status: clean / modified · branch · upstream · operation progress           │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### Layout decisions
+
+1. Use a persistent left repository navigator for local branches, remote
+   branches, tags, and stashes. Keep the current branch visually distinct.
+2. Make the center history view the primary surface. Add a graph column or a
+   graph-aware history control rather than treating commits as a flat table.
+3. Make the right side a reusable details pane: commit metadata, changed files,
+   and diff. A selected file should update the diff without changing the
+   current repository selection.
+4. Treat Changes as a bottom workbench that can be collapsed, resized, and
+   reused from both Changes and History. Preserve the current staged checkbox
+   workflow and commit editor.
+5. Put repository/branch selection and network actions in the top command band;
+   put destructive or less frequent actions under explicit dropdowns and menus.
+6. Keep the status bar for branch/upstream/dirty state and asynchronous Git
+   operation progress. Do not use it as the only place to report failures.
+
+The first implementation should extend the existing `SplitView`, `TabView`,
+`TableView`, and `DiffView` composition. A graph renderer and a collapsible
+bottom workbench are separate framework-sized tasks; do not block command
+correctness on them.
+
+## Action model
+
+### One action, many surfaces
+
+Create an explicit action inventory before changing the layout. Each action
+needs:
+
+- a stable symbolic name and generated numeric ID;
+- label, tooltip, icon, category, and destructive/network/read-only metadata;
+- an enabled/disabled predicate derived from repository and selection state;
+- a single handler or command function;
+- optional default accelerator;
+- trace name and useful parameters;
+- an expected refresh/invalidation effect.
+
+The canonical path should be:
+
+```text
+button/menu/context menu/accelerator
+                 ↓
+             command ID
+                 ↓
+       gc_execute_action(action, context)
+                 ↓
+       backend operation + state refresh
+```
+
+`gc_handle_command()` can remain as a compatibility wrapper during migration,
+but new code should not put business logic in toolbar-specific branches.
+
+### `.orion` as the action manifest
+
+Yes: define all user-facing actions in `.orion`, including actions that do not
+currently have a toolbar button. The `.orion` file is the right source for
+menus, toolbars, context menus, labels, icons, and default accelerators because
+the generator can validate that every surface refers to a real action.
+
+Do not make layout position the identity of an action. Prefer an explicit
+reference such as `command="remote.sync"` (or a generator-supported equivalent)
+for toolbar/context-menu items, and reserve `name` for the action declaration.
+The current `menu="remote.sync"` usage must be corrected or the generator must
+make its semantics unambiguous: the generated `ID_REMOTE_SYNC_SYNC` versus the
+handler's `ID_REMOTE_SYNC` is the existing failure mode.
+
+Add an explicit accelerator section or attributes to the `.orion` schema, for
+example:
+
+```xml
+<commands>
+  <command name="repo.refresh" default-hotkey="F5" />
+  <command name="commit.commit" default-hotkey="Ctrl+K" />
+  <command name="repo.search" default-hotkey="Ctrl+Shift+F" />
+</commands>
+```
+
+The generator should reject duplicate hotkeys, unknown command references,
+duplicate action declarations, and actions with no handler/test entry. It should
+emit the accelerator table and an action metadata table so tests can enumerate
+the complete manifest. Platform-specific modifier translation belongs in the
+accelerator layer, not in individual command handlers.
+
+Suggested initial defaults:
+
+| Action | Default | Notes |
+|---|---:|---|
+| `repo.refresh` | F5 | Safe, repeatable |
+| `repo.search` | Ctrl+Shift+F | Search repository/history |
+| `commit.commit` | Ctrl+K | Existing convention; document it |
+| `remote.fetch` | Ctrl+F | Consider conflict with future file search |
+| `branch.new` | Ctrl+N | New branch |
+| `branch.checkout` | Ctrl+P | Quick branch picker, GitKraken-style |
+| `view.changes` | Ctrl+1 | Workspace tab |
+| `view.history` | Ctrl+2 | Workspace tab |
+| `files.stage` / `files.unstage` | Space | Selection-sensitive |
+| `files.stage_all` | Ctrl+Shift+A | Explicitly document scope |
+
+Finalize this list only after checking Orion's key constants and resolving
+platform conflicts. A default hotkey is part of the action contract and must be
+tested like a button.
+
+## Task breakdown
+
+### Phase 0 — Baseline and inventory
+
+- [ ] Run the current build and test suite; record failures separately from
+  gitclient behavior.
+- [ ] Generate a command matrix from `gitclient.orion`, generated IDs, and all
+  `case ID_*` handlers in `view_menubar.c`.
+- [ ] Mark every action as implemented, partial, missing, selection-dependent,
+  destructive, networked, or UI-only.
+- [ ] Capture the current layout and toolbar behavior as a manual baseline.
+
+Deliverable: `gitclient_action_matrix.md` or an equivalent checked-in test
+fixture, plus a short baseline result in the eventual gitclient README.
+
+### Phase 1 — Make the action manifest correct
+
+- [ ] Decide and document `.orion` semantics for action declaration,
+  cross-surface references, and accelerators.
+- [ ] Fix the toolbar command-reference bug (`*_SYNC`, `*_FETCH`, etc.) and
+  regenerate the header; verify every toolbar ID reaches a real handler.
+- [ ] Add generator validation for unknown references and duplicate command
+  identities.
+- [ ] Add generated action metadata and accelerator definitions.
+- [ ] Add always-on `[gc]` traces for action name/ID, source surface, selection,
+  repository state, result, and refresh decision.
+
+Deliverable: menus, toolbar, context menus, and accelerators all emit the same
+canonical action ID.
+
+### Phase 2 — Extract and harden command execution
+
+- [ ] Introduce a small `gc_action`/`gc_commands` module with a command context
+  containing repository, selected branch/commit/file/stash, and active view.
+- [ ] Move the switch cases from `gc_handle_command()` into action functions;
+  retain the switch only as ID-to-action dispatch.
+- [ ] Give every action an explicit unavailable-state result instead of silently
+  falling through. Show consistent messages for no repository/no selection.
+- [ ] Centralize refresh policy: data reload, table refresh, diff refresh,
+  selection preservation, and status-bar update.
+- [ ] Centralize confirmation policy for discard, undo, branch/tag deletion,
+  force push, and other destructive operations.
+- [ ] Make async operations expose pending/success/failure state and disable or
+  guard duplicate invocations while work is pending.
+
+Deliverable: one callable function per action with deterministic result and
+state effects.
+
+### Phase 3 — Redesign the main view
+
+- [ ] Replace the current two-tab-first composition with the proposed persistent
+  navigator, history center, details/diff pane, and collapsible changes
+  workbench; preserve the existing controls where possible.
+- [ ] Add explicit repository and branch selectors in the top command band.
+- [ ] Add a graph column/control backed by commit parent data. Extend the schema
+  with parent references or a graph layout cache as needed.
+- [ ] Make the details pane reusable for commit and working-tree selections.
+- [ ] Preserve selection and scroll position across refresh when records still
+  exist; add tests for selection invalidation when they do not.
+- [ ] Add enabled/disabled or unavailable visual state for actions based on
+  current context.
+- [ ] Keep event routing in the framework. If hit-testing or scrolling changes,
+  follow `ARCHITECTURE.md` and test nested scrolled children through
+  `handle_mouse()` rather than compensating in the view.
+
+Deliverable: the new layout is navigable with mouse and keyboard and retains
+the existing database-driven data flow.
+
+### Phase 4 — Tests
+
+#### Headless command/action tests (highest value)
+
+- [ ] Enumerate generated actions and assert each has a handler and metadata.
+- [ ] Assert every toolbar item references a known action ID and that its click
+  dispatches that exact ID.
+- [ ] Invoke each safe action against a temporary Git fixture and assert the
+  resulting repository state, database state, selected records, and refresh
+  count.
+- [ ] Test selection-dependent actions with no selection, invalid selection,
+  local branch, remote branch, staged file, unstaged file, stash, and tag.
+- [ ] Test destructive actions' confirmation behavior without requiring a real
+  dialog; inject a confirmation callback.
+- [ ] Test async action completion and failure messages using a fake backend or
+  controlled temporary repository.
+
+#### `.orion`/generator contract tests
+
+- [ ] Compile a fixture containing menus, toolbars, context menus, commands, and
+  accelerators.
+- [ ] Assert aliases/references produce one numeric ID, not a suffixed clone.
+- [ ] Assert unknown commands, duplicate names, duplicate hotkeys, and missing
+  handlers fail generation with actionable diagnostics.
+- [ ] Assert generated metadata is complete enough to enumerate all surfaces.
+
+#### Focused UI/event tests (not screenshot-heavy)
+
+Test the actual framework contract and user-visible commands, not pixels:
+
+- [ ] Toolbar button down/up reaches the parent and invokes the expected action.
+- [ ] Menu item, context-menu item, toolbar button, and accelerator converge on
+  the same command execution path.
+- [ ] Tab switches update view mode and invalidate the correct panes.
+- [ ] Branch, commit, and file selections update dependent views and diff state.
+- [ ] Staging checkbox and double-click behavior mutate the intended file.
+- [ ] Refresh preserves or clears selection according to the documented rule.
+- [ ] Nested scrolled controls deliver the correct content-space row, using the
+  framework routing tests described in `ARCHITECTURE.md`.
+- [ ] Async completion updates status and refreshes exactly once.
+
+Avoid screenshot tests for ordinary command correctness. Add a small number of
+render/layout smoke tests only for stable geometry invariants: required panes
+exist, splitters have usable minimum sizes, toolbar controls are visible, and
+the commit editor/buttons are not clipped. The existing `test_env` and
+event-posting style in `tests/` and `apps/imageeditor/tests/` are the model.
+
+#### Manual QA / exploratory scenarios
+
+- [ ] Open a clean repository, an empty repository, a dirty repository, and a
+  repository with no upstream.
+- [ ] Exercise local/remote branches, merge/rebase conflicts, tags, stashes,
+  untracked files, renamed files, binary files, and large diffs.
+- [ ] Run every toolbar button once from Changes and once from History where it
+  is applicable; verify the `[gc]` trace shows the same action ID as menus.
+- [ ] Exercise default hotkeys with focus in the branch list, history list,
+  diff, and commit editor.
+- [ ] Run with `SDL_VIDEODRIVER=dummy` where supported and retain trace output on
+  failures.
+
+### Phase 5 — Polish and documentation
+
+- [ ] Update `apps/gitclient/README.md` with the new information architecture,
+  action manifest rules, and test commands.
+- [ ] Add a troubleshooting section explaining how to correlate `[gc]`, `[rv]`,
+  and `[tv]` traces.
+- [ ] Document destructive/network action semantics and hotkeys in the Help
+  menu or command palette.
+- [ ] Add a release checklist requiring generated headers to be regenerated and
+  `make test` to pass.
+
+## Suggested implementation order
+
+1. Fix and test command identity/reference generation.
+2. Add action inventory, metadata, accelerator generation, and command tests.
+3. Extract command execution and state/refresh policy.
+4. Implement the layout incrementally: top context band, navigator/details
+   panes, then graph and collapsible changes workbench.
+5. Add the focused UI/event tests and manual QA scenarios.
+6. Polish icons, labels, disabled states, and documentation.
+
+This order makes a toolbar failure diagnosable before layout work adds more
+surfaces and gives the new UI a tested command contract to consume.
+
+## Acceptance criteria
+
+- Every action declared in `.orion` has one stable generated ID, one handler,
+  trace metadata, and at least one automated test.
+- Every toolbar button works or is visibly disabled with a documented reason;
+  no toolbar action silently falls through the dispatcher.
+- Menu, context menu, toolbar, and default-hotkey invocations produce the same
+  command result and state transition.
+- `make test` passes, including gitclient backend, database, generator, and
+  action/event tests.
+- The main view exposes repository context, branch navigation, commit graph or
+  graph-ready history, selected-file diff, and staged-change commit workflow
+  without losing context during refresh.
+- Destructive and network operations are confirmation/error-safe and show
+  progress or failure state.
+- Always-on interaction traces identify source surface, command, selection,
+  state mutation, and refresh cascade.
+
+## Open decisions to resolve during Phase 0
+
+- Whether graph rendering belongs in a new `ReportView` mode or a dedicated
+  `CommitGraphView` control.
+- Whether the bottom Changes workbench is a new collapsible framework control or
+  an initial `SplitView` approximation.
+- Whether hotkey conflicts should be rejected globally or allowed with explicit
+  focus scopes.
+- Whether action handlers should return a small enum (`done`, `unavailable`,
+  `cancelled`, `failed`, `pending`) or a richer result object.
+- Which GitKraken-like features are in scope for the first milestone: graph
+  visualization, quick branch picker, command palette, or repository tabs.
