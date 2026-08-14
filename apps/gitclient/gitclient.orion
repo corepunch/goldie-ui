@@ -440,9 +440,9 @@
             </StackView>
         </form>
 
-        <form name="repositories_dialog" title="Repositories" width="500" auto_layout="1" spacing="6" padding="8">
+        <form name="repositories_dialog" title="Repositories" width="276" auto_layout="1" spacing="6" padding="8">
             <Label text="Known repositories:" />
-            <ComboBox name="repo_list" flags="flexspace" />
+            <ComboBox name="repo_list" />
             <StackView orientation="horizontal" spacing="4">
                 <Button name="add" text="Add..." />
                 <Button name="scan" text="Scan Folder..." />
