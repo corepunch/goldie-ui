@@ -29,6 +29,22 @@ typedef struct { char ctrl[128], db[64], table[64], field[64], klass[64]; } bind
 typedef struct { binding_t v[128]; int n; char db[64], table[64]; } bindings_t;
 typedef struct { char ok_id[256], cancel_id[256]; } button_ids_t;
 
+// A surface reference to a menu-declared action (toolbar/context `menu="x.y"`
+// or `command="x.y"`). Kept separate so unknown references can be rejected.
+typedef struct { char name[ORIONC_MAX_IDENT]; char id[ORIONC_MAX_IDENT]; } cmd_ref_t;
+typedef struct { cmd_ref_t v[ORIONC_MAX_IDS]; int n; } cmd_refs_t;
+
+// Action metadata derived from a menu declaration (menu items are the sole
+// action registry). Emitted as gc_action_meta[].
+typedef struct {
+  char name[ORIONC_MAX_IDENT];     // dotted "remote.sync"
+  char id[ORIONC_MAX_IDENT];       // "ID_REMOTE_SYNC"
+  char label[ORIONC_STRING_SIZE];  // "Sync Current Branch"
+  char category[ORIONC_MAX_IDENT]; // menu name "remote"
+  char hotkey[ORIONC_MAX_IDENT];   // "F5" / "Ctrl+K" / ""
+} action_meta_t;
+typedef struct { action_meta_t v[ORIONC_MAX_IDS]; int n; } action_meta_list_t;
+
 typedef struct {
   const char *xml, *c, *db;
   int size;
@@ -202,14 +218,32 @@ static void emit_defines(FILE *f, const ids_t *ids, const char *base) {
   if (ids->n) LINE("\n");
 }
 
-static void collect_menu_ids(ids_t *ids, xmlNodePtr menu, const char *scope) {
+static void collect_menu_ids(ids_t *ids, action_meta_list_t *meta,
+                             xmlNodePtr menu, const char *scope,
+                             const char *category) {
   EACH_ELEMENT(it, menu) {
-    if (elem(it, "submenu")) { collect_menu_ids(ids, it, scope); continue; }
+    if (elem(it, "submenu")) { collect_menu_ids(ids, meta, it, scope, category); continue; }
     if (!elem(it, "item")) continue;
-    char *name = attr(it, "name"), *label = attr(it, "label"), id[256];
+    char *name = attr(it, "name"), *label = attr(it, "label"), *hotkey = attr(it, "hotkey"), id[256];
     scoped(id, sizeof(id), scope, name, label);
     add_id(ids, id);
-    free(name); free(label);
+    // Record metadata for gc_action_meta[]; detect duplicate action names.
+    if (meta && meta->n < ORIONC_MAX_IDS) {
+      char dotted[ORIONC_MAX_IDENT];
+      snprintf(dotted, sizeof(dotted), "%s.%s", category, nz(name, label));
+      for (int i = 0; i < meta->n; i++)
+        if (eq(meta->v[i].name, dotted))
+          fprintf(stderr, "orionc: duplicate action name '%s' in menu '%s'\n",
+                  dotted, category);
+      action_meta_t *m = &meta->v[meta->n++];
+      memset(m, 0, sizeof(*m));
+      snprintf(m->name, sizeof(m->name), "%s", dotted);
+      snprintf(m->id, sizeof(m->id), "%s", id);
+      snprintf(m->label, sizeof(m->label), "%s", nz(label, name));
+      snprintf(m->category, sizeof(m->category), "%s", category);
+      if (hotkey && *hotkey) snprintf(m->hotkey, sizeof(m->hotkey), "%s", hotkey);
+    }
+    free(name); free(label); free(hotkey);
   }
 }
 
@@ -223,34 +257,99 @@ static const char *toolbar_type(xmlNodePtr n) {
   return NULL;
 }
 
-static void command_ref(char *out, size_t cap, const char *command,
-                        const char *scope, const char *name, const char *label) {
-  if (command && *command) { char id[ORIONC_MAX_IDENT]; ident(id, sizeof(id), command, true); snprintf(out, cap, "ID_%s", id); }
-  else scoped(out, cap, scope, name, label);
+// Resolve a surface item to its command ID. A dotted menu/command reference
+// ("remote.sync") resolves to the menu-declared ID_GROUP_ACTION and returns
+// true so the caller can validate it. Otherwise falls back to the legacy
+// scoped ID_<scope>_<name> and returns false.
+static bool resolve_action(char *out, size_t cap, const char *command,
+                           const char *menu, const char *scope,
+                           const char *name, const char *fallback) {
+  const char *ref = (command && *command) ? command
+                  : (menu && strchr(menu, '.')) ? menu : NULL;
+  if (ref) {
+    char id[ORIONC_MAX_IDENT];
+    ident(id, sizeof(id), ref, true);
+    snprintf(out, cap, "ID_%s", id);
+    return true;
+  }
+  scoped(out, cap, nz(menu, scope), name, fallback);
+  return false;
 }
 
-static void collect_command_ids(ids_t *ids, xmlNodePtr menus, xmlNodePtr toolbars) {
-  EACH_ELEMENT(m, menus) if (elem(m, "menu")) { char *name = attr(m, "name"), scope[128]; ident(scope, sizeof(scope), name, true); collect_menu_ids(ids, m, scope); free(name); }
+// Parse a hotkey spec ("F5", "Ctrl+K", "Ctrl+Shift+F") into C expressions for
+// the accel_t fVirt and key fields. Returns true on success.
+static bool parse_hotkey(const char *spec, char *fvirt, size_t fv_cap,
+                         char *key, size_t key_cap) {
+  if (!spec || !*spec) return false;
+  char buf[64];
+  snprintf(buf, sizeof(buf), "%s", spec);
+  for (char *p = buf; *p; p++) if (*p >= 'a' && *p <= 'z') *p = (char)(*p - 'a' + 'A');
+
+  bool ctrl = false, shift = false, alt = false;
+  const char *keyname = NULL;
+  char *tok = buf;
+  while (*tok) {
+    char *sep = strchr(tok, '+');
+    if (sep) *sep = 0;
+    if (eq(tok, "CTRL")) ctrl = true;
+    else if (eq(tok, "SHIFT")) shift = true;
+    else if (eq(tok, "ALT")) alt = true;
+    else keyname = tok;
+    if (!sep) break;
+    tok = sep + 1;
+  }
+  if (!keyname) return false;
+
+  char k[64] = {0};
+  if (keyname[0] == 'F' && keyname[1] >= '1' && keyname[1] <= '9') {
+    int fn = atoi(keyname + 1);
+    if (fn >= 1 && fn <= 12) snprintf(k, sizeof(k), "AX_KEY_F%d", fn);
+  } else if (eq(keyname, "SPACE")) snprintf(k, sizeof(k), "AX_KEY_SPACE");
+  else if (eq(keyname, "ENTER")) snprintf(k, sizeof(k), "AX_KEY_ENTER");
+  else if (eq(keyname, "SLASH")) snprintf(k, sizeof(k), "AX_KEY_SLASH");
+  else if (keyname[0] >= 'A' && keyname[0] <= 'Z' && keyname[1] == 0)
+    snprintf(k, sizeof(k), "AX_KEY_%c", keyname[0]);
+  else if (keyname[0] >= '0' && keyname[0] <= '9' && keyname[1] == 0)
+    snprintf(k, sizeof(k), "AX_KEY_%c", keyname[0]);
+  if (!k[0]) return false;
+
+  snprintf(fvirt, fv_cap, "FVIRTKEY%s%s%s",
+           ctrl ? " | FCONTROL" : "", shift ? " | FSHIFT" : "", alt ? " | FALT" : "");
+  snprintf(key, key_cap, "%s", k);
+  return true;
+}
+
+static void collect_toolbar_ids(ids_t *ids, cmd_refs_t *refs, xmlNodePtr toolbars) {
   EACH_ELEMENT(tb, toolbars) if (elem(tb, "toolbar")) {
     char *tbid = attr(tb, "name"), tb_scope[128]; ident(tb_scope, sizeof(tb_scope), tbid, true);
     EACH_ELEMENT(it, tb) if (toolbar_type(it) && !elem(it, "separator") && !elem(it, "spacer")) {
-      char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *text = attr(it, "text"), id[256], scope[128];
-      if (command && *command) command_ref(id, sizeof(id), command, NULL, NULL, NULL);
-      else { ident(scope, sizeof(scope), nz(menu, tb_scope), true); scoped(id, sizeof(id), scope, name, text); }
-      add_id(ids, id);
+      char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *text = attr(it, "text"), id[256];
+      if (resolve_action(id, sizeof(id), command, menu, tb_scope, name, text)) {
+        if (refs && refs->n < ORIONC_MAX_IDS) {
+          snprintf(refs->v[refs->n].name, ORIONC_MAX_IDENT, "%s", nz(command, menu));
+          snprintf(refs->v[refs->n].id, ORIONC_MAX_IDENT, "%s", id);
+          refs->n++;
+        }
+      } else add_id(ids, id);
       free(command); free(menu); free(name); free(text);
     }
     free(tbid);
   }
 }
 
-static void collect_context_ids(ids_t *ids, xmlNodePtr contexts) {
+static void collect_context_ids(ids_t *ids, cmd_refs_t *refs, xmlNodePtr contexts) {
   EACH_ELEMENT(menu, contexts) if (elem(menu, "contextmenu")) {
     char *scope = attr(menu, "name");
     EACH_ELEMENT(it, menu) if (elem(it, "item")) {
-      char *command = attr(it, "command"), *name = attr(it, "name"), *label = attr(it, "label"), id[256];
-      if (!command || !*command) { command_ref(id, sizeof(id), NULL, scope, name, label); add_id(ids, id); }
-      free(command); free(name); free(label);
+      char *command = attr(it, "command"), *menu_attr = attr(it, "menu"), *name = attr(it, "name"), *label = attr(it, "label"), id[256];
+      if (resolve_action(id, sizeof(id), command, menu_attr, scope, name, label)) {
+        if (refs && refs->n < ORIONC_MAX_IDS) {
+          snprintf(refs->v[refs->n].name, ORIONC_MAX_IDENT, "%s", nz(command, menu_attr));
+          snprintf(refs->v[refs->n].id, ORIONC_MAX_IDENT, "%s", id);
+          refs->n++;
+        }
+      } else add_id(ids, id);
+      free(command); free(menu_attr); free(name); free(label);
     }
     free(scope);
   }
@@ -299,10 +398,10 @@ static void emit_menu_items(FILE *f, xmlNodePtr menu, const char *base, const ch
         OUT("  { %s, 0, NULL, 0 },\n", label);
       free(raw);
     } else if (elem(it, "item")) {
-      char *name = attr(it, "name"), *raw = attr(it, "label"), *shortcut = attr(it, "shortcut");
-      char id[256], label[ORIONC_STRING_SIZE]; scoped(id, sizeof(id), scope, name, raw); cstr_shortcut(label, sizeof(label), raw, shortcut);
+      char *name = attr(it, "name"), *raw = attr(it, "label"), *hotkey = attr(it, "hotkey");
+      char id[256], label[ORIONC_STRING_SIZE]; scoped(id, sizeof(id), scope, name, raw); cstr_shortcut(label, sizeof(label), raw, hotkey);
       OUT("  { %s, %s, NULL, 0 },\n", label, id);
-      free(name); free(raw); free(shortcut);
+      free(name); free(raw); free(hotkey);
     }
     emit_if(f, it, true);
   }
@@ -331,10 +430,10 @@ static void emit_context_menus(FILE *f, xmlNodePtr contexts) {
     EACH_ELEMENT(it, menu) {
       if (elem(it, "separator")) LINE("  { NULL, 0, NULL, 0 },\n");
       else if (elem(it, "item")) {
-        char *command = attr(it, "command"), *item_name = attr(it, "name"), *raw = attr(it, "label"), id[256], label[ORIONC_STRING_SIZE];
-        command_ref(id, sizeof(id), command, name, item_name, raw); cstr(label, sizeof(label), raw);
+        char *command = attr(it, "command"), *menu_attr = attr(it, "menu"), *item_name = attr(it, "name"), *raw = attr(it, "label"), id[256], label[ORIONC_STRING_SIZE];
+        resolve_action(id, sizeof(id), command, menu_attr, name, item_name, raw); cstr(label, sizeof(label), raw);
         OUT("  { %s, %s, NULL, 0 },\n", label, id);
-        free(command); free(item_name); free(raw);
+        free(command); free(menu_attr); free(item_name); free(raw);
       }
     }
     OUT("};\n#define %s_COUNT ((int)(sizeof(%s_ITEMS) / sizeof(%s_ITEMS[0])))\n\n", base, base, base);
@@ -348,11 +447,9 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
     EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
       char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
-      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE], menu_scope[128];
-      if (!elem(it, "separator") && !elem(it, "spacer")) {
-        if (command && *command) command_ref(id, sizeof(id), command, NULL, NULL, NULL);
-        else { ident(menu_scope, sizeof(menu_scope), nz(menu, scope), true); scoped(id, sizeof(id), menu_scope, name, text); }
-      }
+      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE];
+      if (!elem(it, "separator") && !elem(it, "spacer"))
+        resolve_action(id, sizeof(id), command, menu, scope, name, text);
       if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
       if (tooltip && *tooltip) cstr(tipq, sizeof(tipq), tooltip); else snprintf(tipq, sizeof(tipq), "NULL");
       OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq, tipq);
@@ -361,6 +458,69 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
     free(tbid);
   }
+}
+
+// Validate the action manifest: reject unknown references, duplicate hotkeys,
+// and malformed hotkey strings. Returns the number of errors found.
+static int validate_actions(const ids_t *ids, const cmd_refs_t *refs,
+                            const action_meta_list_t *meta) {
+  int errors = 0;
+  for (int i = 0; i < refs->n; i++) {
+    bool found = false;
+    for (int j = 0; j < ids->n; j++) if (eq(ids->v[j].name, refs->v[i].id)) { found = true; break; }
+    if (!found) {
+      fprintf(stderr, "orionc: unknown command reference '%s' (resolves to %s)\n",
+              refs->v[i].name, refs->v[i].id);
+      errors++;
+    }
+  }
+  for (int i = 0; i < meta->n; i++) {
+    const action_meta_t *m = &meta->v[i];
+    if (!m->hotkey[0]) continue;
+    char fvirt[64], key[64];
+    if (!parse_hotkey(m->hotkey, fvirt, sizeof(fvirt), key, sizeof(key))) {
+      fprintf(stderr, "orionc: malformed hotkey '%s' on action '%s'\n", m->hotkey, m->name);
+      errors++;
+      continue;
+    }
+    for (int j = i + 1; j < meta->n; j++)
+      if (eq(m->hotkey, meta->v[j].hotkey)) {
+        fprintf(stderr, "orionc: duplicate hotkey '%s' on actions '%s' and '%s'\n",
+                m->hotkey, m->name, meta->v[j].name);
+        errors++;
+      }
+  }
+  return errors;
+}
+
+static void emit_action_meta(FILE *f, const char *prefix, const action_meta_list_t *meta) {
+  if (!meta || !meta->n) return;
+  OUT("typedef struct {\n  uint16_t id;\n  const char *name;\n  const char *label;\n  const char *category;\n  const char *hotkey;\n} %s_action_meta_t;\n\n", prefix);
+  OUT("static const %s_action_meta_t %s_action_meta[] = {\n", prefix, prefix);
+  for (int i = 0; i < meta->n; i++) {
+    char label[ORIONC_STRING_SIZE], name[ORIONC_STRING_SIZE], category[ORIONC_STRING_SIZE], hotkey[ORIONC_STRING_SIZE];
+    cstr(label, sizeof(label), meta->v[i].label);
+    cstr(name, sizeof(name), meta->v[i].name);
+    cstr(category, sizeof(category), meta->v[i].category);
+    cstr(hotkey, sizeof(hotkey), meta->v[i].hotkey);
+    OUT("  { %s, %s, %s, %s, %s },\n", meta->v[i].id, name, label, category, hotkey);
+  }
+  OUT("};\n#define %s_action_meta_count ((int)(sizeof(%s_action_meta) / sizeof(%s_action_meta[0])))\n\n", prefix, prefix, prefix);
+}
+
+static void emit_accelerators(FILE *f, const char *prefix, const action_meta_list_t *meta) {
+  if (!meta) return;
+  int n = 0;
+  for (int i = 0; i < meta->n; i++) if (meta->v[i].hotkey[0]) n++;
+  if (!n) return;
+  OUT("static const accel_t %s_default_accels[] = {\n", prefix);
+  for (int i = 0; i < meta->n; i++) {
+    if (!meta->v[i].hotkey[0]) continue;
+    char fvirt[64], key[64];
+    if (!parse_hotkey(meta->v[i].hotkey, fvirt, sizeof(fvirt), key, sizeof(key))) continue;
+    OUT("  { %s, %s, %s },\n", fvirt, key, meta->v[i].id);
+  }
+  OUT("};\n#define %s_default_accel_count ((int)(sizeof(%s_default_accels) / sizeof(%s_default_accels[0])))\n\n", prefix, prefix, prefix);
 }
 
 static const field_type_t *field_type(const char *type) { for (int i = 0; i < ARRAY_LEN(kFieldTypes); i++) if (eq(type, kFieldTypes[i].xml)) return &kFieldTypes[i]; return &kFieldTypes[0]; }
@@ -742,14 +902,18 @@ int main(int argc, char **argv) {
   FILE *f = fopen(output, "wb"); if (!f) { perror(output); xmlFreeDoc(doc); return 1; }
   char guard[256], pre[128]; ident(guard, sizeof(guard), output, true); ident(pre, sizeof(pre), prefix, false);
   xmlNodePtr menus = child(root, "menus"), contexts = child(root, "contextmenus"), toolbars = child(root, "toolbars"), forms = child(root, "forms"), databases = child(root, "databases"), database = databases ? child(databases, "database") : child(root, "database");
-  ids_t commands = {0}, controls = {0}; collect_command_ids(&commands, menus, toolbars); collect_context_ids(&commands, contexts);
+  ids_t commands = {0}, controls = {0}; cmd_refs_t refs = {0}; action_meta_list_t meta = {0};
+  EACH_ELEMENT(m, menus) if (elem(m, "menu")) { char *name = attr(m, "name"), scope[128]; ident(scope, sizeof(scope), name, true); collect_menu_ids(&commands, &meta, m, scope, name); free(name); }
+  collect_toolbar_ids(&commands, &refs, toolbars); collect_context_ids(&commands, &refs, contexts);
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"), form_id[128]; if (!only || eq(name, only)) { ident(form_id, sizeof(form_id), name, false); collect_control_ids(&controls, form, form_id); } free(name); }
+  int errors = validate_actions(&commands, &refs, &meta);
   tpl(f, "/* Generated by orionc_alt from {{input}}. */\n#ifndef {{guard}}\n#define {{guard}}\n\n#include <orion/ui.h>\n#include <orion/user/icons.h>\n\n",
       (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
   emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
+  emit_action_meta(f, pre, &meta); emit_accelerators(f, pre, &meta);
   emit_menus(f, menus); emit_context_menus(f, contexts); emit_toolbars(f, toolbars); emit_database(f, database, pre);
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; } free(name); }
   OUT("#endif /* %s */\n", guard);
   fclose(f); xmlFreeDoc(doc);
-  return 0;
+  return errors ? 1 : 0;
 }

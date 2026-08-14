@@ -75,6 +75,11 @@ static database_t *make_db(void) {
     return create_database("gc-test", "gitclient_db", NULL);
 }
 
+static database_t *make_changes_db(void) {
+    DB_CLASS(changes_database_proc);
+    return create_database("gc-test-changes", "changes_database_proc", NULL);
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 // 1. dbLoad populates branches ────────────────────────────────────────────────
@@ -119,7 +124,7 @@ void test_dbload_populates_branches(void) {
 // 2. dbLoad populates commits ─────────────────────────────────────────────────
 
 void test_dbload_populates_commits(void) {
-    TEST("dbLoad: commits table populated for all branches");
+    TEST("dbLoad: current branch's commits table populated eagerly");
     test_env_init();
     database_t *db = make_db();
     git_repo_t *repo = git_repo_open(s_repo);
@@ -129,8 +134,9 @@ void test_dbload_populates_commits(void) {
 
     result_node_t *rows = (result_node_t *)send_db_message(
         db, dbFetch, MAKEDWORD(ID_DB_COMMITS, 0), (void *)(intptr_t)0);
-    // main has 2 commits, feature has 3 (inherits main) → at least 5 total rows
-    ASSERT_TRUE(result_count(rows) >= 5);
+    // Only the current branch (main) is loaded eagerly; other branches
+    // lazy-load when selected. main has exactly 2 commits.
+    ASSERT_EQUAL(result_count(rows), 2);
 
     // Verify fields are populated on the first commit
     db_commit_t *c = rows ? *(db_commit_t **)rows->data : NULL;
@@ -418,7 +424,7 @@ void test_files_per_commit_are_independent(void) {
 // 9. Working-tree files have commit_id == 0 ───────────────────────────────────
 
 void test_working_tree_files_have_zero_commit_id(void) {
-    TEST("dbLoad: working-tree dirty files stored with commit_id == 0");
+    TEST("changes dbLoad: working-tree dirty files stored with commit_id == 0");
     // Stage a new file so the working tree is dirty
     char p[512];
     snprintf(p, sizeof(p), "%s/dirty.txt", s_repo);
@@ -426,7 +432,7 @@ void test_working_tree_files_have_zero_commit_id(void) {
     ASSERT_TRUE(gct_git(s_repo, "add dirty.txt"));
 
     test_env_init();
-    database_t *db = make_db();
+    database_t *db = make_changes_db();
     git_repo_t *repo = git_repo_open(s_repo);
     ASSERT_NOT_NULL(repo);
 
@@ -434,7 +440,7 @@ void test_working_tree_files_have_zero_commit_id(void) {
 
     // commit_id == 0 means "working tree" — fetch all (no filter) to see them
     result_node_t *all_files = (result_node_t *)send_db_message(
-        db, dbFetch, MAKEDWORD(ID_DB_FILES, 0), (void *)(intptr_t)0);
+        db, dbFetch, MAKEDWORD(TABLE_FILES, 0), (void *)(intptr_t)0);
     bool found_wt = false;
     for (result_node_t *n = all_files; n; n = n->next) {
         db_file_t *f = *(db_file_t **)n->data;
@@ -498,7 +504,7 @@ void test_generated_context_menus_reuse_shared_commands(void) {
     ASSERT_EQUAL(CONTEXT_MENU_BRANCHES_ITEMS[3].id, ID_BRANCH_DELETE);
     ASSERT_EQUAL(CONTEXT_MENU_TAGS_ITEMS[0].id, ID_TAG_DELETE);
     ASSERT_EQUAL(CONTEXT_MENU_STASH_ITEMS[0].id, ID_COMMIT_STASH_POP);
-    ASSERT_EQUAL(CONTEXT_MENU_STASH_ITEMS[1].id, ID_STASH_DROP);
+    ASSERT_EQUAL(CONTEXT_MENU_STASH_ITEMS[1].id, ID_COMMIT_STASH_DROP);
     ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[0].id, ID_FILES_STAGE);
     ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[1].id, ID_FILES_UNSTAGE);
     ASSERT_EQUAL(CONTEXT_MENU_FILES_ITEMS[3].id, ID_FILES_STAGE_ALL);
@@ -540,6 +546,65 @@ void test_toolbar_buttons_reference_menu_command_ids(void) {
     PASS();
 }
 
+// 12. Action metadata and accelerators enumerate the menu-declared manifest ───
+
+static bool gc_meta_has(uint16_t id) {
+    for (int i = 0; i < gitclient_action_meta_count; i++)
+        if (gitclient_action_meta[i].id == id) return true;
+    return false;
+}
+
+static const accel_t *gc_find_accel(uint16_t cmd) {
+    for (int i = 0; i < gitclient_default_accel_count; i++)
+        if (gitclient_default_accels[i].cmd == cmd) return &gitclient_default_accels[i];
+    return NULL;
+}
+
+void test_action_metadata_and_accelerators(void) {
+    TEST("gitclient Orion: metadata + accels enumerate menu-declared actions");
+    ASSERT_EQUAL(gitclient_action_meta_count, 39);
+
+    for (int i = 0; i < gitclient_action_meta_count; i++) {
+        ASSERT_TRUE(gitclient_action_meta[i].name[0] != '\0');
+        ASSERT_TRUE(gitclient_action_meta[i].label[0] != '\0');
+        ASSERT_TRUE(gitclient_action_meta[i].category[0] != '\0');
+        ASSERT_TRUE(gitclient_action_meta[i].id >= ID_COMMAND_BASE);
+    }
+
+    // Every toolbar button references an action in the manifest.
+    for (int i = 0; i < TB_MAIN_COUNT; i++)
+        if (TB_MAIN[i].type == TOOLBAR_ITEM_BUTTON)
+            ASSERT_TRUE(gc_meta_has((uint16_t)TB_MAIN[i].ident));
+
+    // Every context-menu entry that is not a separator references the manifest.
+    for (int i = 0; i < CONTEXT_MENU_BRANCHES_COUNT; i++)
+        if (CONTEXT_MENU_BRANCHES_ITEMS[i].id) ASSERT_TRUE(gc_meta_has((uint16_t)CONTEXT_MENU_BRANCHES_ITEMS[i].id));
+    for (int i = 0; i < CONTEXT_MENU_FILES_COUNT; i++)
+        if (CONTEXT_MENU_FILES_ITEMS[i].id) ASSERT_TRUE(gc_meta_has((uint16_t)CONTEXT_MENU_FILES_ITEMS[i].id));
+    for (int i = 0; i < CONTEXT_MENU_STASH_COUNT; i++)
+        if (CONTEXT_MENU_STASH_ITEMS[i].id) ASSERT_TRUE(gc_meta_has((uint16_t)CONTEXT_MENU_STASH_ITEMS[i].id));
+
+    // Every accelerator targets an action that declares a hotkey, and the
+    // hotkey-bearing actions match the accelerator table one-to-one.
+    int hotkey_count = 0;
+    for (int i = 0; i < gitclient_action_meta_count; i++)
+        if (gitclient_action_meta[i].hotkey[0]) hotkey_count++;
+    ASSERT_EQUAL(hotkey_count, gitclient_default_accel_count);
+    for (int i = 0; i < gitclient_default_accel_count; i++)
+        ASSERT_TRUE(gc_meta_has(gitclient_default_accels[i].cmd));
+
+    // Spot-check the documented defaults: F5 → refresh, Ctrl+K → commit.
+    const accel_t *refresh = gc_find_accel(ID_REPO_REFRESH);
+    const accel_t *commit  = gc_find_accel(ID_COMMIT_COMMIT);
+    ASSERT_NOT_NULL(refresh);
+    ASSERT_NOT_NULL(commit);
+    ASSERT_EQUAL(refresh->key, AX_KEY_F5);
+    ASSERT_EQUAL(refresh->fVirt & FCONTROL, 0);
+    ASSERT_EQUAL(commit->key, AX_KEY_K);
+    ASSERT_TRUE((commit->fVirt & FCONTROL) != 0);
+    PASS();
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -562,6 +627,7 @@ int main(void) {
     test_generated_context_menus_attach_to_expected_controls();
     test_generated_context_menus_reuse_shared_commands();
     test_toolbar_buttons_reference_menu_command_ids();
+    test_action_metadata_and_accelerators();
 
     gct_remove_dir(s_repo);
 

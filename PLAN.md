@@ -97,36 +97,41 @@ button/menu/context menu/accelerator
 `gc_handle_command()` can remain as a compatibility wrapper during migration,
 but new code should not put business logic in toolbar-specific branches.
 
-### `.orion` as the action manifest
+### `.orion` menus as the action manifest
 
-Yes: define all user-facing actions in `.orion`, including actions that do not
-currently have a toolbar button. The `.orion` file is the right source for
-menus, toolbars, context menus, labels, icons, and default accelerators because
-the generator can validate that every surface refers to a real action.
+The menu tree is the action registry. Every user-facing action is declared once
+as a menu item, even when it is not currently exposed through a toolbar. Other
+surfaces reference that declaration using the existing `command="remote.sync"`
+style. This keeps the app skeleton visible in one place while allowing the same
+action to appear in a menu, toolbar, context menu, command palette, or test.
 
-Do not make layout position the identity of an action. Prefer an explicit
-reference such as `command="remote.sync"` (or a generator-supported equivalent)
-for toolbar/context-menu items, and reserve `name` for the action declaration.
-The current `menu="remote.sync"` usage must be corrected or the generator must
-make its semantics unambiguous: the generated `ID_REMOTE_SYNC_SYNC` versus the
-handler's `ID_REMOTE_SYNC` is the existing failure mode.
-
-Add an explicit accelerator section or attributes to the `.orion` schema, for
-example:
+The menu item owns the action identity, label, and default hotkey:
 
 ```xml
-<commands>
-  <command name="repo.refresh" default-hotkey="F5" />
-  <command name="commit.commit" default-hotkey="Ctrl+K" />
-  <command name="repo.search" default-hotkey="Ctrl+Shift+F" />
-</commands>
+<menu name="repo" label="Repo">
+  <item name="refresh" label="Refresh" hotkey="F5" />
+  <item name="search" label="Search..." hotkey="Ctrl+Shift+F" />
+</menu>
+
+<toolbars>
+  <toolbar name="main">
+    <Button name="refresh" command="repo.refresh"
+            icon="sysicon_arrow_refresh" text="Refresh" />
+  </toolbar>
+</toolbars>
 ```
 
-The generator should reject duplicate hotkeys, unknown command references,
-duplicate action declarations, and actions with no handler/test entry. It should
-emit the accelerator table and an action metadata table so tests can enumerate
-the complete manifest. Platform-specific modifier translation belongs in the
-accelerator layer, not in individual command handlers.
+The generator should reject duplicate menu action names, unknown `command`
+references, duplicate hotkeys, and malformed hotkey strings. It should emit one
+stable command ID per menu item, use that ID for every reference, and generate
+the accelerator table and action metadata from the menu declarations.
+Platform-specific modifier translation belongs in the accelerator layer, not in
+individual command handlers.
+
+The current generated `ID_REMOTE_SYNC_SYNC` versus handler `ID_REMOTE_SYNC`
+problem is therefore a generator/reference bug, not a reason to introduce a
+second action registry. Fix the generator so `command="remote.sync"` resolves to
+the menu item's existing `ID_REMOTE_SYNC`.
 
 Suggested initial defaults:
 
@@ -164,13 +169,15 @@ fixture, plus a short baseline result in the eventual gitclient README.
 
 ### Phase 1 — Make the action manifest correct
 
-- [ ] Decide and document `.orion` semantics for action declaration,
-  cross-surface references, and accelerators.
-- [ ] Fix the toolbar command-reference bug (`*_SYNC`, `*_FETCH`, etc.) and
-  regenerate the header; verify every toolbar ID reaches a real handler.
-- [ ] Add generator validation for unknown references and duplicate command
-  identities.
-- [ ] Add generated action metadata and accelerator definitions.
+- [ ] Document that menu items are the sole action declarations and that
+  toolbars/context menus reference them with `command="group.action"`.
+- [ ] Add menu-item hotkey parsing and generated accelerator definitions.
+- [ ] Fix the reference-generation bug (`*_SYNC`, `*_FETCH`, etc.) and
+  regenerate the header; verify every referenced surface uses the menu
+  declaration's existing ID.
+- [ ] Add generator validation for unknown command references, duplicate action
+  names within a menu, duplicate hotkeys, and malformed hotkeys.
+- [ ] Add generated action metadata derived from menu declarations.
 - [ ] Add always-on `[gc]` traces for action name/ID, source surface, selection,
   repository state, result, and refresh decision.
 
@@ -219,7 +226,7 @@ the existing database-driven data flow.
 
 #### Headless command/action tests (highest value)
 
-- [ ] Enumerate generated actions and assert each has a handler and metadata.
+- [ ] Enumerate menu-declared actions and assert each has a handler and metadata.
 - [ ] Assert every toolbar item references a known action ID and that its click
   dispatches that exact ID.
 - [ ] Invoke each safe action against a temporary Git fixture and assert the
@@ -234,11 +241,13 @@ the existing database-driven data flow.
 
 #### `.orion`/generator contract tests
 
-- [ ] Compile a fixture containing menus, toolbars, context menus, commands, and
-  accelerators.
-- [ ] Assert aliases/references produce one numeric ID, not a suffixed clone.
-- [ ] Assert unknown commands, duplicate names, duplicate hotkeys, and missing
-  handlers fail generation with actionable diagnostics.
+- [ ] Compile a fixture containing menu-declared actions, toolbar references,
+  context-menu references, and hotkeys.
+- [ ] Assert every alias/reference produces the menu item's one numeric ID, not
+  a suffixed clone such as `ID_REMOTE_SYNC_SYNC`.
+- [ ] Assert unknown menu references, duplicate menu action names, duplicate
+  hotkeys, malformed hotkeys, and missing handlers fail generation with
+  actionable diagnostics.
 - [ ] Assert generated metadata is complete enough to enumerate all surfaces.
 
 #### Focused UI/event tests (not screenshot-heavy)

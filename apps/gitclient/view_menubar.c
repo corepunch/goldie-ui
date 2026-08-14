@@ -4,20 +4,8 @@
 #include <orion/gem.h>
 
 // ============================================================
-// Accelerator table
+// Accelerator table — generated from menu-item hotkeys in gitclient.orion.
 // ============================================================
-
-static const accel_t kAccelEntries[] = {
-  { FVIRTKEY | FCONTROL, AX_KEY_K,  ID_COMMIT_COMMIT },
-  { FVIRTKEY,            AX_KEY_F5, ID_REPO_REFRESH  },
-  { FVIRTKEY,            AX_KEY_SLASH, 0 }, // will be handled via evKeyDown
-  { FVIRTKEY | FCONTROL, AX_KEY_F,  ID_REMOTE_FETCH  },
-  { FVIRTKEY | FCONTROL, AX_KEY_N,  ID_BRANCH_NEW    },
-  { FVIRTKEY | FCONTROL | FSHIFT, AX_KEY_N, ID_FILE_CLONE },
-  { FVIRTKEY | FCONTROL | FSHIFT, AX_KEY_F, ID_REPO_SEARCH },
-  { FVIRTKEY | FCONTROL, AX_KEY_D,  ID_BRANCH_DELETE },
-  { FVIRTKEY | FCONTROL, AX_KEY_M,  ID_BRANCH_MERGE  },
-};
 
 // ============================================================
 // Helper: get selected branch name from branches list
@@ -70,8 +58,8 @@ void gc_create_menubar(void) {
                                  gc_handle_command,
                                  gc->hinstance);
 
-  int accel_count = (int)(sizeof(kAccelEntries) / sizeof(kAccelEntries[0]));
-  gc->accel = load_accelerators(kAccelEntries, accel_count);
+  gc->accel = load_accelerators(gitclient_default_accels,
+                                gitclient_default_accel_count);
   if (gc->menubar_win && gc->accel)
     send_message(gc->menubar_win, kMenuBarMessageSetAccelerators,
                  0, gc->accel);
@@ -81,9 +69,21 @@ void gc_create_menubar(void) {
 // Command handler
 // ============================================================
 
+static const char *gc_action_name(uint16_t id) {
+  for (int i = 0; i < gitclient_action_meta_count; i++)
+    if (gitclient_action_meta[i].id == id) return gitclient_action_meta[i].name;
+  return "(unknown)";
+}
+
 void gc_handle_command(uint16_t id) {
   gc_state_t *gc = g_gc;
   if (!gc) return;
+
+  GC_TRACE("command id=%d name=%s repo=%s view=%s commit=%d file=%d",
+           (int)id, gc_action_name(id),
+           gc->repo ? git_repo_path(gc->repo) : "(none)",
+           gc->history_mode ? "history" : "changes",
+           gc->selected_commit, gc->selected_file);
 
   GC_LOG("gc_handle_command: id=%d", (int)id);
 
@@ -332,7 +332,7 @@ void gc_handle_command(uint16_t id) {
       (void)system(cmd); break;
     }
 
-    case ID_STASH_DROP: {
+    case ID_COMMIT_STASH_DROP: {
       db_stash_t *stash = gc->stash_win ? (db_stash_t *)(intptr_t)send_message(
         gc->stash_win, tvGetSelectedRecord, 0, NULL) : NULL;
       if (!stash) { message_box(gc->main_win, "No stash selected.", "Drop Stash", MB_OK); break; }
