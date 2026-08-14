@@ -2,6 +2,19 @@
 
 A SmartGit-style repository viewer built with the Orion UI framework.
 
+## Menu tree as the application map
+
+`gitclient.orion` treats the menu tree as the complete map of user-facing Git
+capabilities. Each menu item declares one action and may declare its default
+keyboard shortcut with `shortcut="..."`. Toolbars and context menus reference
+those actions with fully qualified `command="group.action"` values; they never
+create separate command IDs.
+
+If a new user operation cannot be represented by an existing menu item, add the
+menu item first, then expose it on other surfaces as needed. This gives menus,
+toolbar buttons, context menus, keyboard shortcuts, and tests one shared action
+identity.
+
 ## Architecture
 
 The application follows a **database-driven** pattern where the model layer defines data structures and the UI auto-populates from the database. Views contain minimal code — almost no manual population loops, no array management, no hardcoded column setup.
@@ -27,7 +40,7 @@ Views are bound to database columns in `gitclient.orion`. When you call `send_me
 
 | File | Purpose |
 |------|---------|
-| `gitclient.orion` | Declarative schema, menus, toolbars, forms |
+| `gitclient.orion` | Declarative schema, capability map, shortcuts, toolbars, forms |
 | `gitclient_db.c` | Database procedure — in-memory tables populated from git |
 | `controller.c` | Business logic — `gc_load_from_git()`, stage, commit, branch |
 | `git_backend.c` | Git CLI wrapper (popen-based) |

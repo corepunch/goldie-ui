@@ -99,18 +99,38 @@ but new code should not put business logic in toolbar-specific branches.
 
 ### `.orion` menus as the action manifest
 
-The menu tree is the action registry. Every user-facing action is declared once
-as a menu item, even when it is not currently exposed through a toolbar. Other
-surfaces reference that declaration using the existing `command="remote.sync"`
-style. This keeps the app skeleton visible in one place while allowing the same
-action to appear in a menu, toolbar, context menu, command palette, or test.
+The menu tree is both the action registry and a map of the application. Every
+user-invokable capability should be discoverable as a menu command, even when it
+is not currently exposed through a toolbar. Other surfaces reference that
+declaration using the existing `command="remote.sync"` style. This keeps the app
+skeleton visible in one place while allowing the same action to appear in a
+menu, toolbar, context menu, command palette, hotkey, or test.
 
-The menu item owns the action identity, label, and default hotkey:
+This gives us a useful invariant: if a user can cause a state mutation or
+application operation, there must be a menu-declared command for it. Toolbars
+and context menus are ergonomic projections of that map, not separate command
+systems. Internal framework notifications, lifecycle messages, and purely
+visual state changes are not user actions and do not need menu entries.
+
+Consequences:
+
+- menu categories describe the application’s capability areas;
+- command IDs and metadata originate only from menu items;
+- every toolbar/context-menu/hotkey reference must resolve to a menu item;
+- command tests can enumerate the menu tree to find the complete user-facing
+  surface;
+- tool-specific shortcuts, such as imageeditor’s tool hotkeys, should either
+  reference an existing menu command or become entries in a suitable `Tools`
+  menu rather than remaining invisible C-only commands.
+
+The menu item owns the action identity, label, and default shortcut. Use the
+established `shortcut` attribute spelling (the generator keeps `hotkey` as a
+backward-compatible alias):
 
 ```xml
 <menu name="repo" label="Repo">
-  <item name="refresh" label="Refresh" hotkey="F5" />
-  <item name="search" label="Search..." hotkey="Ctrl+Shift+F" />
+  <item name="refresh" label="Refresh" shortcut="F5" />
+  <item name="search" label="Search..." shortcut="Ctrl+Shift+F" />
 </menu>
 
 <toolbars>
@@ -156,7 +176,7 @@ tested like a button.
 
 ### Phase 0 — Baseline and inventory
 
-- [ ] Run the current build and test suite; record failures separately from
+- [x] Run the current build and test suite; record failures separately from
   gitclient behavior.
 - [ ] Generate a command matrix from `gitclient.orion`, generated IDs, and all
   `case ID_*` handlers in `view_menubar.c`.
@@ -169,24 +189,30 @@ fixture, plus a short baseline result in the eventual gitclient README.
 
 ### Phase 1 — Make the action manifest correct
 
-- [ ] Document that menu items are the sole action declarations and that
+- [x] Document that menu items are the sole action declarations and that
   toolbars/context menus reference them with `command="group.action"`.
-- [ ] Add menu-item hotkey parsing and generated accelerator definitions.
-- [ ] Fix the reference-generation bug (`*_SYNC`, `*_FETCH`, etc.) and
+- [x] Add menu-item shortcut parsing and generated accelerator definitions.
+- [x] Fix the reference-generation bug (`*_SYNC`, `*_FETCH`, etc.) and
   regenerate the header; verify every referenced surface uses the menu
   declaration's existing ID.
-- [ ] Add generator validation for unknown command references, duplicate action
+- [x] Add generator validation for unknown command references, duplicate action
   names within a menu, duplicate hotkeys, and malformed hotkeys.
-- [ ] Add generated action metadata derived from menu declarations.
-- [ ] Add always-on `[gc]` traces for action name/ID, source surface, selection,
+- [x] Add generated action metadata derived from menu declarations.
+- [x] Add always-on `[gc]` traces for action name/ID, source surface, selection,
   repository state, result, and refresh decision.
+- [x] Normalize application toolbar manifests to fully qualified
+  `command="group.action"` references and add missing scener menu declarations
+  for toolbar-only editing modes.
+- [ ] Audit form-local submit buttons and custom controls; decide whether each
+  is a continuation of a menu command or needs a menu-declared command of its
+  own.
 
 Deliverable: menus, toolbar, context menus, and accelerators all emit the same
 canonical action ID.
 
 ### Phase 2 — Extract and harden command execution
 
-- [ ] Introduce a small `gc_action`/`gc_commands` module with a command context
+- [x] Introduce a small `gc_action`/`gc_commands` module with a command context
   containing repository, selected branch/commit/file/stash, and active view.
 - [ ] Move the switch cases from `gc_handle_command()` into action functions;
   retain the switch only as ID-to-action dispatch.
@@ -226,8 +252,8 @@ the existing database-driven data flow.
 
 #### Headless command/action tests (highest value)
 
-- [ ] Enumerate menu-declared actions and assert each has a handler and metadata.
-- [ ] Assert every toolbar item references a known action ID and that its click
+- [x] Enumerate menu-declared actions and assert each has a handler and metadata.
+- [x] Assert every toolbar item references a known action ID and that its click
   dispatches that exact ID.
 - [ ] Invoke each safe action against a temporary Git fixture and assert the
   resulting repository state, database state, selected records, and refresh

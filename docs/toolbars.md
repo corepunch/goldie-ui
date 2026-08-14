@@ -21,7 +21,19 @@ canonical way to build application-level and per-window toolbars.
 A toolbar is a window with the `WINDOW_TOOLBAR` flag.  Items are described by
 `toolbar_item_t` structs and loaded with the `tbSetItems` message.  When a
 button is clicked the toolbar sends `tbButtonClick` to its parent, carrying the
-button's `ident` — typically a command ID that also appears in a menu.
+button's `ident`. For application actions, that identifier must be the command
+ID of a menu-declared action.
+
+## Menus are the application capability map
+
+The `.orion` menu tree is the canonical map of user-invokable application
+capabilities. A menu item declares the action, its label, and optional
+`shortcut="Ctrl+K"`; toolbars, context menus, and future command palettes
+reference that item. They do not create parallel command IDs.
+
+New manifests should use fully qualified references such as
+`command="repo.refresh"`. The older `menu="repo"` scope form remains supported
+for compatibility, but does not make the target action as explicit.
 
 ## The descriptor
 
@@ -81,17 +93,17 @@ build system generates a C array (`TB_MAIN[]` + `TB_MAIN_COUNT`):
 <!-- imageeditor.orion -->
 <toolbars>
   <toolbar name="main">
-    <Button name="new"  menu="file" icon="sysicon_page_add"      text="New"  tooltip="New image" />
-    <Button name="open" menu="file" icon="sysicon_folder_page"   text="Open" tooltip="Open image" />
-    <Button name="save" menu="file" icon="sysicon_disk_save"     text="Save" tooltip="Save image" />
+    <Button name="new"  command="file.new" icon="sysicon_page_add"      text="New"  tooltip="New image" />
+    <Button name="open" command="file.open" icon="sysicon_folder_page"   text="Open" tooltip="Open image" />
+    <Button name="save" command="file.save" icon="sysicon_disk_save"     text="Save" tooltip="Save image" />
     <spacer w="10" />
-    <Button name="undo" menu="edit" icon="sysicon_undo"          text="Undo" tooltip="Undo" />
-    <Button name="redo" menu="edit" icon="sysicon_redo"          text="Redo" tooltip="Redo" />
+    <Button name="undo" command="edit.undo" icon="sysicon_undo"          text="Undo" tooltip="Undo" />
+    <Button name="redo" command="edit.redo" icon="sysicon_redo"          text="Redo" tooltip="Redo" />
     <spacer w="10" />
-    <Button name="zoom_in"  menu="view" icon="sysicon_magnifier_zoom_in"  text="+"   tooltip="Zoom in" />
-    <Button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="-"   tooltip="Zoom out" />
+    <Button name="zoom_in"  command="view.zoom_in" icon="sysicon_magnifier_zoom_in"  text="+"   tooltip="Zoom in" />
+    <Button name="zoom_out" command="view.zoom_out" icon="sysicon_magnifier_zoom_out" text="-"   tooltip="Zoom out" />
     <spacer w="10" />
-    <Button name="show_background" menu="view" icon="sysicon_eye_show"
+    <Button name="show_background" command="view.show_background" icon="sysicon_eye_show"
             flags="BUTTON_PUSHLIKE" text="BG" tooltip="Toggle background" />
   </toolbar>
 </toolbars>
@@ -103,7 +115,7 @@ Include the generated header:
 #include "build/generated/apps/imageeditor/imageeditor.h"
 ```
 
-The `menu=` attribute links each button to a menu item for consistent command
+The `command=` attribute links each button to a fully qualified menu item for consistent command
 IDs.  The build tool resolves `name` + `menu` to produce the `ident` field.
 
 ## Creating a toolbar window

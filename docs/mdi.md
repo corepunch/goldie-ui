@@ -37,7 +37,8 @@ generate this boilerplate automatically.
 #define SCREEN_W 640
 #define SCREEN_H 480
 
-// Menu command IDs
+// Menu command IDs are the application's user-action map. Toolbars,
+// accelerators, and child views reuse these IDs rather than defining peers.
 #define ID_FILE_NEW   1
 #define ID_FILE_OPEN  2
 #define ID_FILE_SAVE  3

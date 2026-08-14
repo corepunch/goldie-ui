@@ -265,6 +265,13 @@ The generated form stores the immutable menu descriptor on the control. The
 control opens it at the pointer position; application code handles command IDs
 and does not populate the menu programmatically.
 
+The menu tree is the application capability map: every user-invokable operation
+should first be declared as a menu item. Context menus and toolbars use fully
+qualified references such as `command="files.stage"`; they are alternate
+surfaces for the same action, not independent action registries. Menu items can
+declare a default `shortcut="Ctrl+S"`, which the generator exposes through the
+same command ID.
+
 ### Data-bound TableView checkboxes
 
 `TableView` supports WinAPI-style list-view state images with a DBKit-style
