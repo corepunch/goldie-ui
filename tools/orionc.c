@@ -152,6 +152,15 @@ static void cstr_shortcut(char *out, size_t cap, const char *label, const char *
   cstr(out, cap, joined);
 }
 
+// `shortcut` is the established .orion spelling used by imageeditor.
+// `hotkey` remains accepted for compatibility with early action-manifest work.
+static char *menu_shortcut(xmlNodePtr item) {
+  char *shortcut = attr(item, "shortcut");
+  if (shortcut && *shortcut) return shortcut;
+  free(shortcut);
+  return attr(item, "hotkey");
+}
+
 static void tpl(FILE *f, const char *s, const kv_t *kv) {
   for (const char *p = s; *p;) {
     const char *open = strstr(p, "{{");
@@ -224,7 +233,7 @@ static void collect_menu_ids(ids_t *ids, action_meta_list_t *meta,
   EACH_ELEMENT(it, menu) {
     if (elem(it, "submenu")) { collect_menu_ids(ids, meta, it, scope, category); continue; }
     if (!elem(it, "item")) continue;
-    char *name = attr(it, "name"), *label = attr(it, "label"), *hotkey = attr(it, "hotkey"), id[256];
+    char *name = attr(it, "name"), *label = attr(it, "label"), *hotkey = menu_shortcut(it), id[256];
     scoped(id, sizeof(id), scope, name, label);
     add_id(ids, id);
     // Record metadata for gc_action_meta[]; detect duplicate action names.
@@ -306,6 +315,10 @@ static bool parse_hotkey(const char *spec, char *fvirt, size_t fv_cap,
     if (fn >= 1 && fn <= 12) snprintf(k, sizeof(k), "AX_KEY_F%d", fn);
   } else if (eq(keyname, "SPACE")) snprintf(k, sizeof(k), "AX_KEY_SPACE");
   else if (eq(keyname, "ENTER")) snprintf(k, sizeof(k), "AX_KEY_ENTER");
+  else if (eq(keyname, "BACKSPACE")) snprintf(k, sizeof(k), "AX_KEY_BACKSPACE");
+  else if (eq(keyname, "PAGE UP")) snprintf(k, sizeof(k), "AX_KEY_PGUP");
+  else if (eq(keyname, "PAGE DOWN")) snprintf(k, sizeof(k), "AX_KEY_PGDN");
+  else if (eq(keyname, "DELETE") || eq(keyname, "DEL")) snprintf(k, sizeof(k), "AX_KEY_DEL");
   else if (eq(keyname, "SLASH")) snprintf(k, sizeof(k), "AX_KEY_SLASH");
   else if (keyname[0] >= 'A' && keyname[0] <= 'Z' && keyname[1] == 0)
     snprintf(k, sizeof(k), "AX_KEY_%c", keyname[0]);
@@ -398,7 +411,7 @@ static void emit_menu_items(FILE *f, xmlNodePtr menu, const char *base, const ch
         OUT("  { %s, 0, NULL, 0 },\n", label);
       free(raw);
     } else if (elem(it, "item")) {
-      char *name = attr(it, "name"), *raw = attr(it, "label"), *hotkey = attr(it, "hotkey");
+      char *name = attr(it, "name"), *raw = attr(it, "label"), *hotkey = menu_shortcut(it);
       char id[256], label[ORIONC_STRING_SIZE]; scoped(id, sizeof(id), scope, name, raw); cstr_shortcut(label, sizeof(label), raw, hotkey);
       OUT("  { %s, %s, NULL, 0 },\n", label, id);
       free(name); free(raw); free(hotkey);

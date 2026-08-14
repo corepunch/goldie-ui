@@ -38,11 +38,11 @@
 
     <toolbars>
       <toolbar name="feed">
-        <Button name="new" menu="post" icon="sysicon_add" text="New Post" tooltip="Create new post" />
-        <Button name="like" menu="post" icon="sysicon_heart" text="Like" tooltip="Like post" />
-        <Button name="view" menu="post" icon="sysicon_comment" text="View Post" tooltip="View post details" />
+        <Button name="new" command="post.new" icon="sysicon_add" text="New Post" tooltip="Create new post" />
+        <Button name="like" command="post.like" icon="sysicon_heart" text="Like" tooltip="Like post" />
+        <Button name="view" command="post.view" icon="sysicon_comment" text="View Post" tooltip="View post details" />
         <spacer />
-        <Button name="delete" menu="post" icon="sysicon_delete" text="Delete" tooltip="Delete post" />
+        <Button name="delete" command="post.delete" icon="sysicon_delete" text="Delete" tooltip="Delete post" />
       </toolbar>
     </toolbars>
 

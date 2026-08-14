@@ -10,36 +10,36 @@
             <item name="open_repo" label="Open Repository..." />
             <item name="repositories" label="Repositories..." />
             <item name="new_repo" label="Create Repository..." />
-            <item name="clone" label="Clone..." hotkey="Ctrl+Shift+N" />
+            <item name="clone" label="Clone..." shortcut="Ctrl+Shift+N" />
             <Separator />
             <item name="quit" label="Exit" />
         </menu>
 
         <menu name="repo" label="Repo">
-            <item name="refresh" label="Refresh" hotkey="F5" />
-            <item name="search" label="Search..." hotkey="Ctrl+Shift+F" />
+            <item name="refresh" label="Refresh" shortcut="F5" />
+            <item name="search" label="Search..." shortcut="Ctrl+Shift+F" />
             <item name="identity" label="Git Identity..." />
             <item name="terminal" label="Open Terminal Here" />
         </menu>
 
         <menu name="view" label="View">
-            <item name="changes" label="Changes" hotkey="Ctrl+1" />
-            <item name="history" label="History" hotkey="Ctrl+2" />
+            <item name="changes" label="Changes" shortcut="Ctrl+1" />
+            <item name="history" label="History" shortcut="Ctrl+2" />
         </menu>
 
         <menu name="branch" label="Branch">
-            <item name="new" label="New Branch..." hotkey="Ctrl+N" />
-            <item name="checkout" label="Checkout..." hotkey="Ctrl+P" />
+            <item name="new" label="New Branch..." shortcut="Ctrl+N" />
+            <item name="checkout" label="Checkout..." shortcut="Ctrl+P" />
             <Separator />
-            <item name="merge" label="Merge Into Current" hotkey="Ctrl+M" />
+            <item name="merge" label="Merge Into Current" shortcut="Ctrl+M" />
             <item name="rebase" label="Rebase Current" />
             <Separator />
-            <item name="delete" label="Delete..." hotkey="Ctrl+D" />
+            <item name="delete" label="Delete..." shortcut="Ctrl+D" />
             <item name="rename" label="Rename..." />
         </menu>
 
         <menu name="commit" label="Commit">
-            <item name="commit" label="Commit..." hotkey="Ctrl+K" />
+            <item name="commit" label="Commit..." shortcut="Ctrl+K" />
             <item name="amend" label="Amend Last Commit" />
             <item name="undo" label="Undo Last Commit" />
             <Separator />
@@ -54,7 +54,7 @@
             <item name="stage" label="Stage" />
             <item name="unstage" label="Unstage" />
             <Separator />
-            <item name="stage_all" label="Stage All" hotkey="Ctrl+Shift+A" />
+            <item name="stage_all" label="Stage All" shortcut="Ctrl+Shift+A" />
             <item name="unstage_all" label="Unstage All" />
             <Separator />
             <item name="reveal" label="Reveal in File Manager" />
@@ -64,7 +64,7 @@
         <menu name="remote" label="Remote">
             <item name="sync" label="Sync Current Branch" />
             <Separator />
-            <item name="fetch" label="Fetch" hotkey="Ctrl+F" />
+            <item name="fetch" label="Fetch" shortcut="Ctrl+F" />
             <item name="pull" label="Pull..." />
             <item name="push" label="Push..." />
             <Separator />
