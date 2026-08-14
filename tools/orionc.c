@@ -236,14 +236,10 @@ static void collect_menu_ids(ids_t *ids, action_meta_list_t *meta,
     char *name = attr(it, "name"), *label = attr(it, "label"), *hotkey = menu_shortcut(it), id[256];
     scoped(id, sizeof(id), scope, name, label);
     add_id(ids, id);
-    // Record metadata for gc_action_meta[]; detect duplicate action names.
+    // Record metadata for gc_action_meta[].
     if (meta && meta->n < ORIONC_MAX_IDS) {
       char dotted[ORIONC_MAX_IDENT];
       snprintf(dotted, sizeof(dotted), "%s.%s", category, nz(name, label));
-      for (int i = 0; i < meta->n; i++)
-        if (eq(meta->v[i].name, dotted))
-          fprintf(stderr, "orionc: duplicate action name '%s' in menu '%s'\n",
-                  dotted, category);
       action_meta_t *m = &meta->v[meta->n++];
       memset(m, 0, sizeof(*m));
       snprintf(m->name, sizeof(m->name), "%s", dotted);
@@ -474,7 +470,8 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
 }
 
 // Validate the action manifest: reject unknown references, duplicate hotkeys,
-// and malformed hotkey strings. Returns the number of errors found.
+// duplicate action names, and malformed hotkey strings. Returns the number of
+// errors found.
 static int validate_actions(const ids_t *ids, const cmd_refs_t *refs,
                             const action_meta_list_t *meta) {
   int errors = 0;
@@ -489,6 +486,11 @@ static int validate_actions(const ids_t *ids, const cmd_refs_t *refs,
   }
   for (int i = 0; i < meta->n; i++) {
     const action_meta_t *m = &meta->v[i];
+    for (int j = i + 1; j < meta->n; j++)
+      if (eq(m->name, meta->v[j].name)) {
+        fprintf(stderr, "orionc: duplicate action name '%s'\n", m->name);
+        errors++;
+      }
     if (!m->hotkey[0]) continue;
     char fvirt[64], key[64];
     if (!parse_hotkey(m->hotkey, fvirt, sizeof(fvirt), key, sizeof(key))) {
