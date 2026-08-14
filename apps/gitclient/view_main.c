@@ -1,6 +1,7 @@
 // Main window — uses generated form from gitclient.orion.
 
 #include "gitclient.h"
+#include "gc_actions.h"
 #include <orion/user/vga_font.h>
 #include <orion/commctl/menubar.h>
 
@@ -185,6 +186,13 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
     case evPaint:
       return false;
 
+    case tbButtonClick: {
+      uint16_t id = (uint16_t)wparam;
+      GC_TRACE("toolbar id=%d", (int)id);
+      (void)gc_execute_action(id);
+      return true;
+    }
+
     case evCommand: {
       uint16_t code = (uint16_t)HIWORD(wparam);
 
@@ -197,7 +205,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
 
       if (code == kMenuBarNotificationItemClick) {
         GC_TRACE("evCommand menu: id=%d", (int)LOWORD(wparam));
-        gc_handle_command(LOWORD(wparam));
+        (void)gc_execute_action(LOWORD(wparam));
         return true;
       }
 
@@ -226,7 +234,7 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
         if (id == ID_MAIN_WINDOW_STASH_INLINE) {
           gc_stash(); gc_refresh_all(); return true;
         }
-        gc_handle_command(id);
+        (void)gc_execute_action(id);
         return true;
       }
 

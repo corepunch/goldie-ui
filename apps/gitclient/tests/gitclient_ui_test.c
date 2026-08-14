@@ -16,6 +16,7 @@
 #include "test_env.h"
 #include "gitclient_test_helpers.h"
 #include "apps/gitclient/gitclient.h"
+#include "apps/gitclient/gc_actions.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -561,7 +562,7 @@ static const accel_t *gc_find_accel(uint16_t cmd) {
 }
 
 void test_action_metadata_and_accelerators(void) {
-    TEST("gitclient Orion: metadata + accels enumerate menu-declared actions");
+    TEST("gitclient Orion: metadata + accels enumerate menu shortcuts");
     ASSERT_EQUAL(gitclient_action_meta_count, 39);
 
     for (int i = 0; i < gitclient_action_meta_count; i++) {
@@ -605,6 +606,20 @@ void test_action_metadata_and_accelerators(void) {
     PASS();
 }
 
+// 13. Every menu-declared action has a concrete dispatch handler -------------
+
+void test_every_menu_action_has_handler(void) {
+    TEST("gitclient actions: every menu declaration has a handler");
+    for (int i = 0; i < gitclient_action_meta_count; i++) {
+        const char *name = NULL;
+        ASSERT_TRUE(gc_action_handler_for(gitclient_action_meta[i].id, &name));
+        ASSERT_NOT_NULL(name);
+        ASSERT_STR_EQUAL(name, gitclient_action_meta[i].name);
+    }
+    ASSERT_EQUAL(gc_action_handler_for(0, NULL), false);
+    PASS();
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 int main(void) {
@@ -628,6 +643,7 @@ int main(void) {
     test_generated_context_menus_reuse_shared_commands();
     test_toolbar_buttons_reference_menu_command_ids();
     test_action_metadata_and_accelerators();
+    test_every_menu_action_has_handler();
 
     gct_remove_dir(s_repo);
 

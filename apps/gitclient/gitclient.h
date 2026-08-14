@@ -368,6 +368,7 @@ void git_async_result_free(git_async_result_t *r);
 
 void gc_create_menubar(void);
 void gc_handle_command(uint16_t id);
+void gc_handle_command_impl(uint16_t id);
 result_t gc_menubar_proc(window_t *win, uint32_t msg,
                          uint32_t wparam, void *lparam);
 

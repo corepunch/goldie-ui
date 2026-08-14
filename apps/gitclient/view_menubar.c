@@ -1,6 +1,7 @@
 // Menu bar and command dispatch — uses generated menus from gitclient.orion.
 
 #include "gitclient.h"
+#include "gc_actions.h"
 #include <orion/gem.h>
 
 // ============================================================
@@ -42,7 +43,7 @@ result_t gc_menubar_proc(window_t *win, uint32_t msg,
   if (msg == evCommand &&
       (HIWORD(wparam) == kMenuBarNotificationItemClick ||
        HIWORD(wparam) == kAcceleratorNotification)) {
-    gc_handle_command(LOWORD(wparam));
+    (void)gc_execute_action(LOWORD(wparam));
     return true;
   }
   return win_menubar(win, msg, wparam, lparam);
@@ -69,21 +70,9 @@ void gc_create_menubar(void) {
 // Command handler
 // ============================================================
 
-static const char *gc_action_name(uint16_t id) {
-  for (int i = 0; i < gitclient_action_meta_count; i++)
-    if (gitclient_action_meta[i].id == id) return gitclient_action_meta[i].name;
-  return "(unknown)";
-}
-
-void gc_handle_command(uint16_t id) {
+void gc_handle_command_impl(uint16_t id) {
   gc_state_t *gc = g_gc;
   if (!gc) return;
-
-  GC_TRACE("command id=%d name=%s repo=%s view=%s commit=%d file=%d",
-           (int)id, gc_action_name(id),
-           gc->repo ? git_repo_path(gc->repo) : "(none)",
-           gc->history_mode ? "history" : "changes",
-           gc->selected_commit, gc->selected_file);
 
   GC_LOG("gc_handle_command: id=%d", (int)id);
 
