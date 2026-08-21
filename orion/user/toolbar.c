@@ -102,7 +102,7 @@ static void draw_toolbar_icon_in_rect(toolbar_state_t *tb, const char *icon_name
   int ix = r.x + (r.w - res.w) / 2 + offset;
   int iy = r.y + (r.h - res.h) / 2 + offset;
   draw_sprite_region((int)res.tex, R(ix, iy, res.w, res.h),
-                     UV_RECT(res.u0, res.v0, res.u1, res.v1), 0xFFFFFFFF, 0);
+                     UV_RECT(res.u0, res.v0, res.u1, res.v1), get_sys_color(brFocusRing), 0);
 }
 
 static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {

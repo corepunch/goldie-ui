@@ -20,15 +20,21 @@
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-// Replace all occurrences of "currentColor" (12 bytes) with "white       "
-// (also 12 bytes) in-place to ensure iconoir SVGs render with visible strokes.
+// Replace all occurrences of "currentColor" (12 bytes) in-place so iconoir SVGs
+// rasterize white, ready to be tinted at draw time. Must be a same-length
+// replacement. A named color padded with spaces fails: nanosvg's color parser
+// (nsvg__parseColorName) strcmp()s against the raw value with no trailing-space
+// trim, so "white       " falls through to the gray fallback (128,128,128).
+// A hex literal works because nsvg__parseColorHex uses sscanf("#%2x%2x%2x"),
+// which stops cleanly at the padding spaces.
 static void patch_current_color(char *svg) {
     const char needle[]  = "currentColor";
-    const char replace[] = "white       ";  // 12 chars each
+    const char replace[] = "#ffffff     ";  // 12 chars each
+    const size_t n = sizeof(needle) - 1;
     char *p = svg;
     while ((p = strstr(p, needle)) != NULL) {
-        memcpy(p, replace, 12);
-        p += 12;
+        memcpy(p, replace, n);
+        p += n;
     }
 }
 
