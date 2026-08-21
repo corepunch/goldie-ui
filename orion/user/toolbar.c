@@ -197,6 +197,8 @@ static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *
         tb->items = NULL;
         free(tb->item_tooltips);
         tb->item_tooltips = NULL;
+        free(tb->item_icons);
+        tb->item_icons = NULL;
         free(tb->item_rects);
         tb->item_rects = NULL;
       }
@@ -365,6 +367,8 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
       tb->items = NULL;
       free(tb->item_tooltips);
       tb->item_tooltips = NULL;
+      free(tb->item_icons);
+      tb->item_icons = NULL;
       tb->item_count = 0;
       free(tb->item_rects);
       tb->item_rects = NULL;
@@ -390,6 +394,18 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
             } else {
               tb->item_tooltips[i][0] = '\0';
               tb->items[i].tooltip = NULL;
+            }
+          }
+        }
+
+        tb->item_icons = calloc((size_t)n, sizeof(*tb->item_icons));
+        if (tb->item_icons && tb->items) {
+          for (int i = 0; i < n; i++) {
+            if (tb->items[i].icon && tb->items[i].icon[0]) {
+              strncpy(tb->item_icons[i], tb->items[i].icon,
+                      sizeof(tb->item_icons[i]) - 1);
+              tb->item_icons[i][sizeof(tb->item_icons[i]) - 1] = '\0';
+              tb->items[i].icon = tb->item_icons[i];
             }
           }
         }
