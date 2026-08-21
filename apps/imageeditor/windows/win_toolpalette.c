@@ -169,6 +169,8 @@ static bool palette_load_strip(window_t *win) {
   (void)win;
   if (g_tool_strip_loaded)
     return true;
+  if (!g_ui_runtime.running)
+    return false;
   memset(&g_tool_strip, 0, sizeof(g_tool_strip));
   char icons_dir[512];
   int n = snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
