@@ -95,8 +95,8 @@ void test_toolbar_set_items_creates_children(void) {
 
     toolbar_item_t items[] = {
         {TOOLBAR_ITEM_BUTTON, 10, 0, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 11, 1, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 12, 2, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 11, NULL, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 12, NULL, 0, 0, NULL},
     };
     send_message(win, tbSetItems, 3, items);
 
@@ -131,9 +131,9 @@ void test_toolbar_spacer_skipped(void) {
 
     toolbar_item_t items[] = {
         {TOOLBAR_ITEM_BUTTON, 1, 0, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 2, 1, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 2, NULL, 0, 0, NULL},
         {TOOLBAR_ITEM_SPACER, 0, 0, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 3, 2, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 3, NULL, 0, 0, NULL},
     };
     send_message(win, tbSetItems, 4, items);
 
@@ -169,7 +169,7 @@ void test_toolbar_set_items_replaces(void) {
 
     toolbar_item_t second[] = {
         {TOOLBAR_ITEM_BUTTON, 10, 0, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 11, 1, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 11, NULL, 0, 0, NULL},
     };
     send_message(win, tbSetItems, 2, second);
 
@@ -196,8 +196,8 @@ void test_toolbar_set_active_button(void) {
 
     toolbar_item_t items[] = {
         {TOOLBAR_ITEM_BUTTON, 10, 0, 0, TOOLBAR_BUTTON_FLAG_ACTIVE, NULL},
-        {TOOLBAR_ITEM_BUTTON, 11, 1, 0, 0,                          NULL},
-        {TOOLBAR_ITEM_BUTTON, 12, 2, 0, 0,                          NULL},
+        {TOOLBAR_ITEM_BUTTON, 11, NULL, 0, 0,                          NULL},
+        {TOOLBAR_ITEM_BUTTON, 12, NULL, 0, 0,                          NULL},
     };
     send_message(win, tbSetItems, 3, items);
 
@@ -606,7 +606,7 @@ void test_toolbar_destroy_clears_children(void) {
 
     toolbar_item_t items[] = {
         {TOOLBAR_ITEM_BUTTON, 1, 0, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 2, 1, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 2, NULL, 0, 0, NULL},
     };
     send_message(win, tbSetItems, 2, items);
     ASSERT_EQUAL(count_toolbar_children(win), 0);
