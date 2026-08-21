@@ -39,7 +39,7 @@ uint32_t ui_checker_texture = 0;
 // Internal 2x2 checker texture for transparency backgrounds.
 uint32_t ui_transparency_checker_texture = 0;
 
-// Built-in system icon strip loaded from share/orion/icon_sheet_16x16.png.
+// Built-in system icon strip rasterized from share/orion/icons/ at startup.
 // Accessible from draw_impl.c via extern.  Icons are indexed starting at
 // SYSICON_BASE (0x10000); subtract SYSICON_BASE to get the strip index.
 bitmap_strip_t g_sysicon_strip = {0};
@@ -50,9 +50,8 @@ static uint32_t g_sysicon_tex = 0;
 static bitmap_strip_t g_theme_strip = {0};
 static uint32_t g_theme_tex = 0;
 
-// File-picker icon strip loaded from share/orion/filepicker.png (16x16 RGBA
-// tiles, icon_id_t indices from user/sysicons.h).  Used exclusively by
-// win_filelist via RVM_SETICONSTRIP.
+// File-picker icon strip rasterized from share/orion/icons/ at startup
+// (icon_id_t indices from user/sysicons.h).  Used by win_filelist via RVM_SETICONSTRIP.
 static bitmap_strip_t g_icons_strip = {0};
 static uint32_t g_icons_tex = 0;
 
@@ -92,36 +91,15 @@ void init_ui_transparency_checker_texture(void) {
   }
 }
 
-// Load the built-in sysicon strip.  Tries SVG rasterization first (iconoir
-// SVGs from share/orion/icons/); falls back to the legacy PNG sheet.
+// Load the built-in sysicon strip from iconoir SVGs in share/orion/icons/.
+// If no SVGs are present the strip stays empty and icons render as blank tiles.
 static void init_sysicon_strip(void) {
   if (g_sysicon_tex != 0) return;
   char icons_dir[4096];
   snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
            ui_get_exe_dir());
-  if (svg_load_sysicon_strip(icons_dir, &g_sysicon_strip, stderr)) {
+  if (svg_load_sysicon_strip(icons_dir, &g_sysicon_strip, stderr))
     g_sysicon_tex = g_sysicon_strip.tex;
-    return;
-  }
-  // Legacy PNG fallback.
-  char path[4096];
-  snprintf(path, sizeof(path), "%s/../share/orion/icon_sheet_16x16.png",
-           ui_get_exe_dir());
-  int w = 0, h = 0;
-  uint8_t *src = load_image(path, &w, &h);
-  if (!src) return;
-  if (w < 16 || h < 16 || (w % 16) != 0 || (h % 16) != 0) {
-    image_free(src);
-    return;
-  }
-  g_sysicon_tex = R_CreateTextureRGBA(w, h, src, R_FILTER_NEAREST, R_WRAP_CLAMP);
-  image_free(src);
-  g_sysicon_strip.tex     = g_sysicon_tex;
-  g_sysicon_strip.icon_w  = 16;
-  g_sysicon_strip.icon_h  = 16;
-  g_sysicon_strip.cols    = w / 16;
-  g_sysicon_strip.sheet_w = w;
-  g_sysicon_strip.sheet_h = h;
 }
 
 static void shutdown_sysicon_strip(void) {
@@ -172,36 +150,14 @@ static void shutdown_theme_strip(void) {
   g_theme_strip = (bitmap_strip_t){0};
 }
 
-// Load the file-picker icon strip.  Tries SVG rasterization first (same
-// share/orion/icons/ directory as sysicons); falls back to the legacy PNG.
+// Load the file-picker icon strip from iconoir SVGs in share/orion/icons/.
 static void init_icons_strip(void) {
   if (g_icons_tex != 0) return;
   char icons_dir[4096];
   snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
            ui_get_exe_dir());
-  if (svg_load_picker_strip(icons_dir, &g_icons_strip, stderr)) {
+  if (svg_load_picker_strip(icons_dir, &g_icons_strip, stderr))
     g_icons_tex = g_icons_strip.tex;
-    return;
-  }
-  // Legacy PNG fallback.
-  char path[4096];
-  snprintf(path, sizeof(path), "%s/../share/orion/filepicker.png",
-           ui_get_exe_dir());
-  int w = 0, h = 0;
-  uint8_t *src = load_image(path, &w, &h);
-  if (!src) return;
-  if (w < 16 || h < 16 || (w % 16) != 0 || (h % 16) != 0) {
-    image_free(src);
-    return;
-  }
-  g_icons_tex = R_CreateTextureRGBA(w, h, src, R_FILTER_NEAREST, R_WRAP_CLAMP);
-  image_free(src);
-  g_icons_strip.tex     = g_icons_tex;
-  g_icons_strip.icon_w  = 16;
-  g_icons_strip.icon_h  = 16;
-  g_icons_strip.cols    = w / 16;
-  g_icons_strip.sheet_w = w;
-  g_icons_strip.sheet_h = h;
 }
 
 static void shutdown_icons_strip(void) {

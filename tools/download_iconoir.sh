@@ -1,34 +1,32 @@
 #!/usr/bin/env bash
-# Download iconoir SVGs needed by orion-ui into share/icons/.
+# Download iconoir SVGs used by orion-ui into share/icons/.
 #
 # Usage:
 #   ./tools/download_iconoir.sh          (downloads to share/icons/)
 #   ./tools/download_iconoir.sh <dir>    (downloads to <dir>)
 #
 # Requires: curl (macOS/Linux standard)
-# Iconoir SVGs live at:
-#   https://raw.githubusercontent.com/iconoir-icons/iconoir/main/icons/regular/<name>.svg
+# Source:   https://github.com/iconoir-icons/iconoir  (icons/regular/)
 
 set -euo pipefail
 
 OUTDIR="${1:-share/icons}"
-BASE_URL="https://raw.githubusercontent.com/iconoir-icons/iconoir/main/icons/regular"
+BASE="https://raw.githubusercontent.com/iconoir-icons/iconoir/main/icons/regular"
 
 mkdir -p "$OUTDIR"
 
-# All iconoir SVG names referenced by orion-ui (sysicons + picker + imageeditor).
-# Run this script once after cloning; re-run to refresh.
 ICONS=(
-  # ── navigation & arrows ──────────────────────────────────────────────────
+  # ── Navigation & arrows ──────────────────────────────────────────────────
   arrow-up
   arrow-down
   arrow-left
   arrow-right
-  arrows-horizontal
-  arrows-vertical
+  arrow-up-right
   arrow-separate-vertical
   fast-arrow-left
   fast-arrow-right
+  fast-arrow-up
+  fast-arrow-down
   nav-arrow-up
   nav-arrow-down
   nav-arrow-left
@@ -36,168 +34,168 @@ ICONS=(
   rotate-camera-left
   rotate-camera-right
   refresh
-  switch
-  data-transfer-both
+  forward
+  rewind
   log-in
   log-out
   git-fork
-  submit
   expand
   collapse
+  data-transfer-both
 
-  # ── toolbar / actions ────────────────────────────────────────────────────
+  # ── Core actions ─────────────────────────────────────────────────────────
   check
+  check-circle
   xmark
   plus
-  minus
+  plus-circle
   plus-square
+  minus
   minus-square
   trash
   copy
   paste-clipboard
-  scissors
+  cut
+  scissor
+  scissor-alt
   undo
   redo
   search
   zoom-in
   zoom-out
+  send-diagonal
+  switch-off
+  switch-on
 
-  # ── files & folders ──────────────────────────────────────────────────────
+  # ── Files & folders ──────────────────────────────────────────────────────
   folder
-  folder-open
   folder-plus
-  folder-arrow-up
-  file-plus
-  file-edit
+  folder-settings
   page
+  page-edit
+  page-plus
+  empty-page
   notes
-  export
   floppy-disk
+  import
 
-  # ── media & images ───────────────────────────────────────────────────────
+  # ── Media & images ───────────────────────────────────────────────────────
   media-image
-  add-media-image
+  media-image-plus
   camera
-  camera-plus
-  layers
+  multiple-pages
   frame
   mirror
   crop
   expand
 
-  # ── drawing & editing tools ──────────────────────────────────────────────
-  brush
-  paint-brush-medium
-  paint-bucket
-  eraser
-  pipette
-  pencil
-  pen
+  # ── Drawing & editing tools ──────────────────────────────────────────────
+  design-nib
+  design-pencil
+  edit-pencil
+  fill-color
+  erase
+  color-picker
+  color-wheel
+  color-filter
   text
+  text-size
   ruler
+  ruler-arrows
   magic-wand
-  lasso-pointer
+  selective-tool
   select-window
   fingerprint
-  spray-can
   droplet
+  droplet-half
   triangle
   circle
-  circle-plus
   square
   square-dashed
-  cursor
-  crosshair
-  move-ruler
+  cursor-pointer
+  precision-tool
+  drag-hand-gesture
   half-cookie
   health-shield
-  fire
+  fire-flame
   brightness
   clock-rotate-right
-  mountain
+  hexagon
+  pentagon
+  palette
 
-  # ── system & UI ──────────────────────────────────────────────────────────
+  # ── System & UI ──────────────────────────────────────────────────────────
   settings
   wrench
   menu
-  grid
   view-grid
+  dots-grid-3x3
   link
   link-slash
   attachment
-  tag
   book
   book-stack
-  palette
-  color-filter
-  color-swatch
   puzzle
   package
-  shapes
+  database-check
+  database-script-plus
+  user-circle
+  user-plus
+  group
 
-  # ── media controls ───────────────────────────────────────────────────────
+  # ── Media controls ───────────────────────────────────────────────────────
   play
   pause
   square
-  fast-forward
-  rewind
 
-  # ── people & communication ───────────────────────────────────────────────
-  user
-  user-plus
-  edit-user
+  # ── Communication ─────────────────────────────────────────────────────────
   chat-bubble
-  chat-bubble-text
+  chat-bubble-empty
+  chat-lines
   lock
   lock-slash
   shield-check
 
-  # ── status & alerts ──────────────────────────────────────────────────────
+  # ── Status & alerts ──────────────────────────────────────────────────────
   info-circle
   warning-triangle
   warning-hexagon
+  warning-circle
+  help-circle
   question-mark
-  question-mark-circle
 
-  # ── text ─────────────────────────────────────────────────────────────────
+  # ── Text ─────────────────────────────────────────────────────────────────
   align-center
   list
   numbered-list-left
   input-field
-  font
   code
   code-brackets
   language
 
-  # ── time & location ──────────────────────────────────────────────────────
+  # ── Time & location ──────────────────────────────────────────────────────
   clock
   hourglass
   map
   map-pin
   compass
 
-  # ── misc ─────────────────────────────────────────────────────────────────
+  # ── Misc ─────────────────────────────────────────────────────────────────
   heart
-  heart-plus
   star
   coins
   eye
-  eye-off
-  flag
-  door
-  globe
-  joystick
-  keyboard
+  eye-closed
+  triangle-flag
+  gamepad
   mouse-button-left
   computer
   terminal
-  music-note-beamed
+  music-note
+  music-double-note
   sound-high
   sun-light
-  brightness-off
-  hand-gesture
-  drag-hand-gesture
-  cube
+  globe
   discord
   linux
   apple-mac
@@ -207,30 +205,29 @@ ICONS=(
   printer
   download
   upload
+  drag
+  scale-frame-enlarge
+  path-arrow
+  import
+  frame
+  page-edit
+  page-plus
 )
 
-OK=0
-FAIL=0
-SKIP=0
+OK=0; FAIL=0; SKIP=0
 
 for name in "${ICONS[@]}"; do
   dest="$OUTDIR/$name.svg"
-  if [ -f "$dest" ]; then
-    SKIP=$((SKIP + 1))
-    continue
-  fi
-  url="$BASE_URL/$name.svg"
-  if curl -fsS -o "$dest" "$url"; then
-    OK=$((OK + 1))
+  [ -f "$dest" ] && { SKIP=$((SKIP+1)); continue; }
+  if curl -fsS -o "$dest" "$BASE/$name.svg"; then
+    OK=$((OK+1))
   else
     echo "MISSING: $name"
-    FAIL=$((FAIL + 1))
+    FAIL=$((FAIL+1))
   fi
 done
 
 echo ""
 echo "Done: $OK downloaded, $SKIP already present, $FAIL not found in iconoir."
-if [ $FAIL -gt 0 ]; then
-  echo "Icons listed as MISSING above have no iconoir equivalent."
-  echo "Add custom SVGs to $OUTDIR/ with the same name to fill the gaps."
-fi
+[ $FAIL -gt 0 ] && echo "Add custom SVGs to $OUTDIR/ for any MISSING entries above."
+true
