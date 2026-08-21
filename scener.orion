@@ -7,33 +7,42 @@
 
     <menus var="kMenus" count="kNumMenus">
       <menu name="file" label="File">
-        <item name="new" label="New" />
-        <item name="open" label="Open..." />
+        <item name="new" label="New" shortcut="Ctrl+N" />
+        <item name="open" label="Open..." shortcut="Ctrl+O" />
         <Separator />
-        <item name="save" label="Save" />
+        <item name="save" label="Save" shortcut="Ctrl+S" />
         <item name="saveas" label="Save As..." />
         <Separator />
-        <item name="close" label="Close" />
+        <item name="close" label="Close" shortcut="Ctrl+W" />
         <Separator />
         <item name="quit" label="Quit" />
       </menu>
 
       <menu name="edit" label="Edit">
-        <item name="undo" label="Undo" />
-        <item name="redo" label="Redo" />
+        <item name="undo" label="Undo" shortcut="Ctrl+Z" />
+        <item name="redo" label="Redo" shortcut="Ctrl+Y" />
         <Separator />
         <item name="cut" label="Cut" />
         <item name="copy" label="Copy" />
         <item name="paste" label="Paste" />
         <Separator />
-        <item name="duplicate" label="Duplicate" />
-        <item name="delete" label="Delete" />
+        <item name="duplicate" label="Duplicate" shortcut="Ctrl+D" />
+        <item name="delete" label="Delete" shortcut="Delete" />
+      </menu>
+
+      <menu name="tool" label="Tools">
+        <item name="select" label="Select Mode" shortcut="Q" />
+        <item name="move" label="Move Mode" shortcut="W" />
+        <item name="rotate" label="Rotate Mode" shortcut="E" />
+        <item name="scale" label="Scale Mode" shortcut="R" />
       </menu>
 
       <menu name="view" label="View">
         <item name="zoom_in" label="Zoom In" />
         <item name="zoom_out" label="Zoom Out" />
-        <item name="zoom_fit" label="Frame Selected" />
+        <item name="zoom_fit" label="Frame Selected" shortcut="F" />
+        <item name="next_camera" label="Next Camera" shortcut="Tab" />
+        <item name="prev_camera" label="Previous Camera" shortcut="Shift+Tab" />
         <Separator />
         <item name="perspective" label="Perspective" />
         <item name="front" label="Front" />
@@ -92,21 +101,21 @@
 
     <toolbars>
       <toolbar name="main">
-        <Button name="new" menu="file" icon="sysicon_page_add" text="New" tooltip="New scene" />
-        <Button name="open" menu="file" icon="sysicon_folder_page" text="Open" tooltip="Open scene" />
-        <Button name="save" menu="file" icon="sysicon_disk_save" text="Save" tooltip="Save scene" />
+        <Button name="new" command="file.new" icon="sysicon_page_add" text="New" tooltip="New scene" />
+        <Button name="open" command="file.open" icon="sysicon_folder_page" text="Open" tooltip="Open scene" />
+        <Button name="save" command="file.save" icon="sysicon_disk_save" text="Save" tooltip="Save scene" />
         <spacer w="10" />
-        <Button name="undo" menu="edit" icon="sysicon_undo" text="Undo" tooltip="Undo" />
-        <Button name="redo" menu="edit" icon="sysicon_redo" text="Redo" tooltip="Redo" />
+        <Button name="undo" command="edit.undo" icon="sysicon_undo" text="Undo" tooltip="Undo" />
+        <Button name="redo" command="edit.redo" icon="sysicon_redo" text="Redo" tooltip="Redo" />
         <spacer w="10" />
-        <Button name="select" menu="edit" icon="sysicon_cursor" text="Select" tooltip="Select mode" flags="BUTTON_AUTORADIO" />
-        <Button name="move" menu="edit" icon="sysicon_arrow_switch" text="Move" tooltip="Move mode" flags="BUTTON_AUTORADIO" />
-        <Button name="rotate" menu="edit" icon="sysicon_arrow_rotate_clockwise" text="Rotate" tooltip="Rotate mode" flags="BUTTON_AUTORADIO" />
-        <Button name="scale" menu="edit" icon="sysicon_arrow_in_out" text="Scale" tooltip="Scale mode" flags="BUTTON_AUTORADIO" />
+        <Button name="select" command="tool.select" icon="sysicon_cursor" text="Select" tooltip="Select mode" flags="BUTTON_AUTORADIO" />
+        <Button name="move" command="tool.move" icon="sysicon_arrow_switch" text="Move" tooltip="Move mode" flags="BUTTON_AUTORADIO" />
+        <Button name="rotate" command="tool.rotate" icon="sysicon_arrow_rotate_clockwise" text="Rotate" tooltip="Rotate mode" flags="BUTTON_AUTORADIO" />
+        <Button name="scale" command="tool.scale" icon="sysicon_arrow_in_out" text="Scale" tooltip="Scale mode" flags="BUTTON_AUTORADIO" />
         <spacer w="10" />
-        <Button name="zoom_in" menu="view" icon="sysicon_magnifier_zoom_in" text="+" tooltip="Zoom in" />
-        <Button name="zoom_out" menu="view" icon="sysicon_magnifier_zoom_out" text="-" tooltip="Zoom out" />
-        <Button name="zoom_fit" menu="view" icon="sysicon_expand" text="Fit" tooltip="Frame selected" />
+        <Button name="zoom_in" command="view.zoom_in" icon="sysicon_magnifier_zoom_in" text="+" tooltip="Zoom in" />
+        <Button name="zoom_out" command="view.zoom_out" icon="sysicon_magnifier_zoom_out" text="-" tooltip="Zoom out" />
+        <Button name="zoom_fit" command="view.zoom_fit" icon="sysicon_expand" text="Fit" tooltip="Frame selected" />
       </toolbar>
     </toolbars>
 

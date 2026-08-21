@@ -21,25 +21,9 @@ typedef struct {
 app_state_t *g_app = NULL;
 static scener_cli_t g_cli;
 
-static const accel_t kAccelEntries[] = {
-  { FCONTROL|FVIRTKEY, AX_KEY_Z, ID_EDIT_UNDO },
-  { FCONTROL|FVIRTKEY, AX_KEY_Y, ID_EDIT_REDO },
-  { FCONTROL|FVIRTKEY, AX_KEY_N, ID_FILE_NEW  },
-  { FCONTROL|FVIRTKEY, AX_KEY_O, ID_FILE_OPEN },
-  { FCONTROL|FVIRTKEY, AX_KEY_S, ID_FILE_SAVE },
-  { FCONTROL|FVIRTKEY, AX_KEY_W, ID_FILE_CLOSE},
-  { FCONTROL|FVIRTKEY, AX_KEY_D, ID_EDIT_DUPLICATE },
-  { FVIRTKEY,          AX_KEY_DEL, ID_EDIT_DELETE },
-  { FVIRTKEY,          AX_KEY_Q, ID_TOOL_SELECT },
-  { FVIRTKEY,          AX_KEY_W, ID_TOOL_MOVE },
-  { FVIRTKEY,          AX_KEY_E, ID_TOOL_ROTATE },
-  { FVIRTKEY,          AX_KEY_R, ID_TOOL_SCALE },
-  { FVIRTKEY,          AX_KEY_F, ID_VIEW_ZOOM_FIT },
-  { FVIRTKEY,          AX_KEY_TAB, ID_VIEW_NEXT_CAMERA },
-  { FSHIFT|FVIRTKEY,   AX_KEY_TAB, ID_VIEW_PREV_CAMERA },
-};
-#define kAccelCount (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0]))
-
+// Navigation uses a reduced context-specific table while the viewport is
+// being dragged. The default command accelerators are generated from the
+// menu declarations in scener.orion below.
 static const accel_t kNavigationAccelEntries[] = {
   { FCONTROL|FVIRTKEY, AX_KEY_Z, ID_EDIT_UNDO },
   { FCONTROL|FVIRTKEY, AX_KEY_Y, ID_EDIT_REDO },
@@ -213,7 +197,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   if (!g_cli.screenshot_mode)
     create_app_windows(hinstance);
 
-  g_app->accel = load_accelerators(kAccelEntries, kAccelCount);
+  g_app->accel = load_accelerators(scener_default_accels, scener_default_accel_count);
   g_app->navigation_accel = load_accelerators(kNavigationAccelEntries, kNavigationAccelCount);
   if (g_app->menubar_win)
     send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
