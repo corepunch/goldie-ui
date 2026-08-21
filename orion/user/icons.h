@@ -1,11 +1,9 @@
 #ifndef __ICONS_H__
 #define __ICONS_H__
 
-// Base value for all built-in system icons drawn from icon_sheet_16x16.png.
-// When a toolbar button's icon value is >= SYSICON_BASE the framework
-// automatically sources the icon from the built-in PNG strip rather than
-// from the bitmap font, so no per-window tbLoadStrip call is
-// needed.
+// Base offset for sysicon_* integer IDs used by draw_icon16() and toolbox items.
+// Toolbar buttons now use SVG base-name strings (const char*) resolved via
+// sysicon_resolve(); the sysicon_* enum values are for owner-drawn code only.
 #define SYSICON_BASE 0x10000
 
 enum {

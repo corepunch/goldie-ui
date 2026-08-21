@@ -5,9 +5,7 @@
 #include "messages.h"
 #include "draw.h"
 #include "image.h"
-#include "icons.h"
-
-extern bitmap_strip_t *ui_get_sysicon_strip(void);
+#include "svg_icon_loader.h"
 
 int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
   if (!tb || !tb->item_rects) return -1;
@@ -97,31 +95,14 @@ static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
   (void)parent;
 }
 
-static void draw_toolbar_icon_in_rect(toolbar_state_t *tb, int icon, irect16_t r, int offset) {
-  bitmap_strip_t *strip = NULL;
-  int idx = icon;
-
-  if (icon >= SYSICON_BASE) {
-    strip = ui_get_sysicon_strip();
-    idx = icon - SYSICON_BASE;
-  } else if (tb && tb->strip.tex != 0) {
-    strip = &tb->strip;
-  }
-
-  if (!strip || strip->cols <= 0 || idx < 0) return;
-
-  int col = idx % strip->cols;
-  int row = idx / strip->cols;
-  float u0 = (float)(col * strip->icon_w) / (float)strip->sheet_w;
-  float v0 = (float)(row * strip->icon_h) / (float)strip->sheet_h;
-  float u1 = u0 + (float)strip->icon_w / (float)strip->sheet_w;
-  float v1 = v0 + (float)strip->icon_h / (float)strip->sheet_h;
-  int ix = r.x + (r.w - strip->icon_w) / 2 + offset;
-  int iy = r.y + (r.h - strip->icon_h) / 2 + offset;
-
-  draw_sprite_region((int)strip->tex,
-                     R(ix, iy, strip->icon_w, strip->icon_h),
-                     UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
+static void draw_toolbar_icon_in_rect(toolbar_state_t *tb, const char *icon_name, irect16_t r, int offset) {
+  (void)tb;
+  sysicon_resolved_t res;
+  if (!sysicon_resolve(icon_name ? icon_name : "missing", &res)) return;
+  int ix = r.x + (r.w - res.w) / 2 + offset;
+  int iy = r.y + (r.h - res.h) / 2 + offset;
+  draw_sprite_region((int)res.tex, R(ix, iy, res.w, res.h),
+                     UV_RECT(res.u0, res.v0, res.u1, res.v1), get_sys_color(brFocusRing), 0);
 }
 
 static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
@@ -136,11 +117,11 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       irect16_t local = {0, 0, r.w, r.h};
       if (!(tb->style & TOOLBAR_STYLE_SHOW_LABELS))
         draw_button(local, 1, 1, show_pressed);
-      int icon = item->icon >= 0 ? item->icon : sysicon_missing;
+      const char *icon_name = item->icon ? item->icon : "missing";
       irect16_t icon_rect = local;
       if (tb->style & TOOLBAR_STYLE_SHOW_LABELS)
         icon_rect.h = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
-      draw_toolbar_icon_in_rect(tb, icon, icon_rect, show_pressed ? 1 : 0);
+      draw_toolbar_icon_in_rect(tb, icon_name, icon_rect, show_pressed ? 1 : 0);
       if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
         int tx = (local.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
         int ty = local.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
@@ -153,11 +134,11 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       irect16_t btn_part = {0, 0, r.w - aw, r.h};
       irect16_t arr_part = {r.w - aw, 0, aw, r.h};
       draw_button(btn_part, 1, 1, show_pressed);
-      int icon = item->icon >= 0 ? item->icon : sysicon_missing;
+      const char *icon_name = item->icon ? item->icon : "missing";
       irect16_t icon_rect = btn_part;
       if (tb->style & TOOLBAR_STYLE_SHOW_LABELS)
         icon_rect.h = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
-      draw_toolbar_icon_in_rect(tb, icon, icon_rect, show_pressed ? 1 : 0);
+      draw_toolbar_icon_in_rect(tb, icon_name, icon_rect, show_pressed ? 1 : 0);
       if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
         int tx = (btn_part.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
         int ty = btn_part.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
@@ -216,6 +197,8 @@ static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *
         tb->items = NULL;
         free(tb->item_tooltips);
         tb->item_tooltips = NULL;
+        free(tb->item_icons);
+        tb->item_icons = NULL;
         free(tb->item_rects);
         tb->item_rects = NULL;
       }
@@ -384,6 +367,8 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
       tb->items = NULL;
       free(tb->item_tooltips);
       tb->item_tooltips = NULL;
+      free(tb->item_icons);
+      tb->item_icons = NULL;
       tb->item_count = 0;
       free(tb->item_rects);
       tb->item_rects = NULL;
@@ -409,6 +394,18 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
             } else {
               tb->item_tooltips[i][0] = '\0';
               tb->items[i].tooltip = NULL;
+            }
+          }
+        }
+
+        tb->item_icons = calloc((size_t)n, sizeof(*tb->item_icons));
+        if (tb->item_icons && tb->items) {
+          for (int i = 0; i < n; i++) {
+            if (tb->items[i].icon && tb->items[i].icon[0]) {
+              strncpy(tb->item_icons[i], tb->items[i].icon,
+                      sizeof(tb->item_icons[i]) - 1);
+              tb->item_icons[i][sizeof(tb->item_icons[i]) - 1] = '\0';
+              tb->items[i].icon = tb->item_icons[i];
             }
           }
         }

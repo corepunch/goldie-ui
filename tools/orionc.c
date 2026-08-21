@@ -147,8 +147,12 @@ static void cstr(char *out, size_t cap, const char *s) {
 }
 
 static void cstr_shortcut(char *out, size_t cap, const char *label, const char *shortcut) {
+  char display[ORIONC_MAX_IDENT];
+  snprintf(display, sizeof(display), "%s", nz(shortcut, ""));
+  char *alternate = strchr(display, ';');
+  if (alternate) *alternate = 0;
   char joined[ORIONC_STRING_SIZE];
-  snprintf(joined, sizeof(joined), "%s%s%s", nz(label, ""), (shortcut && *shortcut) ? "\t" : "", nz(shortcut, ""));
+  snprintf(joined, sizeof(joined), "%s%s%s", nz(label, ""), display[0] ? "\t" : "", display);
   cstr(out, cap, joined);
 }
 
@@ -311,10 +315,14 @@ static bool parse_hotkey(const char *spec, char *fvirt, size_t fv_cap,
     if (fn >= 1 && fn <= 12) snprintf(k, sizeof(k), "AX_KEY_F%d", fn);
   } else if (eq(keyname, "SPACE")) snprintf(k, sizeof(k), "AX_KEY_SPACE");
   else if (eq(keyname, "ENTER")) snprintf(k, sizeof(k), "AX_KEY_ENTER");
+  else if (eq(keyname, "ESCAPE") || eq(keyname, "ESC")) snprintf(k, sizeof(k), "AX_KEY_ESCAPE");
   else if (eq(keyname, "BACKSPACE")) snprintf(k, sizeof(k), "AX_KEY_BACKSPACE");
+  else if (eq(keyname, "TAB")) snprintf(k, sizeof(k), "AX_KEY_TAB");
   else if (eq(keyname, "PAGE UP")) snprintf(k, sizeof(k), "AX_KEY_PGUP");
   else if (eq(keyname, "PAGE DOWN")) snprintf(k, sizeof(k), "AX_KEY_PGDN");
   else if (eq(keyname, "DELETE") || eq(keyname, "DEL")) snprintf(k, sizeof(k), "AX_KEY_DEL");
+  else if (eq(keyname, "EQUALS")) snprintf(k, sizeof(k), "AX_KEY_EQUALS");
+  else if (eq(keyname, "MINUS")) snprintf(k, sizeof(k), "AX_KEY_MINUS");
   else if (eq(keyname, "SLASH")) snprintf(k, sizeof(k), "AX_KEY_SLASH");
   else if (keyname[0] >= 'A' && keyname[0] <= 'Z' && keyname[1] == 0)
     snprintf(k, sizeof(k), "AX_KEY_%c", keyname[0]);
@@ -326,6 +334,26 @@ static bool parse_hotkey(const char *spec, char *fvirt, size_t fv_cap,
            ctrl ? " | FCONTROL" : "", shift ? " | FSHIFT" : "", alt ? " | FALT" : "");
   snprintf(key, key_cap, "%s", k);
   return true;
+}
+
+// A menu action may expose more than one equivalent accelerator, for example
+// Delete and Backspace or a primary key plus its Shift duplicate.  Keep the
+// manifest compact while emitting one framework accelerator per spelling.
+static bool next_hotkey(const char **cursor, char *out, size_t cap) {
+  const char *p = *cursor;
+  if (!p || !*p) return false;
+  const char *end = strchr(p, ';');
+  size_t n = end ? (size_t)(end - p) : strlen(p);
+  if (!n || n >= cap) return false;
+  memcpy(out, p, n); out[n] = 0;
+  *cursor = end ? end + 1 : p + n;
+  return true;
+}
+
+static int hotkey_count(const char *spec) {
+  int n = 0; char token[64]; const char *cursor = spec;
+  while (next_hotkey(&cursor, token, sizeof(token))) n++;
+  return n;
 }
 
 static void collect_toolbar_ids(ids_t *ids, cmd_refs_t *refs, xmlNodePtr toolbars) {
@@ -456,12 +484,13 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
     EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
       char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
-      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE];
+      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE], iconq[256];
       if (!elem(it, "separator") && !elem(it, "spacer"))
         resolve_action(id, sizeof(id), command, menu, scope, name, text);
       if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
       if (tooltip && *tooltip) cstr(tipq, sizeof(tipq), tooltip); else snprintf(tipq, sizeof(tipq), "NULL");
-      OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq, tipq);
+      if (icon && *icon) snprintf(iconq, sizeof(iconq), "\"%s\"", icon); else snprintf(iconq, sizeof(iconq), "NULL");
+      OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, iconq, nz(w, "0"), nz(flags, "0"), textq, tipq);
       free(command); free(menu); free(name); free(icon); free(w); free(flags); free(text); free(tooltip);
     }
     OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
@@ -492,18 +521,26 @@ static int validate_actions(const ids_t *ids, const cmd_refs_t *refs,
         errors++;
       }
     if (!m->hotkey[0]) continue;
-    char fvirt[64], key[64];
-    if (!parse_hotkey(m->hotkey, fvirt, sizeof(fvirt), key, sizeof(key))) {
-      fprintf(stderr, "orionc: malformed hotkey '%s' on action '%s'\n", m->hotkey, m->name);
-      errors++;
-      continue;
-    }
-    for (int j = i + 1; j < meta->n; j++)
-      if (eq(m->hotkey, meta->v[j].hotkey)) {
-        fprintf(stderr, "orionc: duplicate hotkey '%s' on actions '%s' and '%s'\n",
-                m->hotkey, m->name, meta->v[j].name);
+    char token[64]; const char *cursor = m->hotkey;
+    while (next_hotkey(&cursor, token, sizeof(token))) {
+      char fvirt[64], key[64];
+      if (!parse_hotkey(token, fvirt, sizeof(fvirt), key, sizeof(key))) {
+        fprintf(stderr, "orionc: malformed hotkey '%s' on action '%s'\n", token, m->name);
         errors++;
+        continue;
       }
+      for (int j = i; j < meta->n; j++) {
+        char other[64]; const char *other_cursor = meta->v[j].hotkey;
+        while (next_hotkey(&other_cursor, other, sizeof(other))) {
+          if (j == i && eq(token, other)) continue;
+          if (eq(token, other)) {
+            fprintf(stderr, "orionc: duplicate hotkey '%s' on actions '%s' and '%s'\n",
+                    token, m->name, meta->v[j].name);
+            errors++;
+          }
+        }
+      }
+    }
   }
   return errors;
 }
@@ -526,14 +563,16 @@ static void emit_action_meta(FILE *f, const char *prefix, const action_meta_list
 static void emit_accelerators(FILE *f, const char *prefix, const action_meta_list_t *meta) {
   if (!meta) return;
   int n = 0;
-  for (int i = 0; i < meta->n; i++) if (meta->v[i].hotkey[0]) n++;
+  for (int i = 0; i < meta->n; i++) n += hotkey_count(meta->v[i].hotkey);
   if (!n) return;
   OUT("static const accel_t %s_default_accels[] = {\n", prefix);
   for (int i = 0; i < meta->n; i++) {
-    if (!meta->v[i].hotkey[0]) continue;
-    char fvirt[64], key[64];
-    if (!parse_hotkey(meta->v[i].hotkey, fvirt, sizeof(fvirt), key, sizeof(key))) continue;
-    OUT("  { %s, %s, %s },\n", fvirt, key, meta->v[i].id);
+    char token[64]; const char *cursor = meta->v[i].hotkey;
+    while (next_hotkey(&cursor, token, sizeof(token))) {
+      char fvirt[64], key[64];
+      if (!parse_hotkey(token, fvirt, sizeof(fvirt), key, sizeof(key))) continue;
+      OUT("  { %s, %s, %s },\n", fvirt, key, meta->v[i].id);
+    }
   }
   OUT("};\n#define %s_default_accel_count ((int)(sizeof(%s_default_accels) / sizeof(%s_default_accels[0])))\n\n", prefix, prefix, prefix);
 }

@@ -34,6 +34,12 @@ static int run_orionc(const char *fixture, const char *tag, char *out, size_t ou
     size_t n = fread(out, 1, out_sz - 1, p);
     out[n] = '\0';
     int rc = pclose(p);
+    FILE *generated = fopen(output, "r");
+    if (generated && n + 1 < out_sz) {
+        n += fread(out + n, 1, out_sz - n - 1, generated);
+        out[n] = '\0';
+    }
+    if (generated) fclose(generated);
 
     remove(input);
     remove(output);
@@ -50,7 +56,7 @@ static const char *kValid = ""
   "<orion version=\"1\" name=\"t\" title=\"T\">\n"
   "  <menus>\n"
   "    <menu name=\"repo\" label=\"Repo\">\n"
-  "      <item name=\"refresh\" label=\"Refresh\" shortcut=\"F5\" />\n"
+  "      <item name=\"refresh\" label=\"Refresh\" shortcut=\"F5;Ctrl+F5\" />\n"
   "    </menu>\n"
   "  </menus>\n"
   "  <toolbars>\n"

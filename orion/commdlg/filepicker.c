@@ -55,11 +55,11 @@ enum {
 
 // Toolbar items: "Location:" label + path combobox + separator + icon buttons
 static const toolbar_item_t kFilePickerItems[] = {
-  { TOOLBAR_ITEM_LABEL,    0,                     -1,  54, 0, "Location:", NULL },
-  { TOOLBAR_ITEM_COMBOBOX, FP_ID_LOC_COMBO,       -1, 180, 0, NULL,       NULL },
-  { TOOLBAR_ITEM_SEPARATOR, 0,                    -1,   0, 0, NULL,       NULL },
-  { TOOLBAR_ITEM_BUTTON,   FP_ID_TOOL_UP,         sysicon_folder_up, 0, 0, NULL, "Up one folder" },
-  { TOOLBAR_ITEM_BUTTON,   FP_ID_TOOL_NEW_FOLDER, sysicon_folder,    0, 0, NULL, "Create new folder" },
+  { TOOLBAR_ITEM_LABEL,    0,                     NULL,            54, 0, "Location:", NULL },
+  { TOOLBAR_ITEM_COMBOBOX, FP_ID_LOC_COMBO,       NULL,           180, 0, NULL,        NULL },
+  { TOOLBAR_ITEM_SEPARATOR, 0,                    NULL,             0, 0, NULL,        NULL },
+  { TOOLBAR_ITEM_BUTTON,   FP_ID_TOOL_UP,         "folder-plus",   0, 0, NULL, "Up one folder" },
+  { TOOLBAR_ITEM_BUTTON,   FP_ID_TOOL_NEW_FOLDER, "folder",        0, 0, NULL, "Create new folder" },
 };
 
 typedef struct {

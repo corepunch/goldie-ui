@@ -15,11 +15,11 @@
       </menu>
 
       <menu name="post" label="Post">
-        <item name="new" label="New Post..." />
-        <item name="like" label="Like Post" />
-        <item name="view" label="View Post..." />
+        <item name="new" label="New Post..." shortcut="Ctrl+N" />
+        <item name="like" label="Like Post" shortcut="Ctrl+L" />
+        <item name="view" label="View Post..." shortcut="Enter" />
         <Separator />
-        <item name="delete" label="Delete Post" />
+        <item name="delete" label="Delete Post" shortcut="Delete" />
       </menu>
 
       <menu name="view" label="View">

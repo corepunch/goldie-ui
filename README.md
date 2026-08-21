@@ -63,6 +63,15 @@ show_db_dialog(&form, "Edit Author", parent, db, author_id);
 **Code reduction: 95%** (200 lines to 10 lines)
 
 ![Orion Social Feed -- Database-Driven Application](docs/screenshots/socialfeed_main.jpg)
+
+### Menus are the application map
+
+For applications with commands, `.orion` menu items are the canonical action
+registry. They define the generated command ID, label, and default `shortcut`;
+toolbars and context menus reference the same action with `command="group.item"`.
+The generator also emits the accelerator table, so command shortcuts do not
+need a second C declaration. C tables remain appropriate only for genuinely
+context-specific input scopes or raw text/input forwarding.
 *Social feed application with database-driven posts, authors, and comments*
 
 **[Read the complete Database Forms guide](docs/database-forms.md)**

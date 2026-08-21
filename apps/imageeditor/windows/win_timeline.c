@@ -36,13 +36,13 @@ typedef struct {
 
 // Toolbar ops shown in the timeline titlebar band.
 static const toolbar_item_t kTimelineToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_PREV_FRAME,  sysicon_anim_frame_move_left,  0, 0, NULL, "Previous frame" },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEXT_FRAME,  sysicon_anim_frame_move_right, 0, 0, NULL, "Next frame" },
-  { TOOLBAR_ITEM_SPACER, 0, -1, 6, 0, NULL, NULL },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_PLAY,        sysicon_clock_play,            0, 0, NULL, "Play" },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_TRACE,       -1,                            0, BUTTON_PUSHLIKE, NULL, "Onion skin" },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEW_FRAME,   sysicon_anim_frame_add,       0, 0, NULL, "New frame" },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_DELETE_FRAME,sysicon_anim_frame_delete,    0, 0, NULL, "Delete frame" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_PREV_FRAME,  "fast-arrow-left",  0, 0, NULL, "Previous frame" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEXT_FRAME,  "fast-arrow-right", 0, 0, NULL, "Next frame" },
+  { TOOLBAR_ITEM_SPACER, 0, NULL, 6, 0, NULL, NULL },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_PLAY,        "play",             0, 0, NULL, "Play" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_TRACE,       NULL,               0, BUTTON_PUSHLIKE, NULL, "Onion skin" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEW_FRAME,   "plus",             0, 0, NULL, "New frame" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_DELETE_FRAME,"trash",            0, 0, NULL, "Delete frame" },
 };
 
 // ============================================================

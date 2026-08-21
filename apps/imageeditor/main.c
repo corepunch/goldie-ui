@@ -14,65 +14,8 @@ static bool g_loaded_component_plugins = false;
 int g_bw_retina_scale = 1;
 #endif
 
-// ============================================================
-// Keyboard accelerators
-// ============================================================
-
-static const accel_t kAccelEntries[] = {
-  { FCONTROL|FVIRTKEY, AX_KEY_Z, ID_EDIT_UNDO },
-  { FCONTROL|FVIRTKEY, AX_KEY_Y, ID_EDIT_REDO },
-  { FCONTROL|FVIRTKEY, AX_KEY_X, ID_EDIT_CUT  },
-  { FCONTROL|FVIRTKEY, AX_KEY_C, ID_EDIT_COPY },
-  { FCONTROL|FVIRTKEY, AX_KEY_V, ID_EDIT_PASTE},
-  { FVIRTKEY,          AX_KEY_X, ID_COLOR_SWAP },
-  { FCONTROL|FVIRTKEY, AX_KEY_A, ID_SELECT_ALL},
-  { FVIRTKEY,          AX_KEY_ESCAPE, ID_SELECT_DESELECT},
-  // Delete / Backspace clears the active selection to transparency.
-  { FVIRTKEY,          AX_KEY_DEL,       ID_SELECT_CLEAR },
-  { FVIRTKEY,          AX_KEY_BACKSPACE, ID_SELECT_CLEAR },
-  // Photoshop-style layer fill shortcuts.
-  { FALT|FVIRTKEY,     AX_KEY_BACKSPACE, ID_LAYER_FILL_FOREGROUND },
-  { FCONTROL|FVIRTKEY, AX_KEY_BACKSPACE, ID_LAYER_FILL_BACKGROUND },
-  { FCONTROL|FVIRTKEY, AX_KEY_N, ID_FILE_NEW  },
-  { FCONTROL|FVIRTKEY, AX_KEY_O, ID_FILE_OPEN },
-  { FCONTROL|FVIRTKEY, AX_KEY_S, ID_FILE_SAVE },
-  { FCONTROL|FVIRTKEY, AX_KEY_W, ID_FILE_CLOSE},
-  // Zoom shortcuts: Ctrl+= (Ctrl++) and Ctrl+-
-  { FCONTROL|FVIRTKEY, AX_KEY_EQUALS,  ID_VIEW_ZOOM_IN  },
-  { FCONTROL|FSHIFT|FVIRTKEY, AX_KEY_EQUALS,  ID_VIEW_ZOOM_IN  },
-  { FCONTROL|FVIRTKEY, AX_KEY_MINUS,  ID_VIEW_ZOOM_OUT },
-  // Ctrl+0 — Fit on Screen (Photoshop convention)
-  { FCONTROL|FVIRTKEY, AX_KEY_0,      ID_VIEW_ZOOM_FIT },
-  // Timeline navigation, matching common animation tools like After Effects.
-  { FVIRTKEY,          AX_KEY_PGUP,   ID_ANIM_PREV_FRAME },
-  { FVIRTKEY,          AX_KEY_PGDN,   ID_ANIM_NEXT_FRAME },
-  // Tool hotkeys – same as MS Paint
-  { FVIRTKEY,          AX_KEY_P, ID_TOOL_PENCIL },
-  { FVIRTKEY,          AX_KEY_B, ID_TOOL_BRUSH  },
-  { FVIRTKEY,          AX_KEY_E, ID_TOOL_ERASER },
-  { FVIRTKEY,          AX_KEY_K, ID_TOOL_FILL   },
-  { FVIRTKEY,          AX_KEY_S, ID_TOOL_SELECT },
-  { FVIRTKEY,          AX_KEY_A, ID_TOOL_SPRAY       },
-  { FVIRTKEY,          AX_KEY_I, ID_TOOL_EYEDROPPER  },
-  { FVIRTKEY,          AX_KEY_G, ID_TOOL_MAGNIFIER   },
-  { FVIRTKEY,          AX_KEY_W, ID_TOOL_MAGIC_WAND  },
-  { FVIRTKEY,          AX_KEY_T, ID_TOOL_TEXT   },
-  { FVIRTKEY,          AX_KEY_V, ID_TOOL_MOVE   },
-  { FVIRTKEY,          AX_KEY_C, ID_TOOL_CROP   },
-  // Allow tool hotkeys to work even when Shift is held
-  { FSHIFT|FVIRTKEY,   AX_KEY_P, ID_TOOL_PENCIL },
-  { FSHIFT|FVIRTKEY,   AX_KEY_B, ID_TOOL_BRUSH  },
-  { FSHIFT|FVIRTKEY,   AX_KEY_E, ID_TOOL_ERASER },
-  { FSHIFT|FVIRTKEY,   AX_KEY_K, ID_TOOL_FILL   },
-  { FSHIFT|FVIRTKEY,   AX_KEY_S, ID_TOOL_SELECT },
-  { FSHIFT|FVIRTKEY,   AX_KEY_A, ID_TOOL_SPRAY       },
-  { FSHIFT|FVIRTKEY,   AX_KEY_I, ID_TOOL_EYEDROPPER  },
-  { FSHIFT|FVIRTKEY,   AX_KEY_G, ID_TOOL_MAGNIFIER   },
-  { FSHIFT|FVIRTKEY,   AX_KEY_W, ID_TOOL_MAGIC_WAND  },
-  { FSHIFT|FVIRTKEY,   AX_KEY_T, ID_TOOL_TEXT   },
-  { FSHIFT|FVIRTKEY,   AX_KEY_V, ID_TOOL_MOVE   },
-  { FSHIFT|FVIRTKEY,   AX_KEY_C, ID_TOOL_CROP   },
-};
+// Application accelerators are generated from menu shortcuts in
+// imageeditor.orion and loaded during application initialization.
 
 // Resurrect 64 palette from LoSpec.com
 static const uint32_t kDefaultPalette[NUM_COLORS] = {
@@ -247,8 +190,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
     }
   }
 
-  g_app->accel = load_accelerators(kAccelEntries,
-                                   (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0])));
+  g_app->accel = load_accelerators(imageeditor_default_accels,
+                                   imageeditor_default_accel_count);
   if (g_app->menubar_win)
     send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators, 0, g_app->accel);
 

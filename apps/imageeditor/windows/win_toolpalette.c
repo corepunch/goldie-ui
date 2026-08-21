@@ -8,8 +8,8 @@
 
 #include "imageeditor.h"
 #include <orion/kernel/renderer.h>
-#include <orion/user/image.h>
 #include <orion/user/rect.h>
+#include <orion/user/svg_icon_loader.h>
 
 // Image editor atlas tile size (all icons are square).
 #define ICON_W  TOOL_ICON_W
@@ -93,44 +93,92 @@ static void palette_set_active_tool(window_t *win, int ident) {
   invalidate_window(win);
 }
 
+// Iconoir SVG name for each IE_ICONS entry (24x24 tiles).
+// NULL entries are left blank and logged to stderr at startup.
+static const char *k_tool_svg_names[IE_ICON_COUNT] = {
+  [IE_ADD_ANCHOR_POINT    ] = "plus-square",
+  [IE_BRUSH               ] = "design-nib",
+  [IE_BURN                ] = "fire-flame",
+  [IE_BUTTON              ] = "cursor-pointer",
+  [IE_CLIPBOARD           ] = "paste-clipboard",
+  [IE_CLONE_STAMP         ] = "copy",
+  [IE_COLOR_WHEEL         ] = "palette",
+  [IE_COPY                ] = "copy",
+  [IE_CROP                ] = "crop",
+  [IE_DELETE_ANCHOR_POINT ] = "minus-square",
+  [IE_DELETE_FILE         ] = "trash",
+  [IE_DODGE               ] = "brightness",
+  [IE_DOWNLOAD            ] = "download",
+  [IE_DROPLET             ] = "droplet",
+  [IE_ELLIPSE             ] = "circle",
+  [IE_ERASER              ] = "erase",
+  [IE_EXPORT              ] = "send-diagonal",
+  [IE_EYEDROPPER          ] = "color-picker",
+  [IE_FLIP_HORIZONTAL     ] = "mirror",
+  [IE_FLIP_VERTICAL       ] = "mirror",
+  [IE_GRADIENT            ] = "triangle",
+  [IE_GRID                ] = "view-grid",
+  [IE_GUIDES              ] = "ruler",
+  [IE_HAND                ] = "drag-hand-gesture",
+  [IE_HEALING             ] = "health-shield",
+  [IE_HISTORY             ] = "clock-rotate-right",
+  [IE_ICON010             ] = NULL,
+  [IE_LASSO               ] = "selective-tool",
+  [IE_LAYERS              ] = "multiple-pages",
+  [IE_LINE                ] = "minus",
+  [IE_LOCK                ] = "lock",
+  [IE_MAGIC_WAND          ] = "magic-wand",
+  [IE_MAGNET              ] = "magnet",
+  [IE_MASK                ] = "frame",
+  [IE_MOUNTAIN            ] = NULL,
+  [IE_MOVE                ] = "ruler-arrows",
+  [IE_NEW_FILE            ] = "page-plus",
+  [IE_OPACITY             ] = "half-cookie",
+  [IE_OPEN_FOLDER         ] = "folder",
+  [IE_PAINT_BRUSH         ] = "design-nib",
+  [IE_PAINT_BUCKET        ] = "fill-color",
+  [IE_PEN                 ] = "design-nib",
+  [IE_PENCIL              ] = "edit-pencil",
+  [IE_POLYGON_LASSO       ] = "triangle",
+  [IE_PRINT               ] = "printer",
+  [IE_RECTANGLE           ] = "square",
+  [IE_RECTANGULAR_MARQUEE ] = "square-dashed",
+  [IE_REDO                ] = "redo",
+  [IE_RESIZE_IMAGE        ] = "expand",
+  [IE_ROTATE              ] = "rotate-camera-right",
+  [IE_ROTATE_IMAGE        ] = "rotate-camera-right",
+  [IE_ROUNDED_RECTANGLE   ] = "square",
+  [IE_ROUNDED_SQUARE      ] = "square",
+  [IE_RULER               ] = "ruler",
+  [IE_SAVE                ] = "floppy-disk",
+  [IE_SCISSORS            ] = "scissor",
+  [IE_SETTINGS            ] = "settings",
+  [IE_SMUDGE              ] = "fingerprint",
+  [IE_SPONGE              ] = "droplet",
+  [IE_SPRAY_CAN           ] = "droplet-half",
+  [IE_TARGET              ] = "precision-tool",
+  [IE_TEXT                ] = "text",
+  [IE_TRANSFORM_SELECTION ] = "select-window",
+  [IE_UNDO                ] = "undo",
+  [IE_VIEW                ] = "eye",
+  [IE_ZOOM_IN             ] = "zoom-in",
+  [IE_ZOOM_OUT            ] = "zoom-out",
+};
+
 static bool palette_load_strip(window_t *win) {
   (void)win;
   if (g_tool_strip_loaded)
     return true;
   memset(&g_tool_strip, 0, sizeof(g_tool_strip));
-
-#ifdef SHAREDIR
-  char icon_path[512];
-  int n = snprintf(icon_path, sizeof(icon_path), "%s/" SHAREDIR "/image-editor.png",
+  char icons_dir[512];
+  int n = snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
                    ui_get_exe_dir());
-  if (n <= 0 || (size_t)n >= sizeof(icon_path))
+  if (n <= 0 || (size_t)n >= sizeof(icons_dir))
     return false;
-
-  int w = 0, h = 0;
-  uint8_t *pixels = load_image(icon_path, &w, &h);
-  if (!pixels)
-    return false;
-  if (w < ICON_W || h < ICON_W || (w % ICON_W) != 0 || (h % ICON_W) != 0) {
-    image_free(pixels);
-    return false;
-  }
-
-  uint32_t tex = R_CreateTextureRGBA(w, h, pixels, R_FILTER_NEAREST, R_WRAP_CLAMP);
-  image_free(pixels);
-  if (!tex)
-    return false;
-
-  g_tool_strip.tex = tex;
-  g_tool_strip.icon_w = ICON_W;
-  g_tool_strip.icon_h = ICON_W;
-  g_tool_strip.cols = w / ICON_W;
-  g_tool_strip.sheet_w = w;
-  g_tool_strip.sheet_h = h;
-  g_tool_strip_loaded = true;
-  return true;
-#else
-  return false;
-#endif
+  if (svg_build_strip(icons_dir, k_tool_svg_names, IE_ICON_COUNT,
+                      ICON_W, 16, &g_tool_strip, stderr))
+    g_tool_strip_loaded = true;
+  return g_tool_strip_loaded;
 }
 
 static void palette_draw_swatches(window_t *win) {

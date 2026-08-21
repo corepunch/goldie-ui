@@ -3,6 +3,7 @@
 #include "gitclient.h"
 #include <orion/gem.h>
 #include <orion/commctl/commctl.h>
+#include <orion/user/svg_icon_loader.h>
 
 // ============================================================
 // Module-level application state
@@ -34,6 +35,15 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_gc->selected_file   = -1;
   g_gc->unified_diff    = true;
   gc_recent_load();
+
+  // Register app-specific icons so they are found by sysicon_resolve().
+  {
+    char icons_path[4096];
+    int n = snprintf(icons_path, sizeof(icons_path), "%s/../share/gitclient/icons",
+                     ui_get_exe_dir());
+    if (n > 0 && (size_t)n < sizeof(icons_path))
+      svg_add_icons_dir(icons_path);
+  }
 
   // Register database classes and create databases.
   // history_db  — branches, commits, history files, tags, stash, remotes (default for form).

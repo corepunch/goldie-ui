@@ -277,22 +277,27 @@ static bool fe_load_project_plugins(xmlNodePtr root) {
   return true;
 }
 
-static int fe_parse_sysicon_name(const char *name) {
-  if (!name || !*name)
-    return sysicon_missing;
-  if (strcmp(name, "sysicon_add") == 0)
-    return sysicon_add;
-  if (strcmp(name, "sysicon_delete") == 0)
-    return sysicon_delete;
-  if (strcmp(name, "sysicon_heart") == 0)
-    return sysicon_heart;
-  if (strcmp(name, "sysicon_comment") == 0)
-    return sysicon_comment;
-  if (strcmp(name, "sysicon_folder") == 0)
-    return sysicon_folder;
-  if (strcmp(name, "sysicon_play") == 0)
-    return sysicon_play;
-  return sysicon_missing;
+static const char *fe_parse_sysicon_name(const char *name) {
+  if (!name || !*name) return NULL;
+  // Old sysicon_* names → SVG base names
+  if (strcmp(name, "sysicon_add") == 0)     return "plus";
+  if (strcmp(name, "sysicon_delete") == 0)  return "trash";
+  if (strcmp(name, "sysicon_heart") == 0)   return "heart";
+  if (strcmp(name, "sysicon_comment") == 0) return "chat-bubble";
+  if (strcmp(name, "sysicon_folder") == 0)  return "folder";
+  if (strcmp(name, "sysicon_play") == 0)    return "play";
+  // New-format bare SVG names — recognised set
+  if (strcmp(name, "plus") == 0)        return "plus";
+  if (strcmp(name, "trash") == 0)       return "trash";
+  if (strcmp(name, "heart") == 0)       return "heart";
+  if (strcmp(name, "folder") == 0)      return "folder";
+  if (strcmp(name, "play") == 0)        return "play";
+  if (strcmp(name, "undo") == 0)        return "undo";
+  if (strcmp(name, "refresh") == 0)     return "refresh";
+  if (strcmp(name, "edit-pencil") == 0) return "edit-pencil";
+  if (strcmp(name, "arrow-up") == 0)    return "arrow-up";
+  if (strcmp(name, "arrow-down") == 0)  return "arrow-down";
+  return NULL;
 }
 
 static uint32_t fe_parse_form_chrome_flags(xmlNodePtr form_node) {
@@ -358,7 +363,7 @@ static int fe_build_toolbar_items(xmlNodePtr root, xmlNodePtr form_node,
     if (n->type != XML_ELEMENT_NODE)
       continue;
     if (xmlStrcasecmp(n->name, BAD_CAST "spacer") == 0) {
-      items[count++] = (toolbar_item_t){ .type = TOOLBAR_ITEM_SPACER, .icon = -1 };
+      items[count++] = (toolbar_item_t){ .type = TOOLBAR_ITEM_SPACER, .icon = NULL };
       continue;
     }
     if (xmlStrcasecmp(n->name, BAD_CAST "Button") != 0)
