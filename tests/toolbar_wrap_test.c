@@ -280,8 +280,8 @@ void test_toolbar_set_items_button(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_BUTTON, 20, -1, 0, 0, "New"},
-        {TOOLBAR_ITEM_BUTTON, 21, -1, 0, 0, "Open"},
+        {TOOLBAR_ITEM_BUTTON, 20, NULL, 0, 0, "New"},
+        {TOOLBAR_ITEM_BUTTON, 21, NULL, 0, 0, "Open"},
     };
     send_message(win, tbSetItems, 2, items);
 
@@ -309,7 +309,7 @@ void test_toolbar_set_items_label(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_LABEL, 30, -1, 40, 0, "Filter:"},
+        {TOOLBAR_ITEM_LABEL, 30, NULL, 40, 0, "Filter:"},
     };
     send_message(win, tbSetItems, 1, items);
 
@@ -338,7 +338,7 @@ void test_toolbar_set_items_textedit_geometry(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_TEXTEDIT, 41, -1, 120, 0, "https://example.com"},
+        {TOOLBAR_ITEM_TEXTEDIT, 41, NULL, 120, 0, "https://example.com"},
     };
     send_message(win, tbSetItems, 1, items);
 
@@ -365,7 +365,7 @@ void test_toolbar_textedit_click_focuses_and_enters_editing(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_TEXTEDIT, 42, -1, 150, 0, "https://example.com"},
+        {TOOLBAR_ITEM_TEXTEDIT, 42, NULL, 150, 0, "https://example.com"},
     };
     send_message(win, tbSetItems, 1, items);
 
@@ -402,7 +402,7 @@ void test_titlebar_click_does_not_focus_toolbar_textedit(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_TEXTEDIT, 43, -1, 150, 0, "https://example.com"},
+        {TOOLBAR_ITEM_TEXTEDIT, 43, NULL, 150, 0, "https://example.com"},
     };
     send_message(win, tbSetItems, 1, items);
 
@@ -437,7 +437,7 @@ void test_toolbar_set_items_combobox(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_COMBOBOX, 40, -1, 80, 0, NULL},
+        {TOOLBAR_ITEM_COMBOBOX, 40, NULL, 80, 0, NULL},
     };
     send_message(win, tbSetItems, 1, items);
 
@@ -464,9 +464,9 @@ void test_toolbar_set_items_separator(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_BUTTON,    1, -1, 0, 0, "A"},
-        {TOOLBAR_ITEM_SEPARATOR, 0, -1, 0, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON,    2, -1, 0, 0, "B"},
+        {TOOLBAR_ITEM_BUTTON,    1, NULL, 0, 0, "A"},
+        {TOOLBAR_ITEM_SEPARATOR, 0, NULL, 0, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON,    2, NULL, 0, 0, "B"},
     };
     send_message(win, tbSetItems, 3, items);
 
@@ -493,9 +493,9 @@ void test_toolbar_set_items_spacer(void) {
     ASSERT_NOT_NULL(win);
 
     toolbar_item_t items[] = {
-        {TOOLBAR_ITEM_BUTTON, 1, -1, 0, 0, "A"},
-        {TOOLBAR_ITEM_SPACER, 0, -1, 8, 0, NULL},
-        {TOOLBAR_ITEM_BUTTON, 2, -1, 0, 0, "B"},
+        {TOOLBAR_ITEM_BUTTON, 1, NULL, 0, 0, "A"},
+        {TOOLBAR_ITEM_SPACER, 0, NULL, 8, 0, NULL},
+        {TOOLBAR_ITEM_BUTTON, 2, NULL, 0, 0, "B"},
     };
     send_message(win, tbSetItems, 3, items);
 
@@ -764,7 +764,7 @@ void test_toolbar_item_button_frame_clamped(void) {
 
     // Use a very long button title that would normally expand win_button's frame.w.
     toolbar_item_t items[] = {
-        { TOOLBAR_ITEM_BUTTON, 50, -1, 40, 0, "A very long label that would overflow" },
+        { TOOLBAR_ITEM_BUTTON, 50, NULL, 40, 0, "A very long label that would overflow" },
     };
     send_message(win, tbSetItems, 1, items);
 

@@ -484,12 +484,13 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
     OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
     EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
       char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
-      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE];
+      char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE], iconq[256];
       if (!elem(it, "separator") && !elem(it, "spacer"))
         resolve_action(id, sizeof(id), command, menu, scope, name, text);
       if (text && *text) cstr(textq, sizeof(textq), text); else snprintf(textq, sizeof(textq), "NULL");
       if (tooltip && *tooltip) cstr(tipq, sizeof(tipq), tooltip); else snprintf(tipq, sizeof(tipq), "NULL");
-      OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, nz(icon, "-1"), nz(w, "0"), nz(flags, "0"), textq, tipq);
+      if (icon && *icon) snprintf(iconq, sizeof(iconq), "\"%s\"", icon); else snprintf(iconq, sizeof(iconq), "NULL");
+      OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, iconq, nz(w, "0"), nz(flags, "0"), textq, tipq);
       free(command); free(menu); free(name); free(icon); free(w); free(flags); free(text); free(tooltip);
     }
     OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);

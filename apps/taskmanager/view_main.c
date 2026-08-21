@@ -7,10 +7,10 @@
 // ============================================================
 
 static const toolbar_item_t kMainToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, ID_TASK_NEW,    sysicon_add,    0, 0, NULL, "New task" },
-  { TOOLBAR_ITEM_BUTTON, ID_TASK_EDIT,   sysicon_pencil, 0, 0, NULL, "Edit task" },
-  { TOOLBAR_ITEM_SPACER, 0,              0,              0, 0, NULL, NULL },
-  { TOOLBAR_ITEM_BUTTON, ID_TASK_DELETE, sysicon_delete, 0, 0, NULL, "Delete task" },
+  { TOOLBAR_ITEM_BUTTON, ID_TASK_NEW,    "plus",         0, 0, NULL, "New task" },
+  { TOOLBAR_ITEM_BUTTON, ID_TASK_EDIT,   "edit-pencil",  0, 0, NULL, "Edit task" },
+  { TOOLBAR_ITEM_SPACER, 0,              NULL,           0, 0, NULL, NULL },
+  { TOOLBAR_ITEM_BUTTON, ID_TASK_DELETE, "trash",        0, 0, NULL, "Delete task" },
 };
 
 // ============================================================

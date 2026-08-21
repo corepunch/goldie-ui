@@ -668,3 +668,89 @@ bool svg_load_picker_strip(const char *icons_dir, bitmap_strip_t *out, FILE *mis
     return svg_build_strip(icons_dir, k_picker_names, ICON_COUNT,
                            16, 16, out, missing);
 }
+
+// ---------------------------------------------------------------------------
+// On-demand icon resolution (sysicon_resolve / svg_set_icons_dir)
+// ---------------------------------------------------------------------------
+
+extern bitmap_strip_t *ui_get_sysicon_strip(void);
+
+#define MAX_ICON_DIRS 8
+static char g_icon_dirs[MAX_ICON_DIRS][4096];
+static int  g_icon_dir_count;
+
+typedef struct {
+    char     name[64];
+    uint32_t tex;
+    int      w, h;
+} sysicon_cache_t;
+static sysicon_cache_t g_sysicon_cache[64];
+static int             g_sysicon_cache_n;
+
+void svg_set_icons_dir(const char *dir) {
+    g_icon_dir_count = 0;
+    if (dir && dir[0]) {
+        strncpy(g_icon_dirs[0], dir, sizeof(g_icon_dirs[0]) - 1);
+        g_icon_dir_count = 1;
+    }
+}
+
+void svg_add_icons_dir(const char *dir) {
+    if (!dir || !dir[0] || g_icon_dir_count >= MAX_ICON_DIRS) return;
+    strncpy(g_icon_dirs[g_icon_dir_count], dir, sizeof(g_icon_dirs[0]) - 1);
+    g_icon_dir_count++;
+}
+
+bool sysicon_resolve(const char *name, sysicon_resolved_t *out) {
+    if (!name || !name[0]) return false;
+
+    bitmap_strip_t *strip = ui_get_sysicon_strip();
+    if (strip && strip->tex) {
+        for (int i = 0; i < SYSICON_COUNT; i++) {
+            if (k_sysicon_names[i] && strcmp(k_sysicon_names[i], name) == 0) {
+                int col = i % strip->cols;
+                int row = i / strip->cols;
+                out->tex = strip->tex;
+                out->u0  = (float)(col * strip->icon_w) / (float)strip->sheet_w;
+                out->v0  = (float)(row * strip->icon_h) / (float)strip->sheet_h;
+                out->u1  = out->u0 + (float)strip->icon_w  / (float)strip->sheet_w;
+                out->v1  = out->v0 + (float)strip->icon_h  / (float)strip->sheet_h;
+                out->w   = strip->icon_w;
+                out->h   = strip->icon_h;
+                return true;
+            }
+        }
+    }
+
+    for (int i = 0; i < g_sysicon_cache_n; i++) {
+        if (strcmp(g_sysicon_cache[i].name, name) == 0) {
+            out->tex = g_sysicon_cache[i].tex;
+            out->u0 = 0.0f; out->v0 = 0.0f; out->u1 = 1.0f; out->v1 = 1.0f;
+            out->w  = g_sysicon_cache[i].w;
+            out->h  = g_sysicon_cache[i].h;
+            return true;
+        }
+    }
+
+    if (!g_icon_dir_count || g_sysicon_cache_n >= 64) return false;
+    uint8_t *pixels = (uint8_t *)malloc((size_t)SYSICON_SIZE * SYSICON_SIZE * 4);
+    if (!pixels) return false;
+    bool drawn = false;
+    char path[5120];
+    for (int di = 0; di < g_icon_dir_count && !drawn; di++) {
+        snprintf(path, sizeof(path), "%s/%s.svg", g_icon_dirs[di], name);
+        drawn = rasterize_svg(path, SYSICON_SIZE, pixels);
+    }
+    if (!drawn) { free(pixels); return false; }
+    uint32_t tex = R_CreateTextureRGBA(SYSICON_SIZE, SYSICON_SIZE, pixels,
+                                       R_FILTER_NEAREST, R_WRAP_CLAMP);
+    free(pixels);
+    if (!tex) return false;
+    sysicon_cache_t *e = &g_sysicon_cache[g_sysicon_cache_n++];
+    strncpy(e->name, name, sizeof(e->name) - 1);
+    e->name[sizeof(e->name) - 1] = '\0';
+    e->tex = tex; e->w = SYSICON_SIZE; e->h = SYSICON_SIZE;
+    out->tex = tex; out->u0 = 0.0f; out->v0 = 0.0f; out->u1 = 1.0f; out->v1 = 1.0f;
+    out->w = SYSICON_SIZE; out->h = SYSICON_SIZE;
+    return true;
+}

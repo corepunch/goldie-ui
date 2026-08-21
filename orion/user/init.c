@@ -98,6 +98,7 @@ static void init_sysicon_strip(void) {
   char icons_dir[4096];
   snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
            ui_get_exe_dir());
+  svg_set_icons_dir(icons_dir);
   if (svg_load_sysicon_strip(icons_dir, &g_sysicon_strip, stderr))
     g_sysicon_tex = g_sysicon_strip.tex;
 }

@@ -13,8 +13,8 @@ typedef struct {
 } plugins_browser_state_t;
 
 static const toolbar_item_t kPluginsToolbar[] = {
-  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_ADD,  sysicon_add,  0, 0, "Add plugin" },
-  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_LOAD, sysicon_play, 0, 0, "Load plugin" },
+  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_ADD,  "plus", 0, 0, "Add plugin" },
+  { TOOLBAR_ITEM_BUTTON, PLUGINS_ID_LOAD, "play", 0, 0, "Load plugin" },
 };
 
 static bool plugin_has_dynlib_ext(const char *path) {

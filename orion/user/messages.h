@@ -385,7 +385,7 @@ typedef enum {
 typedef struct {
   toolbar_item_type_t type;   // item type
   int                 ident;  // command ID / button identifier
-  int                 icon;   // BUTTON: sysicon_* value or custom strip index; -1 = uses sysicon_missing
+  const char         *icon;   // BUTTON: SVG base name, e.g. "git-fork", "undo"; NULL = no icon
   int                 w;      // explicit width in pixels (0 = automatic)
   uint32_t            flags;  // extra style flags (BUTTON_PUSHLIKE, BUTTON_AUTORADIO, …)
   const char         *text;   // label text, or combobox/textedit initial text
