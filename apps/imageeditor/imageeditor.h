@@ -173,38 +173,12 @@ extern const int kBrushSizes[NUM_BRUSH_SIZES];
 extern const int kZoomLevels[NUM_ZOOM_LEVELS];
 extern const int kZoomMenuIDs[NUM_ZOOM_LEVELS];
 
-#define ID_COLOR_SWAP     54
-
-// Timeline toolbar-only command IDs.
-#define ID_ANIM_TRACE     413
-
 #define ID_FILTER_BASE   1000
 #define IMAGEEDITOR_MAX_FILTERS 64
 
 
 #define ID_WINDOW_DOC_BASE 300  // IDs 300..315 reserved for open documents
 #define WINDOW_MENU_MAX_DOCS 16
-
-// Tool command IDs – these are the authoritative tool identifiers used everywhere
-#define ID_TOOL_PENCIL        20
-#define ID_TOOL_BRUSH         21
-#define ID_TOOL_ERASER        22
-#define ID_TOOL_FILL          23
-#define ID_TOOL_SELECT        24
-#define ID_TOOL_HAND          25
-#define ID_TOOL_ZOOM          26
-#define ID_TOOL_LINE          27
-#define ID_TOOL_RECT          28
-#define ID_TOOL_ELLIPSE       29
-#define ID_TOOL_ROUNDED_RECT  30
-#define ID_TOOL_POLYGON       31
-#define ID_TOOL_SPRAY         32
-#define ID_TOOL_EYEDROPPER    33
-#define ID_TOOL_MAGNIFIER     34
-#define ID_TOOL_TEXT          35
-#define ID_TOOL_CROP          36
-#define ID_TOOL_MAGIC_WAND    37
-#define ID_TOOL_MOVE          38
 
 #include "lv_cmpn.h"
 #include "fg_preview.h"

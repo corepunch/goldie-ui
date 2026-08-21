@@ -148,6 +148,11 @@ the accelerator table and action metadata from the menu declarations.
 Platform-specific modifier translation belongs in the accelerator layer, not in
 individual command handlers.
 
+An action may expose equivalent accelerators with a semicolon-separated
+`shortcut` value, such as `shortcut="Delete;Backspace"`. The generator validates
+and emits each spelling as a separate accelerator while retaining one command
+ID and one menu action.
+
 The current generated `ID_REMOTE_SYNC_SYNC` versus handler `ID_REMOTE_SYNC`
 problem is therefore a generator/reference bug, not a reason to introduce a
 second action registry. Fix the generator so `command="remote.sync"` resolves to
@@ -203,12 +208,31 @@ fixture, plus a short baseline result in the eventual gitclient README.
 - [x] Normalize application toolbar manifests to fully qualified
   `command="group.action"` references and add missing scener menu declarations
   for toolbar-only editing modes.
+- [x] Move imageeditor, scener, and socialfeed application accelerators into
+  their `.orion` menu items, including tool commands and equivalent shortcuts.
+- [x] Add a generator contract test for multi-shortcut menu actions.
 - [ ] Audit form-local submit buttons and custom controls; decide whether each
   is a continuation of a menu command or needs a menu-declared command of its
   own.
 
 Deliverable: menus, toolbar, context menus, and accelerators all emit the same
 canonical action ID.
+
+### Repository-wide audit status
+
+The rule is now explicit: application commands and their default shortcuts are
+menu declarations in `.orion`; toolbars and context menus only reference those
+commands. The current migration status is:
+
+- `gitclient`, `imageeditor`, `scener`, and `socialfeed`: migrated for normal
+  application commands and generated accelerators.
+- `scener` retains a reduced C accelerator table only for the temporary
+  viewport-navigation context, where the active accelerator scope changes.
+- `browser`, `formeditor`, `shell`, and `taskmanager`: still use legacy C menu
+  and/or accelerator definitions and are follow-up migration work.
+- `terminal` raw key forwarding is terminal input, not an application command.
+- `vibeoffice`, `filemanager`, and demo-only apps have no menu-backed shortcut
+  registry to migrate yet.
 
 ### Phase 2 — Extract and harden command execution
 

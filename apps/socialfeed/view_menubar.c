@@ -11,13 +11,6 @@
 // Accelerator table
 // ============================================================
 
-static const accel_t kAccelEntries[] = {
-  { FCONTROL|FVIRTKEY, AX_KEY_N,     ID_POST_NEW    },
-  { FCONTROL|FVIRTKEY, AX_KEY_L,     ID_POST_LIKE   },
-  { FVIRTKEY,          AX_KEY_ENTER, ID_POST_VIEW   },
-  { FVIRTKEY,          AX_KEY_DEL,   ID_POST_DELETE },
-};
-
 // ============================================================
 // handle_menu_command — dispatch File / Post / View / Help
 // ============================================================
@@ -144,8 +137,8 @@ void create_menubar(void) {
   g_app->menubar_win = set_app_menu(app_menubar_proc, kMenus, kNumMenus,
                                     handle_menu_command, g_app->hinstance);
 
-  g_app->accel = load_accelerators(kAccelEntries,
-      (int)(sizeof(kAccelEntries)/sizeof(kAccelEntries[0])));
+  g_app->accel = load_accelerators(socialfeed_default_accels,
+      socialfeed_default_accel_count);
 
   if (g_app->menubar_win)
     send_message(g_app->menubar_win, kMenuBarMessageSetAccelerators,

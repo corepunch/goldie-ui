@@ -12,38 +12,38 @@
 
     <menus var="kMenus" count="kNumMenus">
       <menu name="file" label="File">
-        <item name="new" label="New" />
-        <item name="open" label="Open..." />
+        <item name="new" label="New" shortcut="Ctrl+N" />
+        <item name="open" label="Open..." shortcut="Ctrl+O" />
         <Separator />
-        <item name="save" label="Save" />
+        <item name="save" label="Save" shortcut="Ctrl+S" />
         <item name="saveas" label="Save As..." />
         <Separator />
-        <item name="close" label="Close" />
+        <item name="close" label="Close" shortcut="Ctrl+W" />
         <Separator />
         <item name="quit" label="Quit" />
       </menu>
 
       <menu name="edit" label="Edit">
-        <item name="undo" label="Undo" />
-        <item name="redo" label="Redo" />
+        <item name="undo" label="Undo" shortcut="Ctrl+Z" />
+        <item name="redo" label="Redo" shortcut="Ctrl+Y" />
         <Separator />
-        <item name="cut" label="Cut" />
-        <item name="copy" label="Copy" />
-        <item name="paste" label="Paste" />
+        <item name="cut" label="Cut" shortcut="Ctrl+X" />
+        <item name="copy" label="Copy" shortcut="Ctrl+C" />
+        <item name="paste" label="Paste" shortcut="Ctrl+V" />
       </menu>
 
       <menu name="select" label="Select">
-        <item name="all" label="All" />
-        <item name="deselect" label="Deselect" />
+        <item name="all" label="All" shortcut="Ctrl+A" />
+        <item name="deselect" label="Deselect" shortcut="Escape" />
         <Separator />
-        <item name="clear" label="Clear Selection" />
+        <item name="clear" label="Clear Selection" shortcut="Delete;Backspace" />
         <Separator />
         <item name="expand" label="Expand..." />
         <item name="contract" label="Contract..." />
       </menu>
 
       <menu name="image" label="Image">
-        <item name="crop" label="Crop" shortcut="C" />
+        <item name="crop" label="Crop" />
         <Separator />
         <item name="resize" label="Image Size..." />
         <item name="canvas_size" label="Canvas Size..." />
@@ -93,9 +93,9 @@
       </menu>
 
       <menu name="view" label="View" mutable="true">
-        <item name="zoom_in" label="Zoom In" />
-        <item name="zoom_out" label="Zoom Out" />
-        <item name="zoom_fit" label="Fit on Screen" />
+        <item name="zoom_in" label="Zoom In" shortcut="Ctrl+Equals;Ctrl+Shift+Equals" />
+        <item name="zoom_out" label="Zoom Out" shortcut="Ctrl+Minus" />
+        <item name="zoom_fit" label="Fit on Screen" shortcut="Ctrl+0" />
         <Separator />
         <item name="zoom_1x" label="1x" />
         <item name="zoom_2x" label="2x" />
@@ -131,6 +131,7 @@
         <item name="stop" label="Stop" />
         <item name="loop" label="[ ] Loop" />
         <item name="onion_skin" label="Onion Skin Settings..." />
+        <item name="trace" label="Trace Onion Skin" />
         <Separator />
         <item name="export_gif" label="Export GIF..." />
         <item name="export_apng" label="Export APNG..." />
@@ -140,6 +141,32 @@
 
       <menu name="help" label="Help">
         <item name="about" label="About..." />
+      </menu>
+
+      <menu name="color" label="Color">
+        <item name="swap" label="Swap Colors" shortcut="X" />
+      </menu>
+
+      <menu name="tool" label="Tools">
+        <item name="pencil" label="Pencil" shortcut="P;Shift+P" />
+        <item name="brush" label="Brush" shortcut="B;Shift+B" />
+        <item name="eraser" label="Eraser" shortcut="E;Shift+E" />
+        <item name="fill" label="Fill" shortcut="K;Shift+K" />
+        <item name="select" label="Select" shortcut="S;Shift+S" />
+        <item name="hand" label="Hand" />
+        <item name="zoom" label="Zoom" />
+        <item name="line" label="Line" />
+        <item name="rect" label="Rectangle" />
+        <item name="ellipse" label="Ellipse" />
+        <item name="rounded_rect" label="Rounded Rectangle" />
+        <item name="polygon" label="Polygon" />
+        <item name="spray" label="Spray" shortcut="A;Shift+A" />
+        <item name="eyedropper" label="Eyedropper" shortcut="I;Shift+I" />
+        <item name="magnifier" label="Magnifier" shortcut="G;Shift+G" />
+        <item name="text" label="Text" shortcut="T;Shift+T" />
+        <item name="crop" label="Crop" shortcut="C;Shift+C" />
+        <item name="magic_wand" label="Magic Wand" shortcut="W;Shift+W" />
+        <item name="move" label="Move" shortcut="V;Shift+V" />
       </menu>
     </menus>
 
