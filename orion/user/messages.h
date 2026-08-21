@@ -335,8 +335,9 @@ typedef struct {
 // see commctl/columnview.h.  All values are usable in static initializers.
 // +5 instead of +4 keeps the height odd at both scales so that 9x9 theme
 // icons centre with equal integer padding on every side.
+#define SYSICON_SIZE      24              // canonical size of sysicon/toolbar SVG tiles
 #define TITLEBAR_HEIGHT   (FONT_SIZE + 5)
-#define TOOLBAR_HEIGHT    22
+#define TOOLBAR_HEIGHT    (SYSICON_SIZE + 4)  // button area = icon + 2px margin each side
 #define STATUSBAR_HEIGHT  (FONT_SIZE + 5)
 #define BUTTON_HEIGHT     19
 #define CONTROL_HEIGHT_MINI     13

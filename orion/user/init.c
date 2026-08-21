@@ -20,6 +20,7 @@
 #include "image.h"
 #include "icons.h"
 #include "theme.h"
+#include "svg_icon_loader.h"
 #include <orion/commctl/commctl.h>
 #include <orion/kernel/kernel.h>
 
@@ -91,10 +92,18 @@ void init_ui_transparency_checker_texture(void) {
   }
 }
 
-// Load the built-in icon sheet from <exe_dir>/../share/orion/icon_sheet_16x16.png.
-// Safe to call multiple times; subsequent calls are no-ops if already loaded.
+// Load the built-in sysicon strip.  Tries SVG rasterization first (iconoir
+// SVGs from share/orion/icons/); falls back to the legacy PNG sheet.
 static void init_sysicon_strip(void) {
   if (g_sysicon_tex != 0) return;
+  char icons_dir[4096];
+  snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
+           ui_get_exe_dir());
+  if (svg_load_sysicon_strip(icons_dir, &g_sysicon_strip, stderr)) {
+    g_sysicon_tex = g_sysicon_strip.tex;
+    return;
+  }
+  // Legacy PNG fallback.
   char path[4096];
   snprintf(path, sizeof(path), "%s/../share/orion/icon_sheet_16x16.png",
            ui_get_exe_dir());
@@ -163,10 +172,18 @@ static void shutdown_theme_strip(void) {
   g_theme_strip = (bitmap_strip_t){0};
 }
 
-// Load the file-picker icon sheet from <exe_dir>/../share/orion/filepicker.png.
-// Tiles are 16x16 RGBA; icons are indexed by icon_id_t (user/sysicons.h).
+// Load the file-picker icon strip.  Tries SVG rasterization first (same
+// share/orion/icons/ directory as sysicons); falls back to the legacy PNG.
 static void init_icons_strip(void) {
   if (g_icons_tex != 0) return;
+  char icons_dir[4096];
+  snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
+           ui_get_exe_dir());
+  if (svg_load_picker_strip(icons_dir, &g_icons_strip, stderr)) {
+    g_icons_tex = g_icons_strip.tex;
+    return;
+  }
+  // Legacy PNG fallback.
   char path[4096];
   snprintf(path, sizeof(path), "%s/../share/orion/filepicker.png",
            ui_get_exe_dir());
