@@ -95,9 +95,11 @@ then loads the SVG from disk on first use.
 // draw_icon16 still uses sysicon_* integer IDs from the preloaded strip
 draw_icon16(sysicon_eye_show, x, y, 0xFFFFFFFF);   // white
 draw_icon16(sysicon_warning,  x, y, 0xFF2244CC);   // tinted
+draw_sysicon(sysicon_eye_show, x, y, 12, 0xFFFFFFFF); // explicitly sized
 ```
 
-`draw_icon16` draws the icon at the strip's `icon_w × icon_h` pixel size.
+`draw_icon16` scales the source tile to 16×16 pixels. This keeps compact
+owner-drawn controls independent of the canonical 24×24 toolbar tile size.
 The tint color multiplies against the white-on-alpha icon (`0xFFFFFFFF` = white,
 `0xFF0000FF` = red).
 
