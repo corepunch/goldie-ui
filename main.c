@@ -3,6 +3,7 @@
 #include <orion/ui.h>
 #include <orion/user/gl_compat.h>
 #include <orion/user/image.h>
+#include <orion/user/svg_icon_loader.h>
 
 #define DEFAULT_FOV   60.0f
 #define PERSP_NEAR    0.1f
@@ -193,6 +194,14 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   srand((unsigned int)time(NULL));
   register_commctl_classes();
   shader_init();
+
+  {
+    char icons_path[4096];
+    int n = snprintf(icons_path, sizeof(icons_path), "%s/../share/scener/icons",
+                     ui_get_exe_dir());
+    if (n > 0 && (size_t)n < sizeof(icons_path))
+      svg_add_icons_dir(icons_path);
+  }
 
   if (!g_cli.screenshot_mode)
     create_app_windows(hinstance);

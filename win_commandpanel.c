@@ -1,8 +1,7 @@
 #include "scener.h"
 #include <orion/kernel/renderer.h>
 #include <orion/user/draw.h>
-#include <orion/user/image.h>
-#include "gmax_icons.h"
+#include <orion/user/svg_icon_loader.h>
 
 enum {
 	CP_WIDTH = SIDE_PANEL_WIDTH,
@@ -13,15 +12,14 @@ typedef void (*cp_action_fn)(void *context, uint16_t id);
 typedef struct {
 	const char *label;
 	uint16_t id;
-	int icon;
+	const char *icon;
 	cp_action_fn action;
 	void *context;
 } cp_command_t;
 typedef struct { const char *label; const cp_command_t *commands; int count; } cp_section_t;
-typedef struct { const char *label; uint16_t id; int icon; const cp_section_t *sections; int count; } cp_tab_t;
+typedef struct { const char *label; uint16_t id; const char *icon; const cp_section_t *sections; int count; } cp_tab_t;
 typedef struct { const cp_tab_t *tabs; int count; } cp_datasource_t;
 typedef struct {
-	uint32_t icons;
 	bitmap_strip_t strip;
 	window_t *tabview;
 	const cp_datasource_t *datasource;
@@ -37,48 +35,72 @@ static void cp_menu_action(void *context, uint16_t id) {
 #define CP_MENU_COMMAND(label, id, icon) { label, id, icon, cp_menu_action, NULL }
 
 static const cp_command_t kControlItems[] = {
-	CP_MENU_COMMAND("Select", ID_TOOL_SELECT, GMAX_ICON_SELECT), CP_MENU_COMMAND("Move", ID_TOOL_MOVE, GMAX_ICON_MOVE),
-	CP_MENU_COMMAND("Rotate", ID_TOOL_ROTATE, GMAX_ICON_ROTATE), CP_MENU_COMMAND("Scale", ID_TOOL_SCALE, GMAX_ICON_SCALE),
+	CP_MENU_COMMAND("Select",  ID_TOOL_SELECT, "cursor-pointer"),
+	CP_MENU_COMMAND("Move",    ID_TOOL_MOVE,   "drag"),
+	CP_MENU_COMMAND("Rotate",  ID_TOOL_ROTATE, "refresh"),
+	CP_MENU_COMMAND("Scale",   ID_TOOL_SCALE,  "expand"),
 };
 
 static const cp_command_t kShapeItems[] = {
-	CP_MENU_COMMAND("Box", ID_CREATE_BOX, GMAX_ICON_BOX), CP_MENU_COMMAND("Sphere", ID_CREATE_SPHERE, GMAX_ICON_SPHERE),
-	CP_MENU_COMMAND("Cylinder", ID_CREATE_CYLINDER, GMAX_ICON_CYLINDER), CP_MENU_COMMAND("Cone", ID_CREATE_CONE, GMAX_ICON_CONE),
-	CP_MENU_COMMAND("Torus", ID_CREATE_TORUS, GMAX_ICON_TORUS), CP_MENU_COMMAND("Prism", ID_CREATE_PRISM, GMAX_ICON_PRISM),
-	CP_MENU_COMMAND("Capsule", ID_CREATE_CAPSULE, GMAX_ICON_CAPSULE), CP_MENU_COMMAND("Arch", ID_CREATE_ARCH, GMAX_ICON_ARCH),
+	CP_MENU_COMMAND("Box",      ID_CREATE_BOX,      "cube"),
+	CP_MENU_COMMAND("Sphere",   ID_CREATE_SPHERE,   "sphere"),
+	CP_MENU_COMMAND("Cylinder", ID_CREATE_CYLINDER, "cylinder"),
+	CP_MENU_COMMAND("Cone",     ID_CREATE_CONE,     "cone"),
+	CP_MENU_COMMAND("Torus",    ID_CREATE_TORUS,    "torus"),
+	CP_MENU_COMMAND("Prism",    ID_CREATE_PRISM,    "triangle"),
+	CP_MENU_COMMAND("Capsule",  ID_CREATE_CAPSULE,  "capsule"),
+	CP_MENU_COMMAND("Arch",     ID_CREATE_ARCH,     "arch"),
 };
 
 static const cp_command_t kSceneItems[] = {
-	CP_MENU_COMMAND("Point Light", ID_CREATE_POINT_LIGHT, GMAX_ICON_POINT_LIGHT),
-	CP_MENU_COMMAND("Directional", ID_CREATE_DIRECTIONAL_LIGHT, GMAX_ICON_DIR_LIGHT),
-	CP_MENU_COMMAND("Camera", ID_CREATE_CAMERA, GMAX_ICON_CAMERA),
+	CP_MENU_COMMAND("Point Light", ID_CREATE_POINT_LIGHT,       "point-light"),
+	CP_MENU_COMMAND("Directional", ID_CREATE_DIRECTIONAL_LIGHT, "sun-light"),
+	CP_MENU_COMMAND("Camera",      ID_CREATE_CAMERA,            "camera"),
 };
 
 static const cp_command_t kModifierItems[] = {
-	CP_MENU_COMMAND("Taper", ID_MODIFY_TAPER, GMAX_ICON_TAPER), CP_MENU_COMMAND("Twist", ID_MODIFY_TWIST, GMAX_ICON_TWIST),
-	CP_MENU_COMMAND("Bend", ID_MODIFY_BEND, GMAX_ICON_BEND), CP_MENU_COMMAND("Stretch", ID_MODIFY_STRETCH, GMAX_ICON_STRETCH),
-	CP_MENU_COMMAND("Skew", ID_MODIFY_SKEW, GMAX_ICON_SKEW), CP_MENU_COMMAND("Extrude", ID_MODIFY_EXTRUDE, GMAX_ICON_EXTRUDE),
-	CP_MENU_COMMAND("Mirror", ID_MODIFY_MIRROR, GMAX_ICON_MIRROR), CP_MENU_COMMAND("Noise", ID_MODIFY_NOISE, GMAX_ICON_NOISE),
-	CP_MENU_COMMAND("Shell", ID_MODIFY_SHELL, GMAX_ICON_SHELL), CP_MENU_COMMAND("Array", ID_MODIFY_ARRAY, GMAX_ICON_ARRAY),
+	CP_MENU_COMMAND("Taper",   ID_MODIFY_TAPER,   "taper"),
+	CP_MENU_COMMAND("Twist",   ID_MODIFY_TWIST,   "twist"),
+	CP_MENU_COMMAND("Bend",    ID_MODIFY_BEND,    "bend"),
+	CP_MENU_COMMAND("Stretch", ID_MODIFY_STRETCH, "stretch"),
+	CP_MENU_COMMAND("Skew",    ID_MODIFY_SKEW,    "skew"),
+	CP_MENU_COMMAND("Extrude", ID_MODIFY_EXTRUDE, "extrude"),
+	CP_MENU_COMMAND("Mirror",  ID_MODIFY_MIRROR,  "mirror"),
+	CP_MENU_COMMAND("Noise",   ID_MODIFY_NOISE,   "noise"),
+	CP_MENU_COMMAND("Shell",   ID_MODIFY_SHELL,   "shell"),
+	CP_MENU_COMMAND("Array",   ID_MODIFY_ARRAY,   "view-grid"),
 };
 
 static const cp_section_t kCreateSections[] = {
-	{ "Controls", kControlItems, COUNT_OF(kControlItems) },
-	{ "Shapes", kShapeItems, COUNT_OF(kShapeItems) },
-	{ "Lights and Cameras", kSceneItems, COUNT_OF(kSceneItems) },
+	{ "Controls",           kControlItems,  COUNT_OF(kControlItems)  },
+	{ "Shapes",             kShapeItems,    COUNT_OF(kShapeItems)    },
+	{ "Lights and Cameras", kSceneItems,    COUNT_OF(kSceneItems)    },
 };
 
 static const cp_section_t kModifySections[] = {
 	{ "Modifiers", kModifierItems, COUNT_OF(kModifierItems) },
 };
 
+#define CP_ICON_CREATE    "plus-circle"
+#define CP_ICON_MODIFY    "wrench"
+#define CP_ICON_HIERARCHY "group"
+#define CP_ICON_MOTION    "path-arrow"
+#define CP_ICON_DISPLAY   "eye"
+#define CP_ICON_UTILITIES "settings"
+
+/* Tab icon names match kTabs[] order — indices 0..5 used with tcSetTabIcon. */
+static const char *kTabIconNames[] = {
+	CP_ICON_CREATE, CP_ICON_MODIFY, CP_ICON_HIERARCHY,
+	CP_ICON_MOTION, CP_ICON_DISPLAY, CP_ICON_UTILITIES,
+};
+
 static const cp_tab_t kTabs[] = {
-	{ "Create", ID_CP_TAB_CREATE, GMAX_ICON_TAB_CREATE, kCreateSections, COUNT_OF(kCreateSections) },
-	{ "Modify", ID_CP_TAB_MODIFY, GMAX_ICON_TAB_MODIFY, kModifySections, COUNT_OF(kModifySections) },
-	{ "Hierarchy", ID_CP_TAB_HIERARCHY, GMAX_ICON_TAB_HIERARCHY, NULL, 0 },
-	{ "Motion", ID_CP_TAB_MOTION, GMAX_ICON_TAB_MOTION, NULL, 0 },
-	{ "Display", ID_CP_TAB_DISPLAY, GMAX_ICON_TAB_DISPLAY, NULL, 0 },
-	{ "Utilities", ID_CP_TAB_UTILITIES, GMAX_ICON_TAB_UTILITIES, NULL, 0 },
+	{ "Create",    ID_CP_TAB_CREATE,    CP_ICON_CREATE,    kCreateSections, COUNT_OF(kCreateSections) },
+	{ "Modify",    ID_CP_TAB_MODIFY,    CP_ICON_MODIFY,    kModifySections, COUNT_OF(kModifySections) },
+	{ "Hierarchy", ID_CP_TAB_HIERARCHY, CP_ICON_HIERARCHY, NULL, 0 },
+	{ "Motion",    ID_CP_TAB_MOTION,    CP_ICON_MOTION,    NULL, 0 },
+	{ "Display",   ID_CP_TAB_DISPLAY,   CP_ICON_DISPLAY,   NULL, 0 },
+	{ "Utilities", ID_CP_TAB_UTILITIES, CP_ICON_UTILITIES, NULL, 0 },
 };
 
 static const cp_datasource_t kCommandPanelDataSource = {
@@ -106,31 +128,12 @@ static void cp_dump_measure(window_t *win, int avail_w, int avail_h, int depth) 
 		cp_dump_measure(child, m.desired_w, m.desired_h, depth + 1);
 }
 
-static uint32_t cp_load_icons(void) {
-	const char *found = NULL;
-	char bundled[1024];
-#ifdef SHAREDIR
-	int n = snprintf(bundled, sizeof(bundled), "%s/" SHAREDIR "/gmax-icons-24.png", ui_get_exe_dir());
-	if (n > 0 && (size_t)n < sizeof(bundled)) {
-		FILE *f = fopen(bundled, "rb");
-		if (f) { fclose(f); found = bundled; }
-	}
-#endif
-	if (!found) {
-		static const char *source = "apps/scener/share/gmax-icons-24.png";
-		FILE *f = fopen(source, "rb");
-		if (f) { fclose(f); found = source; }
-	}
-	if (!found) return 0;
-	int w = 0, h = 0;
-	uint8_t *pixels = load_image(found, &w, &h);
-	if (!pixels || w != GMAX_ICON_SHEET_W || h != GMAX_ICON_SHEET_H) {
-		if (pixels) image_free(pixels);
-		return 0;
-	}
-	uint32_t texture = R_CreateTextureRGBA(w, h, pixels, R_FILTER_NEAREST, R_WRAP_CLAMP);
-	image_free(pixels);
-	return texture;
+static bool cp_build_tab_strip(bitmap_strip_t *strip) {
+	char icons_dir[1024];
+	int n = snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons", ui_get_exe_dir());
+	if (n <= 0 || (size_t)n >= sizeof(icons_dir)) return false;
+	int count = COUNT_OF(kTabIconNames);
+	return svg_build_strip(icons_dir, kTabIconNames, count, 16, count, strip, NULL);
 }
 
 static window_t *cp_create_page(window_t *tabview, const cp_tab_t *tab) {
@@ -188,11 +191,7 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 			if (!st) return false;
 			win->userdata = st;
 			st->datasource = &kCommandPanelDataSource;
-			st->icons = cp_load_icons();
-			if (st->icons) st->strip = (bitmap_strip_t){
-				.tex = st->icons, .icon_w = GMAX_ICON_SIZE, .icon_h = GMAX_ICON_SIZE,
-				.cols = GMAX_ICON_COLS, .sheet_w = GMAX_ICON_SHEET_W, .sheet_h = GMAX_ICON_SHEET_H,
-			};
+			bool has_strip = cp_build_tab_strip(&st->strip);
 			st->tabview = create_window("", WINDOW_NOTITLE | WINDOW_NORESIZE,
 				MAKERECT(0, 0, 1, 1), win, "TabView", 0, NULL);
 			if (!st->tabview) return false;
@@ -201,10 +200,10 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 				if (page) show_window(page, true);
 			}
 			send_message(st->tabview, tcSetStyle, TAB_STYLE_ICONS_ONLY, NULL);
-			if (st->icons) {
+			if (has_strip) {
 				send_message(st->tabview, tcSetImageStrip, 0, &st->strip);
 				for (int i = 0; i < st->datasource->count; i++)
-					send_message(st->tabview, tcSetTabIcon, i, (void*)(intptr_t)st->datasource->tabs[i].icon);
+					send_message(st->tabview, tcSetTabIcon, i, (void*)(intptr_t)i);
 			}
 			irect16_t cr = get_client_rect(win);
 			layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
@@ -248,7 +247,7 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 		}
 		case evDestroy:
 			if (st) {
-				R_DeleteTexture(st->icons);
+				R_DeleteTexture(st->strip.tex);
 				free(st);
 				win->userdata = NULL;
 			}
