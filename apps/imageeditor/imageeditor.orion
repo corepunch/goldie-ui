@@ -172,21 +172,21 @@
 
     <toolbars>
       <toolbar name="main">
-        <Button name="new" command="file.new" icon="sysicon_page_add" text="New" tooltip="New image" />
-        <Button name="open" command="file.open" icon="sysicon_folder_page" text="Open" tooltip="Open image" />
-        <Button name="save" command="file.save" icon="sysicon_disk_save" text="Save" tooltip="Save image" />
-        <Button name="saveas" command="file.saveas" icon="sysicon_disk_multiple" text="Save As" tooltip="Save image as..." />
+        <Button name="new" command="file.new" icon="page-plus" text="New" tooltip="New image" />
+        <Button name="open" command="file.open" icon="folder" text="Open" tooltip="Open image" />
+        <Button name="save" command="file.save" icon="floppy-disk" text="Save" tooltip="Save image" />
+        <Button name="saveas" command="file.saveas" icon="download" text="Save As" tooltip="Save image as..." />
         <spacer w="10" />
-        <Button name="undo" command="edit.undo" icon="sysicon_undo" text="Undo" tooltip="Undo" />
-        <Button name="redo" command="edit.redo" icon="sysicon_redo" text="Redo" tooltip="Redo" />
+        <Button name="undo" command="edit.undo" icon="undo" text="Undo" tooltip="Undo" />
+        <Button name="redo" command="edit.redo" icon="redo" text="Redo" tooltip="Redo" />
         <spacer w="10" />
-        <Button name="zoom_out" command="view.zoom_out" icon="sysicon_magnifier_zoom_out" text="Zoom Out" tooltip="Zoom out" />
-        <Button name="zoom_in" command="view.zoom_in" icon="sysicon_magnifier_zoom_in" text="Zoom In" tooltip="Zoom in" />
-        <Button name="zoom_1x" command="view.zoom_1x" icon="sysicon_image_dimensions" text="1x" tooltip="Zoom to 100%" />
-        <Button name="zoom_fit" command="view.zoom_fit" icon="sysicon_expand" text="Fit" tooltip="Fit on screen" />
+        <Button name="zoom_out" command="view.zoom_out" icon="zoom-out" text="Zoom Out" tooltip="Zoom out" />
+        <Button name="zoom_in" command="view.zoom_in" icon="zoom-in" text="Zoom In" tooltip="Zoom in" />
+        <Button name="zoom_1x" command="view.zoom_1x" icon="frame" text="1x" tooltip="Zoom to 100%" />
+        <Button name="zoom_fit" command="view.zoom_fit" icon="expand" text="Fit" tooltip="Fit on screen" />
         <spacer w="10" />
-        <Button name="show_background" command="view.show_background" icon="sysicon_eye_show" flags="BUTTON_PUSHLIKE" text="BG" tooltip="Toggle background" />
-        <Button name="mask_only" command="view.mask_only" icon="sysicon_transparency" flags="BUTTON_PUSHLIKE" text="Mask" tooltip="Toggle mask view" />
+        <Button name="show_background" command="view.show_background" icon="eye" flags="BUTTON_PUSHLIKE" text="BG" tooltip="Toggle background" />
+        <Button name="mask_only" command="view.mask_only" icon="square-dashed" flags="BUTTON_PUSHLIKE" text="Mask" tooltip="Toggle mask view" />
       </toolbar>
     </toolbars>
 

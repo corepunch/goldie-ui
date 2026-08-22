@@ -40,7 +40,7 @@ static const toolbar_item_t kTimelineToolbar[] = {
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEXT_FRAME,  "fast-arrow-right", 0, 0, NULL, "Next frame" },
   { TOOLBAR_ITEM_SPACER, 0, NULL, 6, 0, NULL, NULL },
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_PLAY,        "play",             0, 0, NULL, "Play" },
-  { TOOLBAR_ITEM_BUTTON, ID_ANIM_TRACE,       NULL,               0, BUTTON_PUSHLIKE, NULL, "Onion skin" },
+  { TOOLBAR_ITEM_BUTTON, ID_ANIM_TRACE,       "eye",              0, BUTTON_PUSHLIKE, NULL, "Onion skin" },
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_NEW_FRAME,   "plus",             0, 0, NULL, "New frame" },
   { TOOLBAR_ITEM_BUTTON, ID_ANIM_DELETE_FRAME,"trash",            0, 0, NULL, "Delete frame" },
 };

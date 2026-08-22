@@ -24,6 +24,7 @@
 // Color palette used by the layers panel.
 #define COL_ROW_ACTIVE  MAKE_COLOR(0x00, 0x78, 0xD7, 0xFF)  // blue highlight
 #define COL_ALPHA_EDIT  MAKE_COLOR(0xE0, 0x40, 0x00, 0xFF)  // orange = editing alpha
+#define LAYER_ICON_SIZE 12
 
 // ============================================================
 // Toolbar definition
@@ -160,20 +161,24 @@ static void paint_layers(window_t *win, layers_win_state_t *st) {
       fill_rect(bg, R(0, ry, w, LAYERS_ROW_H));
 
       // Eye icon: visibility toggle.
-      int icon_y = ry + (LAYERS_ROW_H - 16) / 2;
+      irect16_t eye_slot = R(1, ry, LAYERS_EYE_W, LAYERS_ROW_H);
+      irect16_t eye_icon = rect_center(eye_slot, LAYER_ICON_SIZE, LAYER_ICON_SIZE);
       // uint32_t eye_col = (li == doc->layer.active)
       //                    ? MAKE_COLOR(0xFF,0xFF,0xFF,0xFF)
       //                    : get_sys_color(brTextNormal);
-      draw_icon16(lay->visible ? sysicon_eye_show : sysicon_eye_hide,
-                  1, icon_y, lay->visible ? 0xffffffff : 0x40ffffff); //eye_col);
+      draw_sysicon(lay->visible ? sysicon_eye_show : sysicon_eye_hide,
+                   eye_icon.x, eye_icon.y, LAYER_ICON_SIZE,
+                   lay->visible ? 0xffffffff : 0x40ffffff); //eye_col);
 
       // Alpha edit icon: pencil when editing, transparency icon when viewing.
       uint32_t chip_col = (doc->layer.editing_mask && li == doc->layer.active)
                           ? COL_ALPHA_EDIT : get_sys_color(brTextNormal);
       int chip_x = 1 + LAYERS_EYE_W + 2;
-      draw_icon16((doc->layer.editing_mask && li == doc->layer.active)
-                  ? sysicon_pencil : sysicon_transparency,
-                  chip_x, icon_y, chip_col);
+      irect16_t chip_slot = R(chip_x, ry, LAYERS_CHIP_W, LAYERS_ROW_H);
+      irect16_t chip_icon = rect_center(chip_slot, LAYER_ICON_SIZE, LAYER_ICON_SIZE);
+      draw_sysicon((doc->layer.editing_mask && li == doc->layer.active)
+                   ? sysicon_pencil : sysicon_transparency,
+                   chip_icon.x, chip_icon.y, LAYER_ICON_SIZE, chip_col);
 
       // Layer name.
       uint32_t name_col = (li == doc->layer.active)
