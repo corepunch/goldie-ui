@@ -133,7 +133,8 @@ static void cb_populate_from_database(window_t *win, const combobox_params_t *pa
                                   display_buf, sizeof(display_buf));
     
     if (success && display_buf[0] != '\0') {
-      if (params->filter_field && params->filter_value) {
+      if (params->filter_field && params->filter_field[0] &&
+          params->filter_value && params->filter_value[0]) {
         char filter_buf[64] = {0};
         if (!db_object_get_field_text(bindings, binding_count, obj_proc,
                                       record, params->filter_field,
