@@ -171,21 +171,6 @@ typedef enum {
 int ui_get_system_metrics(ui_system_metrics_t);
 void ui_update_screen_size(int width, int height);
 
-// Built-in system icon strip.
-// Returns a pointer to the global bitmap_strip_t for icon_sheet_16x16.png,
-// or NULL if the sheet was not found at startup.  Icon values from icons.h
-// (sysicon_*) start at SYSICON_BASE (0x10000); subtract SYSICON_BASE to get
-// the strip index when calling btnSetImage.
-//
-// Most callers do not need this: toolbar buttons whose icon field is
-// >= SYSICON_BASE are drawn from the sheet automatically.
-//
-// Example:
-//   bitmap_strip_t *s = ui_get_sysicon_strip();
-//   if (s)
-//     send_message(btn, btnSetImage, sysicon_add - SYSICON_BASE, s);
-bitmap_strip_t *ui_get_sysicon_strip(void);
-
 // Transparency checkerboard texture used by apps that need a visible alpha
 // background.  This is a 2x2 RGBA texture intended for repeated tiling.
 extern uint32_t ui_transparency_checker_texture;
@@ -196,11 +181,5 @@ extern uint32_t ui_transparency_checker_texture;
 // checkmark, combobox arrow, resize grip).
 // Returns NULL if the sheet was not found at startup.
 bitmap_strip_t *ui_get_theme_strip(void);
-
-// File-picker icon strip (filepicker.png, 16x16 RGBA tiles).
-// Icons are indexed by icon_id_t (user/sysicons.h).
-// Used exclusively by win_filelist via RVM_SETICONSTRIP.
-// Returns NULL if the sheet was not found at startup.
-bitmap_strip_t *ui_get_icons_strip(void);
 
 #endif

@@ -115,14 +115,11 @@ static void rebuild_thumbnails(timeline_state_t *st) {
 static void update_play_button_icon(window_t *win) {
   if (!win || !g_app) return;
   window_t *btn = get_window_item(win, ID_ANIM_PLAY);
-  bitmap_strip_t *strip = ui_get_sysicon_strip();
-  if (!btn || !strip) return;
+  if (!btn) return;
 
   canvas_doc_t *doc = tl_doc();
-  int icon = (doc && doc->anim && doc->anim->playing)
-           ? (sysicon_clock_stop - SYSICON_BASE)
-           : (sysicon_clock_play - SYSICON_BASE);
-  send_message(btn, btnSetImage, (uint32_t)icon, strip);
+  const char *icon = (doc && doc->anim && doc->anim->playing) ? "square" : "play";
+  send_message(btn, btnSetIconName, 0, (void *)icon);
 }
 
 static void update_trace_button_state(window_t *win) {

@@ -52,7 +52,6 @@
 #include <orion/user/user.h>
 #include <orion/user/draw.h>
 #include <orion/user/image.h>
-#include <orion/user/icons.h>
 #include <orion/user/svg_icon_loader.h>
 #include <orion/kernel/renderer.h>
 
@@ -132,11 +131,7 @@ static void draw_toolbox_button(toolbox_state_t *st, int idx,
     }
   } else {
     int icon = st->items[idx].icon;
-    if (icon >= SYSICON_BASE) {
-      // Built-in 16x16 sysicon sheet.
-      irect16_t icon_dst = rect_offset(rect_center(cell, 16, 16), px, px);
-      draw_icon16(icon, icon_dst.x, icon_dst.y, 0xFFFFFFFF);
-    } else if (st->strip.tex && st->strip.cols > 0) {
+    if (st->strip.tex && st->strip.cols > 0) {
       // Custom sprite-sheet strips carry their own colors.
       bitmap_strip_t *s = &st->strip;
       int col_idx = icon % s->cols;

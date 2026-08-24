@@ -166,7 +166,7 @@ static void paint_layers(window_t *win, layers_win_state_t *st) {
       // uint32_t eye_col = (li == doc->layer.active)
       //                    ? MAKE_COLOR(0xFF,0xFF,0xFF,0xFF)
       //                    : get_sys_color(brTextNormal);
-      draw_sysicon(lay->visible ? sysicon_eye_show : sysicon_eye_hide,
+      draw_sysicon(lay->visible ? "eye" : "eye-closed",
                    eye_icon.x, eye_icon.y, LAYER_ICON_SIZE,
                    lay->visible ? 0xffffffff : 0x40ffffff); //eye_col);
 
@@ -177,7 +177,7 @@ static void paint_layers(window_t *win, layers_win_state_t *st) {
       irect16_t chip_slot = R(chip_x, ry, LAYERS_CHIP_W, LAYERS_ROW_H);
       irect16_t chip_icon = rect_center(chip_slot, LAYER_ICON_SIZE, LAYER_ICON_SIZE);
       draw_sysicon((doc->layer.editing_mask && li == doc->layer.active)
-                   ? sysicon_pencil : sysicon_transparency,
+                   ? "edit-pencil" : "square-dashed",
                    chip_icon.x, chip_icon.y, LAYER_ICON_SIZE, chip_col);
 
       // Layer name.

@@ -4,7 +4,7 @@
 #include <orion/user/user.h>
 #include <orion/user/messages.h>
 #include <orion/user/draw.h>
-#include <orion/user/icons.h>
+#include <orion/user/svg_icon_loader.h>
 #include <orion/user/rect.h>
 #include <orion/user/theme.h>
 #include "commctl.h"
@@ -130,10 +130,10 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
 // -------------------------------------------------------------------------
 
 // Internal data owned by each toolbar button.
-// Analogous to TBBUTTON.iBitmap: the button stores an index into a shared strip.
 typedef struct {
-  bitmap_strip_t strip; // private copy of the strip descriptor
-  int            index; // which icon in the strip (iBitmap)
+  bitmap_strip_t strip;        // private copy of the strip descriptor (btnSetImage)
+  int            index;        // which icon in the strip (btnSetImage)
+  char           icon_name[64]; // SVG base name (btnSetIconName); takes priority over strip
 } toolbar_button_data_t;
 
 // Toolbar button window procedure.
@@ -154,8 +154,16 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
       draw_button(local, 1, 1, show_pressed);
       int px = show_pressed ? 1 : 0;
       toolbar_button_data_t *bd = (toolbar_button_data_t *)win->userdata;
-      if (bd && bd->strip.cols > 0) {
-        // Compute UV sub-region for the Nth icon in the strip.
+      bool drew_icon = false;
+      if (bd && bd->icon_name[0]) {
+        sysicon_resolved_t res;
+        if (sysicon_resolve(bd->icon_name, &res)) {
+          irect16_t ic = rect_offset(rect_center(local, res.w, res.h), px, px);
+          draw_sprite_region((int)res.tex, R(ic.x, ic.y, res.w, res.h),
+                             UV_RECT(res.u0, res.v0, res.u1, res.v1), 0xFFFFFFFF, 0);
+          drew_icon = true;
+        }
+      } else if (bd && bd->strip.cols > 0) {
         bitmap_strip_t *s = &bd->strip;
         int col = bd->index % s->cols;
         int row = bd->index / s->cols;
@@ -163,10 +171,12 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
         float v0 = (float)(row * s->icon_h) / (float)s->sheet_h;
         float u1 = u0 + (float)s->icon_w / (float)s->sheet_w;
         float v1 = v0 + (float)s->icon_h / (float)s->sheet_h;
-        irect16_t icon = rect_offset(rect_center(local, s->icon_w, s->icon_h), px, px);
-        draw_sprite_region((int)s->tex, R(icon.x, icon.y, s->icon_w, s->icon_h),
+        irect16_t ic = rect_offset(rect_center(local, s->icon_w, s->icon_h), px, px);
+        draw_sprite_region((int)s->tex, R(ic.x, ic.y, s->icon_w, s->icon_h),
                            UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
-      } else {
+        drew_icon = true;
+      }
+      if (!drew_icon) {
         // Fallback: draw text label when no image has been set.
         irect16_t inner = rect_inset_xy(local, BUTTON_PADDING, 2);
         if (!show_pressed)
@@ -221,13 +231,10 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
     case btnGetCheck:
       return win->value ? btnStateChecked : btnStateUnchecked;
     case btnSetImage: {
-      // Analogous to WinAPI TBBUTTON.iBitmap: store a private copy of the
-      // bitmap_strip_t descriptor and the icon index.
-      // wparam = icon index; lparam = bitmap_strip_t*
       if (lparam) {
         bitmap_strip_t *src = (bitmap_strip_t *)lparam;
-        toolbar_button_data_t *bd = malloc(sizeof(toolbar_button_data_t));
-        if (!bd) return false; // OOM: keep old image
+        toolbar_button_data_t *bd = calloc(1, sizeof(toolbar_button_data_t));
+        if (!bd) return false;
         memcpy(&bd->strip, src, sizeof(bitmap_strip_t));
         bd->index = (int)(uint32_t)wparam;
         if (win->userdata) free(win->userdata);
@@ -236,6 +243,21 @@ result_t win_toolbar_button(window_t *win, uint32_t msg, uint32_t wparam, void *
         if (win->userdata) free(win->userdata);
         win->userdata = NULL;
       }
+      invalidate_window(win);
+      return true;
+    }
+    case btnSetIconName: {
+      const char *name = (const char *)lparam;
+      toolbar_button_data_t *bd = (toolbar_button_data_t *)win->userdata;
+      if (!bd) {
+        bd = calloc(1, sizeof(toolbar_button_data_t));
+        if (!bd) return false;
+        win->userdata = bd;
+      }
+      if (name && name[0])
+        strncpy(bd->icon_name, name, sizeof(bd->icon_name) - 1);
+      else
+        bd->icon_name[0] = '\0';
       invalidate_window(win);
       return true;
     }

@@ -12,9 +12,8 @@
 #include "messages.h"
 #include "draw.h"
 #include "scrollbar.h"
-#include "icons.h"
-#include "sysicons.h"
 #include "theme.h"
+#include "svg_icon_loader.h"
 #include "toolbar.h"
 
 // External references
@@ -315,20 +314,6 @@ void draw_theme_icon(int id, int x, int y, int size, uint32_t col) {
   draw_sprite_region((int)s->tex, R(x, y, size, size), UV_RECT(u0, v0, u1, v1), col, 0);
 }
 
-void draw_icon(int id, int x, int y, int size, uint32_t col) {
-  bitmap_strip_t *s = ui_get_icons_strip();
-  if (!s || s->tex == 0 || s->cols <= 0) return;
-  int total = s->cols * (s->sheet_h / s->icon_h);
-  if (id < 0 || id >= total) return;
-  int scol = id % s->cols;
-  int srow = id / s->cols;
-  float u0 = (float)(scol * s->icon_w) / (float)s->sheet_w;
-  float v0 = (float)(srow * s->icon_h) / (float)s->sheet_h;
-  float u1 = u0 + (float)s->icon_w / (float)s->sheet_w;
-  float v1 = v0 + (float)s->icon_h / (float)s->sheet_h;
-  draw_sprite_region((int)s->tex, R(x, y, size, size), UV_RECT(u0, v0, u1, v1), col, 0);
-}
-
 void draw_icon8(int icon, int x, int y, uint32_t col) {
   draw_theme_icon(icon, x, y, THEME_ICON_SIZE, col);
 }
@@ -340,38 +325,16 @@ void draw_icon8_clipped(int icon, irect16_t rect, uint32_t col) {
                   THEME_ICON_SIZE, col);
 }
 
-void draw_sysicon(int icon, int x, int y, int size, uint32_t col) {
-  if (icon < SYSICON_BASE || size <= 0) {
-    fprintf(stderr, "[draw] rejected sysicon icon=%d size=%d\n", icon, size);
-    fflush(stderr);
-    return;
-  }
-  bitmap_strip_t *s = ui_get_sysicon_strip();
-  if (!s || s->tex == 0 || s->cols <= 0) return;
-  int idx  = icon - SYSICON_BASE;
-  int rows = s->icon_h > 0 ? s->sheet_h / s->icon_h : 0;
-  if (idx >= s->cols * rows) {
-    fprintf(stderr, "[draw] rejected sysicon icon=%d idx=%d count=%d\n",
-            icon, idx, s->cols * rows);
-    fflush(stderr);
-    return;
-  }
-  int scol = idx % s->cols;
-  int srow = idx / s->cols;
-  float u0 = (float)(scol * s->icon_w) / (float)s->sheet_w;
-  float v0 = (float)(srow * s->icon_h) / (float)s->sheet_h;
-  float u1 = u0 + (float)s->icon_w / (float)s->sheet_w;
-  float v1 = v0 + (float)s->icon_h / (float)s->sheet_h;
-  draw_sprite_region((int)s->tex, R(x, y, size, size),
-                     UV_RECT(u0, v0, u1, v1), col, 0);
+void draw_sysicon(const char *name, int x, int y, int size, uint32_t col) {
+  if (!name || !name[0] || size <= 0) return;
+  sysicon_resolved_t r;
+  if (!sysicon_resolve(name, &r)) return;
+  draw_sprite_region((int)r.tex, R(x, y, size, size),
+                     UV_RECT(r.u0, r.v0, r.u1, r.v1), col, 0);
 }
 
 void draw_icon16(int icon, int x, int y, uint32_t col) {
-  if (icon >= SYSICON_BASE) {
-    draw_sysicon(icon, x, y, 16, col);
-    return;
-  }
-  icon*=2;
+  icon *= 2;
   draw_text_small((char[]) { icon+128, icon+129, 0 }, x, y, col);
   draw_text_small((char[]) { icon+144, icon+145, 0 }, x, y+8, col);
 }

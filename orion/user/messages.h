@@ -95,6 +95,7 @@ enum {
   btnSetCheck = evUser,
   btnGetCheck,
   btnSetImage,       // wparam = icon index (iBitmap); lparam = bitmap_strip_t*
+  btnSetIconName,    // wparam = 0; lparam = const char* SVG base name (NULL to clear)
   cbAddString,
   cbGetCurrentSelection, // returns index; if lparam=int* also writes index (or kComboBoxError)
   cbGetCurrentValue,     // returns value_field data (e.g., ID) for foreign key binding
@@ -218,12 +219,12 @@ enum {
 
 // Toolbox item descriptor — one button in a win_toolbox 2-column grid.
 // Set via bxSetItems.  icon_name (SVG name resolved via sysicon_resolve) takes
-// priority when set.  icon is the legacy strip tile index (0-based) or
-// sysicon_* value (>= SYSICON_BASE), used when icon_name is NULL.
+// priority when set.  icon is a strip tile index (0-based) for custom PNG strips
+// loaded via bxLoadStrip, used when icon_name is NULL.
 typedef struct {
   int         ident;      // command identifier echoed in bxClicked
-  int         icon;       // strip tile index or sysicon_* value (ignored when icon_name set)
-  const char *icon_name;  // SVG icon name for sysicon_resolve(); NULL = use icon field
+  int         icon;       // strip tile index for custom PNG strips (ignored when icon_name set)
+  const char *icon_name;  // SVG icon name for sysicon_resolve(); preferred over icon
   const char *tooltip;    // tooltip text shown on hover, e.g. "Pencil (P)"; NULL = none
 } toolbox_item_t;
 

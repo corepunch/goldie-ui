@@ -5,6 +5,7 @@
 #include <orion/user/messages.h>
 #include <orion/user/draw.h>
 #include <orion/user/theme.h>
+#include <orion/user/svg_icon_loader.h>
 
 static int icon_content_height(reportview_data_t *data) {
   return (int)data->count * ENTRY_HEIGHT;
@@ -66,8 +67,16 @@ static void icon_paint(window_t *win, reportview_data_t *data) {
       fill_rect(get_sys_color(brTextNormal), R(x - 2, y, item_w, item_h));
     else
       fill_rect(bg_col, R(x - 2, y, item_w, item_h));
-    rv_draw_item_icon(strip, data->items[i].icon, &icon_rect,
-                      data->preserve_icon_colors ? 0xFFFFFFFF : icon_col);
+    const char *icon_name = data->items[i].icon_name;
+    if (icon_name) {
+      sysicon_resolved_t res;
+      if (sysicon_resolve(icon_name, &res))
+        draw_sprite_region((int)res.tex, icon_rect,
+                           UV_RECT(res.u0, res.v0, res.u1, res.v1), icon_col, 0);
+    } else {
+      rv_draw_item_icon(strip, data->items[i].icon, &icon_rect,
+                        data->preserve_icon_colors ? 0xFFFFFFFF : icon_col);
+    }
     draw_text_clipped(FONT_SMALL, data->items[i].text, &text_rect, icon_col, 0);
   }
 }

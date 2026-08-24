@@ -21,21 +21,14 @@
 #include <orion/user/user.h>
 #include <orion/user/messages.h>
 #include <orion/user/draw.h>
-#include <orion/user/sysicons.h>
 #include <orion/kernel/kernel.h>
 
-// ---------------------------------------------------------------------------
-// Layout constants — mirror columnview.c (exported via columnview.h)
-// ---------------------------------------------------------------------------
 #define FL_ENTRY_HEIGHT  COLUMNVIEW_ENTRY_HEIGHT
 #define FL_WIN_PADDING   COLUMNVIEW_WIN_PADDING
 
-// ---------------------------------------------------------------------------
-// Icons — indices into the filepicker.png strip (icon_id_t from sysicons.h).
-// ---------------------------------------------------------------------------
-#define FL_ICON_PARENT  ICON_BACK_ARROW    // ".." navigate-up entry
-#define FL_ICON_FOLDER  ICON_FOLDER_CLOSE  // directory
-#define FL_ICON_FILE    ICON_PAPER_BLANK   // regular file
+#define FL_ICON_PARENT  "arrow-left"
+#define FL_ICON_FOLDER  "folder"
+#define FL_ICON_FILE    "page"
 #define FL_COLOR_FOLDER 0xffa0d000u
 #define FL_COLOR_GEM    0xff50d050u  // bright green — executable .gem plugin
 #define FL_DUP_DBLCLICK_MS (DOUBLE_CLICK_MS / 2u)
@@ -188,7 +181,7 @@ static bool fl_push_item(filelist_data_t *data,
   it->size         = size;
   it->modified     = modified;
   bool is_parent   = fl_is_parent_sentinel(path_heap);
-  it->icon  = is_parent ? FL_ICON_PARENT : (is_dir ? FL_ICON_FOLDER : FL_ICON_FILE);
+  (void)is_parent; // icon_name is derived at render time
   return true;
 }
 
@@ -239,12 +232,14 @@ static void fl_load_directory(window_t *win, filelist_data_t *data) {
                  : data->items[i].is_directory ? get_sys_color(brFolderText)
                  : is_gem                      ? FL_COLOR_GEM
                                                : get_sys_color(brTextNormal);
+    bool is_parent = fl_is_parent_sentinel(data->items[i].path);
     send_message(win, RVM_ADDITEM, 0,
       &(reportview_item_t){
-        .text     = base,
-        .icon     = data->items[i].icon,
-        .color    = col,
-        .userdata = data->items[i].is_directory ? 1u : 0u,
+        .text      = base,
+        .icon_name = is_parent ? FL_ICON_PARENT
+                   : data->items[i].is_directory ? FL_ICON_FOLDER : FL_ICON_FILE,
+        .color     = col,
+        .userdata  = data->items[i].is_directory ? 1u : 0u,
       });
   }
 }
@@ -323,12 +318,6 @@ result_t win_filelist(window_t *win, uint32_t msg,
       memset(data, 0, sizeof(*data));
       win->userdata  = data;
       data->selected = -1;
-
-      // Assign the file-picker icon strip so icons are drawn from filepicker.png.
-      bitmap_strip_t *strip = ui_get_icons_strip();
-      if (strip) {
-        send_message(win, RVM_SETICONSTRIP, 0, strip);
-      }
 
       // Initial path: lparam if provided, else cwd.
       const char *init = (const char *)lparam;

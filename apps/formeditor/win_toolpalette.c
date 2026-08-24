@@ -3,8 +3,6 @@
 
 #include "formeditor.h"
 #include <orion/commctl/commctl.h>
-#include <orion/user/icons.h>
-
 static toolbox_item_t g_tools[FE_MAX_COMPONENTS + 1];
 static int g_tool_count = 0;
 
@@ -12,7 +10,7 @@ static void build_tool_items(void) {
   g_tool_count = 0;
   g_tools[g_tool_count++] = (toolbox_item_t){
       .ident = ID_TOOL_SELECT,
-      .icon = sysicon_cursor,
+      .icon_name = "cursor-pointer",
       .tooltip = "Select",
   };
 
