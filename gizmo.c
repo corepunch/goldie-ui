@@ -137,7 +137,9 @@ void gizmo_draw(Scene *s,vec3 camPos,vec3 camLook,float camFov,int vpW,int vpH){
 	glDisable(GL_BLEND); glLineWidth(1.0f);
 	GizmoLines gl={0};
 	gl_bounds_corners(&gl,matrix,bmin,bmax);
-	if(s->editMode==EDIT_W_MOVE){
+	if(!s->selectedNode){
+		/* no XML node — bounds only, no transform handles */
+	} else if(s->editMode==EDIT_W_MOVE){
 		if(axis_visible(s->axisLock,GIZMO_AXIS_X)){
 			float r=radiusX;
 			if(s->axisLock) gl_axis_line(&gl,center,x,r,red); else gl_axis_arrow(&gl,center,x,r,red);
@@ -257,6 +259,7 @@ static void take_hit(float t,int handle,float *bestT,int *bestHandle){
 }
 
 int gizmo_pick_handle(Scene *s,vec3 ro,vec3 rd,vec3 camLook,float camFov,int vpW,int vpH){
+	if(!s->selectedNode) return GIZMO_NONE;
 	vec3 center,bmin,bmax; float radiusX,radiusY; mat4 matrix;
 	if(!gizmo_geometry(s,ro,camLook,camFov,vpW,vpH,&center,&radiusX,&radiusY,&matrix,&bmin,&bmax)) return GIZMO_NONE;
 	vec3 axis[3]={v3(1,0,0),v3(0,1,0),v3(0,0,1)};

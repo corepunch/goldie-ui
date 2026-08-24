@@ -81,7 +81,7 @@ scene_doc_t *create_document_ex(const char *path, bool show_windows) {
   doc->scene.camLook = v3(0, 0, 0);
   doc->scene.ambient = v3(0.15f, 0.15f, 0.15f);
   doc->scene.bg = v3(0.25f, 0.3f, 0.35f);
-  doc->scene.editMode = EDIT_Q_SELECT;
+  doc->scene.editMode = EDIT_W_MOVE;
   doc->scene.selectedObj = -1;
 
   if (path && path[0]) {
