@@ -133,7 +133,7 @@ static bool cp_build_tab_strip(bitmap_strip_t *strip) {
 	int n = snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons", ui_get_exe_dir());
 	if (n <= 0 || (size_t)n >= sizeof(icons_dir)) return false;
 	int count = COUNT_OF(kTabIconNames);
-	return svg_build_strip(icons_dir, kTabIconNames, count, 16, count, strip, NULL);
+	return svg_build_strip(icons_dir, kTabIconNames, count, 24, count, strip, NULL);
 }
 
 static window_t *cp_create_page(window_t *tabview, const cp_tab_t *tab) {
