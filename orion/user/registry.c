@@ -10,10 +10,8 @@ typedef struct {
 static window_class_t g_window_classes[MAX_WINDOW_CLASSES];
 static int g_window_class_count = 0;
 
-static bool is_valid_toolbox_icon(int icon) {
-  if (icon >= SYSICON_BASE && icon <= sysicon_yield_add)
-    return true;
-  return false;
+static bool is_valid_toolbox_icon(const char *icon) {
+  return icon && icon[0];
 }
 
 #define FE_MAX_COMPONENT_PLUGINS 32
@@ -182,7 +180,7 @@ bool fe_load_component_plugin(const char *path) {
       continue;
     fe_component_desc_t stored = *d;
     if (!is_valid_toolbox_icon(stored.toolbox_icon))
-      stored.toolbox_icon = sysicon_puzzle;
+      stored.toolbox_icon = "puzzle";
     register_window_class(&stored);
   }
 

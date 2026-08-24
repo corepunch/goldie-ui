@@ -45,7 +45,7 @@ static int sl_value_from_mouse_x(const window_t *win, const slider_state_t *s, i
 }
 
 static void sl_draw_thumb(int x, int y, bool active) {
-  fill_rect(active ? get_sys_color(brFocusRing) : get_sys_color(brDarkEdge),
+  fill_rect(active ? get_sys_color(brAccent) : get_sys_color(brDarkEdge),
             R(x - 3, y - 2, SLIDER_MIN_THUMB_W, 11));
   fill_rect(get_sys_color(brTextNormal), R(x - 2, y - 1, SLIDER_MIN_THUMB_W - 2, 9));
 }

@@ -21,14 +21,7 @@ bool svg_build_strip(const char *icons_dir,
                      bitmap_strip_t *out,
                      FILE *missing);
 
-// Build the system-icon strip (sysicon_* enum) from <icons_dir>.
-bool svg_load_sysicon_strip(const char *icons_dir, bitmap_strip_t *out, FILE *missing);
-
-// Build the file-picker icon strip (icon_id_t enum) from <icons_dir>.
-bool svg_load_picker_strip(const char *icons_dir, bitmap_strip_t *out, FILE *missing);
-
 // Set the primary icons directory (global pool, e.g. share/orion/icons).
-// Called automatically by init_sysicon_strip — do not call directly.
 void svg_set_icons_dir(const char *dir);
 
 // Append an additional icons directory to the search path.
@@ -44,8 +37,8 @@ typedef struct {
 } sysicon_resolved_t;
 
 // Resolve an SVG base name (e.g. "git-fork", "undo") to GPU draw info.
-// First checks the preloaded sysicon strip; if not found, loads the SVG
-// on demand and caches the result.  Returns false if the icon cannot be found.
+// Loads the SVG on demand and caches the result per name.
+// Returns false if the icon cannot be found in any registered icons directory.
 bool sysicon_resolve(const char *name, sysicon_resolved_t *out);
 
 #endif

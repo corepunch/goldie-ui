@@ -379,7 +379,7 @@ static inline uint32_t label_pack_userdata(uint32_t color_index, ui_font_t font,
 typedef struct {
   const char *class_name;     // stable runtime class key (e.g. "Button")
   const char *name_prefix;    // identifier prefix (e.g. "IDC_BTN")
-  int         toolbox_icon;    // icon id from sysicon_* or custom strip index
+  const char *toolbox_icon;   // SVG icon name resolved via sysicon_resolve() (NULL = none)
   isize16_t   default_size;   // default size when click-placing
   uint32_t    capabilities;   // FE_COMPONENT_* flags
   winproc_t   proc;           // runtime window proc backing this component

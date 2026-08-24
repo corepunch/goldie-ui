@@ -3,10 +3,6 @@
 
 #include "formeditor.h"
 #include <orion/commctl/commctl.h>
-#include <orion/kernel/renderer.h>
-#include <orion/user/icons.h>
-#include <orion/user/image.h>
-
 static toolbox_item_t g_tools[FE_MAX_COMPONENTS + 1];
 static int g_tool_count = 0;
 
@@ -14,7 +10,7 @@ static void build_tool_items(void) {
   g_tool_count = 0;
   g_tools[g_tool_count++] = (toolbox_item_t){
       .ident = ID_TOOL_SELECT,
-      .icon = sysicon_cursor,
+      .icon_name = "cursor-pointer",
       .tooltip = "Select",
   };
 
@@ -26,7 +22,7 @@ static void build_tool_items(void) {
       continue;
     g_tools[g_tool_count++] = (toolbox_item_t){
         .ident = i,
-        .icon = c->toolbox_icon,
+        .icon_name = c->toolbox_icon,
         .tooltip = c->class_name,
     };
   }
@@ -53,15 +49,6 @@ static void populate_toolbox(window_t *win) {
 
   build_tool_items();
   send_message(win, bxSetButtonSize, FE_VB_TOOLBOX_BTN_SIZE, NULL);
-
-#ifdef SHAREDIR
-  char icon_path[512];
-  int n = snprintf(icon_path, sizeof(icon_path), "%s/" SHAREDIR "/controls-icons.png",
-                   ui_get_exe_dir());
-  if (n > 0 && (size_t)n < sizeof(icon_path))
-    send_message(win, bxLoadStrip, FE_TOOLBOX_ICON_W, icon_path);
-#endif
-
   send_message(win, bxSetIconTintBrush, brTextNormal, NULL);
   send_message(win, bxSetItems, (uint32_t)g_tool_count, g_tools);
 

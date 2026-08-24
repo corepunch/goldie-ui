@@ -131,7 +131,7 @@ static void lv_build_graph_texture(lv_hist_state_t *st, int w, int h) {
     int y = hist_bottom - (int)lroundf(c * (float)hist_h);
     if (x > 0)
       lv_draw_line_px(pix, w, h, prev_x, prev_y, track_l + x, y,
-                      get_sys_color(brFocusRing));
+                      get_sys_color(brAccent));
     prev_x = track_l + x;
     prev_y = y;
   }

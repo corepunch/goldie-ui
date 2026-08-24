@@ -116,7 +116,7 @@ static result_t cp_surface_proc(window_t *win, uint32_t msg,
 static const fe_component_desc_t kColorPickerSurfaceDesc = {
   .class_name = "ColorPickerSurface",
   .name_prefix = "IDC_CPSURF",
-  .toolbox_icon = 0,
+  .toolbox_icon = NULL,
   .default_size = {CP_WIN_W, CP_BTN_Y},
   .capabilities = 0,
   .proc = cp_surface_proc,
@@ -258,7 +258,7 @@ static void paint_cp(const cp_state_t *st) {
     fill_rect(has ? g_app->user_palette[i] : get_sys_color(brWindowDarkBg),
               R(px, CP_PAL_Y, CP_PAL_SW - 1, CP_PAL_SH));
     if (has && i == st->hover_pal)
-      fill_rect(get_sys_color(brFocusRing), R(px, CP_PAL_Y, CP_PAL_SW - 1, 1));
+      fill_rect(get_sys_color(brAccent), R(px, CP_PAL_Y, CP_PAL_SW - 1, 1));
   }
 }
 

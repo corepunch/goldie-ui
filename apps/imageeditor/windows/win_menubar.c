@@ -219,7 +219,6 @@ window_t *create_main_toolbar_window(void) {
 
 void imageeditor_sync_main_toolbar(void) {
   if (!g_app || !g_app->main_toolbar_win) return;
-  bitmap_strip_t *strip = ui_get_sysicon_strip();
   window_t *mask_btn = get_window_item(g_app->main_toolbar_win, ID_VIEW_MASK_ONLY);
   window_t *bg_btn   = get_window_item(g_app->main_toolbar_win, ID_VIEW_SHOW_BACKGROUND);
 
@@ -231,11 +230,7 @@ void imageeditor_sync_main_toolbar(void) {
   if (bg_btn) {
     bool checked = !g_app->active_doc || g_app->active_doc->background.show;
     send_message(bg_btn, btnSetCheck, checked ? btnStateChecked : btnStateUnchecked, NULL);
-    if (strip) {
-      int icon = checked ? (sysicon_eye_show - SYSICON_BASE)
-                         : (sysicon_eye_hide - SYSICON_BASE);
-      send_message(bg_btn, btnSetImage, (uint32_t)icon, strip);
-    }
+    send_message(bg_btn, btnSetIconName, 0, (void *)(checked ? "eye" : "eye-closed"));
   }
 }
 

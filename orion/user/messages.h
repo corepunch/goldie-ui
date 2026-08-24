@@ -95,6 +95,7 @@ enum {
   btnSetCheck = evUser,
   btnGetCheck,
   btnSetImage,       // wparam = icon index (iBitmap); lparam = bitmap_strip_t*
+  btnSetIconName,    // wparam = 0; lparam = const char* SVG base name (NULL to clear)
   cbAddString,
   cbGetCurrentSelection, // returns index; if lparam=int* also writes index (or kComboBoxError)
   cbGetCurrentValue,     // returns value_field data (e.g., ID) for foreign key binding
@@ -217,13 +218,14 @@ enum {
 #define kComboBoxError -1
 
 // Toolbox item descriptor — one button in a win_toolbox 2-column grid.
-// Set via bxSetItems.  icon is a sysicon_* value (>= SYSICON_BASE)
-// or a tile index into the strip set with bxSetStrip /
-// bxLoadStrip.
+// Set via bxSetItems.  icon_name (SVG name resolved via sysicon_resolve) takes
+// priority when set.  icon is a strip tile index (0-based) for custom PNG strips
+// loaded via bxLoadStrip, used when icon_name is NULL.
 typedef struct {
-  int         ident;    // command identifier echoed in bxClicked
-  int         icon;     // strip tile index (0-based), or sysicon_* value (>= SYSICON_BASE)
-  const char *tooltip;  // tooltip text shown on hover, e.g. "Pencil (P)"; NULL = none
+  int         ident;      // command identifier echoed in bxClicked
+  int         icon;       // strip tile index for custom PNG strips (ignored when icon_name set)
+  const char *icon_name;  // SVG icon name for sysicon_resolve(); preferred over icon
+  const char *tooltip;    // tooltip text shown on hover, e.g. "Pencil (P)"; NULL = none
 } toolbox_item_t;
 
 // Toolbox layout constants.
@@ -441,7 +443,7 @@ typedef enum {
   brLightEdge            = 9,   // highlight edge of beveled elements
   brDarkEdge             = 10,  // shadow edge of beveled elements
   brFlare                = 11,  // corner flare of beveled elements
-  brFocusRing            = 12,  // keyboard focus highlight ring
+  brAccent               = 12,  // focus, selection, and active-state accent
   brButtonInner          = 13,  // inner fill of button
   brButtonHover          = 14,  // button hover state
   brTextNormal           = 15,  // standard text
@@ -453,7 +455,8 @@ typedef enum {
   brFolderText           = 21,  // folder entry text in file lists
   brColumnViewBg         = 22,  // report/icon column view background
   brModalOverlay         = 23,  // modal owner dimming overlay (ARGB with alpha)
-  brCount                = 24
+  brToolbarForeground    = 24,  // toolbar icons, labels, and dropdown arrows
+  brCount                = 25
 } sys_color_idx_t;
 
 // Runtime-accessible theme table (defined in user/theme.c).

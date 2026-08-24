@@ -105,7 +105,7 @@ static void draw_brush_panel(int selected_idx) {
   for (int i = 0; i < NUM_BRUSH_SIZES; i++) {
     irect16_t cell = brush_cell_rect(i);
     bool active = (i == selected_idx);
-    uint32_t bg = active ? get_sys_color(brFocusRing) : get_sys_color(brControlBg);
+    uint32_t bg = active ? get_sys_color(brAccent) : get_sys_color(brControlBg);
     irect16_t outer = rect_inset_xy(cell, 1, 0);
     irect16_t inner = rect_inset(outer, 1);
 
@@ -136,8 +136,8 @@ static void draw_shape_panel(bool filled) {
   // irect16_t outline_text  = rect_center(outline_inner, strwidth("O"), 8);
   // irect16_t filled_text   = rect_center(filled_inner,  strwidth("F"), 8);
 
-  uint32_t outline_col = filled ? get_sys_color(brControlBg) : get_sys_color(brFocusRing);
-  uint32_t filled_col  = filled ? get_sys_color(brFocusRing) : get_sys_color(brControlBg);
+  uint32_t outline_col = filled ? get_sys_color(brControlBg) : get_sys_color(brAccent);
+  uint32_t filled_col  = filled ? get_sys_color(brAccent) : get_sys_color(brControlBg);
 
   fill_rect(get_sys_color(brDarkEdge), outline_outer);
   fill_rect(outline_col, outline_inner);

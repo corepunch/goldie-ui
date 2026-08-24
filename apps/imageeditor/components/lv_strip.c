@@ -74,7 +74,7 @@ static void lv_get_handle_visuals(const lv_strip_state_t *st,
 static void lv_draw_handle(int x, int y, int h, uint32_t col, bool active) {
   int outer_h = lv_strip_handle_h(h);
   int inner_h = MAX(1, outer_h - 2);
-  fill_rect(active ? get_sys_color(brFocusRing) : get_sys_color(brDarkEdge),
+  fill_rect(active ? get_sys_color(brAccent) : get_sys_color(brDarkEdge),
             R(x - 2, y, 5, outer_h));
   fill_rect(col, R(x - 1, y + 1, 3, inner_h));
 }

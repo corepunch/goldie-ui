@@ -8,18 +8,14 @@
 #include <orion/commctl/columnview.h>
 #include <orion/kernel/renderer.h>
 #include <orion/user/draw.h>
-#include <orion/user/image.h>
 #include <orion/user/icons.h>
+#include <orion/user/svg_icon_loader.h>
 
-#define FE_TOOL_ICON_SIZE FE_COMPONENTS_ICON_W
+#define FE_TOOL_ICON_SIZE SYSICON_SIZE
 #define FE_DRAG_THRESHOLD 2
 
 static reportview_item_t g_comp_tools[FE_MAX_COMPONENTS + 1];
 static int g_comp_tool_count = 0;
-#ifdef SHAREDIR
-static bitmap_strip_t g_tool_strip = {0};
-static bool g_tool_strip_loaded = false;
-#endif
 
 typedef struct {
   window_t *list_win;
@@ -28,7 +24,7 @@ typedef struct {
 typedef struct {
   window_t *win;
   int tool_ident;
-  int icon;
+  const char *icon_name;
   char text[64];
 } palette_drag_ghost_t;
 
@@ -73,7 +69,6 @@ static void components_update_ghost(int ident, int sx, int sy) {
   (void)sx;
   (void)sy;
 }
-static void components_load_strip(void) {}
 #else
 #if FE_DEFAULT_EDIT_MODE == FE_EDIT_MODE_AUTO_LAYOUT
 static const reportview_item_t *components_item_by_ident(int ident) {
@@ -112,18 +107,11 @@ static result_t components_drag_ghost_proc(window_t *win, uint32_t msg,
 
       int px = 4;
       int py = (h - FE_TOOL_ICON_SIZE) / 2;
-      if (g_ghost.icon >= SYSICON_BASE) {
-        draw_icon16(g_ghost.icon, px, py, 0xFFFFFFFF);
-      } else if (g_tool_strip_loaded && g_tool_strip.tex && g_tool_strip.cols > 0) {
-        int col_idx = g_ghost.icon % g_tool_strip.cols;
-        int row_idx = g_ghost.icon / g_tool_strip.cols;
-        float u0 = (float)(col_idx * g_tool_strip.icon_w) / (float)g_tool_strip.sheet_w;
-        float v0 = (float)(row_idx * g_tool_strip.icon_h) / (float)g_tool_strip.sheet_h;
-        float u1 = u0 + (float)g_tool_strip.icon_w / (float)g_tool_strip.sheet_w;
-        float v1 = v0 + (float)g_tool_strip.icon_h / (float)g_tool_strip.sheet_h;
-        draw_sprite_region((int)g_tool_strip.tex,
-                           R(px, py, g_tool_strip.icon_w, g_tool_strip.icon_h),
-                           UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
+      if (g_ghost.icon_name) {
+        sysicon_resolved_t res;
+        if (sysicon_resolve(g_ghost.icon_name, &res))
+          draw_sprite_region((int)res.tex, R(px, py, res.w, res.h),
+                             UV_RECT(res.u0, res.v0, res.u1, res.v1), 0xFFFFFFFF, 0);
       }
       draw_text(FONT_SMALL, g_ghost.text,
                 px + FE_TOOL_ICON_SIZE + 6,
@@ -156,7 +144,7 @@ static void components_update_ghost(int ident, int sx, int sy) {
   }
 
   g_ghost.tool_ident = ident;
-  g_ghost.icon = item->icon;
+  g_ghost.icon_name = item->icon_name;
   snprintf(g_ghost.text, sizeof(g_ghost.text), "%s", item->text ? item->text : "");
 
   int text_w = text_strwidth(FONT_SMALL, g_ghost.text);
@@ -175,39 +163,6 @@ static void components_update_ghost(int ident, int sx, int sy) {
 #endif
 }
 
-static void components_load_strip(void) {
-  if (g_tool_strip_loaded)
-    return;
-  char icon_path[512];
-  int n = snprintf(icon_path, sizeof(icon_path), "%s/" SHAREDIR "/controls-icons-48.png",
-                   ui_get_exe_dir());
-  if (n <= 0 || (size_t)n >= sizeof(icon_path))
-    return;
-
-  int w = 0;
-  int h = 0;
-  uint8_t *pixels = load_image(icon_path, &w, &h);
-  if (!pixels)
-    return;
-  if (w < FE_TOOL_ICON_SIZE || h < FE_TOOL_ICON_SIZE ||
-      (w % FE_TOOL_ICON_SIZE) != 0 || (h % FE_TOOL_ICON_SIZE) != 0) {
-    image_free(pixels);
-    return;
-  }
-
-  uint32_t tex = R_CreateTextureRGBA(w, h, pixels, R_FILTER_NEAREST, R_WRAP_CLAMP);
-  image_free(pixels);
-  if (!tex)
-    return;
-
-  g_tool_strip.tex = tex;
-  g_tool_strip.icon_w = FE_TOOL_ICON_SIZE;
-  g_tool_strip.icon_h = FE_TOOL_ICON_SIZE;
-  g_tool_strip.cols = w / FE_TOOL_ICON_SIZE;
-  g_tool_strip.sheet_w = w;
-  g_tool_strip.sheet_h = h;
-  g_tool_strip_loaded = true;
-}
 #endif
 
 static void comp_build_tool_items(void) {
@@ -220,7 +175,7 @@ static void comp_build_tool_items(void) {
       continue;
     g_comp_tools[g_comp_tool_count++] = (reportview_item_t){
         .text = c->class_name,
-        .icon = c->toolbox_icon,
+        .icon_name = c->toolbox_icon,
         .color = get_sys_color(brTextNormal),
         .userdata = (uint32_t)i,
     };
@@ -279,12 +234,7 @@ static void components_palette_sync_list(window_t *win) {
   send_message(st->list_win, RVM_SETLARGEICONCOLS, 0, NULL);
   send_message(st->list_win, RVM_SETCOLUMNWIDTH, FE_COMPONENTS_BTN_SIZE, NULL);
   send_message(st->list_win, RVM_SETICONSIZE, FE_TOOL_ICON_SIZE, NULL);
-  components_load_strip();
-#ifdef SHAREDIR
-  send_message(st->list_win, RVM_SETICONSTRIP, 0, g_tool_strip_loaded ? &g_tool_strip : NULL);
-#else
   send_message(st->list_win, RVM_SETICONSTRIP, 0, NULL);
-#endif
   send_message(st->list_win, RVM_SETPRESERVEICONCOLORS, 1, NULL);
   send_message(st->list_win, RVM_SETCOLUMNTITLESVISIBLE, 0, NULL);
   populate_tool_list(st->list_win);

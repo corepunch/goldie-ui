@@ -76,13 +76,14 @@ static const enum_token_t kColors[] = {
   {"active-titlebar", brActiveTitlebar}, {"active-titlebar-text", brActiveTitlebarText},
   {"inactive-titlebar", brInactiveTitlebar}, {"inactive-titlebar-text", brInactiveTitlebarText},
   {"statusbar-bg", brStatusbarBg}, {"light-edge", brLightEdge},
-  {"dark-edge", brDarkEdge}, {"flare", brFlare}, {"focus-ring", brFocusRing},
+  {"dark-edge", brDarkEdge}, {"flare", brFlare}, {"accent", brAccent},
   {"button-inner", brButtonInner},
   {"button-hover", brButtonHover}, {"text-normal", brTextNormal},
   {"text-disabled", brTextDisabled}, {"text-error", brTextError},
   {"text-success", brTextSuccess}, {"border-focus", brBorderFocus},
   {"border-active", brBorderActive}, {"folder-text", brFolderText},
   {"column-view-bg", brColumnViewBg}, {"modal-overlay", brModalOverlay},
+  {"toolbar-foreground", brToolbarForeground},
 };
 
 static bool eq(const char *a, const char *b) { return a && b && strcmp(a, b) == 0; }

@@ -18,7 +18,6 @@
 #include "user.h"
 #include "draw.h"
 #include "image.h"
-#include "icons.h"
 #include "theme.h"
 #include "svg_icon_loader.h"
 #include <orion/commctl/commctl.h>
@@ -39,21 +38,10 @@ uint32_t ui_checker_texture = 0;
 // Internal 2x2 checker texture for transparency backgrounds.
 uint32_t ui_transparency_checker_texture = 0;
 
-// Built-in system icon strip rasterized from share/orion/icons/ at startup.
-// Accessible from draw_impl.c via extern.  Icons are indexed starting at
-// SYSICON_BASE (0x10000); subtract SYSICON_BASE to get the strip index.
-bitmap_strip_t g_sysicon_strip = {0};
-static uint32_t g_sysicon_tex = 0;
-
 // Theme icon strip loaded from share/orion/theme.png (144x18 px grayscale,
 // 9x9 tiles).  Indexed by theme_icon_t (user/theme.h).
 static bitmap_strip_t g_theme_strip = {0};
 static uint32_t g_theme_tex = 0;
-
-// File-picker icon strip rasterized from share/orion/icons/ at startup
-// (icon_id_t indices from user/sysicons.h).  Used by win_filelist via RVM_SETICONSTRIP.
-static bitmap_strip_t g_icons_strip = {0};
-static uint32_t g_icons_tex = 0;
 
 // Initialize the internal white texture
 void init_ui_white_texture(void) {
@@ -91,22 +79,12 @@ void init_ui_transparency_checker_texture(void) {
   }
 }
 
-// Load the built-in sysicon strip from iconoir SVGs in share/orion/icons/.
-// If no SVGs are present the strip stays empty and icons render as blank tiles.
-static void init_sysicon_strip(void) {
-  if (g_sysicon_tex != 0) return;
+// Register the built-in icon directory for on-demand sysicon_resolve() lookups.
+static void init_icons_dir(void) {
   char icons_dir[4096];
   snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
            ui_get_exe_dir());
   svg_set_icons_dir(icons_dir);
-  if (svg_load_sysicon_strip(icons_dir, &g_sysicon_strip, stderr))
-    g_sysicon_tex = g_sysicon_strip.tex;
-}
-
-static void shutdown_sysicon_strip(void) {
-  R_DeleteTexture(g_sysicon_tex);
-  g_sysicon_tex = 0;
-  g_sysicon_strip = (bitmap_strip_t){0};
 }
 
 // Load the theme icon sheet from <exe_dir>/../share/orion/theme.png.
@@ -151,28 +129,6 @@ static void shutdown_theme_strip(void) {
   g_theme_strip = (bitmap_strip_t){0};
 }
 
-// Load the file-picker icon strip from iconoir SVGs in share/orion/icons/.
-static void init_icons_strip(void) {
-  if (g_icons_tex != 0) return;
-  char icons_dir[4096];
-  snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons",
-           ui_get_exe_dir());
-  if (svg_load_picker_strip(icons_dir, &g_icons_strip, stderr))
-    g_icons_tex = g_icons_strip.tex;
-}
-
-static void shutdown_icons_strip(void) {
-  R_DeleteTexture(g_icons_tex);
-  g_icons_tex = 0;
-  g_icons_strip = (bitmap_strip_t){0};
-}
-
-// Return the file-picker icon strip (filepicker.png), or NULL if not loaded.
-// Used exclusively by win_filelist via RVM_SETICONSTRIP.
-bitmap_strip_t *ui_get_icons_strip(void) {
-  return (g_icons_strip.tex != 0) ? &g_icons_strip : NULL;
-}
-
 // Return the theme icon strip (theme.png), or NULL if not loaded.
 bitmap_strip_t *ui_get_theme_strip(void) {
   return (g_theme_strip.tex != 0) ? &g_theme_strip : NULL;
@@ -189,11 +145,6 @@ void shutdown_ui_textures(void) {
 
 void shutdown_white_texture(void) {
   shutdown_ui_textures();
-}
-
-// Return the global built-in icon strip, or NULL if it has not been loaded.
-bitmap_strip_t *ui_get_sysicon_strip(void) {
-  return (g_sysicon_strip.tex != 0) ? &g_sysicon_strip : NULL;
 }
 
 static window_t *g_desktop_window;
@@ -269,9 +220,8 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
   init_ui_white_texture();
   init_ui_checker_texture();
   init_ui_transparency_checker_texture();
-  init_sysicon_strip();
+  init_icons_dir();
   init_theme_strip();
-  init_icons_strip();
 
   init_console();
 
@@ -317,9 +267,7 @@ void ui_shutdown_graphics(void) {
 
   ui_shutdown_prog();
 
-  shutdown_sysicon_strip();
   shutdown_theme_strip();
-  shutdown_icons_strip();
   shutdown_white_texture();
 
   shutdown_console();
