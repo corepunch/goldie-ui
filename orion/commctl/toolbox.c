@@ -53,6 +53,7 @@
 #include <orion/user/draw.h>
 #include <orion/user/image.h>
 #include <orion/user/icons.h>
+#include <orion/user/svg_icon_loader.h>
 #include <orion/kernel/renderer.h>
 
 // Inactive: just the dark background from the global fill; no bevel.
@@ -121,30 +122,40 @@ static void draw_toolbox_button(toolbox_state_t *st, int idx,
 
   // Draw icon centred in the cell (shifted 1px when depressed).
   int px = depressed ? 1 : 0;
-  int icon = st->items[idx].icon;
-  if (icon >= SYSICON_BASE) {
-    // Built-in 16x16 sysicon sheet.
-    irect16_t icon_dst = rect_offset(rect_center(cell, 16, 16), px, px);
-    draw_icon16(icon, icon_dst.x, icon_dst.y, 0xFFFFFFFF);
-  } else if (st->strip.tex && st->strip.cols > 0) {
-    // Custom sprite-sheet strips carry their own colors.
-    bitmap_strip_t *s = &st->strip;
-    int col_idx = icon % s->cols;
-    int row_idx = icon / s->cols;
-    float u0 = (float)(col_idx * s->icon_w) / (float)s->sheet_w;
-    float v0 = (float)(row_idx * s->icon_h) / (float)s->sheet_h;
-    float u1 = u0 + (float)s->icon_w / (float)s->sheet_w;
-    float v1 = v0 + (float)s->icon_h / (float)s->sheet_h;
-    irect16_t icon_dst = rect_offset(rect_center(cell, s->icon_w, s->icon_h), px, px);
-    draw_sprite_region((int)s->tex,
-                       R(icon_dst.x, icon_dst.y, s->icon_w, s->icon_h),
-                       UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
+  const char *icon_name = st->items[idx].icon_name;
+  if (icon_name) {
+    sysicon_resolved_t res;
+    if (sysicon_resolve(icon_name, &res)) {
+      irect16_t icon_dst = rect_offset(rect_center(cell, res.w, res.h), px, px);
+      draw_sprite_region((int)res.tex, R(icon_dst.x, icon_dst.y, res.w, res.h),
+                         UV_RECT(res.u0, res.v0, res.u1, res.v1), 0xFFFFFFFF, 0);
+    }
   } else {
-    // Text fallback: draw item index as a number.
-    char buf[8];
-    snprintf(buf, sizeof(buf), "%d", idx);
-    draw_text_small(buf, bx + px + 4, by + px + (bsz - 8) / 2,
-                    get_sys_color(brTextNormal));
+    int icon = st->items[idx].icon;
+    if (icon >= SYSICON_BASE) {
+      // Built-in 16x16 sysicon sheet.
+      irect16_t icon_dst = rect_offset(rect_center(cell, 16, 16), px, px);
+      draw_icon16(icon, icon_dst.x, icon_dst.y, 0xFFFFFFFF);
+    } else if (st->strip.tex && st->strip.cols > 0) {
+      // Custom sprite-sheet strips carry their own colors.
+      bitmap_strip_t *s = &st->strip;
+      int col_idx = icon % s->cols;
+      int row_idx = icon / s->cols;
+      float u0 = (float)(col_idx * s->icon_w) / (float)s->sheet_w;
+      float v0 = (float)(row_idx * s->icon_h) / (float)s->sheet_h;
+      float u1 = u0 + (float)s->icon_w / (float)s->sheet_w;
+      float v1 = v0 + (float)s->icon_h / (float)s->sheet_h;
+      irect16_t icon_dst = rect_offset(rect_center(cell, s->icon_w, s->icon_h), px, px);
+      draw_sprite_region((int)s->tex,
+                         R(icon_dst.x, icon_dst.y, s->icon_w, s->icon_h),
+                         UV_RECT(u0, v0, u1, v1), 0xFFFFFFFF, 0);
+    } else {
+      // Text fallback: draw item index as a number.
+      char buf[8];
+      snprintf(buf, sizeof(buf), "%d", idx);
+      draw_text_small(buf, bx + px + 4, by + px + (bsz - 8) / 2,
+                      get_sys_color(brTextNormal));
+    }
   }
 }
 

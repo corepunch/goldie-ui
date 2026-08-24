@@ -9,7 +9,7 @@ static const fe_component_desc_t k_levels_components[] = {
   {
     .class_name   = LV_GRAPH_CLASS_NAME,
     .name_prefix  = "LV_HIST",
-    .toolbox_icon = sysicon_page_data,
+    .toolbox_icon = "database-check",
     .default_size = {260, 84},
     .default_layout_size = {0, 84},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
@@ -18,7 +18,7 @@ static const fe_component_desc_t k_levels_components[] = {
   {
     .class_name   = LV_STRIP_CLASS_NAME,
     .name_prefix  = "LV_STRIP",
-    .toolbox_icon = sysicon_palette,
+    .toolbox_icon = "palette",
     .default_size = {260, 13},
     .default_layout_size = {0, 13},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,
@@ -27,7 +27,7 @@ static const fe_component_desc_t k_levels_components[] = {
   {
     .class_name   = FG_PREVIEW_CLASS_NAME,
     .name_prefix  = "FG_PREV",
-    .toolbox_icon = sysicon_image,
+    .toolbox_icon = "media-image",
     .default_size = {248, 248},
     .default_layout_size = {0, 248},
     .capabilities = FE_COMPONENT_PLACEABLE | FE_COMPONENT_SHOW_TOOLBOX,

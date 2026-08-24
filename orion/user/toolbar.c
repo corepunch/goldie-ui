@@ -102,7 +102,7 @@ static void draw_toolbar_icon_in_rect(toolbar_state_t *tb, const char *icon_name
   int ix = r.x + (r.w - res.w) / 2 + offset;
   int iy = r.y + (r.h - res.h) / 2 + offset;
   draw_sprite_region((int)res.tex, R(ix, iy, res.w, res.h),
-                     UV_RECT(res.u0, res.v0, res.u1, res.v1), get_sys_color(brFocusRing), 0);
+                     UV_RECT(res.u0, res.v0, res.u1, res.v1), get_sys_color(brToolbarForeground), 0);
 }
 
 static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
@@ -125,7 +125,7 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
         int tx = (local.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
         int ty = local.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
-        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brTextNormal));
+        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brToolbarForeground));
       }
       break;
     }
@@ -142,14 +142,14 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
         int tx = (btn_part.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
         int ty = btn_part.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
-        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brTextNormal));
+        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brToolbarForeground));
       }
       bool arrow_pressed = is_pressed && tb->pressed_in_arrow;
       draw_button(arr_part, 1, 1, arrow_pressed);
 
       int cx = arr_part.x + arr_part.w / 2;
       int cy = arr_part.y + arr_part.h / 2 - 1 + (arrow_pressed ? 1 : 0);
-      uint32_t arrow_col = get_sys_color(brTextNormal);
+      uint32_t arrow_col = get_sys_color(brToolbarForeground);
       fill_rect(arrow_col, R(cx - 3, cy, 7, 1));
       fill_rect(arrow_col, R(cx - 2, cy + 1, 5, 1));
       fill_rect(arrow_col, R(cx - 1, cy + 2, 3, 1));
@@ -164,7 +164,7 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
     }
     case TOOLBAR_ITEM_LABEL: {
       int ty = (r.h - text_char_height(FONT_ICON)) / 2;
-      draw_text(FONT_ICON, item->text ? item->text : "", 2, ty, get_sys_color(brTextNormal));
+      draw_text(FONT_ICON, item->text ? item->text : "", 2, ty, get_sys_color(brToolbarForeground));
       break;
     }
     case TOOLBAR_ITEM_SPACER:

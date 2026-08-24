@@ -226,7 +226,7 @@ static result_t popup_proc(window_t *win, uint32_t msg,
           y += MENU_SEP_H;
         } else {
           if (i == pd->hovered) {
-            fill_rect(get_sys_color(brFocusRing), R(1, y, win->frame.w - 2, MENU_ITEM_H));
+            fill_rect(get_sys_color(brAccent), R(1, y, win->frame.w - 2, MENU_ITEM_H));
           }
           bool hov = (i == pd->hovered);
           uint32_t label_col  = hov ? get_sys_color(brControlBg) : get_sys_color(brTextNormal);
@@ -505,7 +505,7 @@ result_t win_menubar(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
         int label_w = strwidth(data->menus[i].label) + MENU_LABEL_PAD;
         int label_x0 = data->menu_x[i] - 2;
         if (active) {
-          fill_rect(get_sys_color(brFocusRing), R(label_x0, 0, label_w, win->frame.h - 1));
+          fill_rect(get_sys_color(brAccent), R(label_x0, 0, label_w, win->frame.h - 1));
         }
         draw_text_small_clipped(data->menus[i].label,
                         &(irect16_t){data->menu_x[i], 0, label_w, win->frame.h},

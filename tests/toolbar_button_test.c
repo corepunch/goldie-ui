@@ -283,6 +283,13 @@ void test_toolbar_button_set_image_zero_cols_no_crash(void) {
     PASS();
 }
 
+void test_toolbar_theme_colors(void) {
+    TEST("toolbar foreground is neutral while accent retains the focus color");
+    ASSERT_EQUAL((int)get_sys_color(brToolbarForeground), (int)0xffd8d8d8u);
+    ASSERT_EQUAL((int)get_sys_color(brAccent), (int)0xff5ec4f3u);
+    PASS();
+}
+
 // ---- main --------------------------------------------------------------- //
 
 int main(int argc, char *argv[]) {
@@ -296,6 +303,7 @@ int main(int argc, char *argv[]) {
     test_toolbar_button_autoradio();
     test_toolbar_button_set_image_sanity();
     test_toolbar_button_set_image_zero_cols_no_crash();
+    test_toolbar_theme_colors();
 
     TEST_END();
 }

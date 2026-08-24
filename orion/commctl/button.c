@@ -61,8 +61,8 @@ result_t win_button(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) 
                           ((win->flags & BUTTON_PUSHLIKE) && win->value);
       // BUTTON_DEFAULT (BS_DEFPUSHBUTTON analogue): use black for the outer 1-px
       // gap so a thin black outline is visible around the button bevel.
-      // When the button has keyboard focus brFocusRing takes precedence.
-      uint32_t bg = (g_ui_runtime.focused == win) ? get_sys_color(brFocusRing) :
+      // When the button has keyboard focus brAccent takes precedence.
+      uint32_t bg = (g_ui_runtime.focused == win) ? get_sys_color(brAccent) :
                     (win->flags & BUTTON_DEFAULT) ? 0xff000000 : get_sys_color(brControlBg);
       irect16_t local = {0, 0, win->frame.w, win->frame.h};
       irect16_t outer = rect_inset(local, -1);

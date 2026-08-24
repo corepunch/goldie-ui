@@ -151,7 +151,7 @@ static void aim_paint(window_t *win, const agent_icon_state_t *st) {
     fill_rect(sel, rect_split_left(sides, 2));    fill_rect(sel, rect_split_right(sides, 2));
   }
   if (st->image_texture) draw_rect((int)st->image_texture, image);
-  uint32_t text_col = win->value ? get_sys_color(brFocusRing) : get_sys_color(brTextNormal);
+  uint32_t text_col = win->value ? get_sys_color(brAccent) : get_sys_color(brTextNormal);
   if (st->status_texture) {
     int text_w = text_strwidth(FONT_ICON, win->title);
     int group_w = ICON_STATUS_SIZE + ICON_STATUS_GAP + text_w;

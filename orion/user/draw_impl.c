@@ -96,7 +96,7 @@ void draw_wire_rect(irect16_t r, int expand, uint32_t col) {
 
 // Draw focused border
 void draw_focused(irect16_t r) {
-  draw_wire_rect(r, 1, get_sys_color(brFocusRing));
+  draw_wire_rect(r, 1, get_sys_color(brAccent));
 }
 
 // Draw bevel border

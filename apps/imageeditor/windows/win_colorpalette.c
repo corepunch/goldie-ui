@@ -58,7 +58,7 @@ result_t win_color_palette_proc(window_t *win, uint32_t msg,
 
         // Highlight the selected foreground index.
         if (i == g_app->fg_palette_idx)
-          fill_rect(get_sys_color(brFocusRing), R(sx, sy, sw, 2));
+          fill_rect(get_sys_color(brAccent), R(sx, sy, sw, 2));
       }
       return true;
     }
@@ -139,7 +139,7 @@ result_t win_color_palette_proc(window_t *win, uint32_t msg,
         fill_rect(g_app->palette[i], R(sx, sy, SWATCH_W - 2, SWATCH_ROW_H - 2));
 
         if (g_app->fg_color == g_app->palette[i])
-          fill_rect(get_sys_color(brFocusRing), R(sx, sy, SWATCH_W - 2, 2));
+          fill_rect(get_sys_color(brAccent), R(sx, sy, SWATCH_W - 2, 2));
       }
       return true;
     }

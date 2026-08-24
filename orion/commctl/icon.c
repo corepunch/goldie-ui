@@ -123,7 +123,7 @@ static void desktop_icon_paint(window_t *win, const icon_state_t *st) {
     fill_rect(selection, rect_split_left(sides, 2));    fill_rect(selection, rect_split_right(sides, 2));
   }
   if (st->image.texture) draw_rect((int)st->image.texture, image);
-  uint32_t text_col = win->value ? get_sys_color(brFocusRing) : get_sys_color(brTextNormal);
+  uint32_t text_col = win->value ? get_sys_color(brAccent) : get_sys_color(brTextNormal);
   if (st->status_image.texture) {
     int text_w = text_strwidth(FONT_ICON, win->title);
     int status_w = ICON_STATUS_SIZE;

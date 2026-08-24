@@ -19,7 +19,7 @@ uint32_t g_sys_colors[brCount] = {
   [brLightEdge]            = 0xff7f7f7f,   // top-left edge for beveled elements
   [brDarkEdge]             = 0xff1a1a1a,   // bottom-right edge for bevel
   [brFlare]                = 0xffcfcfcf,   // corner flare for beveled elements
-  [brFocusRing]            = 0xff5EC4F3,   // keyboard-focus ring
+  [brAccent]               = 0xff5EC4F3,   // focus, selection, and active-state accent
   [brButtonInner]          = 0xff505050,   // inner fill of button
   [brButtonHover]          = 0xff5a5a5a,   // slightly brighter for hover state
   [brTextNormal]           = 0xffc0c0c0,   // standard text color
@@ -31,6 +31,7 @@ uint32_t g_sys_colors[brCount] = {
   [brFolderText]           = 0xffa0d000,   // folder entry text in file lists
   [brColumnViewBg]         = 0xff544e47,   // blue-gray for report/icon column views
   [brModalOverlay]         = 0x40402000,   // modal owner dim overlay (semi-transparent)
+  [brToolbarForeground]    = 0xffd8d8d8,   // neutral light gray for toolbar content
 };
 
 void set_sys_colors(int count, const int *indices, const uint32_t *colors) {

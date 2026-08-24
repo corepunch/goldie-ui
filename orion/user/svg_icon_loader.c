@@ -672,7 +672,7 @@ static const char *k_picker_names[ICON_COUNT] = {
 
 bool svg_load_picker_strip(const char *icons_dir, bitmap_strip_t *out, FILE *missing) {
     return svg_build_strip(icons_dir, k_picker_names, ICON_COUNT,
-                           16, 16, out, missing);
+                           12, 12, out, missing);
 }
 
 // ---------------------------------------------------------------------------

@@ -76,12 +76,13 @@ typedef struct {
 
 typedef struct {
   const char *text;
-  int icon;
-  uint32_t color;
-  uint32_t userdata;
-  uint32_t state;
+  int         icon;       // strip tile index (ignored when icon_name set)
+  const char *icon_name;  // SVG icon name for sysicon_resolve(); NULL = use icon field
+  uint32_t    color;
+  uint32_t    userdata;
+  uint32_t    state;
   const char *subitems[REPORTVIEW_MAX_SUBITEMS];
-  uint32_t subitem_count;
+  uint32_t    subitem_count;
 } reportview_item_t;
 
 typedef struct {

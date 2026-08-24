@@ -1,5 +1,6 @@
 #include "formeditor.h"
 #include <orion/gem.h>
+#include <orion/user/svg_icon_loader.h>
 
 app_state_t *g_app = NULL;
 
@@ -52,6 +53,14 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   g_app->show_grid = true;
   g_app->snap_to_grid = true;
 
+#ifdef SHAREDIR
+  {
+    char icons_dir[512];
+    int n = snprintf(icons_dir, sizeof(icons_dir), "%s/" SHAREDIR "/icons", ui_get_exe_dir());
+    if (n > 0 && (size_t)n < sizeof(icons_dir))
+      svg_add_icons_dir(icons_dir);
+  }
+#endif
   register_commctl_classes();
   load_default_component_plugin();
   const char *project_path = NULL;

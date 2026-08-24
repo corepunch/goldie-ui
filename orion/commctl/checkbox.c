@@ -40,7 +40,7 @@ result_t win_checkbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
         CHECKBOX_BOX_SIZE
       };
       irect16_t focus_bg = rect_inset(box, -CHECKBOX_FOCUS_PAD);
-      fill_rect(g_ui_runtime.focused == win ? get_sys_color(brFocusRing) : get_sys_color(brControlBg), focus_bg);
+      fill_rect(g_ui_runtime.focused == win ? get_sys_color(brAccent) : get_sys_color(brControlBg), focus_bg);
       draw_button(box, 1, 1, window_has_state(win, WINDOW_STATE_PRESSED));
       irect16_t text_rect = {
         box.x + box.w + CHECKBOX_GAP,
