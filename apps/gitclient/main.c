@@ -1,6 +1,7 @@
 // Git Client — entry point.
 
 #include "gitclient.h"
+#include "pages/github/page_github.h"
 #include <orion/gem.h>
 #include <orion/commctl/commctl.h>
 #include <orion/user/svg_icon_loader.h>
@@ -47,16 +48,20 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   // Register database classes and create databases.
   // history_db  — branches, commits, history files, tags, stash, remotes (default for form).
-  // changes_db  — working-tree files from git status (wired manually to Changes tab).
+  // changes_db  — working-tree files from git status (wired in page_changes_proc evCreate).
+  // github_db   — issues and pull requests from the gh CLI (wired in page_github_proc evCreate).
   DB_CLASS(gitclient_db);
   DB_CLASS(changes_database_proc);
+  DB_CLASS(github_database_proc);
   g_gc->history_db = create_database("gitclient_history", "gitclient_db", NULL);
   g_gc->changes_db = create_database("gitclient_changes", "changes_database_proc", NULL);
-  if (!g_gc->history_db || !g_gc->changes_db) return false;
-  register_database("db", g_gc->history_db);
+  g_gc->github_db  = create_database("gitclient_github",  "github_database_proc",  NULL);
+  if (!g_gc->history_db || !g_gc->changes_db || !g_gc->github_db) return false;
+  register_database("db",        g_gc->history_db);
+  register_database("github_db", g_gc->github_db);
   ui_set_database(g_gc->history_db);
-  GC_LOG("databases ready: history=%p changes=%p",
-         (void *)g_gc->history_db, (void *)g_gc->changes_db);
+  GC_LOG("databases ready: history=%p changes=%p github=%p",
+         (void *)g_gc->history_db, (void *)g_gc->changes_db, (void *)g_gc->github_db);
 
   // Register commctl classes (tableview, stack, grid, etc.).
   register_commctl_classes();
@@ -79,10 +84,6 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
                                            hinstance, NULL);
   if (!g_gc->main_win) return false;
   show_window(g_gc->main_win, true);
-
-  // Wire the Changes tab tableview to the changes_db instead of the global history_db.
-  if (g_gc->changes_files_win)
-    send_message(g_gc->changes_files_win, evSetDatabase, 0, g_gc->changes_db);
 
   // Open an explicit repository, or use the launch directory when it is one.
   if (argc > 1 && argv[1] && argv[1][0]) {
@@ -113,6 +114,10 @@ void gem_shutdown(void) {
     if (g_gc->changes_db) {
       destroy_database(g_gc->changes_db);
       g_gc->changes_db = NULL;
+    }
+    if (g_gc->github_db) {
+      destroy_database(g_gc->github_db);
+      g_gc->github_db = NULL;
     }
     if (g_gc->accel)
       free_accelerators(g_gc->accel);
