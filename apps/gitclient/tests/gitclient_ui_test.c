@@ -535,7 +535,7 @@ void test_toolbar_buttons_reference_menu_command_ids(void) {
     TEST("gitclient Orion: toolbar buttons reuse menu/context command IDs");
     // Every toolbar button must dispatch the same command ID its menu or
     // context-menu counterpart uses — no *_SYNC_SYNC suffixed clones.
-    ASSERT_EQUAL(TB_MAIN_COUNT, 13);
+    ASSERT_EQUAL(TB_MAIN_COUNT, 14);
     ASSERT_EQUAL(TB_MAIN[0].ident,  ID_REMOTE_SYNC);
     ASSERT_EQUAL(TB_MAIN[1].ident,  ID_REMOTE_FETCH);
     ASSERT_EQUAL(TB_MAIN[3].ident,  ID_COMMIT_COMMIT);
@@ -547,6 +547,7 @@ void test_toolbar_buttons_reference_menu_command_ids(void) {
     ASSERT_EQUAL(TB_MAIN[10].ident, ID_FILE_REPOSITORIES);
     ASSERT_EQUAL(TB_MAIN[11].ident, ID_VIEW_CHANGES);
     ASSERT_EQUAL(TB_MAIN[12].ident, ID_VIEW_HISTORY);
+    ASSERT_EQUAL(TB_MAIN[13].ident, ID_VIEW_GITHUB);
 
     // Each button ident must be unique and must not collide with any other
     // toolbar button (the old bug produced distinct suffixed IDs per button).
@@ -577,7 +578,7 @@ static const accel_t *gc_find_accel(uint16_t cmd) {
 
 void test_action_metadata_and_accelerators(void) {
     TEST("gitclient Orion: metadata + accels enumerate menu shortcuts");
-    ASSERT_EQUAL(gitclient_action_meta_count, 39);
+    ASSERT_EQUAL(gitclient_action_meta_count, 40);
 
     for (int i = 0; i < gitclient_action_meta_count; i++) {
         ASSERT_TRUE(gitclient_action_meta[i].name[0] != '\0');

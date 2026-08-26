@@ -145,6 +145,15 @@ static result_node_t *gh_fetch_all(void *data, int count, size_t rec_size) {
 // gh CLI helpers — fetch issues and PRs via tab-separated jq output.
 // ──────────────────────────────────────────────────────────────────────────────
 
+static char *gh_strsep(char **sp, char delim) {
+  char *start = *sp;
+  if (!start) return NULL;
+  char *p = strchr(start, delim);
+  if (p) { *p = '\0'; *sp = p + 1; }
+  else    *sp = NULL;
+  return start;
+}
+
 static void gh_load_issues(github_db_ctx_t *ctx) {
   static const char *cmd =
     "gh issue list --limit 30 --state open "
@@ -159,11 +168,11 @@ static void gh_load_issues(github_db_ctx_t *ctx) {
   while (fgets(line, sizeof(line), fp)) {
     char *nl = strchr(line, '\n'); if (nl) *nl = '\0';
     char *p = line;
-    char *num_s    = strsep(&p, "\t");
-    char *title_s  = strsep(&p, "\t");
-    char *state_s  = strsep(&p, "\t");
-    char *author_s = strsep(&p, "\t");
-    char *date_s   = strsep(&p, "\t");
+    char *num_s    = gh_strsep(&p, '\t');
+    char *title_s  = gh_strsep(&p, '\t');
+    char *state_s  = gh_strsep(&p, '\t');
+    char *author_s = gh_strsep(&p, '\t');
+    char *date_s   = gh_strsep(&p, '\t');
     if (!num_s || !title_s || !state_s || !author_s) continue;
 
     db_issue_t *rec = gh_append_row((void **)&ctx->issues, &ctx->issue_count,
@@ -193,11 +202,11 @@ static void gh_load_pulls(github_db_ctx_t *ctx) {
   while (fgets(line, sizeof(line), fp)) {
     char *nl = strchr(line, '\n'); if (nl) *nl = '\0';
     char *p = line;
-    char *num_s    = strsep(&p, "\t");
-    char *title_s  = strsep(&p, "\t");
-    char *state_s  = strsep(&p, "\t");
-    char *author_s = strsep(&p, "\t");
-    char *base_s   = strsep(&p, "\t");
+    char *num_s    = gh_strsep(&p, '\t');
+    char *title_s  = gh_strsep(&p, '\t');
+    char *state_s  = gh_strsep(&p, '\t');
+    char *author_s = gh_strsep(&p, '\t');
+    char *base_s   = gh_strsep(&p, '\t');
     if (!num_s || !title_s || !state_s || !author_s) continue;
 
     db_pull_t *rec = gh_append_row((void **)&ctx->pulls, &ctx->pull_count,
