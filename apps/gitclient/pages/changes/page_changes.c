@@ -2,7 +2,6 @@
 
 #include "page_changes.h"
 #include "../../gc_actions.h"
-#include <orion/commctl/tableview.h>
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Window proc — captures outlets on evCreate, otherwise transparent to parent.

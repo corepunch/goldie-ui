@@ -1,7 +1,6 @@
 // History page — branches / tags / stash sidebar, commit log, files, diff.
 
 #include "page_history.h"
-#include <orion/commctl/tableview.h>
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Window proc — captures outlets on evCreate.

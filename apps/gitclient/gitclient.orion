@@ -224,7 +224,7 @@
         </form>
 
         <!-- Changes page: file list + inline commit panel on left, diff on right. -->
-        <form name="changes_page" auto_layout="1" flags="nofill,flexspace">
+        <form name="changes_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
             <requires library="gitclient_components" />
             <SplitView name="changes_split" flags="flexspace">
                 <StackView name="changes_panel" spacing="4" padding="4">
@@ -251,7 +251,7 @@
         </form>
 
         <!-- History page: branches/tags/stash sidebar, log + files + diff. -->
-        <form name="history_page" auto_layout="1" flags="nofill,flexspace">
+        <form name="history_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
             <requires library="gitclient_components" />
             <SplitView name="history_main_split" flags="flexspace">
                 <SplitView name="left_split" orientation="vertical" flags="flexspace" width="180">
@@ -290,7 +290,7 @@
         </form>
 
         <!-- GitHub page: issues on top, pull requests on bottom. -->
-        <form name="github_page" auto_layout="1" flags="nofill,flexspace">
+        <form name="github_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
             <SplitView name="github_split" orientation="vertical" flags="flexspace">
                 <StackView name="issues_panel" spacing="4" padding="4">
                     <Label text="Issues" />
