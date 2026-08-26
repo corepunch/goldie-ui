@@ -427,7 +427,7 @@ bool      page_github_handle(window_t *main_win, uint32_t msg, uint32_t wparam, 
 void      page_github_refresh(void);
 
 // ============================================================
-// View — dialogs
+// Dialogs (dialogs/*_dlg.c)
 // ============================================================
 
 bool gc_show_commit_dialog(window_t *parent, bool amend);

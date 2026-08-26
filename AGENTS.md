@@ -249,7 +249,8 @@ apps/<name>/
   <name>.h              ← app header: types, column IDs, prefix aliases, trace macro
   main.c                ← entry point: DB_CLASS registration, create_database, window creation
   controller.c          ← top-level event routing (evCommand dispatch, tab switching)
-  view_*.c              ← window procs for dialogs and panels
+  view_*.c              ← top-level window procs (main window, menubar, diff viewer)
+  dialogs/              ← modal dialogs, one *_dlg.c per dialog (optional)
   components/           ← reusable sub-controls specific to this app (optional)
   pages/                ← multi-page apps: one subfolder per page (optional)
     <page>/
