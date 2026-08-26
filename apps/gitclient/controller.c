@@ -1,4 +1,4 @@
-// Controller — business logic; database population is owned by gitclient_db.c.
+// Controller — business logic; database population is owned by datasource/gitclient_db.c.
 
 #include "gitclient.h"
 

@@ -1,7 +1,6 @@
 // Git Client — entry point.
 
 #include "gitclient.h"
-#include "pages/github/page_github.h"
 #include <orion/gem.h>
 #include <orion/commctl/commctl.h>
 #include <orion/user/svg_icon_loader.h>

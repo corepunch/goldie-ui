@@ -3,9 +3,7 @@
 // Unlike socialfeed, there is NO persistence. The database is a read-only cache
 // of git state, cleared and repopulated on each gc_refresh_all().
 //
-// Two database procs share this file:
-//   gitclient_db          — History tab: branches, commits, history files, tags, stash, remotes
-//   changes_database_proc — Changes tab: working-tree files from git status only
+// Serves the History tab: branches, commits, history files, tags, stash, remotes.
 
 #include "gitclient.h"
 #include <platform/platform.h>
