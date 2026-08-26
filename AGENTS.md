@@ -250,7 +250,7 @@ apps/<name>/
   main.c                ← entry point: DB_CLASS registration, create_database, window creation
   controller.c          ← top-level event routing (evCommand dispatch, tab switching)
   view_*.c              ← top-level window procs (main window, menubar, diff viewer)
-  dialogs/              ← modal dialogs, one *_dlg.c per dialog (optional)
+  dialogs/              ← modal dialogs, one dlg_*.c per dialog (optional)
   components/           ← reusable sub-controls specific to this app (optional)
   pages/                ← multi-page apps: one subfolder per page (optional)
     <page>/
