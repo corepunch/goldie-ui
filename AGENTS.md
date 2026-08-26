@@ -238,3 +238,38 @@ tests/test_framework.h   ← the test framework
 tests/test_env.h ← SDL-init helper for tests that need a display
 Makefile          ← `make test` builds and runs all tests/
 ```
+
+## App folder structure
+
+Every app lives in `apps/<name>/` and follows this layout:
+
+```
+apps/<name>/
+  <name>.orion          ← declarative UI definition (forms, databases, menus, toolbars)
+  <name>.h              ← app header: types, column IDs, prefix aliases, trace macro
+  main.c                ← entry point: DB_CLASS registration, create_database, window creation
+  controller.c          ← top-level event routing (evCommand dispatch, tab switching)
+  view_*.c              ← window procs for dialogs and panels
+  components/           ← reusable sub-controls specific to this app (optional)
+  pages/                ← multi-page apps: one subfolder per page (optional)
+    <page>/
+      page_<page>.c     ← page window proc + page-specific logic
+      page_<page>.h
+  datasource/           ← database adaptors (optional, for apps with 2+ adaptors)
+    <name>_db.c         ← dbproc_t implementation for each <database> in the .orion
+  share/                ← resources: icons/, seed XML, test fixtures
+    icons/              ← 24×24 SVG icons
+  tests/                ← app-specific test files
+```
+
+**When to use `datasource/`:** If an app has a single database adaptor, keep it in the
+app root (e.g. `db_simple_xml.c` in socialfeed). If an app has two or more adaptors,
+move them into `datasource/` to make the data layer visually distinct from the view
+layer. The adaptor filename should match the `<database class="...">` attribute in the
+.orion file (e.g. `class="gitclient_db"` → `datasource/gitclient_db.c`).
+
+**Database adaptor contract:** Each adaptor implements `dbproc_t` and must handle
+`dbCreate`, `dbDestroy`, `dbLoad`, `dbFetch`, `dbGetObjectProc`, `dbGetFieldBindings`,
+`dbGetSchema`, and `dbGetFieldMeta`. The `dbGetApi` message is optional (nothing sends
+it currently). Adaptors that share table IDs (e.g. changes_db reusing `TABLE_FILES`)
+must coordinate column IDs through the app header.
