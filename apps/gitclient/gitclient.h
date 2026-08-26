@@ -298,11 +298,12 @@ typedef struct {
 extern gc_state_t *g_gc;
 
 // ============================================================
-// Database procedure (gitclient_db.c)
+// Database procedures (datasource/*.c)
 // ============================================================
 
 lresult_t gitclient_db(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 lresult_t changes_database_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+lresult_t github_database_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 
 // ============================================================
 // Controller (controller.c)
@@ -421,7 +422,6 @@ bool      page_changes_handle(window_t *main_win, uint32_t msg, uint32_t wparam,
 result_t  page_history_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 bool      page_history_handle(window_t *main_win, uint32_t msg, uint32_t wparam, void *lparam);
 
-lresult_t github_database_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
 result_t  page_github_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 bool      page_github_handle(window_t *main_win, uint32_t msg, uint32_t wparam, void *lparam);
 void      page_github_refresh(void);

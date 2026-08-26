@@ -41,7 +41,9 @@ Views are bound to database columns in `gitclient.orion`. When you call `send_me
 | File | Purpose |
 |------|---------|
 | `gitclient.orion` | Declarative schema, capability map, shortcuts, toolbars, forms |
-| `gitclient_db.c` | Database procedure — in-memory tables populated from git |
+| `datasource/gitclient_db.c` | Database procedure — in-memory tables populated from git |
+| `datasource/changes_database_proc.c` | Changes-tab adaptor — working-tree files from git status |
+| `datasource/github_database_proc.c` | GitHub adaptor — issues and PRs from the gh CLI |
 | `controller.c` | Business logic — `gc_load_from_git()`, stage, commit, branch |
 | `git_backend.c` | Git CLI wrapper (popen-based) |
 | `view_main.c` | Main window proc — event routing only |
