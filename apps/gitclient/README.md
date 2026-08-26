@@ -49,7 +49,7 @@ Views are bound to database columns in `gitclient.orion`. When you call `send_me
 | `view_main.c` | Main window proc — event routing only |
 | `view_diff.c` | VGA diff viewer (custom rendering) |
 | `view_menubar.c` | Command dispatch |
-| `view_*_dlg.c` | Dialogs using generated forms |
+| `dialogs/*_dlg.c` | Dialogs using generated forms |
 
 ## How it works
 
