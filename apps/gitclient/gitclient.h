@@ -202,6 +202,11 @@ enum {
   GC_COL_TAG_ID, GC_COL_TAG_NAME, GC_COL_TAG_HASH, GC_COL_TAG_DATE,
   GC_COL_STASH_ID, GC_COL_STASH_REF, GC_COL_STASH_MESSAGE, GC_COL_STASH_BRANCH,
   GC_COL_REMOTE_ID, GC_COL_REMOTE_NAME, GC_COL_REMOTE_URL,
+  // github_db tables
+  GC_COL_ISSUE_ID, GC_COL_ISSUE_NUMBER, GC_COL_ISSUE_TITLE,
+  GC_COL_ISSUE_STATE, GC_COL_ISSUE_AUTHOR, GC_COL_ISSUE_CREATED_AT,
+  GC_COL_PULL_ID, GC_COL_PULL_NUMBER, GC_COL_PULL_TITLE,
+  GC_COL_PULL_STATE, GC_COL_PULL_AUTHOR, GC_COL_PULL_BASE,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -209,6 +214,9 @@ enum {
 // ═══════════════════════════════════════════════════════════════════════════
 
 #define gc_main_window_form          gitclient_main_window_form
+#define gc_changes_page_form         gitclient_changes_page_form
+#define gc_history_page_form         gitclient_history_page_form
+#define gc_github_page_form          gitclient_github_page_form
 #define gc_commit_dialog_form        gitclient_commit_dialog_form
 #define gc_new_branch_dialog_form    gitclient_new_branch_dialog_form
 #define gc_clone_dialog_form         gitclient_clone_dialog_form
@@ -244,6 +252,7 @@ typedef struct {
   char         repo_path[512];
   database_t  *changes_db;
   database_t  *history_db;
+  database_t  *github_db;
 
   int          selected_commit;
   int          selected_file;
@@ -256,17 +265,23 @@ typedef struct {
   // UI windows
   window_t    *main_win;
   window_t    *menubar_win;
+  window_t    *tabs_win;
+  // active-page aliases (point into whichever page is shown)
+  window_t    *files_win;
+  window_t    *diff_win;
+  // changes page outlets (populated by page_changes_proc evCreate)
+  window_t    *changes_files_win;
+  window_t    *changes_diff_win;
+  // history page outlets (populated by page_history_proc evCreate)
   window_t    *branches_win;
   window_t    *tags_win;
   window_t    *stash_win;
-  window_t    *tabs_win;
   window_t    *log_win;
-  window_t    *files_win;
-  window_t    *diff_win;
-  window_t    *changes_files_win;
-  window_t    *changes_diff_win;
   window_t    *history_files_win;
   window_t    *history_diff_win;
+  // github page outlets (populated by page_github_proc evCreate)
+  window_t    *github_issues_win;
+  window_t    *github_pulls_win;
 
   accel_table_t *accel;
   hinstance_t    hinstance;
@@ -382,7 +397,7 @@ void gc_open_repo(const char *path);
 void gc_refresh_all(void);
 void gc_show_search_dialog(window_t *parent);
 void gc_update_status(void);
-void gc_set_view_mode(bool history);
+void gc_set_view_mode(int tab);
 void gc_recent_load(void);
 void gc_recent_save(void);
 void gc_recent_add(const char *path);
@@ -395,6 +410,21 @@ void gc_show_identity_dialog(window_t *parent);
 // ============================================================
 
 void gc_diff_refresh(void);
+
+// ============================================================
+// Pages (pages/*/page_*.c)
+// ============================================================
+
+result_t  page_changes_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+bool      page_changes_handle(window_t *main_win, uint32_t msg, uint32_t wparam, void *lparam);
+
+result_t  page_history_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+bool      page_history_handle(window_t *main_win, uint32_t msg, uint32_t wparam, void *lparam);
+
+lresult_t github_database_proc(database_t *db, uint32_t msg, uint32_t wparam, void *lparam);
+result_t  page_github_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
+bool      page_github_handle(window_t *main_win, uint32_t msg, uint32_t wparam, void *lparam);
+void      page_github_refresh(void);
 
 // ============================================================
 // View — dialogs

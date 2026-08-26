@@ -25,6 +25,7 @@
         <menu name="view" label="View">
             <item name="changes" label="Changes" shortcut="Ctrl+1" />
             <item name="history" label="History" shortcut="Ctrl+2" />
+            <item name="github" label="GitHub" shortcut="Ctrl+3" />
         </menu>
 
         <menu name="branch" label="Branch">
@@ -124,6 +125,7 @@
             <Button name="repos"       command="file.repositories"  icon="git-repos"           text="Repos"      tooltip="Switch or discover repositories" />
             <Button name="changes"     command="view.changes"       icon="git-diff"            text="Changes"    tooltip="Show working tree changes" />
             <Button name="history"     command="view.history"       icon="clock"               text="History"    tooltip="Show commit history" />
+            <Button name="github"      command="view.github"        icon="github"              text="GitHub"     tooltip="Show GitHub issues and pull requests" />
         </toolbar>
     </toolbars>
 
@@ -179,6 +181,26 @@
                 <field name="url" type="string" length="512"/>
             </table>
         </database>
+
+        <database name="github_db" class="github_database_proc">
+            <table name="issues">
+                <field name="id" type="integer" key="YES"/>
+                <field name="number" type="integer"/>
+                <field name="title" type="string" length="256"/>
+                <field name="state" type="string" length="16"/>
+                <field name="author" type="string" length="64"/>
+                <field name="created_at" type="string" length="32"/>
+            </table>
+
+            <table name="pulls">
+                <field name="id" type="integer" key="YES"/>
+                <field name="number" type="integer"/>
+                <field name="title" type="string" length="256"/>
+                <field name="state" type="string" length="16"/>
+                <field name="author" type="string" length="64"/>
+                <field name="base" type="string" length="64"/>
+            </table>
+        </database>
     </databases>
 
     <plugins>
@@ -186,75 +208,113 @@
     </plugins>
 
     <forms>
+        <!-- Main window shell: just the chrome + TabView with empty tab slots.
+             Each slot is filled at runtime by create_window_from_form() with the
+             corresponding page sub-form. -->
         <form name="main_window"
               title="Git Client"
               width="960" height="640"
               flags="toolbar,statusbar"
               toolbar="main">
-            <requires library="gitclient_components" />
             <TabView name="views" flags="notitle,nofill,flexspace">
-                <StackView name="changes_page" text="Changes" flags="notitle,nofill,flexspace">
-                    <SplitView name="changes_split" flags="flexspace">
-                        <StackView name="changes_panel" spacing="4" padding="4">
-                            <TableView name="changes_files"
-                                       source="db.files"
-                                       master="none"
-                                       check-field="staged"
-                                       context-menu="files"
-                                       flags="notitle,nofill,vscroll,flexspace">
-                                <Column field="path" title="File" width="0" />
-                                <Column field="status" title="Status" width="64" />
-                            </TableView>
-                            <Label name="commit_hint" text="Commit staged changes" />
-                            <TextEdit name="commit_summary" text="" />
-                            <TextEdit name="commit_description" text="" />
-                            <StackView name="commit_actions" orientation="horizontal" spacing="4">
-                                <Button name="stash_inline" text="Stash" />
-                                <Space />
-                                <Button name="commit_now" text="Commit" flags="default" />
-                            </StackView>
-                        </StackView>
-                        <DiffView name="changes_diff" flags="notitle,nofill,vscroll,flexspace"/>
-                    </SplitView>
-                </StackView>
-
-                <StackView name="history_page" text="History" flags="notitle,nofill,flexspace">
-                    <SplitView name="history_main_split" flags="flexspace">
-                        <SplitView name="left_split" orientation="vertical" flags="flexspace" width="180">
-                            <TableView name="branches" source="db.branches" context-menu="branches"
-                                       flags="notitle,nofill,vscroll">
-                                <Column field="name" title="" width="0" />
-                            </TableView>
-                            <TableView name="tags" source="db.tags" context-menu="tags"
-                                       flags="notitle,nofill,vscroll">
-                                <Column field="name" title="Tag" width="0" />
-                                <Column field="date" title="Date" width="80" />
-                            </TableView>
-                            <TableView name="stash_list" source="db.stash" context-menu="stash"
-                                       flags="notitle,nofill,vscroll">
-                                <Column field="message" title="Stash" width="0" />
-                                <Column field="branch" title="Branch" width="80" />
-                            </TableView>
-                        </SplitView>
-                        <SplitView name="history_content_split" flags="flexspace">
-                            <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
-                                <TableView name="log" source="db.commits" cell-style="two-line"
-                                           flags="notitle,nofill,vscroll,flexspace">
-                                            <Column field="subject" title="Subject" width="0" min-width="120" />
-                                    <Column field="author" title="Author" width="0" />
-                                    <Column field="date" title="Date" width="0" />
-                                </TableView>
-                                <TableView name="history_files" source="db.files" master="log"
-                                           flags="notitle,nofill,vscroll,flexspace">
-                                    <Column field="path" title="File" width="0" />
-                                    <Column field="status" title="Status" width="64" />
-                                </TableView>
-                            </SplitView>
-                            <DiffView name="history_diff" flags="notitle,nofill,vscroll,flexspace"/>
-                        </SplitView>
-                    </SplitView>
-                </StackView>
+                <StackView name="changes_tab" text="Changes" flags="notitle,nofill,flexspace" />
+                <StackView name="history_tab" text="History" flags="notitle,nofill,flexspace" />
+                <StackView name="github_tab"  text="GitHub"  flags="notitle,nofill,flexspace" />
             </TabView>
+        </form>
+
+        <!-- Changes page: file list + inline commit panel on left, diff on right. -->
+        <form name="changes_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
+            <requires library="gitclient_components" />
+            <SplitView name="changes_split" flags="flexspace">
+                <StackView name="changes_panel" spacing="4" padding="4">
+                    <TableView name="changes_files"
+                               source="db.files"
+                               master="none"
+                               check-field="staged"
+                               context-menu="files"
+                               flags="notitle,nofill,vscroll,flexspace">
+                        <Column field="path" title="File" width="0" />
+                        <Column field="status" title="Status" width="64" />
+                    </TableView>
+                    <Label name="commit_hint" text="Commit staged changes" />
+                    <TextEdit name="commit_summary" text="" />
+                    <TextEdit name="commit_description" text="" />
+                    <StackView name="commit_actions" orientation="horizontal" spacing="4">
+                        <Button name="stash_inline" text="Stash" />
+                        <Space />
+                        <Button name="commit_now" text="Commit" flags="default" />
+                    </StackView>
+                </StackView>
+                <DiffView name="changes_diff" flags="notitle,nofill,vscroll,flexspace"/>
+            </SplitView>
+        </form>
+
+        <!-- History page: branches/tags/stash sidebar, log + files + diff. -->
+        <form name="history_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
+            <requires library="gitclient_components" />
+            <SplitView name="history_main_split" flags="flexspace">
+                <SplitView name="left_split" orientation="vertical" flags="flexspace" width="180">
+                    <TableView name="branches" source="db.branches" context-menu="branches"
+                               flags="notitle,nofill,vscroll">
+                        <Column field="name" title="" width="0" />
+                    </TableView>
+                    <TableView name="tags" source="db.tags" context-menu="tags"
+                               flags="notitle,nofill,vscroll">
+                        <Column field="name" title="Tag" width="0" />
+                        <Column field="date" title="Date" width="80" />
+                    </TableView>
+                    <TableView name="stash_list" source="db.stash" context-menu="stash"
+                               flags="notitle,nofill,vscroll">
+                        <Column field="message" title="Stash" width="0" />
+                        <Column field="branch" title="Branch" width="80" />
+                    </TableView>
+                </SplitView>
+                <SplitView name="history_content_split" flags="flexspace">
+                    <SplitView name="log_files_split" orientation="vertical" flags="flexspace">
+                        <TableView name="log" source="db.commits" cell-style="two-line"
+                                   flags="notitle,nofill,vscroll,flexspace">
+                            <Column field="subject" title="Subject" width="0" min-width="120" />
+                            <Column field="author" title="Author" width="0" />
+                            <Column field="date" title="Date" width="0" />
+                        </TableView>
+                        <TableView name="history_files" source="db.files" master="log"
+                                   flags="notitle,nofill,vscroll,flexspace">
+                            <Column field="path" title="File" width="0" />
+                            <Column field="status" title="Status" width="64" />
+                        </TableView>
+                    </SplitView>
+                    <DiffView name="history_diff" flags="notitle,nofill,vscroll,flexspace"/>
+                </SplitView>
+            </SplitView>
+        </form>
+
+        <!-- GitHub page: issues on top, pull requests on bottom. -->
+        <form name="github_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
+            <SplitView name="github_split" orientation="vertical" flags="flexspace">
+                <StackView name="issues_panel" spacing="4" padding="4">
+                    <Label text="Issues" />
+                    <TableView name="issues" source="github_db.issues"
+                               flags="notitle,nofill,vscroll,flexspace">
+                        <Column field="number" title="#" width="40" />
+                        <Column field="title" title="Title" width="0" />
+                        <Column field="state" title="State" width="64" />
+                        <Column field="author" title="Author" width="100" />
+                        <Column field="created_at" title="Opened" width="100" />
+                    </TableView>
+                </StackView>
+                <StackView name="pulls_panel" spacing="4" padding="4">
+                    <Label text="Pull Requests" />
+                    <TableView name="pulls" source="github_db.pulls"
+                               flags="notitle,nofill,vscroll,flexspace">
+                        <Column field="number" title="#" width="40" />
+                        <Column field="title" title="Title" width="0" />
+                        <Column field="state" title="State" width="64" />
+                        <Column field="author" title="Author" width="100" />
+                        <Column field="base" title="Base" width="80" />
+                    </TableView>
+                </StackView>
+            </SplitView>
         </form>
 
         <form name="commit_dialog"

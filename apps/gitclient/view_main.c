@@ -1,7 +1,10 @@
-// Main window — uses generated form from gitclient.orion.
+// Main window — thin router. Page sub-forms own their UI and event logic.
 
 #include "gitclient.h"
 #include "gc_actions.h"
+#include "pages/changes/page_changes.h"
+#include "pages/history/page_history.h"
+#include "pages/github/page_github.h"
 #include <orion/user/vga_font.h>
 #include <orion/commctl/menubar.h>
 
@@ -9,25 +12,39 @@
 // Open / refresh
 // ============================================================
 
-void gc_set_view_mode(bool history) {
+void gc_set_view_mode(int tab) {
   gc_state_t *gc = g_gc; if (!gc || !gc->main_win) return;
-  gc->history_mode = history;
-  if (gc->tabs_win) send_message(gc->tabs_win, tcSetSelection, history ? 1 : 0, NULL);
-  gc->files_win = history ? gc->history_files_win : gc->changes_files_win;
-  gc->diff_win  = history ? gc->history_diff_win  : gc->changes_diff_win;
-  if (!history && gc->changes_files_win) {
-    gc->selected_commit = -1;
-    gc->selected_file = -1;
-    send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
-    gc->selected_file = -1;
-  } else if (history) {
-    gc->selected_commit = gc->log_win ? (int)send_message(gc->log_win, RVM_GETSELECTION, 0, NULL) : -1;
-    gc->selected_file = -1;
+  gc->history_mode = (tab == 1);
+  if (gc->tabs_win) send_message(gc->tabs_win, tcSetSelection, (uint32_t)tab, NULL);
+
+  switch (tab) {
+    case 0:
+      gc->files_win = gc->changes_files_win;
+      gc->diff_win  = gc->changes_diff_win;
+      gc->selected_commit = -1;
+      gc->selected_file   = -1;
+      if (gc->changes_files_win)
+        send_message(gc->changes_files_win, tvSetFilter, ID_DB_FILES_COMMIT_ID, (void *)(intptr_t)0);
+      break;
+    case 1:
+      gc->files_win = gc->history_files_win;
+      gc->diff_win  = gc->history_diff_win;
+      gc->selected_commit = gc->log_win
+        ? (int)send_message(gc->log_win, RVM_GETSELECTION, 0, NULL) : -1;
+      gc->selected_file = -1;
+      break;
+    case 2:
+      gc->files_win = NULL;
+      gc->diff_win  = NULL;
+      page_github_refresh();
+      break;
+    default: break;
   }
-  GC_TRACE("set_view_mode %s: diff_win=%p files_win=%p commit=%d file=%d",
-           history ? "HISTORY" : "CHANGES",
-           (void *)gc->diff_win, (void *)gc->files_win, gc->selected_commit, gc->selected_file);
-  gc_diff_refresh();
+
+  GC_TRACE("set_view_mode tab=%d diff_win=%p files_win=%p",
+           tab, (void *)gc->diff_win, (void *)gc->files_win);
+
+  if (tab != 2) gc_diff_refresh();
   invalidate_window(gc->main_win);
 }
 
@@ -39,8 +56,7 @@ void gc_open_repo(const char *path) {
   git_repo_t *next = git_repo_open(path);
   if (!next) {
     GC_TRACE("open_repo: invalid repo");
-    message_box(gc->main_win, "Not a valid git repository.", "Open Repository",
-                MB_OK);
+    message_box(gc->main_win, "Not a valid git repository.", "Open Repository", MB_OK);
     return;
   }
   git_repo_close(gc->repo);
@@ -65,8 +81,6 @@ void gc_refresh_all(void) {
   if (!gc || !gc->repo) return;
 
   GC_TRACE("refresh_all begin");
-  // Reset selection indices so that the cascade-driven RVN_SELCHANGE on row 0
-  // is never suppressed by a stale matching value from the previous load.
   gc->selected_commit = -1;
   gc->selected_file   = -1;
 
@@ -79,8 +93,7 @@ void gc_refresh_all(void) {
     send_message(gc->tags_win, tvRefresh, 0, NULL);
   if (gc->stash_win)
     send_message(gc->stash_win, tvRefresh, 0, NULL);
-  // Select the current branch — the master-detail cascade then automatically
-  // populates commits (filtered by branch_id) and files (lazy-loaded per commit).
+
   if (gc->branches_win) {
     result_node_t *rows = (result_node_t *)send_db_message(
       gc->history_db, dbFetch, MAKEDWORD(ID_DB_BRANCHES, 0), (void *)(intptr_t)0);
@@ -101,6 +114,9 @@ void gc_refresh_all(void) {
     int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
     if (active_tab == 0) gc->selected_commit = -1;
   }
+
+  int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
+  if (active_tab == 2) page_github_refresh();
 
   gc_diff_refresh();
   gc_update_status();
@@ -125,9 +141,9 @@ void gc_update_status(void) {
   }
   send_message(gc->main_win, evStatusBar, 0, (void *)status);
   if (gc->repo) {
-    set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_HINT,
+    set_window_item_text(gc->main_win, ID_CHANGES_PAGE_COMMIT_HINT,
                          st.initial ? "Create the first commit" : "Commit staged changes");
-    set_window_item_text(gc->main_win, ID_MAIN_WINDOW_COMMIT_NOW, "Commit");
+    set_window_item_text(gc->main_win, ID_CHANGES_PAGE_COMMIT_NOW, "Commit");
   }
 }
 
@@ -145,26 +161,37 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       win->userdata = gc;
       gc->main_win = win;
 
-      // The generated form owns hierarchy, sizing, and database propagation.
-      // The controller only keeps outlets for event routing and refreshes.
-      gc->branches_win = get_window_item(win, ID_MAIN_WINDOW_BRANCHES);
-      gc->tags_win = get_window_item(win, ID_MAIN_WINDOW_TAGS);
-      gc->stash_win = get_window_item(win, ID_MAIN_WINDOW_STASH_LIST);
       gc->tabs_win = get_window_item(win, ID_MAIN_WINDOW_VIEWS);
-      gc->log_win = get_window_item(win, ID_MAIN_WINDOW_LOG);
-      gc->changes_files_win = get_window_item(win, ID_MAIN_WINDOW_CHANGES_FILES);
-      gc->changes_diff_win = get_window_item(win, ID_MAIN_WINDOW_CHANGES_DIFF);
-      gc->history_files_win = get_window_item(win, ID_MAIN_WINDOW_HISTORY_FILES);
-      gc->history_diff_win = get_window_item(win, ID_MAIN_WINDOW_HISTORY_DIFF);
-      GC_LOG("form outlets: branches=%p log=%p files=%p diff=%p",
-             (void *)gc->branches_win, (void *)gc->log_win,
-             (void *)gc->changes_files_win, (void *)gc->changes_diff_win);
+
+      // Instantiate each page sub-form inside its tab slot.
+      // Page procs capture their own outlets in evCreate.
+      window_t *changes_tab = get_window_item(win, ID_MAIN_WINDOW_CHANGES_TAB);
+      window_t *history_tab = get_window_item(win, ID_MAIN_WINDOW_HISTORY_TAB);
+      window_t *github_tab  = get_window_item(win, ID_MAIN_WINDOW_GITHUB_TAB);
+
+      if (changes_tab)
+        create_window_from_form(&gc_changes_page_form, 0, 0,
+                                changes_tab, page_changes_proc,
+                                gc->hinstance, NULL);
+      if (history_tab)
+        create_window_from_form(&gc_history_page_form, 0, 0,
+                                history_tab, page_history_proc,
+                                gc->hinstance, NULL);
+      if (github_tab)
+        create_window_from_form(&gc_github_page_form, 0, 0,
+                                github_tab, page_github_proc,
+                                gc->hinstance, NULL);
+
+      GC_LOG("page outlets after sub-form creation: "
+             "changes_files=%p branches=%p github_issues=%p",
+             (void *)gc->changes_files_win,
+             (void *)gc->branches_win,
+             (void *)gc->github_issues_win);
 
       send_message(win, evStatusBar, 0, "No repository");
       send_message(win, tbSetStyle, TOOLBAR_STYLE_SHOW_LABELS, NULL);
-      gc_set_view_mode(false);
+      gc_set_view_mode(0);
 
-      // Load VGA font (TTF → character sheet generated at runtime).
       char font_path[600];
       snprintf(font_path, sizeof(font_path),
                "%s/../share/orion/fonts/monoid.ttf",
@@ -198,8 +225,8 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
 
       if (code == tcnSelChange && (window_t *)lparam == gc->tabs_win) {
         int tab = (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL);
-        GC_TRACE("evCommand tcnSelChange -> tab %d (%s)", tab, tab == 0 ? "CHANGES" : "HISTORY");
-        gc_set_view_mode(tab == 1);
+        GC_TRACE("evCommand tcnSelChange -> tab %d", tab);
+        gc_set_view_mode(tab);
         return true;
       }
 
@@ -209,151 +236,12 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
         return true;
       }
 
-      if (code == btnClicked || code == 0) {
-        uint16_t id = (uint16_t)LOWORD(wparam);
-        GC_TRACE("evCommand btnClick id=%d", (int)id);
-        if (id == ID_MAIN_WINDOW_COMMIT_NOW) {
-          char summary[256] = {0}, desc[512] = {0}, message[800] = {0};
-          window_t *sw = get_window_item(win, ID_MAIN_WINDOW_COMMIT_SUMMARY);
-          window_t *dw = get_window_item(win, ID_MAIN_WINDOW_COMMIT_DESCRIPTION);
-          if (sw) send_message(sw, edGetText, sizeof(summary), summary);
-          if (dw) send_message(dw, edGetText, sizeof(desc), desc);
-          if (!summary[0]) { message_box(win, "Enter a commit summary.", "Commit", MB_OK); return true; }
-          char identity_name[128], identity_email[256];
-          if (!git_get_identity(gc->repo, identity_name, sizeof(identity_name), identity_email, sizeof(identity_email))) {
-            gc_show_identity_dialog(win); return true;
-          }
-          snprintf(message, sizeof(message), "%s%s%s", summary, desc[0] ? "\n\n" : "", desc);
-          if (gc_commit(message, false)) {
-            if (sw) send_message(sw, edSetText, 0, "");
-            if (dw) send_message(dw, edSetText, 0, "");
-            gc_refresh_all();
-          } else message_box(win, "Commit failed. Check staged files and Git identity.", "Commit", MB_OK);
-          return true;
-        }
-        if (id == ID_MAIN_WINDOW_STASH_INLINE) {
-          gc_stash(); gc_refresh_all(); return true;
-        }
-        (void)gc_execute_action(id);
-        return true;
-      }
-
-      if (code == RVN_SELCHANGE) {
-        if (!gc) return true;
-        int sel   = (int)(int16_t)LOWORD(wparam);
-        window_t *src = (window_t *)lparam;
-
-        if (src == gc->branches_win) {
-          GC_TRACE("SELCHANGE branch row=%d", sel);
-          // Branch changed: reset downstream indices so the cascade refresh
-          // on log_win row 0 and files_win row 0 is never suppressed.
-          gc->selected_commit = -1;
-          gc->selected_file   = -1;
-        } else if (src == gc->log_win) {
-          if (sel != gc->selected_commit) {
-            gc->selected_commit = sel;
-            gc->selected_file   = -1;
-            int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
-            GC_TRACE("SELCHANGE log row=%d active_tab=%d", sel, active_tab);
-            if (active_tab == 1) {
-              gc->files_win = gc->history_files_win;
-              gc->diff_win = gc->history_diff_win;
-              gc_diff_refresh();
-            }
-          }
-        } else if (src == gc->changes_files_win || src == gc->history_files_win) {
-          int active_tab = gc->tabs_win ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
-          bool active = (src == gc->changes_files_win && active_tab == 0) ||
-                        (src == gc->history_files_win && active_tab == 1);
-          if (active && sel != gc->selected_file) {
-            if (src == gc->changes_files_win) gc->selected_commit = -1;
-            gc->files_win = src;
-            gc->diff_win = src == gc->changes_files_win ? gc->changes_diff_win : gc->history_diff_win;
-            gc->selected_file = sel;
-            GC_TRACE("SELCHANGE %s row=%d -> diff_refresh",
-                     src == gc->changes_files_win ? "changes_files" : "history_files", sel);
-            gc_diff_refresh();
-          }
-        }
-        return true;
-      }
-
-      if (code == RVN_ITEMCHECK) {
-        if (!gc || (window_t *)lparam != gc->changes_files_win) return true;
-        int row = (int)(int16_t)LOWORD(wparam);
-        db_file_t *file = (db_file_t *)(intptr_t)send_message(
-          gc->changes_files_win, tvGetRecord, (uint32_t)row, NULL);
-        bool checked = ReportView_GetCheckState(gc->changes_files_win, row);
-        GC_TRACE("ITEMCHECK changes_files row=%d file=%s staged=%d checked=%d",
-                 row, file ? file->path : "(null)", file ? (int)file->staged : -1, (int)checked);
-        if (file) {
-          bool ok = checked ? gc_stage_file(file->path) : gc_unstage_file(file->path);
-          if (!ok) message_box(gc->main_win, "Operation failed.", "File", MB_OK);
-          gc_refresh_all();
-        }
-        return true;
-      }
-
-      if (code == GC_DIFF_TOGGLE_UNIFIED) {
-        GC_TRACE("DIFF_TOGGLE_UNIFIED");
-        if (!gc) return true;
-        if (gc->diff_win) {
-          gc_diff_state_t *st = (gc_diff_state_t *)gc->diff_win->userdata;
-          if (st) {
-            gc->unified_diff = st->unified_mode;
-            gc_diff_refresh();
-          }
-        }
-        return true;
-      }
-
-      if (code == GC_DIFF_STAGE_HUNK) {
-        int hunk_idx = (int)(int16_t)LOWORD(wparam);
-        GC_TRACE("DIFF_STAGE_HUNK idx=%d", hunk_idx);
-        if (!gc) return true;
-        if (gc->diff_win) {
-          gc_diff_state_t *st = (gc_diff_state_t *)gc->diff_win->userdata;
-          if (st && st->hunk_path[0]) {
-            gc_stage_hunk(st->hunk_path, hunk_idx);
-            gc_refresh_all();
-          }
-        }
-        return true;
-      }
-
-      if (code == RVN_DBLCLK) {
-        if (!gc) return false;
-        int idx       = (int)(int16_t)LOWORD(wparam);
-        window_t *src = (window_t *)lparam;
-        GC_TRACE("DBLCLK src=%p idx=%d", (void *)src, idx);
-
-        if (src == gc->stash_win) {
-          gc_stash_pop();
-          gc_refresh_all();
-          return true;
-        }
-
-        if (src == gc->changes_files_win && gc->selected_commit < 0 &&
-            gc->repo && idx >= 0) {
-          GC_TRACE("  DBLCLK changes_files: toggling staged");
-          result_node_t *files = (result_node_t *)send_db_message(
-            gc->changes_db, dbFetch, MAKEDWORD(ID_DB_FILES, 0), (void *)(intptr_t)0);
-          result_node_t *node = files;
-          for (int i = 0; i < idx && node; i++) node = node->next;
-          if (node) {
-            db_file_t *f = *(db_file_t **)node->data;
-            if (f->staged)
-              gc_unstage_file(f->path);
-            else
-              gc_stage_file(f->path);
-          }
-          free_result_list(files);
-          gc_refresh_all();
-          return true;
-        }
-        return false;
-      }
-
+      // Delegate to the active page handler.
+      int active_tab = gc->tabs_win
+        ? (int)send_message(gc->tabs_win, tcGetSelection, 0, NULL) : 0;
+      if (active_tab == 0) return page_changes_handle(win, msg, wparam, lparam);
+      if (active_tab == 1) return page_history_handle(win, msg, wparam, lparam);
+      if (active_tab == 2) return page_github_handle(win, msg, wparam, lparam);
       return false;
     }
 

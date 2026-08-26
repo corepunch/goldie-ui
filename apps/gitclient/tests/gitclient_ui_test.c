@@ -462,20 +462,34 @@ void test_working_tree_files_have_zero_commit_id(void) {
 
 // 10. Orion-generated context menu fixtures ───────────────────────────────────
 
+// Controls now live in page sub-forms, so search recursively across all of them.
+static const form_ctrl_def_t *find_in(const form_ctrl_def_t *children,
+                                       int count, uint32_t id) {
+    for (int i = 0; i < count; i++) {
+        if (children[i].id == id) return &children[i];
+        const form_ctrl_def_t *found =
+            find_in(children[i].children, children[i].child_count, id);
+        if (found) return found;
+    }
+    return NULL;
+}
+
 static const form_ctrl_def_t *generated_control(uint32_t id) {
-    for (int i = 0; i < gc_main_window_form.child_count; i++)
-        if (gc_main_window_form.children[i].id == id)
-            return &gc_main_window_form.children[i];
+    const form_ctrl_def_t *f;
+    f = find_in(gc_changes_page_form.children, gc_changes_page_form.child_count, id);
+    if (f) return f;
+    f = find_in(gc_history_page_form.children, gc_history_page_form.child_count, id);
+    if (f) return f;
     return NULL;
 }
 
 void test_generated_context_menus_attach_to_expected_controls(void) {
     TEST("gitclient Orion: generated context menus attach to all four tables");
-    const form_ctrl_def_t *branches = generated_control(ID_MAIN_WINDOW_BRANCHES);
-    const form_ctrl_def_t *tags     = generated_control(ID_MAIN_WINDOW_TAGS);
-    const form_ctrl_def_t *stash    = generated_control(ID_MAIN_WINDOW_STASH_LIST);
-    const form_ctrl_def_t *files    = generated_control(ID_MAIN_WINDOW_CHANGES_FILES);
-    const form_ctrl_def_t *history  = generated_control(ID_MAIN_WINDOW_HISTORY_FILES);
+    const form_ctrl_def_t *branches = generated_control(ID_HISTORY_PAGE_BRANCHES);
+    const form_ctrl_def_t *tags     = generated_control(ID_HISTORY_PAGE_TAGS);
+    const form_ctrl_def_t *stash    = generated_control(ID_HISTORY_PAGE_STASH_LIST);
+    const form_ctrl_def_t *files    = generated_control(ID_CHANGES_PAGE_CHANGES_FILES);
+    const form_ctrl_def_t *history  = generated_control(ID_HISTORY_PAGE_HISTORY_FILES);
     ASSERT_NOT_NULL(branches); ASSERT_NOT_NULL(tags);
     ASSERT_NOT_NULL(stash);    ASSERT_NOT_NULL(files); ASSERT_NOT_NULL(history);
     ASSERT_TRUE(branches->context_menu == CONTEXT_MENU_BRANCHES_ITEMS);
@@ -487,14 +501,14 @@ void test_generated_context_menus_attach_to_expected_controls(void) {
     ASSERT_EQUAL(tags->context_menu_count, 1);
     ASSERT_EQUAL(stash->context_menu_count, 2);
     ASSERT_EQUAL(files->context_menu_count, 8);
-    ASSERT_TRUE(main_window_changes_files_tableview_params.check_field != NULL);
-    ASSERT_TRUE(strcmp(main_window_changes_files_tableview_params.check_field, "staged") == 0);
-    ASSERT_TRUE(main_window_changes_files_tableview_params.master_id == 0);
-    ASSERT_TRUE(main_window_history_files_tableview_params.check_field == NULL);
-    ASSERT_EQUAL(main_window_history_files_tableview_params.master_id, ID_MAIN_WINDOW_LOG);
-    ASSERT_TRUE(main_window_branches_tableview_params.check_field == NULL);
-    ASSERT_TRUE(main_window_tags_tableview_params.check_field == NULL);
-    ASSERT_TRUE(main_window_stash_list_tableview_params.check_field == NULL);
+    ASSERT_TRUE(changes_page_changes_files_tableview_params.check_field != NULL);
+    ASSERT_TRUE(strcmp(changes_page_changes_files_tableview_params.check_field, "staged") == 0);
+    ASSERT_TRUE(changes_page_changes_files_tableview_params.master_id == 0);
+    ASSERT_TRUE(history_page_history_files_tableview_params.check_field == NULL);
+    ASSERT_EQUAL(history_page_history_files_tableview_params.master_id, ID_HISTORY_PAGE_LOG);
+    ASSERT_TRUE(history_page_branches_tableview_params.check_field == NULL);
+    ASSERT_TRUE(history_page_tags_tableview_params.check_field == NULL);
+    ASSERT_TRUE(history_page_stash_list_tableview_params.check_field == NULL);
     PASS();
 }
 

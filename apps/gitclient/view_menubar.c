@@ -77,8 +77,9 @@ void gc_handle_command_impl(uint16_t id) {
   GC_LOG("gc_handle_command: id=%d", (int)id);
 
   switch (id) {
-    case ID_VIEW_CHANGES: gc_set_view_mode(false); break;
-    case ID_VIEW_HISTORY: gc_set_view_mode(true);  break;
+    case ID_VIEW_CHANGES: gc_set_view_mode(0); break;
+    case ID_VIEW_HISTORY: gc_set_view_mode(1); break;
+    case ID_VIEW_GITHUB:  gc_set_view_mode(2); break;
     case ID_FILE_OPEN_REPO: {
       char path[512] = {0};
       openfilename_t ofn = {0};

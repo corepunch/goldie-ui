@@ -585,8 +585,19 @@ static void singular_type(char *out, size_t cap, const char *table, const char *
   snprintf(out, cap, "db_%s_t", id);
 }
 
-static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
+// Emits one <database> block. `primary` selects the original, unqualified
+// symbol names (TABLE_COUNT, <prefix>_database_api) for backward
+// compatibility with existing generated code and hand-written aliases
+// (e.g. gc_database_api). Only the first <database> in the file is primary;
+// any additional <database> elements still get per-table TABLE_<NAME>
+// macros (table names must be unique across all databases in the app, same
+// as before), but their TABLE_COUNT and *_database_api symbols are
+// qualified with the database's own name so they cannot collide with the
+// primary database's.
+static void emit_database(FILE *f, xmlNodePtr db, const char *prefix, bool primary) {
   if (!db) return;
+  char *db_name = attr(db, "name");
+  char db_up[128]; ident(db_up, sizeof(db_up), nz(db_name, "db"), true);
   int table_i = 0;
   EACH_ELEMENT(t, db) if (elem(t, "table")) {
     char *table = attr(t, "name"), *model = attr(t, "model"), type[128], meta[128];
@@ -608,8 +619,13 @@ static void emit_database(FILE *f, xmlNodePtr db, const char *prefix) {
     char up[128]; ident(up, sizeof(up), table, true); OUT("#define TABLE_%s %d\n", up, table_i++);
     free(table); free(model);
   }
-  if (table_i) OUT("#define TABLE_COUNT %d\n\n", table_i);
-  OUT("static const db_api_def_t %s_database_api = { NULL, 0, NULL, 0, NULL, 0 };\n\n", prefix);
+  if (table_i) {
+    if (primary) OUT("#define TABLE_COUNT %d\n\n", table_i);
+    else OUT("#define %s_TABLE_COUNT %d\n\n", db_up, table_i);
+  }
+  if (primary) OUT("static const db_api_def_t %s_database_api = { NULL, 0, NULL, 0, NULL, 0 };\n\n", prefix);
+  else OUT("static const db_api_def_t %s_%s_database_api = { NULL, 0, NULL, 0, NULL, 0 };\n\n", prefix, db_up);
+  free(db_name);
 }
 
 static void table_name_from_source(char *out, size_t cap, const char *source) {
@@ -966,7 +982,16 @@ int main(int argc, char **argv) {
       (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
   emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
   emit_action_meta(f, pre, &meta); emit_accelerators(f, pre, &meta);
-  emit_menus(f, menus); emit_context_menus(f, contexts); emit_toolbars(f, toolbars); emit_database(f, database, pre);
+  emit_menus(f, menus); emit_context_menus(f, contexts); emit_toolbars(f, toolbars);
+  // Emit every <database> under <databases> (a lone top-level <database> with
+  // no wrapper is also supported, for older .orion files). Only the first is
+  // "primary" and keeps the original unqualified symbol names.
+  if (databases) {
+    bool first = true;
+    EACH_ELEMENT(db, databases) if (elem(db, "database")) { emit_database(f, db, pre, first); first = false; }
+  } else {
+    emit_database(f, database, pre, true);
+  }
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); if (!only || eq(name, only)) { if (!emit_form(f, form, pre, database)) return 1; } free(name); }
   OUT("#endif /* %s */\n", guard);
   fclose(f); xmlFreeDoc(doc);
