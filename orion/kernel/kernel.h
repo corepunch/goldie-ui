@@ -55,7 +55,7 @@ bool ui_joystick_available(void);
 const char* ui_joystick_get_name(void);
 
 // Per-frame rendering hooks: call ui_begin_frame() before drawing and
-// ui_end_frame() after (replaces the old SDL_GL_SwapWindow).
+// ui_end_frame() afterward to present through the active platform backend.
 void ui_begin_frame(void);
 void ui_end_frame(void);
 

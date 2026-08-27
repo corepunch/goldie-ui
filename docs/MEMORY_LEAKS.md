@@ -37,7 +37,7 @@ All cleanup functions are **idempotent** - safe to call multiple times.
 ```bash
 make test
 valgrind --leak-check=full ./build/bin/test_memory_leak_test
-SDL_VIDEODRIVER=dummy valgrind --leak-check=full ./build/bin/test_integration_cleanup
+valgrind --leak-check=full ./build/bin/test_integration_cleanup
 ```
 
 See full documentation in this file for details on allocations, best practices, and CI integration.

@@ -73,7 +73,7 @@ static result_t dungeon_view_proc(window_t *win, uint32_t msg,
             render_3d_view(st, &win->frame);
             return true;
         case evKeyDown:
-            handle_movement(st, (SDL_Keycode)wparam);
+            handle_movement(st, (int)wparam);
             invalidate_window(win);
             return true;
         case evDestroy:
@@ -90,7 +90,7 @@ Orion uses OpenGL 3.2+ through a clean renderer abstraction (`kernel/renderer.h`
 
 ### 4. Joystick and Gamepad Support
 
-`kernel/joystick.c` is already in the tree. SDL2 gamepad events are translated into Orion messages before they reach your window procedure. A platformer or a twin-stick shooter just handles `evJoystickAxis` and `evJoystickButton` the same way it handles keyboard input.
+`kernel/joystick.c` is already in the tree. Native gamepad events are translated into Orion messages before they reach your window procedure. A platformer or a twin-stick shooter just handles `evJoystickAxis` and `evJoystickButton` the same way it handles keyboard input.
 
 ### 5. The Retro Aesthetic Is Built In
 
@@ -152,10 +152,10 @@ Then replace the file-list data with your game data, replace the file-icon sprit
 
 ## Closing Thought
 
-Orion was extracted from DOOM-ED, the level editor for DOOM. DOOM-ED itself was a multi-window application: the map editor, the thing editor, the texture browser, the console — all windows. It turns out the same architecture that makes a great *tool* also makes a great *game*. The windows are just your viewports, and the message loop is your game loop.
+Orion's standalone window and message architecture works equally well for tools and games. The windows are your viewports, and the message loop is your game loop.
 
 If that idea resonates with you, [grab the source](https://github.com/corepunch/orion-ui) and start building.
 
 ---
 
-*Tagged: game engine, retro, architecture, C, SDL2, OpenGL*
+*Tagged: game engine, retro, architecture, C, native platform, OpenGL*

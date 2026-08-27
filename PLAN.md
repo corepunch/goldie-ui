@@ -333,8 +333,8 @@ event-posting style in `tests/` and `apps/imageeditor/tests/` are the model.
   is applicable; verify the `[gc]` trace shows the same action ID as menus.
 - [ ] Exercise default hotkeys with focus in the branch list, history list,
   diff, and commit editor.
-- [ ] Run with `SDL_VIDEODRIVER=dummy` where supported and retain trace output on
-  failures.
+- [ ] Run with the Platform headless surface where supported and retain trace
+  output on failures.
 
 ### Phase 5 — Polish and documentation
 

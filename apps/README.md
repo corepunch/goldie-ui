@@ -227,23 +227,12 @@ Additional examples to be added:
 
 ## Dependencies
 
-Orion examples require:
-- corepunch/platform (submodule)
-- OpenGL 3.2+
+Orion examples require a C toolchain and the included Platform submodule, with
+no additional third-party libraries. Lua is optional for examples that use
+scripting or the interactive terminal.
 
-### Installing Dependencies
+Initialize the Platform submodule before building from source:
 
-**Ubuntu/Debian:**
 ```bash
-sudo apt-get install libsdl2-dev libgl1-mesa-dev
-```
-
-**macOS:**
-```bash
-brew install sdl2
-```
-
-**Fedora/RHEL:**
-```bash
-sudo dnf install SDL2-devel mesa-libGL-devel
+git submodule update --init --recursive
 ```

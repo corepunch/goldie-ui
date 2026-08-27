@@ -10,7 +10,7 @@ permalink: /
 *Form Editor with live controls, database bindings, component palette, and
 plugin browser.*
 
-Orion is a retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from DOOM-ED, it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who've worked with Win32. Built on SDL2 and OpenGL 3.2+, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
+Orion is a standalone, retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Its clean three-layer design follows the classic USER, KERNEL, and COMCTL separation, making it instantly recognizable to developers who've worked with Win32. Orion uses its own native Platform layer for windowing, input, and hardware-accelerated rendering without requiring additional third-party libraries. It provides common controls, declarative forms, databases, dialogs, and loadable applications. Lua is optional for applications that need scripting.
 
 ---
 
@@ -63,13 +63,13 @@ ui/
 │   ├── window.c      # Window management implementation
 │   ├── message.c     # Message queue implementation
 │   └── draw_impl.c   # Drawing primitives implementation
-├── kernel/           # Event loop and SDL integration (KERNEL.DLL equivalent)
-│   ├── kernel.h      # Event management and SDL initialization
+├── kernel/           # Event loop and platform integration (KERNEL.DLL equivalent)
+│   ├── kernel.h      # Event and graphics initialization
 │   ├── renderer.h    # Renderer API - OpenGL abstraction
 │   ├── renderer_impl.c # Renderer API implementation
 │   ├── renderer.c    # Sprite rendering implementation
 │   ├── event.c       # Event loop implementation
-│   ├── init.c        # SDL initialization
+│   ├── init.c        # Platform initialization
 │   └── joystick.c    # Joystick/gamepad support
 └── commctl/          # Common controls (COMCTL32.DLL equivalent)
     ├── commctl.h     # Common control window procedures
@@ -104,10 +104,10 @@ Handles window creation, destruction, message passing, and basic rendering primi
 
 ### ui/kernel/ - Event Management Layer
 
-Manages the SDL event loop and translates SDL events into window messages. Also provides the Renderer API for OpenGL abstraction.
+Manages the native Platform event loop and translates platform events into window messages. Also provides the Renderer API.
 
 **Key Components:**
-- SDL initialization
+- Platform initialization
 - Event loop (`get_message`, `dispatch_message`)
 - Global state (screen dimensions, running flag)
 - **Renderer API**: High-level OpenGL abstraction (`R_Mesh`, `R_Texture`, `R_MeshDrawDynamic`)
@@ -134,20 +134,10 @@ Orion supports Linux, macOS, and Windows platforms.
 
 ### Dependencies
 
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt-get install liblua5.4-dev libsdl2-dev libgl1-mesa-dev
-```
-
-**macOS:**
-```bash
-brew install sdl2 lua
-```
-
-**Windows (MSYS2/MinGW64):**
-```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-SDL2 mingw-w64-x86_64-lua make
-```
+Orion requires only a C toolchain and Git, with no additional third-party
+libraries. Its native Platform layer provides windowing, input, and rendering.
+Lua is optional for applications that use scripting or the interactive
+terminal.
 
 ### Build Commands
 

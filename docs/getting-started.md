@@ -8,11 +8,9 @@ nav_order: 2
 
 ## Prerequisites
 
-| Platform | Packages |
-|---|---|
-| Linux (Ubuntu/Debian) | `libsdl2-dev libgl1-mesa-dev liblua5.4-dev` |
-| macOS | `brew install sdl2 lua` |
-| Windows (MSYS2/MinGW) | `mingw-w64-x86_64-SDL2` |
+Orion requires a C toolchain and Git, with no additional third-party libraries.
+Its native Platform layer supplies windowing, input, and rendering. Lua is
+optional and is only needed for scripting and interactive-terminal features.
 
 ## Building
 
@@ -79,7 +77,7 @@ document management.
 ## Minimal Program
 
 ```c
-#include "ui.h"
+#include <orion/ui.h>
 
 static result_t my_proc(window_t *win, uint32_t msg,
                         uint32_t wparam, void *lparam) {
@@ -109,10 +107,13 @@ int main(void) {
 ## Linking
 
 ```makefile
-CC     = gcc
-CFLAGS = -Wall -std=c11 -I/path/to/orion-ui
-LIBS   = -lSDL2 -lGL -lm -llua5.4
+CC     = cc
+CFLAGS = -Wall -std=c11 -I/opt/orion/include
+LIBS   = -L/opt/orion/lib -lkernel -lcommctl -lcommdlg -luser -lplatform
 
-myapp: myapp.c build/lib/liborion.so
-	$(CC) $(CFLAGS) -o $@ $< -Lbuild/lib -lorion -Wl,-rpath,build/lib $(LIBS)
+myapp: myapp.c
+  $(CC) $(CFLAGS) -o $@ $< $(LIBS)
 ```
+
+Add Lua's compiler and linker flags only when the application uses Lua-backed
+scripting features.

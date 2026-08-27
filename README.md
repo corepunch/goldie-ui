@@ -3,7 +3,7 @@
 ![Orion Form Editor -- SocialFeed Project](docs/screenshots/formeditor_socialfeed.jpg)
 *Form editor with socialfeed project, component palette, and database bindings*
 
-**Orion** is a retro-styled UI framework _written in C_ that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from [corepunch/doom-ed](https://github.com/corepunch/doom-ed), it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who have worked with Win32. Built on the [corepunch/platform](https://github.com/corepunch/platform) layer and OpenGL, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
+**Orion** is a standalone, retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Its clean three-layer design follows the classic USER, KERNEL, and COMCTL separation, making it instantly recognizable to developers who have worked with Win32. Built on the native [corepunch/platform](https://github.com/corepunch/platform) layer and hardware-accelerated rendering, Orion provides common controls, declarative forms, databases, dialogs, and loadable applications without requiring additional third-party libraries. Lua is optional for applications that need scripting.
 
 ![Orion Shell](https://github.com/user-attachments/assets/a5671731-81d0-4e03-a348-4ae824783c90)
 *Orion Shell loading multiple .gem applications -- a windowing system where apps run as sub-processes, similar to how Windows itself began as a GUI shell for DOS programs*
@@ -141,20 +141,13 @@ Orion supports Linux, macOS, and Windows platforms.
 
 ### Dependencies
 
-**Linux (Ubuntu/Debian):**
-```bash
-git submodule update --init
-sudo apt-get install liblua5.4-dev libgl-dev libegl-dev libx11-dev
-```
+Orion requires only a C toolchain and Git, with no additional third-party
+libraries. The Platform submodule provides the native windowing, input, and
+rendering layer. Lua is optional and is only needed by applications that use
+scripting or the interactive terminal.
 
-**macOS:**
 ```bash
-brew install lua
-```
-
-**Windows (MSYS2/MinGW64):**
-```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-lua make
+git submodule update --init --recursive
 ```
 
 ### Orion Package Manager

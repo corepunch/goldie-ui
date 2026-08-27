@@ -98,11 +98,9 @@ cc app.c -o app \
 ```
 
 Use `$HOME/.local/include` and `$HOME/.local/lib` when Orion was installed with
-`ORION_PREFIX="$HOME/.local"`. Applications may also need the platform-native
-OpenGL libraries and the development packages used by their selected Orion
-features. On macOS install `cglm`, `lua@5.4`, and `libxml2` with Homebrew. On
-Debian or Ubuntu install `libcglm-dev`, `liblua5.4-dev`, `libxml2-dev`,
-`libgl1-mesa-dev`, `libegl-dev`, and `libx11-dev`.
+`ORION_PREFIX="$HOME/.local"`. Orion and its native Platform layer require no
+additional third-party libraries. Add Lua only when an application uses
+scripting or the interactive terminal.
 
 The primary headers are:
 

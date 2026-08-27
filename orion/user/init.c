@@ -308,8 +308,7 @@ void ui_begin_frame(void) {
   axBeginPaint();
 }
 
-// End a render frame: present the rendered content to the screen.
-// Replaces the old SDL_GL_SwapWindow call.
+// End a render frame: present the rendered content through the platform backend.
 // No-op when graphics have not been initialized.
 void ui_end_frame(void) {
   if (!g_graphics_initialized) return;

@@ -1,6 +1,6 @@
 // Integration Cleanup Test
 // Tests full initialization and cleanup cycle with minimal window creation
-// Run with: SDL_VIDEODRIVER=dummy ./test_integration_cleanup
+// Run with: ./build/bin/test_integration_cleanup
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -33,7 +33,7 @@ result_t test_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lp
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
   // Skip this test on Windows in CI environments as it requires a display
-  // The test tries to initialize SDL graphics which fails in headless CI
+  // The platform backend cannot create a graphics surface in headless CI.
   printf("Integration Cleanup Test\n");
   printf("Skipping on Windows (requires display in CI environment)\n");
   return 0;
@@ -44,8 +44,8 @@ int main(int argc, char* argv[]) {
   // a real NSWindow with NSOpenGL (no headless/dummy driver equivalent), and
   // repost_messages() calls axEndPaint() → [[view openGLContext] flushBuffer]
   // which requires the Cocoa surface to be fully set up.  This test was
-  // designed for headless (SDL_VIDEODRIVER=dummy) environments and is not
-  // appropriate for the real-display macOS backend.
+  // designed for headless environments and is not appropriate for the
+  // real-display macOS backend.
   printf("Integration Cleanup Test\n");
   printf("Skipping on macOS (requires headless rendering not available with platform backend)\n");
   return 0;

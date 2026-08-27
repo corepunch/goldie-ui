@@ -2,12 +2,12 @@
 
 ## Project Overview
 
-Orion is a UI framework library extracted from DOOM-ED, organized in a Windows-like architecture with three main layers:
+Orion is a standalone UI framework organized in a Windows-like architecture with three main layers:
 - **user/** - Window management and user interface (USER.DLL equivalent)
-- **kernel/** - Event loop and SDL integration (KERNEL.DLL equivalent)  
+- **kernel/** - Event loop and native platform integration (KERNEL.DLL equivalent)
 - **commctl/** - Common controls (COMCTL32.DLL equivalent)
 
-The framework is written in C and uses SDL2 for windowing/input and OpenGL 3.2+ for rendering.
+The framework is written in C and uses the native corepunch/platform layer for windowing, input, and rendering.
 
 ## Code Architecture and Conventions
 
@@ -1019,9 +1019,9 @@ When unsure, use this test: if a file both parses XML and handles `evLeftButtonD
 
 ## Dependencies
 
-- SDL2 (libsdl2-dev on Ubuntu/Debian)
-- OpenGL 3.2 or later (mesa-libGL-devel on Fedora/RHEL)
-- Standard C library
+- Standard C toolchain and library
+- corepunch/platform (included as a submodule)
+- Lua only for optional scripting features
 
 ## Current Status
 

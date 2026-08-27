@@ -170,12 +170,12 @@ Never handle `evKeyDown` directly for keyboard shortcuts. Use accelerator tables
 ```c
 // BAD — polling keys bypasses the framework
 case evKeyDown:
-  if (wparam == SDL_SCANCODE_S) save_file();
+  if (wparam == AX_KEY_S) save_file();
   break;
 
 // GOOD — use load_accelerators / translate_accelerator
 accel_t table[] = {
-  {MOD_CTRL, SDL_SCANCODE_S, ID_FILE_SAVE},
+  {MOD_CTRL, AX_KEY_S, ID_FILE_SAVE},
 };
 accel_table_t *accel = load_accelerators(table, ARRAY_LEN(table));
 ```

@@ -141,8 +141,8 @@ If a window cannot handle wheel events (no scrollbars or not enabled), the event
 ```c
 case evKeyDown:
     switch (wparam) {
-        case SDL_SCANCODE_ESCAPE: running = false; break;
-        case SDL_SCANCODE_S:     save_file();     break;
+        case AX_KEY_ESCAPE: running = false; break;
+        case AX_KEY_S:      save_file();     break;
     }
     return true;
 
@@ -164,11 +164,10 @@ while (running) {
 }
 ```
 
-`get_message()` sleeps with `SDL_WaitEvent` when the SDL queue is empty, so
-the process yields the CPU instead of spinning.  Calls to `post_message()`
-(including `invalidate_window()`) push a lightweight wakeup event into the
-SDL queue so that the wait is interrupted and the internal message queue is
-processed promptly.
+`get_message()` waits through the native Platform event backend when the queue
+is empty, so the process yields the CPU instead of spinning. Calls to
+`post_message()` (including `invalidate_window()`) wake the event loop so the
+internal message queue is processed promptly.
 
 ## Message Hooks
 
