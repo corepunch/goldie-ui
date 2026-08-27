@@ -1,0 +1,18 @@
+browser	Web browser
+filemanager	File manager
+font_atlas	Bitmap font atlas generator
+font_leftalign	Bitmap font alignment utility
+formeditor	Declarative UI form editor
+gen_toolbox_atlas	Toolbox icon atlas generator
+gen_vga_font	VGA bitmap font generator
+gitclient	Git repository client
+helloworld	Minimal Orion example application
+imageeditor	Layered image editor
+orionc	Orion declarative resource compiler
+penciltest	Black-and-white image editor variant
+scener	XML room and scene editor and renderer
+shell	Orion desktop shell	filemanager terminal
+socialfeed	Database-backed social feed example
+taskmanager	Process and task manager
+terminal	Terminal emulator
+vibeoffice	Pixel-art office simulation

@@ -2,7 +2,24 @@
 
 This directory contains example programs demonstrating the use of Orion.
 
-## Installing the application suite
+## Installing applications
+
+Released applications can be installed independently with the Orion package
+manager:
+
+```bash
+orion search
+orion install scener
+orion install imageeditor terminal
+orion list
+```
+
+Each application release contains its executable, loadable GEM where
+applicable, component plugin, assets, and documentation. Shared libraries and
+framework assets are provided by the automatically installed `orion-core`
+package.
+
+### Installing the suite from source
 
 From the repository root, `make install` builds and installs every standalone
 application and loadable GEM, rather than installing applications one at a

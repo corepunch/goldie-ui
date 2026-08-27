@@ -1,0 +1,197 @@
+#!/bin/sh
+set -eu
+
+ORION_VERSION="1.0.0"
+ORION_REPOSITORY="${ORION_REPOSITORY:-corepunch/orion-ui}"
+ORION_PREFIX="${ORION_PREFIX:-/opt/orion}"
+ORION_RELEASE="${ORION_RELEASE:-latest}"
+ORION_RELEASE_BASE="${ORION_RELEASE_BASE:-}"
+
+die() { printf 'orion: %s\n' "$*" >&2; exit 1; }
+note() { printf '==> %s\n' "$*"; }
+
+platform_id() {
+  os=$(uname -s)
+  arch=$(uname -m)
+  case "$os" in Darwin) os=macos ;; Linux) os=linux ;; *) die "unsupported operating system: $os" ;; esac
+  case "$arch" in x86_64|amd64) arch=x86_64 ;; arm64|aarch64) arch=arm64 ;; *) die "unsupported architecture: $arch" ;; esac
+  printf '%s-%s\n' "$os" "$arch"
+}
+
+release_base() {
+  if [ -n "$ORION_RELEASE_BASE" ]; then
+    printf '%s\n' "$ORION_RELEASE_BASE"
+    return
+  fi
+  if [ "$ORION_RELEASE" = latest ]; then
+    printf 'https://github.com/%s/releases/latest/download\n' "$ORION_REPOSITORY"
+  else
+    printf 'https://github.com/%s/releases/download/%s\n' "$ORION_REPOSITORY" "$ORION_RELEASE"
+  fi
+}
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
+  else shasum -a 256 "$1" | awk '{print $1}'; fi
+}
+
+require_tools() {
+  command -v curl >/dev/null 2>&1 || die "curl is required"
+  command -v tar >/dev/null 2>&1 || die "tar is required"
+}
+
+make_temp_dir() {
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/orion.XXXXXX") || die "cannot create temporary directory"
+  trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+}
+
+fetch_index() {
+  require_tools
+  make_temp_dir
+  platform=$(platform_id)
+  index="$tmp/packages-$platform.tsv"
+  curl -fsSL "$(release_base)/packages-$platform.tsv" -o "$index" ||
+    die "cannot download package index for $platform"
+}
+
+package_record() {
+  awk -F '\t' -v package="$1" '$1 == package { print; exit }' "$index"
+}
+
+ensure_writable_prefix() {
+  probe="$ORION_PREFIX/.orion-write-test-$$"
+  mkdir -p "$ORION_PREFIX" 2>/dev/null ||
+    die "cannot create $ORION_PREFIX; rerun with sudo or set ORION_PREFIX=\$HOME/.local"
+  : > "$probe" 2>/dev/null ||
+    die "$ORION_PREFIX is not writable; rerun with sudo or choose ORION_PREFIX"
+  rm -f "$probe"
+}
+
+install_package() {
+  package=$1
+  record=$(package_record "$package")
+  [ -n "$record" ] || die "package not found: $package"
+  version=$(printf '%s\n' "$record" | cut -f2)
+  receipt_dir="$ORION_PREFIX/.orion/installed"
+  if [ -f "$receipt_dir/$package.version" ] && [ "$(cat "$receipt_dir/$package.version")" = "$version" ]; then
+    note "$package $version is already installed"
+    return
+  fi
+  dependencies=$(printf '%s\n' "$record" | cut -f7)
+  for dependency in $dependencies; do install_package "$dependency"; done
+  package=$1
+  record=$(package_record "$package")
+  version=$(printf '%s\n' "$record" | cut -f2)
+  asset=$(printf '%s\n' "$record" | cut -f4)
+  expected=$(printf '%s\n' "$record" | cut -f5)
+  archive="$tmp/$asset"
+  note "Downloading $package $version"
+  curl -fsSL "$(release_base)/$asset" -o "$archive" || die "cannot download $asset"
+  actual=$(sha256_file "$archive")
+  [ "$actual" = "$expected" ] || die "checksum mismatch for $asset"
+  if tar -tzf "$archive" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+    die "unsafe paths in $asset"
+  fi
+  ensure_writable_prefix
+  mkdir -p "$receipt_dir"
+  tar -tzf "$archive" | sed '/\/$/d' > "$receipt_dir/$package.files"
+  tar -xzf "$archive" -C "$ORION_PREFIX"
+  printf '%s\n' "$version" > "$receipt_dir/$package.version"
+  note "Installed $package $version"
+}
+
+cmd_search() {
+  query=${1:-}
+  fetch_index
+  awk -F '\t' -v query="$query" 'BEGIN { IGNORECASE=1 }
+    $1 ~ query || $6 ~ query { printf "%-16s %s\n", $1, $6 }' "$index"
+}
+
+cmd_info() {
+  [ $# -eq 1 ] || die "usage: orion info PACKAGE"
+  fetch_index
+  record=$(package_record "$1")
+  [ -n "$record" ] || die "package not found: $1"
+  printf 'Name:        %s\nVersion:     %s\nPlatform:    %s\nArtifact:    %s\nDescription: %s\n' \
+    "$(printf '%s\n' "$record" | cut -f1)" "$(printf '%s\n' "$record" | cut -f2)" \
+    "$(printf '%s\n' "$record" | cut -f3)" "$(printf '%s\n' "$record" | cut -f4)" \
+    "$(printf '%s\n' "$record" | cut -f6)"
+}
+
+cmd_install() {
+  [ $# -gt 0 ] || die "usage: orion install PACKAGE..."
+  fetch_index
+  install_package orion-core
+  for package in "$@"; do [ "$package" = orion-core ] || install_package "$package"; done
+}
+
+cmd_uninstall() {
+  [ $# -gt 0 ] || die "usage: orion uninstall PACKAGE..."
+  for package in "$@"; do
+    [ "$package" != orion-core ] || die "orion-core cannot be uninstalled by the package manager"
+    receipt="$ORION_PREFIX/.orion/installed/$package.files"
+    [ -f "$receipt" ] || die "package is not installed: $package"
+    while IFS= read -r file; do rm -f "$ORION_PREFIX/$file"; done < "$receipt"
+    rm -f "$receipt" "$ORION_PREFIX/.orion/installed/$package.version"
+    note "Uninstalled $package"
+  done
+}
+
+cmd_list() {
+  dir="$ORION_PREFIX/.orion/installed"
+  [ -d "$dir" ] || return 0
+  for receipt in "$dir"/*.version; do
+    [ -f "$receipt" ] || continue
+    package=${receipt##*/}; package=${package%.version}
+    printf '%-16s %s\n' "$package" "$(cat "$receipt")"
+  done
+}
+
+cmd_update() {
+  fetch_index
+  dir="$ORION_PREFIX/.orion/installed"
+  [ -d "$dir" ] || die "no packages are installed"
+  packages=
+  for receipt in "$dir"/*.version; do
+    [ -f "$receipt" ] || continue
+    package=${receipt##*/}; package=${package%.version}
+    packages="$packages $package"
+  done
+  [ -n "$packages" ] || die "no packages are installed"
+  for package in $packages; do install_package "$package"; done
+}
+
+print_help() {
+  cat <<'EOF'
+Orion package manager
+
+Usage:
+  orion search [QUERY]
+  orion info PACKAGE
+  orion install PACKAGE...
+  orion uninstall PACKAGE...
+  orion list
+  orion update
+  orion --version
+
+Environment:
+  ORION_PREFIX       installation prefix (default: /opt/orion)
+  ORION_RELEASE      release tag or latest (default: latest)
+  ORION_RELEASE_BASE release asset URL override
+  ORION_REPOSITORY   GitHub owner/repository
+EOF
+}
+
+command=${1:---help}
+if [ $# -gt 0 ]; then shift; fi
+case "$command" in
+  search) cmd_search "$@" ;;
+  info) cmd_info "$@" ;;
+  install) cmd_install "$@" ;;
+  uninstall|remove) cmd_uninstall "$@" ;;
+  list) cmd_list "$@" ;;
+  update|upgrade) cmd_update "$@" ;;
+  --version|-V) printf 'orion %s\n' "$ORION_VERSION" ;;
+  --help|-h|help) print_help ;;
+  *) die "unknown command: $command" ;;
+esac

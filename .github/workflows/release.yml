@@ -1,0 +1,65 @@
+name: Release Packages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without v prefix
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+          - os: macos-14
+            platform: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libcglm-dev liblua5.4-dev libgl1-mesa-dev libx11-dev libegl-dev libxml2-dev
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install cglm lua@5.4 libxml2
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF_NAME#v}"; else version="${{ inputs.version }}"; fi
+          test "$version" = "$(cat VERSION)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build release packages
+        run: sh scripts/package-release.sh "${{ steps.version.outputs.version }}" "${{ matrix.platform }}" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.platform }}
+          path: dist/*
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          path: release
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tag="$GITHUB_REF_NAME"; else tag="v${{ inputs.version }}"; fi
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Orion ${tag#v}" --generate-notes
+          gh release upload "$tag" release/* --clobber

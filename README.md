@@ -157,6 +157,44 @@ brew install lua
 pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-lua make
 ```
 
+### Orion Package Manager
+
+The `orion` package manager installs applications independently from GitHub
+Release artifacts. Bootstrap the runtime and package manager on macOS or Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/corepunch/orion-ui/main/install.sh | sudo sh
+export PATH="/opt/orion/bin:$PATH"
+```
+
+For a user-owned installation without `sudo`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/corepunch/orion-ui/main/install.sh | ORION_PREFIX="$HOME/.local" sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+The command syntax follows the familiar Homebrew model:
+
+```sh
+orion search editor
+orion info scener
+orion install scener
+orion install imageeditor terminal
+orion list
+orion update
+orion uninstall scener
+```
+
+Every download is checked against the SHA-256 digest in the platform release
+index. `orion-core` contains the package manager, shared runtime libraries, and
+framework assets. Each application or developer tool has a separate archive,
+so installing Scener does not install the entire suite. Set `ORION_PREFIX` on
+later commands when using a non-default prefix.
+
+Tagged releases currently publish native packages for macOS arm64 and Linux
+x86-64. `ORION_RELEASE=v1.0.0` selects a specific release instead of `latest`.
+
 ### Build Commands
 
 ```bash
@@ -169,7 +207,7 @@ make apps
 # Build Scener only
 make scener
 
-# Build, then install the complete Orion suite under /opt/orion
+# Build, then install the complete Orion suite from source under /opt/orion
 make all
 sudo make install
 
