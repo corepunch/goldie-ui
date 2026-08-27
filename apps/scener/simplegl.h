@@ -228,6 +228,7 @@ void scene_rebuild_node_shadow_volumes(Scene *s,void *editNode);
 #define DBG_SHOW_STENCIL    (1 << 2)
 #define DBG_HIDE_LIGHTS     (1 << 3)
 #define DBG_HIDE_CHARS      (1 << 4)
+#define DBG_HIDE_GIZMOS     (1 << 5)
 
 void render_frame(Scene *s,int w,int h,mat4 proj,mat4 view,vec3 camPos,vec3 camLook,int debugFlags);
 

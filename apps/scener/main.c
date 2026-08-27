@@ -18,8 +18,10 @@ typedef struct {
 	char scene_path[512];
 	char output_dir[1024];
 	char camera_name[32];
+	char format[8];
 	int width, height;
 	int debug_flags;
+	bool invalid_format;
 } scener_cli_t;
 
 app_state_t *g_app = NULL;
@@ -61,6 +63,7 @@ static void cli_init(void) {
 	g_cli.width = 1024;
 	g_cli.height = 768;
 	snprintf(g_cli.output_dir, sizeof(g_cli.output_dir), "%s", "render");
+	snprintf(g_cli.format, sizeof(g_cli.format), "%s", "png");
 }
 
 static void cli_parse_size(const char *s) {
@@ -105,6 +108,18 @@ static void cli_parse(int argc, char *argv[]) {
 			if (i + 1 < argc) cli_parse_size(argv[++i]);
 			continue;
 		}
+		if (!strcmp(arg, "--format")) {
+			if (i + 1 < argc) {
+				const char *format = argv[++i];
+				if (!strcasecmp(format, "jpg") || !strcasecmp(format, "jpeg"))
+					snprintf(g_cli.format, sizeof(g_cli.format), "%s", "jpg");
+				else if (!strcasecmp(format, "png"))
+					snprintf(g_cli.format, sizeof(g_cli.format), "%s", "png");
+				else
+					g_cli.invalid_format = true;
+			}
+			continue;
+		}
 		if (!strcmp(arg, "-d")) {
 			if (i + 1 < argc) {
 				g_cli.debug_flags = atoi(argv[++i]);
@@ -135,6 +150,7 @@ static void cli_print_help(void) {
 	printf("  --size WIDTHxHEIGHT    Output resolution (default: 1024x768)\n");
 	printf("  --camera NAME          Render one camera (default: all cameras)\n");
 	printf("  --output-dir DIR       Output directory (default: render/)\n");
+	printf("  --format png|jpg       Output format (default: png)\n");
 	printf("  --list-cameras         List scene cameras and exit\n");
 	printf("  -no-shadows            Keep filled lighting but disable stencil shadows\n");
 	printf("  -wireframe             Overlay red shadow-volume wireframes\n\n");
@@ -199,7 +215,8 @@ static bool scener_write_camera(scene_doc_t *doc, const char *camera_name) {
 	char filename[128], path[1200];
 	if (!doc || !camera_name || !camera_name[0]) return false;
 	scener_camera_filename(camera_name, filename, sizeof(filename));
-	int n = snprintf(path, sizeof(path), "%s/%s.png", g_cli.output_dir, filename);
+	int n = snprintf(path, sizeof(path), "%s/%s.%s", g_cli.output_dir, filename,
+	                 g_cli.format);
 	if (n < 0 || (size_t)n >= sizeof(path)) return false;
 	bool found = false;
 	for (int i = 0; i < doc->scene.ncameras; i++)
@@ -219,6 +236,7 @@ static bool scener_write_camera(scene_doc_t *doc, const char *camera_name) {
 	mat4 proj = mat4_perspective(scene->camFov, (float)width / (float)height, PERSP_NEAR, PERSP_FAR);
 	mat4 view = mat4_lookat(scene->camPos, scene->camLook, v3(0, 1, 0));
 
+	ui_begin_frame();
 	GLuint fbo = 0, color = 0, depth = 0;
 	glGenFramebuffers(1, &fbo);
 	glGenTextures(1, &color);
@@ -229,16 +247,24 @@ static bool scener_write_camera(scene_doc_t *doc, const char *camera_name) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindRenderbuffer(GL_RENDERBUFFER, depth);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-	ui_begin_frame();
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		fprintf(stderr, "[scener] cannot create render target: %dx%d\n", width, height);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glDeleteFramebuffers(1, &fbo);
+		glDeleteTextures(1, &color);
+		glDeleteRenderbuffers(1, &depth);
+		return false;
+	}
 
 	glViewport(0, 0, width, height);
 	glScissor(0, 0, width, height);
 	glEnable(GL_SCISSOR_TEST);
-	render_frame(scene, width, height, proj, view, scene->camPos, dir, g_cli.debug_flags);
+	int flags = g_cli.debug_flags | DBG_HIDE_CHARS | DBG_HIDE_LIGHTS | DBG_HIDE_GIZMOS;
+	render_frame(scene, width, height, proj, view, scene->camPos, dir, flags);
 
 	size_t bytes = (size_t)width * (size_t)height * 4;
 	uint8_t *pixels = malloc(bytes);
@@ -281,6 +307,8 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 
   srand((unsigned int)time(NULL));
   register_commctl_classes();
+	if (g_cli.screenshot_mode)
+		ui_begin_frame();
   shader_init();
 
   {
@@ -350,6 +378,10 @@ int main(int argc, char *argv[]) {
   cli_parse(argc, argv);
 	if (g_cli.show_help) { cli_print_help(); return 0; }
 	if (g_cli.show_version) { printf("scener %s\n", SCENER_VERSION); return 0; }
+	if (g_cli.invalid_format) {
+		fprintf(stderr, "scener: --format must be png or jpg\n");
+		return 2;
+	}
 	if ((g_cli.screenshot_mode || g_cli.list_cameras) && !g_cli.scene_path[0]) {
 		fprintf(stderr, "scener: a .blks or .blk file is required\n");
 		return 2;

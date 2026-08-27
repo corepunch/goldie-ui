@@ -434,5 +434,6 @@ void render_frame(Scene *s, int w, int h, mat4 proj, mat4 view,
         glDepthMask(GL_TRUE);
     }
 
-    gizmo_draw(s, camPos, camLook, s->camFov, w, h);
+    if (!(flags & DBG_HIDE_GIZMOS))
+        gizmo_draw(s, camPos, camLook, s->camFov, w, h);
 }

@@ -104,7 +104,7 @@ shapes continue to own those properties.
 
 Use `--render` after modifying a `.blks` scene or any referenced `.blk`
 prefab. Scener creates an OpenGL context without displaying application UI,
-loads the scene, and writes one PNG per camera:
+loads the scene, and writes one clean render per camera without editor overlays:
 
 ```sh
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks
@@ -112,15 +112,19 @@ loads the scene, and writes one PNG per camera:
 
 The required argument is a `.blks` scene or `.blk` prefab. A prefab opened
 directly uses Scener's default preview camera and lights. Resolution defaults
-to `1024x768`, all scene cameras are rendered by default, and output defaults
-to the local `render/` directory. Camera names become filenames such as
-`render/Main.png`. Inspect scene cameras or override each optional value:
+to `1024x768`, PNG is the default format, all scene cameras are rendered by
+default, and output defaults to the local `render/` directory. Camera names
+become filenames such as `render/Main.png`. Inspect scene cameras or override
+each optional value:
 
 ```sh
 ./build/bin/scener --list-cameras apps/scener/scenes/sample_room.blks
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks \
-  --size 1600x900 --camera Main --output-dir build/room-renders
+  --size 1600x900 --camera Main --format jpg --output-dir build/room-renders
 ```
+
+Use `--format png` or `--format jpg`; the selected extension is added to every
+camera filename automatically.
 
 Inspect the complete command syntax or installed version without creating a
 window or OpenGL context:
