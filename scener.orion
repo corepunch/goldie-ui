@@ -99,26 +99,26 @@
       </menu>
     </menus>
 
-    <toolbars>
-      <toolbar name="main">
-        <Button name="new" command="file.new" icon="page-plus" text="New" tooltip="New scene" />
-        <Button name="open" command="file.open" icon="folder" text="Open" tooltip="Open scene" />
-        <Button name="save" command="file.save" icon="floppy-disk" text="Save" tooltip="Save scene" />
-        <spacer w="10" />
-        <Button name="undo" command="edit.undo" icon="undo" text="Undo" tooltip="Undo" />
-        <Button name="redo" command="edit.redo" icon="redo" text="Redo" tooltip="Redo" />
-        <spacer w="10" />
-        <Button name="select" command="tool.select" icon="cursor-pointer" text="Select" tooltip="Select mode" flags="BUTTON_AUTORADIO" />
-        <Button name="move" command="tool.move" icon="data-transfer-both" text="Move" tooltip="Move mode" flags="BUTTON_AUTORADIO" />
-        <Button name="rotate" command="tool.rotate" icon="rotate-camera-right" text="Rotate" tooltip="Rotate mode" flags="BUTTON_AUTORADIO" />
-        <Button name="scale" command="tool.scale" icon="scale-frame-enlarge" text="Scale" tooltip="Scale mode" flags="BUTTON_AUTORADIO" />
-        <spacer w="10" />
-        <Button name="zoom_in" command="view.zoom_in" icon="zoom-in" text="+" tooltip="Zoom in" />
-        <Button name="zoom_out" command="view.zoom_out" icon="zoom-out" text="-" tooltip="Zoom out" />
-        <Button name="zoom_fit" command="view.zoom_fit" icon="expand" text="Fit" tooltip="Frame selected" />
-      </toolbar>
-    </toolbars>
-
-    <forms />
+    <forms>
+      <form name="main_toolbar" title="Toolbar" width="1" height="1">
+        <Toolbar>
+          <Button name="new" command="file.new" icon="page-plus" text="New" tooltip="New scene" />
+          <Button name="open" command="file.open" icon="folder" text="Open" tooltip="Open scene" />
+          <Button name="save" command="file.save" icon="floppy-disk" text="Save" tooltip="Save scene" />
+          <spacer w="10" />
+          <Button name="undo" command="edit.undo" icon="undo" text="Undo" tooltip="Undo" />
+          <Button name="redo" command="edit.redo" icon="redo" text="Redo" tooltip="Redo" />
+          <spacer w="10" />
+          <Button name="select" command="tool.select" icon="cursor-pointer" text="Select" tooltip="Select mode" flags="BUTTON_AUTORADIO" />
+          <Button name="move" command="tool.move" icon="data-transfer-both" text="Move" tooltip="Move mode" flags="BUTTON_AUTORADIO" />
+          <Button name="rotate" command="tool.rotate" icon="rotate-camera-right" text="Rotate" tooltip="Rotate mode" flags="BUTTON_AUTORADIO" />
+          <Button name="scale" command="tool.scale" icon="scale-frame-enlarge" text="Scale" tooltip="Scale mode" flags="BUTTON_AUTORADIO" />
+          <spacer w="10" />
+          <Button name="zoom_in" command="view.zoom_in" icon="zoom-in" text="+" tooltip="Zoom in" />
+          <Button name="zoom_out" command="view.zoom_out" icon="zoom-out" text="-" tooltip="Zoom out" />
+          <Button name="zoom_fit" command="view.zoom_fit" icon="expand" text="Fit" tooltip="Frame selected" />
+        </Toolbar>
+      </form>
+    </forms>
 
 </orion>

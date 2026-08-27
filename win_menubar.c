@@ -6,7 +6,9 @@ result_t scener_toolbar_proc(window_t *win, uint32_t msg,
   (void)lparam;
   switch (msg) {
     case evCreate:
-      send_message(win, tbSetItems, (uint32_t)TB_MAIN_COUNT, (void *)TB_MAIN);
+      send_message(win, tbSetItems,
+                   (uint32_t)scener_main_toolbar_form.toolbar_count,
+                   (void *)scener_main_toolbar_form.toolbar_items);
       scener_sync_main_toolbar();
       return true;
     case tbButtonClick:
