@@ -167,12 +167,34 @@ extern hinstance_t g_gem_hinstance;
 // Example usage (at file scope, after GEM_DEFINE):
 //   GEM_STANDALONE_MAIN("Orion My App", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,
 //                        g_app->menubar_win, g_app->accel)
+//
+// Standard options consumed by the launcher and not passed to gem_init():
+//   --screenshot PATH  Capture the first fully painted frame as JPEG and exit.
 // ---------------------------------------------------------------------------
 #define GEM_STANDALONE_MAIN(title_, flags_, w_, h_, menubar_, accel_)     \
   int main(int argc, char *argv[]) {                                        \
+    const char *gem_screenshot_path = NULL;                                 \
+    char *gem_app_argv[argc + 1];                                           \
+    int gem_app_argc = 1;                                                   \
+    gem_app_argv[0] = argv[0];                                              \
+    for (int gem_arg_index = 1; gem_arg_index < argc; gem_arg_index++) {    \
+      if (strcmp(argv[gem_arg_index], "--screenshot") == 0 &&             \
+          gem_arg_index + 1 < argc) {                                       \
+        gem_screenshot_path = argv[++gem_arg_index];                        \
+      } else {                                                              \
+        gem_app_argv[gem_app_argc++] = argv[gem_arg_index];                 \
+      }                                                                     \
+    }                                                                       \
+    gem_app_argv[gem_app_argc] = NULL;                                      \
     if (!ui_init_graphics((flags_), (title_), (w_), (h_)))                 \
       return 1;                                                             \
-    if (!gem_init(argc, argv, 0)) {                                        \
+    if (!gem_init(gem_app_argc, gem_app_argv, 0)) {                        \
+      ui_shutdown_graphics();                                               \
+      return 1;                                                             \
+    }                                                                       \
+    if (gem_screenshot_path &&                                              \
+        !ui_request_screenshot_jpg(gem_screenshot_path, 90, true)) {       \
+      gem_shutdown();                                                       \
       ui_shutdown_graphics();                                               \
       return 1;                                                             \
     }                                                                       \

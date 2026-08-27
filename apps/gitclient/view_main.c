@@ -53,6 +53,14 @@ void gc_set_view_mode(int tab) {
   invalidate_window(gc->main_win);
 }
 
+static const char *gc_repo_display_name(const git_repo_t *repo) {
+  const char *path = git_repo_path((git_repo_t *)repo);
+  const char *slash = path ? strrchr(path, '/') : NULL;
+  const char *backslash = path ? strrchr(path, '\\') : NULL;
+  const char *separator = slash > backslash ? slash : backslash;
+  return separator && separator[1] ? separator + 1 : path;
+}
+
 void gc_open_repo(const char *path) {
   gc_state_t *gc = g_gc;
   if (!gc) return;
@@ -72,7 +80,7 @@ void gc_open_repo(const char *path) {
 
   if (gc->main_win) {
     char title[600];
-    snprintf(title, sizeof(title), "Git Client - %s", path);
+    snprintf(title, sizeof(title), "Git Client - %s", gc_repo_display_name(gc->repo));
     strncpy(gc->main_win->title, title, sizeof(gc->main_win->title) - 1);
     gc->main_win->title[sizeof(gc->main_win->title) - 1] = '\0';
     invalidate_window(gc->main_win);

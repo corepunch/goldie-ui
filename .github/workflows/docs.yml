@@ -36,7 +36,9 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Add package manager guide
-        run: cp packaging/README.md docs/package-manager.md
+        run: |
+          cp packaging/README.md docs/package-manager.md
+          cp ARCHITECTURE.md docs/architecture.md
 
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1

@@ -1,13 +1,13 @@
 ---
 layout: default
 title: Image Editor — MVC Refactoring Plan
-nav_order: 21
+nav_exclude: true
 ---
 
 # Image Editor — MVC Refactoring Plan
 
 This document describes the suggested MVC split for the image editor, following
-the same pattern already applied in `examples/socialfeed/` and documented in
+the same pattern already applied in `apps/socialfeed/` and documented in
 the Orion coding conventions.
 
 > **Status:** Proposal.  The filters subsystem has already been migrated
@@ -41,52 +41,17 @@ the Orion coding conventions.
 
 ---
 
-## 2  Proposed File Structure
+## 2  Proposed Directory Structure
 
 ```
-examples/imageeditor/
-│
-├── model_document.c      ← canvas_doc_t lifecycle, layer stack init/free
-├── model_canvas.c        ← pixel I/O, draw primitives, shape ops, fill, spray
-├── model_selection.c     ← select-rect, magic-wand, cut/copy/paste, move
-├── model_layers.c        ← doc_add_layer, doc_delete_layer, blend/composite
-├── model_undo.c          ← (rename of undo.c) doc_push_undo, doc_undo/redo
-├── model_anim.c          ← (rename of anim.c) frame compress/expand/switch
-├── model_filters.c       ← (rename of filtermgr.c) load/free/apply filters
-├── model_image_io.c      ← (extracted from canvas.c) png save + load_image wrapper
-│
-├── controller_app.c      ← g_app, handle_menu_command, imageeditor_open_file_path
-│                            window factory calls, filter/zoom/undo dispatch
-│
-├── view_menubar.c        ← editor_menubar_proc, view_menu_rebuild, window_menu_rebuild
-├── view_document.c       ← doc_win_proc (outer MDI document frame)
-├── view_canvas.c         ← (rename of win_canvas.c) canvas painting + scroll
-├── view_toolpalette.c    ← (rename of win_toolpalette.c)
-├── view_tooloptions.c    ← (rename of win_tooloptions.c)
-├── view_colorpalette.c   ← (rename of win_colorpalette.c)
-├── view_layers.c         ← (rename of win_layers.c)
-├── view_timeline.c       ← (rename of win_timeline.c)
-├── view_filtergallery.c  ← (rename of win_filtergallery.c) — already clean
-├── view_blur.c           ← (rename of win_blur.c)
-├── view_levels.c         ← (rename of win_levels.c)
-├── view_imageresize.c    ← (rename of win_imageresize.c)
-├── view_newlayer.c       ← (rename of win_newlayer.c)
-├── view_newimage.c       ← (rename of win_newimage.c)
-├── view_textdialog.c     ← (rename of win_textdialog.c)
-├── view_selectmodify.c   ← (rename of win_selectmodify.c)
-├── view_gridoptions.c    ← (rename of win_gridoptions.c)
-├── view_extractmask.c    ← (rename of win_extractmask.c)
-│
-├── main.c                ← gem_init / gem_shutdown / accelerators (unchanged)
-├── tools.c               ← tool_names[] array (unchanged)
-├── canvas_text.c         ← canvas_draw_text_stb (pure model operation)
-├── anim_export_gif.c     ← export helpers (no UI)
-├── anim_export_png.c     ← export helpers (no UI)
-├── anim_render.c         ← anim frame renderer
-├── colorpicker.c         ← color-picker dialog (already self-contained)
-├── filepicker.c          ← show_file_picker wrapper (platform utility)
-├── about.c               ← show_about_dialog (trivial dialog)
-└── imageeditor.h         ← shared types + forward declarations
+apps/imageeditor/
+├── model/       Persistent documents, layers, selection, undo, and filters
+├── controller/  Application state, commands, and document orchestration
+├── views/       Menus, documents, canvas, palettes, layers, and timeline
+├── dialogs/     Focused modal editing and configuration workflows
+├── io/          Image loading, saving, and file selection
+├── animation/   Frame rendering and animation export
+└── share/       Icons, palettes, filters, and sample assets
 ```
 
 ---
@@ -260,8 +225,8 @@ convention before splitting):
 | `win_document.c` | `view_document.c` (partial — see §4.2) |
 
 No `Makefile` source-list edits are needed for renames within
-`examples/imageeditor/`: the build uses `$(wildcard examples/imageeditor/*.c)`
-and `find examples/imageeditor -maxdepth 1 -name "*.c"`, so renamed files are
+`apps/imageeditor/`: the build discovers source files below the application
+directory, so renamed files are
 picked up automatically.  The only Makefile change required is updating the
 `-DIMAGEEDITOR_SINGLE_LAYER` override on the `imagelite` target if any
 extracted files change how single-layer mode is expressed.
@@ -294,7 +259,7 @@ working state.  Do one step per PR.
 - `main.c` is not touched — `gem_init` / `gem_shutdown` call the controller
   and view factories, which is already correct.
 - All accelerator and menu-command IDs are unchanged.
-- The `Makefile` uses wildcard source discovery, so no source-list edits are needed for renames within `examples/imageeditor/`.  Any PR that extracts a genuinely new file (e.g., `model_image_io.c`) will be picked up automatically.
+- The `Makefile` uses source discovery, so no source-list edits are needed for renames within `apps/imageeditor/`. Any extracted source file is picked up automatically.
 
 ---
 

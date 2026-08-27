@@ -1,10 +1,13 @@
 ---
 layout: default
 title: Filters — MVC Placement
-nav_order: 20
+nav_exclude: true
 ---
 
 # Filters — MVC Placement
+
+> **Internal architecture note.** This records current Image Editor ownership;
+> use the main [Architecture](architecture) guide for Orion application design.
 
 This document describes where the image-editor filter system lives, how the
 code is divided across the three MVC layers, and the one known boundary that
@@ -28,7 +31,7 @@ editor:
 ## Files
 
 ```
-examples/imageeditor/
+apps/imageeditor/
   filtermgr.c          ← Model: load, free, apply filters
   win_filtergallery.c  ← View:  filter gallery dialog
 ```

@@ -164,9 +164,9 @@ $ orionc --input forms.orion --output forms.h --prefix myapp
 ```c
 #include "forms.h"
 
-void edit_author(window_t *parent, database_t *db, int author_id) {
+void edit_author(window_t *parent, int author_id) {
   show_db_dialog(&myapp_edit_author_form, "Edit Author", 
-                 parent, db, author_id);
+                 parent, author_id);
 }
 ```
 
@@ -308,7 +308,7 @@ Orionc automatically selects the correct getter message and wparam based on cont
 
 When you call:
 ```c
-show_db_dialog(&form, "Edit Author", parent, db, author_id);
+show_db_dialog(&form, "Edit Author", parent, author_id);
 ```
 
 The framework executes this sequence:
@@ -518,31 +518,27 @@ static const ctrl_binding_t socialfeed_new_comment_bindings[] = {
 
 **Creating a new post:**
 ```c
-void handle_new_post(window_t *parent, database_t *db) {
+void handle_new_post(window_t *parent) {
   // That's it. One line. Auto-fetch, auto-populate, auto-save.
   show_db_dialog(&socialfeed_new_post_form, "New Post", 
-                 parent, db, 0);  // 0 = INSERT mode
+                 parent, 0);  // 0 = INSERT mode
 }
 ```
 
 **Editing an existing post:**
 ```c
-void handle_edit_post(window_t *parent, database_t *db, int post_id) {
+void handle_edit_post(window_t *parent, int post_id) {
   // Same function, different record_id = UPDATE mode
   show_db_dialog(&socialfeed_new_post_form, "Edit Post", 
-                 parent, db, post_id);
+                 parent, post_id);
 }
 ```
 
 **Adding a comment:**
 ```c
-void handle_new_comment(window_t *parent, database_t *db, int post_id) {
-  // Pre-populate related record fields if needed
-  db_comments_t comment = {0};
-  comment.post_id = post_id;
-  
-  show_db_dialog(&socialfeed_new_comment_form, "New Comment", 
-                 parent, db, 0);
+void handle_new_comment(window_t *parent, int post_id) {
+  show_db_dialog_ex(&socialfeed_new_comment_form, "New Comment",
+                    parent, 0, "post_id", post_id);
 }
 ```
 
@@ -725,7 +721,7 @@ Delete your manual binding array - orionc generates it now.
 show_dialog_from_form(&form, title, parent, custom_proc, &state);
 
 // After
-show_db_dialog(&form, title, parent, db, record_id);
+show_db_dialog(&form, title, parent, record_id);
 ```
 
 ### Step 4: Cleanup
@@ -860,7 +856,7 @@ connect(ui->saveButton, &QPushButton::clicked, [=]() {
 <textedit field="db.posts.body" />
 ```
 ```c
-show_db_dialog(&form, "Edit", parent, db, post_id);
+show_db_dialog(&form, "Edit", parent, post_id);
 ```
 
 ### vs. WinForms BindingSource
@@ -885,7 +881,7 @@ db.SaveChanges();
 
 **Orion:**
 ```c
-show_db_dialog(&form, "Edit", parent, db, post_id);
+show_db_dialog(&form, "Edit", parent, post_id);
 ```
 
 ### vs. Raw SQL
@@ -903,7 +899,7 @@ show_db_dialog(&form, "Edit", parent, db, post_id);
 
 **Orion:**
 ```c
-show_db_dialog(&form, "Edit", parent, db, post_id);
+show_db_dialog(&form, "Edit", parent, post_id);
 ```
 
 ---

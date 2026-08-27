@@ -1,238 +1,114 @@
-# Orion Examples
+# Orion Applications
 
-This directory contains example programs demonstrating the use of Orion.
+The `apps/` tree contains complete applications built on Orion. Each app is
+both usable software and a reference for framework patterns that are too large
+to demonstrate in an isolated test.
 
-## Installing applications
+See the [Application Gallery](../docs/examples.md) for screenshots, capability
+summaries, and recommended examples by topic.
 
-Released applications can be installed independently with the Orion package
-manager:
+## Build And Run
+
+From the repository root:
+
+```bash
+make apps                         # all standalone applications
+make gems                         # all loadable GEM modules
+make build/bin/imageeditor        # one standalone application
+make build/gem/imageeditor.gem    # one loadable application
+
+build/bin/imageeditor images/logo.png
+build/bin/shell
+```
+
+Most apps share one source lifecycle through `gem_init` and
+`GEM_STANDALONE_MAIN`. Application arguments reach `gem_init`; the standard
+launcher owns framework options such as `--screenshot PATH`.
+
+Released applications can be installed independently:
 
 ```bash
 orion search
-orion install scener
-orion install imageeditor terminal
+orion install imageeditor
 orion list
 ```
 
-Each application release contains its executable, loadable GEM where
-applicable, component plugin, assets, and documentation. Development headers,
-shared libraries, and framework assets are provided by the automatically
-installed `orion-core` package. See the
-[Package Manager guide](../packaging/README.md) for bootstrap installation, SDK
-compiler flags, all commands, supported platforms, and package internals.
+See the [Package Manager guide](../packaging/README.md) for SDK and release
+installation.
 
-### Installing the suite from source
+## Application Shape
 
-From the repository root, `make install` builds and installs every standalone
-application and loadable GEM, rather than installing applications one at a
-time. The default prefix is `/opt/orion`:
+Use this structure for a substantial app:
 
-```bash
-make install
-export PATH="/opt/orion/bin:$PATH"
+```text
+apps/<name>/
+  dialogs/       Modal dialog procedures
+  components/    Reusable app-specific controls
+  pages/         Page-specific controllers and views
+  datasource/    Database adapters when the app owns several
+  share/         Icons, seed data, fixtures, and app assets
+  tests/         App-specific tests
 ```
 
-Use `PREFIX=/usr/local` for a conventional local Unix installation, or combine
-`PREFIX` with `DESTDIR` when staging a package. Application assets are installed
-under `<prefix>/share/<app>`, GEMs under `<prefix>/lib/orion/gems`, and offline
-documentation under `<prefix>/share/doc/orion`.
+At the app root, keep the `.orion` resource definition, public app header,
+entry point, controller, and top-level views. Small apps can omit directories
+they do not need.
 
-## Hello World Example
+The usual ownership split is:
 
-**File:** `helloworld.c`
+- **Model/data source** owns persistent data, allocation, CRUD, and validation.
+- **Controller** owns app state, active document/page, commands, and refreshes.
+- **View** owns window procedures, painting, hit testing, and notifications.
+- **Declarative resources** own static forms, menus, toolbars, accelerators, and bindings.
 
-A simple standalone application that demonstrates:
-- Initializing platform and OpenGL
-- Creating windows using Orion
-- Handling window messages and events
-- Drawing text in a window
-- Basic event loop
+For designer-style apps, keep project I/O, persistent document models,
+component metadata, canvas runtime state, layout, and inspectors in separate
+modules. Persistent records must not contain `window_t *` or renderer handles.
 
-### Building
+Read [Architecture](../ARCHITECTURE.md) for the full boundary rules.
 
-```bash
-make ui-helloworld
-```
+## Framework Patterns
 
-### Running
+- Define command IDs and default shortcuts in `.orion` menus.
+- Route controls through `evCommand`; inspect `LOWORD` and `HIWORD`.
+- Use accelerator tables for shortcuts instead of raw `evKeyDown` checks.
+- Use forms for dialogs or panels containing two or more standard controls.
+- Register declarative resources once, then resolve them by name.
+- Extend framework controls when behavior is generally reusable.
+- Use `get_client_rect()` and central input routing for client coordinates.
+- Invalidate on visual state changes and draw only during `evPaint`.
+- Pair resources allocated in `evCreate` with cleanup in `evDestroy`.
 
-```bash
-./ui-helloworld
-```
+## Good References
 
-### What it does
+| Topic | Application |
+|---|---|
+| Minimal lifecycle | `helloworld` |
+| Database-bound forms and tables | `socialfeed` |
+| Multi-document editing and canvas tools | `imageeditor` |
+| Tabs, report views, staging, and diffs | `gitclient` |
+| Declarative authoring and component plugins | `formeditor` |
+| MVC project workflow | `taskmanager` |
+| Custom desktop-style controls | `vibeoffice` |
+| Scene editing and headless rendering | `scener` |
 
-The example creates a simple window with "Hello World!" text displayed in the center. The window can be moved, and clicking the close button will exit the application.
+## Presenting An Application
 
-### Code Structure
+Every substantial app should document:
 
-1. **Initialization** - Calls axInit, creates an OpenGL context
-2. **Window Creation** - Uses Orion to create a desktop and a hello world window
-3. **Event Loop** - Processes platform events and window messages
-4. **Rendering** - Draws the windows and their contents
-5. **Cleanup** - Calls axShutdown()
+- What it is and who it serves
+- Its primary workflows and capabilities
+- The Orion concepts it demonstrates
+- Build and run commands
+- One or more screenshots containing realistic data
+- Important architecture or extension points
 
-### Current Limitations
-
-The example currently links against some mapview files (sprites.c, font.c, icons.c) for drawing functions. This is temporary until these functions are fully extracted into Orion.
-
-## File Manager Example
-
-**File:** `filemanager.c`
-
-A Norton Commander-style file manager that demonstrates:
-- Two-column directory listing
-- Directory navigation with mouse clicks
-- Double-click to navigate into folders or go up with ".."
-- Visual selection feedback
-- Separating folders from files (folders first)
-
-### Building
+Standalone apps can generate deterministic JPEGs:
 
 ```bash
-make examples
+build/bin/<name> [content-arguments...] \
+  --screenshot docs/screenshots/<name>_main.jpg
 ```
 
-### Running
-
-```bash
-./build/bin/filemanager
-```
-
-### What it does
-
-The example creates a file manager window showing the current directory contents in two columns. Folders are listed first with a "/" suffix. Click to select an entry, double-click on a folder to navigate into it, or double-click on ".." to go up one level.
-
-## Image Editor Example
-
-**File:** `imageeditor.c`
-
-A MacPaint-inspired raster image editor with a 16-color palette, demonstrating:
-- Rendering a pixel buffer as an OpenGL texture updated in real time
-- Multiple drawing tools: Pencil (1 px), Brush (5 px soft circle), Eraser, Flood Fill
-- 16-color swatch palette and live foreground/background color preview
-- Modal file-picker dialog (reuses the columnview-based file browser from `filemanager.c`)
-  that filters to **PNG files only**
-- PNG open/save via the built-in **stb_image** framework API (`load_image` / `save_image_png`)
-- Toolbar with New, Open, and Save actions
-- Status bar showing the current file path
-- Animation timeline with onion-skin overlays configurable for previous/next frame opacity
-
-### Canvas
-
-The editable canvas is **320 x 200 pixels** displayed at 2x (640 x 400 logical pixels),
-matching the classic MacPaint resolution.
-
-### Building
-
-```bash
-make examples          # builds imageeditor together with all other examples
-```
-
-PNG I/O is provided by the Orion framework via `load_image()` / `save_image_png()` (backed by stb_image).
-No additional library installation is required.
-
-### Running
-
-```bash
-./build/bin/imageeditor
-```
-
-### Tools
-
-| Tool        | Description                                                    |
-|-------------|----------------------------------------------------------------|
-| Pencil      | 1-pixel precise drawing                                        |
-| Brush       | 5-pixel circular brush for smooth strokes                      |
-| Eraser      | Paints in the current background color                         |
-| Fill        | Flood-fills a contiguous region                                |
-| Select      | Rectangular selection (drag to move, cut/copy/paste)           |
-| Hand        | Pan the canvas by dragging                                     |
-| Zoom        | Left-click to zoom in, right-click to zoom out                 |
-| Line        | Straight line between two points                               |
-| Rect        | Rectangle (hold Shift for square)                              |
-| Ellipse     | Ellipse (hold Shift for circle)                                |
-| RoundRect   | Rectangle with rounded corners                                 |
-| Polygon     | Click to add vertices; right-click to close and commit         |
-| Spray       | Airbrush: scatters random pixels within an 8-pixel radius      |
-| Eyedropper  | Left-click to pick foreground color; right-click for background|
-| Magnifier   | Shows a 16x16 pixel loupe at 4x zoom in the canvas top-right, centered on the hovered pixel |
-
-Click a tool name in the left panel to activate it.
-Click a color swatch to set the foreground color.
-
-### Open / Save
-
-Click **Open** or **Save** in the toolbar. A modal dialog opens showing the file system,
-filtered to directories and `.png` files. Navigate into folders by double-clicking them,
-select a file (or type a filename for Save), then press **Open**/**Save** to confirm or
-**Cancel** to abort.
-
-Only PNG files are supported.
-
-## Browser MVP Example
-
-**Files:** `browser/main.c` + `browser/*.c`
-
-A minimal browser-style example focused on fast HTML-to-text viewing:
-
-- Toolbar with Back / Forward / Home buttons
-- Toolbar refresh button
-- Address input field (press Enter to load)
-- File menu: New Window, Save Page HTML, Load Page HTML, Quit
-- Help menu: About
-- Settings dialog from menu path: **Settings -> Preferences...**
-- Async HTTP/HTTPS fetch via Orion (`http_request_async`)
-- HTML parsing via libxml2 (`htmlReadMemory`)
-- Plain text block rendering (tags removed; no CSS/JS execution)
-- Local page loading via `file://` URL support
-- INI-style persisted home URL in platform settings directory (`browser.ini`)
-
-Keyboard shortcuts:
-
-- Ctrl+N: New Window
-- Ctrl+S: Save Page HTML
-- Ctrl+O: Load Page HTML
-- Ctrl+Q: Quit
-
-### Building
-
-```bash
-make examples
-```
-
-The browser target requires `libxml2` discoverable via `pkg-config`.
-If missing, only the browser example fails with a clear error; other examples
-remain buildable.
-
-### Running
-
-```bash
-./build/bin/browser
-```
-
-### Notes
-
-- MVP behavior intentionally ignores CSS, JavaScript, and external resources.
-- Output is readable text blocks extracted from HTML content.
-- Home URL is loaded/saved through platform APIs (`axSettingsLoad` / `axSettingsSave`).
-
-## Future Examples
-
-Additional examples to be added:
-- **Button Example** - Demonstrating button controls
-- **Form Example** - Creating forms with various controls
-- **Dialog Example** - Modal dialogs and message boxes
-- **Multi-Window Example** - Managing multiple windows
-
-## Dependencies
-
-Orion examples require a C toolchain and the included Platform submodule, with
-no additional third-party libraries. Lua is optional for examples that use
-scripting or the interactive terminal.
-
-Initialize the Platform submodule before building from source:
-
-```bash
-git submodule update --init --recursive
-```
+Use F12 for interactive capture. Follow the naming, composition, and review
+checklist in [Presenting an Application](../docs/app-presentation.md).

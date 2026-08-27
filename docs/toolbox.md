@@ -253,7 +253,7 @@ int toolbox_grid_height(window_t *win);
 
 ## Real-world examples
 
-- **`examples/imageeditor/win_toolpalette.c`** — wraps `win_toolbox` and adds
+- **`apps/imageeditor/win_toolpalette.c`** — wraps `win_toolbox` and adds
   colour swatches + shape-mode toggles below the grid.
-- **`examples/formeditor/win_toolpalette.c`** — uses `win_toolbox` with a
+- **`apps/formeditor/win_toolpalette.c`** — uses `win_toolbox` with a
   custom 26 px button size for 21-px VB3-style icons.

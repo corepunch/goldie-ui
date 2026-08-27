@@ -1,3 +1,9 @@
+---
+layout: default
+title: Tableview Migration Guide
+nav_exclude: true
+---
+
 # Tableview Migration Guide
 
 ## From Manual Reportview Population to Declarative Tableviews
@@ -474,15 +480,15 @@ Nest a `<Toolbar>` inside the form that owns it:
 **Added:**
 - `commctl/tableview.c` — Generic tableview control
 - `docs/database-codegen.md` — Database schema codegen docs
-- `examples/socialfeed/socialfeed.orion` — Declarative UI
+- `apps/socialfeed/socialfeed.orion` — Declarative UI
 
 **Modified:**
 - `tools/orionc.c` — Tableview generation
 - `user/user.h` — Database singleton APIs
 - `user/window.c` — Auto-propagation logic
 - `user/dialog.c` — Removed db parameter
-- `examples/socialfeed/view_main.c` — 280 lines → 15 lines
-- `examples/socialfeed/view_dlg_post.c` — Similar reduction
+- `apps/socialfeed/view_main.c` — 280 lines → 15 lines
+- `apps/socialfeed/view_dlg_post.c` — Similar reduction
 
 **Deleted:**
 - Manual population loops

@@ -10,6 +10,21 @@ All controls are window procedures registered with `commctl.h`.  Create them
 as child windows of a parent; notifications are sent to the **root window**
 via `evCommand`.
 
+## Controls In Applications
+
+The framework controls are intended to compose into dense, practical tools.
+These application captures show their normal states and proportions.
+
+| Application | Controls shown |
+|---|---|
+| ![Git Client controls](screenshots/gitclient_orion.jpg) | Menu bar, icon toolbar, tab view, report view, checkbox cells, text edits, buttons, split view, scrollbars, and status bar |
+| ![Image Editor controls](screenshots/imageeditor_orion.jpg) | Menu bar, icon toolbar, MDI document, tool palette, swatches, layer list, option panel, timeline, and scrollbars |
+| ![Task Manager controls](screenshots/taskmanager_backlog.jpg) | Menu bar, toolbar, table view, status bar, sortable columns, and document window |
+
+For focused API details and message contracts, use the sections below. For
+guidance on capturing and presenting a complete application, see the
+[Application Presentation Guide](app-presentation).
+
 ## Scrollbar
 
 See [Scrollbars](scrollbars) for the complete scrollbar documentation covering both **built-in window scrollbars** (`WINDOW_HSCROLL` / `WINDOW_VSCROLL` + `set_scroll_info()`) and the **standalone `win_scrollbar` control**.
@@ -18,7 +33,7 @@ See [Scrollbars](scrollbars) for the complete scrollbar documentation covering b
 // Standalone scrollbar – orientation set via lparam: 0=horizontal, 1=vertical
 window_t *vsb = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(w - 8, 0, 8, h - 8),
-    parent, win_scrollbar, (void *)1 /* SB_VERT */);
+    parent, win_scrollbar, 0, (void *)1 /* SB_VERT */);
 
 scrollbar_info_t info = { .min_val = 0, .max_val = 200, .page = 50, .pos = 0 };
 send_message(vsb, sbSetInfo, 0, &info);
@@ -41,7 +56,7 @@ built-in scrollbars.
 ```c
 window_t *btn = create_window("Click Me", 0,
     MAKERECT(10, 10, 80, BUTTON_HEIGHT),
-    parent, win_button, NULL);
+    parent, win_button, 0, NULL);
 
 // Receive click in parent's proc:
 case evCommand:
@@ -54,7 +69,7 @@ case evCommand:
 ```c
 window_t *chk = create_window("Enable fog", 0,
     MAKERECT(10, 30, 120, BUTTON_HEIGHT),
-    parent, win_checkbox, NULL);
+    parent, win_checkbox, 0, NULL);
 
 // Query / set checked state
 send_message(chk, btnSetCheck, btnStateChecked, NULL);
@@ -67,7 +82,7 @@ int state = send_message(chk, btnGetCheck, 0, NULL);
 ```c
 window_t *ed = create_window("", WINDOW_NOTITLE,
     MAKERECT(10, 50, 200, CONTROL_HEIGHT),
-    parent, win_textedit, NULL);
+    parent, win_textedit, 0, NULL);
 
 // Read current text
 const char *text = ed->title;
@@ -127,7 +142,7 @@ Key points:
 ```c
 create_window("Name:", WINDOW_NOTITLE,
     MAKERECT(10, 10, 60, CONTROL_HEIGHT),
-    parent, win_label, NULL);
+    parent, win_label, 0, NULL);
 ```
 
 ## Combobox
@@ -135,7 +150,7 @@ create_window("Name:", WINDOW_NOTITLE,
 ```c
 window_t *cb = create_window("", 0,
     MAKERECT(10, 70, 150, BUTTON_HEIGHT),
-    parent, win_combobox, NULL);
+    parent, win_combobox, 0, NULL);
 
 send_message(cb, cbAddString, 0, (void *)"Option A");
 send_message(cb, cbAddString, 0, (void *)"Option B");
@@ -163,7 +178,7 @@ Used by the file manager, file-picker dialog, and several editor palettes.
 
 window_t *cv = create_window("", WINDOW_NOTITLE | WINDOW_VSCROLL,
     MAKERECT(0, 0, 300, 200),
-    parent, win_reportview, NULL);
+    parent, win_reportview, 0, NULL);
 
 // Add items
 reportview_item_t item = {
@@ -175,8 +190,6 @@ send_message(cv, RVM_ADDITEM, 0, &item);
 
 // Clear all items
 send_message(cv, RVM_CLEAR, 0, NULL);
-// Also reset scroll after clearing
-cv->scroll[0] = cv->scroll[1] = 0;
 
 // Selection notification in root proc:
 case evCommand:
@@ -219,7 +232,7 @@ static const menu_def_t kMenus[] = {
 window_t *mb = create_window("",
     WINDOW_NOTITLE | WINDOW_ALWAYSONTOP | WINDOW_NORESIZE | WINDOW_NOTRAYBUTTON,
     MAKERECT(0, 0, screen_w, MENUBAR_HEIGHT),
-    NULL, my_menubar_proc, NULL);
+    NULL, my_menubar_proc, 0, NULL);
 send_message(mb, kMenuBarMessageSetMenus, 1, (void *)kMenus);
 show_window(mb, true);
 
@@ -231,7 +244,7 @@ static result_t my_menubar_proc(window_t *win, uint32_t msg,
         switch (LOWORD(wparam)) {
             case ID_NEW:  new_file();    break;
             case ID_OPEN: open_file();   break;
-            case ID_QUIT: running=false; break;
+            case ID_QUIT: ui_request_quit(); break;
         }
         return true;
     }

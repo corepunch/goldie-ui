@@ -20,7 +20,8 @@ boilerplate when reading from and writing to dialog controls.
 ```c
 uint32_t show_dialog(
     const char  *title,  // title-bar text
-    irect16_t const *frame, // MAKERECT(x, y, w, h) – logical pixels
+  int          width,  // desired client width in logical pixels
+  int          height, // desired client height in logical pixels
     window_t    *parent, // owner, or NULL
     winproc_t    proc,   // dialog window procedure
     void        *param   // forwarded as lparam to evCreate
@@ -103,7 +104,7 @@ if (state.accepted) { /* … */ }
 
 Any dialog with two or more standard controls should be laid out declaratively
 using `form_ctrl_def_t` + `form_def_t`, analogous to WinAPI's `DLGTEMPLATE`.
-The recommended pattern is the one used by `examples/socialfeed/socialfeed.orion`:
+The recommended pattern is the one used by `apps/socialfeed/socialfeed.orion`:
 a top-level auto-layout stack, nested stack/grid rows for fields, and an action
 row driven by `space` / `WINDOW_FLEXSPACE` rather than hard-coded coordinates.
 
@@ -242,7 +243,7 @@ static result_t my_proc(window_t *win, uint32_t msg,
 - Prefer fixed **size hints** (`.size = {w, h}`) only where a control needs a
   minimum width or height. Let stack/grid layout decide the actual position.
 - Use nested `stack` / `grid` containers to describe rows and columns, following
-  `examples/socialfeed/socialfeed.orion`, instead of manually emulating rows
+  `apps/socialfeed/socialfeed.orion`, instead of manually emulating rows
   with absolute coordinates.
 - Use `show_dialog_from_form()` for modal dialogs (handles centering +
   `WINDOW_DIALOG` flag automatically).
@@ -436,7 +437,7 @@ case evCommand:
 
 | Function | Description |
 |----------|-------------|
-| `show_dialog(title, frame, parent, proc, param)` | Show a raw modal dialog |
+| `show_dialog(title, width, height, parent, proc, param)` | Show a raw modal dialog |
 | `show_dialog_from_form(def, title, parent, proc, param)` | Show a form-based modal dialog (preferred) |
 | `create_window_from_form(def, x, y, parent, proc, param)` | Instantiate a form as a modeless window |
 | `end_dialog(win, code)` | Close the nearest dialog ancestor and return a result code |

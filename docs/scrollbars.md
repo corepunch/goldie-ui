@@ -28,7 +28,7 @@ This is the WinAPI equivalent of creating a window with `WS_HSCROLL` /
 
 ```c
 window_t *view = create_window("View", WINDOW_HSCROLL | WINDOW_VSCROLL,
-    MAKERECT(x, y, w, h), parent, my_view_proc, NULL);
+    MAKERECT(x, y, w, h), parent, my_view_proc, 0, NULL);
 ```
 
 ### Setting the scroll range and position (`SetScrollInfo` equivalent)
@@ -104,8 +104,9 @@ before calling `set_scroll_info()`:
 static void sync_scrollbars(window_t *win, state_t *state) {
     int content_w = state->content_w;
     int content_h = state->content_h;
-    int win_w     = win->frame.w;
-    int win_h     = win->frame.h;
+    irect16_t client = get_client_rect(win);
+    int win_w = client.w;
+    int win_h = client.h;
 
     bool need_h = content_w > win_w;
     bool need_v = content_h > win_h;
@@ -161,12 +162,12 @@ inside a custom layout), use `win_scrollbar`.  Orientation is set via
 // Horizontal bar
 window_t *hsb = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(0, h - 8, w - 8, 8),
-    parent, win_scrollbar, (void *)0 /* SB_HORZ */);
+    parent, win_scrollbar, 0, (void *)0 /* SB_HORZ */);
 
 // Vertical bar
 window_t *vsb = create_window("", WINDOW_NOTITLE | WINDOW_NOFILL,
     MAKERECT(w - 8, 0, 8, h - 8),
-    parent, win_scrollbar, (void *)1 /* SB_VERT */);
+    parent, win_scrollbar, 0, (void *)1 /* SB_VERT */);
 
 // Set info
 scrollbar_info_t info = { .min_val = 0, .max_val = 200, .page = 50, .pos = 0 };
@@ -191,7 +192,7 @@ case evCommand:
 
 | ❌ Wrong | ✅ Correct |
 |---|---|
-| `create_window("", WINDOW_HSCROLL, …, win_scrollbar, NULL)` — setting `WINDOW_HSCROLL` on the scrollbar child | `create_window("", 0, …, win_scrollbar, (void *)0)` — pass orientation via `lparam` |
+| Setting `WINDOW_HSCROLL` on the scrollbar child | Pass `(void *)0` as `lparam` and leave built-in scrollbar flags off |
 | Creating `win_scrollbar` children when you want built-in scrollbars | Add `WINDOW_HSCROLL \| WINDOW_VSCROLL` to the parent and call `set_scroll_info()` |
 | Manually painting scrollbar children from the parent proc | Let the framework draw via `WINDOW_HSCROLL \| WINDOW_VSCROLL`; it paints on top automatically |
 | Forwarding mouse events to scrollbar children | Not needed; the framework intercepts clicks in the scrollbar area before calling `win->proc` |

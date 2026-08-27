@@ -1,3 +1,9 @@
+---
+layout: default
+title: Paint Editor Comparison Report
+nav_exclude: true
+---
+
 # Report: Deluxe Paint Reconstruction References vs. Orion Image Editor
 
 ## Scope
@@ -32,7 +38,7 @@ This report compares classic/retro paint-editor codebases (with emphasis on **Gr
 - Both carry large internal image structures.
 - Their scalability comes from stronger module boundaries and data-access APIs, not from tiny structs.
 
-## 3) Comparison to Orion (`examples/imageeditor`)
+## 3) Comparison to Orion (`apps/imageeditor`)
 
 Orion already has meaningful modular decomposition:
 
@@ -43,7 +49,7 @@ Orion already has meaningful modular decomposition:
 
 Relevant local structures:
 
-- `canvas_doc_t` in `examples/imageeditor/imageeditor.h` (large, nested, multi-concern state)
+- `canvas_doc_t` in `apps/imageeditor/imageeditor.h` (large, nested, multi-concern state)
 - `app_state_t` in same header (application/UI orchestration state)
 
 ## 4) Is Orion’s canvas struct “too heavy”?
@@ -106,9 +112,9 @@ What differentiates maintainable systems is **modular API boundaries** and **tes
 
 ## Local references used
 
-- `examples/imageeditor/imageeditor.h`
-- `examples/imageeditor/canvas/*.c`
-- `examples/imageeditor/commands/*.c`
-- `examples/imageeditor/tools/*.c`
-- `examples/imageeditor/anim/*.c`
+- `apps/imageeditor/imageeditor.h`
+- `apps/imageeditor/canvas/*.c`
+- `apps/imageeditor/commands/*.c`
+- `apps/imageeditor/tools/*.c`
+- `apps/imageeditor/anim/*.c`
 - `docs/imageeditor-mvc.md`

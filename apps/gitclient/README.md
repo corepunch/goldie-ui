@@ -161,12 +161,12 @@ The form definition (`gc_commit_dialog_form`) is generated from the `.orion` fil
 ## Building
 
 ```sh
-make examples   # builds gitclient + all other examples
+make build/bin/gitclient
 ```
 
 The build system:
-1. Runs `orionc` to generate `build/generated/examples/gitclient/gitclient.h` from `gitclient.orion`
-2. Compiles all `.c` files in `examples/gitclient/` into a single binary
+1. Runs `orionc` to generate `build/generated/apps/gitclient/gitclient.h` from `gitclient.orion`
+2. Compiles the GitClient sources in `apps/gitclient/` into one executable
 
 ## Adding a new data source
 

@@ -1,3 +1,9 @@
+---
+layout: default
+title: Database Code Generation Plan
+nav_exclude: true
+---
+
 # Database Schema Code Generation (orionc Enhancement)
 
 ## Goal
@@ -5,7 +11,7 @@ Generate C struct definitions from `.orion` database schemas, making the schema 
 
 ## Status
 ✅ `.orion` schema updated with `length` attributes for strings
-✅ Mock generated header created (`build/generated/examples/socialfeed/socialfeed.h`)
+✅ Mock generated header created (`build/generated/apps/socialfeed/socialfeed.h`)
 ✅ `db_simple_xml.h` updated to include generated header
 ✅ All generated code consolidated into single `socialfeed.h` file
 ⏳ `orionc` compiler needs database schema parsing support
@@ -158,7 +164,7 @@ extern const form_def_t socialfeed_new_post_form;
 
 ```c
 // Application code includes the generated header
-#include "build/generated/examples/socialfeed/socialfeed.h"
+#include "build/generated/apps/socialfeed/socialfeed.h"
 
 // Structs available automatically:
 author_t author = { .name = "Alice", .avatar = "alice.png" };
@@ -177,9 +183,9 @@ tableview_params_t params = {
 
 ## Related Files
 
-- `examples/socialfeed/socialfeed.orion` — Schema definitions
-- `build/generated/examples/socialfeed/socialfeed.h` — Generated header (menus, forms, database)
-- `examples/socialfeed/socialfeed.h` — App header (includes generated header)
-- `examples/socialfeed/db_simple_xml.h` — Database proc header
-- `examples/socialfeed/db_simple_xml.c` — Database implementation
+- `apps/socialfeed/socialfeed.orion` — Schema definitions
+- `build/generated/apps/socialfeed/socialfeed.h` — Generated header (menus, forms, database)
+- `apps/socialfeed/socialfeed.h` — App header (includes generated header)
+- `apps/socialfeed/db_simple_xml.h` — Database proc header
+- `apps/socialfeed/db_simple_xml.c` — Database implementation
 - `tools/orionc.c` — Compiler (needs database parsing)

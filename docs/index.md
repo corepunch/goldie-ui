@@ -7,182 +7,102 @@ permalink: /
 
 ![Orion Form Editor showing the SocialFeed project](screenshots/formeditor_socialfeed.jpg)
 
-*Form Editor with live controls, database bindings, component palette, and
-plugin browser.*
+Orion is a standalone C UI framework for desktop applications and tools. It
+combines a WinAPI-style message architecture with native Platform backends,
+hardware-accelerated rendering, reusable controls, declarative forms,
+databases, dialogs, and loadable applications. Lua is optional for apps that
+need scripting.
 
-Orion is a standalone, retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Its clean three-layer design follows the classic USER, KERNEL, and COMCTL separation, making it instantly recognizable to developers who've worked with Win32. Orion uses its own native Platform layer for windowing, input, and hardware-accelerated rendering without requiring additional third-party libraries. It provides common controls, declarative forms, databases, dialogs, and loadable applications. Lua is optional for applications that need scripting.
+## Start Here
 
----
+| I want to... | Read |
+|---|---|
+| Build my first standalone app and GEM | [Getting Started](getting-started) |
+| Understand layers, ownership, and message flow | [Architecture](architecture) |
+| Create windows and handle lifecycle | [Window System](window-system) |
+| Add controls, layouts, menus, and dialogs | [Controls](controls), [Toolbars](toolbars), [Dialogs](dialogs) |
+| Bind declarative forms to records | [Database Forms](database-forms) |
+| Study complete applications | [Applications](examples) |
+| Install the released SDK and apps | [Package Manager](package-manager) |
 
-## 🌟 Killer Feature: Zero-Boilerplate Database Forms
+## Build From Source
 
-**The Problem:** Traditional GUI database code is 90% boilerplate. For every edit dialog, you manually fetch records, populate 20 fields, validate input, extract values back out, build SQL statements. Repeat for every table.
+```bash
+git clone https://github.com/corepunch/orion-ui.git
+cd orion-ui
+git submodule update --init --recursive
+make apps
+make test
+```
 
-**The Solution:** Declare your form structure once in XML with `field="db.table.field"` attributes. Orion generates all the bindings and handles fetch/save automatically.
+Build one application with `make build/bin/<name>`, or build loadable modules
+with `make gems`. Orion requires a C toolchain and Git; its native Platform
+layer supplies windowing, input, and rendering.
+
+## How Orion Fits Together
+
+```text
+apps/          Applications, declarative resources, components, and app tests
+orion/user/    Windows, messages, input routing, drawing, forms, and resources
+orion/kernel/  Graphics lifecycle, rendering, HTTP, and runtime services
+orion/commctl/ Reusable controls and layout containers
+orion/commdlg/ Modal dialogs and common pickers
+platform/      Native windows, events, filesystems, processes, and networking
+share/         Framework fonts, icons, shaders, and deployable assets
+tests/         Framework behavior and integration tests
+tools/         Resource compilers, generators, and release utilities
+```
+
+Platform events become Orion messages. Window procedures handle those messages,
+controls notify their root with `evCommand`, controllers mutate application
+state, and invalidated windows draw during `evPaint`. Declarative `.orion`
+resources compile into typed forms, menus, toolbars, accelerators, and database
+metadata.
+
+[Read the architecture guide →](architecture)
+
+## Applications As Examples
+
+Orion's bundled apps are both usable software and reference implementations.
+
+| Image Editor | Git Client |
+|---|---|
+| [![Image Editor with Orion artwork open](screenshots/imageeditor_orion.jpg)](examples#image-editor) | [![Git Client showing the Orion repository](screenshots/gitclient_orion.jpg)](examples#git-client) |
+| MDI documents, canvas rendering, layers, tools, palettes, and animation | Tabs, report views, staging, history, GitHub data, and diff rendering |
+
+Form Editor demonstrates declarative UI authoring and plugins; Social Feed
+shows database-bound forms; Task Manager shows MVC and table views; Vibe Office
+shows desktop-style custom controls and process-backed state.
+
+[Explore all applications →](examples)
+
+## Declarative Database Forms
+
+A field path identifies its database, table, and column:
 
 ```xml
-<!-- Define once -->
-<form name="edit_author" width="300" height="100">
-  <textedit field="db.authors.name" />
-  <textedit field="db.authors.email" />
-  <button value="1" text="OK" />
+<form name="edit_author" width="300">
+  <TextEdit field="db.authors.name" />
+  <TextEdit field="db.authors.email" />
+  <Button value="1" text="OK" />
 </form>
 ```
 
+Register the named database once at startup, then open the self-contained form:
+
 ```c
-// Use everywhere - auto-fetch, auto-populate, auto-save
-show_db_dialog(&form, "Edit Author", parent, db, author_id);
+show_db_dialog(&myapp_edit_author_form, "Edit Author", parent, author_id);
 ```
 
-**Result:** 95% less code, 100% type-safe, infinitely maintainable.
+Orion fetches the record, exchanges values with controls, and inserts or
+updates on acceptance. [Read Database Forms →](database-forms)
 
-**[📖 Read the complete Database Forms guide →](database-forms.md)**
+## Core Guides
 
-Install released applications independently with the
-**[Orion Package Manager →](package-manager/)**.
-
----
-
-**filemanager.c** example:
-![Screenshot 2026-01-16 at 15 21 17](https://github.com/user-attachments/assets/1474fcfa-17eb-4731-8af5-06a83ace958f)
-
-**helloworld.c** example:
-![Screenshot 2026-01-16 at 15 20 19](https://github.com/user-attachments/assets/57ef5b20-56ff-4d4c-8057-d7f2e699a08e)
-
-## Directory Structure
-
-```
-ui/
-├── ui.h              # Main header that includes all UI subsystems
-├── user/             # Window management and user interface (USER.DLL equivalent)
-│   ├── user.h        # Window structures and management functions
-│   ├── messages.h    # Window message constants and macros
-│   ├── draw.h        # Drawing primitives (rectangles, icons)
-│   ├── text.h        # Text rendering functions
-│   ├── text.c        # Text rendering implementation (small font, DOOM/Hexen fonts)
-│   ├── window.c      # Window management implementation
-│   ├── message.c     # Message queue implementation
-│   └── draw_impl.c   # Drawing primitives implementation
-├── kernel/           # Event loop and platform integration (KERNEL.DLL equivalent)
-│   ├── kernel.h      # Event and graphics initialization
-│   ├── renderer.h    # Renderer API - OpenGL abstraction
-│   ├── renderer_impl.c # Renderer API implementation
-│   ├── renderer.c    # Sprite rendering implementation
-│   ├── event.c       # Event loop implementation
-│   ├── init.c        # Platform initialization
-│   └── joystick.c    # Joystick/gamepad support
-└── commctl/          # Common controls (COMCTL32.DLL equivalent)
-    ├── commctl.h     # Common control window procedures
-    ├── button.c      # Button control implementation
-    ├── checkbox.c    # Checkbox control implementation
-    ├── edit.c        # Text edit control implementation
-    ├── label.c       # Label (static text) control implementation
-    ├── list.c        # List control implementation
-    ├── combobox.c    # Combobox (dropdown) control implementation
-    ├── console.c     # Console control implementation
-    ├── columnview.h  # ColumnView control header
-    ├── columnview.c  # Multi-column item view implementation
-    ├── menubar.h     # Menu bar control header
-    ├── menubar.c     # Horizontal menu bar implementation
-    └── terminal.c    # Lua script terminal implementation
-```
-
-## Architecture
-
-Orion follows a layered architecture similar to Windows:
-
-### ui/user/ - Window Management Layer
-
-Handles window creation, destruction, message passing, and basic rendering primitives.
-
-**Key Components:**
-- Window structure (`window_t`)
-- Window creation and lifecycle management
-- Message queue and dispatch
-- Drawing primitives (rectangles, text, icons)
-- Window messages (evCreate, evPaint, evLeftButtonUp, etc.)
-
-### ui/kernel/ - Event Management Layer
-
-Manages the native Platform event loop and translates platform events into window messages. Also provides the Renderer API.
-
-**Key Components:**
-- Platform initialization
-- Event loop (`get_message`, `dispatch_message`)
-- Global state (screen dimensions, running flag)
-- **Renderer API**: High-level OpenGL abstraction (`R_Mesh`, `R_Texture`, `R_MeshDrawDynamic`)
-
-### ui/commctl/ - Common Controls Layer
-
-Implements standard UI controls that can be used to build interfaces.
-
-**Available Controls:**
-- **Button**: Clickable button with text label
-- **Checkbox**: Toggle control with checkmark
-- **Edit**: Single-line text input control
-- **Label**: Static text display
-- **List**: Scrollable list of items
-- **Combobox**: Dropdown selection control
-- **Console**: Message display console with automatic fading and scrolling
-- **ColumnView**: Multi-column item view with icons, colors, and double-click support
-- **MenuBar**: Horizontal menu bar with dropdown menus
-- **Terminal**: Interactive Lua script terminal with input/output
-
-## Building
-
-Orion supports Linux, macOS, and Windows platforms.
-
-### Dependencies
-
-Orion requires only a C toolchain and Git, with no additional third-party
-libraries. Its native Platform layer provides windowing, input, and rendering.
-Lua is optional for applications that use scripting or the interactive
-terminal.
-
-### Build Commands
-
-```bash
-# Build library (static and shared)
-make library
-
-# Build examples
-make examples
-
-# Build and run tests
-make test
-
-# Clean build artifacts
-make clean
-```
-
-### Build Output
-
-- **Linux**: `build/lib/liborion.a`, `build/lib/liborion.so`
-- **macOS**: `build/lib/liborion.a`, `build/lib/liborion.dylib`
-- **Windows**: `build/lib/liborion.a`, `build/lib/liborion.dll`
-- **Examples/Tests**: `build/bin/`
-
-## Window Messages
-
-The framework uses a message-based architecture. Common messages include:
-
-- `evCreate` - Window is being created
-- `evDestroy` - Window is being destroyed
-- `evPaint` - Window needs to be redrawn
-- `evLeftButtonDown` - Left mouse button pressed
-- `evLeftButtonUp` - Left mouse button released
-- `evKeyDown` - Key pressed
-- `evKeyUp` - Key released
-- `evCommand` - Control notification
-
-## Documentation
-
-- [Getting Started](getting-started.md) - Installation and first program
-- [Architecture](architecture.md) - Framework design and structure
-- [Window System](window-system.md) - Window management and messages
-- **[Database Forms](database-forms.md) - Zero-boilerplate CRUD dialogs** ⭐
-- [Controls](controls.md) - Available UI controls and usage
-- [Dialogs](dialogs.md) - Modal and modeless dialogs
-- [Messages](messages.md) - Window message reference
-- [Drawing](drawing.md) - Graphics primitives and rendering
-- [Examples](examples.md) - Complete example programs
+- [Messages & Events](messages): commands, notifications, input, and event loop
+- [Drawing & Rendering](drawing): paint lifecycle and renderer APIs
+- [Scrollbars](scrollbars): built-in and standalone scrollbar contracts
+- [Icon System](icons): system icons, SVG assets, and bitmap strips
+- [Async HTTP](http): message-driven HTTP/HTTPS requests
+- [GEM Plugin System](gems): shared Shell hosting and application lifecycle
+- [Presenting An Application](app-presentation): screenshots and app docs

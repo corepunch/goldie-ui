@@ -6,9 +6,10 @@ nav_order: 5
 
 # MDI Application Architecture
 
-MDI (Multiple Document Interface) is the **recommended pattern for building
-full Orion applications**.  Every serious Orion app follows it: imageeditor,
-taskmanager, and formeditor all use this architecture.
+MDI (Multiple Document Interface) is the right pattern when an Orion app lets
+users work with several peer documents at once. Image Editor, Task Manager,
+and Form Editor demonstrate variations of this architecture. Single-document
+and page-based apps should use the simpler ownership model their workflow needs.
 
 In MDI style the desktop shows:
 
@@ -20,7 +21,7 @@ In MDI style the desktop shows:
 | Status bar | Per-document `WINDOW_STATUSBAR` strip at the window bottom |
 
 The application lifecycle (`gem_init` / `gem_shutdown`) and the accelerator-aware
-event loop are identical in every MDI app — `gem_magic.h` ships a macro to
+event loop are identical in every MDI app — `orion/gem.h` ships a macro to
 generate this boilerplate automatically.
 
 ---
@@ -32,7 +33,8 @@ generate this boilerplate automatically.
 #ifndef __MYAPP_H__
 #define __MYAPP_H__
 
-#include "../../ui.h"
+#include <orion/ui.h>
+#include <orion/gem.h>
 
 #define SCREEN_W 640
 #define SCREEN_H 480
@@ -70,7 +72,6 @@ void handle_menu_command(uint16_t id);
 ```c
 // main.c — application entry points
 #include "myapp.h"
-#include "../../gem_magic.h"
 
 app_state_t *g_app = NULL;
 
@@ -142,7 +143,7 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-The macro in `gem_magic.h` generates this for you:
+The macro in `orion/gem.h` generates this for you:
 
 ```c
 GEM_STANDALONE_MAIN(title, flags, screen_w, screen_h,
@@ -172,7 +173,7 @@ GEM_STANDALONE_MAIN("My App", UI_INIT_DESKTOP, SCREEN_W, SCREEN_H,
 
 ## Menu bar
 
-`set_app_menu` (defined in `gem_magic.h`) creates the menu bar in standalone
+`set_app_menu` (defined in `orion/gem.h`) creates the menu bar in standalone
 mode and contributes menus to the shell in gem mode — the same call works in
 both contexts.
 
@@ -315,34 +316,25 @@ See the [Toolbox control](controls.md) for the full API.
 
 ## Debug logging
 
-Both imageeditor and taskmanager use `axSetLogFile` / `axLog` behind a
-compile-time debug flag:
+Log user-triggered actions and state transitions unconditionally so a report
+can be replayed without rebuilding. Keep noisy implementation diagnostics
+behind a debug flag:
 
 ```c
-#ifndef MYAPP_DEBUG
-#define MYAPP_DEBUG 1
-#endif
+#define APP_TRACE(...) do {                    \
+  fprintf(stderr, "[myapp] " __VA_ARGS__);     \
+  fputc('\n', stderr);                         \
+  fflush(stderr);                              \
+} while (0)
 
-#if MYAPP_DEBUG
-#define MY_DEBUG(...) axLog("[myapp] " __VA_ARGS__)
-#else
-#define MY_DEBUG(...) ((void)0)
-#endif
-
-// In gem_init:
-#if MYAPP_DEBUG
-{
-  char log_path[1024];
-  int n = snprintf(log_path, sizeof(log_path), "%s/myapp.log",
-                   axSettingsDirectory());
-  if (n > 0 && (size_t)n < sizeof(log_path))
-    axSetLogFile(log_path);
-}
-#endif
+case evCommand:
+  APP_TRACE("command win=%u id=%u notify=%u",
+            (unsigned)win->id, LOWORD(wparam), HIWORD(wparam));
+  return handle_menu_command(LOWORD(wparam));
 ```
 
-Set `MYAPP_DEBUG=0` for release builds.  The debug macro calls are compiled
-away entirely when the flag is off.
+Include the window or document ID, command or selection ID, and state needed
+to reconstruct the action. Avoid per-frame logging.
 
 ---
 
@@ -350,6 +342,6 @@ away entirely when the flag is off.
 
 | Example | What to read |
 |---|---|
-| `examples/imageeditor/` | Full MDI with tool palette, color palette, PNG I/O, zoom, undo/redo |
-| `examples/taskmanager/` | MDI with MVC layout, column view, file I/O |
-| `examples/formeditor/`  | MDI with live form canvas, property inspector |
+| `apps/imageeditor/` | Full MDI with tool palette, color palette, PNG I/O, zoom, undo/redo |
+| `apps/taskmanager/` | MDI with MVC layout, table view, and file I/O |
+| `apps/formeditor/`  | MDI with live form canvas and property inspector |

@@ -6,275 +6,207 @@ nav_order: 4
 
 # Window System
 
-## Window Structure
+Orion windows are framework-owned objects that receive messages through a
+`winproc_t`. Applications create, show, move, resize, query, and destroy them
+through the public API. Avoid depending on undocumented `window_t` internals.
 
-```c
-typedef struct window_s {
-  irect16_t      frame;          // content-area position and size (logical px)
-  char        title[64];
-  flags_t     flags;          // WINDOW_NOTITLE | WINDOW_TOOLBAR | …
-  winproc_t   proc;           // window procedure
-  void       *userdata;       // application state
-  window_t   *parent;         // NULL for top-level windows
-  window_t   *children;       // linked list of child windows
-  window_t   *next;           // sibling / global list link
-  bool        visible;
-  bool        disabled;
-  int         scroll[2];      // scroll offsets [x, y]
-  /* … */
-} window_t;
-```
-
-## Creating Windows
+## Create A Window
 
 ```c
 window_t *create_window(
-    const char *title,
-    flags_t     flags,
-    irect16_t const *frame,     // MAKERECT(x, y, w, h)
-    window_t   *parent,      // NULL = top-level
-    winproc_t   proc,
-    void       *lparam       // forwarded to evCreate
-);
+  const char *title,
+  flags_t flags,
+  irect16_t frame,
+  window_t *parent,
+  const char *class_name_or_winproc,
+  hinstance_t hinstance,
+  void *param);
 ```
 
-`frame` coordinates are in **logical pixels** (screen pixels ÷ `UI_WINDOW_SCALE`).
-For top-level windows `frame.x/y` is the absolute screen position.
-For child windows `frame.x/y` is relative to the **parent's content area**.
+`create_window` accepts either a registered class name or a window-procedure
+symbol through its type-generic macro:
 
-## Window Flags
+```c
+window_t *main_win = create_window(
+  "Document", WINDOW_STATUSBAR,
+  MAKERECT(32, 32, 480, 320),
+  NULL, document_proc, hinstance, document);
 
-| Flag | Meaning |
-|---|---|
-| `WINDOW_NOTITLE` | No title bar |
-| `WINDOW_NOFILL` | Don't fill background |
-| `WINDOW_NORESIZE` | Disable resize handle |
-| `WINDOW_TOOLBAR` | Add toolbar strip above content area |
-| `WINDOW_STATUSBAR` | Add status bar below content area |
-| `WINDOW_VSCROLL` | Enable vertical built-in scrollbar |
-| `WINDOW_HSCROLL` | Enable horizontal built-in scrollbar |
-| `WINDOW_ALWAYSONTOP` | Always rendered / hit-tested above regular windows |
-| `WINDOW_ALWAYSINBACK` | Never raised by `move_to_top` |
-| `WINDOW_DIALOG` | Modal dialog (closed by `end_dialog`) |
-| `WINDOW_HIDDEN` | Starts hidden |
-| `WINDOW_TRANSPARENT` | Skip background fill in non-client paint |
-| `WINDOW_NOTRAYBUTTON` | Don't appear in tray / taskbar |
+window_t *save_button = create_window(
+  "Save", WINDOW_NOTITLE,
+  MAKERECT(16, 16, 64, 19),
+  main_win, "Button", hinstance, NULL);
+save_button->id = ID_SAVE;
+
+show_window(main_win, true);
+```
+
+The final `param` is delivered as `lparam` during `evCreate`. Pass the owning
+application instance to top-level and app-owned child windows; standalone
+system windows may use `0`.
+
+## Frames And Client Rectangles
+
+`frame` is the outer window rectangle in logical pixels. Top-level coordinates
+are relative to the Orion screen; child coordinates are relative to the
+parent's content layout.
+
+Use `get_client_rect()` for painting, layout, scrolling, and hit-testing inside
+a window. It excludes title bars, toolbars, status bars, and visible built-in
+scrollbars:
+
+```c
+case evPaint: {
+  irect16_t client = get_client_rect(win);
+  fill_rect(get_sys_color(brWindowBg), client.x, client.y,
+            client.w, client.h);
+  return true;
+}
+```
+
+When creating a fixed-size outer window from a desired client size, call
+`adjust_window_rect()`. Use `center_window_rect()` to center an outer frame on
+an owner or the screen.
 
 ## Window Procedure
 
 ```c
-typedef int (*winproc_t)(window_t *win, uint32_t msg,
-                         uint32_t wparam, void *lparam);
+typedef result_t (*winproc_t)(window_t *win, uint32_t msg,
+                              uint32_t wparam, void *lparam);
 ```
 
-Return `true` (non-zero) if the message was handled; `false` to allow
-default processing or child dispatch.
+Return `true` when the message is handled and `false` when Orion should continue
+normal processing.
 
 ```c
-static result_t my_proc(window_t *win, uint32_t msg,
-                        uint32_t wparam, void *lparam) {
+static result_t document_proc(window_t *win, uint32_t msg,
+                              uint32_t wparam, void *lparam) {
   switch (msg) {
     case evCreate:
-      /* one-time initialisation; lparam = value passed to create_window */
+      win->userdata = lparam;
       return true;
     case evPaint:
-      fill_rect(0xff202020, 0, 0, win->frame.w, win->frame.h);
+      paint_document(win, win->userdata);
+      return true;
+    case evResize:
+      layout_document(win);
       return true;
     case evDestroy:
-      free(win->userdata);
+      release_view_resources(win->userdata);
       return true;
     default:
       return false;
   }
 }
 ```
+
+Use `allocate_window_data()` when the state belongs exclusively to one window.
+Persistent application/model objects should not store live `window_t *` handles
+unless they are controller or view state.
 
 ## Lifecycle
 
-```c
-// Create
-window_t *win = create_window("Title", 0, MAKERECT(100,100,400,300),
-                               NULL, my_proc, NULL);
-show_window(win, true);
+1. `create_window` allocates the window and sends `evCreate`.
+2. `show_window(win, true)` makes it visible.
+3. `invalidate_window` schedules `evPaint`.
+4. `move_window` and `resize_window` update geometry and send layout messages.
+5. `destroy_window` sends `evDestroy`, destroys children, and releases the
+   framework-owned object.
 
-// Destroy (sends evDestroy, frees children, then frees win)
-destroy_window(win);
+Pair every resource allocation performed for `evCreate` with cleanup in
+`evDestroy`. Do not draw outside `evPaint`.
+
+## Common Flags
+
+| Flag | Meaning |
+|---|---|
+| `WINDOW_NOTITLE` | No title bar |
+| `WINDOW_NOFILL` | Skip default client background fill |
+| `WINDOW_NORESIZE` | Disable user resize |
+| `WINDOW_TOOLBAR` | Add a framework-owned toolbar strip |
+| `WINDOW_STATUSBAR` | Add a framework-owned status bar |
+| `WINDOW_VSCROLL` | Add a built-in vertical scrollbar |
+| `WINDOW_HSCROLL` | Add a built-in horizontal scrollbar |
+| `WINDOW_ALWAYSONTOP` | Keep a palette or transient window above regular windows |
+| `WINDOW_ALWAYSINBACK` | Keep a desktop/background window behind regular windows |
+| `WINDOW_DIALOG` | Apply modal-dialog behavior |
+| `WINDOW_HIDDEN` | Start hidden |
+| `WINDOW_TRANSPARENT` | Preserve parent/background pixels where the window does not draw |
+| `WINDOW_NOTRAYBUTTON` | Omit a top-level window from tray/task UI |
+| `WINDOW_AUTO_LAYOUT` | Arrange children through their layout container |
+
+Control-specific flags and messages are documented in [Controls](controls).
+
+## Parent, Children, And IDs
+
+A child belongs to its parent for lifetime, layout, hit-testing, and command
+routing. Assign stable IDs to controls and retrieve them with
+`get_window_item()`:
+
+```c
+window_t *name_edit = get_window_item(dialog, ID_NAME);
+set_window_item_text(dialog, ID_NAME, "%s", model->name);
+enable_window(get_window_item(dialog, ID_OK), model->name[0] != '\0');
 ```
+
+Controls send `evCommand` to the root. `LOWORD(wparam)` is the control or
+command ID, `HIWORD(wparam)` is the notification code, and `lparam` commonly
+identifies the source window.
+
+## Focus, Capture, And Z-Order
+
+- `set_focus(win)` directs keyboard/text input to a control.
+- `set_capture(win)` keeps mouse input routed to a dragging control until
+  capture is released.
+- `move_to_top(win)` raises a regular top-level window while respecting
+  `WINDOW_ALWAYSONTOP` palettes.
+- `track_mouse(win)` requests mouse-leave tracking.
+
+The central event router owns descendant hit-testing and coordinate conversion.
+A child receives pointer coordinates in its own content space, including its
+scroll offset. Do not add the scroll position again in app code.
 
 ## Dialogs
 
-For the complete dialog API — including modal dialogs, declarative forms, and
-the Dialog Data Exchange (DDX) helpers (`dialog_push` / `dialog_pull`) — see
-[Dialogs & DDX](dialogs).
-
-Modal dialogs follow the same pattern as Win32 `DialogBoxParam` / `EndDialog`:
-`show_dialog` runs a **nested message loop** that blocks the caller until
-`end_dialog` is called, then returns the numeric result code.
-
-### API
+Use declarative forms for dialogs containing multiple standard controls:
 
 ```c
-// Create and display a modal dialog.
-// Blocks until end_dialog() closes the dialog.
-// Returns the code passed to end_dialog() (0 on X-button close).
-uint32_t show_dialog(
-    const char  *title,    // title bar text
-    irect16_t const *frame,   // MAKERECT(x, y, w, h) – logical pixels
-    window_t    *parent,   // owner window, or NULL
-    winproc_t    proc,     // dialog window procedure
-    void        *param     // forwarded as lparam to evCreate
-);
-
-// Close the dialog and return a result code to show_dialog's caller.
-// 'win' can be the dialog window itself or any child (e.g. a button).
-// The result code 0 conventionally means "cancelled".
-void end_dialog(window_t *win, uint32_t code);
+uint32_t result = show_dialog_from_form(
+  &myapp_settings_form, "Settings", parent,
+  settings_proc, &settings);
 ```
 
-### How it works
-
-1. `show_dialog` creates a top-level `WINDOW_DIALOG` window, calls
-   `enable_window(parent, false)` to block mouse/keyboard input to the owner,
-   then enters an inner `get_message` / `dispatch_message` loop.
-2. The loop runs until either `end_dialog` destroys the dialog window **or**
-   `running` becomes `false` (application quit).
-3. `end_dialog` writes the code into the `uint32_t` pointed to by
-   `dlg->userdata2`, then calls `destroy_window`.  Once the dialog is gone
-   `is_window(dlg)` returns false and the loop exits.
-4. `show_dialog` re-enables the parent and returns the recorded result code.
-
-Each `show_dialog` call stores its result on its **own stack frame**, so
-nested dialogs are fully reentrant — closing an inner dialog never corrupts
-the outer dialog's result.
-
-### Minimal example
+For a custom single-surface modal window, the raw API accepts a client width and
+height:
 
 ```c
-typedef struct { char path[512]; } open_state_t;
-
-static result_t open_proc(window_t *win, uint32_t msg,
-                           uint32_t wparam, void *lparam) {
-  open_state_t *s = (open_state_t *)win->userdata;
-  switch (msg) {
-    case evCreate:
-      win->userdata = lparam;  // open_state_t * passed via param
-      // Create child controls
-      create_window("OK", 0, MAKERECT(10, 60, 60, BUTTON_HEIGHT),
-                    win, win_button, NULL);
-      create_window("Cancel", 0, MAKERECT(80, 60, 60, BUTTON_HEIGHT),
-                    win, win_button, NULL);
-      return true;
-
-    case evCommand:
-      if (HIWORD(wparam) == btnClicked) {
-        window_t *btn = (window_t *)lparam;
-        if (strcmp(btn->title, "OK") == 0) {
-          strncpy(s->path, "chosen.png", sizeof(s->path) - 1);
-          end_dialog(win, 1);   // 1 = accepted
-        } else {
-          end_dialog(win, 0);   // 0 = cancelled
-        }
-      }
-      return true;
-
-    default:
-      return false;
-  }
-}
-
-// Caller
-open_state_t state = {0};
-uint32_t ok = show_dialog("Open File",
-                           MAKERECT(100, 80, 200, 100),
-                           my_win, open_proc, &state);
-if (ok)
-  load_file(state.path);
+uint32_t result = show_dialog(
+  "Preview", 420, 300, parent, preview_proc, preview_state);
 ```
 
-### Conventions
+Close a modal window with `end_dialog(win, result)`. See
+[Dialogs & DDX](dialogs) for forms, state exchange, confirmation semantics, and
+database-backed dialogs.
 
-| Result code | Meaning |
-|---|---|
-| `0` | Cancelled (user pressed Cancel or closed the X button) |
-| `1` | Accepted (user pressed OK / Open / Save) |
-| Any other | Application-defined (e.g. multi-button confirmation dialogs) |
+## Layout
 
-### Real-world usage
-
-The image-editor's file picker (`examples/imageeditor/filepicker.c`) shows a
-complete dialog with a `win_filelist` browser, a filename edit box, and
-Open/Save/Cancel buttons — all driven by `show_dialog` / `end_dialog`.
+Static multi-control windows should normally be declared in `.orion` XML. For
+runtime-created containers, measure and arrange through Orion's layout APIs:
 
 ```c
-// Invoked from the File > Open and File > Save As menu handlers:
-static bool show_file_picker(window_t *parent, bool save_mode,
-                              char *out_path, size_t out_sz) {
-  picker_state_t ps = {0};
-  ps.mode = save_mode ? PICKER_SAVE : PICKER_OPEN;
-
-  uint32_t result = show_dialog(save_mode ? "Save PNG" : "Open PNG",
-      MAKERECT(50, 50, PICKER_WIN_W, PICKER_WIN_H),
-      parent, picker_proc, &ps);
-
-  if (result && ps.accepted) {
-    strncpy(out_path, ps.result, out_sz - 1);
-    return true;
-  }
-  return false;
-}
+irect16_t client = get_client_rect(win);
+layout_arrange_window(content, &client);
 ```
 
-## Mouse Coordinate Notes
+Use `StackView`, `GridView`, and `Column` classes rather than open-coded child
+coordinate arithmetic. See [Architecture](architecture) for layout
+ownership and [Controls](controls) for container behavior.
 
-For ordinary dispatched mouse messages, `LOWORD(wparam)` and
-`HIWORD(wparam)` are in the receiving window's **content space**. The window
-system converts screen coordinates to window-local coordinates and includes
-the receiving window's horizontal and vertical scroll positions. This is true
-for both direct targets and nested child windows; controls must not apply the
-scroll offset a second time.
+## Related Guides
 
-Child hit-testing itself happens in parent viewport space. `handle_mouse()` in
-`user/event.c` performs the viewport-to-content conversion while descending
-the window tree. See [Window and input event routing](architecture#window-and-input-event-routing)
-for the complete dispatch model and the special scrollbar/toolbar paths.
-
-## Useful Helpers
-
-```c
-void  show_window(window_t *win, bool visible);
-void  move_window(window_t *win, int x, int y);
-void  resize_window(window_t *win, int w, int h);
-void  invalidate_window(window_t *win);   // request repaint
-void  set_focus(window_t *win);
-void  set_capture(window_t *win);         // capture all mouse events
-bool  is_window(window_t *win);           // safe existence check
-window_t *get_root_window(window_t *win);
-irect16_t center_window_rect(irect16_t frame_rect, window_t const *owner);
-
-// Allocate and zero window userdata (freed automatically on destroy)
-void *allocate_window_data(window_t *win, size_t size);
-```
-
-`center_window_rect()` centers a full window-frame rect inside an owner window's
-frame, or on the screen when `owner == NULL`. The input rect is treated as the
-actual top-left/titlebar origin and full frame size, not as a client rect.
-This is the preferred helper for centering modeless windows and any custom
-window created with `create_window()` / `create_window_from_form()`.
-
-```c
-irect16_t wr = {0, 0, 320, 120};
-adjust_window_rect(&wr, WINDOW_DIALOG | WINDOW_NORESIZE);
-wr = center_window_rect(wr, owner_win);
-
-window_t *dlg = create_window("Options",
-  WINDOW_DIALOG | WINDOW_NORESIZE,
-  &wr, NULL, options_proc, 0, state);
-```
-
-## Built-in Scrollbars
-
-Set `WINDOW_HSCROLL` and/or `WINDOW_VSCROLL` at creation time and call
-`set_scroll_info()` to drive the bars.  The framework paints them and sends
-`evHScroll` / `evVScroll` when the user moves a thumb.
-
-See [Scrollbars](scrollbars) for the full API and usage examples.
+- [Messages & Events](messages)
+- [Controls](controls)
+- [Dialogs & DDX](dialogs)
+- [Scrollbars](scrollbars)
+- [Toolbars](toolbars)
+- [Architecture](architecture)

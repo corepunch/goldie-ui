@@ -6,227 +6,202 @@ nav_order: 3
 
 # Architecture
 
-Orion mirrors the layered design of classic Windows:
+Orion is a standalone C UI framework with a WinAPI-style message model. The
+stable architecture is organized around ownership and message boundaries, not
+around individual source files.
 
-| Layer | Role | Your code |
-|---|---|---|
-| Application | Sample apps and user code | `samples/`, `examples/` |
-| commctl | Common Controls (COMCTL32.DLL) | `commctl/` — buttons, lists, menubar |
-| user | Window Management (USER.DLL) | `user/` — create/destroy, draw, text |
-| kernel / platform | Rendering + native backends (KERNEL.DLL) | `kernel/` — OpenGL, input queue, OS integration |
-| ui.h | Master framework header | Include in every app; pulls in all subsystems |
+## Layers
 
-### File layout
-
-```
-ui.h              ← master framework header (include this in every app)
-user/             ← window management, message queue, drawing, text, accelerators
-  user.h            window_t, irect16_t, public API
-  messages.h        message constants, window flags, colours
-  window.c          create_window, destroy_window, move_window, find_window
-  message.c         send_message, post_message, get_root_window
-  event.c           platform event translation, mouse/key/wheel routing
-  scrollbar.c       built-in window scrollbar input and position updates
-  draw.h / draw_impl.c   fill_rect, draw_rect, draw_icon8/16, viewports
-  text.h / text.c   draw_text_small, strwidth, bitmap font atlas
-kernel/           ← SDL event loop, init, renderer
-  kernel.h          ui_init_graphics, get_message, dispatch_message, UI_WINDOW_SCALE
-  renderer.c        sprite/quad rendering via VAO/VBO, orthographic projection
-  joystick.c        gamepad / joystick input
-commctl/          ← reusable controls
-  commctl.h         button, checkbox, combobox, textedit, label, list, tabview, console
-  columnview.h      reportview (column view) control
-  menubar.h         menu bar control
-tests/            ← all test source files (*.c)
-  test_framework.h  header-only test framework
-  test_env.h        SDL-init helper for tests needing a display
+```text
+apps/          Applications, declarative resources, app components, and tests
+orion/user/    Windows, messages, input routing, drawing, forms, and resources
+orion/kernel/  Graphics lifecycle, rendering, HTTP, and shared runtime services
+orion/commctl/ Reusable controls and layout containers
+orion/commdlg/ Modal dialogs and common pickers
+platform/      Native OS windows, events, filesystems, processes, and networking
+share/         Framework fonts, icons, shaders, and deployable assets
+tests/         Framework behavior and integration tests
+tools/         Resource compilers, generators, and release utilities
 ```
 
-## `user/` – Window Management (USER.DLL)
+Dependencies point inward:
 
-Responsible for window lifecycle, the message queue, drawing primitives, and
-text rendering.
+```mermaid
+flowchart TD
+  App[Application] --> Dialogs[Common dialogs]
+  App --> Controls[Common controls]
+  Dialogs --> User[Window and message system]
+  Controls --> User
+  User --> Kernel[Graphics and runtime services]
+  Kernel --> Platform[Native Platform layer]
+```
 
-| File | Purpose |
-|---|---|
-| `user.h` | `window_t`, `irect16_t`, public API |
-| `messages.h` | Message constants (`kWindowMessage*`), window flags, colours |
-| `window.c` | `create_window`, `destroy_window`, `move_window`, `find_window` |
-| `message.c` | `send_message`, `post_message`, `get_root_window` |
-| `event.c` | Platform event translation and mouse/key/wheel routing |
-| `scrollbar.c` | Built-in window scrollbar input and position updates |
-| `draw.h` / `draw_impl.c` | `fill_rect`, `draw_rect`, `draw_icon8/16`, viewports |
-| `text.h` / `text.c` | `draw_text_small`, `strwidth`, bitmap font atlas |
+Applications should not bypass Orion to duplicate platform event routing,
+window controls, timers, clipboard, or other framework-level behavior. When a
+capability belongs to the UI framework, extend the owning Orion layer.
 
-## `kernel/` – Rendering Core (KERNEL.DLL)
+## Application Lifecycle
 
-Provides the renderer and low-level shared services. Platform backends supply
-the native event queue; `user/event.c` translates that input into window
-messages. The application's `main()` calls
-`ui_init_graphics()` then loops with `get_message` / `dispatch_message` /
-`repost_messages`.
+A substantial app normally has one source lifecycle for two deployment modes:
 
-| File | Purpose |
-|---|---|
-| `kernel.h` | `ui_init_graphics`, `get_message`, `dispatch_message`, `UI_WINDOW_SCALE` |
-| `renderer.c` | Sprite/quad rendering via VAO/VBO, orthographic projection |
-| `joystick.c` | Gamepad / joystick input |
+- **Standalone executable**: initializes graphics and owns the event loop.
+- **GEM module**: creates its windows inside Orion Shell and shares Shell's
+  event loop and framework state.
 
-## `commctl/` – Common Controls (COMCTL32.DLL)
+`GEM_DEFINE` exports the module interface. `GEM_STANDALONE_MAIN` supplies the
+standard standalone initialization, accelerator-aware loop, cleanup, and
+`--screenshot PATH` support. See [Getting Started](docs/getting-started.md) and
+[GEM Plugin System](docs/gems.md).
 
-Each control is a window procedure (`winproc_t`) that handles a standard
-message set.
+## Windows And Messages
 
-| Control | Proc | Header |
-|---|---|---|
-| Button | `win_button` | `commctl.h` |
-| Checkbox | `win_checkbox` | `commctl.h` |
-| Combobox | `win_combobox` | `commctl.h` |
-| Text edit | `win_textedit` | `commctl.h` |
-| Label | `win_label` | `commctl.h` |
-| List | `win_list` | `commctl.h` |
-| Column view | `win_reportview` | `columnview.h` |
-| Tab view | `win_tabview` | `commctl.h` |
-| Menu bar | `win_menubar` | `menubar.h` |
-| Console | `win_console` | `commctl.h` |
-
-### TabView command-panel pattern
-
-`win_tabview` owns the tab header and the visibility/arrangement of its direct
-child pages. Configure a tab view in this order:
-
-1. Create the `TabView`.
-2. Create all direct child pages. Their order is the tab order.
-3. Set optional style and image-strip state.
-4. Set each tab icon by index.
-5. Arrange the TabView once with the parent client rectangle during creation;
-   later parent resize notifications should repeat that arrangement.
-
-`tcSetTabIcon` validates its index against the current direct-child count. An
-icon assignment sent before page creation is rejected and logged, so setup
-messages must not be sent before the pages exist. `TAB_STYLE_ICONS_ONLY` is
-the reusable style for compact icon tabs; it changes tab width and drawing but
-does not change selection or child-page arrangement.
-
-Creating a TabView or page with a `1×1` placeholder frame is valid while the
-children are being constructed, but it must not be painted before the first
-real `evArrange`. Otherwise page-local layout sees a one-pixel client width,
-which collapses a two-column grid and makes only the first column appear.
-
-Page content is painted in the page window's own client coordinates. For a
-two-column command-panel grid, calculate one shared item rectangle for both
-painting and hit-testing; derive its width from `get_client_rect(page).w`,
-including the column gap and horizontal padding. Do not include the TabView's
-header height in page-local coordinates—the TabView has already arranged the
-page below its header.
-
-The command panel uses the existing layout hierarchy directly: each page is a
-vertical `StackView`, each section is a vertical `StackView` containing a
-`Label` and a `GridView`, and each grid owns its two default `Column` children
-containing real `Button` controls. This lets the framework measure, arrange,
-paint, hit-test, and route button notifications consistently; do not replace
-this with manual y-coordinate painting when adding command-panel sections.
-
-Command-panel content is supplied through a `cp_datasource_t`. Its tabs and
-sections reference arrays of command descriptors; each descriptor contains the
-display label, icon, command ID, action callback, and callback context. The
-current datasource adapts existing `handle_menu_command` IDs, while future
-panels can provide mode/class/function callbacks without changing the layout
-builder or notification routing.
-
-Rejected framework messages and invalid control state must always produce an
-unconditional `stderr` diagnostic with the module prefix, window id, and
-relevant values. TabView diagnostics use the `[tv]` prefix.
-
-## Z-Order and `WINDOW_ALWAYSONTOP`
-
-Windows are stored in a linked list.  `find_window` returns the **last**
-matching window (highest z-order).  `move_to_top` places a regular window
-just before the first `WINDOW_ALWAYSONTOP` entry so palette / menu-bar
-windows always stay on top regardless of user clicks.
-
-## `UI_WINDOW_SCALE`
-
-Defined in `kernel/kernel.h` with `#ifndef` guard so it can be overridden at
-compile time:
+Every window has a procedure:
 
 ```c
-#ifndef UI_WINDOW_SCALE
-#define UI_WINDOW_SCALE 2   // default: SDL window is 2x the logical size
-#endif
+typedef result_t (*winproc_t)(window_t *win, uint32_t msg,
+                              uint32_t wparam, void *lparam);
 ```
 
-`SCALE_POINT(x)` divides raw SDL mouse coordinates by `UI_WINDOW_SCALE` to
-produce logical pixel coordinates used throughout the framework.
+Messages establish the main ownership boundary:
 
-## Window and input event routing
+1. Platform receives a native event.
+2. Orion translates it into an `ev*` message.
+3. The window system finds the target and converts coordinates.
+4. The target window procedure handles the message.
+5. Child controls notify the root through `evCommand`.
+6. State changes invalidate windows; drawing occurs during `evPaint`.
 
-`dispatch_message()` in `user/event.c` translates platform input into Orion
-messages. Top-level targeting starts with `find_window()`. Mouse input then has
-two equivalent delivery paths:
+Use `send_message()` for synchronous behavior and `post_message()` for queued
+work. Menus, toolbars, context menus, and accelerators should converge on the
+same command IDs so one controller path owns each action.
 
-1. **Direct delivery:** when the target returned by `find_window()` receives
-   the event itself, `LOCAL_X` / `LOCAL_Y` convert screen coordinates to that
-   window's content coordinates and add `win->hscroll.pos` /
-   `win->vscroll.pos`.
-2. **Nested delivery:** `handle_mouse()` recursively routes from a parent to
-   the deepest child under the pointer. It hit-tests each child's `frame` in
-   the parent's viewport, subtracts `c->frame.x/y`, and adds
-   `c->hscroll.pos/vscroll.pos` before recursing or calling `send_message()`.
+## Input And Coordinate Spaces
 
-These paths implement the same contract: a window procedure receives mouse
-coordinates in its own **content space**, with system scrolling already
-applied. A view should use the coordinates it receives directly; it must not
-add its scroll position again. This is a window-system responsibility so a
-control behaves identically as a root child or inside arbitrarily nested
-stacks, grids, and other layout containers.
+The window system owns parent-to-child routing and conversion. A window
+procedure receives pointer coordinates in its own content space, including the
+window's built-in scroll offset. Views must not compensate a second time.
 
-### Coordinate spaces
+| Space | Meaning |
+|---|---|
+| Platform screen | Native backend coordinates |
+| Logical screen | Coordinates normalized to Orion's logical scale |
+| Parent viewport | Visible area used to hit-test child frames |
+| Window content | Local coordinates delivered to the target procedure |
 
-| Space | Meaning | Used for |
+Hit-test a child frame in parent viewport space, then convert to child content
+space for delivery. Non-client areas such as title bars, built-in toolbars, and
+scrollbars are intercepted by the window system before ordinary client input.
+See [Window System](docs/window-system.md) and
+[Messages & Events](docs/messages.md).
+
+## Controls And Notifications
+
+Controls are ordinary windows with registered classes and message contracts.
+They own local interaction state and send notifications through `evCommand`:
+
+```c
+case evCommand:
+  if (LOWORD(wparam) == ID_SAVE && HIWORD(wparam) == btnClicked) {
+    app_save_document();
+    return true;
+  }
+  return false;
+```
+
+This keeps application policy out of reusable controls. A control may expose
+control-specific messages, but model mutation and workflow decisions stay in
+the application controller. See [Controls](docs/controls.md).
+
+## Declarative UI And Resources
+
+`.orion` XML is the canonical representation for static forms, menus, toolbars,
+accelerators, databases, and bindings. `orionc` compiles it into typed C
+metadata.
+
+Declarative resources are self-contained. A field such as
+`field="db.posts.title"` names its database, table, and column; the form resolves
+registered resources by name instead of requiring the caller to pass duplicate
+context. This makes definitions serializable, previewable, and safe to reuse.
+
+Use forms for dialogs or panels containing multiple standard controls. Use
+registered window classes for custom visual behavior, and communicate with
+those controls through messages and notifications.
+
+## Layout
+
+Layout behavior belongs to container classes:
+
+- `StackView` arranges children along one axis; `WINDOW_FLEXSPACE` distributes
+  remaining space among stack children.
+- `GridView` owns explicit columns; columns without fixed width share available
+  width.
+- `Column` stacks its children vertically inside a grid.
+
+Measure computes desired sizes; arrange assigns final rectangles. Use
+`get_client_rect()` for client-space work and the `rect_*` helpers for geometry.
+Do not derive client layout from `win->frame`, which includes non-client chrome.
+
+## Application Boundaries
+
+For nontrivial apps, keep these responsibilities distinct:
+
+| Layer | Owns | Must not own |
 |---|---|---|
-| Platform screen | Physical platform coordinates | Incoming platform event |
-| Logical screen | Platform coordinates divided by `UI_WINDOW_SCALE` | Top-level lookup |
-| Parent viewport | Visible coordinates within a parent | Testing against child `frame` |
-| Window content | Window-local coordinates plus its scroll position | Mouse messages delivered to `win->proc` |
+| Model | Persistent data, validation, CRUD, serialization | Windows, drawing, GL resources |
+| Controller | App state, commands, active document, notifications | Pixel-level drawing or file parsing |
+| View | Window procedures, painting, hit-testing, live controls | Project/database persistence policy |
+| Layout | Measure, arrange, reflow, drop targets | App command dispatch |
+| I/O | Archive, database, and file formats | Input routing or selection drawing |
 
-Child `frame` coordinates are relative to the parent's content layout. Do not
-add a child's scroll offset before checking whether the pointer is inside its
-visible frame: hit-test in viewport space first, then convert to child content
-space for delivery.
+UI-originated mutations should go through named commands. Commands update the
+model, dirty state, layout/live views, and interested panels in one place.
 
-### Scrolling and built-in scrollbars
+## Scrolling
 
-`WINDOW_HSCROLL` and `WINDOW_VSCROLL` attach framework-owned scrollbars to a
-window. Their input is intercepted centrally by `send_message()` before the
-window procedure runs. `user/scrollbar.c` updates the position and emits
-`evHScroll` / `evVScroll`; controls publish their range/page with
-`set_scroll_info()` and redraw in response. Wheel events target the deepest
-child, use a visible built-in scrollbar when available, and otherwise bubble
-to the parent with translated coordinates.
+`WINDOW_HSCROLL` and `WINDOW_VSCROLL` add framework-owned scrollbars to a
+content window. The view publishes range, page, and position with
+`set_scroll_info()` and handles `evHScroll` / `evVScroll` notifications.
+Standalone `win_scrollbar` controls are reserved for layouts where the
+scrollbar is an independent child.
 
-The system owns input-coordinate adjustment, scrollbar hit-testing, dragging,
-and wheel routing. A scrollable view still owns its content extent, paints at
-`content_position - scroll_position`, and handles scroll notifications to
-invalidate or synchronize its model.
+The framework owns scrollbar hit-testing, drag behavior, wheel routing, and
+coordinate adjustment. The view owns content extent and painting at
+`content_position - scroll_position`. See [Scrollbars](docs/scrollbars.md).
 
-### Toolbars and non-client input
+## Rendering
 
-Toolbars occupy non-client space above the normal client area. Toolbar input
-therefore does not follow ordinary child routing: `dispatch_message()` finds
-the toolbar host and sends button down/up through the embedded-toolbar helpers.
-Title-bar drag/resize and built-in scrollbar input are likewise handled before
-ordinary view dispatch. Captured mouse input is delivered directly to the
-capturing window, bypassing normal descendant hit-testing.
+Platform creates and owns the native graphics surface. `ui_begin_frame()` makes
+the context current and binds the platform framebuffer; `ui_end_frame()`
+presents it. Applications use Orion drawing and renderer APIs inside
+`evPaint`. Raw rendering state belongs in rendering/view modules, never in
+persistent model objects.
 
-### Debugging checklist
+Screenshots use the same framebuffer boundary. `ui_request_screenshot_jpg()`
+waits for a fully painted frame, while `ui_save_screenshot_jpg()` captures the
+current completed frame immediately.
 
-- If a click is wrong only after scrolling, compare the painted content
-  coordinate with the delivered mouse content coordinate.
-- If only nested controls fail, inspect `handle_mouse()` rather than adding a
-  correction to the control.
-- If only a top-level/direct target fails, inspect `LOCAL_X` / `LOCAL_Y`.
-- If the failure is over a scrollbar, toolbar, title bar, or during capture,
-  inspect the corresponding interception path before the window procedure.
-- Keep hit-testing in viewport space and event delivery in content space;
-  mixing those two produces an error exactly equal to the scroll offset.
+## Debugging The Message Pipeline
+
+For an interaction bug, follow ownership in order:
+
+1. Confirm the platform event reaches Orion.
+2. Confirm the correct top-level and child target.
+3. Confirm delivered coordinates and scroll position.
+4. Confirm the child notification and packed command ID.
+5. Confirm the controller mutation.
+6. Confirm invalidation and repaint.
+
+Application traces should log user action boundaries and state mutations.
+Framework diagnostics should include the module prefix, window ID, and rejected
+values. Avoid per-frame logging.
+
+## Design Rules
+
+- Prefer existing controls, messages, flags, and layout metadata.
+- Add a new primitive only when existing abstractions cannot express behavior.
+- Keep one canonical representation per concept.
+- Use class/procedure-driven behavior instead of global mode switches.
+- Keep drawing and hit-testing in the same explicit coordinate space.
+- Keep persistent models free of live `window_t *` and renderer resources.
+- Use accelerators for shortcuts and route them through normal commands.
+- Use declarative forms for static multi-control dialogs and panels.

@@ -42,7 +42,7 @@ CODE EXAMPLE:
 window_t *win = create_window("File Manager", 
     WINDOW_STATUSBAR,  // Add this flag
     MAKERECT(20, 20, 340, 400), 
-    NULL, window_proc, NULL);
+    NULL, window_proc, 0, NULL);
 
 // Update status bar text
 send_message(win, evStatusBar, 0, "/home/user/workspace");

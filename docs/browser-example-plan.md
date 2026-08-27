@@ -1,4 +1,13 @@
-# Browser Example MVP Plan
+---
+layout: default
+title: Browser MVP Plan
+nav_exclude: true
+---
+
+# Browser MVP Plan
+
+> **Internal implementation plan.** For supported application patterns, start
+> with [Getting Started](getting-started) and the [Applications](examples) gallery.
 
 ## Goal
 
@@ -22,7 +31,7 @@ Everything else is explicitly deferred until after this works.
 
 ## MVP Phase 1: Minimal Skeleton
 
-1. Add `examples/browser/` with one main window proc.
+1. Add `apps/browser/` with one main window proc.
 2. Keep state minimal:
    - `current_url`
    - `loading` flag

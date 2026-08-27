@@ -1,127 +1,114 @@
 ---
 layout: default
-title: Examples
+title: Applications
 nav_order: 9
 ---
 
-# Examples
+# Applications
 
-All examples live in `examples/` and can be built with `make examples`.
-Each example also compiles as a loadable `.gem` (`make gems`) and can be
-run under `orion-shell`. See [Gem Plugin System](gems.md) for details.
+Orion ships complete applications under `apps/`. They are useful programs as
+well as reference implementations for messages, declarative forms, databases,
+controls, native platform services, and loadable GEM modules.
 
-The imageeditor, taskmanager, and formeditor examples all follow the
-**MDI application pattern** — the recommended architecture for full Orion
-apps. See [MDI Application Architecture](mdi.md) for the complete guide.
+Build the suite with `make apps`, or install released apps independently with
+the [Orion Package Manager](package-manager/). See the
+[Application Presentation Guide](app-presentation) when adding another app to
+this gallery.
 
-## Hello World (`helloworld.c`)
+## Image Editor
 
-The minimal Orion program: one window, one label, one button.
+![Image Editor with Orion artwork open](screenshots/imageeditor_orion.jpg)
 
-```bash
-./build/bin/helloworld
-```
-
-Key patterns shown:
-- `ui_init_graphics` / `ui_shutdown_graphics`
-- `create_window` + `show_window`
-- `get_message` / `dispatch_message` / `repost_messages` loop
-- `evPaint` → `fill_rect` + `draw_text_small`
-- `evCommand` → button click handling
-
-## File Manager (`filemanager.c`)
-
-A two-pane file browser using `win_reportview`.
+A multi-document raster editor with drawing and selection tools, layers,
+palettes, image filters, animation frames, onion skinning, and PNG/JPEG/BMP
+I/O. It demonstrates MDI documents, toolbars, floating palettes, custom canvas
+rendering, scrollbars, lists, and timeline controls.
 
 ```bash
-./build/bin/filemanager
+orion install imageeditor
+build/bin/imageeditor images/logo.png
 ```
 
-Key patterns shown:
-- `win_reportview` with `RVM_ADDITEM` / `RVM_CLEAR`
-- `RVN_SELCHANGE` / `RVN_DBLCLK` notifications
-- `evStatusBar` for path display
-- Directory traversal with `opendir` / `readdir` / `stat`
+## Git Client
 
-## Image Editor (`imageeditor.c`)
+![Git Client showing the Orion repository](screenshots/gitclient_orion.jpg)
 
-A MacPaint-inspired MDI raster image editor with PNG open/save.
+A repository client with working-tree changes, staging, commit history,
+branches, remotes, tags, stashes, GitHub issues and pull requests, and unified
+or split diffs. It demonstrates tab views, report views, split views, toolbar
+actions, status bars, database adaptors, and always-on interaction tracing.
 
 ```bash
-./build/bin/imageeditor
+orion install gitclient
+build/bin/gitclient .
 ```
 
-Demonstrates the full framework surface:
+## Form Editor
 
-| Feature | API used |
-|---|---|
-| MDI document windows | `create_window` with `WINDOW_TOOLBAR \| WINDOW_STATUSBAR` |
-| Floating tool palette | `WINDOW_ALWAYSONTOP` top-level window |
-| Floating colour palette | `WINDOW_ALWAYSONTOP`, left/right click = FG/BG colour |
-| Menu bar (File menu) | `win_menubar`, `kMenuBarMessageSetMenus`, chained proc |
-| Canvas rendering | OpenGL texture (`glTexImage2D` / `glTexSubImage2D`) + `draw_rect` |
-| Drawing tools | Pencil, brush, eraser, flood-fill (BFS) |
-| File picker dialog | Modal dialog with `win_reportview` |
-| PNG I/O | `load_image` / `save_image_png` (stb_image, built into the framework) |
+![Form Editor showing the SocialFeed project](screenshots/formeditor_socialfeed.jpg)
 
-### Running at larger size
-
-By default Orion uses 2x window scaling.  Build without it for a larger
-logical canvas:
+A visual editor for declarative `.orion` projects. It combines a component
+library, live design surface, forms browser, property inspector, database
+bindings, plugin discovery, and project serialization.
 
 ```bash
-make examples CFLAGS="-DUI_WINDOW_SCALE=1"
-./build/bin/imageeditor
+orion install formeditor
+build/bin/formeditor apps/socialfeed/socialfeed.orion
 ```
 
-### Mouse coordinate note for canvas children
+## Social Feed
 
-Child windows discovered via `evHitTest` receive absolute
-logical coordinates in `wparam`.  Convert to child-local coords with:
+![Social Feed with seeded posts and authors](screenshots/socialfeed_main.jpg)
 
-```c
-window_t *root = get_root_window(win);
-int lx = (int16_t)LOWORD(wparam) - root->frame.x - win->frame.x;
-int ly = (int16_t)HIWORD(wparam) - root->frame.y - win->frame.y;
+A database-driven social application with authors, posts, comments, replies,
+and generated edit forms. It demonstrates self-contained field bindings,
+XML-backed data, report views, modal forms, and MVC application structure.
+
+```bash
+orion install socialfeed
+build/bin/socialfeed
 ```
 
-## Browser MVP (`browser/main.c`)
+## Task Manager
 
-A minimal browser-style example focused on fast HTML-to-text viewing.
+![Task Manager with a seeded project backlog](screenshots/taskmanager_backlog.jpg)
 
-Key patterns shown:
-- Toolbar navigation (`Back`, `Forward`, `Home`, `Refresh`) + address bar
-- File menu actions (`New Window`, `Save Page HTML`, `Load Page HTML`, `Quit`)
-- Help menu `About` action
-- Async HTTP fetching and completion handling (`evHttpDone`)
-- HTML-to-text conversion via libxml2
-- Local HTML loading via `file://` URL support
+A multi-document task tracker with priorities, status, due dates, editing,
+filtering, and seeded project data. It demonstrates table views, menus,
+toolbars, status bars, document commands, and an MVC split.
 
-Keyboard shortcuts:
-- `Ctrl+N` new window
-- `Ctrl+S` save page HTML
-- `Ctrl+O` load page HTML
-- `Ctrl+Q` quit
+```bash
+orion install taskmanager
+build/bin/taskmanager
+```
 
-## Writing Your Own Example
+## Vibe Office
 
-1. Create `examples/myapp.c` and `#include "../ui.h"`
-2. Implement your window procedure(s)
-3. In `main()`:
-   ```c
-   ui_init_graphics(0, "My App", 800, 600);
-   window_t *w = create_window("My App", 0, MAKERECT(50,50,700,500),
-                                NULL, my_proc, NULL);
-   show_window(w, true);
-   ui_event_t e;
-   while (ui_is_running()) {
-     while (get_message(&e)) dispatch_message(&e);
-     repost_messages();
-   }
-   ui_shutdown_graphics();
-   ```
-4. Add a Makefile rule if your example needs extra libraries:
-   ```makefile
-   $(BIN_DIR)/myapp$(EXE_EXT): examples/myapp.c $(STATIC_LIB) | $(BIN_DIR)
-       $(CC) $(CFLAGS) -o $@ $< $(STATIC_LIB) $(LDFLAGS) $(LDFLAGS_EXAMPLE) $(LIBS)
-   ```
+![Vibe Office agent desktop](screenshots/vibeoffice_agents.jpg)
+
+A desktop-style workspace for assigning work to coding agents and inspecting
+status, models, messages, and generated artifacts. It demonstrates transparent
+desktop children, draggable icon controls, image assets, forms, combo boxes,
+and process-backed application state.
+
+```bash
+orion install vibeoffice
+build/bin/vibeoffice
+```
+
+## Smaller References
+
+- **Hello World** demonstrates the minimal window, label, button, message loop,
+  painting, and command notification flow.
+- **File Manager** demonstrates directory traversal, two-pane report views,
+  selection, double-click navigation, and status text.
+- **Terminal** demonstrates the optional Lua integration and console-style text
+  interaction.
+- **Browser** demonstrates HTTP and local HTML navigation, address editing,
+  scrolling content, menus, and asynchronous completion messages.
+- **Scener** demonstrates native OpenGL scene editing and deterministic
+  multi-camera rendering. Its [complete guide](../apps/scener/README.md)
+  documents scene and prefab authoring.
+
+All substantial applications can also be built as loadable `.gem` modules with
+`make gems` and run inside Orion Shell. See [Gem Plugin System](gems.md).

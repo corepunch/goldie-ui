@@ -31,8 +31,8 @@ void post_message(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 | `evRightButtonDown` | RMB pressed | same |
 | `evMouseMove` | Mouse moved | same |
 | `evMouseLeave` | Mouse left window | – |
-| `evKeyDown` | Key pressed | SDL scancode |
-| `evKeyUp` | Key released | SDL scancode |
+| `evKeyDown` | Key pressed | Orion `AX_KEY_*` value in `wparam` |
+| `evKeyUp` | Key released | Orion `AX_KEY_*` value in `wparam` |
 | `evTextInput` | Text character input | `lparam` = `const char *` UTF-8 |
 | `evWheel` | Mouse wheel | `wparam` = MAKEDWORD(x,y) mouse pos; `lparam` = MAKEDWORD(dx,dy) scroll deltas |
 | `evCommand` | Control notification | `LOWORD`=id, `HIWORD`=notification code |
@@ -72,7 +72,7 @@ case evCommand: {
     if (notif == kMenuBarNotificationItemClick) {
         switch (id) {
             case MY_MENU_OPEN:  open_file(); break;
-            case MY_MENU_QUIT:  running = false; break;
+            case MY_MENU_QUIT:  ui_request_quit(); break;
         }
     }
     return true;
@@ -138,11 +138,14 @@ If a window cannot handle wheel events (no scrollbars or not enabled), the event
 
 ## Keyboard Input
 
+Use accelerators for application shortcuts so keyboard, menu, toolbar, and
+context-menu actions share the same `evCommand` path. Handle `evKeyDown`
+directly only for focused control behavior or raw input.
+
 ```c
 case evKeyDown:
     switch (wparam) {
-        case AX_KEY_ESCAPE: running = false; break;
-        case AX_KEY_S:      save_file();     break;
+        case AX_KEY_ESCAPE: cancel_operation(); break;
     }
     return true;
 
@@ -154,13 +157,11 @@ case evTextInput:
 ## Event Loop
 
 ```c
-extern bool running;
-
 ui_event_t e;
-while (running) {
+while (ui_is_running()) {
     while (get_message(&e))   // blocks until event, then drains queue
         dispatch_message(&e);
-    repost_messages();        // process posted (async) messages + repaint
+    repost_messages();        // process posted messages and repaint
 }
 ```
 
@@ -175,6 +176,6 @@ Register a global hook to intercept any message before it reaches its target
 window:
 
 ```c
-void register_hook(uint32_t msg, winhook_func_t func, void *userdata);
-void unregister_hook(uint32_t msg, winhook_func_t func);
+void register_window_hook(uint32_t msg, winhook_func_t func, void *userdata);
+void deregister_window_hook(uint32_t msg, winhook_func_t func, void *userdata);
 ```
