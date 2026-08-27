@@ -319,42 +319,17 @@ static uint32_t fe_parse_form_chrome_flags(xmlNodePtr form_node) {
     else if (strcasecmp(tok, "statusbar") == 0 || strcasecmp(tok, "WINDOW_STATUSBAR") == 0)
       out |= WINDOW_STATUSBAR;
   }
+  if (feio_first_child_named(form_node, "Toolbar"))
+    out |= WINDOW_TOOLBAR;
   return out;
 }
 
-static int fe_build_toolbar_items(xmlNodePtr root, xmlNodePtr form_node,
-                                  toolbar_item_t *items, int max_items) {
-  if (!root || !form_node || !items || max_items <= 0)
+static int fe_build_toolbar_items(xmlNodePtr form_node, toolbar_item_t *items,
+                                  int max_items) {
+  if (!form_node || !items || max_items <= 0)
     return 0;
 
-  char toolbar_name[64] = {0};
-  feio_xml_attr_copy(form_node, "toolbar", toolbar_name, sizeof(toolbar_name));
-  if (!toolbar_name[0])
-    return 0;
-
-  xmlNodePtr toolbars_node = NULL;
-  for (xmlNodePtr n = root->children; n; n = n->next) {
-    if (n->type == XML_ELEMENT_NODE &&
-        xmlStrcasecmp(n->name, BAD_CAST "toolbars") == 0) {
-      toolbars_node = n;
-      break;
-    }
-  }
-  if (!toolbars_node)
-    return 0;
-
-  xmlNodePtr toolbar_node = NULL;
-  for (xmlNodePtr n = toolbars_node->children; n; n = n->next) {
-    if (n->type != XML_ELEMENT_NODE ||
-        xmlStrcasecmp(n->name, BAD_CAST "toolbar") != 0)
-      continue;
-    char name_buf[64] = {0};
-    feio_xml_attr_copy(n, "name", name_buf, sizeof(name_buf));
-    if (strcmp(name_buf, toolbar_name) == 0) {
-      toolbar_node = n;
-      break;
-    }
-  }
+  xmlNodePtr toolbar_node = feio_first_child_named(form_node, "Toolbar");
   if (!toolbar_node)
     return 0;
 
@@ -384,9 +359,9 @@ static int fe_build_toolbar_items(xmlNodePtr root, xmlNodePtr form_node,
   return count;
 }
 
-static void fe_apply_form_preview_chrome(window_t *doc, xmlNodePtr root,
-                                         xmlNodePtr form_node, int form_w, int form_h) {
-  if (!doc || !root || !form_node)
+static void fe_apply_form_preview_chrome(window_t *doc, xmlNodePtr form_node,
+                                         int form_w, int form_h) {
+  if (!doc || !form_node)
     return;
 
   uint32_t chrome = fe_parse_form_chrome_flags(form_node);
@@ -401,7 +376,7 @@ static void fe_apply_form_preview_chrome(window_t *doc, xmlNodePtr root,
   if (doc->flags & WINDOW_TOOLBAR) {
     toolbar_item_t items[32];
     memset(items, 0, sizeof(items));
-    int count = fe_build_toolbar_items(root, form_node, items, 32);
+    int count = fe_build_toolbar_items(form_node, items, 32);
     if (count > 0)
       send_message(doc, tbSetItems, (uint32_t)count, items);
   }
@@ -544,8 +519,7 @@ static void fe_load_form_node(xmlNodePtr form_node) {
   // and editor chrome get mixed.
 
   form_doc_update_title(doc);
-  fe_apply_form_preview_chrome(doc, form_node->doc ? xmlDocGetRootElement(form_node->doc) : NULL,
-                               form_node, w, h);
+  fe_apply_form_preview_chrome(doc, form_node, w, h);
   canvas_rebuild_live_controls(doc);
 
   if (title_x) xmlFree(title_x);

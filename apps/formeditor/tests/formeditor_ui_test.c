@@ -317,6 +317,7 @@ void test_socialfeed_project_loads_runtime_and_database(void) {
   ASSERT_NOT_NULL(doc->children);
   ASSERT_TRUE(doc->children->frame.w > 0);
   ASSERT_TRUE(doc->children->frame.h > 0);
+  ASSERT_TRUE(descendant_by_class(doc, "Toolbar") == NULL);
 
   window_t *table = descendant_by_class(doc, "TableView");
   ASSERT_NOT_NULL(table);
