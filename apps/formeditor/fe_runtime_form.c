@@ -465,6 +465,8 @@ static void runtime_fill_combo_params(runtime_build_ctx_t *ctx, xmlNodePtr node,
 static bool runtime_is_control_node(xmlNodePtr parent, xmlNodePtr node) {
   if (!node || node->type != XML_ELEMENT_NODE)
     return false;
+  if (xmlStrcasecmp(node->name, BAD_CAST "Toolbar") == 0)
+    return false;
   if (parent && xmlStrcasecmp(node->name, BAD_CAST "Column") == 0 &&
       (xmlStrcasecmp(parent->name, BAD_CAST "TableView") == 0 ||
        xmlStrcasecmp(parent->name, BAD_CAST "ReportView") == 0))
