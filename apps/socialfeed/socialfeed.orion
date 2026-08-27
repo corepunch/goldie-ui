@@ -36,16 +36,6 @@
       </menu>
     </menus>
 
-    <toolbars>
-      <toolbar name="feed">
-        <Button name="new" command="post.new" icon="plus" text="New Post" tooltip="Create new post" />
-        <Button name="like" command="post.like" icon="heart" text="Like" tooltip="Like post" />
-        <Button name="view" command="post.view" icon="chat-bubble" text="View Post" tooltip="View post details" />
-        <spacer />
-        <Button name="delete" command="post.delete" icon="trash" text="Delete" tooltip="Delete post" />
-      </toolbar>
-    </toolbars>
-
     <databases>
       <!-- NeXTSTEP-style split: one database per model/table. -->
       <database name="db" class="SimpleXMLDatabase" source="apps/socialfeed/share/socialfeed_seed.xml">
@@ -79,10 +69,16 @@
       <form name="main_window"
             title="Social Feed"
             width="472" height="336"
-            flags="WINDOW_TOOLBAR | WINDOW_STATUSBAR"
-            toolbar="feed"
+            flags="WINDOW_STATUSBAR"
             spacing="0"
             padding="0">
+        <Toolbar>
+          <Button name="new" command="post.new" icon="plus" text="New Post" tooltip="Create new post" />
+          <Button name="like" command="post.like" icon="heart" text="Like" tooltip="Like post" />
+          <Button name="view" command="post.view" icon="chat-bubble" text="View Post" tooltip="View post details" />
+          <spacer />
+          <Button name="delete" command="post.delete" icon="trash" text="Delete" tooltip="Delete post" />
+        </Toolbar>
         <StackView name="content" spacing="0" flags="WINDOW_FLEXSPACE">
           <TableView name="feed"
                      source="db.posts"

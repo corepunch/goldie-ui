@@ -34,7 +34,7 @@ Generate C struct definitions from `.orion` database schemas, making the schema 
 ## Generated Output (socialfeed.h)
 
 **Single generated header contains everything from `.orion`:**
-- Menu/toolbar IDs from `<menus>` and `<toolbars>`
+- Action IDs from `<menus>` and form-owned `<Toolbar>` declarations
 - Form definitions from `<forms>`
 - Database schema from `<database>`
 

@@ -133,12 +133,14 @@ backward-compatible alias):
   <item name="search" label="Search..." shortcut="Ctrl+Shift+F" />
 </menu>
 
-<toolbars>
-  <toolbar name="main">
+<forms>
+  <form name="main" width="800" flags="toolbar">
+    <Toolbar>
     <Button name="refresh" command="repo.refresh"
             icon="sysicon_arrow_refresh" text="Refresh" />
-  </toolbar>
-</toolbars>
+    </Toolbar>
+  </form>
+</forms>
 ```
 
 The generator should reject duplicate menu action names, unknown `command`

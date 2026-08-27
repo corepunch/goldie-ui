@@ -1,7 +1,6 @@
 // VIEW: Main window — feed list of posts (win_reportview).
 //
-// TB_FEED and TB_FEED_COUNT are generated from socialfeed.orion and
-// declared in the generated forms header included via socialfeed.h.
+// Main-window toolbar metadata is generated from socialfeed.orion.
 
 #include "socialfeed.h"
 

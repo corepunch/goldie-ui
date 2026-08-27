@@ -25,9 +25,11 @@ Replace manual reportview creation with declarative tableview:
 ```xml
 <form name="main_window" 
       title="My App"
-      frame="0 0 480 400"
-      toolbar="main">  <!-- Auto-populate toolbar -->
-  
+      frame="0 0 480 400">
+  <Toolbar>
+    <Button name="refresh" command="view.refresh" icon="refresh" />
+  </Toolbar>
+
   <stack name="content" spacing="0" flags="WINDOW_FLEXSPACE">
     <tableview name="feed"
                database="posts"           <!-- Links to <table name="posts"> -->
@@ -439,18 +441,14 @@ Check generated IDs in `build/generated/myapp/myapp.h`.
 
 ### Toolbar doesn't appear
 
-Add `toolbar="name"` attribute to form:
+Nest a `<Toolbar>` inside the form that owns it:
 
 ```xml
-<form name="main" toolbar="main_toolbar" ...>
-```
-
-And define the toolbar earlier in the file:
-
-```xml
-<toolbar name="main_toolbar">
-  <button icon="add" command="ID_FILE_NEW" />
-</toolbar>
+<form name="main" ...>
+  <Toolbar>
+    <Button icon="add" command="file.new" />
+  </Toolbar>
+</form>
 ```
 
 ---
@@ -459,7 +457,7 @@ And define the toolbar earlier in the file:
 
 - [ ] Add `<database>` and `<table>` definitions to `.orion`
 - [ ] Convert `<reportview>` elements to `<tableview>` with `database=` and `field=` attributes
-- [ ] Add `toolbar="name"` to forms that have toolbars
+- [ ] Nest `<Toolbar>` inside forms that own toolbars
 - [ ] Rebuild with `make` to regenerate `build/generated/*/forms.h`
 - [ ] Call `ui_set_database(db)` at app startup
 - [ ] Replace `create_window()` calls with `create_window_from_form()`

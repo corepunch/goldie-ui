@@ -170,8 +170,9 @@
       </menu>
     </menus>
 
-    <toolbars>
-      <toolbar name="main">
+    <forms>
+      <form name="main_toolbar" title="Toolbar" width="1" height="1">
+        <Toolbar>
         <Button name="new" command="file.new" icon="page-plus" text="New" tooltip="New image" />
         <Button name="open" command="file.open" icon="folder" text="Open" tooltip="Open image" />
         <Button name="save" command="file.save" icon="floppy-disk" text="Save" tooltip="Save image" />
@@ -187,10 +188,9 @@
         <spacer w="10" />
         <Button name="show_background" command="view.show_background" icon="eye" flags="BUTTON_PUSHLIKE" text="BG" tooltip="Toggle background" />
         <Button name="mask_only" command="view.mask_only" icon="square-dashed" flags="BUTTON_PUSHLIKE" text="Mask" tooltip="Toggle mask view" />
-      </toolbar>
-    </toolbars>
+        </Toolbar>
+      </form>
 
-    <forms>
       <form name="new_image" title="New Image" width="180" spacing="8" padding="8">
         <GridView name="fields" spacing="4">
           <Column name="labels" width="48">
