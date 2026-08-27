@@ -149,7 +149,7 @@ sudo apt-get install liblua5.4-dev libgl-dev libegl-dev libx11-dev
 
 **macOS:**
 ```bash
-brew install sdl2 lua
+brew install lua
 ```
 
 **Windows (MSYS2/MinGW64):**
@@ -164,7 +164,16 @@ pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-lua make
 make library
 
 # Build examples
-make examples
+make apps
+
+# Build Scener only
+make scener
+
+# Install Scener under /usr/local
+make install-scener
+
+# Stage a package without modifying the host
+make install-scener PREFIX=/usr DESTDIR="$PWD/package-root"
 
 # Build and run tests
 make test

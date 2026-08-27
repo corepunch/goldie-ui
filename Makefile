@@ -11,6 +11,9 @@ CFLAGS   = -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE
 LDFLAGS  =
 LIBS     =
 UNAME_S ?= $(shell uname -s)
+PREFIX  ?= /usr/local
+DESTDIR ?=
+INSTALL ?= install
 
 # ── Platform ─────────────────────────────────────────────────────────────
 # Native Windows and MinGW/MSYS share one configuration; IS_WIN gates the
@@ -35,6 +38,8 @@ LDFLAGS  += -arch $(ARCH)
 LIBS     += -framework OpenGL
 LIB_EXT  = dylib
 LIB_FLAGS = -dynamiclib
+RPATH_FLAGS = -Wl,-rpath,@loader_path/../lib
+lib_id_flags = -Wl,-install_name,@rpath/lib$(1).$(LIB_EXT)
 GEM_NM   = nm -g
 GEM_SYM  = T _gem_get_interface
 else ifeq ($(UNAME_S),Linux)
@@ -42,6 +47,7 @@ LIBS     += -lGL -lutil
 CFLAGS   += -fPIC
 LIB_EXT  = so
 LIB_FLAGS = -shared -fPIC
+RPATH_FLAGS = -Wl,-rpath,'$$ORIGIN/../lib'
 GEM_NM   = nm -D
 GEM_SYM  = T gem_get_interface
 else
@@ -84,8 +90,7 @@ COMMCTL_LIB = $(LIB_DIR)/libcommctl.$(LIB_EXT)
 COMMDLG_LIB = $(LIB_DIR)/libcommdlg.$(LIB_EXT)
 CORE_LIBS   = $(USER_LIB) $(COMMCTL_LIB) $(COMMDLG_LIB) $(KERNEL_LIB)
 
-# Shared rpath used exactly once per link command to avoid duplicate-rpath warnings.
-RPATH_FLAGS      = -Wl,-rpath,$(abspath $(LIB_DIR))
+# Shared relocatable rpath used exactly once per link command.
 PLATFORM_LDFLAGS = -L$(LIB_DIR) -lplatform
 CORE_LDLIBS      = -L$(LIB_DIR) -lkernel -lcommctl -lcommdlg -luser
 
@@ -100,6 +105,7 @@ EXAMPLES     = $(patsubst $(APPS)/%/,%,$(filter %/,$(wildcard $(APPS)/*/)))
 EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLES))
 GEM_BINS     = $(patsubst %,$(GEM_DIR)/%.gem,$(filter-out shell,$(EXAMPLES)))
 COMPONENT_PLUGIN_BINS = $(patsubst $(APPS)/%/$(COMPS),$(LIB_DIR)/%_components.$(LIB_EXT),$(wildcard $(APPS)/*/$(COMPS)))
+app_plugin = $(if $(wildcard $(call appdir,$(1))/$(COMPS)),$(LIB_DIR)/$(notdir $(call appdir,$(1)))_components.$(LIB_EXT))
 
 # ── Phony apps ───────────────────────────────────────────────────────────
 # Phony apps are alternative builds of existing apps with extra compiler
@@ -119,7 +125,9 @@ appdir = $(APPS)/$(or $(PHONY_APPS_SRC_$(1)),$(1))
 # silently runs the stale executable.
 app_srcs = $(shell find $(call appdir,$(1)) \( -name '*.c' -o -name '*.h' \) ! -path '*/tests/*')
 $(foreach n,$(EXAMPLES) $(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(n)$(EXE_EXT): $(call app_srcs,$(n))))
+$(foreach n,$(EXAMPLES) $(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(n)$(EXE_EXT): $(call app_plugin,$(n))))
 $(foreach n,$(filter-out shell,$(EXAMPLES)) $(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(n).gem: $(call app_srcs,$(n))))
+$(foreach n,$(filter-out shell,$(EXAMPLES)) $(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(n).gem: $(call app_plugin,$(n))))
 
 GENERATED_HEADERS = $(patsubst $(APPS)/%.orion,$(GENERATED_DIR)/$(APPS)/%.h,$(wildcard $(APPS)/*/*.orion))
 
@@ -133,9 +141,9 @@ TEST_BINS = $(patsubst %,$(BIN_DIR)/test_%$(EXE_EXT),$(basename $(notdir $(TEST_
 # every .c outside $(COMPS), main.c last.  ('#' is backslash-escaped for make.)
 unity_tu = find $(1) -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' ! -path '*/tests/*' | sort | sed 's/.*/\#include "&"/'; echo '\#include "$(1)/main.c"'
 app_inc  = -I. -I$(call appdir,$*) -I$(call appdir,$*)/$(COMPS) -DSHAREDIR='"../share/$(notdir $(call appdir,$*))"'
-app_libs = $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(COMPONENT_PLUGIN_BINS) $(LIBS)
+app_libs = $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(call app_plugin,$*) $(LIBS)
 
-.PHONY: all tools fonts platform share library apps plugins gems test clean help $(PHONY_APP_NAMES)
+.PHONY: all tools fonts platform share library apps plugins gems scener install-scener test clean help $(PHONY_APP_NAMES)
 
 all: library apps tools $(if $(IS_WIN),,gems)
 
@@ -206,7 +214,7 @@ define unity_lib
 $(LIB_DIR)/lib$(1).$(LIB_EXT): $(2) $(3) $(PLATFORM_LIB) | $(LIB_DIR)
 	@echo "LIB     $$@"
 	@printf '%s\n' $(sort $(2)) | sed 's/.*/\#include "&"/' | \
-	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(4) -x c -o $$@ - -x none \
+	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(call lib_id_flags,$(1)) $(4) -x c -o $$@ - \
 	    $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(5) $(LIBS) $$(IMPLIB_FLAGS)
 endef
 
@@ -227,6 +235,19 @@ apps: share $(EXAMPLE_BINS) $(COMPONENT_PLUGIN_BINS) $(PHONY_APP_BINS)
 
 plugins: $(COMPONENT_PLUGIN_BINS)
 
+scener: $(BIN_DIR)/scener$(EXE_EXT)
+
+SCENER_RUNTIME_LIBS = $(KERNEL_LIB) $(USER_LIB) $(COMMCTL_LIB) $(PLATFORM_LIB)
+
+install-scener: scener
+	@echo "INSTALL $(DESTDIR)$(PREFIX)"
+	@$(INSTALL) -d "$(DESTDIR)$(PREFIX)/bin" "$(DESTDIR)$(PREFIX)/lib" \
+	    "$(DESTDIR)$(PREFIX)/share/orion" "$(DESTDIR)$(PREFIX)/share/scener"
+	@$(INSTALL) -m 755 "$(BIN_DIR)/scener$(EXE_EXT)" "$(DESTDIR)$(PREFIX)/bin/"
+	@$(INSTALL) -m 755 $(SCENER_RUNTIME_LIBS) "$(DESTDIR)$(PREFIX)/lib/"
+	@cp -R "$(SHARE_DIR)/orion/." "$(DESTDIR)$(PREFIX)/share/orion/"
+	@cp -R "$(SHARE_DIR)/scener/." "$(DESTDIR)$(PREFIX)/share/scener/"
+
 # Individual phony-app convenience targets (e.g. "make penciltest").
 $(foreach a,$(PHONY_APP_NAMES),$(eval $(a): $(BIN_DIR)/$(a)$(EXE_EXT)))
 
@@ -235,10 +256,10 @@ $(LIB_DIR)/%_components.$(LIB_EXT): $$(wildcard $(APPS)/$$*/$(COMPS)/*.c) $(CORE
 	@$(CC) $(CFLAGS) $(LIB_FLAGS) -I. -I$(APPS)/$* -I$(APPS)/$*/$(COMPS) -o $@ $(wildcard $(APPS)/$*/$(COMPS)/*.c) \
 	    $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(LIBS)
 
-$(EXAMPLE_BINS) $(PHONY_APP_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(BIN_DIR) share
+$(EXAMPLE_BINS) $(PHONY_APP_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(GENERATED_HEADERS) | $(BIN_DIR) share
 	@printf '%-8s%s\n' '$(if $(PHONY_APPS_SRC_$*),PHONY,BIN)' "$@"
 	@{ $(call unity_tu,$(call appdir,$*)); } | \
-	    $(CC) $(CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(app_inc) -x c -o $@ - -x none \
+	    $(CC) $(CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(app_inc) -x c -o $@ - \
 	    $(LDFLAGS_EXAMPLE) $(app_libs)
 
 # Each .gem is built against the split core libraries so it shares the same
@@ -248,10 +269,10 @@ $(EXAMPLE_BINS) $(PHONY_APP_BINS): $(BIN_DIR)/%$(EXE_EXT): $(CORE_LIBS) $(COMPON
 gems: $(GEM_BINS) $(PHONY_APP_GEMS)
 	@echo "OK All .gems built and validated"
 
-$(GEM_BINS) $(PHONY_APP_GEMS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(COMPONENT_PLUGIN_BINS) $(GENERATED_HEADERS) | $(GEM_DIR)
+$(GEM_BINS) $(PHONY_APP_GEMS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(GENERATED_HEADERS) | $(GEM_DIR)
 	@printf '%-8s%s\n' '$(if $(PHONY_APPS_SRC_$*),GEM(P),GEM)' "$@"
 	@{ echo '#include <orion/gem.h>'; $(call unity_tu,$(call appdir,$*)); } | \
-	    $(CC) $(GEM_CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(LIB_FLAGS) $(app_inc) -x c -o $@ - -x none \
+	    $(CC) $(GEM_CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(LIB_FLAGS) $(app_inc) -x c -o $@ - \
 	    $(app_libs)
 	@$(GEM_NM) $@ 2>/dev/null | grep -q '$(GEM_SYM)' || { echo 'FAIL missing gem_get_interface'; exit 1; }
 
@@ -286,7 +307,7 @@ $(TEST_BINS): $(BIN_DIR)/test_%$(EXE_EXT): $(TEST_SRCS) $(TEST_DIR)/test_env.c $
 	  if [ -n "$$app_dir" ] && [ -d "$(APPS)/$$app_dir/tests/support" ]; then \
 	    find "$(APPS)/$$app_dir/tests/support" -name '*.c' | sort | sed 's/.*/#include "&"/'; \
 	  fi; \
-	} | $(CC) $(CFLAGS) -I. -Itests -I$(APPS)/$$app -I$(APPS)/$$app/$(COMPS) -x c -o $@ - -x none \
+	} | $(CC) $(CFLAGS) -I. -Itests -I$(APPS)/$$app -I$(APPS)/$$app/$(COMPS) -x c -o $@ - \
 	    $(LDFLAGS_TEST) $(app_libs)
 
 # ── Directories, clean, help ─────────────────────────────────────────────
@@ -304,6 +325,8 @@ help:
 	@echo "all       - Build library, apps, gems, and tools"
 	@echo "library   - Build shared libraries"
 	@echo "apps      - Build applications"
+	@echo "scener    - Build the Scener application"
+	@echo "install-scener - Install Scener under PREFIX (default: /usr/local)"
 	@echo "gems      - Build all .gem shared libraries"
 	@echo "tools     - Build command-line tools"
 	@echo "test      - Build and run tests"

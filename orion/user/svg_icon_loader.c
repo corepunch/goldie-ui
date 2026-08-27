@@ -12,6 +12,7 @@
 #include <math.h>
 
 #include <platform/platform.h>
+#include "bmp_icon_loader.h"
 #include "svg_icon_loader.h"
 
 // ---------------------------------------------------------------------------
@@ -190,6 +191,8 @@ void svg_add_icons_dir(const char *dir) {
 
 bool sysicon_resolve(const char *name, sysicon_resolved_t *out) {
     if (!name || !name[0]) return false;
+
+    if (bmp_icon_resolve(name, out)) return true;
 
     for (int i = 0; i < g_sysicon_cache_n; i++) {
         if (strcmp(g_sysicon_cache[i].name, name) == 0) {

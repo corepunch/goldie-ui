@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include <orion/user/user.h>
 #include <orion/user/messages.h>
 #include "commctl.h"
@@ -15,14 +13,8 @@ int control_predefined_height(flags_t flags) {
 
 void control_apply_predefined_height(window_t *win, const char *module) {
   if (!win) return;
-  int requested = win->layout.layout_fixed_h;
+  (void)module;
   int applied = control_predefined_height(win->flags);
-  if (requested > 0 && requested != applied) {
-    fprintf(stderr, "[ctl] normalize module=%s win=%u requested_h=%d applied_h=%d size=%u\n",
-            module ? module : "control", (unsigned)win->id, requested, applied,
-            (unsigned)((win->flags & CONTROL_SIZE_MASK) >> 29));
-    fflush(stderr);
-  }
   win->layout.layout_fixed_h = 0;
   win->frame.h = applied;
 }
