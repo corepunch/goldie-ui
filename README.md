@@ -169,8 +169,9 @@ make apps
 # Build Scener only
 make scener
 
-# Install the complete Orion suite under /opt/orion
-make install
+# Build, then install the complete Orion suite under /opt/orion
+make all
+sudo make install
 
 # Stage a package without modifying the host
 make install PREFIX=/usr DESTDIR="$PWD/package-root"
@@ -199,6 +200,27 @@ The default layout is:
 
 Add `/opt/orion/bin` to `PATH`, or override `PREFIX` with `/usr/local` or
 `/usr` when integrating Orion with the conventional Unix filesystem layout.
+
+The default `/opt/orion` prefix is system-wide and normally requires
+administrator permission on macOS and Linux. Build as your regular user, then
+run only the installation step with `sudo`:
+
+```sh
+make all
+sudo make install
+export PATH="/opt/orion/bin:$PATH"
+```
+
+For an installation owned by the current user, no elevated permission is
+needed:
+
+```sh
+make install PREFIX="$HOME/.local"
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+The Makefile never invokes `sudo` itself. Package managers and staging builds
+should continue to set `PREFIX` and `DESTDIR` explicitly.
 
 ### Build Output
 
