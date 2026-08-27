@@ -280,10 +280,6 @@ void scener_sync_viewport_camera(scene_doc_t *doc) {
 	viewport_state_t *vp = (viewport_state_t *)doc->viewport_win->userdata;
 	if (!vp) return;
 	vp_init_camera(vp, &doc->scene);
-	SC_TRACE("camera-sync doc=%p camera=%s pos=(%.3f,%.3f,%.3f) look=(%.3f,%.3f,%.3f)",
-		(void *)doc, doc->scene.activeCamera,
-		doc->scene.camPos.x, doc->scene.camPos.y, doc->scene.camPos.z,
-		doc->scene.camLook.x, doc->scene.camLook.y, doc->scene.camLook.z);
 	set_focus(doc->viewport_win);
 	invalidate_window(doc->viewport_win);
 	/* The accelerator runs synchronously outside the viewport's input path.  Queue
@@ -339,7 +335,6 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 						doc->scene.draggingHandle = GIZMO_NONE;
 						float distance = 0;
 						doc->scene.selectedObj = scene_pick_object(&doc->scene, doc->scene.camPos, ray, &distance);
-						SC_TRACE("select win=%p mouse=(%d,%d) object=%d node=%p",(void*)win,vp->last_mouse_x,vp->last_mouse_y,doc->scene.selectedObj,doc->scene.selectedNode);
 						property_browser_refresh();
 						VP_LOG("pick mouse=(%d,%d) size=(%d,%d) cam=(%.3f,%.3f,%.3f) ray=(%.3f,%.3f,%.3f) hit=%d distance=%.3f objects=%d\n",
 							vp->last_mouse_x, vp->last_mouse_y, cr.w, cr.h,
@@ -377,7 +372,6 @@ result_t win_viewport(window_t *win, uint32_t msg, uint32_t wparam, void *lparam
 			if (vp) {
 				if (doc && doc->scene.createMode) {
 					doc->scene.createMode = 0;
-					SC_TRACE("create-mode cancel");
 					scener_sync_tool_ui();
 					return true;
 				}

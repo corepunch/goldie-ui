@@ -7,8 +7,6 @@
 
 #include "build/generated/apps/scener/scener.h"
 
-#define SC_TRACE(...) do { fprintf(stderr,"[scener] " __VA_ARGS__); fputc('\n',stderr); fflush(stderr); } while(0)
-
 #define SIDE_PANEL_WIDTH 230
 
 enum {

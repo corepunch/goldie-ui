@@ -1,7 +1,7 @@
 #include "scener.h"
 #include <orion/kernel/renderer.h>
 #include <orion/user/draw.h>
-#include <orion/user/svg_icon_loader.h>
+#include <orion/user/bmp_icon_loader.h>
 
 enum {
 	CP_WIDTH = SIDE_PANEL_WIDTH,
@@ -35,40 +35,40 @@ static void cp_menu_action(void *context, uint16_t id) {
 #define CP_MENU_COMMAND(label, id, icon) { label, id, icon, cp_menu_action, NULL }
 
 static const cp_command_t kControlItems[] = {
-	CP_MENU_COMMAND("Select",  ID_TOOL_SELECT, "cursor-pointer"),
-	CP_MENU_COMMAND("Move",    ID_TOOL_MOVE,   "drag"),
-	CP_MENU_COMMAND("Rotate",  ID_TOOL_ROTATE, "refresh"),
-	CP_MENU_COMMAND("Scale",   ID_TOOL_SCALE,  "expand"),
+	CP_MENU_COMMAND("Select",  ID_TOOL_SELECT, "tools/select"),
+	CP_MENU_COMMAND("Move",    ID_TOOL_MOVE,   "tools/move"),
+	CP_MENU_COMMAND("Rotate",  ID_TOOL_ROTATE, "tools/rotate"),
+	CP_MENU_COMMAND("Scale",   ID_TOOL_SCALE,  "tools/scale"),
 };
 
 static const cp_command_t kShapeItems[] = {
-	CP_MENU_COMMAND("Box",      ID_CREATE_BOX,      "cube"),
-	CP_MENU_COMMAND("Sphere",   ID_CREATE_SPHERE,   "sphere"),
-	CP_MENU_COMMAND("Cylinder", ID_CREATE_CYLINDER, "cylinder"),
-	CP_MENU_COMMAND("Cone",     ID_CREATE_CONE,     "cone"),
-	CP_MENU_COMMAND("Torus",    ID_CREATE_TORUS,    "torus"),
-	CP_MENU_COMMAND("Prism",    ID_CREATE_PRISM,    "triangle"),
-	CP_MENU_COMMAND("Capsule",  ID_CREATE_CAPSULE,  "capsule"),
-	CP_MENU_COMMAND("Arch",     ID_CREATE_ARCH,     "arch"),
+	CP_MENU_COMMAND("Box",      ID_CREATE_BOX,      "primitives/box"),
+	CP_MENU_COMMAND("Sphere",   ID_CREATE_SPHERE,   "primitives/sphere"),
+	CP_MENU_COMMAND("Cylinder", ID_CREATE_CYLINDER, "primitives/cylinder"),
+	CP_MENU_COMMAND("Cone",     ID_CREATE_CONE,     "primitives/cone"),
+	CP_MENU_COMMAND("Torus",    ID_CREATE_TORUS,    "primitives/torus"),
+	CP_MENU_COMMAND("Prism",    ID_CREATE_PRISM,    "primitives/prism"),
+	CP_MENU_COMMAND("Capsule",  ID_CREATE_CAPSULE,  "primitives/capsule"),
+	CP_MENU_COMMAND("Arch",     ID_CREATE_ARCH,     "primitives/arch"),
 };
 
 static const cp_command_t kSceneItems[] = {
-	CP_MENU_COMMAND("Point Light", ID_CREATE_POINT_LIGHT,       "point-light"),
-	CP_MENU_COMMAND("Directional", ID_CREATE_DIRECTIONAL_LIGHT, "sun-light"),
-	CP_MENU_COMMAND("Camera",      ID_CREATE_CAMERA,            "camera"),
+	CP_MENU_COMMAND("Point Light", ID_CREATE_POINT_LIGHT,       "scene/point-light"),
+	CP_MENU_COMMAND("Directional", ID_CREATE_DIRECTIONAL_LIGHT, "scene/directional-light"),
+	CP_MENU_COMMAND("Camera",      ID_CREATE_CAMERA,            "scene/camera"),
 };
 
 static const cp_command_t kModifierItems[] = {
-	CP_MENU_COMMAND("Taper",   ID_MODIFY_TAPER,   "taper"),
-	CP_MENU_COMMAND("Twist",   ID_MODIFY_TWIST,   "twist"),
-	CP_MENU_COMMAND("Bend",    ID_MODIFY_BEND,    "bend"),
-	CP_MENU_COMMAND("Stretch", ID_MODIFY_STRETCH, "stretch"),
-	CP_MENU_COMMAND("Skew",    ID_MODIFY_SKEW,    "skew"),
-	CP_MENU_COMMAND("Extrude", ID_MODIFY_EXTRUDE, "extrude"),
-	CP_MENU_COMMAND("Mirror",  ID_MODIFY_MIRROR,  "mirror"),
-	CP_MENU_COMMAND("Noise",   ID_MODIFY_NOISE,   "noise"),
-	CP_MENU_COMMAND("Shell",   ID_MODIFY_SHELL,   "shell"),
-	CP_MENU_COMMAND("Array",   ID_MODIFY_ARRAY,   "view-grid"),
+	CP_MENU_COMMAND("Taper",   ID_MODIFY_TAPER,   "modifiers/taper"),
+	CP_MENU_COMMAND("Twist",   ID_MODIFY_TWIST,   "modifiers/twist"),
+	CP_MENU_COMMAND("Bend",    ID_MODIFY_BEND,    "modifiers/bend"),
+	CP_MENU_COMMAND("Stretch", ID_MODIFY_STRETCH, "modifiers/stretch"),
+	CP_MENU_COMMAND("Skew",    ID_MODIFY_SKEW,    "modifiers/skew"),
+	CP_MENU_COMMAND("Extrude", ID_MODIFY_EXTRUDE, "modifiers/extrude"),
+	CP_MENU_COMMAND("Mirror",  ID_MODIFY_MIRROR,  "modifiers/mirror"),
+	CP_MENU_COMMAND("Noise",   ID_MODIFY_NOISE,   "modifiers/noise"),
+	CP_MENU_COMMAND("Shell",   ID_MODIFY_SHELL,   "modifiers/shell"),
+	CP_MENU_COMMAND("Array",   ID_MODIFY_ARRAY,   "modifiers/array"),
 };
 
 static const cp_section_t kCreateSections[] = {
@@ -81,12 +81,12 @@ static const cp_section_t kModifySections[] = {
 	{ "Modifiers", kModifierItems, COUNT_OF(kModifierItems) },
 };
 
-#define CP_ICON_CREATE    "plus-circle"
-#define CP_ICON_MODIFY    "wrench"
-#define CP_ICON_HIERARCHY "group"
-#define CP_ICON_MOTION    "path-arrow"
-#define CP_ICON_DISPLAY   "eye"
-#define CP_ICON_UTILITIES "settings"
+#define CP_ICON_CREATE    "tabs/create"
+#define CP_ICON_MODIFY    "tabs/modify"
+#define CP_ICON_HIERARCHY "tabs/hierarchy"
+#define CP_ICON_MOTION    "tabs/motion"
+#define CP_ICON_DISPLAY   "tabs/display"
+#define CP_ICON_UTILITIES "tabs/utilities"
 
 /* Tab icon names match kTabs[] order — indices 0..5 used with tcSetTabIcon. */
 static const char *kTabIconNames[] = {
@@ -107,33 +107,12 @@ static const cp_datasource_t kCommandPanelDataSource = {
 	.tabs = kTabs, .count = COUNT_OF(kTabs),
 };
 
-static void cp_dump_frames(const window_t *win, int depth) {
-	if (!win) return;
-	SC_TRACE("%*swin=%u title=\"%s\" frame=%d,%d %dx%d flags=0x%x visible=%d",
-		depth * 2, "", (unsigned)win->id, win->title,
-		win->frame.x, win->frame.y, win->frame.w, win->frame.h,
-		(unsigned)win->flags, window_has_state(win, WINDOW_STATE_VISIBLE));
-	for (const window_t *child = win->children; child; child = child->next)
-		cp_dump_frames(child, depth + 1);
-}
-
-static void cp_dump_measure(window_t *win, int avail_w, int avail_h, int depth) {
-	if (!win) return;
-	layout_measure_t m = {.avail_w = avail_w, .avail_h = avail_h};
-	send_message(win, evMeasure, 0, &m);
-	SC_TRACE("%*smeasure win=%u title=\"%s\" horiz=%d avail=%dx%d desired=%dx%d",
-		depth * 2, "", (unsigned)win->id, win->title,
-		!!(win->flags & WINDOW_STACK_HORIZONTAL), avail_w, avail_h, m.desired_w, m.desired_h);
-	for (window_t *child = win->children; child; child = child->next)
-		cp_dump_measure(child, m.desired_w, m.desired_h, depth + 1);
-}
-
 static bool cp_build_tab_strip(bitmap_strip_t *strip) {
 	char icons_dir[1024];
-	int n = snprintf(icons_dir, sizeof(icons_dir), "%s/../share/orion/icons", ui_get_exe_dir());
+	int n = snprintf(icons_dir, sizeof(icons_dir), "%s/../share/scener/icons", ui_get_exe_dir());
 	if (n <= 0 || (size_t)n >= sizeof(icons_dir)) return false;
 	int count = COUNT_OF(kTabIconNames);
-	return svg_build_strip(icons_dir, kTabIconNames, count, 24, count, strip, NULL);
+	return bmp_build_strip(icons_dir, kTabIconNames, count, 24, count, strip, NULL);
 }
 
 static window_t *cp_create_page(window_t *tabview, const cp_tab_t *tab) {
@@ -208,8 +187,6 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 			irect16_t cr = get_client_rect(win);
 			layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
 			send_message(st->tabview, evArrange, 0, &a);
-			cp_dump_frames(st->tabview, 0);
-			cp_dump_measure(st->tabview->children, cr.w - 4, cr.h - 30, 0);
 			show_window(st->tabview, true);
 			return true;
 		}
@@ -228,7 +205,6 @@ result_t win_command_panel(window_t *win, uint32_t msg, uint32_t wparam, void *l
 				layout_arrange_t a = {R(0, 0, cr.w, cr.h)};
 				send_message(c, evArrange, 0, &a);
 			}
-			cp_dump_frames(st->tabview, 0);
 			return true;
 		}
 		case evCommand: {

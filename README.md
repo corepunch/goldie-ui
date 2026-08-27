@@ -1,4 +1,4 @@
-# simplegl
+# Scener
 
 A very small modular OpenGL scene renderer with real-time **stencil shadow
 volumes**. Shadows are a first-class composition tool: position lights and
@@ -6,9 +6,10 @@ casters to create long silhouettes, pools of light, strong contrast, and
 dramatic architectural shots. Scenes are described in XML and built from
 walls, furniture, and basic primitives.
 
-The active build uses small C modules with their declarations consolidated in
-**`simplegl.h`**. There is no external XML library, shader file, or asset
-pipeline. Dependencies are SDL2, OpenGL, and libm.
+Scener is an Orion application. Its renderer is implemented by small C modules
+with shared declarations in **`simplegl.h`**. Scene parsing has no external XML
+or shader-file dependency; windowing, input, image output, and UI are provided
+by Orion and its platform layer.
 
 ## Workflow
 
@@ -28,17 +29,12 @@ below walks through a concrete example using the Workshop scene.
 ## Build & run
 
 ```sh
-# Debian/Ubuntu:
-sudo apt install libsdl2-dev libgl1-mesa-dev
-
-make
-./build/bin/simplegl scenes/sample_room.blks
+make scener
+./build/bin/scener apps/scener/scenes/sample_room.blks
 ```
 
-It compiles clean with `-Wall -Wextra` on gcc/clang, Linux. (It uses only
-OpenGL 2.1 fixed-function calls plus `glStencilOpSeparate`, so it should also
-run on macOS's legacy GL / most Windows drivers with minimal changes to the
-SDL attribute requests — not tested there.)
+Run these commands from the Orion repository root. Scener uses Orion's native
+platform backend and OpenGL renderer on macOS, Linux, and Windows.
 
 **Controls:** mouse looks around, `W A S D` move, `Q`/`E` move down/up,
 `Shift` moves faster, and `Esc` quits. Press `1` for normal shadows, `4` for
@@ -72,40 +68,29 @@ Normal rendering uses every light's `castShadows` setting and produces the
 full stencil-shadow result:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.blks
+./build/bin/scener apps/scener/scenes/sample_room.blks
 ```
 
 Render with the same materials and lighting but disable all shadows:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.blks -no-shadows
+./build/bin/scener apps/scener/scenes/sample_room.blks -no-shadows -o shot.jpg
 ```
 
 Render scene geometry as an unlit white wireframe:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.blks -wireframe
+./build/bin/scener apps/scener/scenes/sample_room.blks -wireframe -o wireframe.jpg
 ```
 
-Check authored scene bounds before rendering:
+The same executable renders offscreen when an output path is supplied. JPEG is
+the default when no path is supplied; `.jpg`, `.jpeg`, and `.png` paths select
+the corresponding encoder:
 
 ```sh
-./build/bin/simplegl scenes/sample_room.blks -test
-```
-
-`-test` checks explicit structural proxies. Add a non-rendered box with
-`sanityCheck="1"` for each furniture assembly or clearance volume, and mark
-the scene floor `sanityFloor="1"`. The checker reports overlapping proxies
-and checked proxies with no touching supporting proxy or floor. This avoids
-false positives from the deliberately intersecting pieces inside a prefab.
-
-The offscreen screenshot tool accepts the same flags:
-
-```sh
-make screenshot
-./build/bin/screenshot scenes/sample_room.blks -cam Main -o shot.ppm
-./build/bin/screenshot scenes/sample_room.blks -cam Main -no-shadows -o shot-no-shadows.ppm
-./build/bin/screenshot scenes/sample_room.blks -cam Main -wireframe -o shot-wireframe.ppm
+./build/bin/scener apps/scener/scenes/sample_room.blks -cam Main -o shot.jpg
+./build/bin/scener apps/scener/scenes/sample_room.blks -cam Main -no-shadows -o shot-no-shadows.jpg
+./build/bin/scener apps/scener/scenes/sample_room.blks -cam Main -wireframe -o shot-wireframe.png
 ```
 
 ## From scene layout to cinematic overpaint
@@ -142,8 +127,7 @@ major cast-shadow shapes are constrained by the source render.
 Reproduce any camera in the scene with:
 
 ```sh
-make screenshot
-./build/bin/screenshot scenes/books/wondertown/workshop.blks -cam LadderTraversal -o shot.ppm
+./build/bin/scener apps/scener/scenes/books/wondertown/workshop.blks -cam LadderTraversal -o shot.jpg
 ```
 
 ## Why these choices
@@ -155,10 +139,9 @@ make screenshot
 - **Own tiny XML parser**, not tinyxml/libxml. Pulling in libxml2 means
   linking a large C library (and its dependency chain) for a schema that's
   really just `<tag attr="val">`. tinyxml2 is closer to reasonable, but it's
-  C++ and still an extra file/dependency to vendor. ~150 lines of recursive-
-  descent C parsing (elements, quoted attributes, nesting, self-closing
-  tags, comments) covers the whole schema below and keeps the "single file,
-  no deps but SDL2" property. If your scenes get much more complex you'd
+  C++ and still an extra file/dependency to vendor. The recursive-descent C
+  parser covers the schema below without another runtime dependency. If your
+  scenes get much more complex you'd
   want to swap in a real parser — the loader code is isolated in
   `xml_parse()`/`load_scene()` so that's a contained change.
 - **Booleans via boxes**, not real CSG. A proper solid-boolean library (BSP

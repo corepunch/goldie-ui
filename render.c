@@ -154,8 +154,6 @@ static int shadows_supported(void) {
                     extension_present("GL_ARB_depth_clamp") ||
                     extension_present("GL_NV_depth_clamp") ||
                     extension_present("GL_EXT_depth_clamp");
-        fprintf(stderr, "stencil shadows: %s (depth clamp %savailable)\n",
-                supported ? "supported" : "not supported", supported ? "" : "un");
         checked = 1;
     }
     return supported;

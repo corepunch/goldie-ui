@@ -97,10 +97,7 @@ void scene_build_all_shadow_volumes(Scene *s){
 		scene_resize_shadow_parts(o,s->nlights);
 		for(int li=0;li<s->nlights;li++) scene_build_object_shadow_part(s,o,li);
 	}
-	for(int li=0;li<s->nlights;li++){
-		scene_combine_shadow_parts(s,li);
-		fprintf(stderr,"  light %d shadow volume: %d verts = %d tris\n",li,s->svols[li].nverts,s->svols[li].nverts/3);
-	}
+	for(int li=0;li<s->nlights;li++) scene_combine_shadow_parts(s,li);
 }
 
 void scene_rebuild_node_shadow_volumes(Scene *s,void *editNode){

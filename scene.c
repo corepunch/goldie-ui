@@ -1301,7 +1301,6 @@ int load_scene(const char *path, Scene *s){
 	warn_unknown_elements(root,path,s->prefabDocument);
 	s->sceneRoot=root; s->editRoot=root;
 	scene_rebuild_view(s);
-	fprintf(stderr,"overlay: %d lines\n",s->noverlayLines);
 	return 1;
 }
 

@@ -156,8 +156,6 @@ void shader_init(void){
 #ifdef SCENER_USE_TEXTURES
 	ulocTex         = glGetUniformLocation(prog, "uTex");
 #endif
-
-	fprintf(stderr, "PBR shader initialized\n");
 }
 
 void shader_deinit(void){

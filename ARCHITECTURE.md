@@ -174,7 +174,9 @@ the renderer boundary.
 
 ### main.c — Application loop
 
-SDL2 window + OpenGL 2.1 context. FPS-style camera with mouse-look and WASD movement. Frame loop: poll SDL events, update camera from key states, `render_frame()`.
+Orion application lifecycle, command accelerators, document creation, and
+offscreen screenshot dispatch. Window and input events arrive through Orion's
+message loop; viewport interaction is owned by `win_viewport.c`.
 
 ## Data flow
 
@@ -191,7 +193,7 @@ shadow.c: scene_build_all_shadow_volumes() ──► ShadowVolume per light
 render.c: render_frame(scene, w, h, proj, view, cameraPosition)
   │
   ▼
-OpenGL framebuffer ──► SDL_GL_SwapWindow
+OpenGL framebuffer ──► Orion platform renderer
 ```
 
 ## Adding features

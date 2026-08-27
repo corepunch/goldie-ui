@@ -105,8 +105,6 @@ bool scener_create_primitive(scene_doc_t *doc, uint16_t id, vec3 ground_pos) {
   scene_build_all_shadow_volumes(&doc->scene);
   doc->modified = true;
   doc_update_title(doc);
-  SC_TRACE("create id=%u object=%d ground=(%.3f,%.3f,%.3f)", id,
-    doc->scene.selectedObj, ground_pos.x, ground_pos.y, ground_pos.z);
   property_browser_refresh();
   if (doc->viewport_win) invalidate_window(doc->viewport_win);
   return true;
@@ -220,14 +218,9 @@ void handle_menu_command(uint16_t id) {
         if (idx < 0) idx = 0;
         else if (id == ID_VIEW_NEXT_CAMERA) idx = (idx + 1) % doc->scene.ncameras;
         else idx = (idx + doc->scene.ncameras - 1) % doc->scene.ncameras;
-        SC_TRACE("camera-select id=%u index=%d name=%s stored-pos=(%.3f,%.3f,%.3f) stored-look=(%.3f,%.3f,%.3f)",
-          id, idx, doc->scene.cameras[idx].name,
-          doc->scene.cameras[idx].pos.x, doc->scene.cameras[idx].pos.y, doc->scene.cameras[idx].pos.z,
-          doc->scene.cameras[idx].look.x, doc->scene.cameras[idx].look.y, doc->scene.cameras[idx].look.z);
         scene_select_camera(&doc->scene, doc->scene.cameras[idx].name);
         scener_sync_viewport_camera(doc);
         scener_sync_tool_ui();
-        fprintf(stderr, "camera %d/%d: %s\n", idx + 1, doc->scene.ncameras, doc->scene.cameras[idx].name);
       }
       break;
 
@@ -242,7 +235,6 @@ void handle_menu_command(uint16_t id) {
       if (doc) {
         doc->scene.createMode = id;
         doc->scene.editMode = EDIT_Q_SELECT;
-        SC_TRACE("create-mode id=%u", id);
         scener_sync_tool_ui();
       }
       break;

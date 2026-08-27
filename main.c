@@ -2,8 +2,8 @@
 #include <orion/gem.h>
 #include <orion/ui.h>
 #include <orion/user/gl_compat.h>
+#include <orion/user/bmp_icon_loader.h>
 #include <orion/user/image.h>
-#include <orion/user/svg_icon_loader.h>
 
 #define DEFAULT_FOV   60.0f
 #define PERSP_NEAR    0.1f
@@ -21,6 +21,18 @@ typedef struct {
 
 app_state_t *g_app = NULL;
 static scener_cli_t g_cli;
+
+static bool scener_save_screenshot(const char *path, const uint8_t *pixels,
+                                   int width, int height) {
+	const char *ext = strrchr(path, '.');
+	if (ext && (!strcasecmp(ext, ".jpg") || !strcasecmp(ext, ".jpeg")))
+		return save_image_jpg(path, pixels, width, height, 90);
+	if (ext && !strcasecmp(ext, ".png"))
+		return save_image_png(path, pixels, width, height);
+	fprintf(stderr, "[scener] unsupported screenshot format: %s\n", path);
+	fflush(stderr);
+	return false;
+}
 
 // Navigation uses a reduced context-specific table while the viewport is
 // being dragged. The default command accelerators are generated from the
@@ -100,7 +112,7 @@ static void cli_parse(int argc, char *argv[]) {
 	if (g_cli.screenshot_mode && !g_cli.debug_flags_set)
 		g_cli.debug_flags = DBG_NO_SHADOWS | DBG_HIDE_CHARS | DBG_HIDE_LIGHTS;
 	if (g_cli.screenshot_mode && !g_cli.output_path[0])
-		snprintf(g_cli.output_path, sizeof(g_cli.output_path), "%s", "screenshot.png");
+		snprintf(g_cli.output_path, sizeof(g_cli.output_path), "%s", "screenshot.jpg");
 }
 
 static void create_app_windows(hinstance_t hinstance) {
@@ -168,7 +180,8 @@ static bool scener_write_screenshot(scene_doc_t *doc, const char *path) {
 
 	size_t bytes = (size_t)width * (size_t)height * 4;
 	uint8_t *pixels = malloc(bytes);
-	bool ok = pixels && capture_framebuffer_rgba(width, height, pixels) && save_image_png(path, pixels, width, height);
+	bool ok = pixels && capture_framebuffer_rgba(width, height, pixels) &&
+		scener_save_screenshot(path, pixels, width, height);
 	free(pixels);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -196,11 +209,11 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   shader_init();
 
   {
-    char icons_path[4096];
-    int n = snprintf(icons_path, sizeof(icons_path), "%s/../share/scener/icons",
+		char icons_path[4096];
+		int n = snprintf(icons_path, sizeof(icons_path), "%s/../share/scener/icons",
                      ui_get_exe_dir());
     if (n > 0 && (size_t)n < sizeof(icons_path))
-      svg_add_icons_dir(icons_path);
+			bmp_add_icons_dir(icons_path);
   }
 
   if (!g_cli.screenshot_mode)

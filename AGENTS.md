@@ -3,35 +3,33 @@
 ## Build & Run
 
 ```sh
-make              # Build the binary -> build/bin/simplegl
-make test         # Build and run unit tests
-make run          # Build and run with scenes/sample_room.blks
-make clean        # Remove build/ directory
+make scener                            # Build -> build/bin/scener
+make build/bin/test_scener_input_test  # Build the focused Scener test
+build/bin/test_scener_input_test       # Run the focused Scener test
 ```
 
-Dependencies: SDL2 (via pkg-config), OpenGL framework, libm. C11 standard, `-Wall -Wextra`.
+Scener is built from the Orion repository root and uses Orion's platform,
+windowing, controls, and rendering libraries. C11 standard, `-Wall -Wextra`.
 
 ## Run-time
 
 ```sh
-./build/bin/simplegl scenes/sample_room.blks             # use first camera
-./build/bin/simplegl scenes/sample_room.blks -cam Cam2   # select camera by name
+./build/bin/scener apps/scener/scenes/sample_room.blks
+./build/bin/scener apps/scener/scenes/sample_room.blks -cam Cam2 -o shot.jpg
 ```
 
 ## Project files
 
 | File | Purpose |
 |------|---------|
-| `main.c` | Entry point, SDL2 window, FPS camera, game loop, `-cam` arg |
+| `main.c` | Orion app lifecycle, CLI parsing, document startup, screenshot output |
 | `simplegl.h` | Shared declarations for all modules |
 | `math.c` | `vec3`, `mat4`, linear algebra |
 | `mesh.c` | `Mesh` (verts, tris, edges), primitive generators, **modifiers** (taper, twist, bend, stretch, skew) |
 | `scene.c` | Tiny XML parser, scene loading, named cameras, modifier dispatch, **prefab loading** |
 | `render.c` | OpenGL 1.x fixed-function renderer with stencil shadows |
 | `shadow.c` | Stencil shadow volume construction (silhouette detection + edge extrusion) |
-| `tests.c` | Unit tests for mesh winding, edge sealing, volume, shadow volumes |
-| `renderer.c` | Original monolithic single-file version (not in main build) |
-| `screenshot.c` | Offscreen headless renderer, outputs PPM |
+| `tests/scener_input_test.c` | Focused command-state and prefab-document tests |
 | `skills/populate-simplegl-scenes/` | Scene population workflow and format reference |
 | `scenes/` | Runnable and diagnostic scene files (`*.blks`) |
 | `prefabs/` | Reusable object files (`chair.blk`, `sofa.blk`, etc.) |
