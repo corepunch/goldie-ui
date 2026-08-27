@@ -36,6 +36,12 @@ make scener
 Run these commands from the Orion repository root. Scener uses Orion's native
 platform backend and OpenGL renderer on macOS, Linux, and Windows.
 
+For XML authoring, start with the canonical
+[`scene-format.md`](skills/populate-simplegl-scenes/references/scene-format.md)
+reference. It documents `.blks` scenes, `.blk` prefabs, every supported tag
+and attribute, defaults, units, transforms, materials, lights, cameras,
+primitives, groups, cutters, modifiers, attachments, validation, and rendering.
+
 Install the executable, Orion runtime libraries, and assets under a standard
 prefix with:
 
@@ -56,7 +62,7 @@ check-scener:
   }
 
 render-scenes: check-scener
-  $(SCENER) scenes/main.blks -cam Main -o build/main.jpg
+	$(SCENER) --render scenes/main.blks --camera Main --output-dir build/render
 ```
 
 This keeps Orion and its platform implementation private to the Scener
@@ -91,6 +97,40 @@ shapes continue to own those properties.
 
 ## Rendering modes
 
+### Agent and batch rendering
+
+Use `--render` after modifying a `.blks` scene or any referenced `.blk`
+prefab. Scener creates an OpenGL context without displaying application UI,
+loads the scene, and writes one PNG per camera:
+
+```sh
+./build/bin/scener --render apps/scener/scenes/sample_room.blks
+```
+
+The required argument is a `.blks` scene or `.blk` prefab. A prefab opened
+directly uses Scener's default preview camera and lights. Resolution defaults
+to `1024x768`, all scene cameras are rendered by default, and output defaults
+to the local `render/` directory. Camera names become filenames such as
+`render/Main.png`. Inspect scene cameras or override each optional value:
+
+```sh
+./build/bin/scener --list-cameras apps/scener/scenes/sample_room.blks
+./build/bin/scener --render apps/scener/scenes/sample_room.blks \
+  --size 1600x900 --camera Main --output-dir build/room-renders
+```
+
+Inspect the complete command syntax or installed version without creating a
+window or OpenGL context:
+
+```sh
+./build/bin/scener --help
+./build/bin/scener --version
+```
+
+The process exits nonzero when the scene, camera, output directory, graphics
+context, or image write fails, so it can be used directly as an automated
+re-render step.
+
 Normal rendering uses every light's `castShadows` setting and produces the
 full stencil-shadow result:
 
@@ -101,23 +141,21 @@ full stencil-shadow result:
 Render with the same materials and lighting but disable all shadows:
 
 ```sh
-./build/bin/scener apps/scener/scenes/sample_room.blks -no-shadows -o shot.jpg
+./build/bin/scener --render apps/scener/scenes/sample_room.blks -no-shadows
 ```
 
 Render scene geometry as an unlit white wireframe:
 
 ```sh
-./build/bin/scener apps/scener/scenes/sample_room.blks -wireframe -o wireframe.jpg
+./build/bin/scener --render apps/scener/scenes/sample_room.blks -wireframe
 ```
 
-The same executable renders offscreen when an output path is supplied. JPEG is
-the default when no path is supplied; `.jpg`, `.jpeg`, and `.png` paths select
-the corresponding encoder:
+The same batch interface supports shadow and wireframe diagnostics:
 
 ```sh
-./build/bin/scener apps/scener/scenes/sample_room.blks -cam Main -o shot.jpg
-./build/bin/scener apps/scener/scenes/sample_room.blks -cam Main -no-shadows -o shot-no-shadows.jpg
-./build/bin/scener apps/scener/scenes/sample_room.blks -cam Main -wireframe -o shot-wireframe.png
+./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Main --output-dir render/shaded
+./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Main -no-shadows --output-dir render/unshadowed
+./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Main -wireframe --output-dir render/wireframe
 ```
 
 ## From scene layout to cinematic overpaint
@@ -154,7 +192,7 @@ major cast-shadow shapes are constrained by the source render.
 Reproduce any camera in the scene with:
 
 ```sh
-./build/bin/scener apps/scener/scenes/books/wondertown/workshop.blks -cam LadderTraversal -o shot.jpg
+./build/bin/scener --render apps/scener/scenes/books/wondertown/workshop.blks --camera LadderTraversal
 ```
 
 ## Why these choices
@@ -225,9 +263,11 @@ how a mesh happens to be shaded.
 ## XML scene authoring
 
 Scene construction, placement conventions, prefab rules, the complete XML
-schema, and required CLI validation live in the
-[`populate-simplegl-scenes`](skills/populate-simplegl-scenes/SKILL.md) skill.
-Use that skill whenever creating or changing scene and prefab XML files.
+schema, and required CLI validation live in the canonical
+[`scene-format.md`](skills/populate-simplegl-scenes/references/scene-format.md)
+reference. Agents creating or changing scene and prefab XML must also follow
+the [`populate-simplegl-scenes`](skills/populate-simplegl-scenes/SKILL.md)
+workflow.
 
 ## Known limitations (all fixable, kept out on purpose for scope)
 

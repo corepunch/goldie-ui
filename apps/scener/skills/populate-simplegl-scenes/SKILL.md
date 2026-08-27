@@ -27,8 +27,8 @@ Build scenes in stable local coordinate frames and verify them with CLI checks a
 9. Audit every visible contact: joined assembly parts terminate cleanly against their supports, while unrelated objects retain deliberate negative space without accidental overlap or tangency.
 10. Audit coverage: every `CANON` element and required initial state is represented, every hero/secondary design element reads in at least one intended camera, and any deliberate omission is documented. For story cameras, audit the actor/action/target as well as the environment: place one camera-scoped character dummy for each character who must appear, choose a readable pose aimed toward the interaction target, and never rely on a camera merely pointing at an empty object to imply the action.
 11. Validate XML, build the project, and run the tests.
-12. Load the scene through the CLI and check its declared cameras.
-13. When composition, lighting, or references are part of the request, render the affected cameras with `make screenshot` and `./build/bin/screenshot scenes/scene.blks -cam CameraName -d 24 -o /tmp/shot.png`, then inspect the image before accepting the edit. Review the result as an art-direction problem: identify generic hero silhouettes, empty functional volumes, weak upper-space occupation, flat front-on staging, repetitive prop rhythm, implausible scale, missing reference motifs, blocked actions, tangencies, and false grouping. Correct the scene and render again. `-d 24` hides lamp and character editor overlays. For every camera requiring a character, also render a blocking review with `-d 8`, which hides camera/lamp helpers but keeps character gizmos visible; confirm the correct actor appears once, at the correct support height, with a readable pose and gesture toward the focal target. Screenshot review complements, but does not replace, CLI validation.
+12. Load the scene with `./build/bin/scener --list-cameras PATH.blks` and check its declared cameras.
+13. When composition, lighting, or references are part of the request, render the affected cameras with `./build/bin/scener --render PATH.blks --camera CameraName --output-dir render/review`, then inspect the PNG before accepting the edit. Review the result as an art-direction problem: identify generic hero silhouettes, empty functional volumes, weak upper-space occupation, flat front-on staging, repetitive prop rhythm, implausible scale, missing reference motifs, blocked actions, tangencies, and false grouping. Correct the scene and render again. Use `-d 24` to hide lamp and character editor overlays. For every camera requiring a character, also render a blocking review with `-d 8`, which hides camera/lamp helpers but keeps character gizmos visible; confirm the correct actor appears once, at the correct support height, with a readable pose and gesture toward the focal target. Rendered review complements, but does not replace, CLI validation.
 14. For every interior room, place at least one motivated practical or window light that casts readable shadows. Match visible lamp geometry to its light position, establish a clear key direction, and use weaker fill only where needed to keep important actions legible.
 15. Correct every invariant violation found through brief coverage, coordinate calculations, XML validation, scene loading, screenshot review, or tests.
 
@@ -133,8 +133,8 @@ xmllint --noout scenes/scene.blks
 xmllint --xpath 'count(/scene/ambient | /scene/background)' scenes/scene.blks
 make
 make test
-./build/bin/simplegl scenes/scene.blks -list-cameras
-./build/bin/simplegl scenes/scene.blks -test
+./build/bin/scener --list-cameras scenes/scene.blks
+./build/bin/scener --render scenes/scene.blks --size 320x240 --output-dir render/validation
 ```
 
 Run `xmllint` on every edited scene and prefab. Use the actual target path in place of `scenes/scene.blks`. Treat parser errors, `unsupported XML element` warnings on stderr, unresolved materials or prefabs, build warnings, test failures, and invalid camera declarations as failures. Keep this technical gate distinct from the mandatory rendered-camera review; neither substitutes for the other.

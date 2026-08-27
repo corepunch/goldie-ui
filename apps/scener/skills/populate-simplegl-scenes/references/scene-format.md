@@ -2,6 +2,59 @@
 
 SimpleGL reads scenes from XML files. The root node is `<scene>`, which accepts scene-wide attributes and contains a mix of config tags and shape objects.
 
+This is the canonical schema reference for Scener XML. Build and inspect the
+current command syntax from the Orion repository root:
+
+```sh
+make scener
+./build/bin/scener --help
+./build/bin/scener --version
+```
+
+## File types and element placement
+
+| File | Root | Purpose | Allowed direct children |
+|------|------|---------|-------------------------|
+| `.blks` | `<scene>` | Complete scene/room | Config tags, reusable profiles, renderable content, groups, prefab instances, cutters, overlays |
+| `.blk` | `<prefab>` | Reusable object or assembly | `<attach>`, `<shape>`, renderable content, nested groups/prefabs, cutters, overlays |
+
+A `.blks` scene is the authority for cameras, ambient/background color,
+materials, character definitions, and directional lights. A `.blk` prefab is
+authored in a stable local coordinate frame and obtains materials from its
+containing scene. It can be opened directly in Scener for editing; Scener then
+provides a default camera and preview lights.
+
+The complete supported element inventory is:
+
+| Placement | Elements |
+|-----------|----------|
+| `<scene>` attributes | `ambient`, `background` |
+| Scene configuration | `<camera>`, `<material>`, `<sun>`, `<chardef>`, `<shape>` |
+| Transformable content | `<box>`, `<sphere>`, `<cylinder>`, `<capsule>`, `<arch>`, `<prism>`, `<cone>`, `<pyramid>`, `<torus>`, `<lathe>`, `<loft>`, `<wall>`, `<group>`, `<prefab>`, `<light>`, `<line>`, `<dummy>` |
+| Wall cutters | `<bool-negative-box>`, `<bool-negative-arch>`, `<bool-negative-cylinder>` |
+| Mesh modifiers | `<taper>`, `<twist>`, `<bend>`, `<stretch>`, `<skew>`, `<array>`, `<extrude>`, `<mirror>`, `<noise>`, `<shell>` |
+| Context-only children | `<camera><transform>`, `<shape><v>`, `<wall><opening>`, `<prefab><attach>` |
+
+Unknown elements produce an `unsupported XML element` warning. Element names
+and attribute names are case-sensitive.
+
+## Build, edit, validate, and render
+
+```sh
+xmllint --noout apps/scener/scenes/sample_room.blks
+make scener
+./build/bin/scener --list-cameras apps/scener/scenes/sample_room.blks
+./build/bin/scener --render apps/scener/scenes/sample_room.blks
+./build/bin/scener --render apps/scener/scenes/sample_room.blks \
+  --size 1600x900 --camera Main --output-dir render/sample-room
+```
+
+After changing a referenced `.blk`, re-run the same `.blks` render command;
+prefabs are loaded from disk for each Scener process. Batch rendering defaults
+to `1024x768`, all cameras, PNG output, and the local `render/` directory. It
+uses a hidden OpenGL context and returns nonzero on load, camera, context, or
+write failure.
+
 ## Quick example
 
 ```xml
@@ -119,12 +172,13 @@ Preset background IDs:
 
 ### `<camera>`
 
-Defines a viewpoint. Multiple cameras allowed; select via `-cam Name` on the command line, or list all cameras with `-list-cameras`.
+Defines a viewpoint. Multiple cameras are allowed; select one with
+`--camera Name` or inspect them with `--list-cameras`.
 
 | Attribute | Type   | Default  | Description |
 |-----------|--------|----------|-------------|
 | `name`    | string | Camera1  | Camera identifier |
-| `comment` | string | (empty)  | Human-readable description shown by `-list-cameras` |
+| `comment` | string | (empty)  | Human-readable description shown by `--list-cameras` |
 | `pos`     | vec3   | 0 160 500  | Eye position in cm |
 | `look`    | vec3   | 0 120 0  | Look-at target in cm |
 | `fov`     | float  | 60       | Vertical FOV in degrees |
@@ -413,6 +467,7 @@ Round-arched solid or frame extruded along Z. This is useful for Roman-arch or r
 | `tube`    | float | 0       | Frame thickness in cm. `0` yields a solid arch; a positive value yields a hollow arched frame |
 | `thickness` | float | 0     | Alias for `tube`, in cm |
 | `segments` | int   | 16      | Semicircle subdivisions |
+| `inset` | float | 0 | Additional inset between the outer arch and hollow frame opening, in cm |
 
 ### `<capsule>`
 
@@ -588,16 +643,31 @@ Do not declare a duplicate child `<opening>` on the wall.
 ### `<bool-negative-arch>`
 
 A non-rendered round-arch wall cutter using the same transform rules and wall-only
-scope as `<bool-negative-box>`. It accepts `width`, `height`, `depth`, and
-`segments`; align local Z to the wall thickness and extend `depth` completely
-through both wall faces. Pair it with visible `<arch>` frame geometry carrying
-the same outer width, height, and segment count.
+scope as `<bool-negative-box>`. It accepts `width`, `height`, and `depth`;
+align local Z to the wall thickness and extend `depth` completely through both
+wall faces. Pair it with visible `<arch>` frame geometry carrying the same
+outer width and height.
 
 ```xml
 <prefab>
-  <bool-negative-arch width="220" height="235" depth="34" segments="16"/>
+  <bool-negative-arch width="220" height="235" depth="34"/>
   <arch width="220" height="235" depth="10" tube="14" segments="16" material="wood"/>
 </prefab>
+```
+
+### `<bool-negative-cylinder>`
+
+A non-rendered circular wall cutter with the same wall-only and alignment
+rules as the other cutters. The cylinder axis is local Z, so `depth` must pass
+fully through the wall.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `radius` | float | 50 | Opening radius in cm |
+| `depth` | float | 30 | Cutter depth along local Z in cm |
+
+```xml
+<bool-negative-cylinder pos="0 180 0" radius="45" depth="30"/>
 ```
 
 ### `<group>`
@@ -613,7 +683,11 @@ A container that applies its transform to all children. Groups do not render geo
 
 ## Modifiers
 
-Modifiers are child elements of any shape (`<box>`, `<sphere>`, `<cylinder>`, `<prism>`, `<cone>`, `<pyramid>`, `<torus>`). They are applied in document order, in local-space (before transform).
+Modifiers are child elements of mesh-producing shapes: `<box>`, `<sphere>`,
+`<cylinder>`, `<capsule>`, `<arch>`, `<prism>`, `<cone>`, `<pyramid>`,
+`<torus>`, `<lathe>`, and `<loft>`. They are applied in document order in
+local space before the shape transform. `<array>` is also accepted as a child
+of a `<prefab>` instance, where it repeats the complete prefab assembly.
 
 Deform modifiers (`taper`, `twist`, `bend`, `stretch`, `skew`) operate relative to the object's bounding box along the chosen axis. The axis range [min, max] is mapped to [0, 1]. Each accepts `axis="y"` (`x`, `y`, or `z`), defaulting to `"y"`.
 

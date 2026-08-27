@@ -117,7 +117,7 @@ static const struct { const char *tag; modifier_parser_fn parse; } modifier_pars
 };
 ```
 
-**Multiple cameras:** Each `<camera>` tag is stored in a `Camera*` array with a `name` attribute. `scene_select_camera()` chooses the active camera. Command-line `-cam Name` calls this after loading. If no cameras are defined, a default "Camera1" is created.
+**Multiple cameras:** Each `<camera>` tag is stored in a `Camera*` array with a `name` attribute. `scene_select_camera()` chooses the active camera. Command-line `--camera Name` selects one render camera, while `--list-cameras` prints the names and comments without initializing graphics. If no cameras are defined, a default "Camera1" is created.
 
 **Group support:** `parse_group` calls `parse_nodes` recursively, passing its accumulated `M` (model matrix with scale) and `R` (rotation-only matrix for normals). This enables nested coordinate-space hierarchies.
 

@@ -15,7 +15,7 @@ windowing, controls, and rendering libraries. C11 standard, `-Wall -Wextra`.
 
 ```sh
 ./build/bin/scener apps/scener/scenes/sample_room.blks
-./build/bin/scener apps/scener/scenes/sample_room.blks -cam Cam2 -o shot.jpg
+./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Cam2 --output-dir render
 ```
 
 ## Project files
@@ -33,6 +33,24 @@ windowing, controls, and rendering libraries. C11 standard, `-Wall -Wextra`.
 | `skills/populate-simplegl-scenes/` | Scene population workflow and format reference |
 | `scenes/` | Runnable and diagnostic scene files (`*.blks`) |
 | `prefabs/` | Reusable object files (`chair.blk`, `sofa.blk`, etc.) |
+
+## Scene XML authoring
+
+[`skills/populate-simplegl-scenes/references/scene-format.md`](skills/populate-simplegl-scenes/references/scene-format.md)
+is the canonical reference for `.blks` scene roots, `.blk` prefab roots, every
+supported element and attribute, defaults, units, and CLI validation. Read it
+before editing scene XML. Follow
+[`skills/populate-simplegl-scenes/SKILL.md`](skills/populate-simplegl-scenes/SKILL.md)
+for placement, composition, lighting, camera, and rendered-review requirements.
+
+After editing a scene or referenced prefab:
+
+```sh
+xmllint --noout apps/scener/scenes/sample_room.blks
+make scener
+./build/bin/scener --list-cameras apps/scener/scenes/sample_room.blks
+./build/bin/scener --render apps/scener/scenes/sample_room.blks --output-dir render
+```
 
 ## Code conventions
 

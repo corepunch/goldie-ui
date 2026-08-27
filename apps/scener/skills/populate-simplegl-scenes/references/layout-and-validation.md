@@ -227,10 +227,10 @@ Follow the enclosed-room pattern in `scenes/sample_room.blks`: combine a low amb
 
 Aim cameras at useful targets, not arbitrary Euler directions. Keep the near plane away from geometry.
 
-Every `<camera>` must carry a `comment` attribute describing its purpose. The `-list-cameras` flag reads these comments so an automated agent can select the right view without parsing the full XML:
+Every `<camera>` must carry a `comment` attribute describing its purpose. The `--list-cameras` flag reads these comments so an automated agent can select the right view without parsing the full XML:
 
 ```sh
-./build/bin/simplegl scenes/scene.blks -list-cameras
+./build/bin/scener --list-cameras scenes/scene.blks
 ```
 
 Example output:
@@ -260,7 +260,7 @@ Before completion, verify:
 11. Lived-in prop clusters use deliberate variation without floating, penetration, overlap, or accidental overhang.
 12. Edited XML files pass `xmllint --noout`.
 13. Every practical point light remains inside its emitter and below the shade lip after instance transforms and scale.
-14. The project builds, relevant tests pass, and the scene loads with `-list-cameras`.
+14. The project builds, relevant tests pass, and the scene loads with `--list-cameras`.
 15. Every window or door prefab cutter crosses its wall completely, remains wall-axis-aligned, and matches the visible outer frame boundary without an accidental reveal gap.
 16. Every visible RGB value is authored directly as sRGB, while light
     intensity remains a separate, unmodified linear scalar.
