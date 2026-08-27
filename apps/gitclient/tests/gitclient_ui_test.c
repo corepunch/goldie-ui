@@ -529,34 +529,49 @@ void test_generated_context_menus_reuse_shared_commands(void) {
     PASS();
 }
 
-// 11. Toolbar buttons converge on the same command IDs as menus/context menus ──
+// 11. Page toolbars converge on the same command IDs as menus/context menus ──
+
+typedef struct {
+    const toolbar_item_t *items;
+    int count;
+} gc_toolbar_ref_t;
+
+static const gc_toolbar_ref_t kPageToolbars[] = {
+    { TB_CHANGES, TB_CHANGES_COUNT },
+    { TB_HISTORY, TB_HISTORY_COUNT },
+    { TB_GITHUB, TB_GITHUB_COUNT },
+};
+
+static bool toolbar_has_action(const gc_toolbar_ref_t *toolbar, int ident) {
+    for (int i = 0; i < toolbar->count; i++)
+        if (toolbar->items[i].type == TOOLBAR_ITEM_BUTTON &&
+            toolbar->items[i].ident == ident) return true;
+    return false;
+}
 
 void test_toolbar_buttons_reference_menu_command_ids(void) {
-    TEST("gitclient Orion: toolbar buttons reuse menu/context command IDs");
-    // Every toolbar button must dispatch the same command ID its menu or
-    // context-menu counterpart uses — no *_SYNC_SYNC suffixed clones.
-    ASSERT_EQUAL(TB_MAIN_COUNT, 14);
-    ASSERT_EQUAL(TB_MAIN[0].ident,  ID_REMOTE_SYNC);
-    ASSERT_EQUAL(TB_MAIN[1].ident,  ID_REMOTE_FETCH);
-    ASSERT_EQUAL(TB_MAIN[3].ident,  ID_COMMIT_COMMIT);
-    ASSERT_EQUAL(TB_MAIN[4].ident,  ID_COMMIT_UNDO);
-    ASSERT_EQUAL(TB_MAIN[5].ident,  ID_FILES_STAGE_ALL);
-    ASSERT_EQUAL(TB_MAIN[6].ident,  ID_FILES_UNSTAGE_ALL);
-    ASSERT_EQUAL(TB_MAIN[7].ident,  ID_BRANCH_NEW);
-    ASSERT_EQUAL(TB_MAIN[9].ident,  ID_REPO_REFRESH);
-    ASSERT_EQUAL(TB_MAIN[10].ident, ID_FILE_REPOSITORIES);
-    ASSERT_EQUAL(TB_MAIN[11].ident, ID_VIEW_CHANGES);
-    ASSERT_EQUAL(TB_MAIN[12].ident, ID_VIEW_HISTORY);
-    ASSERT_EQUAL(TB_MAIN[13].ident, ID_VIEW_GITHUB);
+    TEST("gitclient Orion: page toolbars reuse menu/context command IDs");
+    ASSERT_EQUAL(gitclient_main_window_form.role, WINDOW_ROLE_HOST);
+    ASSERT_EQUAL(gitclient_changes_page_form.role, WINDOW_ROLE_PAGE);
+    ASSERT_EQUAL(gitclient_history_page_form.role, WINDOW_ROLE_PAGE);
+    ASSERT_EQUAL(gitclient_github_page_form.role, WINDOW_ROLE_PAGE);
+    ASSERT_EQUAL(gitclient_main_window_form.toolbar_count, 0);
+    ASSERT_EQUAL(gitclient_changes_page_form.toolbar_items, TB_CHANGES);
+    ASSERT_EQUAL(gitclient_history_page_form.toolbar_items, TB_HISTORY);
+    ASSERT_EQUAL(gitclient_github_page_form.toolbar_items, TB_GITHUB);
+    ASSERT_TRUE(toolbar_has_action(&kPageToolbars[0], ID_FILES_STAGE_ALL));
+    ASSERT_FALSE(toolbar_has_action(&kPageToolbars[1], ID_FILES_STAGE_ALL));
+    ASSERT_FALSE(toolbar_has_action(&kPageToolbars[2], ID_FILES_STAGE_ALL));
 
-    // Each button ident must be unique and must not collide with any other
-    // toolbar button (the old bug produced distinct suffixed IDs per button).
-    for (int i = 0; i < TB_MAIN_COUNT; i++) {
-        if (TB_MAIN[i].type != TOOLBAR_ITEM_BUTTON) continue;
-        ASSERT_TRUE(TB_MAIN[i].ident != 0);
-        for (int j = i + 1; j < TB_MAIN_COUNT; j++) {
-            if (TB_MAIN[j].type != TOOLBAR_ITEM_BUTTON) continue;
-            ASSERT_TRUE(TB_MAIN[i].ident != TB_MAIN[j].ident);
+    for (int toolbar_index = 0; toolbar_index < ARRAY_LEN(kPageToolbars); toolbar_index++) {
+        const gc_toolbar_ref_t *toolbar = &kPageToolbars[toolbar_index];
+        for (int i = 0; i < toolbar->count; i++) {
+            if (toolbar->items[i].type != TOOLBAR_ITEM_BUTTON) continue;
+            ASSERT_TRUE(toolbar->items[i].ident != 0);
+            for (int j = i + 1; j < toolbar->count; j++) {
+                if (toolbar->items[j].type != TOOLBAR_ITEM_BUTTON) continue;
+                ASSERT_TRUE(toolbar->items[i].ident != toolbar->items[j].ident);
+            }
         }
     }
     PASS();
@@ -587,10 +602,13 @@ void test_action_metadata_and_accelerators(void) {
         ASSERT_TRUE(gitclient_action_meta[i].id >= ID_COMMAND_BASE);
     }
 
-    // Every toolbar button references an action in the manifest.
-    for (int i = 0; i < TB_MAIN_COUNT; i++)
-        if (TB_MAIN[i].type == TOOLBAR_ITEM_BUTTON)
-            ASSERT_TRUE(gc_meta_has((uint16_t)TB_MAIN[i].ident));
+    // Every projected page-toolbar button references an action in the manifest.
+    for (int toolbar_index = 0; toolbar_index < ARRAY_LEN(kPageToolbars); toolbar_index++) {
+        const gc_toolbar_ref_t *toolbar = &kPageToolbars[toolbar_index];
+        for (int i = 0; i < toolbar->count; i++)
+            if (toolbar->items[i].type == TOOLBAR_ITEM_BUTTON)
+                ASSERT_TRUE(gc_meta_has((uint16_t)toolbar->items[i].ident));
+    }
 
     // Every context-menu entry that is not a separator references the manifest.
     for (int i = 0; i < CONTEXT_MENU_BRANCHES_COUNT; i++)

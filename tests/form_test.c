@@ -63,6 +63,41 @@ static const form_def_t kNonAutoLayoutChildForm = {
   .child_count = ARRAY_LEN(kTestFormChildren),
 };
 
+static int kPageActivations;
+static int kPageDeactivations;
+
+static result_t host_role_test_proc(window_t *win, uint32_t msg,
+                                    uint32_t wparam, void *lparam) {
+  (void)win; (void)msg; (void)wparam; (void)lparam;
+  return false;
+}
+
+static result_t page_role_test_proc(window_t *win, uint32_t msg,
+                                    uint32_t wparam, void *lparam) {
+  (void)win; (void)wparam; (void)lparam;
+  if (msg == evActivate) kPageActivations++;
+  if (msg == evDeactivate) kPageDeactivations++;
+  return msg == evActivate || msg == evDeactivate;
+}
+
+static const toolbar_item_t kPageToolbar[] = {
+  { TOOLBAR_ITEM_BUTTON, 701, "refresh", 0, 0, "Refresh", "Refresh page" },
+};
+
+static const form_def_t kHostRoleForm = {
+  .name = "Host", .width = 200, .height = 100,
+  .flags = WINDOW_TOOLBAR | WINDOW_AUTO_LAYOUT,
+  .role = WINDOW_ROLE_HOST,
+};
+
+static const form_def_t kPageRoleForm = {
+  .name = "Page", .width = 200, .height = 80,
+  .flags = WINDOW_AUTO_LAYOUT,
+  .role = WINDOW_ROLE_PAGE,
+  .toolbar_items = kPageToolbar,
+  .toolbar_count = ARRAY_LEN(kPageToolbar),
+};
+
 // ──────────────────────────────────────────────────────────────────────────
 // DDX form and state for show_ddx_dialog tests
 // ──────────────────────────────────────────────────────────────────────────
@@ -1077,6 +1112,42 @@ void test_form_children_exist_at_create(void) {
   PASS();
 }
 
+void test_host_projects_page_toolbar(void) {
+  TEST("host projects selected page toolbar");
+  kPageActivations = 0;
+  kPageDeactivations = 0;
+
+  window_t *host = create_window_from_form(&kHostRoleForm, 0, 0, NULL,
+                                            host_role_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(host);
+  window_t *first = create_window_from_form(&kPageRoleForm, 0, 0, host,
+                                             page_role_test_proc, 0, NULL);
+  window_t *second = create_window_from_form(&kPageRoleForm, 0, 0, host,
+                                              page_role_test_proc, 0, NULL);
+  ASSERT_NOT_NULL(first);
+  ASSERT_NOT_NULL(second);
+  ASSERT_TRUE(set_host_page(host, first));
+  ASSERT_EQUAL(host->active_page, first);
+  ASSERT_EQUAL(kPageActivations, 1);
+
+  toolbar_state_t *toolbar = window_toolbar_state(host);
+  ASSERT_NOT_NULL(toolbar);
+  ASSERT_EQUAL(toolbar->item_count, 1);
+  ASSERT_EQUAL(toolbar->items[0].ident, 701);
+
+  ASSERT_TRUE(set_host_page(host, second));
+  ASSERT_EQUAL(host->active_page, second);
+  ASSERT_EQUAL(second->page_host, host);
+  ASSERT_EQUAL(kPageActivations, 2);
+  ASSERT_EQUAL(kPageDeactivations, 1);
+  destroy_window(second);
+  ASSERT_NULL(host->active_page);
+  ASSERT_EQUAL(toolbar->item_count, 0);
+  ASSERT_EQUAL(kPageDeactivations, 2);
+  destroy_window(host);
+  PASS();
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Test 2: child IDs are applied correctly
 // ──────────────────────────────────────────────────────────────────────────
@@ -2051,6 +2122,7 @@ int main(int argc, char *argv[]) {
   TEST_START("form_def_t / create_window_from_form / show_dialog_from_form");
 
   test_form_children_exist_at_create();
+  test_host_projects_page_toolbar();
   test_form_child_ids();
   test_form_child_flags();
   test_form_child_text();

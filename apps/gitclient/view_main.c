@@ -17,6 +17,11 @@ void gc_set_view_mode(int tab) {
   gc->history_mode = (tab == 1);
   if (gc->tabs_win) send_message(gc->tabs_win, tcSetSelection, (uint32_t)tab, NULL);
 
+  window_t *page = tab == 0 ? gc->changes_page_win :
+                   tab == 1 ? gc->history_page_win :
+                   tab == 2 ? gc->github_page_win : NULL;
+  if (page) set_host_page(gc->main_win, page);
+
   switch (tab) {
     case 0:
       gc->files_win = gc->changes_files_win;
@@ -170,17 +175,17 @@ result_t gc_main_proc(window_t *win, uint32_t msg,
       window_t *github_tab  = get_window_item(win, ID_MAIN_WINDOW_GITHUB_TAB);
 
       if (changes_tab)
-        create_window_from_form(&gc_changes_page_form, 0, 0,
-                                changes_tab, page_changes_proc,
-                                gc->hinstance, NULL);
+        gc->changes_page_win = create_window_from_form(
+          &gc_changes_page_form, 0, 0, changes_tab, page_changes_proc,
+          gc->hinstance, NULL);
       if (history_tab)
-        create_window_from_form(&gc_history_page_form, 0, 0,
-                                history_tab, page_history_proc,
-                                gc->hinstance, NULL);
+        gc->history_page_win = create_window_from_form(
+          &gc_history_page_form, 0, 0, history_tab, page_history_proc,
+          gc->hinstance, NULL);
       if (github_tab)
-        create_window_from_form(&gc_github_page_form, 0, 0,
-                                github_tab, page_github_proc,
-                                gc->hinstance, NULL);
+        gc->github_page_win = create_window_from_form(
+          &gc_github_page_form, 0, 0, github_tab, page_github_proc,
+          gc->hinstance, NULL);
 
       GC_LOG("page outlets after sub-form creation: "
              "changes_files=%p branches=%p github_issues=%p",

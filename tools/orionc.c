@@ -918,9 +918,17 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
 }
 
 static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr database) {
-  char *name = attr(form, "name"), *title = attr(form, "title"), *flags_raw = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *spacing = attrs_first(form, "spacing", "layout_spacing");
+  char *name = attr(form, "name"), *title = attr(form, "title"), *flags_raw = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *role = attr(form, "role"), *spacing = attrs_first(form, "spacing", "layout_spacing");
   rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE], flags[256];
   if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
+  const char *role_name = !role || !*role || eq(role, "normal") ? "WINDOW_ROLE_NORMAL" :
+                          eq(role, "host") ? "WINDOW_ROLE_HOST" :
+                          eq(role, "page") ? "WINDOW_ROLE_PAGE" : NULL;
+  if (!role_name) {
+    fprintf(stderr, "orionc: invalid role '%s' on form '%s'\n", role, nz(name, ""));
+    free(name); free(title); free(flags_raw); free(toolbar); free(role); free(spacing);
+    return false;
+  }
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
   resolve_flags(flags, sizeof(flags), nz(flags_raw, "0"));
@@ -930,8 +938,8 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
   int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
   emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");
   emit_bindings(f, prefix, form_id, &bindings);
-  OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
-      prefix, form_id, titleq, sz.w, sz.h, flags, byte_attr(spacing, ORIONC_DEFAULT_SPACING),
+    OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .role = %s, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
+      prefix, form_id, titleq, sz.w, sz.h, flags, role_name, byte_attr(spacing, ORIONC_DEFAULT_SPACING),
       pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h, prefix, form_id, count);
   if (toolbar && *toolbar) { char tb[128]; ident(tb, sizeof(tb), toolbar, true); OUT(", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", tb, tb); }
   else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
@@ -951,7 +959,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
         btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0");
   }
   LINE(" };\n\n");
-  free(name); free(title); free(flags_raw); free(toolbar); free(spacing);
+  free(name); free(title); free(flags_raw); free(toolbar); free(role); free(spacing);
   return true;
 }
 

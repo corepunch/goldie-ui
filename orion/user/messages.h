@@ -16,6 +16,7 @@ enum {
   evPaintStencil,
   evMouseActivate,
   evActivate,
+  evDeactivate,
   evSetFocus,
   evKillFocus,
   evHitTest,

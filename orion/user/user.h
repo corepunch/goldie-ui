@@ -23,6 +23,12 @@ typedef intptr_t result_t;
 // hinstance == 0 means system/unowned (shell, framework, tests).
 typedef uint32_t hinstance_t;
 
+typedef enum {
+  WINDOW_ROLE_NORMAL = 0,
+  WINDOW_ROLE_HOST,
+  WINDOW_ROLE_PAGE,
+} window_role_t;
+
 #define DEFAULT_WINDOW_CASCADE_X 10
 #define DEFAULT_WINDOW_CASCADE_Y 20
 
@@ -255,6 +261,7 @@ typedef struct {
   const char             *name;        // window title
   int                     width, height; // client area dimensions
   flags_t                 flags;       // window flags
+  window_role_t           role;        // normal, page host, or hosted page
   uint8_t                 layout_spacing; // spacing between direct children; 0 = default
   irect16_t               padding;      // inner padding for auto-layout content
   irect16_t               margin;       // outer margin for this form when nested
@@ -457,6 +464,7 @@ struct window_s {
   irect16_t frame;
   uint32_t id;
   uint64_t editor_id;    // optional design-time stable identity; 0 outside editors
+  window_role_t role;
   // Runtime style/state flags share one 32-bit word.
   // WINDOW_*/BUTTON_* use low bits; WINDOW_STATE_* uses high bits.
   uint32_t flags;
@@ -475,6 +483,10 @@ struct window_s {
   struct window_s *children;
   struct window_s *parent;
   struct window_s *toolbar; // toolbar host window (win_toolbar); state lives in toolbar->userdata
+  struct window_s *active_page; // selected page projected by a WINDOW_ROLE_HOST
+  struct window_s *page_host; // WINDOW_ROLE_HOST currently projecting this page
+  const toolbar_item_t *page_toolbar_items; // declarative page contribution; not owned
+  int page_toolbar_count;
   const struct menu_item_s *context_menu; // generated declarative menu; not owned
   int                       context_menu_count;
 };
@@ -548,6 +560,7 @@ window_t *create_window2(windef_t const *def, irect16_t const *r, window_t *pare
 window_t *create_window_from_form(form_def_t const *def, int x, int y,
                                   window_t *parent, winproc_t proc,
                                   hinstance_t hinstance, void *lparam);
+bool set_host_page(window_t *host, window_t *page);
 void *allocate_window_data(window_t *win, size_t size);
 void show_window(window_t *win, bool visible);
 void destroy_window(window_t *win);
