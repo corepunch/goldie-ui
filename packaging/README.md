@@ -7,13 +7,15 @@ permalink: /package-manager/
 
 # Orion Package Manager
 
-The `orion` package manager installs Orion applications independently from
-GitHub Release artifacts. Its commands follow the familiar Homebrew model while
-keeping the implementation small, auditable, and usable from POSIX shells.
+The `orion` package manager installs the Orion SDK and runtime by default, then
+installs Orion applications independently from GitHub Release artifacts. Its
+commands follow the familiar Homebrew model while keeping the implementation
+small, auditable, and usable from POSIX shells.
 
 ## Install Orion
 
-Bootstrap the package manager and shared runtime on macOS or Linux:
+Bootstrap the package manager, development headers, libraries, and shared
+runtime on macOS or Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/corepunch/orion-ui/main/install.sh | sudo sh
@@ -65,7 +67,8 @@ alias for `orion update`.
 `orion-core` is installed during bootstrap and contains:
 
 - The `orion` package-manager executable.
-- Orion runtime libraries.
+- Orion and Platform development headers.
+- Orion and Platform linkable runtime libraries.
 - Shared framework assets.
 - Core offline documentation.
 
@@ -81,6 +84,36 @@ the Shell loads as GEMs.
 Package receipts are stored under `<prefix>/.orion/installed`. They record the
 installed version and owned files so packages can be listed, updated, and
 removed without deleting files owned by another package.
+
+## Build Applications With The SDK
+
+The bootstrap installation is also an Orion development SDK. Include headers
+from `<prefix>/include` and link libraries from `<prefix>/lib`:
+
+```sh
+cc app.c -o app \
+  -I/opt/orion/include \
+  -L/opt/orion/lib \
+  -lkernel -lcommctl -lcommdlg -luser -lplatform
+```
+
+Use `$HOME/.local/include` and `$HOME/.local/lib` when Orion was installed with
+`ORION_PREFIX="$HOME/.local"`. Applications may also need the platform-native
+OpenGL libraries and the development packages used by their selected Orion
+features. On macOS install `cglm`, `lua@5.4`, and `libxml2` with Homebrew. On
+Debian or Ubuntu install `libcglm-dev`, `liblua5.4-dev`, `libxml2-dev`,
+`libgl1-mesa-dev`, `libegl-dev`, and `libx11-dev`.
+
+The primary headers are:
+
+```c
+#include <orion/ui.h>
+#include <orion/gem.h>       /* Loadable GEM applications */
+#include <platform/platform.h>
+```
+
+Header subdirectories are preserved, so includes used throughout the source
+tree work unchanged in installed application projects.
 
 ## Security And Releases
 
@@ -99,12 +132,13 @@ The default channel follows the latest GitHub release. Pin a specific release
 when reproducibility is required:
 
 ```sh
-ORION_RELEASE=v1.0.0 orion install scener
+ORION_RELEASE=v1.0.1 orion install scener
 ```
 
 The release page contains one archive per package and platform, plus a
-checksummed `packages-<platform>.tsv` index. The first published release is
-[Orion v1.0.0](https://github.com/corepunch/orion-ui/releases/tag/v1.0.0).
+checksummed `packages-<platform>.tsv` index. SDK-enabled packages are available
+from [Orion v1.0.1](https://github.com/corepunch/orion-ui/releases/tag/v1.0.1)
+and later.
 
 ## Environment Variables
 
@@ -122,7 +156,9 @@ it takes precedence over `ORION_RELEASE` and `ORION_REPOSITORY`.
 
 ```text
 <prefix>/bin/                 package manager, applications, and tools
-<prefix>/lib/                 runtime libraries and component plugins
+<prefix>/include/orion/       Orion development headers
+<prefix>/include/platform/    Platform development headers
+<prefix>/lib/                 linkable libraries and component plugins
 <prefix>/lib/orion/gems/      loadable Orion applications
 <prefix>/share/orion/         framework assets
 <prefix>/share/<app>/         application assets

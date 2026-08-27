@@ -33,11 +33,12 @@ payload="$stage/core"
 mkdir -p "$payload/bin" "$payload/lib" "$payload/share"
 install -m 755 packaging/orion "$payload/bin/orion"
 cp "$prefix"/lib/libkernel.* "$prefix"/lib/libuser.* "$prefix"/lib/libcommctl.* "$prefix"/lib/libcommdlg.* "$prefix"/lib/libplatform.* "$payload/lib/"
+cp -R "$prefix/include" "$payload/"
 cp -R "$prefix/share/orion" "$payload/share/"
 mkdir -p "$payload/share/doc/orion"
 cp "$prefix/share/doc/orion/README.md" "$payload/share/doc/orion/"
 cp "$prefix/share/doc/orion/package-manager.md" "$payload/share/doc/orion/"
-archive_package orion-core "$payload" "Orion package manager and runtime"
+archive_package orion-core "$payload" "Orion package manager, SDK, and runtime"
 
 while IFS="$(printf '\t')" read -r app description dependencies || [ -n "$app" ]; do
   [ -n "$app" ] || continue

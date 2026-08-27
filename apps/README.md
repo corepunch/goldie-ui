@@ -15,10 +15,11 @@ orion list
 ```
 
 Each application release contains its executable, loadable GEM where
-applicable, component plugin, assets, and documentation. Shared libraries and
-framework assets are provided by the automatically installed `orion-core`
-package. See the [Package Manager guide](../packaging/README.md) for bootstrap
-installation, all commands, supported platforms, and package internals.
+applicable, component plugin, assets, and documentation. Development headers,
+shared libraries, and framework assets are provided by the automatically
+installed `orion-core` package. See the
+[Package Manager guide](../packaging/README.md) for bootstrap installation, SDK
+compiler flags, all commands, supported platforms, and package internals.
 
 ### Installing the suite from source
 

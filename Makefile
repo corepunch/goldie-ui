@@ -247,10 +247,17 @@ INSTALL_GEMS = $(if $(IS_WIN),,$(GEM_BINS) $(PHONY_APP_GEMS))
 install: all
 	@echo "INSTALL $(DESTDIR)$(PREFIX)"
 	@$(INSTALL) -d "$(DESTDIR)$(PREFIX)/bin" "$(DESTDIR)$(PREFIX)/lib" \
+	    "$(DESTDIR)$(PREFIX)/include/orion" "$(DESTDIR)$(PREFIX)/include/platform" \
 	    "$(DESTDIR)$(PREFIX)/lib/orion/gems" "$(DESTDIR)$(PREFIX)/share" \
 	    "$(DESTDIR)$(PREFIX)/share/doc/orion"
 	@$(INSTALL) -m 755 $(INSTALL_BINS) "$(DESTDIR)$(PREFIX)/bin/"
 	@$(INSTALL) -m 755 $(INSTALL_RUNTIME_LIBS) $(COMPONENT_PLUGIN_BINS) "$(DESTDIR)$(PREFIX)/lib/"
+	@find orion -type f -name '*.h' | while IFS= read -r file; do \
+	  dest="$(DESTDIR)$(PREFIX)/include/$$file"; \
+	  $(INSTALL) -d "$$(dirname "$$dest")"; \
+	  $(INSTALL) -m 644 "$$file" "$$dest"; \
+	done
+	@$(INSTALL) -m 644 platform/platform.h platform/events.h "$(DESTDIR)$(PREFIX)/include/platform/"
 	@if [ -n "$(INSTALL_GEMS)" ]; then \
 	  $(INSTALL) -m 755 $(INSTALL_GEMS) "$(DESTDIR)$(PREFIX)/lib/orion/gems/"; \
 	fi

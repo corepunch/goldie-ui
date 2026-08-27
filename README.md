@@ -159,8 +159,10 @@ pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-lua make
 
 ### Orion Package Manager
 
-The `orion` package manager installs applications independently from
-checksummed GitHub Release artifacts. Bootstrap it on macOS or Linux:
+The `orion` package manager installs the Orion and Platform development
+headers, libraries, and runtime by default, then installs applications
+independently from checksummed GitHub Release artifacts. Bootstrap it on macOS
+or Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/corepunch/orion-ui/main/install.sh | sudo sh
@@ -180,9 +182,9 @@ Its command syntax follows the familiar Homebrew model:
 orion install scener
 ```
 
-See the [Package Manager guide](packaging/README.md) for all commands,
-user-local installation, package layout, supported platforms, release pinning,
-security checks, and release-package generation.
+See the [Package Manager guide](packaging/README.md) for SDK compiler flags,
+all commands, user-local installation, package layout, supported platforms,
+release pinning, security checks, and release-package generation.
 
 ### Build Commands
 
@@ -217,6 +219,8 @@ The default layout is:
 
 ```text
 /opt/orion/bin/                 applications and tools
+/opt/orion/include/orion/       Orion development headers
+/opt/orion/include/platform/    Platform development headers
 /opt/orion/lib/                 runtime libraries and component plugins
 /opt/orion/lib/orion/gems/      loadable Orion applications
 /opt/orion/share/orion/         framework assets

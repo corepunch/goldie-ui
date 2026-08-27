@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ORION_VERSION="1.0.0"
+ORION_VERSION="1.0.1"
 ORION_REPOSITORY="${ORION_REPOSITORY:-corepunch/orion-ui}"
 ORION_PREFIX="${ORION_PREFIX:-/opt/orion}"
 ORION_RELEASE="${ORION_RELEASE:-latest}"
