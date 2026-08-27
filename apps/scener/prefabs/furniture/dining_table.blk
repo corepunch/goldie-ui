@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- dining table: footprint 1.6x1.0, baseline y=0, no front direction.
+     Centered at origin with 4 wooden cylinder legs. -->
+<prefab>
+  <attach name="center" pos="0 78 0"/>
+  <attach name="edge_n" pos="0 78 -53"/>
+  <attach name="edge_s" pos="0 78 53"/>
+  <attach name="edge_e" pos="83 78 0"/>
+  <attach name="edge_w" pos="-83 78 0"/>
+  <box pos="0 75 0" size="160 6 100" material="wood"/>
+  <cylinder pos="-70 37.5 -42" radius="4" height="75" material="wood"/>
+  <cylinder pos="70 37.5 -42" radius="4" height="75" material="wood"/>
+  <cylinder pos="-70 37.5 42" radius="4" height="75" material="wood"/>
+  <cylinder pos="70 37.5 42" radius="4" height="75" material="wood"/>
+</prefab>

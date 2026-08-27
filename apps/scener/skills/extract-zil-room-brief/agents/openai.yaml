@@ -1,0 +1,4 @@
+interface:
+  display_name: "Extract ZIL Room Brief"
+  short_description: "Extract canonical room facts from ZIL stories"
+  default_prompt: "Use $extract-zil-room-brief to extract a canonical room brief from this ZIL adventure."

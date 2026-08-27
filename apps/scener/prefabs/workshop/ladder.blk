@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ladder: footprint 1.00x0.24, baseline y=0, front faces +Z, initial stuck state. -->
+<prefab>
+  <box pos="-38 220 0" size="13 440 18" material="wood"/>
+  <box pos="38 220 0" size="13 440 18" material="wood"/>
+  <box pos="0 34 1" size="82 8 18" material="wood"><array count="10" translation="0 43 0"/></box>
+  <box pos="0 443 0" size="98 12 22" material="dark_wood"/>
+  <cylinder pos="-56 54 3" rot="90 0 0" radius="23" height="14" material="iron"/>
+  <torus pos="-56 54 13" rot="90 0 0" majorRadius="16" minorRadius="3" material="brass"/>
+  <cylinder pos="-56 54 27" rot="90 0 0" radius="4" height="30" material="iron"/>
+  <box pos="-56 34 42" size="5.5 40 5.5" material="iron"/>
+  <sphere pos="-56 12 42" radius="7.5" material="wood"/>
+  <torus pos="56 54 3" rot="90 0 0" majorRadius="20" minorRadius="4" material="iron"/>
+  <cylinder pos="0 453 0" rot="90 0 0" radius="13" height="24" material="iron"/>
+</prefab>

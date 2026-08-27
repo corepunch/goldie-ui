@@ -1,0 +1,11 @@
+<scene background="overcast">
+  <camera name="Camera1" pos="0 150 600" look="0 150 0" fov="60"/>
+  <sun dir="1 -1 0.5" color="1 0.95 0.85" intensity="1.2"/>
+
+  <!-- Wall with a circular porthole punched through it -->
+  <wall pos="0 0 0" length="600" height="300" thickness="30" material="wall"/>
+  <bool-negative-cylinder pos="0 150 0" radius="60" depth="40"/>
+
+  <!-- Floor -->
+  <box pos="0 -5 0" size="800 10 600" material="floor"/>
+</scene>

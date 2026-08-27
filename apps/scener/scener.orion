@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orion
+    version="1"
+    name="scener"
+    title="SimpleSketch3D"
+    root="apps/scener">
+
+    <menus var="kMenus" count="kNumMenus">
+      <menu name="file" label="File">
+        <item name="new" label="New" shortcut="Ctrl+N" />
+        <item name="open" label="Open..." shortcut="Ctrl+O" />
+        <Separator />
+        <item name="save" label="Save" shortcut="Ctrl+S" />
+        <item name="saveas" label="Save As..." />
+        <Separator />
+        <item name="close" label="Close" shortcut="Ctrl+W" />
+        <Separator />
+        <item name="quit" label="Quit" />
+      </menu>
+
+      <menu name="edit" label="Edit">
+        <item name="undo" label="Undo" shortcut="Ctrl+Z" />
+        <item name="redo" label="Redo" shortcut="Ctrl+Y" />
+        <Separator />
+        <item name="cut" label="Cut" />
+        <item name="copy" label="Copy" />
+        <item name="paste" label="Paste" />
+        <Separator />
+        <item name="duplicate" label="Duplicate" shortcut="Ctrl+D" />
+        <item name="delete" label="Delete" shortcut="Delete" />
+      </menu>
+
+      <menu name="tool" label="Tools">
+        <item name="select" label="Select Mode" shortcut="Q" />
+        <item name="move" label="Move Mode" shortcut="W" />
+        <item name="rotate" label="Rotate Mode" shortcut="E" />
+        <item name="scale" label="Scale Mode" shortcut="R" />
+      </menu>
+
+      <menu name="view" label="View">
+        <item name="zoom_in" label="Zoom In" />
+        <item name="zoom_out" label="Zoom Out" />
+        <item name="zoom_fit" label="Frame Selected" shortcut="F" />
+        <item name="next_camera" label="Next Camera" shortcut="Tab" />
+        <item name="prev_camera" label="Previous Camera" shortcut="Shift+Tab" />
+        <Separator />
+        <item name="perspective" label="Perspective" />
+        <item name="front" label="Front" />
+        <item name="back" label="Back" />
+        <item name="left" label="Left" />
+        <item name="right" label="Right" />
+        <item name="top" label="Top" />
+        <item name="bottom" label="Bottom" />
+        <Separator />
+        <item name="show_grid" label="[x] Show Grid" />
+        <item name="show_shadows" label="[x] Show Shadows" />
+        <item name="show_wireframe" label="[ ] Wireframe Overlay" />
+        <Separator />
+        <item name="grid_options" label="Grid Options..." />
+      </menu>
+
+      <menu name="create" label="Create">
+        <item name="box" label="Box" />
+        <item name="sphere" label="Sphere" />
+        <item name="cylinder" label="Cylinder" />
+        <item name="cone" label="Cone" />
+        <item name="torus" label="Torus" />
+        <item name="prism" label="Prism" />
+        <item name="capsule" label="Capsule" />
+        <item name="arch" label="Arch" />
+        <Separator />
+        <item name="point_light" label="Point Light" />
+        <item name="directional_light" label="Directional Light" />
+        <Separator />
+        <item name="camera" label="Camera from View" />
+      </menu>
+
+      <menu name="modify" label="Modify">
+        <item name="apply_taper" label="Taper..." />
+        <item name="apply_twist" label="Twist..." />
+        <item name="apply_bend" label="Bend..." />
+        <item name="apply_stretch" label="Stretch..." />
+        <item name="apply_skew" label="Skew..." />
+        <item name="apply_extrude" label="Extrude..." />
+        <item name="apply_mirror" label="Mirror..." />
+        <item name="apply_noise" label="Noise..." />
+        <item name="apply_shell" label="Shell..." />
+        <Separator />
+        <item name="apply_array" label="Array..." />
+      </menu>
+
+      <menu name="window" label="Window" dynamic="true">
+        <item name="command_panel" label="Command Panel" />
+        <Separator />
+      </menu>
+
+      <menu name="help" label="Help">
+        <item name="about" label="About..." />
+      </menu>
+    </menus>
+
+    <forms>
+      <form name="main_toolbar" title="Toolbar" width="1" height="1">
+        <Toolbar>
+          <Button name="undo" command="edit.undo" icon="toolbar/undo" text="Undo" tooltip="Undo" />
+          <Button name="redo" command="edit.redo" icon="toolbar/redo" text="Redo" tooltip="Redo" />
+          <spacer w="10" />
+          <Button name="select" command="tool.select" icon="tools/select" text="Select" tooltip="Select mode" flags="BUTTON_AUTORADIO" />
+          <Button name="move" command="tool.move" icon="tools/move" text="Move" tooltip="Move mode" flags="BUTTON_AUTORADIO" />
+          <Button name="rotate" command="tool.rotate" icon="tools/rotate" text="Rotate" tooltip="Rotate mode" flags="BUTTON_AUTORADIO" />
+          <Button name="scale" command="tool.scale" icon="tools/scale" text="Scale" tooltip="Scale mode" flags="BUTTON_AUTORADIO" />
+          <spacer w="10" />
+          <Button name="zoom_fit" command="view.zoom_fit" icon="view/frame" text="Fit" tooltip="Frame selected" />
+        </Toolbar>
+      </form>
+    </forms>
+
+</orion>

@@ -1,0 +1,1734 @@
+#include <orion/user/gl_compat.h>
+#include <orion/ui.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include "simplegl.h"
+#include "materials.h"
+
+/* -------------------------------------------------------------- Tiny XML */
+
+typedef struct XmlAttr { char *name, *value; } XmlAttr;
+typedef struct XmlNode {
+	char *tag;
+	XmlAttr *attrs; int nattrs,cattrs;
+	struct XmlNode **kids; int nkids,ckids;
+} XmlNode;
+
+static XmlNode* xml_new(const char*tag){
+	XmlNode *n=calloc(1,sizeof(XmlNode)); n->tag=strdup(tag); return n;
+}
+static void xml_free(XmlNode*n){
+	if(!n) return;
+	for(int i=0;i<n->nattrs;i++){ free(n->attrs[i].name); free(n->attrs[i].value); }
+	free(n->attrs);
+	for(int i=0;i<n->nkids;i++) xml_free(n->kids[i]);
+	free(n->kids); free(n->tag); free(n);
+}
+static const char* xml_attr(XmlNode*n,const char*name,const char*def){
+	for(int i=0;i<n->nattrs;i++) if(!strcmp(n->attrs[i].name,name)) return n->attrs[i].value;
+	return def;
+}
+const char *scene_node_tag(const void *node){
+	const XmlNode *n=(const XmlNode*)node;
+	return n?n->tag:NULL;
+}
+const char *scene_node_attr(const void *node,const char *name){
+	XmlNode *n=(XmlNode*)node;
+	return n&&name?xml_attr(n,name,NULL):NULL;
+}
+int scene_node_attr_count(const void *node){
+	const XmlNode *n=(const XmlNode*)node;
+	return n?n->nattrs:0;
+}
+const char *scene_node_attr_name(const void *node,int index){
+	const XmlNode *n=(const XmlNode*)node;
+	return n&&index>=0&&index<n->nattrs?n->attrs[index].name:NULL;
+}
+const char *scene_node_attr_value(const void *node,int index){
+	const XmlNode *n=(const XmlNode*)node;
+	return n&&index>=0&&index<n->nattrs?n->attrs[index].value:NULL;
+}
+static vec3 xml_attr_v3(XmlNode*n,const char*name,vec3 def){
+	const char*s=xml_attr(n,name,NULL); if(!s) return def;
+	vec3 v=def; sscanf(s,"%f %f %f",&v.x,&v.y,&v.z); return v;
+}
+static float xml_attr_f(XmlNode*n,const char*name,float def){
+	const char*s=xml_attr(n,name,NULL); return s? (float)atof(s): def;
+}
+static int xml_attr_i(XmlNode*n,const char*name,int def){
+	const char*s=xml_attr(n,name,NULL); return s? atoi(s): def;
+}
+static float xml_attr_f_cm(XmlNode*n,const char*name,float def){
+	const char*s=xml_attr(n,name,NULL); return s? (float)atof(s)*0.01f: def;
+}
+static vec3 xml_attr_v3_cm(XmlNode*n,const char*name,vec3 def){
+	const char*s=xml_attr(n,name,NULL); if(!s) return def;
+	vec3 v=def; sscanf(s,"%f %f %f",&v.x,&v.y,&v.z);
+	v.x*=0.01f; v.y*=0.01f; v.z*=0.01f; return v;
+}
+static void xml_set_attr(XmlNode *n,const char *name,const char *value){
+	for(int i=0;i<n->nattrs;i++) if(!strcmp(n->attrs[i].name,name)){
+		free(n->attrs[i].value); n->attrs[i].value=strdup(value); return;
+	}
+	XmlAttr a={strdup(name),strdup(value)};
+	DA_PUSH(n->attrs,n->nattrs,n->cattrs,a);
+}
+static void xml_set_attr_v3(XmlNode *n,const char *name,vec3 v){
+	char value[96];
+	snprintf(value,sizeof(value),"%.6g %.6g %.6g",v.x,v.y,v.z);
+	xml_set_attr(n,name,value);
+}
+static void xml_set_attr_v3_cm(XmlNode *n,const char *name,vec3 v){
+	xml_set_attr_v3(n,name,vscale(v,100.0f));
+}
+static mat4 xml_node_transform(XmlNode *n){
+	vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
+	vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
+	vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
+	vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
+	return mat4_mul(mat4_translate(pos),mat4_mul(mat4_translate(pvt),
+		mat4_mul(mat4_rot_xyz(rot),mat4_mul(mat4_translate(vscale(pvt,-1.0f)),mat4_scale(scl)))));
+}
+static int xml_attr_2f(XmlNode*n,const char*name,float defX,float defY,float *outX,float *outY){
+	const char*s=xml_attr(n,name,NULL);
+	if(!s){ *outX=defX; *outY=defY; return 0; }
+	*outX=defX; *outY=defY;
+	int count=sscanf(s,"%f %f",outX,outY);
+	if(count==1) *outY=*outX;
+	return count>0;
+}
+static void xp_skip_ws(const char**p){ while(**p && isspace((unsigned char)**p)) (*p)++; }
+
+static XmlNode* xml_parse_node(const char **p);
+
+static void xml_parse_children(const char **p, XmlNode *parent){
+	for(;;){
+		xp_skip_ws(p);
+		if(!**p) return;
+		if(!strncmp(*p,"</",2)){ return; }
+		if(!strncmp(*p,"<!--",4)){
+			const char *end=strstr(*p,"-->");
+			*p = end? end+3 : *p+strlen(*p);
+			continue;
+		}
+		if(**p=='<'){
+			XmlNode *child=xml_parse_node(p);
+			if(!child) return;
+			DA_PUSH(parent->kids,parent->nkids,parent->ckids,child);
+			continue;
+		}
+		while(**p && **p!='<') (*p)++;
+	}
+}
+static XmlNode* xml_parse_node(const char **p){
+	xp_skip_ws(p);
+	if(**p!='<') return NULL;
+	if(!strncmp(*p,"<?",2)){ const char*e=strstr(*p,"?>"); *p=e?e+2:*p+strlen(*p); return xml_parse_node(p); }
+	if(!strncmp(*p,"<!--",4)){ const char*e=strstr(*p,"-->"); *p=e?e+3:*p+strlen(*p); return xml_parse_node(p); }
+	(*p)++;
+	char tag[64]; int ti=0;
+	while(**p && !isspace((unsigned char)**p) && **p!='>' && **p!='/' && ti<63) tag[ti++]=*(*p)++;
+	tag[ti]=0;
+	XmlNode *n=xml_new(tag);
+	for(;;){
+		xp_skip_ws(p);
+		if(!**p) return n;
+		if(**p=='/' && (*p)[1]=='>'){ (*p)+=2; return n; }
+		if(**p=='>'){ (*p)++; break; }
+		char aname[64]; int ai=0;
+		while(**p && **p!='=' && !isspace((unsigned char)**p) && **p!='>' && **p!='/' && ai<63) aname[ai++]=*(*p)++;
+		aname[ai]=0;
+		xp_skip_ws(p);
+		char aval[256]={0};
+		if(**p=='='){
+			(*p)++; xp_skip_ws(p);
+			if(**p=='"'||**p=='\''){
+				char q=*(*p)++; int vi=0;
+				while(**p && **p!=q && vi<255) aval[vi++]=*(*p)++;
+				if(**p==q) (*p)++;
+				aval[vi]=0;
+			}
+		}
+		if(ai>0){
+			XmlAttr a={ strdup(aname), strdup(aval) };
+			DA_PUSH(n->attrs,n->nattrs,n->cattrs,a);
+		}
+	}
+	xml_parse_children(p, n);
+	xp_skip_ws(p);
+	if(!strncmp(*p,"</",2)){
+		const char *end=strchr(*p,'>');
+		*p = end? end+1 : *p+strlen(*p);
+	}
+	return n;
+}
+static XmlNode* xml_parse(const char *buf){
+	const char *p=buf;
+	for(;;){
+		xp_skip_ws(&p);
+		if(!*p) return NULL;
+		if(!strncmp(p,"<?",2)){ const char*e=strstr(p,"?>"); p=e?e+2:p+strlen(p); continue; }
+		if(!strncmp(p,"<!--",4)){ const char*e=strstr(p,"-->"); p=e?e+3:p+strlen(p); continue; }
+		break;
+	}
+	return xml_parse_node(&p);
+}
+
+/* ------------------------------------------------------------- Scene ------ */
+
+void scene_free(Scene *s){
+	xml_free((XmlNode*)s->sceneRoot);
+	for(int i=0;i<s->nprefabs;i++) xml_free((XmlNode*)s->prefabs[i].root);
+	for(int i=0;i<s->nprefabs;i++) free(s->prefabs[i].attaches);
+	for(int i=0;i<s->nobjs;i++){
+		mesh_free(&s->objs[i].mesh);
+		for(int j=0;j<s->objs[i].nshadowParts;j++) free(s->objs[i].shadowParts[j].verts);
+		free(s->objs[i].shadowParts);
+	}
+	for(int i=0;i<s->nlights;i++) free(s->svols[i].verts);
+	for(int i=0;i<s->nshapes;i++) shape2d_free(&s->shapes[i]);
+	for(int i=0;i<s->ncameras;i++) free(s->cameras[i].transforms);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
+	free(s->prefabs); free(s->instances); free(s->negativeBoxes); free(s->negativeArches);
+	free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs); free(s->shapes);
+	free(s->dragStartVerts); free(s->dragObjIndices); free(s->dragVertOffsets);
+	memset(s,0,sizeof(*s));
+}
+
+static Material preset_materials[] = {
+	{ "wall",     {0.80f,0.78f,0.72f}, 6.0f },
+	{ "floor",    {0.35f,0.28f,0.22f}, 12.0f },
+	{ "wood",     {0.50f,0.32f,0.18f}, 20.0f },
+	{ "metal",    {0.70f,0.70f,0.75f}, 60.0f },
+	{ "glass",    {0.65f,0.80f,0.85f}, 90.0f },
+	{ "stone",    {0.38f,0.36f,0.33f}, 8.0f },
+	{ "concrete", {0.52f,0.50f,0.46f}, 4.0f },
+	{ "plaster",  {0.90f,0.88f,0.80f}, 3.0f },
+	{ "bronze",   {0.48f,0.30f,0.14f}, 40.0f },
+	{ "iron",     {0.28f,0.28f,0.30f}, 55.0f },
+};
+static const int npreset_mats = (int)(sizeof(preset_materials)/sizeof(preset_materials[0]));
+
+static Material* find_material(Scene*s, const char*id){
+	if(!id) return NULL;
+	for(int i=0;i<s->nmats;i++) if(!strcmp(s->mats[i].id,id)) return &s->mats[i];
+	for(int i=0;i<npreset_mats;i++) if(!strcmp(preset_materials[i].id,id)) return &preset_materials[i];
+	return NULL;
+}
+
+void scene_add_obj(Scene *s, Mesh mesh, mat4 M, mat4 R, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	mesh_transform(&mesh, M, R);
+	if(castsShadow && mesh_signed_volume(&mesh) < 0.0f) mesh_flip_winding(&mesh);
+	mesh_compute_face_normals(&mesh);
+	if(castsShadow) mesh_build_edges(&mesh);
+	SceneObj o={0};
+	o.mesh=mesh; o.color=color; o.shininess=shin; o.castsShadow=castsShadow;
+	o.renderable=renderable; o.unlit=unlit; o.sanityIgnore=s->sanityIgnoreActive;
+	o.sanityFloor=s->sanityFloorActive; o.sanityCheck=s->sanityCheckActive;
+	o.editNode=s->activeEditNode; o.editMatrix=s->activeEditMatrix;
+	o.texIndex=s->activeTexIndex;
+	DA_PUSH(s->objs,s->nobjs,s->cobjs,o);
+}
+
+/* ---------------------------------------------------- Modifiers ---------- */
+
+static char* read_file(const char*path);
+static void warn_unknown_elements(XmlNode *root, const char *path, int prefab);
+
+typedef void (*modifier_parser_fn)(Mesh *m, XmlNode *n);
+
+static char mod_axis(XmlNode *n){ const char *a=xml_attr(n,"axis","y"); return a[0]? a[0] : 'y'; }
+
+static void parse_mod_taper(Mesh *m, XmlNode *n){
+	mesh_apply_taper(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"curvature",1.0f), mod_axis(n));
+}
+static void parse_mod_twist(Mesh *m, XmlNode *n){
+	mesh_apply_twist(m, xml_attr_f(n,"angle",0.0f), mod_axis(n));
+}
+static void parse_mod_bend(Mesh *m, XmlNode *n){
+	mesh_apply_bend(m, xml_attr_f(n,"angle",0.0f), mod_axis(n));
+}
+static void parse_mod_stretch(Mesh *m, XmlNode *n){
+	mesh_apply_stretch(m, xml_attr_f(n,"amount",0.0f), xml_attr_f(n,"amplify",1.0f), mod_axis(n));
+}
+static void parse_mod_skew(Mesh *m, XmlNode *n){
+	mesh_apply_skew(m, xml_attr_f(n,"amount",0.0f), mod_axis(n));
+}
+static void parse_mod_array(Mesh *m, XmlNode *n){
+	mesh_apply_array(m, xml_attr_i(n,"count",1),
+		xml_attr_v3_cm(n,"translation",v3(0,0,0)),
+		xml_attr_v3(n,"rotation",v3(0,0,0)));
+}
+static void parse_mod_extrude(Mesh *m, XmlNode *n){
+	mesh_apply_extrude(m,xml_attr_f(n,"amount",0.1f),mod_axis(n));
+}
+static void parse_mod_mirror(Mesh *m, XmlNode *n){
+	mesh_apply_mirror(m,mod_axis(n),xml_attr_f(n,"weld",0.001f));
+}
+static void parse_mod_noise(Mesh *m, XmlNode *n){
+	mesh_apply_noise(m,xml_attr_f(n,"strength",0.1f),xml_attr_i(n,"seed",1));
+}
+static void parse_mod_shell(Mesh *m, XmlNode *n){
+	mesh_apply_shell(m,xml_attr_f(n,"amount",0.05f));
+}
+
+static const struct {
+	const char *tag;
+	modifier_parser_fn parse;
+} modifier_parsers[] = {
+	{ "taper",   parse_mod_taper },
+	{ "twist",   parse_mod_twist },
+	{ "bend",    parse_mod_bend },
+	{ "stretch", parse_mod_stretch },
+	{ "skew",    parse_mod_skew },
+	{ "array",   parse_mod_array },
+	{ "extrude", parse_mod_extrude },
+	{ "mirror",  parse_mod_mirror },
+	{ "noise",   parse_mod_noise },
+	{ "shell",   parse_mod_shell },
+};
+
+static void apply_modifiers(Mesh *m, XmlNode *n){
+	for(int i=0;i<n->nkids;i++){
+		XmlNode *c=n->kids[i];
+		for(int j=0;j<(int)(sizeof(modifier_parsers)/sizeof(modifier_parsers[0]));j++){
+			if(!strcmp(c->tag, modifier_parsers[j].tag)){
+				modifier_parsers[j].parse(m, c);
+				break;
+			}
+		}
+	}
+}
+
+/* ---------------------------------------------------- Shapes & sweeping -- */
+
+static Shape2D* find_shape(Scene *s,const char *id){
+	if(!id) return NULL;
+	for(int i=0;i<s->nshapes;i++)
+		if(!strcmp(s->shapes[i].name,id)) return &s->shapes[i];
+	return NULL;
+}
+
+static void collect_shapes_from_tree(Scene *s,XmlNode *root){
+	for(int i=0;i<root->nkids;i++){
+		XmlNode *n=root->kids[i];
+		if(!strcmp(n->tag,"shape")){
+			const char *id=xml_attr(n,"id",NULL);
+			if(!id) continue;
+			if(find_shape(s,id)) continue;
+			Shape2D sh={0};
+			strncpy(sh.name,id,31);
+			for(int k=0;k<n->nkids;k++){
+				if(!strcmp(n->kids[k]->tag,"v")){
+					float x=xml_attr_f(n->kids[k],"x",0), y=xml_attr_f(n->kids[k],"y",0);
+					vec3 p=v3(x,y,0); DA_PUSH(sh.pts,sh.npts,sh.cpts,p);
+				}
+			}
+			if(sh.npts<2) continue;
+			sh.closed=xml_attr_i(n,"closed",0);
+			shape2d_compute_normals(&sh);
+			DA_PUSH(s->shapes,s->nshapes,s->cshapes,sh);
+		} else if(!strcmp(n->tag,"group")||!strcmp(n->tag,"prefab")){
+			collect_shapes_from_tree(s,n);
+		}
+	}
+}
+
+static void parse_shape_tag(Scene *s,XmlNode *n){
+	(void)s; (void)n;
+}
+
+static void parse_lathe(Scene *s,XmlNode *n,mat4 M,mat4 R,mat4 parentM,vec3 pos,vec3 rot,vec3 color,float shin,int castsShadow,int renderable,int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	const char *sid=xml_attr(n,"shape",NULL);
+	Shape2D *sh=find_shape(s,sid);
+	if(!sh){ fprintf(stderr,"lathe: shape '%s' not found\n",sid?sid:"(null)"); return; }
+	Mesh mesh=gen_lathe(sh,xml_attr_i(n,"segments",24));
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s,mesh,M,R,color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_loft(Scene *s,XmlNode *n,mat4 M,mat4 R,mat4 parentM,vec3 pos,vec3 rot,vec3 color,float shin,int castsShadow,int renderable,int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	const char *ps=xml_attr(n,"pathShape",NULL);
+	const char *cs=xml_attr(n,"crossShape",NULL);
+	Shape2D *pathS=find_shape(s,ps), *crossS=find_shape(s,cs);
+	if(!pathS||!crossS){
+		fprintf(stderr,"loft: shapes '%s'/'%s' not found\n",ps?ps:"(null)",cs?cs:"(null)");
+		return;
+	}
+	int lclosed=xml_attr_i(n,"closed",0);
+	int nstations=xml_attr_i(n,"segments",pathS->npts);
+	if(nstations<2) nstations=2;
+	LoftPath lp={0};
+	for(int i=0;i<nstations;i++){
+		float u=(float)i/(float)nstations;
+		int idx=(int)(u*pathS->npts);
+		if(idx>=pathS->npts) idx=pathS->npts-1;
+		vec3 p=v3(pathS->pts[idx].x,0,pathS->pts[idx].y);
+		DA_PUSH(lp.pts,lp.npts,lp.cpts,p);
+	}
+	Shape2D tmp=crossS->closed?*crossS:(Shape2D){0};
+	if(!crossS->closed){
+		tmp.pts=malloc(sizeof(vec3)*(size_t)crossS->npts);
+		memcpy(tmp.pts,crossS->pts,sizeof(vec3)*(size_t)crossS->npts);
+		tmp.npts=crossS->npts; tmp.cpts=crossS->npts;
+		tmp.closed=1;
+	}
+	shape2d_compute_normals(&tmp);
+	Mesh mesh=gen_loft(&lp,&tmp,lclosed);
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s,mesh,M,R,color,shin,castsShadow,renderable,unlit);
+	if(!crossS->closed){ free(tmp.pts); free(tmp.nrm); }
+	free(lp.pts);
+}
+
+/* ---------------------------------------------------- Overlay lines ------- */
+
+static void scene_add_overlay_line(Scene *s, vec3 start, vec3 end, vec3 color, int category, const char *camera){
+	OverlayLine ol={start,end,color,category,{0}};
+	if(camera) strncpy(ol.camera,camera,31);
+	DA_PUSH(s->overlayLines,s->noverlayLines,s->coverlayLines,ol);
+}
+
+static void add_circle_lines(Scene *s, vec3 center, float radius, vec3 normal, vec3 color, int n, int category, const char *camera){
+	vec3 u,v;
+	if(fabsf(normal.x)>0.001f||fabsf(normal.z)>0.001f)
+		u=vnorm(v3(-normal.z,0,normal.x));
+	else
+		u=vnorm(v3(1,0,0));
+	v=vnorm(vcross(normal,u));
+	vec3 prev=vadd(center,vscale(u,radius));
+	for(int i=1;i<=n;i++){
+		float angle=2.0f*M_PIf*(float)i/(float)n;
+		vec3 next=vadd(center,vadd(vscale(u,radius*cosf(angle)),vscale(v,radius*sinf(angle))));
+		scene_add_overlay_line(s,prev,next,color,category,camera);
+		prev=next;
+	}
+}
+
+static void add_character_circle(Scene *s, mat4 M, vec3 center, float radius, vec3 color, const char *camera){
+	vec3 prev=mat4_xform_point(M,vadd(center,v3(radius,0,0)));
+	for(int i=1;i<=16;i++){
+		float angle=2.0f*M_PIf*(float)i/16.0f;
+		vec3 next=mat4_xform_point(M,vadd(center,v3(radius*cosf(angle),0,radius*sinf(angle))));
+		scene_add_overlay_line(s,prev,next,color,0,camera);
+		prev=next;
+	}
+}
+
+static void add_character_dummy(Scene *s, mat4 M, CharDef *cd, vec3 color, const char *camera, const char *pose, int hasTarget, vec3 target){
+	float h=cd->height, r=cd->radius;
+	float yHead=cd->top*h;
+	float yNeck=cd->neck*h;
+	float yPelvis=cd->pelvis*h;
+	float yFeet=cd->feet*h;
+	float lean=0.0f;
+	if(!strcmp(pose,"crouch")){
+		yHead*=0.68f; yNeck*=0.66f; yPelvis*=0.72f; lean=h*0.12f;
+	} else if(!strcmp(pose,"inspect")) lean=h*0.10f;
+	float shoulderW=r*1.8f;
+	float hipW=r*1.3f;
+	vec3 head=mat4_xform_point(M,v3(0,yHead,lean));
+	vec3 neck=mat4_xform_point(M,v3(0,yNeck,lean));
+	vec3 pelvis=mat4_xform_point(M,v3(0,yPelvis,0));
+	vec3 feet=mat4_xform_point(M,v3(0,yFeet,0));
+	vec3 shoulderL=mat4_xform_point(M,v3(-shoulderW,yNeck,lean));
+	vec3 shoulderR=mat4_xform_point(M,v3(shoulderW,yNeck,lean));
+	vec3 hipL=mat4_xform_point(M,v3(-hipW,yPelvis,0));
+	vec3 hipR=mat4_xform_point(M,v3(hipW,yPelvis,0));
+	vec3 footL=mat4_xform_point(M,v3(-hipW,yFeet,!strcmp(pose,"walk")?h*0.12f:0));
+	vec3 footR=mat4_xform_point(M,v3(hipW,yFeet,!strcmp(pose,"climb")?h*0.12f:(!strcmp(pose,"walk")?-h*0.12f:0)));
+	vec3 handL=mat4_xform_point(M,v3(-shoulderW-r*0.7f,yPelvis+h*0.08f,lean+h*0.02f));
+	vec3 handR=mat4_xform_point(M,v3(shoulderW+r*0.7f,yPelvis+h*0.08f,lean+h*0.02f));
+	if(hasTarget){
+		vec3 dirL=vnorm(vsub(target,shoulderL));
+		vec3 dirR=vnorm(vsub(target,shoulderR));
+		if(!strcmp(pose,"reach") || !strcmp(pose,"inspect")) handR=vadd(shoulderR,vscale(dirR,h*0.42f));
+		else if(!strcmp(pose,"work") || !strcmp(pose,"climb")){
+			handL=vadd(shoulderL,vscale(dirL,h*0.38f));
+			handR=vadd(shoulderR,vscale(dirR,h*0.38f));
+		}
+		if(!strcmp(pose,"look")) scene_add_overlay_line(s,head,vadd(head,vscale(vnorm(vsub(target,head)),h*0.18f)),color,0,camera);
+	}
+	vec3 elbowL=lerp(shoulderL,handL,0.52f);
+	vec3 elbowR=lerp(shoulderR,handR,0.52f);
+	scene_add_overlay_line(s,feet,head,color,0,camera);
+	scene_add_overlay_line(s,shoulderL,shoulderR,color,0,camera);
+	scene_add_overlay_line(s,hipL,hipR,color,0,camera);
+	scene_add_overlay_line(s,shoulderL,hipL,color,0,camera);
+	scene_add_overlay_line(s,shoulderR,hipR,color,0,camera);
+	scene_add_overlay_line(s,neck,pelvis,color,0,camera);
+	scene_add_overlay_line(s,shoulderL,elbowL,color,0,camera);
+	scene_add_overlay_line(s,elbowL,handL,color,0,camera);
+	scene_add_overlay_line(s,shoulderR,elbowR,color,0,camera);
+	scene_add_overlay_line(s,elbowR,handR,color,0,camera);
+	scene_add_overlay_line(s,hipL,footL,color,0,camera);
+	scene_add_overlay_line(s,hipR,footR,color,0,camera);
+	add_character_circle(s,M,v3(0,yHead,lean),r,color,camera);
+	add_character_circle(s,M,v3(0,yNeck,lean),r*0.55f,color,camera);
+	add_character_circle(s,M,v3(0,yPelvis,0),r*0.85f,color,camera);
+	add_character_circle(s,M,v3(0,yFeet,0),r*0.65f,color,camera);
+}
+
+static void add_lamp_dummy(Scene *s, vec3 pos, float radius, vec3 color, int category, const char *camera){
+	add_circle_lines(s,pos,radius,v3(1,0,0),color,16,category,camera);
+	add_circle_lines(s,pos,radius,v3(0,1,0),color,16,category,camera);
+	add_circle_lines(s,pos,radius,v3(0,0,1),color,16,category,camera);
+}
+
+static void add_camera_dummy(Scene *s, vec3 pos, vec3 look, float fov, float aspect, vec3 color, int category, const char *camera){
+	vec3 forward=vnorm(vsub(look,pos));
+	vec3 worldUp=v3(0,1,0);
+	vec3 right=vnorm(vcross(forward,worldUp));
+	vec3 up=vnorm(vcross(right,forward));
+	float dist=0.3f;
+	float hh=dist*tanf(fov*M_PIf/360.0f);
+	float hw=hh*aspect;
+	vec3 center=vadd(pos,vscale(forward,dist));
+	vec3 tl=vadd(center,vadd(vscale(up,hh),vscale(right,-hw)));
+	vec3 tr=vadd(center,vadd(vscale(up,hh),vscale(right,hw)));
+	vec3 bl=vadd(center,vadd(vscale(up,-hh),vscale(right,-hw)));
+	vec3 br=vadd(center,vadd(vscale(up,-hh),vscale(right,hw)));
+	scene_add_overlay_line(s,pos,tl,color,category,camera); scene_add_overlay_line(s,pos,tr,color,category,camera);
+	scene_add_overlay_line(s,pos,bl,color,category,camera); scene_add_overlay_line(s,pos,br,color,category,camera);
+	scene_add_overlay_line(s,tl,tr,color,category,camera); scene_add_overlay_line(s,tr,br,color,category,camera);
+	scene_add_overlay_line(s,br,bl,color,category,camera); scene_add_overlay_line(s,bl,tl,color,category,camera);
+}
+
+void scene_rebuild_camera_gizmos(Scene *s, float aspect){
+	int w=0;
+	for(int i=0;i<s->noverlayLines;i++){
+		if(s->overlayLines[i].category!=2) s->overlayLines[w++]=s->overlayLines[i];
+	}
+	s->noverlayLines=w;
+	for(int ci=0;ci<s->ncameras;ci++){
+		Camera *c=&s->cameras[ci];
+		add_camera_dummy(s,c->pos,c->look,c->fov,aspect,v3(0.2f,0.8f,0.2f),2,NULL);
+	}
+}
+
+/* ---------------------------------------------------- Shape parsers ------- */
+
+static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR);
+
+typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit);
+
+static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	vec3 sz=xml_attr_v3_cm(n,"size",v3(1,1,1));
+	float insetX=0.0f, insetY=0.0f;
+	xml_attr_2f(n,"inset",0.0f,0.0f,&insetX,&insetY);
+	Mesh mesh=(insetX>0.0f || insetY>0.0f) ? gen_box_inset(sz.x,sz.y,sz.z,insetX,insetY)
+		: gen_box(sz.x,sz.y,sz.z);
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_sphere(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float r=xml_attr_f_cm(n,"radius",0.5f);
+	Mesh mesh=gen_sphere(r,xml_attr_i(n,"rings",16),xml_attr_i(n,"slices",24)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_cylinder(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float r=xml_attr_f_cm(n,"radius",0.5f), h=xml_attr_f_cm(n,"height",1.0f);
+	float wall=xml_attr_f_cm(n,"tube",0.0f);
+	Mesh mesh=wall>0.0f ? gen_cylinder_tube(r,h,wall,xml_attr_i(n,"sides",24))
+		: gen_cylinder(r,h,xml_attr_i(n,"sides",24));
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_prism(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float r=xml_attr_f_cm(n,"radius",0.5f), h=xml_attr_f_cm(n,"height",1.0f);
+	Mesh mesh=gen_prism(r,h,xml_attr_i(n,"sides",6)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_cone(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float rb=xml_attr_f_cm(n,"radius",0.5f), rt=xml_attr_f_cm(n,"radiusTop",0.0f), h=xml_attr_f_cm(n,"height",1.0f);
+	int sides = xml_attr_i(n,"sides", !strcmp(n->tag,"pyramid")?4:24);
+	Mesh mesh=gen_cone(rb,rt,h,sides); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_torus(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float R_=xml_attr_f_cm(n,"majorRadius",0.5f), r_=xml_attr_f_cm(n,"minorRadius",0.15f);
+	Mesh mesh=gen_torus(R_,r_,xml_attr_i(n,"majorSegments",24),xml_attr_i(n,"minorSegments",12)); apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_arch(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float w=xml_attr_f_cm(n,"width",1.0f), h=xml_attr_f_cm(n,"height",1.5f), d=xml_attr_f_cm(n,"depth",0.2f);
+	float wall=xml_attr_f_cm(n,"tube",xml_attr_f_cm(n,"thickness",0.0f));
+	float archInset=xml_attr_f_cm(n,"inset",0.0f);
+	Mesh mesh=gen_arch(w,h,d,wall,xml_attr_i(n,"segments",16),archInset);
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_capsule(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot;
+	float r=xml_attr_f_cm(n,"radius",0.5f), h=xml_attr_f_cm(n,"height",1.0f);
+	Mesh mesh=gen_capsule(r,h,xml_attr_i(n,"rings",12),xml_attr_i(n,"slices",24));
+	apply_modifiers(&mesh,n);
+	scene_add_obj(s, mesh, M,R, color,shin,castsShadow,renderable,unlit);
+}
+
+static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	parse_nodes(s, n, M, R);
+}
+
+/* build the boxes that make up a wall with rectangular openings */
+#define OPENING_RECT     0
+#define OPENING_ARCH     1
+#define OPENING_CYLINDER 2
+typedef struct {
+	float x,width,height,sill;
+	int type;       /* OPENING_RECT / OPENING_ARCH / OPENING_CYLINDER */
+	float cylR;     /* cylinder: radius (in wall-local XY) */
+} Opening;
+static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
+                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable,int unlit);
+
+static int mat4_inverse_affine(mat4 m, mat4 *out){
+	vec3 a=v3(m.m[0],m.m[1],m.m[2]), b=v3(m.m[4],m.m[5],m.m[6]);
+	vec3 c=v3(m.m[8],m.m[9],m.m[10]), t=v3(m.m[12],m.m[13],m.m[14]);
+	float det=vdot(a,vcross(b,c));
+	if(fabsf(det)<1e-8f) return 0;
+	vec3 r0=vscale(vcross(b,c),1.0f/det);
+	vec3 r1=vscale(vcross(c,a),1.0f/det);
+	vec3 r2=vscale(vcross(a,b),1.0f/det);
+	*out=mat4_identity();
+	out->m[0]=r0.x; out->m[4]=r0.y; out->m[8]=r0.z;
+	out->m[1]=r1.x; out->m[5]=r1.y; out->m[9]=r1.z;
+	out->m[2]=r2.x; out->m[6]=r2.y; out->m[10]=r2.z;
+	out->m[12]=-vdot(r0,t); out->m[13]=-vdot(r1,t); out->m[14]=-vdot(r2,t);
+	return 1;
+}
+
+static void add_negative_openings(Scene *s, mat4 wallM, float L,float H,float T,
+		Opening **op,int *nop,int *cop){
+	mat4 inv;
+	if(!mat4_inverse_affine(wallM,&inv)) return;
+	for(int i=0;i<s->nnegativeBoxes;i++){
+		NegativeBox *b=&s->negativeBoxes[i];
+		mat4 local=mat4_mul(inv,b->transform);
+		vec3 ax=vnorm(mat4_xform_dir(local,v3(1,0,0)));
+		vec3 ay=vnorm(mat4_xform_dir(local,v3(0,1,0)));
+		vec3 az=vnorm(mat4_xform_dir(local,v3(0,0,1)));
+		if(fabsf(ax.x)<0.999f || fabsf(ay.y)<0.999f || fabsf(az.z)<0.999f) continue;
+		vec3 half=vscale(b->size,0.5f);
+		vec3 lo=v3(INFINITY,INFINITY,INFINITY), hi=v3(-INFINITY,-INFINITY,-INFINITY);
+		for(int x=-1;x<=1;x+=2) for(int y=-1;y<=1;y+=2) for(int z=-1;z<=1;z+=2){
+			vec3 p=mat4_xform_point(local,v3(half.x*x,half.y*y,half.z*z));
+			if(p.x<lo.x) lo.x=p.x;
+			if(p.x>hi.x) hi.x=p.x;
+			if(p.y<lo.y) lo.y=p.y;
+			if(p.y>hi.y) hi.y=p.y;
+			if(p.z<lo.z) lo.z=p.z;
+			if(p.z>hi.z) hi.z=p.z;
+		}
+		if(lo.z>-T*0.5f+0.001f || hi.z<T*0.5f-0.001f) continue;
+		if(hi.x<=-L*0.5f || lo.x>=L*0.5f || hi.y<=0 || lo.y>=H) continue;
+		if(lo.x<-L*0.5f) lo.x=-L*0.5f;
+		if(hi.x>L*0.5f) hi.x=L*0.5f;
+		if(lo.y<0) lo.y=0;
+		if(hi.y>H) hi.y=H;
+		Opening o; memset(&o,0,sizeof(o));
+		o.x=lo.x+L*0.5f; o.width=hi.x-lo.x; o.height=hi.y-lo.y; o.sill=lo.y; o.type=OPENING_RECT;
+		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
+	}
+}
+
+static void add_negative_arch_openings(Scene *s, mat4 wallM, float L,float H,float T,
+		Opening **op,int *nop,int *cop){
+	mat4 inv;
+	if(!mat4_inverse_affine(wallM,&inv)) return;
+	for(int i=0;i<s->nnegativeArches;i++){
+		NegativeArch *a=&s->negativeArches[i];
+		mat4 local=mat4_mul(inv,a->transform);
+		vec3 ax=vnorm(mat4_xform_dir(local,v3(1,0,0)));
+		vec3 ay=vnorm(mat4_xform_dir(local,v3(0,1,0)));
+		vec3 az=vnorm(mat4_xform_dir(local,v3(0,0,1)));
+		if(fabsf(ax.x)<0.999f || fabsf(ay.y)<0.999f || fabsf(az.z)<0.999f) continue;
+		vec3 center=mat4_xform_point(local,v3(0,0,0));
+		float halfW=a->width*0.5f, halfH=a->height*0.5f, halfD=a->depth*0.5f;
+		if(center.z-halfD>-T*0.5f+0.001f || center.z+halfD<T*0.5f-0.001f) continue;
+		float loX=center.x-halfW, hiX=center.x+halfW;
+		float loY=center.y-halfH, hiY=center.y+halfH;
+		if(hiX<=-L*0.5f || loX>=L*0.5f || hiY<=0 || loY>=H) continue;
+		if(loX<-L*0.5f) loX=-L*0.5f;
+		if(hiX>L*0.5f) hiX=L*0.5f;
+		if(loY<0) loY=0;
+		if(hiY>H) hiY=H;
+		Opening o; memset(&o,0,sizeof(o));
+		o.x=loX+L*0.5f; o.width=hiX-loX; o.height=hiY-loY; o.sill=loY; o.type=OPENING_ARCH;
+		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
+	}
+}
+
+static void add_negative_cylinder_openings(Scene *s, mat4 wallM, float L,float H,float T,
+		Opening **op,int *nop,int *cop){
+	mat4 inv;
+	if(!mat4_inverse_affine(wallM,&inv)) return;
+	for(int i=0;i<s->nnegativeCylinders;i++){
+		NegativeCylinder *c=&s->negativeCylinders[i];
+		mat4 local=mat4_mul(inv,c->transform);
+		vec3 ax=vnorm(mat4_xform_dir(local,v3(1,0,0)));
+		vec3 ay=vnorm(mat4_xform_dir(local,v3(0,1,0)));
+		vec3 az=vnorm(mat4_xform_dir(local,v3(0,0,1)));
+		if(fabsf(ax.x)<0.999f || fabsf(ay.y)<0.999f || fabsf(az.z)<0.999f) continue;
+		vec3 center=mat4_xform_point(local,v3(0,0,0));
+		float halfD=c->depth*0.5f;
+		if(center.z-halfD>-T*0.5f+0.001f || center.z+halfD<T*0.5f-0.001f) continue;
+		float r=c->radius;
+		float loX=center.x-r, hiX=center.x+r;
+		float loY=center.y-r, hiY=center.y+r;
+		if(hiX<=-L*0.5f || loX>=L*0.5f || hiY<=0 || loY>=H) continue;
+		if(loX<-L*0.5f) loX=-L*0.5f;
+		if(hiX>L*0.5f) hiX=L*0.5f;
+		if(loY<0) loY=0;
+		if(hiY>H) hiY=H;
+		Opening o; memset(&o,0,sizeof(o));
+		o.x=loX+L*0.5f; o.width=hiX-loX; o.height=hiY-loY; o.sill=loY;
+		o.type=OPENING_CYLINDER; o.cylR=r;
+		if(o.width>0.001f && o.height>0.001f) DA_PUSH(*op,*nop,*cop,o);
+	}
+}
+
+static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)M;
+	float L=xml_attr_f_cm(n,"length",4.0f), H=xml_attr_f_cm(n,"height",2.7f), T=xml_attr_f_cm(n,"thickness",0.2f);
+	mat4 wallM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
+	Opening *op=NULL; int nop=0,cop=0;
+	for(int k=0;k<n->nkids;k++){
+		XmlNode *c=n->kids[k];
+		if(strcmp(c->tag,"opening")) continue;
+		Opening o; memset(&o,0,sizeof(o));
+		o.x = xml_attr_f_cm(c,"x",0);
+		o.width = xml_attr_f_cm(c,"width",1.0f);
+		int isDoor = !strcmp(xml_attr(c,"type","door"),"door");
+		o.height = xml_attr_f_cm(c,"height", isDoor?2.1f:1.2f);
+		o.sill = isDoor? 0.0f : xml_attr_f_cm(c,"sill",0.9f);
+		o.type = OPENING_RECT;
+		DA_PUSH(op,nop,cop,o);
+	}
+	add_negative_openings(s,wallM,L,H,T,&op,&nop,&cop);
+	add_negative_arch_openings(s,wallM,L,H,T,&op,&nop,&cop);
+	add_negative_cylinder_openings(s,wallM,L,H,T,&op,&nop,&cop);
+	build_wall_boxes(s, wallM, R, L,H,T, op,nop, color, shin, castsShadow, renderable, unlit);
+	free(op);
+}
+
+static void parse_line(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	vec3 lcolor=xml_attr_v3(n,"color",v3(0.85f,0.15f,0.15f));
+	scene_add_overlay_line(s,
+		mat4_xform_point(M,xml_attr_v3_cm(n,"start",v3(0,0,0))),
+		mat4_xform_point(M,xml_attr_v3_cm(n,"end",v3(0,1,0))),
+		lcolor,0,xml_attr(n,"camera",NULL));
+}
+
+static void parse_dummy(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	vec3 lcolor=xml_attr_v3(n,"color",v3(0.85f,0.15f,0.15f));
+	const char *type=xml_attr(n,"type","character");
+	if(!strcmp(type,"character")){
+		const char *ref=xml_attr(n,"ref",NULL);
+		CharDef inlineDef={0};
+		inlineDef.height=xml_attr_f_cm(n,"height",0.5f);
+		inlineDef.radius=xml_attr_f_cm(n,"radius",inlineDef.height*0.10f);
+		inlineDef.top=xml_attr_f_cm(n,"top",1.0f);
+		inlineDef.neck=xml_attr_f_cm(n,"neck",0.75f);
+		inlineDef.pelvis=xml_attr_f_cm(n,"pelvis",0.25f);
+		inlineDef.feet=xml_attr_f_cm(n,"feet",0.0f);
+		CharDef *cd=&inlineDef;
+		if(ref){
+			cd=NULL;
+			for(int i=0;i<s->ncharDefs;i++) if(!strcmp(s->charDefs[i].name,ref)){ cd=&s->charDefs[i]; break; }
+		}
+		if(cd){
+			const char *targetText=xml_attr(n,"target",NULL);
+			add_character_dummy(s,M,cd,lcolor,xml_attr(n,"camera",NULL),xml_attr(n,"pose","stand"),
+				targetText!=NULL,xml_attr_v3_cm(n,"target",v3(0,0,0)));
+		}
+	} else if(!strcmp(type,"lamp")){
+		add_lamp_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_f_cm(n,"radius",0.15f),lcolor,1,xml_attr(n,"camera",NULL));
+	} else if(!strcmp(type,"camera")){
+		add_camera_dummy(s,mat4_xform_point(M,v3(0,0,0)),xml_attr_v3_cm(n,"look",v3(0,0,-1)),xml_attr_f(n,"fov",60.0f),1.0f,lcolor,2,xml_attr(n,"camera",NULL));
+	}
+}
+
+static XmlNode* load_prefab(Scene *s, const char *name){
+	for(int i=0;i<s->nprefabs;i++)
+		if(!strcmp(s->prefabs[i].ref,name)) return (XmlNode*)s->prefabs[i].root;
+	char path[1024];
+	snprintf(path,sizeof(path),"%s%sprefabs/%s.blk",s->assetRoot,
+		s->assetRoot[0]?"/":"",name);
+	char *buf=read_file(path);
+	if(!buf) return NULL;
+	XmlNode *root=xml_parse(buf);
+	free(buf);
+	if(!root) return NULL;
+	warn_unknown_elements(root,path,1);
+	PrefabDef pd; memset(&pd,0,sizeof(pd)); strncpy(pd.ref,name,31); pd.root=root;
+	strncpy(pd.path,path,sizeof(pd.path)-1);
+	for(int i=0;i<root->nkids;i++){
+		if(!strcmp(root->kids[i]->tag,"attach")){
+			AttachPoint ap;
+			strncpy(ap.name,xml_attr(root->kids[i],"name",""),31);
+			ap.pos=xml_attr_v3_cm(root->kids[i],"pos",v3(0,0,0));
+			DA_PUSH(pd.attaches,pd.nattaches,pd.cattaches,ap);
+		}
+	}
+	DA_PUSH(s->prefabs,s->nprefabs,s->cprefabs,pd);
+	collect_shapes_from_tree(s,root);
+	return root;
+}
+
+static void collect_negative_boxes(Scene *s, XmlNode *parent, mat4 parentM){
+	for(int i=0;i<parent->nkids;i++){
+		XmlNode *n=parent->kids[i];
+		vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
+		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
+		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
+		vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
+		mat4 Tp=mat4_translate(pvt), Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
+		mat4 local=mat4_mul(mat4_translate(pos),
+			mat4_mul(Tp,mat4_mul(mat4_rot_xyz(rot),mat4_mul(Tn,mat4_scale(scl)))));
+		mat4 M=mat4_mul(parentM,local);
+		if(!strcmp(n->tag,"bool-negative-box")){
+			NegativeBox b={M,xml_attr_v3_cm(n,"size",v3(1,1,1))};
+			DA_PUSH(s->negativeBoxes,s->nnegativeBoxes,s->cnegativeBoxes,b);
+		} else if(!strcmp(n->tag,"bool-negative-arch")){
+			NegativeArch a;
+			a.transform=M;
+			a.width=xml_attr_f_cm(n,"width",1.0f);
+			a.height=xml_attr_f_cm(n,"height",1.5f);
+			a.depth=xml_attr_f_cm(n,"depth",xml_attr_f_cm(n,"size_z",0.3f));
+			DA_PUSH(s->negativeArches,s->nnegativeArches,s->cnegativeArches,a);
+		} else if(!strcmp(n->tag,"bool-negative-cylinder")){
+			NegativeCylinder c;
+			c.transform=M;
+			c.radius=xml_attr_f_cm(n,"radius",0.5f);
+			c.depth=xml_attr_f_cm(n,"depth",xml_attr_f_cm(n,"size_z",0.3f));
+			DA_PUSH(s->negativeCylinders,s->nnegativeCylinders,s->cnegativeCylinders,c);
+		} else if(!strcmp(n->tag,"group")){
+			collect_negative_boxes(s,n,M);
+		} else if(!strcmp(n->tag,"prefab")){
+			const char *source=xml_attr(n,"source",NULL);
+			XmlNode *proot=source?load_prefab(s,source):NULL;
+			if(proot) collect_negative_boxes(s,proot,M);
+		}
+	}
+}
+
+static void parse_prefab(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)parentM; (void)pos; (void)rot; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	const char *source=xml_attr(n,"source",NULL);
+	if(!source) return;
+	XmlNode *proot=load_prefab(s,source);
+	if(!proot){ fprintf(stderr,"prefab not found: %s\n",source); return; }
+	const char *name=xml_attr(n,"name",NULL);
+	if(name){
+		InstanceDef inst; memset(&inst,0,sizeof(inst));
+		strncpy(inst.name,name,31); strncpy(inst.ref,source,31);
+		inst.transform=M; inst.rotMatrix=R;
+		DA_PUSH(s->instances,s->ninstances,s->cinstances,inst);
+	}
+	int oldTintActive=s->prefabTintActive;
+	vec3 oldTint=s->prefabTint;
+	if(xml_attr(n,"color",NULL)){
+		s->prefabTintActive=1;
+		s->prefabTint=color;
+	}
+
+	int arrayCount=1;
+	vec3 arrayTrans=v3(0,0,0), arrayRot=v3(0,0,0);
+	for(int k=0;k<n->nkids;k++){
+		if(!strcmp(n->kids[k]->tag,"array")){
+			XmlNode *arr=n->kids[k];
+			arrayCount=xml_attr_i(arr,"count",1);
+			arrayTrans=xml_attr_v3_cm(arr,"translation",v3(0,0,0));
+			arrayRot=xml_attr_v3(arr,"rotation",v3(0,0,0));
+			break;
+		}
+	}
+	for(int step=0;step<arrayCount;step++){
+		vec3 off=vscale(arrayTrans,(float)step);
+		vec3 r=vscale(arrayRot,(float)step);
+		mat4 stepM=mat4_mul(M,mat4_mul(mat4_translate(off),mat4_rot_xyz(r)));
+		parse_nodes(s, proot, stepM, R);
+	}
+
+	s->prefabTintActive=oldTintActive;
+	s->prefabTint=oldTint;
+}
+
+static void parse_light(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	(void)R; (void)parentM; (void)pos; (void)rot; (void)color; (void)shin; (void)castsShadow; (void)renderable; (void)unlit;
+	Light L={0};
+	L.pos=mat4_xform_point(M,v3(0,0,0));
+	L.color=xml_attr_v3(n,"color",v3(1,1,1));
+	L.intensity=xml_attr_f(n,"intensity",1.0f);
+	L.radius=xml_attr_f_cm(n,"radius",0.0f);
+	L.castsShadow=xml_attr_i(n,"castShadows",1);
+	DA_PUSH(s->lights,s->nlights,s->clights,L);
+}
+
+static const struct {
+	const char *tag;
+	shape_parser_fn parse;
+} shape_parsers[] = {
+	{ "box",      parse_box },
+	{ "sphere",   parse_sphere },
+	{ "cylinder", parse_cylinder },
+	{ "prism",    parse_prism },
+	{ "cone",     parse_cone },
+	{ "pyramid",  parse_cone },
+	{ "torus",    parse_torus },
+	{ "arch",     parse_arch },
+	{ "capsule",  parse_capsule },
+	{ "group",    parse_group },
+	{ "light",    parse_light },
+	{ "prefab",   parse_prefab },
+	{ "wall",     parse_wall },
+	{ "line",     parse_line },
+	{ "dummy",    parse_dummy },
+	{ "lathe",    parse_lathe },
+	{ "loft",     parse_loft },
+};
+
+static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
+	for(int i=0;i<parent->nkids;i++){
+		XmlNode *n=parent->kids[i];
+		void *oldEditNode=s->activeEditNode;
+		mat4 oldEditMatrix=s->activeEditMatrix;
+		int ownsEditNode=!s->activeEditNode;
+		if(ownsEditNode) s->activeEditNode=n;
+		int oldIgnore=s->sanityIgnoreActive, oldFloor=s->sanityFloorActive, oldCheck=s->sanityCheckActive;
+		s->sanityIgnoreActive |= xml_attr_i(n,"sanityIgnore",0);
+		s->sanityFloorActive |= xml_attr_i(n,"sanityFloor",0);
+		s->sanityCheckActive |= xml_attr_i(n,"sanityCheck",0);
+		char *tag=n->tag;
+		vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
+		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
+		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
+		const char *attach=xml_attr(n,"attach",NULL);
+		mat4 attachM=mat4_identity(), attachRmat=mat4_identity();
+		if(attach){
+			const char *colon=strchr(attach,':');
+			if(colon){
+				int len=(int)(colon-attach);
+				char instName[32]; memcpy(instName,attach,(size_t)(len<31?len:31)); instName[len]=0;
+				const char *slot=colon+1;
+				for(int k=0;k<s->ninstances;k++){
+					if(strcmp(s->instances[k].name,instName)) continue;
+					for(int m=0;m<s->nprefabs;m++){
+						if(strcmp(s->prefabs[m].ref,s->instances[k].ref)) continue;
+						for(int p=0;p<s->prefabs[m].nattaches;p++){
+							if(strcmp(s->prefabs[m].attaches[p].name,slot)) continue;
+							attachM=mat4_mul(s->instances[k].transform,
+								mat4_translate(s->prefabs[m].attaches[p].pos));
+							attachRmat=s->instances[k].rotMatrix;
+							break;
+						}
+						break;
+					}
+					break;
+				}
+			}
+		}
+		mat4 R = mat4_mul(parentR, mat4_mul(attachRmat, mat4_rot_xyz(rot)));
+		vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
+		mat4 M;
+		if(pvt.x!=0.0f||pvt.y!=0.0f||pvt.z!=0.0f){
+			mat4 Tp=mat4_translate(pvt);
+			mat4 Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
+			M=mat4_mul(parentM, mat4_mul(attachM, mat4_mul(mat4_translate(pos),
+				mat4_mul(Tp, mat4_mul(mat4_rot_xyz(rot), mat4_mul(Tn, mat4_scale(scl)))))));
+		} else {
+			M=mat4_mul(parentM, mat4_mul(attachM, mat4_mul(mat4_translate(pos),
+				mat4_mul(mat4_rot_xyz(rot), mat4_scale(scl)))));
+		}
+		const char *name=xml_attr(n,"name",NULL);
+		if(name) for(int c=0;c<s->ncameras;c++){
+			Camera *cam=&s->cameras[c];
+			if(strcmp(cam->name,s->activeCamera)) continue;
+			for(int t=0;t<cam->ntransforms;t++){
+				CameraTransform *x=&cam->transforms[t];
+				if(strcmp(x->target,name)) continue;
+				mat4 Tp=mat4_translate(pvt), Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
+				mat4 D=mat4_mul(mat4_translate(x->pos),mat4_mul(Tp,
+					mat4_mul(mat4_rot_xyz(x->rot),mat4_mul(Tn,mat4_scale(x->scale)))));
+				M=mat4_mul(M,D);
+				R=mat4_mul(R,mat4_rot_xyz(x->rot));
+			}
+			break;
+		}
+		if(ownsEditNode) s->activeEditMatrix=M;
+		const char *matName = xml_attr(n,"material",NULL);
+		Material *mat = find_material(s, matName);
+		s->activeTexIndex = materials_index_for_name(mat ? mat->id : matName);
+		vec3 color = mat? mat->color : xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
+		if(s->prefabTintActive && xml_attr_i(n,"tint",0)) color=s->prefabTint;
+		float shin = mat? mat->shininess : xml_attr_f(n,"shininess",8.0f);
+		int castsShadow = xml_attr_i(n,"castShadow",1);
+		int renderable = xml_attr_i(n,"renderable",1);
+		int unlit = xml_attr_i(n,"unlit",0);
+
+		for(int j=0;j<(int)(sizeof(shape_parsers)/sizeof(shape_parsers[0]));j++){
+			if(!strcmp(tag, shape_parsers[j].tag)){
+				shape_parsers[j].parse(s, n, M, R, parentM, pos, rot, color, shin, castsShadow, renderable, unlit);
+				break;
+			}
+		}
+		s->sanityIgnoreActive=oldIgnore;
+		s->sanityFloorActive=oldFloor;
+		s->sanityCheckActive=oldCheck;
+		s->activeEditNode=oldEditNode;
+		s->activeEditMatrix=oldEditMatrix;
+	}
+}
+
+/* ---------------------------------------------- Top-level scene tags ------ */
+
+typedef void (*scene_tag_parser_fn)(Scene *s, XmlNode *n);
+
+static void parse_camera_tag(Scene *s, XmlNode *n){
+	Camera cam={0}; strncpy(cam.name, xml_attr(n,"name","Camera1"), 31);
+	strncpy(cam.comment, xml_attr(n,"comment",""), 63);
+	cam.pos = xml_attr_v3_cm(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
+	cam.look = xml_attr_v3_cm(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
+	cam.fov = xml_attr_f(n,"fov",60.0f);
+	for(int i=0;i<n->nkids;i++) if(!strcmp(n->kids[i]->tag,"transform")){
+		CameraTransform x={0};
+		strncpy(x.target,xml_attr(n->kids[i],"target",""),31);
+		x.pos=xml_attr_v3_cm(n->kids[i],"pos",v3(0,0,0));
+		x.rot=xml_attr_v3(n->kids[i],"rot",v3(0,0,0));
+		x.scale=xml_attr_v3(n->kids[i],"scale",v3(1,1,1));
+		if(x.target[0]) DA_PUSH(cam.transforms,cam.ntransforms,cam.ctransforms,x);
+	}
+	DA_PUSH(s->cameras,s->ncameras,s->ccameras,cam);
+	if(s->ncameras==1){
+		s->camPos=cam.pos; s->camLook=cam.look; s->camFov=cam.fov;
+		strncpy(s->activeCamera,cam.name,31);
+	}
+}
+
+static const struct { const char *id; vec3 color; } preset_bgs[] = {
+	{ "midnight", {0.02f,0.03f,0.07f} },
+	{ "twilight", {0.06f,0.05f,0.10f} },
+	{ "dusk",     {0.08f,0.10f,0.14f} },
+	{ "dawn",     {0.16f,0.10f,0.14f} },
+	{ "overcast", {0.25f,0.27f,0.30f} },
+	{ "noon",     {0.40f,0.48f,0.64f} },
+	{ "neutral",  {0.18f,0.20f,0.24f} },
+	{ "black",    {0.00f,0.00f,0.00f} },
+};
+static const int npreset_bgs = (int)(sizeof(preset_bgs)/sizeof(preset_bgs[0]));
+
+static void parse_material_tag(Scene *s, XmlNode *n){
+	Material m={0}; strncpy(m.id, xml_attr(n,"id","mat"), 31);
+	m.color = xml_attr_v3(n,"color",v3(0.8f,0.8f,0.8f));
+	m.shininess = xml_attr_f(n,"shininess",8.0f);
+	DA_PUSH(s->mats,s->nmats,s->cmats,m);
+}
+
+static void parse_sun_tag(Scene *s, XmlNode *n){
+	Light L={0};
+	L.dir = vnorm(xml_attr_v3(n,"dir",v3(1,-1,0)));
+	L.color = xml_attr_v3(n,"color",v3(1,1,1));
+	L.intensity = xml_attr_f(n,"intensity",1.0f);
+	L.radius = 0.0f;
+	L.castsShadow = xml_attr_i(n,"castShadows",1);
+	L.isDirectional = 1;
+	DA_PUSH(s->lights,s->nlights,s->clights,L);
+}
+
+static void parse_chardef_tag(Scene *s, XmlNode *n){
+	CharDef cd={0};
+	strncpy(cd.name,xml_attr(n,"name",""),31);
+	cd.height=xml_attr_f_cm(n,"height",1.0f);
+	cd.radius=xml_attr_f_cm(n,"radius",0.10f);
+	cd.top=xml_attr_f(n,"top",1.0f);
+	cd.neck=xml_attr_f(n,"neck",0.75f);
+	cd.pelvis=xml_attr_f(n,"pelvis",0.25f);
+	cd.feet=xml_attr_f(n,"feet",0.0f);
+	DA_PUSH(s->charDefs,s->ncharDefs,s->ccharDefs,cd);
+}
+
+vec3 light_to_source(Light *light, vec3 point){
+	return light->isDirectional ? vscale(light->dir,-1.0f) : vsub(light->pos,point);
+}
+
+static const struct {
+	const char *tag;
+	scene_tag_parser_fn parse;
+} scene_tags[] = {
+	{ "camera",     parse_camera_tag },
+	{ "material",   parse_material_tag },
+	{ "sun",        parse_sun_tag },
+	{ "chardef",    parse_chardef_tag },
+	{ "shape",      parse_shape_tag },
+};
+
+static int has_shape_parser(const char *tag){
+	for(int i=0;i<(int)(sizeof(shape_parsers)/sizeof(shape_parsers[0]));i++)
+		if(!strcmp(tag,shape_parsers[i].tag)) return 1;
+	return 0;
+}
+
+static int has_scene_parser(const char *tag){
+	for(int i=0;i<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));i++)
+		if(!strcmp(tag,scene_tags[i].tag)) return 1;
+	return 0;
+}
+
+static int has_modifier_parser(const char *tag){
+	for(int i=0;i<(int)(sizeof(modifier_parsers)/sizeof(modifier_parsers[0]));i++)
+		if(!strcmp(tag,modifier_parsers[i].tag)) return 1;
+	return 0;
+}
+
+static void warn_unsupported_tree(XmlNode *n, const char *path, const char *parent){
+	fprintf(stderr,"warning: %s: unsupported XML element <%s> in <%s>\n",path,n->tag,parent);
+	for(int i=0;i<n->nkids;i++) warn_unsupported_tree(n->kids[i],path,n->tag);
+}
+
+static void warn_unknown_children(XmlNode *parent, const char *path, int root, int prefab){
+	for(int i=0;i<parent->nkids;i++){
+		XmlNode *n=parent->kids[i];
+		int supported=0;
+		if(root) supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") ||
+			(prefab ? (!strcmp(n->tag,"attach") || !strcmp(n->tag,"shape")) : has_scene_parser(n->tag));
+		else if(!strcmp(parent->tag,"group"))
+			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") || !strcmp(n->tag,"shape");
+		else if(!strcmp(parent->tag,"camera")) supported=!strcmp(n->tag,"transform");
+		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
+		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
+		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
+		if(!supported){
+			warn_unsupported_tree(n,path,parent->tag);
+			continue;
+		}
+		warn_unknown_children(n,path,0,prefab);
+	}
+}
+
+static void warn_unknown_elements(XmlNode *root, const char *path, int prefab){
+	const char *expected=prefab?"prefab":"scene";
+	if(strcmp(root->tag,expected)){
+		warn_unsupported_tree(root,path,"document");
+		return;
+	}
+	warn_unknown_children(root,path,1,prefab);
+}
+
+/* --------------------------------------------------------------- IO & load */
+
+static int path_has_prefix(const char *path, const char *prefix) {
+	if (!path || !prefix) return 0;
+	return strncmp(path, prefix, strlen(prefix)) == 0;
+}
+
+static bool path_file_exists(const char *path) {
+	FILE *f = fopen(path, "rb");
+	if (!f) return false;
+	fclose(f);
+	return true;
+}
+
+static char* read_file(const char*path){
+	char candidate[4096];
+	const char *tries[3] = { path, NULL, NULL };
+	const char *exe = ui_get_exe_dir();
+	if (path && path[0] && exe && exe[0]) {
+		char root[4096];
+		if (snprintf(root, sizeof(root), "%s/../../", exe) > 0) {
+			if (path_has_prefix(path, "apps/scener/")) {
+				if (snprintf(candidate, sizeof(candidate), "%s%s", root, path) > 0 && path_file_exists(candidate))
+					tries[1] = candidate;
+			} else if (path_has_prefix(path, "scenes/") || path_has_prefix(path, "prefabs/")) {
+				if (snprintf(candidate, sizeof(candidate), "%sapps/scener/%s", root, path) > 0 && path_file_exists(candidate))
+					tries[1] = candidate;
+			}
+		}
+	}
+	FILE *f = NULL;
+	for (int i = 0; i < 3 && !f; i++) {
+		if (!tries[i] || !tries[i][0]) continue;
+		f = fopen(tries[i], "rb");
+	}
+	if (!f) {
+		fprintf(stderr,"cannot open %s\n",path);
+		return NULL;
+	}
+	fseek(f,0,SEEK_END); long n=ftell(f); fseek(f,0,SEEK_SET);
+	char *buf=malloc((size_t)n+1);
+	size_t rd=fread(buf,1,(size_t)n,f); buf[rd]=0; fclose(f);
+	return buf;
+}
+
+static void scene_clear_view(Scene *s){
+	for(int i=0;i<s->nobjs;i++){
+		mesh_free(&s->objs[i].mesh);
+		for(int j=0;j<s->objs[i].nshadowParts;j++) free(s->objs[i].shadowParts[j].verts);
+		free(s->objs[i].shadowParts);
+	}
+	for(int i=0;i<s->nlights;i++) if(s->svols) free(s->svols[i].verts);
+	for(int i=0;i<s->nshapes;i++) shape2d_free(&s->shapes[i]);
+	for(int i=0;i<s->ncameras;i++) free(s->cameras[i].transforms);
+	free(s->lights); free(s->mats); free(s->objs); free(s->svols); free(s->cameras);
+	free(s->instances); free(s->negativeBoxes); free(s->negativeArches);
+	free(s->negativeCylinders); free(s->overlayLines); free(s->charDefs); free(s->shapes);
+	s->lights=NULL; s->mats=NULL; s->objs=NULL; s->svols=NULL; s->cameras=NULL;
+	s->instances=NULL; s->negativeBoxes=NULL; s->negativeArches=NULL;
+	s->negativeCylinders=NULL; s->overlayLines=NULL; s->charDefs=NULL; s->shapes=NULL;
+	s->nlights=s->clights=s->nmats=s->cmats=s->nobjs=s->cobjs=0;
+	s->ncameras=s->ccameras=s->ninstances=s->cinstances=0;
+	s->nnegativeBoxes=s->cnegativeBoxes=s->nnegativeArches=s->cnegativeArches=0;
+	s->nnegativeCylinders=s->cnegativeCylinders=s->noverlayLines=s->coverlayLines=0;
+	s->ncharDefs=s->ccharDefs=s->nshapes=s->cshapes=0;
+	free(s->dragStartVerts); free(s->dragObjIndices); free(s->dragVertOffsets);
+	s->dragStartVerts=NULL; s->dragObjIndices=NULL; s->dragVertOffsets=NULL;
+	s->ndragStartObjs=s->ndragStartVerts=0;
+}
+
+static void scene_rebuild_view(Scene *s){
+	XmlNode *root=(XmlNode*)s->editRoot;
+	XmlNode *sceneRoot=(XmlNode*)s->sceneRoot;
+	int prefabMode=s->prefabDocument||s->editDepth;
+	void *selected=s->selectedNode;
+	char requestedCamera[32]; strncpy(requestedCamera,s->activeCamera,31); requestedCamera[31]=0;
+	scene_clear_view(s);
+	s->camPos=v3(0,1.6f,5); s->camLook=v3(0,1.2f,0); s->camFov=60;
+	s->ambient=v3(0.12f,0.12f,0.14f); s->bg=v3(0.08f,0.10f,0.14f);
+	if(prefabMode){ s->ambient=v3(0.48f,0.50f,0.56f); s->bg=v3(0.14f,0.16f,0.20f); }
+	else {
+		s->ambient=xml_attr_v3(root,"ambient",s->ambient);
+		const char *bg=xml_attr(root,"background",NULL);
+		if(bg){
+			if(strchr(bg,' ')) sscanf(bg,"%f %f %f",&s->bg.x,&s->bg.y,&s->bg.z);
+			else for(int i=0;i<npreset_bgs;i++) if(!strcmp(preset_bgs[i].id,bg)){ s->bg=preset_bgs[i].color; break; }
+		}
+	}
+	mat4 I=mat4_identity();
+	collect_shapes_from_tree(s,root);
+	collect_negative_boxes(s,root,I);
+	if(s->editDepth){
+		for(int i=0;i<sceneRoot->nkids;i++) if(!strcmp(sceneRoot->kids[i]->tag,"material"))
+			parse_material_tag(s,sceneRoot->kids[i]);
+	} else if(!s->prefabDocument) for(int i=0;i<root->nkids;i++) for(int j=0;j<(int)(sizeof(scene_tags)/sizeof(scene_tags[0]));j++)
+		if(!strcmp(root->kids[i]->tag,scene_tags[j].tag)){ scene_tags[j].parse(s,root->kids[i]); break; }
+	if(requestedCamera[0]) for(int i=0;i<s->ncameras;i++) if(!strcmp(s->cameras[i].name,requestedCamera)){
+		s->camPos=s->cameras[i].pos; s->camLook=s->cameras[i].look; s->camFov=s->cameras[i].fov;
+		strncpy(s->activeCamera,requestedCamera,31); s->activeCamera[31]=0;
+		break;
+	}
+	s->activeEditNode=NULL;
+	parse_nodes(s,root,I,I);
+	if(prefabMode && s->nlights==0){
+		vec3 bmin={1e30f,1e30f,1e30f},bmax={-1e30f,-1e30f,-1e30f};
+		for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable){
+			for(int v=0;v<s->objs[i].mesh.nverts;v++){
+				vec3 p=s->objs[i].mesh.verts[v].pos;
+				if(p.x<bmin.x)bmin.x=p.x; if(p.y<bmin.y)bmin.y=p.y; if(p.z<bmin.z)bmin.z=p.z;
+				if(p.x>bmax.x)bmax.x=p.x; if(p.y>bmax.y)bmax.y=p.y; if(p.z>bmax.z)bmax.z=p.z;
+			}
+		}
+		if(bmin.x<=bmax.x){
+			vec3 c=vscale(vadd(bmin,bmax),0.5f); float sz=vlen(vsub(bmax,bmin));
+			if(sz<1.0f) sz=1.0f;
+			Light key={v3(0,0,0),v3(1.0f,0.88f,0.76f),{0},2.8f,sz*2.5f,1,0};
+			key.pos=vadd(c,v3(sz*0.9f,sz*0.8f,sz*1.1f));
+			DA_PUSH(s->lights,s->nlights,s->clights,key);
+			Light rim={v3(0,0,0),v3(0.68f,0.80f,1.0f),{0},1.6f,sz*2.8f,0,0};
+			rim.pos=vadd(c,v3(-sz*0.7f,sz*0.9f,-sz*1.0f));
+			DA_PUSH(s->lights,s->nlights,s->clights,rim);
+		}
+	}
+	if(!s->ncameras){
+		Camera def={0}; strncpy(def.name,"Camera1",31);
+		def.pos=s->camPos; def.look=s->camLook; def.fov=s->camFov;
+		DA_PUSH(s->cameras,s->ncameras,s->ccameras,def);
+	}
+	s->svols=calloc((size_t)s->nlights,sizeof(ShadowVolume));
+	if(!prefabMode){
+		for(int li=0;li<s->nlights;li++) if(!s->lights[li].isDirectional)
+			add_lamp_dummy(s,s->lights[li].pos,0.15f,v3(1.0f,0.7f,0.2f),1,NULL);
+		for(int ci=0;ci<s->ncameras;ci++){
+			Camera *c=&s->cameras[ci];
+			add_camera_dummy(s,c->pos,c->look,c->fov,1.0f,v3(0.2f,0.8f,0.2f),2,NULL);
+		}
+	}
+	s->selectedNode=selected;
+	s->selectedObj=-1;
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==selected){ s->selectedObj=i; break; }
+	scene_build_all_shadow_volumes(s);
+}
+
+int load_scene(const char *path, Scene *s){
+	memset(s,0,sizeof(*s));
+	s->selectedObj=-1; s->editMode=EDIT_W_MOVE;
+	s->activeTexIndex=-1;
+	strncpy(s->scenePath,path,sizeof(s->scenePath)-1);
+	const char *content=strstr(path,"/scenes/");
+	if(!content) content=strstr(path,"\\scenes\\");
+	if(!content) content=strstr(path,"/prefabs/");
+	if(!content) content=strstr(path,"\\prefabs\\");
+	if(content){
+		size_t n=(size_t)(content-path);
+		if(n>=sizeof(s->assetRoot)) n=sizeof(s->assetRoot)-1;
+		memcpy(s->assetRoot,path,n); s->assetRoot[n]=0;
+	} else if(!strncmp(path,"scenes/",7)||!strncmp(path,"scenes\\",7)||
+		!strncmp(path,"prefabs/",8)||!strncmp(path,"prefabs\\",8)) strcpy(s->assetRoot,".");
+	char *buf=read_file(path); if(!buf) return 0;
+	XmlNode *root=xml_parse(buf); free(buf);
+	if(!root){ fprintf(stderr,"failed to parse %s\n",path); return 0; }
+	s->prefabDocument=!strcmp(root->tag,"prefab");
+	warn_unknown_elements(root,path,s->prefabDocument);
+	s->sceneRoot=root; s->editRoot=root;
+	scene_rebuild_view(s);
+	return 1;
+}
+
+void scene_select_camera(Scene *s, const char *name){
+	for(int i=0;i<s->ncameras;i++){
+		if(!strcmp(s->cameras[i].name,name)){
+			char selected[32]; strncpy(selected,s->cameras[i].name,31); selected[31]=0;
+			if(!strcmp(s->activeCamera,selected)){
+				s->camPos=s->cameras[i].pos; s->camLook=s->cameras[i].look; s->camFov=s->cameras[i].fov;
+				return;
+			}
+			strncpy(s->activeCamera,selected,31); s->activeCamera[31]=0;
+			scene_rebuild_view(s);
+			return;
+		}
+	}
+}
+
+typedef struct { vec3 min,max; } Bounds;
+
+static Bounds scene_obj_bounds(SceneObj *o){
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<o->mesh.nverts;i++){
+		vec3 p=o->mesh.verts[i].pos;
+		if(p.x<b.min.x) b.min.x=p.x; if(p.x>b.max.x) b.max.x=p.x;
+		if(p.y<b.min.y) b.min.y=p.y; if(p.y>b.max.y) b.max.y=p.y;
+		if(p.z<b.min.z) b.min.z=p.z; if(p.z>b.max.z) b.max.z=p.z;
+	}
+	return b;
+}
+
+static float bounds_overlap(float amin,float amax,float bmin,float bmax){
+	float lo=amin>bmin?amin:bmin, hi=amax<bmax?amax:bmax;
+	return hi-lo;
+}
+
+int scene_sanity_check(Scene *s){
+	Bounds *bounds=calloc((size_t)s->nobjs,sizeof(*bounds));
+	int errors=0;
+	for(int i=0;i<s->nobjs;i++) bounds[i]=scene_obj_bounds(&s->objs[i]);
+	for(int i=0;i<s->nobjs;i++){
+		SceneObj *a=&s->objs[i];
+		if(a->sanityIgnore || a->sanityFloor || !a->sanityCheck) continue;
+		for(int j=i+1;j<s->nobjs;j++){
+			SceneObj *b=&s->objs[j];
+			if(b->sanityIgnore || b->sanityFloor || !b->sanityCheck) continue;
+			float x=bounds_overlap(bounds[i].min.x,bounds[i].max.x,bounds[j].min.x,bounds[j].max.x);
+			float y=bounds_overlap(bounds[i].min.y,bounds[i].max.y,bounds[j].min.y,bounds[j].max.y);
+			float z=bounds_overlap(bounds[i].min.z,bounds[i].max.z,bounds[j].min.z,bounds[j].max.z);
+			if(x>0.025f && y>0.025f && z>0.025f){
+				fprintf(stderr,"sanity: intersecting objects %d and %d (%.3f %.3f %.3f)\n",i,j,x,y,z);
+				errors++;
+			}
+		}
+		if(bounds[i].min.y>0.015f){
+			int supported=0;
+			for(int j=0;j<s->nobjs;j++){
+				SceneObj *b=&s->objs[j];
+				if(i==j || b->sanityIgnore || (!b->sanityCheck && !b->sanityFloor)) continue;
+				if(fabsf(bounds[i].min.y-bounds[j].max.y)>0.025f) continue;
+				if(bounds_overlap(bounds[i].min.x,bounds[i].max.x,bounds[j].min.x,bounds[j].max.x)>0.025f &&
+				   bounds_overlap(bounds[i].min.z,bounds[i].max.z,bounds[j].min.z,bounds[j].max.z)>0.025f){ supported=1; break; }
+			}
+			if(!supported){ fprintf(stderr,"sanity: floating object %d, base y=%.3f\n",i,bounds[i].min.y); errors++; }
+		}
+	}
+	free(bounds);
+	if(!errors) fprintf(stderr,"sanity: ok (%d objects)\n",s->nobjs);
+	return !errors;
+}
+
+void scene_get_obj_bounds(Scene *s, int idx, vec3 *outMin, vec3 *outMax){
+	if(idx<0 || idx>=s->nobjs){ *outMin=v3(0,0,0); *outMax=v3(0,0,0); return; }
+	void *node=s->objs[idx].editNode;
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<s->nobjs;i++) if((node && s->objs[i].editNode==node) || (!node && i==idx)){
+		Bounds p=scene_obj_bounds(&s->objs[i]);
+		if(p.min.x<b.min.x) b.min.x=p.min.x; if(p.max.x>b.max.x) b.max.x=p.max.x;
+		if(p.min.y<b.min.y) b.min.y=p.min.y; if(p.max.y>b.max.y) b.max.y=p.max.y;
+		if(p.min.z<b.min.z) b.min.z=p.min.z; if(p.max.z>b.max.z) b.max.z=p.max.z;
+	}
+	*outMin=b.min; *outMax=b.max;
+}
+
+void scene_get_obj_oriented_bounds(Scene *s,int idx,mat4 *matrix,vec3 *outMin,vec3 *outMax){
+	if(idx<0 || idx>=s->nobjs){ *matrix=mat4_identity(); *outMin=*outMax=v3(0,0,0); return; }
+	void *node=s->objs[idx].editNode;
+	*matrix=s->objs[idx].editMatrix;
+	mat4 inv=mat4_affine_inverse(*matrix);
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<s->nobjs;i++) if((node && s->objs[i].editNode==node) || (!node && i==idx)){
+		for(int j=0;j<s->objs[i].mesh.nverts;j++){
+			vec3 p=mat4_xform_point(inv,s->objs[i].mesh.verts[j].pos);
+			if(p.x<b.min.x) b.min.x=p.x; if(p.x>b.max.x) b.max.x=p.x;
+			if(p.y<b.min.y) b.min.y=p.y; if(p.y>b.max.y) b.max.y=p.y;
+			if(p.z<b.min.z) b.min.z=p.z; if(p.z>b.max.z) b.max.z=p.z;
+		}
+	}
+	if(!isfinite(b.min.x)) b.min=b.max=v3(0,0,0);
+	*outMin=b.min; *outMax=b.max;
+}
+
+int scene_pick_object(Scene *s, vec3 rayOrigin, vec3 rayDir, float *tOut){
+	int hit=-1; float bestT=1e30f;
+	for(int i=0;i<s->nobjs;i++){
+		if(!s->objs[i].renderable) continue;
+		void *node=s->objs[i].editNode;
+		int seen=0;
+		for(int j=0;j<i;j++) if(node && s->objs[j].editNode==node){ seen=1; break; }
+		if(seen) continue;
+		mat4 matrix; vec3 bmin,bmax;
+		scene_get_obj_oriented_bounds(s,i,&matrix,&bmin,&bmax);
+		mat4 inv=mat4_affine_inverse(matrix);
+		float t;
+		if(ray_intersect_aabb(mat4_xform_point(inv,rayOrigin),mat4_xform_dir(inv,rayDir),bmin,bmax,&t)){
+			if(t<bestT){ bestT=t; hit=i; }
+		}
+	}
+	s->selectedNode=hit>=0?s->objs[hit].editNode:NULL;
+	if(tOut) *tOut=bestT;
+	return hit;
+}
+
+void scene_get_bounds(Scene *s,vec3 *outMin,vec3 *outMax){
+	Bounds b={v3(INFINITY,INFINITY,INFINITY),v3(-INFINITY,-INFINITY,-INFINITY)};
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].renderable){
+		Bounds p=scene_obj_bounds(&s->objs[i]);
+		if(p.min.x<b.min.x) b.min.x=p.min.x; if(p.max.x>b.max.x) b.max.x=p.max.x;
+		if(p.min.y<b.min.y) b.min.y=p.min.y; if(p.max.y>b.max.y) b.max.y=p.max.y;
+		if(p.min.z<b.min.z) b.min.z=p.min.z; if(p.max.z>b.max.z) b.max.z=p.max.z;
+	}
+	if(!isfinite(b.min.x)) b.min=b.max=v3(0,0,0);
+	*outMin=b.min; *outMax=b.max;
+}
+
+int scene_enter_selected_prefab(Scene *s){
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n || strcmp(n->tag,"prefab") || s->editDepth>=32) return 0;
+	const char *source=xml_attr(n,"source",NULL);
+	XmlNode *root=source?load_prefab(s,source):NULL;
+	if(!root) return 0;
+	s->editStack[s->editDepth++]=s->editRoot;
+	s->editRoot=root; s->selectedNode=NULL;
+	scene_rebuild_view(s);
+	return 1;
+}
+
+int scene_exit_prefab(Scene *s){
+	if(!s->editDepth) return 0;
+	s->editRoot=s->editStack[--s->editDepth];
+	s->selectedNode=NULL;
+	scene_rebuild_view(s);
+	return 1;
+}
+
+int scene_selected_prefab_path(Scene *s,char *path,size_t pathSize){
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n||strcmp(n->tag,"prefab")||!path||!pathSize) return 0;
+	const char *source=xml_attr(n,"source",NULL);
+	if(!source||!load_prefab(s,source)) return 0;
+	for(int i=0;i<s->nprefabs;i++) if(!strcmp(s->prefabs[i].ref,source)){
+		snprintf(path,pathSize,"%s",s->prefabs[i].path);
+		return 1;
+	}
+	return 0;
+}
+
+int scene_is_prefab_mode(Scene *s){ return s->prefabDocument||s->editDepth>0; }
+
+static void xml_write_escaped(FILE *f,const char *s){
+	for(;*s;s++){
+		if(*s=='&') fputs("&amp;",f);
+		else if(*s=='\"') fputs("&quot;",f);
+		else if(*s=='<') fputs("&lt;",f);
+		else if(*s=='>') fputs("&gt;",f);
+		else fputc(*s,f);
+	}
+}
+
+static void xml_write_node(FILE *f,XmlNode *n,int depth){
+	for(int i=0;i<depth;i++) fputc('\t',f);
+	fprintf(f,"<%s",n->tag);
+	for(int i=0;i<n->nattrs;i++){
+		fprintf(f," %s=\"",n->attrs[i].name);
+		xml_write_escaped(f,n->attrs[i].value);
+		fputc('\"',f);
+	}
+	if(!n->nkids){ fputs(" />\n",f); return; }
+	fputs(">\n",f);
+	for(int i=0;i<n->nkids;i++) xml_write_node(f,n->kids[i],depth+1);
+	for(int i=0;i<depth;i++) fputc('\t',f);
+	fprintf(f,"</%s>\n",n->tag);
+}
+
+static int xml_save_file(const char *path,XmlNode *root){
+	FILE *f=fopen(path,"wb");
+	if(!f){ fprintf(stderr,"cannot save %s\n",path); return 0; }
+	xml_write_node(f,root,0);
+	int error=ferror(f),closed=fclose(f);
+	int ok=!error && closed==0;
+	if(!ok) fprintf(stderr,"failed saving %s\n",path);
+	return ok;
+}
+
+int scene_save_all(Scene *s){
+	int ok=xml_save_file(s->scenePath,(XmlNode*)s->sceneRoot);
+	for(int i=0;i<s->nprefabs;i++) if(!xml_save_file(s->prefabs[i].path,(XmlNode*)s->prefabs[i].root)) ok=0;
+	return ok;
+}
+
+/* -------------------------------------------- gizmo interaction */
+
+static vec3 mouse_ray(vec3 camRight, vec3 camUp, vec3 camLook,
+	float camFov, int mx, int my, int W, int H)
+{
+	float fovRad=camFov*M_PIf/180.0f;
+	float hh=tanf(fovRad*0.5f);
+	float hw=hh*(float)W/(float)H;
+	float ndcX=(2.0f*mx)/(float)W-1.0f;
+	float ndcY=1.0f-(2.0f*my)/(float)H;
+	return vnorm(vadd(vadd(vscale(camRight,ndcX*hw),vscale(camUp,ndcY*hh)),camLook));
+}
+
+void gizmo_begin_drag(Scene *s,int handle,int mouseX,int mouseY){
+	if(s->selectedObj<0 || s->selectedObj>=s->nobjs) return;
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n) return;
+	s->draggingHandle=handle;
+	s->dragStartMouseX=mouseX; s->dragStartMouseY=mouseY;
+	s->dragStartPos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
+	s->dragStartRot=xml_attr_v3(n,"rot",v3(0,0,0));
+	s->dragStartScale=xml_attr_v3(n,"scale",v3(1,1,1));
+	mat4 matrix; vec3 bmin,bmax;
+	scene_get_obj_oriented_bounds(s,s->selectedObj,&matrix,&bmin,&bmax);
+	s->dragStartEditMatrix=matrix;
+	s->dragParentMatrix=mat4_mul(matrix,mat4_affine_inverse(xml_node_transform(n)));
+	s->dragStartCenter=mat4_xform_point(matrix,v3(0,0,0));
+	free(s->dragStartVerts); free(s->dragObjIndices); free(s->dragVertOffsets);
+	s->dragStartVerts=NULL; s->dragObjIndices=NULL; s->dragVertOffsets=NULL;
+	s->ndragStartObjs=s->ndragStartVerts=0;
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==s->selectedNode){
+		s->ndragStartObjs++; s->ndragStartVerts+=s->objs[i].mesh.nverts;
+	}
+	s->dragStartVerts=malloc(sizeof(Vertex)*(size_t)s->ndragStartVerts);
+	s->dragObjIndices=malloc(sizeof(int)*(size_t)s->ndragStartObjs);
+	s->dragVertOffsets=malloc(sizeof(int)*(size_t)s->ndragStartObjs);
+	int oi=0,vo=0;
+	for(int i=0;i<s->nobjs;i++) if(s->objs[i].editNode==s->selectedNode){
+		s->dragObjIndices[oi]=i; s->dragVertOffsets[oi++]=vo;
+		memcpy(s->dragStartVerts+vo,s->objs[i].mesh.verts,sizeof(Vertex)*(size_t)s->objs[i].mesh.nverts);
+		vo+=s->objs[i].mesh.nverts;
+	}
+}
+
+static int ray_plane_hit(vec3 ro,vec3 rd,vec3 point,vec3 normal,vec3 *hit){
+	float denom=vdot(rd,normal);
+	if(fabsf(denom)<1e-6f) return 0;
+	float t=vdot(vsub(point,ro),normal)/denom;
+	if(t<0) return 0;
+	*hit=vadd(ro,vscale(rd,t));
+	return 1;
+}
+
+static void scene_apply_drag_transform(Scene *s,XmlNode *n){
+	mat4 matrix=mat4_mul(s->dragParentMatrix,xml_node_transform(n));
+	mat4 delta=mat4_mul(matrix,mat4_affine_inverse(s->dragStartEditMatrix));
+	for(int k=0;k<s->ndragStartObjs;k++){
+		SceneObj *o=&s->objs[s->dragObjIndices[k]];
+		Vertex *start=s->dragStartVerts+s->dragVertOffsets[k];
+		for(int i=0;i<o->mesh.nverts;i++){
+			o->mesh.verts[i].pos=mat4_xform_point(delta,start[i].pos);
+			o->mesh.verts[i].nrm=mat4_xform_normal(delta,start[i].nrm);
+		}
+		o->editMatrix=matrix;
+		mesh_compute_face_normals(&o->mesh);
+		if(o->castsShadow) mesh_update_edge_positions(&o->mesh);
+	}
+	scene_rebuild_node_shadow_volumes(s,s->selectedNode);
+}
+
+void gizmo_apply_drag(Scene *s,int mX,int mY,int W,int H,
+	vec3 camPos,vec3 camRight,vec3 camUp,vec3 camLook,float camFov){
+	XmlNode *n=(XmlNode*)s->selectedNode;
+	if(!n || s->draggingHandle==GIZMO_NONE) return;
+	int h=s->draggingHandle;
+	vec3 center=s->dragStartCenter;
+	vec3 sx=v3(1,0,0),sy=v3(0,1,0),sz=v3(0,0,1);
+	vec3 curRay=mouse_ray(camRight,camUp,camLook,camFov,mX,mY,W,H);
+	vec3 startRay=mouse_ray(camRight,camUp,camLook,camFov,s->dragStartMouseX,s->dragStartMouseY,W,H);
+	if(s->editMode==EDIT_W_MOVE){
+		vec3 a,b;
+		if(h==GIZMO_AXIS_X || h==GIZMO_AXIS_Y || h==GIZMO_AXIS_Z){
+			vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:sz;
+			vec3 pn=vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
+			if(!ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
+			vec3 delta=vscale(axis,vdot(vsub(b,a),axis));
+			xml_set_attr_v3_cm(n,"pos",vadd(s->dragStartPos,mat4_xform_dir(mat4_affine_inverse(s->dragParentMatrix),delta)));
+		} else {
+			vec3 pn=h==GIZMO_PLANE_XY?sz:h==GIZMO_PLANE_XZ?sy:h==GIZMO_PLANE_YZ?sx:v3(0,0,0);
+			if(vlen(pn)<0.5f || !ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
+			vec3 delta=mat4_xform_dir(mat4_affine_inverse(s->dragParentMatrix),vsub(b,a));
+			xml_set_attr_v3_cm(n,"pos",vadd(s->dragStartPos,delta));
+		}
+	} else if(s->editMode==EDIT_E_ROTATE){
+		vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:h==GIZMO_AXIS_Z?sz:v3(0,0,0),a,b;
+		if(vlen(axis)<0.5f || !ray_plane_hit(camPos,startRay,center,axis,&a) || !ray_plane_hit(camPos,curRay,center,axis,&b)) return;
+		vec3 va=vnorm(vsub(a,center)),vb=vnorm(vsub(b,center));
+		float d=vdot(va,vb); if(d>1) d=1; if(d<-1) d=-1;
+		float angle=acosf(d)*180.0f/M_PIf;
+		if(vdot(axis,vcross(va,vb))<0) angle=-angle;
+		vec3 rot=s->dragStartRot;
+		if(h==GIZMO_AXIS_X) rot.x+=angle;
+		else if(h==GIZMO_AXIS_Y) rot.y+=angle;
+		else rot.z+=angle;
+		xml_set_attr_v3(n,"rot",rot);
+	} else if(s->editMode==EDIT_R_SCALE){
+		int uniform=h==GIZMO_CENTER;
+		vec3 axis=h==GIZMO_AXIS_X?sx:h==GIZMO_AXIS_Y?sy:h==GIZMO_AXIS_Z?sz:v3(0,0,0),a,b;
+		vec3 pn=uniform?camLook:vnorm(vsub(camLook,vscale(axis,vdot(camLook,axis))));
+		if((!uniform && vlen(axis)<0.5f) || !ray_plane_hit(camPos,startRay,center,pn,&a) || !ray_plane_hit(camPos,curRay,center,pn,&b)) return;
+		float from=uniform?vlen(vsub(a,center)):vdot(vsub(a,center),axis);
+		float to=uniform?vlen(vsub(b,center)):vdot(vsub(b,center),axis);
+		if(fabsf(from)<1e-6f || to/from<=0) return;
+		float ratio=to/from;
+		vec3 scale=s->dragStartScale;
+		if(uniform) scale=vscale(scale,ratio);
+		else if(h==GIZMO_AXIS_X) scale.x*=ratio;
+		else if(h==GIZMO_AXIS_Y) scale.y*=ratio;
+		else scale.z*=ratio;
+		xml_set_attr_v3(n,"scale",scale);
+	}
+	scene_apply_drag_transform(s,n);
+}
+
+/* -------------------------------------- build_wall_boxes (below parse_nodes) */
+
+/* Emit a single box piece of a wall segment */
+static void emit_wall_box(Scene *s, mat4 wallM, mat4 wallR, float T,
+		float y0, float y1, float x0, float x1,
+		vec3 color, float shin, int castsShadow, int renderable, int unlit){
+	float w=x1-x0, h=y1-y0;
+	if(w<1e-4f || h<1e-4f) return;
+	vec3 localCenter=v3((x0+x1)*0.5f,(y0+y1)*0.5f,0);
+	Mesh box=gen_box(w,h,T);
+	mat4 M=mat4_mul(wallM,mat4_translate(localCenter));
+	scene_add_obj(s,box,M,wallR,color,shin,castsShadow,renderable,unlit);
+}
+
+static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
+                              Opening *openings,int nopen, vec3 color,float shin, int castsShadow,int renderable,int unlit){
+	/* Convert x coordinates to wall-local space (origin at left edge, centered horizontally):
+	 * opening.x is already in [0,L] from left edge; wall mesh has center at x=0,
+	 * so wall-local x = opening.x - L/2. */
+	float half=L*0.5f;
+
+	/* Collect X breakpoints from all openings' bounding rects */
+	float *bp=NULL; int nbp=0,cbp=0;
+	float b0=0,bL=L; DA_PUSH(bp,nbp,cbp,b0); DA_PUSH(bp,nbp,cbp,bL);
+	for(int i=0;i<nopen;i++){
+		float a=openings[i].x, b=openings[i].x+openings[i].width;
+		DA_PUSH(bp,nbp,cbp,a); DA_PUSH(bp,nbp,cbp,b);
+	}
+	/* Sort breakpoints */
+	for(int i=0;i<nbp;i++) for(int j=i+1;j<nbp;j++) if(bp[j]<bp[i]){ float t=bp[i]; bp[i]=bp[j]; bp[j]=t; }
+
+	for(int i=0;i+1<nbp;i++){
+		float x0=bp[i], x1=bp[i+1];
+		if(x1-x0 < 1e-4f) continue;
+		float xm=(x0+x1)*0.5f;
+
+		/* Find the opening whose bounding rect this column is inside */
+		Opening *hit=NULL;
+		for(int k=0;k<nopen;k++){
+			if(xm>openings[k].x && xm<openings[k].x+openings[k].width){ hit=&openings[k]; break; }
+		}
+
+		if(!hit){
+			/* Solid column */
+			emit_wall_box(s,wallM,wallR,T,0,H,xm-half-(x1-x0)*0.5f,xm-half+(x1-x0)*0.5f,color,shin,castsShadow,renderable,unlit);
+			continue;
+		}
+
+		if(hit->type==OPENING_RECT){
+			/* Simple rectangular opening: emit boxes below sill and above top */
+			float lx=xm-half, w=x1-x0;
+			if(hit->sill>1e-4f)
+				emit_wall_box(s,wallM,wallR,T,0,hit->sill,lx-w*0.5f,lx+w*0.5f,color,shin,castsShadow,renderable,unlit);
+			float top=hit->sill+hit->height;
+			if(top<H-1e-4f)
+				emit_wall_box(s,wallM,wallR,T,top,H,lx-w*0.5f,lx+w*0.5f,color,shin,castsShadow,renderable,unlit);
+			continue;
+		}
+
+		/* ARCH or CYLINDER: the column slice exactly covers the opening width.
+		 * Left/right neighbor columns are handled as solid columns by the outer loop.
+		 * Only emit the below-sill and above-top strips within the opening's X span. */
+		float ox=hit->x, ow=hit->width, oh=hit->height, os=hit->sill;
+		float ox_local=ox-half;
+		float ocx=ox_local+ow*0.5f;
+
+		if(os>1e-4f)
+			emit_wall_box(s,wallM,wallR,T,0,os,ox_local,ox_local+ow,color,shin,castsShadow,renderable,unlit);
+		if(os+oh<H-1e-4f)
+			emit_wall_box(s,wallM,wallR,T,os+oh,H,ox_local,ox_local+ow,color,shin,castsShadow,renderable,unlit);
+
+		Mesh mesh;
+		if(hit->type==OPENING_CYLINDER)
+			mesh=gen_box_hole_cylinder(ow,oh,T,hit->cylR,32);
+		else
+			mesh=gen_box_hole_arch(ow,oh,T,16);
+		vec3 meshCenter=v3(ocx,os+oh*0.5f,0);
+		mat4 M=mat4_mul(wallM,mat4_translate(meshCenter));
+		scene_add_obj(s,mesh,M,wallR,color,shin,castsShadow,renderable,unlit);
+	}
+	free(bp);
+}
+
+#ifdef SCENER_USE_TEXTURES
+void scene_init_textures(Scene *s){
+	materials_init(s->materialTextures);
+	s->whiteTexture=materials_create_white_texture();
+}
+
+void scene_free_textures(Scene *s){
+	materials_free(s->materialTextures);
+	glDeleteTextures(1,&s->whiteTexture);
+}
+#else
+void scene_init_textures(Scene *s){ (void)s; }
+void scene_free_textures(Scene *s){ (void)s; }
+#endif

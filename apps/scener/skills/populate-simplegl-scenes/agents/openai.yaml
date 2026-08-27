@@ -1,0 +1,4 @@
+interface:
+  display_name: "Populate SimpleGL XML Scenes"
+  short_description: "Compose and validate SimpleGL XML scenes"
+  default_prompt: "Use $populate-simplegl-scenes to build and validate a populated SimpleGL XML scene with CLI checks and tests."

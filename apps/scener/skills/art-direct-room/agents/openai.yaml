@@ -1,0 +1,4 @@
+interface:
+  display_name: "Art Direct a Room"
+  short_description: "Turn source facts and references into room design"
+  default_prompt: "Use $art-direct-room to turn this canonical room brief and visual references into an implementation-ready room design."
