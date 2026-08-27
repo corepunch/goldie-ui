@@ -126,6 +126,7 @@ static void cli_parse(int argc, char *argv[]) {
 	}
 }
 
+#ifndef BUILD_AS_GEM
 static void cli_print_help(void) {
 	printf("Usage:\n");
 	printf("  scener SCENE.blks\n");
@@ -150,6 +151,7 @@ static bool cli_print_cameras(const char *path) {
 	scene_free(&scene);
 	return true;
 }
+#endif
 
 static void create_app_windows(hinstance_t hinstance) {
 #ifdef BUILD_AS_GEM

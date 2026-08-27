@@ -11,7 +11,7 @@ CFLAGS   = -Wall -Wextra -std=c11 -I. -DGL_SILENCE_DEPRECATION -D_DEFAULT_SOURCE
 LDFLAGS  =
 LIBS     =
 UNAME_S ?= $(shell uname -s)
-PREFIX  ?= /usr/local
+PREFIX  ?= /opt/orion
 DESTDIR ?=
 INSTALL ?= install
 
@@ -39,6 +39,7 @@ LIBS     += -framework OpenGL
 LIB_EXT  = dylib
 LIB_FLAGS = -dynamiclib
 RPATH_FLAGS = -Wl,-rpath,@loader_path/../lib
+GEM_INSTALL_RPATH_FLAGS = -Wl,-rpath,@loader_path/../..
 lib_id_flags = -Wl,-install_name,@rpath/lib$(1).$(LIB_EXT)
 GEM_NM   = nm -g
 GEM_SYM  = T _gem_get_interface
@@ -48,6 +49,7 @@ CFLAGS   += -fPIC
 LIB_EXT  = so
 LIB_FLAGS = -shared -fPIC
 RPATH_FLAGS = -Wl,-rpath,'$$ORIGIN/../lib'
+GEM_INSTALL_RPATH_FLAGS = -Wl,-rpath,'$$ORIGIN/../..'
 GEM_NM   = nm -D
 GEM_SYM  = T gem_get_interface
 else
@@ -105,7 +107,8 @@ EXAMPLES     = $(patsubst $(APPS)/%/,%,$(filter %/,$(wildcard $(APPS)/*/)))
 EXAMPLE_BINS = $(patsubst %,$(BIN_DIR)/%$(EXE_EXT),$(EXAMPLES))
 GEM_BINS     = $(patsubst %,$(GEM_DIR)/%.gem,$(filter-out shell,$(EXAMPLES)))
 COMPONENT_PLUGIN_BINS = $(patsubst $(APPS)/%/$(COMPS),$(LIB_DIR)/%_components.$(LIB_EXT),$(wildcard $(APPS)/*/$(COMPS)))
-app_plugin = $(if $(wildcard $(call appdir,$(1))/$(COMPS)),$(LIB_DIR)/$(notdir $(call appdir,$(1)))_components.$(LIB_EXT))
+app_plugin_file = $(if $(wildcard $(call appdir,$(1))/$(COMPS)),$(LIB_DIR)/$(notdir $(call appdir,$(1)))_components.$(LIB_EXT))
+app_plugin = $(if $(call app_plugin_file,$(1)),-x none $(call app_plugin_file,$(1)))
 
 # ── Phony apps ───────────────────────────────────────────────────────────
 # Phony apps are alternative builds of existing apps with extra compiler
@@ -125,9 +128,9 @@ appdir = $(APPS)/$(or $(PHONY_APPS_SRC_$(1)),$(1))
 # silently runs the stale executable.
 app_srcs = $(shell find $(call appdir,$(1)) \( -name '*.c' -o -name '*.h' \) ! -path '*/tests/*')
 $(foreach n,$(EXAMPLES) $(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(n)$(EXE_EXT): $(call app_srcs,$(n))))
-$(foreach n,$(EXAMPLES) $(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(n)$(EXE_EXT): $(call app_plugin,$(n))))
+$(foreach n,$(EXAMPLES) $(PHONY_APP_NAMES),$(eval $(BIN_DIR)/$(n)$(EXE_EXT): $(call app_plugin_file,$(n))))
 $(foreach n,$(filter-out shell,$(EXAMPLES)) $(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(n).gem: $(call app_srcs,$(n))))
-$(foreach n,$(filter-out shell,$(EXAMPLES)) $(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(n).gem: $(call app_plugin,$(n))))
+$(foreach n,$(filter-out shell,$(EXAMPLES)) $(PHONY_APP_NAMES),$(eval $(GEM_DIR)/$(n).gem: $(call app_plugin_file,$(n))))
 
 GENERATED_HEADERS = $(patsubst $(APPS)/%.orion,$(GENERATED_DIR)/$(APPS)/%.h,$(wildcard $(APPS)/*/*.orion))
 
@@ -143,7 +146,7 @@ unity_tu = find $(1) -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' ! -path '
 app_inc  = -I. -I$(call appdir,$*) -I$(call appdir,$*)/$(COMPS) -DSHAREDIR='"../share/$(notdir $(call appdir,$*))"'
 app_libs = $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(call app_plugin,$*) $(LIBS)
 
-.PHONY: all tools fonts platform share library apps plugins gems scener install-scener test clean help $(PHONY_APP_NAMES)
+.PHONY: all install tools fonts platform share library apps plugins gems scener test clean help $(PHONY_APP_NAMES)
 
 all: library apps tools $(if $(IS_WIN),,gems)
 
@@ -237,16 +240,32 @@ plugins: $(COMPONENT_PLUGIN_BINS)
 
 scener: $(BIN_DIR)/scener$(EXE_EXT)
 
-SCENER_RUNTIME_LIBS = $(KERNEL_LIB) $(USER_LIB) $(COMMCTL_LIB) $(PLATFORM_LIB)
+INSTALL_BINS = $(EXAMPLE_BINS) $(PHONY_APP_BINS) $(TOOLS_BINS)
+INSTALL_RUNTIME_LIBS = $(KERNEL_LIB) $(USER_LIB) $(COMMCTL_LIB) $(PLATFORM_LIB)
+INSTALL_GEMS = $(if $(IS_WIN),,$(GEM_BINS) $(PHONY_APP_GEMS))
 
-install-scener: scener
+install: all
 	@echo "INSTALL $(DESTDIR)$(PREFIX)"
 	@$(INSTALL) -d "$(DESTDIR)$(PREFIX)/bin" "$(DESTDIR)$(PREFIX)/lib" \
-	    "$(DESTDIR)$(PREFIX)/share/orion" "$(DESTDIR)$(PREFIX)/share/scener"
-	@$(INSTALL) -m 755 "$(BIN_DIR)/scener$(EXE_EXT)" "$(DESTDIR)$(PREFIX)/bin/"
-	@$(INSTALL) -m 755 $(SCENER_RUNTIME_LIBS) "$(DESTDIR)$(PREFIX)/lib/"
-	@cp -R "$(SHARE_DIR)/orion/." "$(DESTDIR)$(PREFIX)/share/orion/"
-	@cp -R "$(SHARE_DIR)/scener/." "$(DESTDIR)$(PREFIX)/share/scener/"
+	    "$(DESTDIR)$(PREFIX)/lib/orion/gems" "$(DESTDIR)$(PREFIX)/share" \
+	    "$(DESTDIR)$(PREFIX)/share/doc/orion"
+	@$(INSTALL) -m 755 $(INSTALL_BINS) "$(DESTDIR)$(PREFIX)/bin/"
+	@$(INSTALL) -m 755 $(INSTALL_RUNTIME_LIBS) $(COMPONENT_PLUGIN_BINS) "$(DESTDIR)$(PREFIX)/lib/"
+	@if [ -n "$(INSTALL_GEMS)" ]; then \
+	  $(INSTALL) -m 755 $(INSTALL_GEMS) "$(DESTDIR)$(PREFIX)/lib/orion/gems/"; \
+	fi
+	@cp -R "$(SHARE_DIR)/." "$(DESTDIR)$(PREFIX)/share/"
+	@$(INSTALL) -d "$(DESTDIR)$(PREFIX)/share/scener"
+	@cp -R "$(APPS)/scener/scenes" "$(APPS)/scener/prefabs" "$(DESTDIR)$(PREFIX)/share/scener/"
+	@find . -maxdepth 1 -type f -name '*.md' | while IFS= read -r file; do \
+	  $(INSTALL) -m 644 "$$file" "$(DESTDIR)$(PREFIX)/share/doc/orion/$${file#./}"; \
+	done
+	@cp -R docs "$(DESTDIR)$(PREFIX)/share/doc/orion/"
+	@find apps -type f -name '*.md' | while IFS= read -r file; do \
+	  dest="$(DESTDIR)$(PREFIX)/share/doc/orion/$$file"; \
+	  $(INSTALL) -d "$$(dirname "$$dest")"; \
+	  $(INSTALL) -m 644 "$$file" "$$dest"; \
+	done
 
 # Individual phony-app convenience targets (e.g. "make penciltest").
 $(foreach a,$(PHONY_APP_NAMES),$(eval $(a): $(BIN_DIR)/$(a)$(EXE_EXT)))
@@ -273,7 +292,7 @@ $(GEM_BINS) $(PHONY_APP_GEMS): $(GEM_DIR)/%.gem: $(CORE_LIBS) $(GENERATED_HEADER
 	@printf '%-8s%s\n' '$(if $(PHONY_APPS_SRC_$*),GEM(P),GEM)' "$@"
 	@{ echo '#include <orion/gem.h>'; $(call unity_tu,$(call appdir,$*)); } | \
 	    $(CC) $(GEM_CFLAGS) $(PHONY_APPS_CFLAGS_$*) $(LIB_FLAGS) $(app_inc) -x c -o $@ - \
-	    $(app_libs)
+	    $(app_libs) $(GEM_INSTALL_RPATH_FLAGS)
 	@$(GEM_NM) $@ 2>/dev/null | grep -q '$(GEM_SYM)' || { echo 'FAIL missing gem_get_interface'; exit 1; }
 
 # ── Tests ────────────────────────────────────────────────────────────────
@@ -323,10 +342,10 @@ help:
 	@echo "Orion UI Framework - Build System"
 	@echo ""
 	@echo "all       - Build library, apps, gems, and tools"
+	@echo "install   - Install the complete Orion suite under PREFIX (default: /opt/orion)"
 	@echo "library   - Build shared libraries"
 	@echo "apps      - Build applications"
 	@echo "scener    - Build the Scener application"
-	@echo "install-scener - Install Scener under PREFIX (default: /usr/local)"
 	@echo "gems      - Build all .gem shared libraries"
 	@echo "tools     - Build command-line tools"
 	@echo "test      - Build and run tests"

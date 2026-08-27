@@ -169,11 +169,11 @@ make apps
 # Build Scener only
 make scener
 
-# Install Scener under /usr/local
-make install-scener
+# Install the complete Orion suite under /opt/orion
+make install
 
 # Stage a package without modifying the host
-make install-scener PREFIX=/usr DESTDIR="$PWD/package-root"
+make install PREFIX=/usr DESTDIR="$PWD/package-root"
 
 # Build and run tests
 make test
@@ -181,6 +181,24 @@ make test
 # Clean build artifacts
 make clean
 ```
+
+`make install` installs every standalone application and command-line tool,
+all GEM applications and component plugins, the Orion runtime libraries,
+shared assets, Scener scenes and prefabs, and offline Markdown documentation.
+The default layout is:
+
+```text
+/opt/orion/bin/                 applications and tools
+/opt/orion/lib/                 runtime libraries and component plugins
+/opt/orion/lib/orion/gems/      loadable Orion applications
+/opt/orion/share/orion/         framework assets
+/opt/orion/share/<app>/         application assets
+/opt/orion/share/scener/        Scener assets, scenes, and prefabs
+/opt/orion/share/doc/orion/     framework and application documentation
+```
+
+Add `/opt/orion/bin` to `PATH`, or override `PREFIX` with `/usr/local` or
+`/usr` when integrating Orion with the conventional Unix filesystem layout.
 
 ### Build Output
 

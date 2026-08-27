@@ -2,6 +2,22 @@
 
 This directory contains example programs demonstrating the use of Orion.
 
+## Installing the application suite
+
+From the repository root, `make install` builds and installs every standalone
+application and loadable GEM, rather than installing applications one at a
+time. The default prefix is `/opt/orion`:
+
+```bash
+make install
+export PATH="/opt/orion/bin:$PATH"
+```
+
+Use `PREFIX=/usr/local` for a conventional local Unix installation, or combine
+`PREFIX` with `DESTDIR` when staging a package. Application assets are installed
+under `<prefix>/share/<app>`, GEMs under `<prefix>/lib/orion/gems`, and offline
+documentation under `<prefix>/share/doc/orion`.
+
 ## Hello World Example
 
 **File:** `helloworld.c`

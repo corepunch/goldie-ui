@@ -42,15 +42,18 @@ reference. It documents `.blks` scenes, `.blk` prefabs, every supported tag
 and attribute, defaults, units, transforms, materials, lights, cameras,
 primitives, groups, cutters, modifiers, attachments, validation, and rendering.
 
-Install the executable, Orion runtime libraries, and assets under a standard
-prefix with:
+Install Scener together with every Orion application, GEM, runtime library,
+asset, example, and offline documentation file with:
 
 ```sh
-make install-scener PREFIX=/usr/local
+make install
 ```
 
-`PREFIX` defaults to `/usr/local`; package recipes can also set `DESTDIR` to a
-staging root. A dependent project should treat Scener as an external tool:
+`PREFIX` defaults to `/opt/orion`; add `/opt/orion/bin` to `PATH` after
+installation. Package recipes can override the prefix and stage without
+modifying the host, for example
+`make install PREFIX=/usr DESTDIR="$PWD/package-root"`. A dependent project
+should treat Scener as an external tool:
 
 ```make
 SCENER ?= scener
@@ -65,9 +68,9 @@ render-scenes: check-scener
 	$(SCENER) --render scenes/main.blks --camera Main --output-dir build/render
 ```
 
-This keeps Orion and its platform implementation private to the Scener
-installation; downstream projects do not need either repository as a
-submodule. A Homebrew formula can call the same target with `PREFIX=#{prefix}`.
+This keeps Orion and its platform implementation private to the installed
+suite; downstream projects do not need either repository as a submodule. A
+Homebrew formula can call the same target with `PREFIX=#{prefix}`.
 
 **Controls:** mouse looks around, `W A S D` move, `Q`/`E` move down/up,
 `Shift` moves faster, and `Esc` quits. Press `1` for normal shadows, `4` for

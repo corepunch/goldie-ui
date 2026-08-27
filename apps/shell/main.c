@@ -29,6 +29,14 @@ static const menu_def_t kShellMenus[] = {
 
 static window_t *g_menubar = NULL;
 
+static bool shell_default_gem_path(char *path, size_t size, const char *name) {
+    int n = snprintf(path, size, "%s/../lib/orion/gems/%s.gem",
+                     ui_get_exe_dir(), name);
+    if (n > 0 && (size_t)n < size && axPathExists(path)) return true;
+    n = snprintf(path, size, "build/gem/%s.gem", name);
+    return n > 0 && (size_t)n < size && axPathExists(path);
+}
+
 // Rebuild the combined menu bar: shell's own menus first, then every loaded
 // gem's contributed menus.  Call after each gem load/unload.
 static void shell_rebuild_menubar(void) {
@@ -95,7 +103,7 @@ int main(int argc, char *argv[]) {
         }
     } else {
         printf("Usage: %s <gem1.gem> [gem2.gem] ...\n", argv[0]);
-        printf("       (loading default gems from build/gem/)\n");
+        printf("       (loading default Orion gems)\n");
 
         // Default: try to load whatever gems were built.
         // NOTE: preloading terminal.gem creates an initial empty Terminal window.
@@ -105,14 +113,15 @@ int main(int argc, char *argv[]) {
         // a second window running the script.  The empty window stays visible.
         // A future metadata-only GEM discovery phase would avoid this by loading
         // file_types without calling init() until a file is actually opened.
-        const char *defaults[] = {
-            "build/gem/filemanager.gem",
-            "build/gem/terminal.gem",
-            NULL
-        };
+        const char *defaults[] = { "filemanager", "terminal", NULL };
         for (int i = 0; defaults[i]; i++) {
-            char *gem_argv[] = { (char *)defaults[i], NULL };
-            shell_load_gem(defaults[i], 1, gem_argv);
+            char path[4096];
+            if (!shell_default_gem_path(path, sizeof(path), defaults[i])) {
+                fprintf(stderr, "shell: default gem not found: %s\n", defaults[i]);
+                continue;
+            }
+            char *gem_argv[] = { path, NULL };
+            shell_load_gem(path, 1, gem_argv);
             shell_rebuild_menubar();
         }
     }
