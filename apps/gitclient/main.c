@@ -102,6 +102,13 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
 }
 
 void gem_shutdown(void) {
+  // Destroy windows before unloading plugins — component procs (gc_diff_proc
+  // etc.) live in the plugin dylib; unloading first leaves dangling proc
+  // pointers that crash when cleanup_all_windows sends WM_DESTROY.
+  if (g_gc && g_gc->main_win) {
+    destroy_window(g_gc->main_win);
+    g_gc->main_win = NULL;
+  }
   fe_unload_component_plugins();
   if (g_gc) {
     if (g_gc->history_db) {
