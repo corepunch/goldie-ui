@@ -183,8 +183,8 @@ result_t main_toolbar_proc(window_t *win, uint32_t msg,
   switch (msg) {
     case evCreate:
       send_message(win, tbSetItems,
-                   (uint32_t)TB_MAIN_COUNT,
-                   (void *)TB_MAIN);
+                   (uint32_t)imageeditor_main_toolbar_form.toolbar_count,
+                   (void *)imageeditor_main_toolbar_form.toolbar_items);
       imageeditor_sync_main_toolbar();
       return true;
     case tbButtonClick:

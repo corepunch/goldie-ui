@@ -532,20 +532,20 @@ void test_generated_context_menus_reuse_shared_commands(void) {
 // 11. Page toolbars converge on the same command IDs as menus/context menus ──
 
 typedef struct {
-    const toolbar_item_t *items;
-    int count;
+    const form_def_t *form;
 } gc_toolbar_ref_t;
 
 static const gc_toolbar_ref_t kPageToolbars[] = {
-    { TB_CHANGES, TB_CHANGES_COUNT },
-    { TB_HISTORY, TB_HISTORY_COUNT },
-    { TB_GITHUB, TB_GITHUB_COUNT },
+    { &gitclient_changes_page_form },
+    { &gitclient_history_page_form },
+    { &gitclient_github_page_form },
 };
 
 static bool toolbar_has_action(const gc_toolbar_ref_t *toolbar, int ident) {
-    for (int i = 0; i < toolbar->count; i++)
-        if (toolbar->items[i].type == TOOLBAR_ITEM_BUTTON &&
-            toolbar->items[i].ident == ident) return true;
+    const toolbar_item_t *items = toolbar->form->toolbar_items;
+    for (int i = 0; i < toolbar->form->toolbar_count; i++)
+        if (items[i].type == TOOLBAR_ITEM_BUTTON && items[i].ident == ident)
+            return true;
     return false;
 }
 
@@ -556,21 +556,22 @@ void test_toolbar_buttons_reference_menu_command_ids(void) {
     ASSERT_EQUAL(gitclient_history_page_form.role, WINDOW_ROLE_PAGE);
     ASSERT_EQUAL(gitclient_github_page_form.role, WINDOW_ROLE_PAGE);
     ASSERT_EQUAL(gitclient_main_window_form.toolbar_count, 0);
-    ASSERT_EQUAL(gitclient_changes_page_form.toolbar_items, TB_CHANGES);
-    ASSERT_EQUAL(gitclient_history_page_form.toolbar_items, TB_HISTORY);
-    ASSERT_EQUAL(gitclient_github_page_form.toolbar_items, TB_GITHUB);
+    ASSERT_NOT_NULL(gitclient_changes_page_form.toolbar_items);
+    ASSERT_NOT_NULL(gitclient_history_page_form.toolbar_items);
+    ASSERT_NOT_NULL(gitclient_github_page_form.toolbar_items);
     ASSERT_TRUE(toolbar_has_action(&kPageToolbars[0], ID_FILES_STAGE_ALL));
     ASSERT_FALSE(toolbar_has_action(&kPageToolbars[1], ID_FILES_STAGE_ALL));
     ASSERT_FALSE(toolbar_has_action(&kPageToolbars[2], ID_FILES_STAGE_ALL));
 
     for (int toolbar_index = 0; toolbar_index < ARRAY_LEN(kPageToolbars); toolbar_index++) {
         const gc_toolbar_ref_t *toolbar = &kPageToolbars[toolbar_index];
-        for (int i = 0; i < toolbar->count; i++) {
-            if (toolbar->items[i].type != TOOLBAR_ITEM_BUTTON) continue;
-            ASSERT_TRUE(toolbar->items[i].ident != 0);
-            for (int j = i + 1; j < toolbar->count; j++) {
-                if (toolbar->items[j].type != TOOLBAR_ITEM_BUTTON) continue;
-                ASSERT_TRUE(toolbar->items[i].ident != toolbar->items[j].ident);
+        const toolbar_item_t *items = toolbar->form->toolbar_items;
+        for (int i = 0; i < toolbar->form->toolbar_count; i++) {
+            if (items[i].type != TOOLBAR_ITEM_BUTTON) continue;
+            ASSERT_TRUE(items[i].ident != 0);
+            for (int j = i + 1; j < toolbar->form->toolbar_count; j++) {
+                if (items[j].type != TOOLBAR_ITEM_BUTTON) continue;
+                ASSERT_TRUE(items[i].ident != items[j].ident);
             }
         }
     }
@@ -605,9 +606,10 @@ void test_action_metadata_and_accelerators(void) {
     // Every projected page-toolbar button references an action in the manifest.
     for (int toolbar_index = 0; toolbar_index < ARRAY_LEN(kPageToolbars); toolbar_index++) {
         const gc_toolbar_ref_t *toolbar = &kPageToolbars[toolbar_index];
-        for (int i = 0; i < toolbar->count; i++)
-            if (toolbar->items[i].type == TOOLBAR_ITEM_BUTTON)
-                ASSERT_TRUE(gc_meta_has((uint16_t)toolbar->items[i].ident));
+        const toolbar_item_t *items = toolbar->form->toolbar_items;
+        for (int i = 0; i < toolbar->form->toolbar_count; i++)
+            if (items[i].type == TOOLBAR_ITEM_BUTTON)
+                ASSERT_TRUE(gc_meta_has((uint16_t)items[i].ident));
     }
 
     // Every context-menu entry that is not a separator references the manifest.

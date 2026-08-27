@@ -223,7 +223,8 @@ static void read_control_attrs(xmlNodePtr n, attrs_t *a) {
 
 static void free_attrs(attrs_t *a) { for (int i = 0; i < ARRAY_LEN(a->v); i++) free(a->v[i]); }
 static bool is_control(xmlNodePtr parent, xmlNodePtr n) {
-  return n && n->type == XML_ELEMENT_NODE && !elem(n, "requires") && !(elem(parent, "tableview") && elem(n, "column"));
+  return n && n->type == XML_ELEMENT_NODE && !elem(n, "requires") && !elem(n, "toolbar") &&
+         !(elem(parent, "tableview") && elem(n, "column"));
 }
 static bool has_controls(xmlNodePtr n) { EACH_ELEMENT(c, n) if (is_control(n, c)) return true; return false; }
 
@@ -357,10 +358,11 @@ static int hotkey_count(const char *spec) {
   return n;
 }
 
-static void collect_toolbar_ids(ids_t *ids, cmd_refs_t *refs, xmlNodePtr toolbars) {
-  EACH_ELEMENT(tb, toolbars) if (elem(tb, "toolbar")) {
-    char *tbid = attr(tb, "name"), tb_scope[128]; ident(tb_scope, sizeof(tb_scope), tbid, true);
-    EACH_ELEMENT(it, tb) if (toolbar_type(it) && !elem(it, "separator") && !elem(it, "spacer")) {
+static void collect_toolbar_ids(ids_t *ids, cmd_refs_t *refs,
+                                xmlNodePtr toolbar, const char *scope_name) {
+  if (toolbar) {
+    char tb_scope[128]; ident(tb_scope, sizeof(tb_scope), scope_name, true);
+    EACH_ELEMENT(it, toolbar) if (toolbar_type(it) && !elem(it, "separator") && !elem(it, "spacer")) {
       char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *text = attr(it, "text"), id[256];
       if (resolve_action(id, sizeof(id), command, menu, tb_scope, name, text)) {
         if (refs && refs->n < ORIONC_MAX_IDS) {
@@ -371,7 +373,6 @@ static void collect_toolbar_ids(ids_t *ids, cmd_refs_t *refs, xmlNodePtr toolbar
       } else add_id(ids, id);
       free(command); free(menu); free(name); free(text);
     }
-    free(tbid);
   }
 }
 
@@ -479,11 +480,12 @@ static void emit_context_menus(FILE *f, xmlNodePtr contexts) {
   }
 }
 
-static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
-  EACH_ELEMENT(tb, toolbars) if (elem(tb, "toolbar")) {
-    char *tbid = attr(tb, "name"), scope[128]; ident(scope, sizeof(scope), tbid, true);
-    OUT("static const toolbar_item_t TB_%s[] = {\n", scope);
-    EACH_ELEMENT(it, tb) if (toolbar_type(it)) {
+static void emit_toolbar(FILE *f, xmlNodePtr toolbar, const char *symbol,
+                         const char *scope_name) {
+  if (toolbar) {
+    char scope[128]; ident(scope, sizeof(scope), scope_name, true);
+    OUT("static const toolbar_item_t %s[] = {\n", symbol);
+    EACH_ELEMENT(it, toolbar) if (toolbar_type(it)) {
       char *command = attr(it, "command"), *menu = attr(it, "menu"), *name = attr(it, "name"), *icon = attr(it, "icon"), *w = attr(it, "w"), *flags = attr(it, "flags"), *text = attr(it, "text"), *tooltip = attr(it, "tooltip");
       char id[256] = "0", textq[ORIONC_STRING_SIZE], tipq[ORIONC_STRING_SIZE], iconq[256];
       if (!elem(it, "separator") && !elem(it, "spacer"))
@@ -494,8 +496,7 @@ static void emit_toolbars(FILE *f, xmlNodePtr toolbars) {
       OUT("  { %s, %s, %s, %s, %s, %s, %s },\n", toolbar_type(it), id, iconq, nz(w, "0"), nz(flags, "0"), textq, tipq);
       free(command); free(menu); free(name); free(icon); free(w); free(flags); free(text); free(tooltip);
     }
-    OUT("};\n#define TB_%s_COUNT ((int)(sizeof(TB_%s) / sizeof(TB_%s[0])))\n\n", scope, scope, scope);
-    free(tbid);
+    OUT("};\n\n");
   }
 }
 
@@ -918,7 +919,7 @@ static void emit_bindings(FILE *f, const char *prefix, const char *form, const b
 }
 
 static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr database) {
-  char *name = attr(form, "name"), *title = attr(form, "title"), *flags_raw = attr(form, "flags"), *toolbar = attr(form, "toolbar"), *role = attr(form, "role"), *spacing = attrs_first(form, "spacing", "layout_spacing");
+  char *name = attr(form, "name"), *title = attr(form, "title"), *flags_raw = attr(form, "flags"), *role = attr(form, "role"), *spacing = attrs_first(form, "spacing", "layout_spacing");
   rect_t sz = size_attr(form), pad = {0}, mar = {0}; char form_id[128], titleq[ORIONC_STRING_SIZE], flags[256];
   if (!sz.w) { fprintf(stderr, "orionc_alt: form '%s' requires width=\n", nz(name, "")); return false; }
   const char *role_name = !role || !*role || eq(role, "normal") ? "WINDOW_ROLE_NORMAL" :
@@ -926,22 +927,34 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
                           eq(role, "page") ? "WINDOW_ROLE_PAGE" : NULL;
   if (!role_name) {
     fprintf(stderr, "orionc: invalid role '%s' on form '%s'\n", role, nz(name, ""));
-    free(name); free(title); free(flags_raw); free(toolbar); free(role); free(spacing);
+    free(name); free(title); free(flags_raw); free(role); free(spacing);
     return false;
   }
   ident(form_id, sizeof(form_id), name, false); cstr(titleq, sizeof(titleq), nz(title, name));
+  xmlNodePtr toolbar = child(form, "toolbar");
+  char toolbar_symbol[256]; snprintf(toolbar_symbol, sizeof(toolbar_symbol), "%s_%s_toolbar", prefix, form_id);
+  int toolbar_count = 0;
+  EACH_ELEMENT(item, form) if (elem(item, "toolbar")) toolbar_count++;
+  if (toolbar_count > 1) {
+    fprintf(stderr, "orionc: form '%s' has multiple <Toolbar> declarations\n", nz(name, ""));
+    free(name); free(title); free(flags_raw); free(role); free(spacing);
+    return false;
+  }
   rect_attr(form, "padding", &pad) || rect_attr(form, "layout_padding", &pad); rect_attr(form, "margin", &mar) || rect_attr(form, "layout_margin", &mar);
   resolve_flags(flags, sizeof(flags), nz(flags_raw, "0"));
   emit_tableviews(f, form, form, database, form_id);
   emit_comboboxes(f, form, form_id);
+  emit_toolbar(f, toolbar, toolbar_symbol, name);
   OUT("static const form_ctrl_def_t %s_%s_children[] = {\n", prefix, form_id);
   int count = 0; bindings_t bindings = {0}; button_ids_t btn_ids = {0}; 
   emit_controls_ex(f, form, form_id, "0", &bindings, &count, &btn_ids); LINE("};\n\n");
   emit_bindings(f, prefix, form_id, &bindings);
-    OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s) | WINDOW_AUTO_LAYOUT, .role = %s, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
-      prefix, form_id, titleq, sz.w, sz.h, flags, role_name, byte_attr(spacing, ORIONC_DEFAULT_SPACING),
+  OUT("static const form_def_t %s_%s_form = { .name = %s, .width = %d, .height = %d, .flags = (%s)%s | WINDOW_AUTO_LAYOUT, .role = %s, .layout_spacing = %u, .padding = { %d, %d, %d, %d }, .margin = { %d, %d, %d, %d }, .children = %s_%s_children, .child_count = %d",
+      prefix, form_id, titleq, sz.w, sz.h, flags,
+      toolbar && !eq(role, "page") ? " | WINDOW_TOOLBAR" : "", role_name,
+      byte_attr(spacing, ORIONC_DEFAULT_SPACING),
       pad.x, pad.y, pad.w, pad.h, mar.x, mar.y, mar.w, mar.h, prefix, form_id, count);
-  if (toolbar && *toolbar) { char tb[128]; ident(tb, sizeof(tb), toolbar, true); OUT(", .toolbar_items = TB_%s, .toolbar_count = TB_%s_COUNT", tb, tb); }
+  if (toolbar) OUT(", .toolbar_items = %s, .toolbar_count = ARRAY_LEN(%s)", toolbar_symbol, toolbar_symbol);
   else LINE(", .toolbar_items = NULL, .toolbar_count = 0");
   if (bindings.n) {
     char table_id[128], meta[128]; 
@@ -959,7 +972,7 @@ static bool emit_form(FILE *f, xmlNodePtr form, const char *prefix, xmlNodePtr d
         btn_ids.cancel_id[0] ? btn_ids.cancel_id : "0");
   }
   LINE(" };\n\n");
-  free(name); free(title); free(flags_raw); free(toolbar); free(role); free(spacing);
+  free(name); free(title); free(flags_raw); free(role); free(spacing);
   return true;
 }
 
@@ -980,17 +993,31 @@ int main(int argc, char **argv) {
   if (!elem(root, "orion")) { fprintf(stderr, "orionc_alt: %s is not an <orion> document\n", input); if (doc) xmlFreeDoc(doc); return 1; }
   FILE *f = fopen(output, "wb"); if (!f) { perror(output); xmlFreeDoc(doc); return 1; }
   char guard[256], pre[128]; ident(guard, sizeof(guard), output, true); ident(pre, sizeof(pre), prefix, false);
-  xmlNodePtr menus = child(root, "menus"), contexts = child(root, "contextmenus"), toolbars = child(root, "toolbars"), forms = child(root, "forms"), databases = child(root, "databases"), database = databases ? child(databases, "database") : child(root, "database");
+  xmlNodePtr menus = child(root, "menus"), contexts = child(root, "contextmenus"), forms = child(root, "forms"), databases = child(root, "databases"), database = databases ? child(databases, "database") : child(root, "database");
+  if (child(root, "toolbars")) {
+    fprintf(stderr, "orionc: top-level <toolbars> is invalid; declare <Toolbar> inside its owning <form>\n");
+    fclose(f); xmlFreeDoc(doc); return 1;
+  }
+  EACH_ELEMENT(form, forms) if (elem(form, "form")) {
+    char *toolbar_ref = attr(form, "toolbar");
+    if (toolbar_ref && *toolbar_ref) {
+      char *form_name = attr(form, "name");
+      fprintf(stderr, "orionc: toolbar= is invalid on form '%s'; nest <Toolbar> inside the form\n", nz(form_name, ""));
+      free(form_name); free(toolbar_ref); fclose(f); xmlFreeDoc(doc); return 1;
+    }
+    free(toolbar_ref);
+  }
   ids_t commands = {0}, controls = {0}; cmd_refs_t refs = {0}; action_meta_list_t meta = {0};
   EACH_ELEMENT(m, menus) if (elem(m, "menu")) { char *name = attr(m, "name"), scope[128]; ident(scope, sizeof(scope), name, true); collect_menu_ids(&commands, &meta, m, scope, name); free(name); }
-  collect_toolbar_ids(&commands, &refs, toolbars); collect_context_ids(&commands, &refs, contexts);
+  EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"); collect_toolbar_ids(&commands, &refs, child(form, "toolbar"), name); free(name); }
+  collect_context_ids(&commands, &refs, contexts);
   EACH_ELEMENT(form, forms) if (elem(form, "form")) { char *name = attr(form, "name"), form_id[128]; if (!only || eq(name, only)) { ident(form_id, sizeof(form_id), name, false); collect_control_ids(&controls, form, form_id); } free(name); }
   int errors = validate_actions(&commands, &refs, &meta);
   tpl(f, "/* Generated by orionc_alt from {{input}}. */\n#ifndef {{guard}}\n#define {{guard}}\n\n#include <orion/ui.h>\n#include <orion/user/icons.h>\n\n",
       (kv_t[]){{"input", input}, {"guard", guard}, {NULL, NULL}});
   emit_defines(f, &commands, "ID_COMMAND_BASE"); emit_defines(f, &controls, "ID_CONTROL_BASE");
   emit_action_meta(f, pre, &meta); emit_accelerators(f, pre, &meta);
-  emit_menus(f, menus); emit_context_menus(f, contexts); emit_toolbars(f, toolbars);
+  emit_menus(f, menus); emit_context_menus(f, contexts);
   // Emit every <database> under <databases> (a lone top-level <database> with
   // no wrapper is also supported, for older .orion files). Only the first is
   // "primary" and keeps the original unqualified symbol names.

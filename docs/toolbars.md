@@ -84,15 +84,16 @@ static const toolbar_item_t kLayersToolbar[] = {
 };
 ```
 
-### 2. `.orion` XML (application-level toolbar)
+### 2. `.orion` XML (window-owned toolbar)
 
-For the main application toolbar, define items in the `.orion` file and the
-build system generates a C array (`TB_MAIN[]` + `TB_MAIN_COUNT`):
+Declare a toolbar inside the form that owns it. The compiler stores the
+generated items in that form's `toolbar_items` and `toolbar_count` metadata:
 
 ```xml
 <!-- imageeditor.orion -->
-<toolbars>
-  <toolbar name="main">
+<forms>
+  <form name="main_toolbar" title="Toolbar" width="1" height="1">
+    <Toolbar>
     <Button name="new"  command="file.new" icon="sysicon_page_add"      text="New"  tooltip="New image" />
     <Button name="open" command="file.open" icon="sysicon_folder_page"   text="Open" tooltip="Open image" />
     <Button name="save" command="file.save" icon="sysicon_disk_save"     text="Save" tooltip="Save image" />
@@ -105,8 +106,9 @@ build system generates a C array (`TB_MAIN[]` + `TB_MAIN_COUNT`):
     <spacer w="10" />
     <Button name="show_background" command="view.show_background" icon="sysicon_eye_show"
             flags="BUTTON_PUSHLIKE" text="BG" tooltip="Toggle background" />
-  </toolbar>
-</toolbars>
+    </Toolbar>
+  </form>
+</forms>
 ```
 
 Include the generated header:
@@ -115,8 +117,14 @@ Include the generated header:
 #include "build/generated/apps/imageeditor/imageeditor.h"
 ```
 
-The `command=` attribute links each button to a fully qualified menu item for consistent command
-IDs.  The build tool resolves `name` + `menu` to produce the `ident` field.
+The `command=` attribute links each button to a fully qualified menu item for
+consistent command IDs. `<Toolbar>` is chrome metadata, not a content child.
+Top-level `<toolbars>` resources and `toolbar="name"` references are not
+supported; the owning form is the single source of truth.
+
+For normal windows and hosts, a nested `<Toolbar>` automatically enables
+`WINDOW_TOOLBAR`. A `role="page"` form publishes the same metadata without
+reserving its own toolbar band because the active host renders it.
 
 ## Creating a toolbar window
 
@@ -157,8 +165,8 @@ result_t my_toolbar_proc(window_t *win, uint32_t msg,
   switch (msg) {
     case evCreate:
       send_message(win, tbSetItems,
-                   (uint32_t)TB_MAIN_COUNT,
-                   (void *)TB_MAIN);
+                   (uint32_t)my_main_toolbar_form.toolbar_count,
+                   (void *)my_main_toolbar_form.toolbar_items);
       return true;
     case tbButtonClick:
       handle_menu_command((uint16_t)wparam);
@@ -252,7 +260,7 @@ The chrome window:
 ┌──────────────────────────────────────────────────────────┐
 │ .orion XML            static const toolbar_item_t[]     │
 │       ↓                         ↓                        │
-│   TB_MAIN[]              kLayersToolbar[]                │
+│ form.toolbar_items         kLayersToolbar[]               │
 │       ↓                         ↓                        │
 │         evCreate → tbSetItems → toolbar                  │
 │                          ↓                               │

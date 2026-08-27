@@ -59,22 +59,51 @@ static const char *kValid = ""
   "      <item name=\"refresh\" label=\"Refresh\" shortcut=\"F5;Ctrl+F5\" />\n"
   "    </menu>\n"
   "  </menus>\n"
-  "  <toolbars>\n"
-  "    <toolbar name=\"main\"><Button name=\"r\" command=\"repo.refresh\" text=\"R\" /></toolbar>\n"
-  "  </toolbars>\n"
-    "  <forms>\n"
-    "    <form name=\"host\" width=\"200\" role=\"host\" flags=\"toolbar\" />\n"
-    "    <form name=\"page\" width=\"200\" role=\"page\" toolbar=\"main\" />\n"
-    "  </forms>\n"
+  "  <forms>\n"
+  "    <form name=\"host\" width=\"200\" role=\"host\" flags=\"toolbar\" />\n"
+  "    <form name=\"page\" width=\"200\" role=\"page\">\n"
+  "      <Toolbar><Button name=\"r\" command=\"repo.refresh\" text=\"R\" /></Toolbar>\n"
+  "    </form>\n"
+  "    <form name=\"window\" width=\"200\"><Toolbar><Button command=\"repo.refresh\" /></Toolbar></form>\n"
+  "  </forms>\n"
   "</orion>\n";
 
 void test_valid_manifest_accepted(void) {
     TEST("orionc: valid manifest generates with exit 0");
-  char out[16384] = {0};
+    char out[16384] = {0};
     int rc = run_orionc(kValid, "valid", out, sizeof(out));
     ASSERT_EQUAL(rc, 0);
     ASSERT_TRUE(contains(out, ".role = WINDOW_ROLE_HOST"));
     ASSERT_TRUE(contains(out, ".role = WINDOW_ROLE_PAGE"));
+    ASSERT_TRUE(contains(out, "test_page_toolbar"));
+    ASSERT_TRUE(contains(out, ".toolbar_items = test_page_toolbar"));
+    ASSERT_TRUE(contains(out, ".flags = (0) | WINDOW_TOOLBAR | WINDOW_AUTO_LAYOUT"));
+    PASS();
+}
+
+void test_top_level_toolbars_rejected(void) {
+    TEST("orionc: top-level toolbars fail generation");
+    const char *fix = ""
+      "<orion version=\"1\" name=\"t\" title=\"T\">\n"
+      "  <toolbars><toolbar name=\"main\" /></toolbars>\n"
+      "</orion>\n";
+    char out[2048] = {0};
+    int rc = run_orionc(fix, "globaltoolbar", out, sizeof(out));
+    ASSERT_TRUE(rc != 0);
+    ASSERT_TRUE(contains(out, "top-level <toolbars> is invalid"));
+    PASS();
+}
+
+void test_toolbar_reference_rejected(void) {
+    TEST("orionc: form toolbar reference fails generation");
+    const char *fix = ""
+      "<orion version=\"1\" name=\"t\" title=\"T\">\n"
+      "  <forms><form name=\"main\" width=\"100\" toolbar=\"main\" /></forms>\n"
+      "</orion>\n";
+    char out[2048] = {0};
+    int rc = run_orionc(fix, "toolbarref", out, sizeof(out));
+    ASSERT_TRUE(rc != 0);
+    ASSERT_TRUE(contains(out, "toolbar= is invalid"));
     PASS();
 }
 
@@ -96,7 +125,7 @@ void test_unknown_reference_rejected(void) {
     const char *fix = ""
       "<orion version=\"1\" name=\"t\" title=\"T\">\n"
       "  <menus><menu name=\"repo\" label=\"Repo\"><item name=\"refresh\" label=\"Refresh\" /></menu></menus>\n"
-      "  <toolbars><toolbar name=\"main\"><Button name=\"r\" command=\"repo.refreshx\" text=\"R\" /></toolbar></toolbars>\n"
+      "  <forms><form name=\"main\" width=\"100\"><Toolbar><Button name=\"r\" command=\"repo.refreshx\" text=\"R\" /></Toolbar></form></forms>\n"
       "</orion>\n";
     char out[2048] = {0};
     int rc = run_orionc(fix, "unknown", out, sizeof(out));
@@ -158,6 +187,8 @@ int main(void) {
     TEST_START("orionc generator contract");
 #if !defined(_WIN32)
     test_valid_manifest_accepted();
+    test_top_level_toolbars_rejected();
+    test_toolbar_reference_rejected();
     test_unknown_form_role_rejected();
     test_unknown_reference_rejected();
     test_duplicate_action_name_rejected();

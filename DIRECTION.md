@@ -71,24 +71,22 @@ The host may compose two sections:
 Changing tabs replaces only the projected section. Universal actions should not
 be repeated in every page declaration.
 
-A natural `.orion` shape is:
+A toolbar is nested inside the form that owns it:
 
 ```xml
-<toolbar name="application">
-  <Button command="file.repositories" icon="git-repos" text="Repos" />
-  <Button command="remote.fetch" icon="git-fetch" text="Fetch" />
-</toolbar>
-
-<toolbar name="changes_tools">
-  <Button command="files.stage_all" icon="arrow-up" text="Stage All" />
-  <Button command="files.unstage_all" icon="arrow-down" text="Unstage All" />
-  <Button command="commit.commit" icon="git-commit" text="Commit" />
-</toolbar>
-
-<form name="changes_page" toolbar="changes_tools">
+<form name="changes_page" role="page">
+  <Toolbar>
+    <Button command="files.stage_all" icon="arrow-up" text="Stage All" />
+    <Button command="files.unstage_all" icon="arrow-down" text="Unstage All" />
+    <Button command="commit.commit" icon="git-commit" text="Commit" />
+  </Toolbar>
   ...
 </form>
 ```
+
+`<Toolbar>` is form chrome metadata, not a content child. Top-level
+`<toolbars>` declarations and `toolbar="name"` references are intentionally not
+supported: a page contribution must remain self-contained.
 
 ## Ownership
 
@@ -240,9 +238,8 @@ extension complexity.
 Allow a form to reference a toolbar definition. Preserve that reference in the
 generated `form_def_t` metadata and expose it through the created page window.
 
-**Initial implementation complete:** forms accept `role="host|page"`; generated
-form metadata carries the role and page windows retain their declarative toolbar
-items.
+**Implemented:** forms accept `role="host|page"`; nested `<Toolbar>` declarations
+are emitted into the owning form metadata, and page windows retain those items.
 
 ### 2. Toolbar composition
 

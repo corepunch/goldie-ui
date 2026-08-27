@@ -1,8 +1,6 @@
 // VIEW: Menu bar and command dispatch for Social Feed.
 //
-// Menu arrays (MENU_FILE_ITEMS, MENU_POST_ITEMS, …), kMenus/kNumMenus, and the
-// toolbar array TB_FEED are generated from socialfeed.orion and declared in the
-// generated forms header included via socialfeed.h.
+// Menu arrays and main-form toolbar metadata are generated from socialfeed.orion.
 
 #include "socialfeed.h"
 #include <orion/gem.h>
