@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 184 52" role="img" aria-labelledby="title desc">
+  <title id="title">orion</title>
+  <desc id="desc">Orion wordmark with an orbital constellation symbol</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 5C18 5 8 14 8 26s10 21 22 21 22-9 22-21S42 5 30 5Z" stroke="#f2f5f7" stroke-width="3"/>
+    <path d="M4 34C18 25 38 17 56 15" stroke="#50a7ff" stroke-width="2"/>
+    <path d="M15 14C25 24 38 34 51 40" stroke="#68d5c8" stroke-width="2" opacity=".85"/>
+    <path d="M24 29h12" stroke="#f2f5f7" stroke-width="2"/>
+  </g>
+  <g fill="#f2f5f7">
+    <circle cx="24" cy="29" r="2.5"/>
+    <circle cx="30" cy="26" r="2.5"/>
+    <circle cx="36" cy="23" r="2.5"/>
+  </g>
+  <circle cx="8" cy="34" r="2.5" fill="#50a7ff"/>
+  <circle cx="52" cy="16" r="2.5" fill="#50a7ff"/>
+  <text x="64" y="38" fill="#f2f5f7" font-family="Avenir Next, Avenir, Trebuchet MS, sans-serif" font-size="34" font-weight="600" letter-spacing="0">orion</text>
+</svg>

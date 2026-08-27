@@ -5,8 +5,8 @@ baseurl: /orion-ui
 
 remote_theme: just-the-docs/just-the-docs
 
-# Site logo (optional – remove if no logo image available)
-# logo: assets/logo.png
+# Transparent vector wordmark shown in the documentation header.
+logo: "/assets/images/orion-logo.svg"
 
 # Aux links in top nav
 aux_links:
