@@ -73,7 +73,15 @@ The compiler generates `db_commit_t`, `ID_DB_COMMITS`, `commits_fields[]`, etc.
 ### 2. Form binding in `.orion`
 
 ```xml
-<form name="main_window" width="800" height="480" flags="toolbar,statusbar" toolbar="main">
+<form name="main_window" width="800" height="480"
+      role="host" flags="toolbar,statusbar">
+  <TabView name="views">
+    <StackView name="history_tab" text="History" />
+  </TabView>
+</form>
+
+<form name="history_page" width="800" height="440"
+      role="page" toolbar="history">
   <TableView name="log" source="db.commits">
     <Column field="subject" title="Subject" width="0" />
     <Column field="author" title="Author" width="110" />
@@ -82,7 +90,9 @@ The compiler generates `db_commit_t`, `ID_DB_COMMITS`, `commits_fields[]`, etc.
 </form>
 ```
 
-No C code needed for column setup. The tableview reads field IDs from the form definition.
+No C code is needed for column setup. The tableview reads field IDs from the
+form definition. When the History page is selected, the host projects its
+`history` toolbar into the host toolbar.
 
 ### 3. Populate from git
 

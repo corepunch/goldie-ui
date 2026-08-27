@@ -111,7 +111,7 @@
     </contextMenus>
 
     <toolbars>
-        <toolbar name="main">
+        <toolbar name="changes">
             <Button name="sync"        command="remote.sync"        icon="data-transfer-both"  text="Sync"       tooltip="Publish, pull, or push the current branch" />
             <Button name="fetch"       command="remote.fetch"       icon="git-fetch"           text="Fetch"      tooltip="Fetch from remote" />
             <spacer />
@@ -123,9 +123,20 @@
             <spacer />
             <Button name="refresh"     command="repo.refresh"       icon="refresh"             text="Refresh"    tooltip="Refresh repository" />
             <Button name="repos"       command="file.repositories"  icon="git-repos"           text="Repos"      tooltip="Switch or discover repositories" />
-            <Button name="changes"     command="view.changes"       icon="git-diff"            text="Changes"    tooltip="Show working tree changes" />
-            <Button name="history"     command="view.history"       icon="clock"               text="History"    tooltip="Show commit history" />
-            <Button name="github"      command="view.github"        icon="github"              text="GitHub"     tooltip="Show GitHub issues and pull requests" />
+        </toolbar>
+        <toolbar name="history">
+            <Button name="sync"        command="remote.sync"        icon="data-transfer-both"  text="Sync"       tooltip="Publish, pull, or push the current branch" />
+            <Button name="fetch"       command="remote.fetch"       icon="git-fetch"           text="Fetch"      tooltip="Fetch from remote" />
+            <spacer />
+            <Button name="branch"      command="branch.new"         icon="git-fork"            text="Branch"     tooltip="Create new branch" />
+            <Button name="search"      command="repo.search"        icon="search"              text="Search"     tooltip="Search repository history" />
+            <spacer />
+            <Button name="refresh"     command="repo.refresh"       icon="refresh"             text="Refresh"    tooltip="Refresh repository" />
+            <Button name="repos"       command="file.repositories"  icon="git-repos"           text="Repos"      tooltip="Switch or discover repositories" />
+        </toolbar>
+        <toolbar name="github">
+            <Button name="refresh"     command="repo.refresh"       icon="refresh"             text="Refresh"    tooltip="Refresh GitHub data" />
+            <Button name="repos"       command="file.repositories"  icon="git-repos"           text="Repos"      tooltip="Switch or discover repositories" />
         </toolbar>
     </toolbars>
 
@@ -214,8 +225,9 @@
         <form name="main_window"
               title="Git Client"
               width="960" height="640"
+              role="host"
               flags="toolbar,statusbar"
-              toolbar="main">
+              >
             <TabView name="views" flags="notitle,nofill,flexspace">
                 <StackView name="changes_tab" text="Changes" flags="notitle,nofill,flexspace" />
                 <StackView name="history_tab" text="History" flags="notitle,nofill,flexspace" />
@@ -224,7 +236,7 @@
         </form>
 
         <!-- Changes page: file list + inline commit panel on left, diff on right. -->
-        <form name="changes_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
+        <form name="changes_page" width="960" height="600" role="page" toolbar="changes" auto_layout="1" flags="nofill,flexspace">
             <requires library="gitclient_components" />
             <SplitView name="changes_split" flags="flexspace">
                 <StackView name="changes_panel" spacing="4" padding="4">
@@ -251,7 +263,7 @@
         </form>
 
         <!-- History page: branches/tags/stash sidebar, log + files + diff. -->
-        <form name="history_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
+        <form name="history_page" width="960" height="600" role="page" toolbar="history" auto_layout="1" flags="nofill,flexspace">
             <requires library="gitclient_components" />
             <SplitView name="history_main_split" flags="flexspace">
                 <SplitView name="left_split" orientation="vertical" flags="flexspace" width="180">
@@ -290,7 +302,7 @@
         </form>
 
         <!-- GitHub page: issues on top, pull requests on bottom. -->
-        <form name="github_page" width="960" height="600" auto_layout="1" flags="nofill,flexspace">
+        <form name="github_page" width="960" height="600" role="page" toolbar="github" auto_layout="1" flags="nofill,flexspace">
             <SplitView name="github_split" orientation="vertical" flags="flexspace">
                 <StackView name="issues_panel" spacing="4" padding="4">
                     <Label text="Issues" />

@@ -62,13 +62,32 @@ static const char *kValid = ""
   "  <toolbars>\n"
   "    <toolbar name=\"main\"><Button name=\"r\" command=\"repo.refresh\" text=\"R\" /></toolbar>\n"
   "  </toolbars>\n"
+    "  <forms>\n"
+    "    <form name=\"host\" width=\"200\" role=\"host\" flags=\"toolbar\" />\n"
+    "    <form name=\"page\" width=\"200\" role=\"page\" toolbar=\"main\" />\n"
+    "  </forms>\n"
   "</orion>\n";
 
 void test_valid_manifest_accepted(void) {
     TEST("orionc: valid manifest generates with exit 0");
-    char out[2048] = {0};
+  char out[16384] = {0};
     int rc = run_orionc(kValid, "valid", out, sizeof(out));
     ASSERT_EQUAL(rc, 0);
+    ASSERT_TRUE(contains(out, ".role = WINDOW_ROLE_HOST"));
+    ASSERT_TRUE(contains(out, ".role = WINDOW_ROLE_PAGE"));
+    PASS();
+}
+
+void test_unknown_form_role_rejected(void) {
+    TEST("orionc: unknown form role fails generation");
+    const char *fix = ""
+      "<orion version=\"1\" name=\"t\" title=\"T\">\n"
+      "  <forms><form name=\"bad\" width=\"100\" role=\"workspace\" /></forms>\n"
+      "</orion>\n";
+    char out[2048] = {0};
+    int rc = run_orionc(fix, "badrole", out, sizeof(out));
+    ASSERT_TRUE(rc != 0);
+    ASSERT_TRUE(contains(out, "invalid role"));
     PASS();
 }
 
@@ -139,6 +158,7 @@ int main(void) {
     TEST_START("orionc generator contract");
 #if !defined(_WIN32)
     test_valid_manifest_accepted();
+    test_unknown_form_role_rejected();
     test_unknown_reference_rejected();
     test_duplicate_action_name_rejected();
     test_duplicate_hotkey_rejected();

@@ -360,6 +360,10 @@ void destroy_window(window_t *win) {
   window_t *root = get_root_window(win);
   post_message((window_t*)1, evRefreshStencil, 0, NULL);
   invalidate_overlaps(win);
+  if (win->role == WINDOW_ROLE_HOST && win->active_page)
+    set_host_page(win, NULL);
+  if (win->role == WINDOW_ROLE_PAGE && win->page_host)
+    set_host_page(win->page_host, NULL);
   send_message(win, evDestroy, 0, NULL);
   if (g_ui_runtime.focused == win) set_focus(NULL);
   if (g_ui_runtime.captured == win) set_capture(NULL);
@@ -816,7 +820,10 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   // Allocate the parent window without sending evCreate yet.
   window_t *win = alloc_window(def->name ? def->name : "", def->flags, &r, parent, proc, hinstance);
   if (!win) return NULL;
-  
+
+  win->role = def->role;
+  win->page_toolbar_items = (const toolbar_item_t *)def->toolbar_items;
+  win->page_toolbar_count = def->toolbar_count;
 
   
   if (def->flags & WINDOW_AUTO_LAYOUT)
@@ -859,6 +866,39 @@ window_t *create_window_from_form(form_def_t const *def, int x, int y,
   if (!parent && !is_window(win)) return NULL;
   if (parent) invalidate_window(win);
   return win;
+}
+
+bool set_host_page(window_t *host, window_t *page) {
+  if (!host || host->role != WINDOW_ROLE_HOST) {
+    fprintf(stderr, "[window] set_host_page rejected host=%p role=%d\n",
+            (void *)host, host ? (int)host->role : -1);
+    fflush(stderr);
+    return false;
+  }
+  if (page && page->role != WINDOW_ROLE_PAGE) {
+    fprintf(stderr, "[window] set_host_page rejected page=%p role=%d\n",
+            (void *)page, (int)page->role);
+    fflush(stderr);
+    return false;
+  }
+  if (host->active_page == page) return true;
+
+  if (page && page->page_host && page->page_host != host)
+    set_host_page(page->page_host, NULL);
+
+  if (host->active_page) {
+    send_message(host->active_page, evDeactivate, 0, host);
+    host->active_page->page_host = NULL;
+  }
+  host->active_page = page;
+  send_message(host, tbSetItems, page ? (uint32_t)page->page_toolbar_count : 0,
+               page ? (void *)page->page_toolbar_items : NULL);
+  if (page) {
+    page->page_host = host;
+    send_message(page, evActivate, 0, host);
+  }
+  invalidate_window(host);
+  return true;
 }
 
 static void create_form_children(window_t *parent, const form_ctrl_def_t *children,

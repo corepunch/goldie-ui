@@ -266,6 +266,9 @@ typedef struct {
   window_t    *main_win;
   window_t    *menubar_win;
   window_t    *tabs_win;
+  window_t    *changes_page_win;
+  window_t    *history_page_win;
+  window_t    *github_page_win;
   // active-page aliases (point into whichever page is shown)
   window_t    *files_win;
   window_t    *diff_win;
