@@ -6,11 +6,13 @@ on:
     paths:
       - 'docs/**'
       - 'README.md'
+      - 'packaging/README.md'
   pull_request:
     branches: [ main ]
     paths:
       - 'docs/**'
       - 'README.md'
+      - 'packaging/README.md'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +34,9 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
+      - name: Add package manager guide
+        run: cp packaging/README.md docs/package-manager.md
 
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1

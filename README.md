@@ -159,8 +159,8 @@ pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-lua make
 
 ### Orion Package Manager
 
-The `orion` package manager installs applications independently from GitHub
-Release artifacts. Bootstrap the runtime and package manager on macOS or Linux:
+The `orion` package manager installs applications independently from
+checksummed GitHub Release artifacts. Bootstrap it on macOS or Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/corepunch/orion-ui/main/install.sh | sudo sh
@@ -174,26 +174,15 @@ curl -fsSL https://raw.githubusercontent.com/corepunch/orion-ui/main/install.sh 
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The command syntax follows the familiar Homebrew model:
+Its command syntax follows the familiar Homebrew model:
 
 ```sh
-orion search editor
-orion info scener
 orion install scener
-orion install imageeditor terminal
-orion list
-orion update
-orion uninstall scener
 ```
 
-Every download is checked against the SHA-256 digest in the platform release
-index. `orion-core` contains the package manager, shared runtime libraries, and
-framework assets. Each application or developer tool has a separate archive,
-so installing Scener does not install the entire suite. Set `ORION_PREFIX` on
-later commands when using a non-default prefix.
-
-Tagged releases currently publish native packages for macOS arm64 and Linux
-x86-64. `ORION_RELEASE=v1.0.0` selects a specific release instead of `latest`.
+See the [Package Manager guide](packaging/README.md) for all commands,
+user-local installation, package layout, supported platforms, release pinning,
+security checks, and release-package generation.
 
 ### Build Commands
 

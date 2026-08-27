@@ -260,6 +260,7 @@ install: all
 	@find . -maxdepth 1 -type f -name '*.md' | while IFS= read -r file; do \
 	  $(INSTALL) -m 644 "$$file" "$(DESTDIR)$(PREFIX)/share/doc/orion/$${file#./}"; \
 	done
+	@$(INSTALL) -m 644 packaging/README.md "$(DESTDIR)$(PREFIX)/share/doc/orion/package-manager.md"
 	@cp -R docs "$(DESTDIR)$(PREFIX)/share/doc/orion/"
 	@find apps -type f -name '*.md' | while IFS= read -r file; do \
 	  dest="$(DESTDIR)$(PREFIX)/share/doc/orion/$$file"; \

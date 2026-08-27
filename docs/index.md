@@ -35,6 +35,9 @@ show_db_dialog(&form, "Edit Author", parent, db, author_id);
 
 **[📖 Read the complete Database Forms guide →](database-forms.md)**
 
+Install released applications independently with the
+**[Orion Package Manager →](package-manager/)**.
+
 ---
 
 **filemanager.c** example:
