@@ -175,7 +175,7 @@ corresponding GitHub Release, and attaches each package separately.
 Release archives can be generated locally after building the repository:
 
 ```sh
-sh scripts/package-release.sh 1.0.0 macos-arm64 dist
+sh scripts/package-release.sh 1.0.1 macos-arm64 dist
 ```
 
 The package catalog is `packaging/packages.tsv`. Each row declares the package
