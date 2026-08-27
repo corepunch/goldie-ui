@@ -5,7 +5,10 @@ nav_order: 1
 permalink: /
 ---
 
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/793ada60-d34d-4dfa-ac3a-688c1d70f67b" />
+![Orion Form Editor showing the SocialFeed project](screenshots/formeditor_socialfeed.jpg)
+
+*Form Editor with live controls, database bindings, component palette, and
+plugin browser.*
 
 Orion is a retro-styled UI framework written in C that brings the familiar Windows API message-based architecture to modern cross-platform development. Extracted from DOOM-ED, it features a clean three-layer design modeled after classic Windows DLLs (USER, KERNEL, COMCTL), making it instantly recognizable to developers who've worked with Win32. Built on SDL2 and OpenGL 3.2+, Orion delivers hardware-accelerated rendering with a nostalgic bitmap font aesthetic reminiscent of DOS and early Windows interfaces. The framework provides a complete set of common controls (buttons, checkboxes, edit boxes, lists, combo boxes, and a console) all following message-driven patterns that feel both vintage and powerful. Perfect for game tools, retro-style applications, or anyone who misses the simplicity and directness of classic GUI programming.
 
