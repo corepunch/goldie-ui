@@ -712,18 +712,6 @@ static void parse_wall(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 
 	float L=xml_attr_f_cm(n,"length",4.0f), H=xml_attr_f_cm(n,"height",2.7f), T=xml_attr_f_cm(n,"thickness",0.2f);
 	mat4 wallM = mat4_mul(parentM, mat4_mul(mat4_translate(pos), mat4_rot_xyz(rot)));
 	Opening *op=NULL; int nop=0,cop=0;
-	for(int k=0;k<n->nkids;k++){
-		XmlNode *c=n->kids[k];
-		if(strcmp(c->tag,"opening")) continue;
-		Opening o; memset(&o,0,sizeof(o));
-		o.x = xml_attr_f_cm(c,"x",0);
-		o.width = xml_attr_f_cm(c,"width",1.0f);
-		int isDoor = !strcmp(xml_attr(c,"type","door"),"door");
-		o.height = xml_attr_f_cm(c,"height", isDoor?2.1f:1.2f);
-		o.sill = isDoor? 0.0f : xml_attr_f_cm(c,"sill",0.9f);
-		o.type = OPENING_RECT;
-		DA_PUSH(op,nop,cop,o);
-	}
 	add_negative_openings(s,wallM,L,H,T,&op,&nop,&cop);
 	add_negative_arch_openings(s,wallM,L,H,T,&op,&nop,&cop);
 	add_negative_cylinder_openings(s,wallM,L,H,T,&op,&nop,&cop);
@@ -1116,7 +1104,7 @@ static void warn_unknown_children(XmlNode *parent, const char *path, int root, i
 		else if(!strcmp(parent->tag,"group"))
 			supported=has_shape_parser(n->tag) || !strcmp(n->tag,"bool-negative-box") || !strcmp(n->tag,"bool-negative-arch") || !strcmp(n->tag,"bool-negative-cylinder") || !strcmp(n->tag,"shape");
 		else if(!strcmp(parent->tag,"camera")) supported=!strcmp(n->tag,"transform");
-		else if(!strcmp(parent->tag,"wall")) supported=!strcmp(n->tag,"opening");
+		else if(!strcmp(parent->tag,"wall")) supported=0;
 		else if(!strcmp(parent->tag,"prefab")) supported=!strcmp(n->tag,"array");
 		else if(has_shape_parser(parent->tag)) supported=has_modifier_parser(n->tag);
 		if(!supported){
