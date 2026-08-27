@@ -12,7 +12,7 @@ date: 2026-04-27
 
 ---
 
-Most game engines give you a single fullscreen surface and ask you to build everything on top of it. Orion takes a different bet: what if every panel, viewport, and HUD element were a genuine window — a first-class citizen with its own message queue, paint cycle, and event handler?
+Most game engines give you a single fullscreen surface and ask you to build everything on top of it. Orion takes a different bet: what if every panel, viewport, and HUD element were a genuine window — a first-class citizen with its own state, paint cycle, and event handler?
 
 That question turns out to be surprisingly powerful for a certain genre of game.
 
@@ -39,13 +39,17 @@ while (running) {
 Orion's main loop is:
 
 ```c
-msg_t msg;
-while (get_message(&msg)) {
-    dispatch_message(&msg);
+ui_event_t event;
+while (get_message(&event)) {
+    dispatch_message(&event);
 }
 ```
 
-These are the same thing. `get_message` pumps SDL events, translates them into Orion messages (`evLeftButtonDown`, `evKeyDown`, `evTimer`, …), and dispatches them to the correct window procedure. Your game state update and render happen inside window procedures, triggered by messages. There is no impedance mismatch — the framework's loop and the game's loop are identical.
+These are the same basic shape. `get_message` pumps events from Orion's native
+Platform backend and `dispatch_message` routes them into the window tree. Game
+state updates can run from timers or application messages, while rendering stays
+inside `evPaint`. This keeps input, simulation, and drawing in the same message
+architecture as the rest of the application.
 
 ### 2. Windows Are Game Entities
 
@@ -69,9 +73,11 @@ static result_t dungeon_view_proc(window_t *win, uint32_t msg,
             win->userdata = st;
             load_level(st, "level01.dat");
             return true;
-        case evPaint:
-            render_3d_view(st, &win->frame);
+        case evPaint: {
+            irect16_t client = get_client_rect(win);
+            render_3d_view(st, &client);
             return true;
+        }
         case evKeyDown:
             handle_movement(st, (int)wparam);
             invalidate_window(win);
@@ -86,15 +92,24 @@ static result_t dungeon_view_proc(window_t *win, uint32_t msg,
 
 ### 3. OpenGL Rendering Is Already There
 
-Orion uses OpenGL 3.2+ through a clean renderer abstraction (`kernel/renderer.h`). Textures, meshes, sprite batches — they're all there. Your 3D dungeon view, your sprite-based overworld, or your tile map render directly to the window's screen region using the same pipeline the UI chrome uses. No context-switching, no separate render pass.
+Orion uses hardware-accelerated rendering through the public renderer interface
+in `orion/kernel/renderer.h`. Textures, meshes, and drawing primitives share the
+same frame lifecycle as Orion's chrome. A custom viewport therefore renders in
+its window's client region during `evPaint`, alongside ordinary controls.
 
 ### 4. Joystick and Gamepad Support
 
-`kernel/joystick.c` is already in the tree. Native gamepad events are translated into Orion messages before they reach your window procedure. A platformer or a twin-stick shooter just handles `evJoystickAxis` and `evJoystickButton` the same way it handles keyboard input.
+`orion/kernel/joystick.c` wraps the native Platform joystick API and exposes
+device initialization, availability, and naming through Orion's kernel layer.
+Applications can build game-specific input messages on that shared platform
+service without adding a second windowing dependency.
 
 ### 5. The Retro Aesthetic Is Built In
 
-Orion ships with a bitmap font (`Geneva-9`/`ChiKareGo2`), a pixel-art icon sheet, and a dark color scheme that looks like a 1992 workstation. If your game *wants* to look like it's running on AmigaOS or NeXTSTEP — complete with draggable windows and a title bar — you get that for free.
+Orion ships with bitmap system and content fonts, a pixel-art icon sheet, and a
+desktop-oriented theme. If your game wants draggable windows, title bars, menus,
+and compact workstation-style controls, those pieces already share one visual
+system.
 
 ## A Concrete Blueprint: Four-Window Dungeon Crawler
 
@@ -122,9 +137,15 @@ Each panel is an Orion window:
 | `stats_panel` | `stats_proc` | HP, MP, status effects |
 | `inventory_panel` | `inventory_proc` | Item grid, drag-and-drop |
 
-They communicate via `send_message` / `post_message` — the exact same channel used by buttons and checkboxes. The inventory window posts `evCommand` to the stats window when a potion is used. The dungeon view sends a custom `evRoomChanged` message to the minimap when the player walks through a door.
+They communicate via `send_message` and `post_message`, the same mechanisms used
+by Orion controls. Controls send `evCommand` notifications to the root window;
+application windows can use focused custom messages such as `evRoomChanged` to
+schedule updates without coupling their internal state.
 
-Because they're real Orion windows, the player can also tear them off, resize them, and rearrange them — giving the game the same feel as *Ultima VII*'s famously flexible GUI.
+Because they are real Orion windows, panels can participate in ordinary focus,
+resize, paint, and input routing. An application can also implement detachable
+panels by recreating a child as a top-level window while keeping the represented
+game state in the model rather than in the live window.
 
 ## Beyond the Dungeon
 
@@ -139,16 +160,24 @@ In every case you get scrollbars, resize handles, keyboard focus, menus, and all
 
 ## Getting Started
 
-The fastest path is to clone Orion and look at the `examples/` directory. `helloworld.c` shows the window creation and message loop basics. `filemanager.c` demonstrates a multi-panel layout with a column-view control — structurally identical to the inventory-grid pattern above.
+The fastest path is to clone Orion and look under `apps/`. Hello World shows the
+window lifecycle and command flow. File Manager demonstrates a multi-panel
+layout with report views, while Scener is the closest complete reference for
+scene editing and custom rendering.
 
 ```bash
 git clone https://github.com/corepunch/orion-ui
 cd orion-ui
-make examples
-./build/bin/filemanager
+git submodule update --init --recursive
+make build/bin/helloworld build/bin/filemanager build/bin/scener
+build/bin/filemanager
 ```
 
-Then replace the file-list data with your game data, replace the file-icon sprites with your tile set, and you already have a scrollable, selectable game-item grid.
+Start with [Getting Started](../getting-started) for the application lifecycle,
+then use [Scener](../examples#smaller-references) and its
+`apps/scener/README.md` guide as a larger rendering example. Keep reusable input
+or rendering capabilities in Orion and keep game rules in the application
+layer.
 
 ## Closing Thought
 

@@ -1,5 +1,5 @@
 title: Orion UI Framework
-description: Retro-styled, message-driven UI framework written in C
+description: Standalone C11 UI framework with native backends and WinAPI-style messages
 url: https://corepunch.github.io
 baseurl: /orion-ui
 
@@ -18,9 +18,8 @@ search_enabled: true
 search_tokenizer_separator: /[\s/]+/
 
 # Footer
-footer_content: "Orion UI Framework – standalone, native, and written in C"
+footer_content: "Orion UI Framework - standalone, native, and written in C11"
 
-# Default page (docs/index.md redirects to readme)
 # Navigation order is defined by nav_order front-matter in each page
 
 # Colour scheme (dark retro look to match the framework's aesthetic)
