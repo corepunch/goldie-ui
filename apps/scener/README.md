@@ -73,9 +73,9 @@ suite; downstream projects do not need either repository as a submodule. A
 Homebrew formula can call the same target with `PREFIX=#{prefix}`.
 
 **Controls:** mouse looks around, `W A S D` move, `Q`/`E` move down/up,
-`Shift` moves faster, and `Esc` quits. Press `1` for normal shadows, `4` for
-lighting without shadows, or `5` for white wireframe. Keys `2` and `3` show
-the shadow-volume diagnostics.
+`Shift` moves faster, and `Esc` quits. Rendering diagnostics are selected from
+the View menu. Shadow-volume and stencil diagnostics are rendered as red
+overlays; they are not the normal camera view.
 
 ## Reusable prefab variation
 
@@ -134,32 +134,51 @@ The process exits nonzero when the scene, camera, output directory, graphics
 context, or image write fails, so it can be used directly as an automated
 re-render step.
 
-Normal rendering uses every light's `castShadows` setting and produces the
-full stencil-shadow result:
+Normal rendering uses filled materials, every scene light, and each light's
+`castShadows` setting to produce the full lit stencil-shadow result. This is
+the default for both interactive and batch camera views:
 
 ```sh
-./build/bin/scener apps/scener/scenes/sample_room.blks
+./build/bin/scener --render apps/scener/scenes/sample_room.blks
 ```
 
-Render with the same materials and lighting but disable all shadows:
+Render with the same filled materials and lighting but disable stencil
+shadows. This is useful for determining whether a visual artifact comes from
+scene geometry or a shadow volume:
 
 ```sh
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks -no-shadows
 ```
 
-Render scene geometry as an unlit white wireframe:
+Overlay the generated shadow volumes as red wireframes while retaining the
+filled, lit scene. This is a diagnostic mode; it does not render scene geometry
+as an unlit wireframe:
 
 ```sh
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks -wireframe
 ```
 
-The same batch interface supports shadow and wireframe diagnostics:
+The same batch interface makes direct mode comparisons reproducible:
 
 ```sh
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Main --output-dir render/shaded
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Main -no-shadows --output-dir render/unshadowed
 ./build/bin/scener --render apps/scener/scenes/sample_room.blks --camera Main -wireframe --output-dir render/wireframe
 ```
+
+Interpret these outputs as follows:
+
+- `render/shaded/Main.png` is the expected production camera view: filled,
+  material-colored, lit, and shadowed.
+- `render/unshadowed/Main.png` is still filled and lit, but receives no stencil
+  shadows.
+- `render/wireframe/Main.png` includes red shadow-volume edges by explicit
+  request. Red wireframes must never appear in the default output.
+- Dense black triangular streaks in a default render are not wireframe mode.
+  They indicate an invalid or open shadow-casting mesh whose stencil volume
+  does not close correctly. Compare against `-no-shadows`, then repair the
+  caster topology or set `castShadow="0"` only when the object intentionally
+  must not cast a shadow.
 
 ## From scene layout to cinematic overpaint
 

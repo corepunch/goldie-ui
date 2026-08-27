@@ -136,8 +136,14 @@ static void cli_print_help(void) {
 	printf("  --camera NAME          Render one camera (default: all cameras)\n");
 	printf("  --output-dir DIR       Output directory (default: render/)\n");
 	printf("  --list-cameras         List scene cameras and exit\n");
-	printf("  -no-shadows            Disable shadow rendering\n");
-	printf("  -wireframe             Render white wireframe geometry\n\n");
+	printf("  -no-shadows            Keep filled lighting but disable stencil shadows\n");
+	printf("  -wireframe             Overlay red shadow-volume wireframes\n\n");
+	printf("Default rendering uses filled materials, all scene lights, and each\n");
+	printf("light's castShadows setting. The -wireframe mode is a shadow-volume\n");
+	printf("diagnostic; it does not replace scene geometry with wireframe. Red\n");
+	printf("lines only appear in that diagnostic. Black triangular streaks in a\n");
+	printf("default render indicate an invalid or open shadow-casting mesh; compare\n");
+	printf("the same camera with -no-shadows, then repair the caster topology.\n\n");
 	printf("General options:\n");
 	printf("  -h, --help             Show this help and exit\n");
 	printf("  -V, --version          Show version and exit\n");
