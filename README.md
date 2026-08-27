@@ -36,6 +36,33 @@ make scener
 Run these commands from the Orion repository root. Scener uses Orion's native
 platform backend and OpenGL renderer on macOS, Linux, and Windows.
 
+Install the executable, Orion runtime libraries, and assets under a standard
+prefix with:
+
+```sh
+make install-scener PREFIX=/usr/local
+```
+
+`PREFIX` defaults to `/usr/local`; package recipes can also set `DESTDIR` to a
+staging root. A dependent project should treat Scener as an external tool:
+
+```make
+SCENER ?= scener
+
+.PHONY: check-scener render-scenes
+check-scener:
+  @command -v "$(SCENER)" >/dev/null || { \
+    echo "scener is required"; exit 1; \
+  }
+
+render-scenes: check-scener
+  $(SCENER) scenes/main.blks -cam Main -o build/main.jpg
+```
+
+This keeps Orion and its platform implementation private to the Scener
+installation; downstream projects do not need either repository as a
+submodule. A Homebrew formula can call the same target with `PREFIX=#{prefix}`.
+
 **Controls:** mouse looks around, `W A S D` move, `Q`/`E` move down/up,
 `Shift` moves faster, and `Esc` quits. Press `1` for normal shadows, `4` for
 lighting without shadows, or `5` for white wireframe. Keys `2` and `3` show
