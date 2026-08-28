@@ -86,6 +86,9 @@ BUILD_DIRS    = $(BUILD_DIR) $(LIB_DIR) $(BIN_DIR) $(SHARE_DIR) $(GEM_DIR) $(GEN
 # Platform submodule library
 PLATFORM_DIR = platform
 PLATFORM_LIB = $(LIB_DIR)/libplatform.$(LIB_EXT)
+PLATFORM_SRCS = $(wildcard $(PLATFORM_DIR)/*.h) \
+				$(wildcard $(PLATFORM_DIR)/$(if $(IS_WIN),windows,unix)/*) \
+				$(wildcard $(PLATFORM_DIR)/$(if $(IS_WIN),windows,macos)/*)
 
 # Core Orion libraries (unity-built; see unity_lib below)
 USER_LIB    = $(LIB_DIR)/libuser.$(LIB_EXT)
@@ -177,9 +180,9 @@ $(GENERATED_DIR)/$(APPS)/%.h: $(APPS)/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
 # ── Platform submodule ───────────────────────────────────────────────────
 platform: $(PLATFORM_LIB)
 
-$(PLATFORM_LIB): | $(LIB_DIR)
+$(PLATFORM_LIB): $(PLATFORM_SRCS) | $(LIB_DIR)
 	@echo "PLATFORM"
-	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
+	@$(MAKE) -B -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
 
 # ── Shared assets ────────────────────────────────────────────────────────
 share: | $(SHARE_DIR)

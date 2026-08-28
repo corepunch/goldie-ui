@@ -2,6 +2,7 @@
 #define GEM_MAGIC_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include <orion/commctl/menubar.h>
 
 // gem_interface_t — the ABI every .gem must export via gem_get_interface().
@@ -170,10 +171,12 @@ extern hinstance_t g_gem_hinstance;
 //
 // Standard options consumed by the launcher and not passed to gem_init():
 //   --screenshot PATH  Capture the first fully painted frame as JPEG and exit.
+//   -rc [PORT]         Start the TCP remote-control server (default 17777).
 // ---------------------------------------------------------------------------
 #define GEM_STANDALONE_MAIN(title_, flags_, w_, h_, menubar_, accel_)     \
   int main(int argc, char *argv[]) {                                        \
     const char *gem_screenshot_path = NULL;                                 \
+    uint16_t gem_rc_port = 0;                                                \
     char *gem_app_argv[argc + 1];                                           \
     int gem_app_argc = 1;                                                   \
     gem_app_argv[0] = argv[0];                                              \
@@ -181,6 +184,10 @@ extern hinstance_t g_gem_hinstance;
       if (strcmp(argv[gem_arg_index], "--screenshot") == 0 &&             \
           gem_arg_index + 1 < argc) {                                       \
         gem_screenshot_path = argv[++gem_arg_index];                        \
+      } else if (strcmp(argv[gem_arg_index], "-rc") == 0) {                \
+        gem_rc_port = 17777;                                                 \
+        if (gem_arg_index + 1 < argc && argv[gem_arg_index + 1][0] != '-') \
+          gem_rc_port = (uint16_t)atoi(argv[++gem_arg_index]);              \
       } else {                                                              \
         gem_app_argv[gem_app_argc++] = argv[gem_arg_index];                 \
       }                                                                     \
@@ -192,6 +199,11 @@ extern hinstance_t g_gem_hinstance;
       ui_shutdown_graphics();                                               \
       return 1;                                                             \
     }                                                                       \
+    if (gem_rc_port && !axRCStart(gem_rc_port)) {                           \
+      gem_shutdown();                                                       \
+      ui_shutdown_graphics();                                               \
+      return 1;                                                             \
+    }                                                                       \
     if (gem_screenshot_path &&                                              \
         !ui_request_screenshot(gem_screenshot_path, 90, true)) {           \
       gem_shutdown();                                                       \
@@ -199,6 +211,9 @@ extern hinstance_t g_gem_hinstance;
       return 1;                                                             \
     }                                                                       \
     while (ui_is_running()) {                                               \
+      char gem_rc_screenshot[1024];                                         \
+      if (axRCPopScreenshot(gem_rc_screenshot, sizeof(gem_rc_screenshot)))  \
+        ui_request_screenshot(gem_rc_screenshot, 90, false);                \
       ui_event_t e;                                                         \
       while (get_message(&e)) {                                             \
         if (!translate_accelerator((menubar_), &e, (accel_)))              \
@@ -206,6 +221,7 @@ extern hinstance_t g_gem_hinstance;
       }                                                                     \
       repost_messages();                                                    \
     }                                                                       \
+    axRCStop();                                                              \
     gem_shutdown();                                                         \
     ui_shutdown_graphics();                                                 \
     return 0;                                                               \
