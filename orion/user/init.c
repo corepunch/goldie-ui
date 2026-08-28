@@ -125,8 +125,7 @@ static void init_theme_strip(void) {
 }
 
 static void shutdown_theme_strip(void) {
-  R_DeleteTexture(g_theme_tex);
-  g_theme_tex = 0;
+  SAFE_DELETE(g_theme_tex, R_DeleteTexture);
   g_theme_strip = (bitmap_strip_t){0};
 }
 
@@ -136,12 +135,9 @@ bitmap_strip_t *ui_get_theme_strip(void) {
 }
 
 void shutdown_ui_textures(void) {
-  R_DeleteTexture(ui_white_texture);
-  ui_white_texture = 0;
-  R_DeleteTexture(ui_checker_texture);
-  ui_checker_texture = 0;
-  R_DeleteTexture(ui_transparency_checker_texture);
-  ui_transparency_checker_texture = 0;
+  SAFE_DELETE(ui_white_texture, R_DeleteTexture);
+  SAFE_DELETE(ui_checker_texture, R_DeleteTexture);
+  SAFE_DELETE(ui_transparency_checker_texture, R_DeleteTexture);
 }
 
 void shutdown_white_texture(void) {

@@ -252,10 +252,8 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
     case bxSetItems: {
       toolbox_state_t *st = (toolbox_state_t *)win->userdata;
       if (!st) return false;
-      free(st->item_tooltips);
-      free(st->items);
-      st->items = NULL;
-      st->item_tooltips = NULL;
+      SAFE_DELETE(st->item_tooltips, free);
+      SAFE_DELETE(st->items, free);
       st->count = 0;
       st->pressed_idx = -1;
       int count = (int)wparam;
@@ -276,10 +274,8 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
           }
           st->count = count;
         } else {
-          free(st->items);
-          free(st->item_tooltips);
-          st->items = NULL;
-          st->item_tooltips = NULL;
+          SAFE_DELETE(st->items, free);
+          SAFE_DELETE(st->item_tooltips, free);
         }
       }
       invalidate_window(win);
@@ -297,10 +293,7 @@ result_t win_toolbox(window_t *win, uint32_t msg, uint32_t wparam, void *lparam)
       if (!st) return false;
       // Switching to an external strip: release any previously owned texture,
       // then copy the descriptor without taking ownership of its GL texture.
-      if (st->own_strip_tex) {
-        R_DeleteTexture(st->own_strip_tex);
-        st->own_strip_tex = 0;
-      }
+      SAFE_DELETE(st->own_strip_tex, R_DeleteTexture);
       if (lparam)
         memcpy(&st->strip, lparam, sizeof(bitmap_strip_t));
       else

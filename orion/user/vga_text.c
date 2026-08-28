@@ -57,11 +57,8 @@ bool vga_text_ensure_grid(vga_text_grid_t *grid, int w, int h) {
   if (grid->cells && grid->cells_tex && grid->cells_w == w && grid->cells_h == h)
     return true;
 
-  free(grid->cells);
-  grid->cells = NULL;
-  if (grid->cells_tex)
-    R_DeleteTexture(grid->cells_tex);
-  grid->cells_tex = 0;
+  SAFE_DELETE(grid->cells, free);
+  SAFE_DELETE(grid->cells_tex, R_DeleteTexture);
 
   grid->cells = (uint8_t *)malloc((size_t)w * (size_t)h * 4u);
   if (!grid->cells) {
@@ -84,11 +81,8 @@ bool vga_text_ensure_grid(vga_text_grid_t *grid, int w, int h) {
 
 void vga_text_free_grid(vga_text_grid_t *grid) {
   if (!grid) return;
-  free(grid->cells);
-  grid->cells = NULL;
-  if (grid->cells_tex)
-    R_DeleteTexture(grid->cells_tex);
-  grid->cells_tex = 0;
+  SAFE_DELETE(grid->cells, free);
+  SAFE_DELETE(grid->cells_tex, R_DeleteTexture);
   grid->cells_w = grid->cells_h = 0;
 }
 

@@ -189,18 +189,11 @@ static result_t win_toolbar(window_t *win, uint32_t msg, uint32_t wparam, void *
 
     case evDestroy:
       if (tb) {
-        if (tb->strip_tex) {
-          R_DeleteTexture(tb->strip_tex);
-          tb->strip_tex = 0;
-        }
-        free(tb->items);
-        tb->items = NULL;
-        free(tb->item_tooltips);
-        tb->item_tooltips = NULL;
-        free(tb->item_icons);
-        tb->item_icons = NULL;
-        free(tb->item_rects);
-        tb->item_rects = NULL;
+        SAFE_DELETE(tb->strip_tex, R_DeleteTexture);
+        SAFE_DELETE(tb->items, free);
+        SAFE_DELETE(tb->item_tooltips, free);
+        SAFE_DELETE(tb->item_icons, free);
+        SAFE_DELETE(tb->item_rects, free);
       }
       return true;
 
@@ -363,15 +356,11 @@ bool toolbar_handle_message(window_t *win, uint32_t msg, uint32_t wparam, void *
       if (!tb) return true;
 
       clear_toolbar_children(win);
-      free(tb->items);
-      tb->items = NULL;
-      free(tb->item_tooltips);
-      tb->item_tooltips = NULL;
-      free(tb->item_icons);
-      tb->item_icons = NULL;
+      SAFE_DELETE(tb->items, free);
+      SAFE_DELETE(tb->item_tooltips, free);
+      SAFE_DELETE(tb->item_icons, free);
       tb->item_count = 0;
-      free(tb->item_rects);
-      tb->item_rects = NULL;
+      SAFE_DELETE(tb->item_rects, free);
       tb->hot_item = -1;
       tb->pressed_item = -1;
 
