@@ -75,6 +75,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
 
 bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   (void)argc; (void)argv;
+  register_commctl_classes();
   window_t *win = create_window(
     "Hello World Window",
     0,
@@ -89,67 +90,10 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   return true;
 }
 
-GEM_DEFINE("Hello World", "1.0", gem_init, NULL, NULL)
-
-// ---------------------------------------------------------------------------
-// Standalone entry point — not compiled when building as a .gem
-// ---------------------------------------------------------------------------
-
-#ifndef BUILD_AS_GEM
-int main(int argc, char* argv[]) {
-  printf("UI Framework Hello World Example\n");
-
-  // Initialize graphics system
-  if (!ui_init_graphics(UI_INIT_DESKTOP|UI_INIT_TRAY, "Hello World", 320, 240)) {
-    printf("Failed to initialize graphics!\n");
-    return 1;
-  }
-
-  register_commctl_classes();
-
-  printf("Graphics initialized successfully\n");
-  printf("Creating window with UI framework...\n");
-
-  // Create main window
-  window_t *main_window = create_window(
-    "Hello World Window",          // Window title
-    0,                             // Window flags
-    MAKERECT(20, 20, 240, 180 + TITLEBAR_HEIGHT),  // Position and size (frame = whole window)
-    NULL,                          // No parent window
-    hello_window_proc,             // Window procedure
-    0,                             // hinstance (standalone = 0)
-    NULL
-  );
-
-  if (!main_window) {
-    printf("Failed to create window!\n");
-    ui_shutdown_graphics();
-    return 1;
-  }
-
-  show_window(main_window, true);
-
-  printf("Window created successfully\n");
-
-  // Main event loop
-  ui_event_t e;
-  while (ui_is_running()) {
-    // Process events
-    while (get_message(&e)) {
-      dispatch_message(&e);
-    }
-
-    // Process window messages
-    repost_messages();
-  }
-
-  destroy_window(main_window);
-
-  // Cleanup
-  printf("Shutting down...\n");
-  ui_shutdown_graphics();
-
-  printf("Goodbye!\n");
-  return 0;
+void gem_shutdown(void) {
 }
-#endif /* BUILD_AS_GEM */
+
+GEM_DEFINE("Hello World", "1.0", gem_init, gem_shutdown, NULL)
+
+GEM_STANDALONE_MAIN("Hello World", UI_INIT_DESKTOP | UI_INIT_TRAY,
+                    320, 240, NULL, NULL)

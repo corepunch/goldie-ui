@@ -14,6 +14,7 @@
 #define FONT_ATLAS_ROWS 64
 #define FONT_ATLAS_CAPACITY (FONT_ATLAS_COLS * FONT_ATLAS_ROWS)
 #define FONT_CODEPOINT_LIMIT 0x10000
+#define FONT_COVERAGE_THRESHOLD 128
 
 struct font_cache_s {
   uint8_t *ttf_data;
@@ -131,6 +132,8 @@ const font_cache_glyph_t *font_cache_get_glyph(font_cache_t *cache,
   unsigned char *bitmap = stbtt_GetCodepointBitmap(&cache->font, 0, cache->scale,
                                                     (int)codepoint, &width, &height,
                                                     &x_offset, &y_offset);
+  for (int i = 0; bitmap && i < width * height; i++)
+    bitmap[i] = bitmap[i] >= FONT_COVERAGE_THRESHOLD ? 255 : 0;
   glyph->advance = (int16_t)lroundf((float)advance * cache->scale);
   glyph->x_offset = (int16_t)x_offset;
   glyph->y_offset = (int16_t)(cache->baseline + y_offset);

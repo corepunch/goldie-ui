@@ -329,9 +329,16 @@ void ui_end_frame(void) {
   axEndPaint();
 }
 
-// Take a screenshot of the current framebuffer and save as JPEG.
-// Quality 1-100 (90 is a good default).  Returns true on success.
-bool ui_save_screenshot_jpg(const char *path, int quality) {
+static bool screenshot_path_is(const char *path, const char *extension) {
+  size_t path_len = path ? strlen(path) : 0;
+  size_t extension_len = strlen(extension);
+  return path_len >= extension_len &&
+         strcmp(path + path_len - extension_len, extension) == 0;
+}
+
+// Take a screenshot of the current framebuffer. PNG is lossless; JPEG uses
+// quality 1-100. The filename extension selects the encoder.
+bool ui_save_screenshot(const char *path, int quality) {
   struct AXsize sz;
   axGetSize(&sz);
   float scale = axGetScaling();
@@ -342,7 +349,15 @@ bool ui_save_screenshot_jpg(const char *path, int quality) {
   if (!rgba) return false;
   bool ok = capture_framebuffer_rgba(pw, ph, rgba);
   if (!ok) { free(rgba); return false; }
-  ok = save_image_jpg(path, rgba, pw, ph, quality);
+  if (screenshot_path_is(path, ".png"))
+    ok = save_image_png(path, rgba, pw, ph);
+  else if (screenshot_path_is(path, ".jpg") || screenshot_path_is(path, ".jpeg"))
+    ok = save_image_jpg(path, rgba, pw, ph, quality);
+  else {
+    fprintf(stderr, "[ui] screenshot path requires .png, .jpg, or .jpeg: %s\n", path);
+    fflush(stderr);
+    ok = false;
+  }
   free(rgba);
   return ok;
 }
@@ -355,8 +370,11 @@ static struct {
   bool pending, quit_after;
 } g_screenshot_request;
 
-bool ui_request_screenshot_jpg(const char *path, int quality, bool quit_after) {
+bool ui_request_screenshot(const char *path, int quality, bool quit_after) {
   if (!path || !*path || quality < 1 || quality > 100) return false;
+  if (!screenshot_path_is(path, ".png") && !screenshot_path_is(path, ".jpg") &&
+      !screenshot_path_is(path, ".jpeg"))
+    return false;
   int n = snprintf(g_screenshot_request.path, sizeof(g_screenshot_request.path), "%s", path);
   if (n < 0 || (size_t)n >= sizeof(g_screenshot_request.path)) return false;
   g_screenshot_request.quality = quality;

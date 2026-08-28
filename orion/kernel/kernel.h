@@ -109,11 +109,11 @@ bool bake_texture_program(int src_tex, int w, int h, uint32_t program,
                           float mix_amount, uint32_t *out_tex);
 bool read_texture_rgba(int src_tex, int w, int h, uint8_t *out_rgba);
 bool capture_framebuffer_rgba(int w, int h, uint8_t *out_rgba);
-bool ui_save_screenshot_jpg(const char *path, int quality);
+bool ui_save_screenshot(const char *path, int quality);
 // Queue a screenshot for the next fully painted frame.  The event loop reads
 // the back buffer after all queued paints and presents it before optionally
 // quitting, so callers never capture a partially drawn window hierarchy.
-bool ui_request_screenshot_jpg(const char *path, int quality, bool quit_after);
+bool ui_request_screenshot(const char *path, int quality, bool quit_after);
 // Internal event-loop boundary used to consume a request only on painted frames.
 bool ui_dequeue_screenshot_for_frame(bool frame_had_paint, char *path,
                                      size_t path_size, int *quality,

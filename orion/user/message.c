@@ -528,7 +528,7 @@ void repost_messages(void) {
   if (frame_began && ui_dequeue_screenshot_for_frame(frame_had_paint,
         screenshot_path, sizeof(screenshot_path), &screenshot_quality,
         &quit_after_screenshot)) {
-    ui_save_screenshot_jpg(screenshot_path, screenshot_quality);
+    ui_save_screenshot(screenshot_path, screenshot_quality);
   }
   // A window procedure may request quit while dispatching.  Still present any
   // frame that was begun; otherwise its completed drawing is never swapped.

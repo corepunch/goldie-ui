@@ -193,7 +193,7 @@ extern hinstance_t g_gem_hinstance;
       return 1;                                                             \
     }                                                                       \
     if (gem_screenshot_path &&                                              \
-        !ui_request_screenshot_jpg(gem_screenshot_path, 90, true)) {       \
+        !ui_request_screenshot(gem_screenshot_path, 90, true)) {           \
       gem_shutdown();                                                       \
       ui_shutdown_graphics();                                               \
       return 1;                                                             \

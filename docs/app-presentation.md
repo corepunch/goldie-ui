@@ -31,13 +31,13 @@ Applications using `GEM_STANDALONE_MAIN` also accept a framework-owned command:
 
 ```bash
 build/bin/myapp [content-arguments...] \
-  --screenshot docs/screenshots/myapp_main.jpg
+  --screenshot docs/screenshots/myapp_main.png
 ```
 
 The launcher removes `--screenshot PATH` before calling the app's `gem_init`,
-queues capture after the first fully painted frame, writes a quality-90 JPEG,
-and exits. Content arguments still reach the app, which makes deterministic
-captures possible:
+queues capture after the first fully painted frame, selects PNG or JPEG from
+the path extension, and exits. Content arguments still reach the app, which
+makes deterministic captures possible:
 
 ```bash
 build/bin/imageeditor images/logo.png \
@@ -51,26 +51,69 @@ For a custom workflow or dialog, queue capture from app code after reaching the
 state to document:
 
 ```c
-ui_request_screenshot_jpg("docs/screenshots/myapp_dialog.jpg", 90, true);
+ui_request_screenshot("docs/screenshots/myapp_dialog.png", 90, true);
 ```
 
-Use `ui_save_screenshot_jpg()` only when the current frame is already complete.
-Use `ui_request_screenshot_jpg()` during initialization or message handling so
-capture occurs at the event-loop paint boundary. JPEG encoding is provided by
-Orion's vendored `stb_image_write`; `jpeglib` is not required.
+Use `ui_save_screenshot()` only when the current frame is already complete.
+Use `ui_request_screenshot()` during initialization or message handling so
+capture occurs at the event-loop paint boundary. PNG and JPEG encoding are
+provided by Orion's vendored `stb_image_write`; `jpeglib` is not required.
+
+### How Capture Works
+
+Screenshot capture is part of Orion's platform-backed rendering path; it does
+not capture the macOS, Windows, or Linux desktop. `ui_save_screenshot()`:
+
+1. Gets the platform surface size and display scale from `axGetSize()` and
+  `axGetScaling()`.
+2. Reads the current OpenGL back buffer at physical pixel dimensions through
+  `capture_framebuffer_rgba()`.
+3. Flips OpenGL's bottom-up rows into top-down image order and writes PNG for
+  `.png`, or JPEG for `.jpg` and `.jpeg`.
+
+`ui_request_screenshot()` is the preferred API. It invalidates visible
+windows and queues the capture until `repost_messages()` has processed at least
+one `evPaint`; the event loop reads the completed back buffer before presenting
+the frame. Use `quit_after=true` for deterministic command-line captures.
+
+The public declarations are in `orion/kernel/kernel.h`; request scheduling is
+implemented in `orion/user/init.c` and consumed at the frame boundary in
+`orion/user/message.c`. Raw framebuffer readback belongs to
+`orion/kernel/renderer.c`, which uses the active platform OpenGL context.
+
+### Check Text At Native Scale
+
+Screenshots are captured at physical resolution. Use lossless PNG when checking
+pixel coverage, and inspect it at 100% image zoom,
+without browser or editor resampling. For small UI fonts, verify that vertical
+and horizontal stems intended to be one pixel wide occupy one fully covered
+pixel rather than two adjacent half-covered pixels. Also check repeated glyphs
+such as `H`, `I`, `l`, `m`, and `1`, plus button and table labels. If stems are
+consistently split, fix glyph raster positioning or select a font designed for
+the target pixel size; sharpening the final screenshot is not an acceptable
+substitute.
+
+The lazy TTF atlas migration was checked with Orion's own capture path at the
+same physical dimensions and application state:
+
+| Application | Bitmap atlas | Lazy TTF atlas |
+|---|---|---|
+| Hello World | [before](screenshots/font-rendering/helloworld-before.png) | [after](screenshots/font-rendering/helloworld-after.png) |
+| Git Client | [before](screenshots/font-rendering/gitclient-before.png) | [after](screenshots/font-rendering/gitclient-after.png) |
 
 ## Screenshot Standards
 
 - Store website images under `docs/screenshots/` as lowercase descriptive names.
-- Prefer `app_workflow.jpg`, such as `gitclient_orion.jpg` or
-  `taskmanager_backlog.jpg`.
+- Prefer lossless `app_workflow.png`, such as `gitclient_orion.png`, when text
+  clarity matters. Use JPEG for photographic content where compression is
+  appropriate.
 - Load representative content. Avoid blank documents, empty tables, splash
   screens, transient loading states, and open menus unless they are the subject.
 - Show the complete app chrome and enough desktop margin to make window
   boundaries clear.
 - Keep text readable at the rendered documentation width.
 - Use repository-owned images; do not depend on external attachment URLs.
-- Review the generated JPEG visually and verify its dimensions and file size.
+- Review the generated image visually and verify its dimensions and file size.
 - Do not include credentials, private paths, tokens, or unrelated user data.
 
 ## App Page Template
