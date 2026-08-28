@@ -823,6 +823,25 @@ uint32_t R_CreateTextureRGBA(int w, int h, const void *rgba,
   return (uint32_t)tex;
 }
 
+uint32_t R_CreateTextureR8(int w, int h, const void *pixels,
+                            R_TextureFilter filter, R_TextureWrap wrap) {
+  GLuint tex = 0;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  GLenum gl_filter = (filter == R_FILTER_LINEAR) ? GL_LINEAR : GL_NEAREST;
+  GLenum gl_wrap   = (wrap   == R_WRAP_REPEAT)   ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gl_wrap);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gl_wrap);
+  GLint swizzle_mask[] = {GL_ONE, GL_ONE, GL_ONE, GL_RED};
+  glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED,
+               GL_UNSIGNED_BYTE, pixels);
+  return (uint32_t)tex;
+}
+
 uint32_t R_CreateTextureRG8(int w, int h, const void *rg,
                              R_TextureFilter filter, R_TextureWrap wrap) {
   GLuint tex = 0;

@@ -16,7 +16,7 @@
 #define WIN_PADDING 4
 
 typedef struct {
-  int16_t  x, y;
+  float    x, y;
   float    u, v;
   uint32_t col;
 } text_vertex_t;
@@ -63,7 +63,7 @@ int get_space_width(void) { return font_space(FONT_SYSTEM); }
 
 static void init_atlas_mesh(font_atlas_t *atlas) {
   R_VertexAttrib attribs[] = {
-    {0, 2, GL_SHORT,         GL_FALSE, offsetof(text_vertex_t, x)},
+    {0, 2, GL_FLOAT,         GL_FALSE, offsetof(text_vertex_t, x)},
     {1, 2, GL_FLOAT,         GL_FALSE, offsetof(text_vertex_t, u)},
     {2, 4, GL_UNSIGNED_BYTE, GL_TRUE,  offsetof(text_vertex_t, col)},
   };
@@ -83,21 +83,19 @@ void init_text_rendering(void) {
   memset(&text_state, 0, sizeof(text_state));
 
   const char *exe = ui_get_exe_dir();
-  char regular_path[4096], medium_path[4096];
+  char regular_path[4096];
   snprintf(regular_path, sizeof(regular_path), "%s/../share/orion/fonts/NotoSans-Regular.ttf", exe);
-  snprintf(medium_path, sizeof(medium_path), "%s/../share/orion/fonts/NotoSans-Medium.ttf", exe);
 
 #if UI_WINDOW_SCALE == 1
   const float system_size = 14.0f, small_size = 13.0f, icon_size = 12.0f;
 #else
   const float system_size = 8.0f, small_size = 8.0f, icon_size = 7.0f;
 #endif
-  bool loaded = load_atlas(&text_state.big, medium_path, system_size);
+  bool loaded = load_atlas(&text_state.big, regular_path, system_size);
   loaded = load_atlas(&text_state.small, regular_path, small_size) && loaded;
   loaded = load_atlas(&text_state.icon, regular_path, icon_size) && loaded;
   if (!loaded) {
-    fprintf(stderr, "[text] required font assets failed to load:\n"
-                    "  %s\n  %s\n", medium_path, regular_path);
+    fprintf(stderr, "[text] required font asset failed to load: %s\n", regular_path);
     fflush(stderr);
     exit(1);
   }
@@ -199,25 +197,26 @@ static int emit_char_verts(text_vertex_t *buf, int cursor_x, int y,
   if (!glyph) return 0;
   int cx0 = glyph->atlas_x;
   int cy0 = glyph->atlas_y;
-  int dw = glyph->width;
-  int dh = glyph->height;
+  float bitmap_scale = font_cache_bitmap_scale(atlas->cache);
+  float dw = glyph->width / bitmap_scale;
+  float dh = glyph->height / bitmap_scale;
   if (dw == 0) return 0;
 
   float tw = (float)font_cache_texture_width(atlas->cache);
   float th = (float)font_cache_texture_height(atlas->cache);
   float u1 = cx0                 / tw;
   float v1 = cy0                 / th;
-  float u2 = (cx0 + dw)          / tw;
-  float v2 = (cy0 + dh)          / th;
+  float u2 = (cx0 + glyph->width)  / tw;
+  float v2 = (cy0 + glyph->height) / th;
 
-  int x = cursor_x + glyph->x_offset;
-  int draw_y = y + glyph->y_offset;
-  buf[0] = (text_vertex_t){ (int16_t)x,      (int16_t)draw_y,      u1, v1, col };
-  buf[1] = (text_vertex_t){ (int16_t)x,      (int16_t)(draw_y+dh), u1, v2, col };
-  buf[2] = (text_vertex_t){ (int16_t)(x+dw), (int16_t)draw_y,      u2, v1, col };
-  buf[3] = (text_vertex_t){ (int16_t)x,      (int16_t)(draw_y+dh), u1, v2, col };
-  buf[4] = (text_vertex_t){ (int16_t)(x+dw), (int16_t)(draw_y+dh), u2, v2, col };
-  buf[5] = (text_vertex_t){ (int16_t)(x+dw), (int16_t)draw_y,      u2, v1, col };
+  float x = cursor_x + glyph->x_offset / bitmap_scale;
+  float draw_y = y + glyph->y_offset / bitmap_scale;
+  buf[0] = (text_vertex_t){ x,    draw_y,    u1, v1, col };
+  buf[1] = (text_vertex_t){ x,    draw_y+dh, u1, v2, col };
+  buf[2] = (text_vertex_t){ x+dw, draw_y,    u2, v1, col };
+  buf[3] = (text_vertex_t){ x,    draw_y+dh, u1, v2, col };
+  buf[4] = (text_vertex_t){ x+dw, draw_y+dh, u2, v2, col };
+  buf[5] = (text_vertex_t){ x+dw, draw_y,    u2, v1, col };
   return VERTICES_PER_CHAR;
 }
 

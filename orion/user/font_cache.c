@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <orion/kernel/renderer.h>
+#include <platform/platform.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <tools/stb_truetype.h>
@@ -14,12 +15,13 @@
 #define FONT_ATLAS_ROWS 64
 #define FONT_ATLAS_CAPACITY (FONT_ATLAS_COLS * FONT_ATLAS_ROWS)
 #define FONT_CODEPOINT_LIMIT 0x10000
-#define FONT_COVERAGE_THRESHOLD 128
 
 struct font_cache_s {
   uint8_t *ttf_data;
   stbtt_fontinfo font;
   float scale;
+  float raster_scale;
+  float bitmap_scale;
   int baseline;
   int line_height;
   int cell_w, cell_h;
@@ -60,33 +62,34 @@ font_cache_t *font_cache_create(const char *path, float pixel_height) {
   }
 
   int ascent, descent, line_gap, x0, y0, x1, y1;
+  cache->bitmap_scale = axGetScaling();
+  if (cache->bitmap_scale < 1.0f) cache->bitmap_scale = 1.0f;
   cache->scale = stbtt_ScaleForPixelHeight(&cache->font, pixel_height);
+  cache->raster_scale = stbtt_ScaleForPixelHeight(
+    &cache->font, pixel_height * cache->bitmap_scale);
   stbtt_GetFontVMetrics(&cache->font, &ascent, &descent, &line_gap);
   stbtt_GetFontBoundingBox(&cache->font, &x0, &y0, &x1, &y1);
-  cache->baseline = (int)ceilf((float)ascent * cache->scale);
+  cache->baseline = (int)ceilf((float)ascent * cache->raster_scale);
   cache->line_height = (int)ceilf((float)(ascent - descent + line_gap) * cache->scale);
-  cache->cell_w = (int)ceilf((float)(x1 - x0) * cache->scale) + 2;
-  cache->cell_h = (int)ceilf((float)(y1 - y0) * cache->scale) + 2;
+  cache->cell_w = (int)ceilf((float)(x1 - x0) * cache->raster_scale) +
+                  (int)ceilf(2.0f * cache->bitmap_scale);
+  cache->cell_h = (int)ceilf((float)(y1 - y0) * cache->raster_scale) +
+                  (int)ceilf(2.0f * cache->bitmap_scale);
   if (cache->line_height < 1) cache->line_height = 1;
   if (cache->cell_w < 1) cache->cell_w = 1;
   if (cache->cell_h < 1) cache->cell_h = 1;
   cache->texture_w = FONT_ATLAS_COLS * cache->cell_w;
   cache->texture_h = FONT_ATLAS_ROWS * cache->cell_h;
 
-  R_Texture texture = {
-    .width = cache->texture_w,
-    .height = cache->texture_h,
-    .format = GL_RED,
-  };
   size_t atlas_size = (size_t)cache->texture_w * (size_t)cache->texture_h;
   uint8_t *empty_atlas = (uint8_t *)calloc(atlas_size, 1);
   if (!empty_atlas) {
     font_cache_destroy(cache);
     return NULL;
   }
-  R_AllocateFontTexture(&texture, empty_atlas);
+  cache->texture = R_CreateTextureR8(cache->texture_w, cache->texture_h,
+                                     empty_atlas, R_FILTER_LINEAR, R_WRAP_CLAMP);
   free(empty_atlas);
-  cache->texture = (uint32_t)texture.id;
   if (!cache->texture) {
     fprintf(stderr, "[font] failed to allocate atlas for %s\n", path);
     font_cache_destroy(cache);
@@ -129,11 +132,10 @@ const font_cache_glyph_t *font_cache_get_glyph(font_cache_t *cache,
   glyph->atlas_y = (slot / FONT_ATLAS_COLS) * cache->cell_h;
   int advance, left_bearing, width, height, x_offset, y_offset;
   stbtt_GetCodepointHMetrics(&cache->font, (int)codepoint, &advance, &left_bearing);
-  unsigned char *bitmap = stbtt_GetCodepointBitmap(&cache->font, 0, cache->scale,
+  unsigned char *bitmap = stbtt_GetCodepointBitmap(&cache->font, 0,
+                                                    cache->raster_scale,
                                                     (int)codepoint, &width, &height,
                                                     &x_offset, &y_offset);
-  for (int i = 0; bitmap && i < width * height; i++)
-    bitmap[i] = bitmap[i] >= FONT_COVERAGE_THRESHOLD ? 255 : 0;
   glyph->advance = (int16_t)lroundf((float)advance * cache->scale);
   glyph->x_offset = (int16_t)x_offset;
   glyph->y_offset = (int16_t)(cache->baseline + y_offset);
@@ -155,3 +157,4 @@ uint32_t font_cache_texture(const font_cache_t *cache) { return cache ? cache->t
 int font_cache_texture_width(const font_cache_t *cache) { return cache ? cache->texture_w : 0; }
 int font_cache_texture_height(const font_cache_t *cache) { return cache ? cache->texture_h : 0; }
 int font_cache_line_height(const font_cache_t *cache) { return cache ? cache->line_height : 0; }
+float font_cache_bitmap_scale(const font_cache_t *cache) { return cache ? cache->bitmap_scale : 1.0f; }

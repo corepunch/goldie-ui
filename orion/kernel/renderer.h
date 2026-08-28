@@ -100,13 +100,12 @@ void R_SetVertexAttribs(const R_VertexAttrib* attribs, size_t count, size_t vert
 // Disable vertex attributes
 void R_ClearVertexAttribs(size_t count);
 
-// Allocate a font texture with given dimensions and format
-GLuint R_AllocateFontTexture(R_Texture* texture, void *data);
-
 // High-level texture helpers (no GL knowledge required in callers)
 // Create an RGBA texture from pixel data.  Returns the texture ID, or 0 on failure.
 uint32_t R_CreateTextureRGBA(int w, int h, const void *rgba,
                               R_TextureFilter filter, R_TextureWrap wrap);
+uint32_t R_CreateTextureR8(int w, int h, const void *pixels,
+                           R_TextureFilter filter, R_TextureWrap wrap);
 bool R_UpdateTextureR8(uint32_t tex, int x, int y, int w, int h,
                        const void *pixels);
 

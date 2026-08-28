@@ -2,7 +2,7 @@
 
 Orion's proportional UI text uses the hinted Noto Sans faces in this directory:
 
-- `NotoSans-Medium.ttf` at 14 px for window chrome and controls
+- `NotoSans-Regular.ttf` at 14 px for window chrome and controls
 - `NotoSans-Regular.ttf` at 13 px for content and 12 px for compact labels
 
 Noto Sans is distributed under the SIL Open Font License 1.1 in

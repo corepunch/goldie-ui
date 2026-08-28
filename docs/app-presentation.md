@@ -85,21 +85,12 @@ implemented in `orion/user/init.c` and consumed at the frame boundary in
 
 Screenshots are captured at physical resolution. Use lossless PNG when checking
 pixel coverage, and inspect it at 100% image zoom,
-without browser or editor resampling. For small UI fonts, verify that vertical
-and horizontal stems intended to be one pixel wide occupy one fully covered
-pixel rather than two adjacent half-covered pixels. Also check repeated glyphs
-such as `H`, `I`, `l`, `m`, and `1`, plus button and table labels. If stems are
-consistently split, fix glyph raster positioning or select a font designed for
-the target pixel size; sharpening the final screenshot is not an acceptable
-substitute.
-
-The lazy TTF atlas migration was checked with Orion's own capture path at the
-same physical dimensions and application state:
-
-| Application | Bitmap atlas | Lazy TTF atlas |
-|---|---|---|
-| Hello World | [before](screenshots/font-rendering/helloworld-before.png) | [after](screenshots/font-rendering/helloworld-after.png) |
-| Git Client | [before](screenshots/font-rendering/gitclient-before.png) | [after](screenshots/font-rendering/gitclient-after.png) |
+without browser or editor resampling. Preserve the grayscale coverage generated
+by the font rasterizer; thresholding it into a binary alpha mask destroys edge
+antialiasing. Also check repeated glyphs such as `H`, `I`, `l`, `m`, and `1`,
+plus button and table labels. If stems are consistently blurred or uneven, fix
+glyph raster positioning or select a font designed for the target pixel size;
+sharpening the final screenshot is not an acceptable substitute.
 
 ## Screenshot Standards
 
