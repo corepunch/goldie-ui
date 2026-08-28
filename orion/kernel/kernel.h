@@ -15,6 +15,10 @@ typedef struct bitmap_strip_s bitmap_strip_t;
 #define UI_WINDOW_SCALE 1
 #endif
 
+#ifndef ORION_ALLOW_HIGHDPI
+#define ORION_ALLOW_HIGHDPI 1
+#endif
+
 // Logical font-pixel height used to derive chrome dimensions (titlebar,
 // menubar, list row heights, etc.).  This is a compile-time constant tied to
 // the scale factor rather than the runtime-loaded font's cell height.

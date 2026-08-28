@@ -178,15 +178,16 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
 
   uint32_t pixel_w = (uint32_t)(width * UI_WINDOW_SCALE);
   uint32_t pixel_h = (uint32_t)(height * UI_WINDOW_SCALE);
+  uint32_t window_flags = ORION_ALLOW_HIGHDPI ? AX_WINDOW_HIGHDPI : 0;
   if (flags & UI_INIT_HIDDEN) {
     if (!axCreateSurface(pixel_w, pixel_h) &&
-        !axCreateWindow(title, pixel_w, pixel_h, AX_WINDOW_HIDDEN)) {
+        !axCreateWindow(title, pixel_w, pixel_h, window_flags | AX_WINDOW_HIDDEN)) {
       fprintf(stderr, "[ui] hidden graphics context could not be created\n");
       fflush(stderr);
       axShutdown();
       return false;
     }
-  } else if (!axCreateWindow(title, pixel_w, pixel_h, 0)) {
+  } else if (!axCreateWindow(title, pixel_w, pixel_h, window_flags)) {
     printf("Window could not be created!\n");
     axShutdown();
     return false;
