@@ -417,7 +417,7 @@ void dispatch_message(ui_event_t *msg) {
                      axSettingsDirectory(),
                      tm_now->tm_year + 1900, tm_now->tm_mon + 1, tm_now->tm_mday,
                      tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec);
-            ui_request_screenshot_jpg(path, 90, false);
+            ui_request_screenshot(path, 90, false);
           }
         }
       }

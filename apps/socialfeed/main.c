@@ -42,7 +42,7 @@ static void screenshot_dialog_message(window_t *win, uint32_t msg,
                                       void *userdata) {
   (void)msg; (void)wparam; (void)lparam; (void)userdata;
   if (!g_app || win != g_app->main_win) return;
-  ui_request_screenshot_jpg(g_screenshot_path, 90, SF_QUIT_AFTER_SCREENSHOT);
+  ui_request_screenshot(g_screenshot_path, 90, SF_QUIT_AFTER_SCREENSHOT);
   show_db_dialog(&socialfeed_new_post_form, "New Post", g_app->main_win, 0);
 }
 
@@ -171,7 +171,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
       i++;
     } else if (i + 1 < argc && strcmp(argv[i], "--screenshot") == 0) {
       snprintf(g_screenshot_path, sizeof(g_screenshot_path), "%s", argv[i + 1]);
-      ui_request_screenshot_jpg(g_screenshot_path, 90, SF_QUIT_AFTER_SCREENSHOT);
+      ui_request_screenshot(g_screenshot_path, 90, SF_QUIT_AFTER_SCREENSHOT);
       i++;
     }
   }

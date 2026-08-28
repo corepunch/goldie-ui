@@ -129,7 +129,7 @@ void test_screenshot_waits_for_completed_painted_frame(void) {
   int quality = 0;
   bool quit_after = false;
 
-  ASSERT_TRUE(ui_request_screenshot_jpg("/tmp/orion-frame.jpg", 87, true));
+  ASSERT_TRUE(ui_request_screenshot("/tmp/orion-frame.jpg", 87, true));
   ASSERT_FALSE(ui_dequeue_screenshot_for_frame(false, path, sizeof(path),
                                                &quality, &quit_after));
   ASSERT_TRUE(ui_dequeue_screenshot_for_frame(true, path, sizeof(path),

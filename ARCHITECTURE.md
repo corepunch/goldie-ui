@@ -176,9 +176,9 @@ presents it. Applications use Orion drawing and renderer APIs inside
 `evPaint`. Raw rendering state belongs in rendering/view modules, never in
 persistent model objects.
 
-Screenshots use the same framebuffer boundary. `ui_request_screenshot_jpg()`
-waits for a fully painted frame, while `ui_save_screenshot_jpg()` captures the
-current completed frame immediately.
+Screenshots use the same framebuffer boundary. `ui_request_screenshot()` waits
+for a fully painted frame, while `ui_save_screenshot()` captures the current
+completed frame immediately. The path extension selects PNG or JPEG encoding.
 
 ## Debugging The Message Pipeline
 

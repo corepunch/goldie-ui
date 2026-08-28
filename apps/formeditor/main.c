@@ -66,7 +66,7 @@ bool gem_init(int argc, char *argv[], hinstance_t hinstance) {
   const char *project_path = NULL;
   for (int i = 1; i < argc; i++) {
     if (i + 1 < argc && strcmp(argv[i], "--screenshot") == 0) {
-      ui_request_screenshot_jpg(argv[i + 1], 90, FE_QUIT_AFTER_SCREENSHOT);
+      ui_request_screenshot(argv[i + 1], 90, FE_QUIT_AFTER_SCREENSHOT);
       i++;
     } else if (has_dynlib_ext(argv[i]))
       fe_load_component_plugin(argv[i]);
