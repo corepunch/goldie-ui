@@ -603,6 +603,7 @@ static void parse_group(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3
 typedef struct {
 	float x,width,height,sill;
 	int type;       /* OPENING_RECT / OPENING_ARCH / OPENING_CYLINDER */
+	int emitted;
 	float cylR;     /* cylinder: radius (in wall-local XY) */
 } Opening;
 static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,float T,
@@ -1688,6 +1689,8 @@ static void build_wall_boxes(Scene *s, mat4 wallM, mat4 wallR, float L,float H,f
 				emit_wall_box(s,wallM,wallR,T,top,H,lx-w*0.5f,lx+w*0.5f,color,shin,castsShadow,renderable,unlit);
 			continue;
 		}
+		if(hit->emitted) continue;
+		hit->emitted=1;
 
 		/* ARCH or CYLINDER: the column slice exactly covers the opening width.
 		 * Left/right neighbor columns are handled as solid columns by the outer loop.

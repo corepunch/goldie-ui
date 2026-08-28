@@ -40,9 +40,19 @@ static void test_prefab_files_open_as_documents(void) {
   PASS();
 }
 
+static void test_nested_arch_emits_wall_parts_once(void) {
+  TEST("scener walls: a contained arch does not duplicate wall geometry");
+  Scene scene = {0};
+  ASSERT_TRUE(load_scene("apps/scener/scenes/test_wall_nested_arch.blks", &scene));
+  ASSERT_EQUAL(scene.nobjs, 4);
+  scene_free(&scene);
+  PASS();
+}
+
 int main(void) {
   TEST_START("scener input and command state");
   test_tool_commands_share_document_state();
   test_prefab_files_open_as_documents();
+  test_nested_arch_emits_wall_parts_once();
   TEST_END();
 }
