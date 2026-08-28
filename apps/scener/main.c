@@ -6,6 +6,8 @@
 #include <orion/user/image.h>
 #include <platform/platform.h>
 #include <ctype.h>
+#include <float.h>
+#include <math.h>
 
 #define DEFAULT_FOV   60.0f
 #define PERSP_NEAR    0.1f
@@ -15,6 +17,8 @@
 typedef struct {
 	bool screenshot_mode;
 	bool list_cameras, show_help, show_version;
+	bool layout_mode;
+	float layout_scale;
 	char scene_path[512];
 	char output_dir[1024];
 	char camera_name[32];
@@ -91,6 +95,15 @@ static void cli_parse(int argc, char *argv[]) {
 			g_cli.screenshot_mode = true;
 			continue;
 		}
+		if (!strcmp(arg, "--layout")) {
+			g_cli.layout_mode = true;
+			g_cli.screenshot_mode = true;
+			continue;
+		}
+		if (!strcmp(arg, "--scale")) {
+			if (i + 1 < argc) g_cli.layout_scale = (float)atof(argv[++i]);
+			continue;
+		}
 		if (!strcmp(arg, "--list-cameras")) {
 			g_cli.list_cameras = true;
 			continue;
@@ -152,6 +165,8 @@ static void cli_print_help(void) {
 	printf("  --output-dir DIR       Output directory (default: render/)\n");
 	printf("  --format png|jpg       Output format (default: png)\n");
 	printf("  --list-cameras         List scene cameras and exit\n");
+	printf("  --layout               Render orthographic top-down plan (auto-size from scene bounds)\n");
+	printf("  --scale N              Pixels per cm for --layout (default: 2)\n");
 	printf("  -no-shadows            Keep filled lighting but disable stencil shadows\n");
 	printf("  -wireframe             Overlay red shadow-volume wireframes\n\n");
 	printf("Default rendering uses filled materials, all scene lights, and each\n");
@@ -281,11 +296,88 @@ static bool scener_write_camera(scene_doc_t *doc, const char *camera_name) {
 	return ok;
 }
 
+static bool scener_write_layout(scene_doc_t *doc) {
+	Scene *scene = &doc->scene;
+	if (scene->nobjs == 0) { fprintf(stderr, "[scener] --layout: scene has no objects\n"); return false; }
+
+	/* compute XYZ bounds over all objects */
+	float xmin=FLT_MAX,xmax=-FLT_MAX,ymin=FLT_MAX,ymax=-FLT_MAX,zmin=FLT_MAX,zmax=-FLT_MAX;
+	for (int i = 0; i < scene->nobjs; i++) {
+		vec3 omin, omax;
+		scene_get_obj_bounds(scene, i, &omin, &omax);
+		if (omin.x<xmin) xmin=omin.x; if (omax.x>xmax) xmax=omax.x;
+		if (omin.y<ymin) ymin=omin.y; if (omax.y>ymax) ymax=omax.y;
+		if (omin.z<zmin) zmin=omin.z; if (omax.z>zmax) zmax=omax.z;
+	}
+	float wx = xmax - xmin, wz = zmax - zmin;
+	if (wx < 0.01f || wz < 0.01f) { fprintf(stderr, "[scener] --layout: degenerate bounds\n"); return false; }
+
+	/* scene uses meters internally (cm/100 at parse time); scale is px/cm */
+	float scale = g_cli.layout_scale > 0.0f ? g_cli.layout_scale : 2.0f;
+	int width  = (int)ceilf(wx * 100.0f * scale);
+	int height = (int)ceilf(wz * 100.0f * scale);
+
+	/* orthographic camera inside the room at 80% height — ceiling is above = behind camera */
+	float cx = (xmin + xmax) * 0.5f, cz = (zmin + zmax) * 0.5f;
+	float camH = ymin + (ymax - ymin) * 0.80f;
+	vec3 camPos  = v3(cx, camH, cz);
+	vec3 camLook = v3(cx, ymin, cz - 0.01f); /* tiny Z offset for stable up vector */
+	vec3 camUp   = v3(0, 0, -1);             /* north-up: -Z world = top of plan */
+	float hw = wx * 0.5f, hd = wz * 0.5f;
+	mat4 view = mat4_lookat(camPos, camLook, camUp);
+	float zdepth = camH - ymin + 1.0f;       /* objects in front of camera; ceiling behind */
+	mat4 proj = mat4_ortho(-hw, hw, -hd, hd, 0.01f, zdepth);
+
+	char path[1200];
+	int n = snprintf(path, sizeof(path), "%s/layout.%s", g_cli.output_dir, g_cli.format);
+	if (n < 0 || (size_t)n >= sizeof(path)) return false;
+
+	ui_begin_frame();
+	GLuint fbo = 0, color = 0, depth = 0;
+	glGenFramebuffers(1, &fbo);
+	glGenTextures(1, &color);
+	glGenRenderbuffers(1, &depth);
+	glBindTexture(GL_TEXTURE_2D, color);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindRenderbuffer(GL_RENDERBUFFER, depth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth);
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		fprintf(stderr, "[scener] cannot create render target: %dx%d\n", width, height);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glDeleteFramebuffers(1, &fbo); glDeleteTextures(1, &color); glDeleteRenderbuffers(1, &depth);
+		return false;
+	}
+	glViewport(0, 0, width, height);
+	glScissor(0, 0, width, height);
+	glEnable(GL_SCISSOR_TEST);
+	int flags = g_cli.debug_flags | DBG_HIDE_CHARS | DBG_HIDE_LIGHTS | DBG_HIDE_GIZMOS;
+	vec3 dir = vnorm(vsub(camLook, camPos));
+	render_frame(scene, width, height, proj, view, camPos, dir, flags);
+
+	size_t bytes = (size_t)width * (size_t)height * 4;
+	uint8_t *pixels = malloc(bytes);
+	bool ok = pixels && capture_framebuffer_rgba(width, height, pixels) &&
+		scener_save_screenshot(path, pixels, width, height);
+	free(pixels);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDeleteFramebuffers(1, &fbo); glDeleteTextures(1, &color); glDeleteRenderbuffers(1, &depth);
+	if (ok) fprintf(stderr, "[scener] layout output=%s size=%dx%d scale=%.1fpx/cm\n",
+		path, width, height, scale);
+	return ok;
+}
+
 static bool scener_render_scene(scene_doc_t *doc) {
 	if (!axMkDir(g_cli.output_dir) && !axPathExists(g_cli.output_dir)) {
 		fprintf(stderr, "[scener] cannot create output directory: %s\n", g_cli.output_dir);
 		return false;
 	}
+	if (g_cli.layout_mode) return scener_write_layout(doc);
 	if (g_cli.camera_name[0]) return scener_write_camera(doc, g_cli.camera_name);
 	for (int i = 0; i < doc->scene.ncameras; i++)
 		if (!scener_write_camera(doc, doc->scene.cameras[i].name)) return false;

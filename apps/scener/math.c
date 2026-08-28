@@ -105,6 +105,13 @@ mat4 mat4_perspective(float fovy_deg,float aspect,float zn,float zf){
     r.m[14]=(2*zf*zn)/(zn-zf);
     return r;
 }
+mat4 mat4_ortho(float l,float r_,float b,float t,float zn,float zf){
+    mat4 m={{0}};
+    m.m[0]=2.0f/(r_-l); m.m[5]=2.0f/(t-b); m.m[10]=-2.0f/(zf-zn);
+    m.m[12]=-(r_+l)/(r_-l); m.m[13]=-(t+b)/(t-b); m.m[14]=-(zf+zn)/(zf-zn);
+    m.m[15]=1.0f;
+    return m;
+}
 mat4 mat4_lookat(vec3 eye, vec3 center, vec3 up){
     vec3 f=vnorm(vsub(center,eye));
     vec3 s=vnorm(vcross(f,up));

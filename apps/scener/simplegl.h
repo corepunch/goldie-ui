@@ -43,6 +43,7 @@ vec3 mat4_xform_point(mat4 m,vec3 p);
 vec3 mat4_xform_dir(mat4 m,vec3 p);
 vec3 mat4_xform_normal(mat4 m,vec3 p);
 mat4 mat4_perspective(float fovy_deg,float aspect,float znear,float zfar);
+mat4 mat4_ortho(float left,float right,float bottom,float top,float znear,float zfar);
 mat4 mat4_lookat(vec3 eye,vec3 center,vec3 up);
 int ray_intersect_aabb(vec3 origin,vec3 dir,vec3 bbMin,vec3 bbMax,float *tOut);
 
