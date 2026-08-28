@@ -15,6 +15,6 @@ assets.
 
 `monoid.ttf` remains the fixed-width face for the terminal/VGA text renderer.
 
-On macOS, build with `make -B FORCE_NON_RETINA=1` to force a 1x OpenGL surface
-on Retina displays for visual comparison and screenshot testing. Use `make -B`
-to restore the default Retina build afterward.
+Orion requests high-DPI surfaces by default, matching SDL's opt-in window flag
+model. Build with `make -B ALLOW_HIGHDPI=0` to omit that request and exercise a
+1x surface on Retina displays. Use `make -B` to restore the default afterward.

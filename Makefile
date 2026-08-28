@@ -14,7 +14,8 @@ UNAME_S ?= $(shell uname -s)
 PREFIX  ?= /opt/orion
 DESTDIR ?=
 INSTALL ?= install
-FORCE_NON_RETINA ?= 0
+ALLOW_HIGHDPI ?= 1
+CFLAGS += -DORION_ALLOW_HIGHDPI=$(ALLOW_HIGHDPI)
 
 # ── Platform ─────────────────────────────────────────────────────────────
 # Native Windows and MinGW/MSYS share one configuration; IS_WIN gates the
@@ -178,8 +179,7 @@ platform: $(PLATFORM_LIB)
 
 $(PLATFORM_LIB): | $(LIB_DIR)
 	@echo "PLATFORM"
-	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)" \
-	    FORCE_NON_RETINA="$(FORCE_NON_RETINA)"
+	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
 
 # ── Shared assets ────────────────────────────────────────────────────────
 share: | $(SHARE_DIR)
@@ -341,7 +341,7 @@ help:
 	@echo "gems      - Build all .gem shared libraries"
 	@echo "tools     - Build command-line tools"
 	@echo "test      - Build and run tests"
-	@echo "FORCE_NON_RETINA=1 - Force a 1x macOS surface (use with -B)"
+	@echo "ALLOW_HIGHDPI=0 - Disable high-DPI surfaces (use with -B)"
 	@echo "clean     - Remove all build artifacts"
 	@echo "help      - Show this help message"
 	@echo ""
