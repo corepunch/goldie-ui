@@ -425,18 +425,10 @@ bool vga_font_init(const char *ttf_path, float font_size) {
 }
 
 void vga_font_shutdown(void) {
-  if (g_cell_tex)
-    R_DeleteTexture(g_cell_tex);
-  g_cell_tex = 0;
+  SAFE_DELETE(g_cell_tex, R_DeleteTexture);
   g_cell_cap_w = 0;
-  if (g_vga_tex) {
-    R_DeleteTexture(g_vga_tex);
-    g_vga_tex = 0;
-  }
-  if (g_ttf_data) {
-    free(g_ttf_data);
-    g_ttf_data = NULL;
-  }
+  SAFE_DELETE(g_vga_tex, R_DeleteTexture);
+  SAFE_DELETE(g_ttf_data, free);
   for (int i = 0; i < g_fallback_count; i++) {
     free(g_fallbacks[i].data);
     g_fallbacks[i] = (fallback_font_t){0};
