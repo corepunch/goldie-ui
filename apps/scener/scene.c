@@ -83,9 +83,17 @@ static void xml_set_attr_v3(XmlNode *n,const char *name,vec3 v){
 static void xml_set_attr_v3_cm(XmlNode *n,const char *name,vec3 v){
 	xml_set_attr_v3(n,name,vscale(v,100.0f));
 }
+/* 3ds Max convention: X=east, Y=north(depth), Z=up.  Renderer uses X=east, Y=up, Z=depth(-north).
+   Conversion: (x,y,z)_3dsmax → (x, z, -y)_world for positions/directions.
+   Sizes swap y↔z without negation: (x,y,z)_3dsmax → (x, z, y)_world.
+   Rotations use the same formula as positions. */
+static int g_scene_3dsmax = 0;
+static inline vec3 cvt3ds(vec3 v){ return g_scene_3dsmax ? v3(v.x,v.z,-v.y) : v; }
+static inline vec3 cvt3ds_sz(vec3 v){ return g_scene_3dsmax ? v3(v.x,v.z,v.y) : v; }
+
 static mat4 xml_node_transform(XmlNode *n){
-	vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
-	vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
+	vec3 pos=cvt3ds(xml_attr_v3_cm(n,"pos",v3(0,0,0)));
+	vec3 rot=cvt3ds(xml_attr_v3(n,"rot",v3(0,0,0)));
 	vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
 	vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
 	return mat4_mul(mat4_translate(pos),mat4_mul(mat4_translate(pvt),
@@ -518,7 +526,7 @@ typedef void (*shape_parser_fn)(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 paren
 
 static void parse_box(Scene *s, XmlNode *n, mat4 M, mat4 R, mat4 parentM, vec3 pos, vec3 rot, vec3 color, float shin, int castsShadow, int renderable, int unlit){
 	(void)parentM; (void)pos; (void)rot;
-	vec3 sz=xml_attr_v3_cm(n,"size",v3(1,1,1));
+	vec3 sz=cvt3ds_sz(xml_attr_v3_cm(n,"size",v3(1,1,1)));
 	float insetX=0.0f, insetY=0.0f;
 	xml_attr_2f(n,"inset",0.0f,0.0f,&insetX,&insetY);
 	Mesh mesh=(insetX>0.0f || insetY>0.0f) ? gen_box_inset(sz.x,sz.y,sz.z,insetX,insetY)
@@ -788,8 +796,8 @@ static XmlNode* load_prefab(Scene *s, const char *name){
 static void collect_negative_boxes(Scene *s, XmlNode *parent, mat4 parentM){
 	for(int i=0;i<parent->nkids;i++){
 		XmlNode *n=parent->kids[i];
-		vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
-		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
+		vec3 pos=cvt3ds(xml_attr_v3_cm(n,"pos",v3(0,0,0)));
+		vec3 rot=cvt3ds(xml_attr_v3(n,"rot",v3(0,0,0)));
 		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
 		vec3 pvt=xml_attr_v3_cm(n,"pivotOffset",v3(0,0,0));
 		mat4 Tp=mat4_translate(pvt), Tn=mat4_translate(v3(-pvt.x,-pvt.y,-pvt.z));
@@ -797,7 +805,7 @@ static void collect_negative_boxes(Scene *s, XmlNode *parent, mat4 parentM){
 			mat4_mul(Tp,mat4_mul(mat4_rot_xyz(rot),mat4_mul(Tn,mat4_scale(scl)))));
 		mat4 M=mat4_mul(parentM,local);
 		if(!strcmp(n->tag,"bool-negative-box")){
-			NegativeBox b={M,xml_attr_v3_cm(n,"size",v3(1,1,1))};
+			NegativeBox b={M,cvt3ds_sz(xml_attr_v3_cm(n,"size",v3(1,1,1)))};
 			DA_PUSH(s->negativeBoxes,s->nnegativeBoxes,s->cnegativeBoxes,b);
 		} else if(!strcmp(n->tag,"bool-negative-arch")){
 			NegativeArch a;
@@ -910,8 +918,8 @@ static void parse_nodes(Scene *s, XmlNode *parent, mat4 parentM, mat4 parentR){
 		s->sanityFloorActive |= xml_attr_i(n,"sanityFloor",0);
 		s->sanityCheckActive |= xml_attr_i(n,"sanityCheck",0);
 		char *tag=n->tag;
-		vec3 pos=xml_attr_v3_cm(n,"pos",v3(0,0,0));
-		vec3 rot=xml_attr_v3(n,"rot",v3(0,0,0));
+		vec3 pos=cvt3ds(xml_attr_v3_cm(n,"pos",v3(0,0,0)));
+		vec3 rot=cvt3ds(xml_attr_v3(n,"rot",v3(0,0,0)));
 		vec3 scl=xml_attr_v3(n,"scale",v3(1,1,1));
 		const char *attach=xml_attr(n,"attach",NULL);
 		mat4 attachM=mat4_identity(), attachRmat=mat4_identity();
@@ -997,8 +1005,8 @@ typedef void (*scene_tag_parser_fn)(Scene *s, XmlNode *n);
 static void parse_camera_tag(Scene *s, XmlNode *n){
 	Camera cam={0}; strncpy(cam.name, xml_attr(n,"name","Camera1"), 31);
 	strncpy(cam.comment, xml_attr(n,"comment",""), 63);
-	cam.pos = xml_attr_v3_cm(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5));
-	cam.look = xml_attr_v3_cm(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0));
+	cam.pos = cvt3ds(xml_attr_v3_cm(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5)));
+	cam.look = cvt3ds(xml_attr_v3_cm(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0)));
 	cam.fov = xml_attr_f(n,"fov",60.0f);
 	for(int i=0;i<n->nkids;i++) if(!strcmp(n->kids[i]->tag,"transform")){
 		CameraTransform x={0};
@@ -1036,7 +1044,7 @@ static void parse_material_tag(Scene *s, XmlNode *n){
 
 static void parse_sun_tag(Scene *s, XmlNode *n){
 	Light L={0};
-	L.dir = vnorm(xml_attr_v3(n,"dir",v3(1,-1,0)));
+	L.dir = vnorm(cvt3ds(xml_attr_v3(n,"dir",v3(1,-1,0))));
 	L.color = xml_attr_v3(n,"color",v3(1,1,1));
 	L.intensity = xml_attr_f(n,"intensity",1.0f);
 	L.radius = 0.0f;
@@ -1212,6 +1220,7 @@ static void scene_rebuild_view(Scene *s){
 			else for(int i=0;i<npreset_bgs;i++) if(!strcmp(preset_bgs[i].id,bg)){ s->bg=preset_bgs[i].color; break; }
 		}
 	}
+	g_scene_3dsmax = !strcmp(xml_attr(root,"convention",""),"3dsmax");
 	mat4 I=mat4_identity();
 	collect_shapes_from_tree(s,root);
 	collect_negative_boxes(s,root,I);
