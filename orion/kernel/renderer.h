@@ -107,6 +107,8 @@ GLuint R_AllocateFontTexture(R_Texture* texture, void *data);
 // Create an RGBA texture from pixel data.  Returns the texture ID, or 0 on failure.
 uint32_t R_CreateTextureRGBA(int w, int h, const void *rgba,
                               R_TextureFilter filter, R_TextureWrap wrap);
+bool R_UpdateTextureR8(uint32_t tex, int x, int y, int w, int h,
+                       const void *pixels);
 
 // Create/update RG8 textures for text-cell buffers.
 uint32_t R_CreateTextureRG8(int w, int h, const void *rg,

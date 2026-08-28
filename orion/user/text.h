@@ -5,19 +5,15 @@
 #include <stdbool.h>
 
 // ── Font role identifiers ─────────────────────────────────────────────────────
-// Mirrors how Mac System 1–7 distinguished systemFont (Chicago 12) from
-// application/content and compact icon-label fonts. Role names, not size names.
-// At UI_WINDOW_SCALE >= 2 both map to the same atlas (SmallFont).
+// Semantic font roles backed by proportional sans-serif TTF atlases.
 typedef enum {
-  FONT_SYSTEM = 0,  // Chrome: titlebars, menus, buttons, dialogs (ChiKareGo2)
-  FONT_SMALL  = 1,  // Content: list items, column rows, status bar (Geneva12)
-  FONT_ICON   = 2,  // Compact labels in large icon/grid views (Geneva9)
+  FONT_SYSTEM = 0,  // Chrome: titlebars, menus, buttons, dialogs
+  FONT_SMALL  = 1,  // Content: list items, column rows, status bar
+  FONT_ICON   = 2,  // Compact labels in large icon/grid views
 } ui_font_t;
 
 // ── Dynamic metric accessors ─────────────────────────────────────────────────
 // FONT_SYSTEM metrics (backward-compatible; equivalent to FONT_SYSTEM variants).
-// SmallFont (UI_WINDOW_SCALE > 1): char_height=8, line_height=12, space_width=3.
-// ChiKareGo2 (UI_WINDOW_SCALE == 1): char_height=16, line_height=20, space_width=5.
 // Return safe defaults before init_text_rendering() is called.
 int get_char_height(void);
 int get_line_height(void);

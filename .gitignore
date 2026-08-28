@@ -73,3 +73,4 @@ test.xml
 plans/
 third_party/
 fonts/
+!share/fonts/

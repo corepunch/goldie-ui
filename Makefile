@@ -146,7 +146,7 @@ unity_tu = find $(1) -name '*.c' ! -name main.c ! -path '*/$(COMPS)/*' ! -path '
 app_inc  = -I. -I$(call appdir,$*) -I$(call appdir,$*)/$(COMPS) -DSHAREDIR='"../share/$(notdir $(call appdir,$*))"'
 app_libs = $(LDFLAGS) $(CORE_LDLIBS) $(PLATFORM_LDFLAGS) $(RPATH_FLAGS) $(call app_plugin,$*) $(LIBS)
 
-.PHONY: all install tools fonts platform share library apps plugins gems scener test clean help $(PHONY_APP_NAMES)
+.PHONY: all install tools platform share library apps plugins gems scener test clean help $(PHONY_APP_NAMES)
 
 all: library apps tools $(if $(IS_WIN),,gems)
 
@@ -172,15 +172,6 @@ $(GENERATED_DIR)/$(APPS)/%.h: $(APPS)/%.orion $(ORIONC_BIN) | $(GENERATED_DIR)
 	@echo "GEN     $@"
 	@$(ORIONC_BIN) --input $< --output $@ --prefix $(notdir $(basename $<))
 
-fonts: tools
-	@mkdir -p share/fonts
-	@$(BIN_DIR)/font_atlas share/fonts/ChiKareGo2.ttf share/fonts/Chicago-12.png -pixelsize=16 -em -sharp -cellw=10 -cellh=15 -line-height=19 -space-width=5 -v
-	@$(BIN_DIR)/font_atlas share/fonts/FindersKeepers.ttf share/fonts/FindersKeepers.png -pixelsize=16 -em -sharp -cellw=8 -cellh=9 -v
-	@$(BIN_DIR)/font_atlas share/fonts/PixelOperator.ttf share/fonts/Geneva-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -line-height=20 -space-width=2 -v -scan-width -letter-spacing=2
-	@$(BIN_DIR)/font_atlas share/fonts/geneva_9.ttf share/fonts/Geneva-9.png -pixelsize=16 -em -sharp -cellw=8 -cellh=10 -line-height=14 -space-width=3 -v
-	@$(BIN_DIR)/font_atlas share/fonts/PixelOperatorMono.ttf share/fonts/Mono-12.png -pixelsize=16 -em -sharp -cellw=8 -cellh=16 -v
-	@$(BIN_DIR)/font_leftalign share/fonts/SmallFont.png
-
 # ── Platform submodule ───────────────────────────────────────────────────
 platform: $(PLATFORM_LIB)
 
@@ -189,16 +180,7 @@ $(PLATFORM_LIB): | $(LIB_DIR)
 	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
 
 # ── Shared assets ────────────────────────────────────────────────────────
-# The VGA font's character sheet is generated on the fly at runtime by
-# vga_font.c using stb_truetype.  Drop any TTF (e.g. a Nerd Font) at
-# share/fonts/monoid.ttf to replace it.
-VGA_FONT_TTF = $(SHARE_DIR)/orion/fonts/monoid.ttf
-
-$(VGA_FONT_TTF): share/fonts/monoid.ttf | $(SHARE_DIR)
-	@mkdir -p $(dir $@)
-	@cp $< $@
-
-share: $(VGA_FONT_TTF) | $(SHARE_DIR)
+share: | $(SHARE_DIR)
 	@mkdir -p $(SHARE_DIR)/orion
 	@cp -R share/. $(SHARE_DIR)/orion/
 	@for dir in $(APPS)/*/share; do \
