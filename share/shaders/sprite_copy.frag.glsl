@@ -14,5 +14,4 @@ void main() {
   vec4 src = texture(tex0, tex) * col * tint;
   outColor = src;
   outColor.a *= alpha;
-  if (outColor.a < 0.1) discard;
 }

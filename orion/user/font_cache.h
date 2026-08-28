@@ -22,5 +22,6 @@ uint32_t font_cache_texture(const font_cache_t *cache);
 int font_cache_texture_width(const font_cache_t *cache);
 int font_cache_texture_height(const font_cache_t *cache);
 int font_cache_line_height(const font_cache_t *cache);
+float font_cache_bitmap_scale(const font_cache_t *cache);
 
 #endif

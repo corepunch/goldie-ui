@@ -7,7 +7,7 @@
 //   - Fast path: build an RGBA cell buffer (R+G=glyph, B=fg, A=bg) and call
 //     R_DrawVGABuffer() so composition happens fully inside the renderer.
 //
-// The atlas is a 256x256 RGBA texture (65536 glyph slots).  Glyphs are
+// The atlas is a 256x256 R8 texture (65536 glyph slots).  Glyphs are
 // rasterised lazily on first use via stb_truetype.  A per-glyph flag array
 // tracks which slots have been filled.
 
@@ -221,7 +221,7 @@ static void rasterize_from_font(stbtt_fontinfo *font, float scale, int baseline,
   int draw_y = cell_y + baseline + yoff;
 
   int pixels_per_cell = g_cell_w * g_cell_h;
-  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
+  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell, 1);
   if (!cell_pixels) { stbtt_FreeBitmap(bmp, NULL); return; }
 
   for (int y = 0; y < bh; y++) {
@@ -231,17 +231,12 @@ static void rasterize_from_font(stbtt_fontinfo *font, float scale, int baseline,
       int px = draw_x + x;
       if (px < cell_x || px >= cell_x1) continue;
       uint8_t a = bmp[y * bw + x];
-      if (a > 0) {
-        int idx = ((py - cell_y) * g_cell_w + (px - cell_x)) * 4;
-        cell_pixels[idx + 0] = 0xFF;
-        cell_pixels[idx + 1] = 0xFF;
-        cell_pixels[idx + 2] = 0xFF;
-        cell_pixels[idx + 3] = a;
-      }
+      if (a > 0)
+        cell_pixels[(py - cell_y) * g_cell_w + (px - cell_x)] = a;
     }
   }
   stbtt_FreeBitmap(bmp, NULL);
-  R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
+  R_UpdateTextureR8(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
   free(cell_pixels);
 }
 
@@ -275,7 +270,7 @@ static void rasterize_from_fallback(stbtt_fontinfo *font, float default_scale,
   int draw_y = cell_y + (g_cell_h - bh) / 2;
 
   int pixels_per_cell = g_cell_w * g_cell_h;
-  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell * 4, 1);
+  uint8_t *cell_pixels = (uint8_t *)calloc((size_t)pixels_per_cell, 1);
   if (!cell_pixels) { stbtt_FreeBitmap(bmp, NULL); return; }
 
   for (int y = 0; y < bh; y++) {
@@ -285,17 +280,12 @@ static void rasterize_from_fallback(stbtt_fontinfo *font, float default_scale,
       int px = draw_x + x;
       if (px < cell_x || px >= cell_x1) continue;
       uint8_t a = bmp[y * bw + x];
-      if (a > 0) {
-        int idx = ((py - cell_y) * g_cell_w + (px - cell_x)) * 4;
-        cell_pixels[idx + 0] = 0xFF;
-        cell_pixels[idx + 1] = 0xFF;
-        cell_pixels[idx + 2] = 0xFF;
-        cell_pixels[idx + 3] = a;
-      }
+      if (a > 0)
+        cell_pixels[(py - cell_y) * g_cell_w + (px - cell_x)] = a;
     }
   }
   stbtt_FreeBitmap(bmp, NULL);
-  R_UpdateTextureRGBA(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
+  R_UpdateTextureR8(g_vga_tex, cell_x, cell_y, g_cell_w, g_cell_h, cell_pixels);
   free(cell_pixels);
 }
 
@@ -391,10 +381,10 @@ bool vga_font_init(const char *ttf_path, float font_size) {
   int sheet_h = VGA_ATLAS_ROWS * cell_h;
 
   // ---- create empty atlas texture --------------------------------
-  g_vga_tex = R_CreateTextureRGBA(sheet_w, sheet_h, NULL,
-                                   R_FILTER_NEAREST, R_WRAP_CLAMP);
+  g_vga_tex = R_CreateTextureR8(sheet_w, sheet_h, NULL,
+                                R_FILTER_NEAREST, R_WRAP_CLAMP);
   if (!g_vga_tex) {
-    VGA_FONT_LOG("vga_font_init: R_CreateTextureRGBA failed");
+    VGA_FONT_LOG("vga_font_init: R_CreateTextureR8 failed");
     return false;
   }
 
