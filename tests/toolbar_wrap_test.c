@@ -691,8 +691,8 @@ void test_toolbar_labels_increase_button_and_band_size(void) {
     toolbar_state_t *tb = require_toolbar_state(win);
     ASSERT_EQUAL(tb->style, TOOLBAR_STYLE_SHOW_LABELS);
     ASSERT_TRUE(titlebar_height(win) > plain_h);
-    ASSERT_EQUAL(tb->item_rects[0].w, MAX(plain_w, text_strwidth(FONT_ICON, item.text) + 8));
-    ASSERT_EQUAL(tb->item_rects[0].h, TB_SPACING + text_char_height(FONT_ICON) + 2);
+    ASSERT_EQUAL(tb->item_rects[0].w, MAX(plain_w, text_strwidth(FONT_SMALLEST, item.text) + 8));
+    ASSERT_EQUAL(tb->item_rects[0].h, TB_SPACING + text_char_height(FONT_SMALLEST) + 2);
     destroy_window(win);
     test_env_shutdown();
     PASS();

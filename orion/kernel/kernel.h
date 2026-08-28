@@ -23,9 +23,9 @@ typedef struct bitmap_strip_s bitmap_strip_t;
 // FONT_SIZE_SMALL — content font height
 // FONT_PIXEL_SIZE — rendered system line height (for vertical centering)
 #if UI_WINDOW_SCALE == 1
-#  define FONT_SIZE        14
+#  define FONT_SIZE        12
 #  define FONT_PIXEL_SIZE  14
-#  define FONT_SIZE_SMALL  13
+#  define FONT_SIZE_SMALL  12
 #else
 #  define FONT_SIZE        8
 #  define FONT_PIXEL_SIZE  8

@@ -19,7 +19,7 @@ int toolbar_item_hit(const toolbar_state_t *tb, int tx, int ty) {
 
 static int toolbar_state_item_height(const toolbar_state_t *tb) {
   int bsz = (tb && tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
-  return bsz + ((tb && (tb->style & TOOLBAR_STYLE_SHOW_LABELS)) ? text_char_height(FONT_ICON) + 2 : 0);
+  return bsz + ((tb && (tb->style & TOOLBAR_STYLE_SHOW_LABELS)) ? text_char_height(FONT_SMALLEST) + 2 : 0);
 }
 
 static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
@@ -45,17 +45,17 @@ static void compute_toolbar_item_rects(window_t *parent, toolbar_state_t *tb) {
       case TOOLBAR_ITEM_BUTTON:
         w = item->w > 0 ? item->w : bsz;
         if (!item->w && (tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text)
-          w = MAX(w, text_strwidth(FONT_ICON, item->text) + 8);
+          w = MAX(w, text_strwidth(FONT_SMALLEST, item->text) + 8);
         break;
       case TOOLBAR_ITEM_DROPDOWN:
         w = item->w > 0 ? item->w : bsz;
         if (!item->w && (tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text)
-          w = MAX(w, text_strwidth(FONT_ICON, item->text) + 8);
+          w = MAX(w, text_strwidth(FONT_SMALLEST, item->text) + 8);
         w += DROPDOWN_ARROW_W;
         break;
       case TOOLBAR_ITEM_LABEL:
         w = item->w > 0 ? item->w
-                        : (text_strwidth(FONT_ICON, item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
+                        : (text_strwidth(FONT_SMALLEST, item->text ? item->text : "") + TOOLBAR_LABEL_PADDING);
         break;
       case TOOLBAR_ITEM_COMBOBOX:
         w = item->w > 0 ? item->w : (bsz * TOOLBAR_COMBOBOX_DEFAULT_WIDTH_MULT);
@@ -123,9 +123,9 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
         icon_rect.h = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
       draw_toolbar_icon_in_rect(tb, icon_name, icon_rect, show_pressed ? 1 : 0);
       if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
-        int tx = (local.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
-        int ty = local.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
-        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brToolbarForeground));
+        int tx = (local.w - text_strwidth(FONT_SMALLEST, item->text)) / 2 + (show_pressed ? 1 : 0);
+        int ty = local.h - text_char_height(FONT_SMALLEST) - 2 + (show_pressed ? 1 : 0);
+        draw_text(FONT_SMALLEST, item->text, tx, ty, get_sys_color(brToolbarForeground));
       }
       break;
     }
@@ -140,9 +140,9 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
         icon_rect.h = (tb->btn_size > 0) ? tb->btn_size : TB_SPACING;
       draw_toolbar_icon_in_rect(tb, icon_name, icon_rect, show_pressed ? 1 : 0);
       if ((tb->style & TOOLBAR_STYLE_SHOW_LABELS) && item->text) {
-        int tx = (btn_part.w - text_strwidth(FONT_ICON, item->text)) / 2 + (show_pressed ? 1 : 0);
-        int ty = btn_part.h - text_char_height(FONT_ICON) - 2 + (show_pressed ? 1 : 0);
-        draw_text(FONT_ICON, item->text, tx, ty, get_sys_color(brToolbarForeground));
+        int tx = (btn_part.w - text_strwidth(FONT_SMALLEST, item->text)) / 2 + (show_pressed ? 1 : 0);
+        int ty = btn_part.h - text_char_height(FONT_SMALLEST) - 2 + (show_pressed ? 1 : 0);
+        draw_text(FONT_SMALLEST, item->text, tx, ty, get_sys_color(brToolbarForeground));
       }
       bool arrow_pressed = is_pressed && tb->pressed_in_arrow;
       draw_button(arr_part, 1, 1, arrow_pressed);
@@ -163,8 +163,8 @@ static void draw_toolbar_item_at_origin(toolbar_state_t *tb, int i) {
       break;
     }
     case TOOLBAR_ITEM_LABEL: {
-      int ty = (r.h - text_char_height(FONT_ICON)) / 2;
-      draw_text(FONT_ICON, item->text ? item->text : "", 2, ty, get_sys_color(brToolbarForeground));
+      int ty = (r.h - text_char_height(FONT_SMALLEST)) / 2;
+      draw_text(FONT_SMALLEST, item->text ? item->text : "", 2, ty, get_sys_color(brToolbarForeground));
       break;
     }
     case TOOLBAR_ITEM_SPACER:
