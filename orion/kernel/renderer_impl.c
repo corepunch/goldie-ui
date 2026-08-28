@@ -133,3 +133,14 @@ GLuint R_AllocateFontTexture(R_Texture* tex, void *data) {
 
   return tex->id;
 }
+
+bool R_UpdateTextureR8(uint32_t tex, int x, int y, int w, int h,
+                       const void *pixels) {
+  if (!tex || !pixels || w <= 0 || h <= 0)
+    return false;
+  glBindTexture(GL_TEXTURE_2D, (GLuint)tex);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h,
+                  GL_RED, GL_UNSIGNED_BYTE, pixels);
+  return true;
+}

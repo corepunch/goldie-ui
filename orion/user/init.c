@@ -25,6 +25,7 @@
 
 bool ui_init_prog(void);
 void ui_shutdown_prog(void);
+result_t win_tray(window_t *win, uint32_t msg, uint32_t wparam, void *lparam);
 
 // Set to true after ui_init_graphics() succeeds; guards begin/end frame.
 static bool g_graphics_initialized = false;
@@ -232,14 +233,27 @@ bool ui_init_graphics(int flags, const char *title, int width, int height) {
                                      WINDOW_NOTITLE|WINDOW_ALWAYSINBACK|WINDOW_NOTRAYBUTTON,
                                      MAKERECT(0, 0, ui_get_system_metrics(kSystemMetricScreenWidth), ui_get_system_metrics(kSystemMetricScreenHeight)),
                                      NULL, win_desktop, 0, NULL);
+    if (!g_desktop_window) {
+      fprintf(stderr, "[ui] desktop window could not be created\n");
+      fflush(stderr);
+      ui_shutdown_graphics();
+      return false;
+    }
     show_window(g_desktop_window, true);
   }
 
   if (flags & UI_INIT_TRAY) {
-    show_window(create_window("Tray",
-                              WINDOW_NOTITLE|WINDOW_NOTRAYBUTTON,
-                              MAKERECT(0, 0, 0, 0),
-                              NULL, "Tray", 0, NULL), true);
+    window_t *tray = create_window("Tray",
+                                   WINDOW_NOTITLE|WINDOW_NOTRAYBUTTON,
+                                   MAKERECT(0, 0, 0, 0),
+                                   NULL, win_tray, 0, NULL);
+    if (!tray) {
+      fprintf(stderr, "[ui] tray window could not be created\n");
+      fflush(stderr);
+      ui_shutdown_graphics();
+      return false;
+    }
+    show_window(tray, true);
   }
 
   g_ui_runtime.running = true;

@@ -19,21 +19,17 @@ typedef struct bitmap_strip_s bitmap_strip_t;
 // menubar, list row heights, etc.).  This is a compile-time constant tied to
 // the scale factor rather than the runtime-loaded font's cell height.
 //
-// Measured glyph heights:
-//   UI_WINDOW_SCALE == 1  → ChiKareGo2 (16x16 cells, max glyph h = 12 px)
-//   UI_WINDOW_SCALE >= 2  → SmallFont  ( 8x 8 cells, cell  h = 8  px)
-//
-// FONT_SIZE       — system (chrome) font: ChiKareGo2/Chicago12 at scale=1
-// FONT_SIZE_SMALL — small (content) font: Geneva12/SmallFont at all scales
-// FONT_PIXEL_SIZE — cell height of the system font (for vertical centering)
+// FONT_SIZE       — system chrome font height
+// FONT_SIZE_SMALL — content font height
+// FONT_PIXEL_SIZE — rendered system line height (for vertical centering)
 #if UI_WINDOW_SCALE == 1
-#  define FONT_SIZE        12
-#  define FONT_PIXEL_SIZE  16
-#  define FONT_SIZE_SMALL   12   // Geneva12 / SmallFont cell height at scale=1
+#  define FONT_SIZE        14
+#  define FONT_PIXEL_SIZE  14
+#  define FONT_SIZE_SMALL  13
 #else
 #  define FONT_SIZE        8
 #  define FONT_PIXEL_SIZE  8
-#  define FONT_SIZE_SMALL  8   // same as FONT_SIZE at scale>=2 (single font)
+#  define FONT_SIZE_SMALL  8
 #endif
 
 // Event type abstraction — maps to the platform AXmessage struct

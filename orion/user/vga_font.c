@@ -20,9 +20,6 @@
 #include "draw.h"
 #include <orion/kernel/renderer.h>
 
-// Single compilation unit for stb_truetype — must be the only place in
-// libuser where STB_TRUETYPE_IMPLEMENTATION is defined.
-#define STB_TRUETYPE_IMPLEMENTATION
 #include <tools/stb_truetype.h>
 
 #ifndef VGA_FONT_LOG

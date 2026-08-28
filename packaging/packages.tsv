@@ -1,10 +1,7 @@
 browser	Web browser
 filemanager	File manager
-font_atlas	Bitmap font atlas generator
-font_leftalign	Bitmap font alignment utility
 formeditor	Declarative UI form editor
 gen_toolbox_atlas	Toolbox icon atlas generator
-gen_vga_font	VGA bitmap font generator
 gitclient	Git repository client
 helloworld	Minimal Orion example application
 imageeditor	Layered image editor
