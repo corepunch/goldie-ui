@@ -249,7 +249,7 @@ static void report_paint(window_t *win, reportview_data_t *data) {
           snprintf(subtitle + used, sizeof(subtitle) - used, "%s%s",
                    used ? " - " : "", part);
         }
-        draw_text_clipped(FONT_ICON, subtitle, &subtitle_rect,
+        draw_text_clipped(FONT_SMALLEST, subtitle, &subtitle_rect,
                           get_sys_color(brTextDisabled), 0);
       } else {
         irect16_t text_rect = {text_x, y, text_w, entry_h};

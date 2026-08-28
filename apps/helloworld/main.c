@@ -15,6 +15,28 @@
 // Click counter
 static int click_count = 0;
 
+typedef struct {
+  ui_font_t font;
+  const char *text;
+} font_sample_t;
+
+static const font_sample_t kFontSamples[] = {
+  { FONT_SYSTEM,   "System 12: AaBb 0123" },
+  { FONT_SMALL,    "Small 12: AaBb 0123" },
+  { FONT_SMALLEST, "Smallest 9: AaBb 0123" },
+};
+
+static void draw_font_samples(window_t *win) {
+  irect16_t client = get_client_rect(win);
+  int y = 112;
+  for (int i = 0; i < (int)(sizeof(kFontSamples) / sizeof(kFontSamples[0])); i++) {
+    const font_sample_t *sample = &kFontSamples[i];
+    draw_text(sample->font, sample->text, client.x + 20, y,
+              get_sys_color(brTextNormal));
+    y += text_char_height(sample->font) + 5;
+  }
+}
+
 // Simple window procedure for our hello world window
 result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *lparam) {
   switch (msg) {
@@ -48,6 +70,7 @@ result_t hello_window_proc(window_t *win, uint32_t msg, uint32_t wparam, void *l
        // Draw text with shadow effect
        draw_text_small(text, text_x + 1, text_y + 1, get_sys_color(brDarkEdge));
        draw_text_small(text, text_x, text_y, get_sys_color(brTextNormal));
+      draw_font_samples(win);
        return false;
      }
     

@@ -329,7 +329,7 @@ static uint8_t runtime_parse_font(const char *s, bool *set) {
     return FONT_SMALL;
   if (set) *set = true;
   if (str_ieq(s, "system")) return FONT_SYSTEM;
-  if (str_ieq(s, "icon")) return FONT_ICON;
+  if (str_ieq(s, "smallest")) return FONT_SMALLEST;
   return FONT_SMALL;
 }
 

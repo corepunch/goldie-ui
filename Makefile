@@ -14,6 +14,7 @@ UNAME_S ?= $(shell uname -s)
 PREFIX  ?= /opt/orion
 DESTDIR ?=
 INSTALL ?= install
+FORCE_NON_RETINA ?= 0
 
 # ── Platform ─────────────────────────────────────────────────────────────
 # Native Windows and MinGW/MSYS share one configuration; IS_WIN gates the
@@ -177,7 +178,8 @@ platform: $(PLATFORM_LIB)
 
 $(PLATFORM_LIB): | $(LIB_DIR)
 	@echo "PLATFORM"
-	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)"
+	@$(MAKE) -s -C $(PLATFORM_DIR) OUTDIR=$(abspath $(LIB_DIR)) ARCH="$(ARCH)" \
+	    FORCE_NON_RETINA="$(FORCE_NON_RETINA)"
 
 # ── Shared assets ────────────────────────────────────────────────────────
 share: | $(SHARE_DIR)
@@ -200,7 +202,7 @@ $(LIB_DIR)/lib$(1).$(LIB_EXT): $(2) $(3) $(PLATFORM_LIB) | $(LIB_DIR)
 	@echo "LIB     $$@"
 	@printf '%s\n' $(sort $(2)) | sed 's/.*/\#include "&"/' | \
 	    $(CC) $(CFLAGS) $(LIB_FLAGS) $(call lib_id_flags,$(1)) $(4) -x c -o $$@ - \
-	    $(LDFLAGS) $(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(5) $(LIBS) $$(IMPLIB_FLAGS)
+	    $(LDFLAGS) $$(RPATH_FLAGS) $(PLATFORM_LDFLAGS) $(5) $(LIBS) $$(IMPLIB_FLAGS)
 endef
 
 USER_SRCS = $(filter-out orion/user/dialog.c orion/user/component_registry.c,$(wildcard orion/user/*.c))
@@ -339,6 +341,7 @@ help:
 	@echo "gems      - Build all .gem shared libraries"
 	@echo "tools     - Build command-line tools"
 	@echo "test      - Build and run tests"
+	@echo "FORCE_NON_RETINA=1 - Force a 1x macOS surface (use with -B)"
 	@echo "clean     - Remove all build artifacts"
 	@echo "help      - Show this help message"
 	@echo ""

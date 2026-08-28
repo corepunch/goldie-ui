@@ -29,14 +29,14 @@ typedef struct {
 static struct {
   font_atlas_t big;
   font_atlas_t small;
-  font_atlas_t icon;
+  font_atlas_t smallest;
 } text_state = {0};
 
 // ── Dynamic metric accessors ──────────────────────────────────────────────────
 // All space/line/height values are loaded from each font's foNT metadata.
 
 static inline font_atlas_t *font_for_role(ui_font_t font) {
-  if (font == FONT_ICON)  return &text_state.icon;
+  if (font == FONT_SMALLEST) return &text_state.smallest;
   if (font == FONT_SMALL) return &text_state.small;
   return &text_state.big;
 }
@@ -83,24 +83,26 @@ void init_text_rendering(void) {
   memset(&text_state, 0, sizeof(text_state));
 
   const char *exe = ui_get_exe_dir();
-  char regular_path[4096];
-  snprintf(regular_path, sizeof(regular_path), "%s/../share/orion/fonts/NotoSans-Regular.ttf", exe);
+  char system_path[4096], compact_path[4096];
+  snprintf(system_path, sizeof(system_path), "%s/../share/orion/fonts/NotoSans-Medium.ttf", exe);
+  snprintf(compact_path, sizeof(compact_path), "%s/../share/orion/fonts/NotoSans-Regular.ttf", exe);
 
 #if UI_WINDOW_SCALE == 1
-  const float system_size = 14.0f, small_size = 13.0f, icon_size = 12.0f;
+  const float system_size = 12.0f, small_size = 12.0f, smallest_size = 9.0f;
 #else
-  const float system_size = 8.0f, small_size = 8.0f, icon_size = 7.0f;
+  const float system_size = 8.0f, small_size = 8.0f, smallest_size = 7.0f;
 #endif
-  bool loaded = load_atlas(&text_state.big, regular_path, system_size);
-  loaded = load_atlas(&text_state.small, regular_path, small_size) && loaded;
-  loaded = load_atlas(&text_state.icon, regular_path, icon_size) && loaded;
+  bool loaded = load_atlas(&text_state.big, system_path, system_size);
+  loaded = load_atlas(&text_state.small, compact_path, small_size) && loaded;
+  loaded = load_atlas(&text_state.smallest, compact_path, smallest_size) && loaded;
   if (!loaded) {
-    fprintf(stderr, "[text] required font asset failed to load: %s\n", regular_path);
+    fprintf(stderr, "[text] required font assets failed to load:\n  %s\n  %s\n",
+            system_path, compact_path);
     fflush(stderr);
     exit(1);
   }
-  printf("text: lazy TTF atlases loaded system=%d small=%d icon=%d\n",
-         font_line(FONT_SYSTEM), font_line(FONT_SMALL), font_line(FONT_ICON));
+  printf("text: lazy TTF atlases loaded system=%d small=%d smallest=%d\n",
+         font_line(FONT_SYSTEM), font_line(FONT_SMALL), font_line(FONT_SMALLEST));
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -277,12 +279,12 @@ void draw_text(ui_font_t font, const char *text, int x, int y, uint32_t col) {
   if (text_length > MAX_TEXT_LENGTH) text_length = MAX_TEXT_LENGTH;
 
   // Static vertex buffers — one per atlas.
-  // FONT_SMALL and FONT_ICON use their role atlases. FONT_SYSTEM uses the
+  // FONT_SMALL and FONT_SMALLEST use their role atlases. FONT_SYSTEM uses the
   // system atlas for text and the small atlas for characters 128-255.
   static text_vertex_t buf_big  [MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
   static text_vertex_t buf_small[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
-  static text_vertex_t buf_icon [MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
-  int vc_big = 0, vc_small = 0, vc_icon = 0;
+  static text_vertex_t buf_smallest[MAX_TEXT_LENGTH * VERTICES_PER_CHAR];
+  int vc_big = 0, vc_small = 0, vc_smallest = 0;
 
   int sw = font_space(font);
   int lh = font_line(font);
@@ -297,10 +299,10 @@ void draw_text(ui_font_t font, const char *text, int x, int y, uint32_t col) {
 
     font_atlas_t *atlas = font_for_role(font);
 
-    bool use_icon  = atlas == &text_state.icon;
+    bool use_smallest = atlas == &text_state.smallest;
     bool use_small = atlas == &text_state.small;
-    text_vertex_t *buf = use_icon ? buf_icon : (use_small ? buf_small : buf_big);
-    int           *vc  = use_icon ? &vc_icon : (use_small ? &vc_small : &vc_big);
+    text_vertex_t *buf = use_smallest ? buf_smallest : (use_small ? buf_small : buf_big);
+    int           *vc  = use_smallest ? &vc_smallest : (use_small ? &vc_small : &vc_big);
 
     *vc += emit_char_verts(buf + *vc, cursor_x, y, codepoint, col, atlas);
     cursor_x += codepoint_advance(font, codepoint);
@@ -310,8 +312,8 @@ void draw_text(ui_font_t font, const char *text, int x, int y, uint32_t col) {
     flush_batch(&text_state.big,   buf_big,   vc_big);
   if (vc_small > 0)
     flush_batch(&text_state.small, buf_small, vc_small);
-  if (vc_icon > 0)
-    flush_batch(&text_state.icon,  buf_icon,  vc_icon);
+  if (vc_smallest > 0)
+    flush_batch(&text_state.smallest, buf_smallest, vc_smallest);
 }
 
 void draw_text_clipped(ui_font_t font, const char *text,
@@ -466,8 +468,8 @@ void shutdown_text_rendering(void) {
   font_cache_destroy(text_state.small.cache);
   R_MeshDestroy(&text_state.small.mesh);
 
-  font_cache_destroy(text_state.icon.cache);
-  R_MeshDestroy(&text_state.icon.mesh);
+  font_cache_destroy(text_state.smallest.cache);
+  R_MeshDestroy(&text_state.smallest.mesh);
 
   memset(&text_state, 0, sizeof(text_state));
 }

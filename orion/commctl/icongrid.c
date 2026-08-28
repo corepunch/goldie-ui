@@ -111,7 +111,7 @@ static void grid_paint(window_t *win, reportview_data_t *data) {
   int scroll_y = (int)win->vscroll.pos;
   icon_grid_geom_t g = grid_geom(win, data);
   int icon_sz = data->icon_size;
-  int label_h = text_char_height(FONT_ICON) + 2;
+  int label_h = text_char_height(FONT_SMALLEST) + 2;
   int clip_bot = cr.h;
   bitmap_strip_t *strip = data->icon_strip;
   uint32_t bg_col = get_sys_color(brColumnViewBg);
@@ -158,7 +158,7 @@ static void grid_paint(window_t *win, reportview_data_t *data) {
 
     uint32_t txt_col = selected ? get_sys_color(brActiveTitlebarText)
                                 : get_sys_color(brTextNormal);
-    draw_text_clipped(FONT_ICON, data->items[i].text, &label_r,
+    draw_text_clipped(FONT_SMALLEST, data->items[i].text, &label_r,
                       txt_col, TEXT_ALIGN_CENTER);
   }
 }

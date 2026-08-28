@@ -433,7 +433,7 @@ static void layout_icons(void) {
   int gap = 10, margin = 12;
   int status_h = 0;
   for (int i = 0; i < (int)ARRAY_LEN(g_status_icons); i++) status_h = MAX(status_h, g_status_icons[i].image_h);
-  int label_h = MAX(text_char_height(FONT_ICON), status_h);
+  int label_h = MAX(text_char_height(FONT_SMALLEST), status_h);
   int icon_w = AGENT_IMAGE_SIZE + ICON_LAYOUT_ARTIFACT_W * 2;
   int icon_h = AGENT_IMAGE_SIZE + label_h;
   int used_w = count * icon_w + (count - 1) * gap;

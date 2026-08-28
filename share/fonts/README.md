@@ -1,9 +1,11 @@
 # Orion fonts
 
-Orion's proportional UI text uses the hinted Noto Sans faces in this directory:
+Orion's proportional UI text uses separate roles chosen for readability at
+their target sizes:
 
-- `NotoSans-Regular.ttf` at 14 px for window chrome and controls
-- `NotoSans-Regular.ttf` at 13 px for content and 12 px for compact labels
+- `FONT_SYSTEM`: `NotoSans-Medium.ttf` at 12 px for window chrome and controls
+- `FONT_SMALL`: `NotoSans-Regular.ttf` at 12 px for content
+- `FONT_SMALLEST`: `NotoSans-Regular.ttf` at 9 px for compact labels
 
 Noto Sans is distributed under the SIL Open Font License 1.1 in
 `NotoSans-OFL.txt`. Its Latin, Greek, and Cyrillic coverage is suitable for the
@@ -12,3 +14,7 @@ runtime atlases on first use; generated bitmap font sheets are not source
 assets.
 
 `monoid.ttf` remains the fixed-width face for the terminal/VGA text renderer.
+
+On macOS, build with `make -B FORCE_NON_RETINA=1` to force a 1x OpenGL surface
+on Retina displays for visual comparison and screenshot testing. Use `make -B`
+to restore the default Retina build afterward.

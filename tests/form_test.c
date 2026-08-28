@@ -1621,13 +1621,13 @@ void test_label_font_pack_and_measure(void) {
   ASSERT_NOT_NULL(root);
   label_create_params_t params = {
     .color_index = brTextDisabled,
-    .font = FONT_ICON,
+    .font = FONT_SMALLEST,
     .color_set = true,
   };
   window_t *label = create_window("Font test", 0, MAKERECT(0, 0, 1, CONTROL_HEIGHT),
                                   root, win_label, 0, &params);
   ASSERT_NOT_NULL(label);
-  ASSERT_EQUAL(label->frame.w, MAX(1, text_strwidth(FONT_ICON, "Font test") + TEXT_SHADOW_OFFSET));
+  ASSERT_EQUAL(label->frame.w, MAX(1, text_strwidth(FONT_SMALLEST, "Font test") + TEXT_SHADOW_OFFSET));
 
   label_create_params_t defaults = {
     .font = FONT_SMALL,
