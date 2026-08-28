@@ -83,13 +83,12 @@ static void xml_set_attr_v3(XmlNode *n,const char *name,vec3 v){
 static void xml_set_attr_v3_cm(XmlNode *n,const char *name,vec3 v){
 	xml_set_attr_v3(n,name,vscale(v,100.0f));
 }
-/* 3ds Max convention: X=east, Y=north(depth), Z=up.  Renderer uses X=east, Y=up, Z=depth(-north).
-   Conversion: (x,y,z)_3dsmax → (x, z, -y)_world for positions/directions.
-   Sizes swap y↔z without negation: (x,y,z)_3dsmax → (x, z, y)_world.
-   Rotations use the same formula as positions. */
-static int g_scene_3dsmax = 0;
-static inline vec3 cvt3ds(vec3 v){ return g_scene_3dsmax ? v3(v.x,v.z,-v.y) : v; }
-static inline vec3 cvt3ds_sz(vec3 v){ return g_scene_3dsmax ? v3(v.x,v.z,v.y) : v; }
+/* Scene files use 3ds Max convention: X=east, Y=north(depth), Z=up.
+   The renderer uses X=east, Y=up, Z=depth(-north).
+   pos/dir/rot: (x,y,z) → (x, z, -y)    size: (x,y,z) → (x, z, y) */
+static inline vec3 cvt3ds(vec3 v)   { return v3(v.x, v.z, -v.y); }
+static inline vec3 cvt3ds_sz(vec3 v){ return v3(v.x, v.z,  v.y); }
+static inline vec3 cvt3ds_inv(vec3 v){ return v3(v.x,-v.z,  v.y); } /* world → 3dsmax */
 
 static mat4 xml_node_transform(XmlNode *n){
 	vec3 pos=cvt3ds(xml_attr_v3_cm(n,"pos",v3(0,0,0)));
@@ -1005,8 +1004,8 @@ typedef void (*scene_tag_parser_fn)(Scene *s, XmlNode *n);
 static void parse_camera_tag(Scene *s, XmlNode *n){
 	Camera cam={0}; strncpy(cam.name, xml_attr(n,"name","Camera1"), 31);
 	strncpy(cam.comment, xml_attr(n,"comment",""), 63);
-	cam.pos = cvt3ds(xml_attr_v3_cm(n,"pos", s->ncameras>0 ? s->camPos : v3(0,1.6f,5)));
-	cam.look = cvt3ds(xml_attr_v3_cm(n,"look", s->ncameras>0 ? s->camLook : v3(0,1.2f,0)));
+	cam.pos = cvt3ds(xml_attr_v3_cm(n,"pos", s->ncameras>0 ? cvt3ds_inv(s->camPos) : v3(0,-3.0f,1.6f)));
+	cam.look = cvt3ds(xml_attr_v3_cm(n,"look", s->ncameras>0 ? cvt3ds_inv(s->camLook) : v3(0,1.0f,1.2f)));
 	cam.fov = xml_attr_f(n,"fov",60.0f);
 	for(int i=0;i<n->nkids;i++) if(!strcmp(n->kids[i]->tag,"transform")){
 		CameraTransform x={0};
@@ -1220,7 +1219,6 @@ static void scene_rebuild_view(Scene *s){
 			else for(int i=0;i<npreset_bgs;i++) if(!strcmp(preset_bgs[i].id,bg)){ s->bg=preset_bgs[i].color; break; }
 		}
 	}
-	g_scene_3dsmax = !strcmp(xml_attr(root,"convention",""),"3dsmax");
 	mat4 I=mat4_identity();
 	collect_shapes_from_tree(s,root);
 	collect_negative_boxes(s,root,I);
