@@ -87,6 +87,7 @@ BUILD_DIRS    = $(BUILD_DIR) $(LIB_DIR) $(BIN_DIR) $(SHARE_DIR) $(GEM_DIR) $(GEN
 PLATFORM_DIR = platform
 PLATFORM_LIB = $(LIB_DIR)/libplatform.$(LIB_EXT)
 PLATFORM_SRCS = $(wildcard $(PLATFORM_DIR)/*.h) \
+				$(wildcard $(PLATFORM_DIR)/*.c) \
 				$(wildcard $(PLATFORM_DIR)/$(if $(IS_WIN),windows,unix)/*) \
 				$(wildcard $(PLATFORM_DIR)/$(if $(IS_WIN),windows,macos)/*)
 
